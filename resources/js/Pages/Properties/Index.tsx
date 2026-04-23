@@ -110,6 +110,8 @@ const Index = ({
     developerProjects,
     constructionProjects,
 }: IndexProps) => {
+    const { t } = useTranslation();
+
     // ── Active tab state ──
     type ActiveTab =
         | "all"
@@ -368,6 +370,7 @@ const Index = ({
         currencies,
         currencyCode,
         currencySymbol,
+        t,
     );
 
     // Whether we're showing the properties table or construction projects
@@ -375,7 +378,6 @@ const Index = ({
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
-    const { t } = useTranslation();
 
     return (
         <>

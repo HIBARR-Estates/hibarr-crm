@@ -104,6 +104,8 @@ const Index = ({
     addLeadPermission = "all",
     ...props
 }: IndexProps) => {
+    const { t } = useTranslation();
+
     // Get current user and permissions for deal permission checks
     const { props: pageProps } = usePage<any>();
     const currentUser = pageProps.auth?.user;
@@ -321,6 +323,7 @@ const Index = ({
         actionItems: getActionItems,
         onAgentChange: handleAgentChange,
         canEdit: canEditDeal,
+        t,
     });
 
     const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
@@ -361,7 +364,6 @@ const Index = ({
             }
         },
     });
-    const { t } = useTranslation();
 
     return (
         <>

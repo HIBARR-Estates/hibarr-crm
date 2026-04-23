@@ -19,18 +19,19 @@ interface DealColumnOptions {
     actionItems?: (item: Deal) => MenuProps["items"];
     onAgentChange?: (deal: Deal, agentId: number | null) => void;
     canEdit?: (deal: Deal) => boolean;
+    t?: (key: string) => string;
 }
 
 export const DEAL_TABLE_COLUMNS = (
     options: DealColumnOptions = {},
 ): ColumnsType<Deal> => {
-    const { actionItems, onAgentChange, canEdit } = options;
+    const { actionItems, onAgentChange, canEdit, t = (key) => key } = options;
 
     return [
         {
             title: (
                 <span className="flex items-center">
-                    Deal Name
+                    {t("pages.deals.table.columns.deal_name")}
                     <PageDataSorter field="name" routeName="deals.index" />
                 </span>
             ),
@@ -56,7 +57,7 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
         {
-            title: "Contact Details",
+            title: t("pages.deals.table.columns.contact_details"),
             dataIndex: "contact_details",
             key: "contact_details",
             width: 200,
@@ -106,7 +107,7 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
         {
-            title: "Country",
+            title: t("pages.deals.table.columns.country"),
             dataIndex: ["contact", "country"],
             key: "country",
             width: 120,
@@ -124,7 +125,11 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
         {
-            title: <span className="flex items-center">Lead Source</span>,
+            title: (
+                <span className="flex items-center">
+                    {t("pages.deals.table.columns.lead_source")}
+                </span>
+            ),
             dataIndex: "lead_source",
             key: "lead_source",
             width: 120,
@@ -140,7 +145,11 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
         {
-            title: <span className="flex items-center">Lead Name</span>,
+            title: (
+                <span className="flex items-center">
+                    {t("pages.deals.table.columns.lead_name")}
+                </span>
+            ),
             dataIndex: "lead_name",
             key: "lead_name",
             width: 200,
@@ -182,7 +191,7 @@ export const DEAL_TABLE_COLUMNS = (
                             </>
                         ) : (
                             <span className="text-gray-400 text-xs">
-                                No lead assigned
+                                {t("pages.deals.table.no_lead_assigned")}
                             </span>
                         )}
                     </div>
@@ -190,7 +199,7 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
         {
-            title: "Stage",
+            title: t("pages.deals.table.columns.stage"),
             dataIndex: "stage",
             key: "stage",
             width: 150,
@@ -217,7 +226,7 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
         {
-            title: "Assigned Agent",
+            title: t("pages.deals.table.columns.assigned_agent"),
             dataIndex: "agent_name",
             key: "agent_name",
             width: 180,
@@ -320,7 +329,7 @@ export const DEAL_TABLE_COLUMNS = (
         {
             title: (
                 <span className="flex items-center">
-                    Created
+                    {t("pages.deals.table.columns.created")}
                     <PageDataSorter
                         field="created_at"
                         routeName="deals.index"
@@ -342,7 +351,7 @@ export const DEAL_TABLE_COLUMNS = (
         },
 
         {
-            title: "Actions",
+            title: t("pages.deals.table.columns.actions"),
             key: "actions",
             width: 80,
             fixed: "right",

@@ -29,6 +29,7 @@ import { filterProperties } from "@/lib/utils";
 import usePageFilter from "@/Hooks/usePageFilter";
 import FilterDrawer from "@/Components/FilterDrawer";
 import ActiveFilters from "@/Components/ActiveFilters";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Project {
     id: number;
@@ -69,6 +70,8 @@ export default function Index({
     default_currency_symbol: currencySymbol,
     currencies = [],
 }: IndexProps) {
+    const { t } = useTranslation();
+
     const {
         handleAction,
         handleClose,
@@ -153,7 +156,13 @@ export default function Index({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencies, currencyCode, currencySymbol);
+    const columns = PROPERTY_TABLE_COLUMNS(
+        getActionItems,
+        currencies,
+        currencyCode,
+        currencySymbol,
+        t,
+    );
 
     return (
         <DashboardLayout>
@@ -215,7 +224,7 @@ export default function Index({
                             {selectedEntities.length > 0 && (
                                 <BulkActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     clearSelected={clearSelected}
                                 />
@@ -229,7 +238,7 @@ export default function Index({
                             columns={columns}
                             dataSource={filterProperties(
                                 properties.data,
-                                filters
+                                filters,
                             )}
                             rowKey="id"
                             rowSelection={rowSelection}
@@ -252,7 +261,7 @@ export default function Index({
                                         {
                                             preserveState: true,
                                             preserveScroll: true,
-                                        }
+                                        },
                                     );
                                 },
                             }}

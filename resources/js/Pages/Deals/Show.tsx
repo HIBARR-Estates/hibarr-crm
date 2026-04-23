@@ -27,6 +27,7 @@ import { Task } from "@/Types/api/tasks";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
 import { usePage } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -82,14 +83,15 @@ export const Show = ({
     });
 
     const [isDealEditMode, setIsDealEditMode] = useState(false);
+    const { t } = useTranslation();
 
     return (
         <>
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[
-                    { name: "Dashboard", url: route("dashboard") },
-                    { name: "Deals", url: route("deals.index") },
+                    { name: t("app.menu.dashboard"), url: route("dashboard") },
+                    { name: t("app.deal"), url: route("deals.index") },
                     { name: pageTitle },
                 ]}
             >
@@ -99,7 +101,7 @@ export const Show = ({
                         {deal.is_locked && (
                             <div className="mb-4">
                                 <Alert
-                                    message="This deal is locked and cannot be modified."
+                                    message={t("pages.deals.locked_message")}
                                     type="warning"
                                     showIcon
                                     icon={<LockOutlined />}
@@ -209,8 +211,10 @@ export const Show = ({
                                 <Tooltip
                                     title={
                                         isDealEditMode
-                                            ? "Save or cancel changes before refreshing"
-                                            : "Refresh"
+                                            ? t(
+                                                  "pages.deals.refresh_tooltip_disabled",
+                                              )
+                                            : t("app.common.actions.refresh")
                                     }
                                 >
                                     <Button
@@ -225,7 +229,7 @@ export const Show = ({
                                         }
                                         type="text"
                                     >
-                                        Refresh
+                                        {t("app.common.actions.refresh")}
                                     </Button>
                                 </Tooltip>
                             </div>
