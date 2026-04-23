@@ -111,18 +111,18 @@ const getPlatformIcon = (location: string) => {
     }
 };
 
-const getLocationLabel = (location: string): string => {
+const getLocationLabel = (location: string, t: (k: string) => string): string => {
     const labels: Record<string, string> = {
-        zoho: "Video Meeting",
-        zoom: "Zoom",
-        teams: "Microsoft Teams",
-        meet: "Google Meet",
-        google_meet: "Google Meet",
-        phone: "Phone",
-        office: "Office",
-        physical: "Physical",
-        skype: "Skype",
-        other: "Other",
+        zoho: t("pages.meetings.platforms.video_meeting"),
+        zoom: t("pages.meetings.platforms.zoom"),
+        teams: t("pages.meetings.platforms.teams"),
+        meet: t("pages.meetings.platforms.google_meet"),
+        google_meet: t("pages.meetings.platforms.google_meet"),
+        phone: t("pages.meetings.platforms.phone"),
+        office: t("pages.meetings.platforms.office"),
+        physical: t("pages.meetings.platforms.physical"),
+        skype: t("pages.meetings.platforms.skype"),
+        other: t("pages.meetings.platforms.other"),
     };
     return labels[location] ?? location;
 };
@@ -180,6 +180,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { t } = useTranslation();
     const live = isLiveMeeting(meeting);
     const localDate = dayjs.utc(meeting.next_follow_up_date).local();
     const hasValidLink =
@@ -208,7 +209,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                       label: (
                           <span>
                               <EyeOutlined className="mr-2" />
-                              View
+                              {t("pages.meetings.card.actions.view")}
                           </span>
                       ),
                       onClick: onView,
@@ -222,7 +223,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                       label: (
                           <span>
                               <EditOutlined className="mr-2" />
-                              Edit
+                              {t("pages.meetings.card.actions.edit")}
                           </span>
                       ),
                       onClick: onEdit,
@@ -240,7 +241,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                               rel="noopener noreferrer"
                           >
                               <LinkOutlined className="mr-2" />
-                              Join Meeting
+                              {t("pages.meetings.card.actions.join_meeting")}
                           </a>
                       ),
                   },
@@ -253,7 +254,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                       label: (
                           <span>
                               <DeleteOutlined className="mr-2" />
-                              Delete
+                              {t("pages.meetings.card.actions.delete")}
                           </span>
                       ),
                       danger: true,
@@ -286,7 +287,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
         }
 
         if (!isSafeUrl(meeting.meeting_link)) {
-            return <span className="text-xs text-gray-400">Invalid link</span>;
+            return <span className="text-xs text-gray-400">{t("pages.meetings.card.invalid_link")}</span>;
         }
 
         return (
@@ -298,7 +299,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 onClick={(e) => e.stopPropagation()}
             >
                 {getPlatformIcon(meeting.location)}
-                <span className="underline">Join Meeting</span>
+                <span className="underline">{t("pages.meetings.card.actions.join_meeting")}</span>
             </a>
         );
     };
@@ -319,14 +320,14 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                     }}
                 >
                     <FileTextOutlined />
-                    View Summary
+                    {t("pages.meetings.card.view_summary")}
                 </span>
             );
         }
 
         return (
             <Tag color="orange" className="text-xs m-0 whitespace-nowrap">
-                Generating Summary
+                {t("pages.meetings.card.generating_summary")}
             </Tag>
         );
     };
@@ -348,7 +349,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                     </span>
                     <span className="font-medium text-gray-800 text-sm truncate">
                         {meeting.meeting_type?.name ??
-                            getLocationLabel(meeting.location)}
+                            getLocationLabel(meeting.location, t)}
                     </span>
                     {live && (
                         <Tag
@@ -356,7 +357,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             className="animate-pulse text-xs ml-1 flex-shrink-0"
                         >
                             <ThunderboltOutlined className="mr-1" />
-                            Live
+                            {t("pages.meetings.card.live")}
                         </Tag>
                     )}
                 </div>
@@ -393,7 +394,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         {meeting.deal.name}
                     </p>
                 ) : (
-                    <p className="text-gray-400 text-sm mb-0">No deal</p>
+                    <p className="text-gray-400 text-sm mb-0">{t("pages.meetings.card.no_deal")}</p>
                 )}
             </div>
 
@@ -444,20 +445,20 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             <span className="text-xs text-gray-500 whitespace-nowrap">
                                 {participantUsers.length}{" "}
                                 {participantUsers.length === 1
-                                    ? "participant"
-                                    : "participants"}
+                                    ? t("pages.meetings.card.participant")
+                                    : t("pages.meetings.card.participants")}
                             </span>
                         </div>
                     ) : (
                         <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <UserOutlined /> No participants
+                            <UserOutlined /> {t("pages.meetings.card.no_participants")}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {meeting.added_by && (
                         <span className="text-xs text-gray-400 truncate max-w-[100px]">
-                            by {meeting.added_by.name}
+                            {t("pages.meetings.card.added_by")} {meeting.added_by.name}
                         </span>
                     )}
                 </div>
@@ -610,7 +611,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 }
             })
             .catch(() => {
-                setErrors(["Failed to load deal details. Please try again."]);
+                setErrors([t("pages.meetings.schedule.failed_to_load")]);
             })
             .finally(() => setLoadingDeal(false));
     }, [selectedDealId]);
@@ -683,7 +684,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 {/* Loading state */}
                 {loadingDeal && (
                     <div className="flex justify-center py-8">
-                        <Spin tip="Loading deal details..." />
+                        <Spin tip={t("pages.meetings.schedule.loading_deal")} />
                     </div>
                 )}
 
@@ -704,7 +705,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                     <div className="text-center py-8 text-gray-400">
                         <CalendarOutlined className="text-4xl mb-3 block" />
                         <p className="text-sm">
-                            Select a deal above to schedule a meeting
+                            {t("pages.meetings.schedule.select_deal_prompt")}
                         </p>
                     </div>
                 )}

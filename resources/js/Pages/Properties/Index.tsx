@@ -296,17 +296,17 @@ const Index = ({
     const tabOptions = [
         {
             value: "all",
-            label: "All",
+            label: t("pages.properties.index.tabs.all"),
             icon: <AppstoreOutlined />,
         },
         {
             value: "properties",
-            label: "Properties",
+            label: t("app.menu.properties"),
             icon: <HomeOutlined />,
         },
         {
             value: "my_drafts",
-            label: "My Drafts",
+            label: t("pages.properties.index.tabs.my_drafts"),
             icon: <FileTextOutlined />,
         },
         // {
@@ -331,7 +331,7 @@ const Index = ({
             label: (
                 <Link href={route("properties.show", record.id)}>
                     <EyeOutlined className="mr-2" />
-                    View
+                    {t("app.view")}
                 </Link>
             ),
         },
@@ -340,7 +340,7 @@ const Index = ({
             label: (
                 <span>
                     <EditOutlined className="mr-2" />
-                    Edit
+                    {t("app.edit")}
                 </span>
             ),
             onClick: () => {
@@ -355,7 +355,7 @@ const Index = ({
             label: (
                 <span className="text-red-600">
                     <DeleteOutlined className="mr-2" />
-                    Delete
+                    {t("app.delete")}
                 </span>
             ),
             onClick: () => {
@@ -527,7 +527,9 @@ const Index = ({
                                                 record._source === "unit_type",
                                             title:
                                                 record._source === "unit_type"
-                                                    ? "Unit types cannot be selected for bulk actions"
+                                                    ? t(
+                                                          "pages.properties.index.unit_type_bulk_disabled",
+                                                      )
                                                     : undefined,
                                         }),
                                     }}
@@ -538,7 +540,7 @@ const Index = ({
                                         showSizeChanger: false,
                                         showQuickJumper: false,
                                         showTotal: (total, range) =>
-                                            `${range[0]}-${range[1]} of ${total} properties`,
+                                            `${range[0]}-${range[1]} ${t("pages.properties.index.pagination.of")} ${total} ${t("pages.properties.index.pagination.properties")}`,
                                         onChange: (page, pageSize) => {
                                             router.get(
                                                 route("properties.index"),
