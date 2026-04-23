@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Breadcrumb } from "antd";
 
 export type NotesView = "list" | "add" | "edit" | "view";
@@ -14,6 +15,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
     noteTitle,
     onNavigate,
 }) => {
+    const { t } = useTranslation();
     const breadcrumbItems = [
         {
             title: (
@@ -22,7 +24,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                     onClick={() => onNavigate("list")}
                 >
                     {/* <FileTextOutlined className="mr-1" /> */}
-                    Notes
+                    {t("pages.leads.notes.breadcrumb")}
                 </span>
             ),
         },
@@ -34,7 +36,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                 title: (
                     <span className="flex items-center text-blue-600">
                         {/* <PlusOutlined className="mr-1" /> */}
-                        New
+                        {t("pages.leads.notes.breadcrumb_new")}
                     </span>
                 ),
             });
@@ -48,7 +50,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                                 className="flex items-center cursor-pointer hover:text-blue-600 transition-colors"
                                 onClick={() => onNavigate("view")}
                             >
-                                {noteTitle || "Note"}
+                                {noteTitle || t("pages.leads.notes.breadcrumb_fallback")}
                             </span>
                         ),
                     },
@@ -56,7 +58,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                         title: (
                             <span className="flex items-center text-blue-600">
                                 {/* <EditOutlined className="mr-1" /> */}
-                                Edit
+                                {t("pages.leads.notes.breadcrumb_edit")}
                             </span>
                         ),
                     },
@@ -68,7 +70,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                 title: (
                     <span className="flex items-center text-blue-600">
                         {/* <EyeOutlined className="mr-1" /> */}
-                        {noteTitle || "Note"}
+                        {noteTitle || t("pages.leads.notes.breadcrumb_fallback")}
                     </span>
                 ),
             });

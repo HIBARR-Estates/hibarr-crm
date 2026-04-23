@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Card,
     Button,
@@ -39,6 +40,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { t } = useTranslation();
     const canEdit =
         permissions.edit_lead_note === "all" ||
         (permissions.edit_lead_note === "added" &&
@@ -55,7 +57,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
             label: (
                 <span>
                     <EyeOutlined className="mr-2" />
-                    View Details
+                    {t("pages.leads.notes.view_details")}
                 </span>
             ),
             onClick: () => onView(note),
@@ -67,7 +69,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                       label: (
                           <span>
                               <EditOutlined className="mr-2" />
-                              Edit Note
+                              {t("pages.leads.notes.edit_note")}
                           </span>
                       ),
                       onClick: () => onEdit(note),
@@ -85,7 +87,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                       label: (
                           <span>
                               <DeleteOutlined className="mr-2" />
-                              Delete Note
+                              {t("pages.leads.notes.delete_note")}
                           </span>
                       ),
                       danger: true,
@@ -153,7 +155,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
 
                 {note.updated_at !== note.created_at && (
                     <Tag color="orange" className="text-xs">
-                        Updated
+                        {t("pages.leads.notes.view_updated")}
                     </Tag>
                 )}
             </div>
