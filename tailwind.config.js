@@ -3,6 +3,8 @@ module.exports = {
     content: [
         "./resources/**/*.blade.php",
         "./resources/**/*.js",
+        "./resources/**/*.ts",
+        "./resources/**/*.tsx",
         "./resources/**/*.vue",
         "./app/**/*.php",
         "./app/View/Components/**/*.php",
