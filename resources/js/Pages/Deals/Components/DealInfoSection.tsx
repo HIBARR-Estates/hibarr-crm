@@ -1,6 +1,15 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Tag, Avatar, Tooltip, Tabs, Button, Space, message } from "antd";
+import {
+    Tag,
+    Avatar,
+    Tooltip,
+    Tabs,
+    Button,
+    Space,
+    message,
+    Typography,
+} from "antd";
 import {
     MailOutlined,
     PhoneOutlined,
@@ -11,9 +20,10 @@ import {
     SaveOutlined,
     LockOutlined,
     GiftOutlined,
+    InfoCircleOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -31,6 +41,7 @@ import { DetailSection, DetailField } from "@/Components/DetailSection";
 import PropertyCarousel from "./PropertyCarousel";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import useTranslation from "@/Hooks/useTranslation";
+import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 
 interface Props {
     deal: Deal;
@@ -119,6 +130,10 @@ export default function DealInfoSection({
     const canEdit = dealPermissions.canEdit;
     const canDelete = dealPermissions.canDelete;
     const isLocked = dealPermissions.isLocked;
+    const valueInsight = useMemo(
+        () => getDealValueInsight(currentDeal),
+        [currentDeal],
+    );
 
     // Fields are editable only when in edit mode AND user has permission
     const isFieldEditable = isEditMode && canEdit;
@@ -225,6 +240,45 @@ export default function DealInfoSection({
                                 ? parseFloat(value.toString())
                                 : 0;
                             detailsChanges[fieldName] = processedValue;
+                        }
+                    } else if (fieldName === "manual_value") {
+                        if (
+                            value &&
+                            typeof value === "object" &&
+                            ("amount" in value || "currency" in value)
+                        ) {
+                            const currencyCode =
+                                typeof value.currency === "string"
+                                    ? value.currency
+                                    : defaultCurrencyCode;
+
+                            const foundCurrency = currencies.find(
+                                (c: any) =>
+                                    (c.currency_code || "").toUpperCase() ===
+                                    currencyCode.toUpperCase(),
+                            );
+
+                            if (
+                                value.amount !== null &&
+                                value.amount !== undefined &&
+                                value.amount !== ""
+                            ) {
+                                detailsChanges.manual_value = Number(
+                                    value.amount,
+                                );
+                            } else {
+                                detailsChanges.manual_value = null;
+                            }
+                            if (foundCurrency?.id) {
+                                detailsChanges.currency_id = foundCurrency.id;
+                            }
+                        } else {
+                            detailsChanges.manual_value =
+                                value !== null &&
+                                value !== undefined &&
+                                value !== ""
+                                    ? Number(value)
+                                    : null;
                         }
                     } else if (fieldName === "close_date") {
                         processedValue = value || null;
@@ -385,7 +439,7 @@ export default function DealInfoSection({
                 effectiveType = "contact";
             } else if (fieldName === "company_name") {
                 effectiveType = "contact";
-            } else if (fieldName === "value") {
+            } else if (fieldName === "value" || fieldName === "manual_value") {
                 // Handle new currency format: { amount, currency }
                 if (
                     value &&
@@ -414,7 +468,9 @@ export default function DealInfoSection({
                         value.amount !== undefined &&
                         value.amount !== ""
                     ) {
-                        payloadData.value = Number(value.amount);
+                        payloadData[apiFieldName] = Number(value.amount);
+                    } else if (fieldName === "manual_value") {
+                        payloadData[apiFieldName] = null;
                     }
 
                     // If neither amount nor currency_id is resolvable, do nothing
@@ -549,60 +605,159 @@ export default function DealInfoSection({
                         <DetailField
                             label={t("pages.deals.info.fields.deal_value")}
                         >
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <Typography.Text className="font-semibold">
+                                    {formatCurrency(
+                                        Number(valueInsight.finalValue || 0),
+                                        currentDeal.currency?.currency_symbol ||
+                                            "£",
+                                    )}
+                                </Typography.Text>
+                                <Tag
+                                    color={
+                                        valueInsight.source === "manual"
+                                            ? "blue"
+                                            : "green"
+                                    }
+                                >
+                                    {valueInsight.sourceLabel}
+                                </Tag>
+                                <Tooltip
+                                    placement="topLeft"
+                                    title={
+                                        <div style={{ minWidth: 220 }}>
+                                            <div>
+                                                Base:{" "}
+                                                {valueInsight.baseTotal !== null
+                                                    ? formatCurrency(
+                                                          valueInsight.baseTotal,
+                                                          currentDeal.currency
+                                                              ?.currency_symbol ||
+                                                              "£",
+                                                      )
+                                                    : "--"}
+                                            </div>
+                                            <div>
+                                                Discount: -
+                                                {formatCurrency(
+                                                    valueInsight.discountTotal,
+                                                    currentDeal.currency
+                                                        ?.currency_symbol ||
+                                                        "£",
+                                                )}
+                                            </div>
+                                            <div>
+                                                Calculated:{" "}
+                                                {valueInsight.calculatedValue !==
+                                                null
+                                                    ? formatCurrency(
+                                                          valueInsight.calculatedValue,
+                                                          currentDeal.currency
+                                                              ?.currency_symbol ||
+                                                              "£",
+                                                      )
+                                                    : "--"}
+                                            </div>
+                                            {valueInsight.status ===
+                                                "no-offers" && (
+                                                <div style={{ marginTop: 6 }}>
+                                                    No applied offers yet.
+                                                </div>
+                                            )}
+                                        </div>
+                                    }
+                                >
+                                    <InfoCircleOutlined className="text-blue-500" />
+                                </Tooltip>
+                                {currentDeal.total_discount != null &&
+                                    currentDeal.total_discount > 0 && (
+                                        <Tag
+                                            color="green"
+                                            icon={<GiftOutlined />}
+                                            className="ml-2"
+                                        >
+                                            -
+                                            {Number(
+                                                currentDeal.total_discount,
+                                            ).toLocaleString("en-GB")}
+                                        </Tag>
+                                    )}
+                            </div>
+                        </DetailField>
+
+                        <DetailField label="Value Source">
+                            <EditableField
+                                value={valueInsight.source}
+                                fieldName="value_source"
+                                fieldType="select"
+                                options={[
+                                    { value: "manual", label: "Manual" },
+                                    {
+                                        value: "calculated",
+                                        label: "Calculated",
+                                    },
+                                ]}
+                                onSave={(value) =>
+                                    handleFieldUpdate("value_source", value)
+                                }
+                                alwaysEditing={isFieldEditable}
+                                onChange={handleFieldChange}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("value_source")
+                                }
+                                disabled={!canEdit || isLocked}
+                            />
+                        </DetailField>
+
+                        <DetailField label="Manual Value">
                             <EditableField
                                 value={{
-                                    amount: currentDeal.value ?? null,
+                                    amount:
+                                        currentDeal.manual_value ??
+                                        currentDeal.value ??
+                                        null,
                                     currency:
                                         currentDeal.currency?.currency_code ||
                                         defaultCurrencyCode,
                                 }}
-                                fieldName="value"
+                                fieldName="manual_value"
                                 fieldType="currency"
                                 onSave={(value) =>
-                                    handleFieldUpdate("value", value)
+                                    handleFieldUpdate("manual_value", value)
                                 }
-                                formatValue={(value) => {
-                                    if (
-                                        value === null ||
-                                        value === undefined ||
-                                        (typeof value === "object" &&
-                                            (value.amount === null ||
-                                                value.amount === undefined))
-                                    ) {
-                                        return "--";
-                                    }
-                                    const amount =
-                                        typeof value === "object"
-                                            ? value.amount
-                                            : value;
-                                    const currencySymbol =
-                                        currentDeal.currency?.currency_symbol ||
-                                        "£";
-                                    return formatCurrency(
-                                        Number(amount),
-                                        currencySymbol,
-                                    );
-                                }}
                                 className="font-semibold"
                                 alwaysEditing={isFieldEditable}
                                 onChange={handleFieldChange}
-                                loading={isSavingAll || isFieldLoading("value")}
-                                disabled={!canEdit}
+                                loading={
+                                    isSavingAll ||
+                                    isFieldLoading("manual_value")
+                                }
+                                disabled={
+                                    !canEdit ||
+                                    isLocked ||
+                                    valueInsight.source === "calculated"
+                                }
                             />
-                            {currentDeal.total_discount != null &&
-                                currentDeal.total_discount > 0 && (
-                                    <Tag
-                                        color="green"
-                                        icon={<GiftOutlined />}
-                                        className="ml-2"
-                                    >
-                                        -
-                                        {Number(
-                                            currentDeal.total_discount,
-                                        ).toLocaleString("en-GB")}
-                                    </Tag>
-                                )}
                         </DetailField>
+
+                        {valueInsight.deltaVsManual !== null && (
+                            <DetailField label="Delta (Manual - Calculated)">
+                                <Tag
+                                    color={
+                                        valueInsight.deltaVsManual >= 0
+                                            ? "gold"
+                                            : "red"
+                                    }
+                                >
+                                    {formatCurrency(
+                                        valueInsight.deltaVsManual,
+                                        currentDeal.currency?.currency_symbol ||
+                                            "£",
+                                    )}
+                                </Tag>
+                            </DetailField>
+                        )}
 
                         <DetailField
                             label={t("pages.deals.info.fields.close_date")}

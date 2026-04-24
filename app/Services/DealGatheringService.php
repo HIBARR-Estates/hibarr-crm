@@ -17,13 +17,16 @@ class DealGatheringService
 {
     protected DealNotificationService $notificationService;
     protected DealAutomationService $dealAutomationService;
+    protected DealValueResolver $dealValueResolver;
 
     public function __construct(
         DealNotificationService $notificationService,
-        DealAutomationService $dealAutomationService
+        DealAutomationService $dealAutomationService,
+        DealValueResolver $dealValueResolver
     ) {
         $this->notificationService = $notificationService;
         $this->dealAutomationService = $dealAutomationService;
+        $this->dealValueResolver = $dealValueResolver;
     }
 
     /**
@@ -129,6 +132,9 @@ class DealGatheringService
             'lead_pipeline_id' => $leadPipelineId,
             'pipeline_stage_id' => $pipelineStageId,
             'value' => 0,
+            'manual_value' => 0,
+            'calculated_value' => 0,
+            'value_source' => DealValueResolver::SOURCE_MANUAL,
             'added_by' => user()->id,
             'close_date' => now()->addDays(30),
         ]);
@@ -207,7 +213,7 @@ class DealGatheringService
                 // Handle basic deal details
                 $cleanData = [];
                 $fillable = [
-                    'name', 'value', 'close_date', 'category_id', 'agent_id', 
+                    'name', 'manual_value', 'value_source', 'close_date', 'category_id', 'agent_id', 
                     'lead_id', 'lead_pipeline_id', 'pipeline_stage_id', 
                     'note', 'next_follow_up', 'status', 'currency_id'
                 ];
@@ -218,7 +224,7 @@ class DealGatheringService
                     if (isset($data['value']['amount']) && $data['value']['amount'] !== null && $data['value']['amount'] !== '') {
                         if (is_numeric($data['value']['amount'])) {
                             $amount = (float) $data['value']['amount'];
-                            $cleanData['value'] = $amount;
+                            $cleanData['manual_value'] = $amount;
                         }
                     }
                     // If amount is not provided, don't update the value field (preserve existing value)
@@ -247,6 +253,10 @@ class DealGatheringService
                     }
                 } else {
                     // Handle old format or direct value
+                    if (array_key_exists('value', $data) && is_numeric($data['value'])) {
+                        $cleanData['manual_value'] = (float) $data['value'];
+                    }
+
                     foreach ($fillable as $field) {
                         if (array_key_exists($field, $data)) {
                             $cleanData[$field] = $data[$field];
@@ -254,8 +264,13 @@ class DealGatheringService
                     }
                 }
 
+                if (array_key_exists('value_source', $cleanData)) {
+                    $cleanData['value_source'] = $this->dealValueResolver->normalizeSource($cleanData['value_source']);
+                }
+
                 if (!empty($cleanData)) {
                     $deal->update($cleanData);
+                    $this->dealValueResolver->resolveAndPersist($deal->fresh());
                 }
 
                 // Handle relationships

@@ -255,6 +255,10 @@ class OfferController extends AccountBaseController
     {
         $deal = \App\Models\Deal::findOrFail($dealId);
 
+        if ($deal->isLocked()) {
+            return Reply::error(__('messages.dealLocked'));
+        }
+
         $applications = $this->dealOfferService->applyOffersToDeal($deal);
 
         return Reply::successWithData('Offers applied to deal', [
@@ -301,6 +305,10 @@ class OfferController extends AccountBaseController
     public function removeFromDeal(int $dealId)
     {
         $deal = \App\Models\Deal::findOrFail($dealId);
+
+        if ($deal->isLocked()) {
+            return Reply::error(__('messages.dealLocked'));
+        }
 
         $this->dealOfferService->removeOffersFromDeal($deal);
 

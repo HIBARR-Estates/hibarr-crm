@@ -37,6 +37,9 @@ export interface Deal {
     category_id: null | number;
     next_follow_up: string;
     value: number;
+    manual_value?: number;
+    calculated_value?: number;
+    value_source?: "manual" | "calculated";
     note?: null | string;
     hash?: string;
     currency_id?: number;
@@ -313,6 +316,8 @@ export interface CreateDealFormData {
     pipeline?: number;
     stage_id?: number;
     value?: number;
+    manual_value?: number;
+    value_source?: "manual" | "calculated";
     close_date?: string;
     category_id?: number;
     agent_id?: number;
