@@ -105,33 +105,40 @@
                                 </tr>
                             </table>
                             
-            
-                             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
-                                <tr>
-                                    <td style="padding:25px 0 0 0;">
-                                        <p class="body-text" style="margin:0; font-size:15px; color:#333; line-height:1.7;">
-                                            @yield('actionDescription', 'Click the button below to proceed.')
-                                        </p>
-                                    </td>
-                                </tr>
-                            </table>
+                            @php
+                                $actionText = trim((string) $__env->yieldContent('actionText'));
+                                $actionUrl = trim((string) $__env->yieldContent('actionUrl'));
+                                $actionDescription = trim((string) $__env->yieldContent('actionDescription'));
+                            @endphp
 
-                            <!-- Action Button -->
-                            <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
-                                <tr>
-                                    <td class="button-wrapper" style="padding:20px 0 0 0;">
-                                        <table cellpadding="0" cellspacing="0" border="0" role="presentation">
-                                            <tr>
-                                                <td class="button-bg" style="border-radius:6px; background:#3b82f6;">
-                                                    <a href="@yield('actionUrl')" target="_blank" rel="noopener" aria-label="@yield('actionText')" class="button-text" style="display:inline-block; padding:12px 24px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:6px;">
-                                                        @yield('actionText')
-                                                    </a>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
+                            @if($actionText !== '' && $actionUrl !== '')
+                                <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                                    <tr>
+                                        <td style="padding:25px 0 0 0;">
+                                            <p class="body-text" style="margin:0; font-size:15px; color:#333; line-height:1.7;">
+                                                {{ $actionDescription !== '' ? $actionDescription : 'Click the button below to proceed.' }}
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+
+                                <!-- Action Button -->
+                                <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
+                                    <tr>
+                                        <td class="button-wrapper" style="padding:20px 0 0 0;">
+                                            <table cellpadding="0" cellspacing="0" border="0" role="presentation">
+                                                <tr>
+                                                    <td class="button-bg" style="border-radius:6px; background:#3b82f6;">
+                                                        <a href="{{ $actionUrl }}" target="_blank" rel="noopener" aria-label="{{ $actionText }}" class="button-text" style="display:inline-block; padding:12px 24px; font-size:15px; color:#ffffff; text-decoration:none; font-weight:600; border-radius:6px;">
+                                                            {{ $actionText }}
+                                                        </a>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                        </td>
+                                    </tr>
+                                </table>
+                            @endif
                             
                             <table width="100%" cellpadding="0" cellspacing="0" border="0" role="presentation">
                                 <tr>
