@@ -6,7 +6,6 @@ import { Table, Button, Segmented } from "antd";
 import type { MenuProps } from "antd";
 import {
     PlusOutlined,
-    DownloadOutlined,
     EditOutlined,
     EyeOutlined,
     DeleteOutlined,
@@ -15,12 +14,13 @@ import {
     GlobalOutlined,
     FileTextOutlined,
     AppstoreOutlined,
+    BarsOutlined,
     SafetyOutlined,
     SettingOutlined,
-    BuildOutlined,
     HomeOutlined,
     ReloadOutlined,
 } from "@ant-design/icons";
+import PropertyCard from "./components/PropertyCard";
 import { Property } from "@/Types";
 import { PageProps } from "@inertiajs/core";
 import { PROPERTY_TABLE_COLUMNS } from "@/Features/Properties/Columns";
@@ -147,6 +147,19 @@ const Index = ({
 
     const [cpDataLoaded, setCpDataLoaded] = useState(false);
     const [cpLoading, setCpLoading] = useState(false);
+
+    // ── View mode (list / grid) — persisted to localStorage ──
+    const [viewMode, setViewMode] = useState<"list" | "grid">(() => {
+        try {
+            const stored = localStorage.getItem("hibarr_properties_view");
+            if (stored === "grid" || stored === "list") return stored;
+        } catch {}
+        return "list";
+    });
+    const handleViewModeChange = useCallback((mode: "list" | "grid") => {
+        setViewMode(mode);
+        try { localStorage.setItem("hibarr_properties_view", mode); } catch {}
+    }, []);
     // Check if user is a sales manager (edit_product === 'all')
     const { props } = usePage<any>();
     const isSalesManager =
@@ -490,6 +503,24 @@ const Index = ({
                                         {t("app.filter")}
                                     </Button>
 
+                                    {/* View mode toggle */}
+                                    <div className="flex bg-gray-100 rounded-md p-1">
+                                        <Button
+                                            type="text"
+                                            icon={<BarsOutlined />}
+                                            title="List view"
+                                            className={viewMode === "list" ? "!bg-white !shadow-sm" : "hover:bg-white hover:shadow-sm"}
+                                            onClick={() => handleViewModeChange("list")}
+                                        />
+                                        <Button
+                                            type="text"
+                                            icon={<AppstoreOutlined />}
+                                            title="Grid view"
+                                            className={viewMode === "grid" ? "!bg-white !shadow-sm" : "hover:bg-white hover:shadow-sm"}
+                                            onClick={() => handleViewModeChange("grid")}
+                                        />
+                                    </div>
+
                                     {/* Bulk Actions - Only show when items are selected */}
                                     {selectedEntities.filter(
                                         (e) => e._source !== "unit_type",
@@ -508,59 +539,110 @@ const Index = ({
                                 </div>
                             </div>
 
-                            {/* Properties Table */}
-                            <div className="bg-white rounded-lg border border-gray-200">
-                                <Table
-                                    columns={columns}
-                                    dataSource={properties.data}
-                                    rowKey={(record) =>
-                                        record._source === "unit_type"
-                                            ? `ut_${record._unit_type_id}`
-                                            : record.id
-                                    }
-                                    rowSelection={{
-                                        ...rowSelection,
-                                        getCheckboxProps: (
-                                            record: Property,
-                                        ) => ({
-                                            disabled:
-                                                record._source === "unit_type",
-                                            title:
-                                                record._source === "unit_type"
-                                                    ? t(
-                                                          "pages.properties.index.unit_type_bulk_disabled",
-                                                      )
-                                                    : undefined,
-                                        }),
-                                    }}
-                                    pagination={{
-                                        current: properties.current_page,
-                                        total: properties.total,
-                                        pageSize: properties.per_page,
-                                        showSizeChanger: false,
-                                        showQuickJumper: false,
-                                        showTotal: (total, range) =>
-                                            `${range[0]}-${range[1]} ${t("pages.properties.index.pagination.of")} ${total} ${t("pages.properties.index.pagination.properties")}`,
-                                        onChange: (page, pageSize) => {
-                                            router.get(
-                                                route("properties.index"),
-                                                {
-                                                    ...filters,
-                                                    ...sortParams,
-                                                    page,
-                                                    per_page: pageSize,
-                                                },
-                                                {
-                                                    preserveState: true,
-                                                    preserveScroll: true,
-                                                },
-                                            );
-                                        },
-                                    }}
-                                    scroll={{ x: 1200 }}
-                                    size="small"
-                                />
-                            </div>
+                            {/* Properties: List or Grid */}
+                            {viewMode === "list" ? (
+                                <div className="bg-white rounded-lg border border-gray-200">
+                                    <Table
+                                        columns={columns}
+                                        dataSource={properties.data}
+                                        rowKey={(record) =>
+                                            record._source === "unit_type"
+                                                ? `ut_${record._unit_type_id}`
+                                                : record.id
+                                        }
+                                        rowSelection={{
+                                            ...rowSelection,
+                                            getCheckboxProps: (
+                                                record: Property,
+                                            ) => ({
+                                                disabled:
+                                                    record._source === "unit_type",
+                                                title:
+                                                    record._source === "unit_type"
+                                                        ? "Unit types cannot be selected for bulk actions"
+                                                        : undefined,
+                                            }),
+                                        }}
+                                        pagination={{
+                                            current: properties.current_page,
+                                            total: properties.total,
+                                            pageSize: properties.per_page,
+                                            showSizeChanger: false,
+                                            showQuickJumper: false,
+                                            showTotal: (total, range) =>
+                                                `${range[0]}-${range[1]} of ${total} properties`,
+                                            onChange: (page, pageSize) => {
+                                                router.get(
+                                                    route("properties.index"),
+                                                    {
+                                                        ...filters,
+                                                        ...sortParams,
+                                                        page,
+                                                        per_page: pageSize,
+                                                    },
+                                                    {
+                                                        preserveState: true,
+                                                        preserveScroll: true,
+                                                    },
+                                                );
+                                            },
+                                        }}
+                                        scroll={{ x: 1200 }}
+                                        size="small"
+                                    />
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
+                                        {(properties.data ?? []).map((property) => (
+                                            <PropertyCard
+                                                key={
+                                                    property._source === "unit_type"
+                                                        ? `ut_${property._unit_type_id}`
+                                                        : property.id
+                                                }
+                                                property={property}
+                                                currencyCode={currencyCode}
+                                                currencySymbol={currencySymbol}
+                                                onEdit={(p) => handleAction("edit", p)}
+                                                onDelete={(p) => handleAction("delete", p)}
+                                            />
+                                        ))}
+                                    </div>
+                                    {/* Grid pagination */}
+                                    {properties.total > properties.per_page && (
+                                        <div className="flex justify-center pt-2">
+                                            <Button
+                                                disabled={properties.current_page <= 1}
+                                                onClick={() =>
+                                                    router.get(
+                                                        route("properties.index"),
+                                                        { ...filters, ...sortParams, page: properties.current_page - 1, per_page: properties.per_page },
+                                                        { preserveState: true, preserveScroll: false },
+                                                    )
+                                                }
+                                            >
+                                                Previous
+                                            </Button>
+                                            <span className="px-4 flex items-center text-sm text-gray-500">
+                                                Page {properties.current_page} of {properties.last_page} &nbsp;·&nbsp; {properties.total} properties
+                                            </span>
+                                            <Button
+                                                disabled={properties.current_page >= properties.last_page}
+                                                onClick={() =>
+                                                    router.get(
+                                                        route("properties.index"),
+                                                        { ...filters, ...sortParams, page: properties.current_page + 1, per_page: properties.per_page },
+                                                        { preserveState: true, preserveScroll: false },
+                                                    )
+                                                }
+                                            >
+                                                Next
+                                            </Button>
+                                        </div>
+                                    )}
+                                </>
+                            )}
                         </>
                     )}
 

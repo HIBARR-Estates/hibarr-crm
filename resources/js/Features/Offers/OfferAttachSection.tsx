@@ -100,10 +100,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
     };
 
     return (
-        <Card
-            size="small"
-            className={`mb-4 ${offers.length === 0 ? "h-24" : ""}`}
-        >
+        <Card size="small" className={`mb-4`}>
             {offers.length > 0 ? (
                 <List
                     size="small"

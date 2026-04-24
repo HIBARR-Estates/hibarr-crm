@@ -20,6 +20,29 @@ class BaseNotification extends Notification implements ShouldQueue
 
     protected $company = null;
     protected $slack = null;
+    /**
+     * When true, notification via() implementations should avoid the `mail` channel.
+     * This allows bulk actions to suppress per-record transactional emails while keeping database notifications.
+     */
+    protected bool $suppressBulkTransactionalEmails = false;
+
+    public function setSuppressBulkTransactionalEmails(bool $value = true): static
+    {
+        $this->suppressBulkTransactionalEmails = $value;
+        return $this;
+    }
+
+    public static function applySuppressionFromContainer(Notification $notification): Notification
+    {
+        $shouldSuppress = app()->bound('suppress_bulk_notifications')
+            && app('suppress_bulk_notifications') === true;
+
+        if ($shouldSuppress && $notification instanceof self) {
+            $notification->setSuppressBulkTransactionalEmails(true);
+        }
+
+        return $notification;
+    }
 
     /**
      * Create a new notification instance.

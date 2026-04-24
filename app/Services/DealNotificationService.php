@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\DealActivityType;
 use App\Models\Deal;
 use App\Models\User;
+use App\Notifications\BaseNotification;
 use App\Notifications\DealActivityNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Notification;
@@ -57,10 +58,8 @@ class DealNotificationService
         $notificationData = $this->buildNotificationData($deal, $activityType, $additionalData, $excludeUserId);
 
         // Send the notification
-        Notification::send(
-            $notifiableUsers,
-            new DealActivityNotification($deal, $activityType, $notificationData)
-        );
+        $notification = new DealActivityNotification($deal, $activityType, $notificationData);
+        Notification::send($notifiableUsers, BaseNotification::applySuppressionFromContainer($notification));
     }
 
     /**
