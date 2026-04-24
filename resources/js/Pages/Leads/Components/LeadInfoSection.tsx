@@ -4,13 +4,17 @@ import { Lead } from "@/Types/api/leads";
 import { router, usePage } from "@inertiajs/react";
 import {
     Avatar,
-    Tabs,
     Button,
     Tag,
     Space,
     Tooltip,
     message,
 } from "antd";
+import {
+    PlusSquareOutlined,
+    MinusSquareOutlined,
+} from "@ant-design/icons";
+import SideNavTabs from "@/Components/SideNavTabs";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import {
     EditOutlined,
@@ -70,6 +74,46 @@ export default function LeadInfoSection({
     const user = props.auth.user;
     const { t } = useTranslation();
     const [activeTab, setActiveTab] = useState("overview");
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+        {},
+    );
+
+    const OVERVIEW_SECTIONS = [
+        "lead-contact",
+        "lead-personal",
+        "lead-classification",
+        "lead-address",
+        "lead-notes",
+    ];
+
+    const getSectionsForTab = (tabKey: string): string[] => {
+        if (tabKey === "overview") return OVERVIEW_SECTIONS;
+        if (tabKey.startsWith("category-")) {
+            return [`lead-category-${tabKey.replace("category-", "")}`];
+        }
+        return [];
+    };
+
+    const toggleSection = (id: string) => {
+        setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const currentSections = getSectionsForTab(activeTab);
+    const allSectionsOpen =
+        currentSections.length > 0 &&
+        currentSections.every((id) => openSections[id] ?? false);
+
+    const handleToggleAll = () => {
+        const next = !allSectionsOpen;
+        setOpenSections((prev) => {
+            const updated = { ...prev };
+            currentSections.forEach((id) => {
+                updated[id] = next;
+            });
+            return updated;
+        });
+    };
+
     const {
         action,
         handleAction,
@@ -457,7 +501,13 @@ export default function LeadInfoSection({
             children: (
                 <div className="p-4 space-y-4">
                     {/* Contact Information */}
-                    <DetailSection title={t("pages.leads.info.sections.contact")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.contact")}
+                        accordion
+                        sectionId="lead-contact"
+                        isOpen={openSections["lead-contact"] ?? false}
+                        onToggle={() => toggleSection("lead-contact")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.name")}>
                             <EditableField
                                 value={
@@ -542,7 +592,13 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Personal Details */}
-                    <DetailSection title={t("pages.leads.info.sections.personal")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.personal")}
+                        accordion
+                        sectionId="lead-personal"
+                        isOpen={openSections["lead-personal"] ?? false}
+                        onToggle={() => toggleSection("lead-personal")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.gender")}>
                             <EditableField
                                 value={currentLeadState.gender || ""}
@@ -669,7 +725,13 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Classification */}
-                    <DetailSection title={t("pages.leads.info.sections.classification")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.classification")}
+                        accordion
+                        sectionId="lead-classification"
+                        isOpen={openSections["lead-classification"] ?? false}
+                        onToggle={() => toggleSection("lead-classification")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.lead_source")}>
                             <EditableField
                                 value={currentLeadState.source_id || null}
@@ -755,7 +817,13 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Address */}
-                    <DetailSection title={t("pages.leads.info.sections.address")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.address")}
+                        accordion
+                        sectionId="lead-address"
+                        isOpen={openSections["lead-address"] ?? false}
+                        onToggle={() => toggleSection("lead-address")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.country")}>
                             <EditableField
                                 value={currentLeadState.country || ""}
@@ -841,7 +909,14 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Notes */}
-                    <DetailSection title={t("pages.leads.info.sections.notes")} gridClassName="grid grid-cols-1">
+                    <DetailSection
+                        title={t("pages.leads.info.sections.notes")}
+                        gridClassName="grid grid-cols-1"
+                        accordion
+                        sectionId="lead-notes"
+                        isOpen={openSections["lead-notes"] ?? false}
+                        onToggle={() => toggleSection("lead-notes")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.notes")} span={2}>
                             <EditableField
                                 value={currentLeadState.note || ""}
@@ -881,11 +956,32 @@ export default function LeadInfoSection({
                         editable={isFieldEditable}
                         loadingField={updatingField}
                         globalLoading={isSavingAll}
+                        accordion
+                        sectionId={`lead-category-${category.id}`}
+                        isOpen={
+                            openSections[`lead-category-${category.id}`] ??
+                            false
+                        }
+                        onToggle={() =>
+                            toggleSection(`lead-category-${category.id}`)
+                        }
                     />
                 </div>
             ),
         })),
     ];
+
+    const sideNavItems = [
+        { key: "overview", label: t("pages.leads.info.tab_overview") },
+        ...(customFieldCategories || []).map((cat) => ({
+            key: `category-${cat.id}`,
+            label: cat.name,
+        })),
+    ];
+
+    const activeContent = tabItems.find(
+        (item) => item.key === activeTab,
+    )?.children;
 
     return (
         <>
@@ -960,20 +1056,37 @@ export default function LeadInfoSection({
                     </Space>
                 </div>
 
-                {/* Content */}
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                    items={tabItems}
-                    className="lead-info-tabs"
-                    tabBarStyle={{
-                        paddingLeft: 24,
-                        paddingRight: 24,
-                        marginBottom: 0,
-                        backgroundColor: "#fafafa",
-                        borderBottom: "1px solid #f0f0f0",
-                    }}
-                />
+                {/* Sidebar + Content */}
+                <div className="flex min-h-0">
+                    <SideNavTabs
+                        items={sideNavItems}
+                        activeKey={activeTab}
+                        onChange={setActiveTab}
+                    />
+                    <div className="flex-1 min-w-0">
+                        {/* Toggle all */}
+                        <div className="flex items-center justify-end px-4 py-2 border-b border-gray-100 bg-white">
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={
+                                    allSectionsOpen ? (
+                                        <MinusSquareOutlined />
+                                    ) : (
+                                        <PlusSquareOutlined />
+                                    )
+                                }
+                                onClick={handleToggleAll}
+                                className="text-gray-500 hover:text-gray-700 text-xs"
+                            >
+                                {allSectionsOpen
+                                    ? t("app.common.actions.collapse_all")
+                                    : t("app.common.actions.expand_all")}
+                            </Button>
+                        </div>
+                        {activeContent}
+                    </div>
+                </div>
             </div>
         </>
     );

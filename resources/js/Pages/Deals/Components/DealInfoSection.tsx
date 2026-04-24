@@ -1,6 +1,6 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Tag, Avatar, Tooltip, Tabs, Button, Space, message } from "antd";
+import { Tag, Tooltip, Button, Space, message } from "antd";
 import {
     MailOutlined,
     PhoneOutlined,
@@ -11,7 +11,10 @@ import {
     SaveOutlined,
     LockOutlined,
     GiftOutlined,
+    PlusSquareOutlined,
+    MinusSquareOutlined,
 } from "@ant-design/icons";
+import SideNavTabs from "@/Components/SideNavTabs";
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
@@ -69,7 +72,45 @@ export default function DealInfoSection({
     const currencies = props.currencies || [];
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [activeTab, setActiveTab] = useState("overview");
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
     const { action, handleAction, handleClose } = useGenericEntityAction();
+
+    const OVERVIEW_SECTIONS = ["deal-overview", "deal-contact-info", "deal-team"];
+    const DETAILS_SECTIONS = [
+        "deal-interest-budget",
+        "deal-progress",
+        "deal-documentation",
+        "deal-notes",
+    ];
+
+    const getSectionsForTab = (tabKey: string): string[] => {
+        if (tabKey === "overview") return OVERVIEW_SECTIONS;
+        if (tabKey === "details") return DETAILS_SECTIONS;
+        if (tabKey.startsWith("category-")) {
+            return [`deal-category-${tabKey.replace("category-", "")}`];
+        }
+        return [];
+    };
+
+    const toggleSection = (id: string) => {
+        setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const currentSections = getSectionsForTab(activeTab);
+    const allSectionsOpen =
+        currentSections.length > 0 &&
+        currentSections.every((id) => openSections[id] ?? false);
+
+    const handleToggleAll = () => {
+        const next = !allSectionsOpen;
+        setOpenSections((prev) => {
+            const updated = { ...prev };
+            currentSections.forEach((id) => {
+                updated[id] = next;
+            });
+            return updated;
+        });
+    };
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
@@ -524,9 +565,12 @@ export default function DealInfoSection({
             label: t("pages.deals.info.tab_overview"),
             children: (
                 <div className="p-4 space-y-4">
-                    {/* Deal Overview */}
                     <DetailSection
                         title={t("pages.deals.info.sections.overview")}
+                        accordion
+                        sectionId="deal-overview"
+                        isOpen={openSections["deal-overview"] ?? false}
+                        onToggle={() => toggleSection("deal-overview")}
                     >
                         <DetailField
                             label={t("pages.deals.info.fields.deal_name")}
@@ -800,9 +844,12 @@ export default function DealInfoSection({
                         )}
                     </DetailSection>
 
-                    {/* Contact Info */}
                     <DetailSection
                         title={t("pages.deals.info.sections.contact_info")}
+                        accordion
+                        sectionId="deal-contact-info"
+                        isOpen={openSections["deal-contact-info"] ?? false}
+                        onToggle={() => toggleSection("deal-contact-info")}
                     >
                         <DetailField
                             label={t("pages.deals.info.fields.email")}
@@ -892,8 +939,13 @@ export default function DealInfoSection({
                         </DetailField>
                     </DetailSection>
 
-                    {/* Team */}
-                    <DetailSection title={t("pages.deals.info.sections.team")}>
+                    <DetailSection
+                        title={t("pages.deals.info.sections.team")}
+                        accordion
+                        sectionId="deal-team"
+                        isOpen={openSections["deal-team"] ?? false}
+                        onToggle={() => toggleSection("deal-team")}
+                    >
                         <DetailField
                             label={t("pages.deals.info.fields.deal_agent")}
                         >
@@ -1042,6 +1094,8 @@ export default function DealInfoSection({
                     onChange={handleFieldChange}
                     globalLoading={isSavingAll}
                     disabled={!canEdit}
+                    openSections={openSections}
+                    onToggleSection={toggleSection}
                 />
             ),
         },
@@ -1065,11 +1119,33 @@ export default function DealInfoSection({
                         onChange={handleFieldChange}
                         globalLoading={isSavingAll}
                         disabled={!canEdit}
+                        accordion
+                        sectionId={`deal-category-${category.id}`}
+                        isOpen={
+                            openSections[`deal-category-${category.id}`] ??
+                            false
+                        }
+                        onToggle={() =>
+                            toggleSection(`deal-category-${category.id}`)
+                        }
                     />
                 </div>
             ),
         })),
     ];
+
+    const sideNavItems = [
+        { key: "overview", label: t("pages.deals.info.tab_overview") },
+        { key: "details", label: t("pages.deals.info.tab_details") },
+        ...(customFieldCategories || []).map((cat) => ({
+            key: `category-${cat.id}`,
+            label: cat.name,
+        })),
+    ];
+
+    const activeContent = tabItems.find(
+        (item) => item.key === activeTab,
+    )?.children;
 
     return (
         <>
@@ -1148,23 +1224,37 @@ export default function DealInfoSection({
                     </Space>
                 </div>
 
-                {/* Content */}
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                    items={tabItems}
-                    className="deal-info-tabs"
-                    tabBarStyle={{
-                        paddingLeft: 24,
-                        paddingRight: 24,
-                        marginBottom: 0,
-                        backgroundColor: "#fafafa",
-                        borderBottom: "1px solid #f0f0f0",
-                    }}
-                    tabBarExtraContent={{
-                        right: <div style={{ width: 48 }} />,
-                    }}
-                />
+                {/* Sidebar + Content */}
+                <div className="flex min-h-0">
+                    <SideNavTabs
+                        items={sideNavItems}
+                        activeKey={activeTab}
+                        onChange={setActiveTab}
+                    />
+                    <div className="flex-1 min-w-0">
+                        {/* Toggle all */}
+                        <div className="flex items-center justify-end px-4 py-2 border-b border-gray-100 bg-white">
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={
+                                    allSectionsOpen ? (
+                                        <MinusSquareOutlined />
+                                    ) : (
+                                        <PlusSquareOutlined />
+                                    )
+                                }
+                                onClick={handleToggleAll}
+                                className="text-gray-500 hover:text-gray-700 text-xs"
+                            >
+                                {allSectionsOpen
+                                    ? t("app.common.actions.collapse_all")
+                                    : t("app.common.actions.expand_all")}
+                            </Button>
+                        </div>
+                        {activeContent}
+                    </div>
+                </div>
             </div>
         </>
     );

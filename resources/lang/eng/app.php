@@ -1447,7 +1447,9 @@ return array(
 
     'common' => [
         'actions' => [
-            'refresh' => 'Refresh',
+            'refresh'      => 'Refresh',
+            'expand_all'   => 'Expand all',
+            'collapse_all' => 'Collapse all',
         ],
         'filters' => [
             'all' => 'All',
