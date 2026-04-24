@@ -12,6 +12,7 @@ class HibarrAiSummaryService implements AiSummaryInterface
     private int $timeout;
     private string $provider;
     private string $model;
+    private ?string $apiKey;
 
     public function __construct()
     {
@@ -19,6 +20,9 @@ class HibarrAiSummaryService implements AiSummaryInterface
         $this->timeout = config('services.ai.timeout', 45);
         $this->provider = config('services.ai.provider', 'openai');
         $this->model = config('services.ai.model', 'gpt-4o');
+
+        $apiKey = config('services.ai.api_key');
+        $this->apiKey = is_string($apiKey) ? trim($apiKey) : null;
     }
 
     public function summarize(string $notesText, string $context, string $startDate, string $endDate): string
@@ -42,7 +46,15 @@ Keep the summary concise (under 500 words), professional, and written in the thi
 PROMPT;
 
         try {
-            $response = Http::timeout($this->timeout)
+            $request = Http::timeout($this->timeout);
+
+            if (!empty($this->apiKey)) {
+                $request = $request->withHeaders([
+                    'x-api-key' => $this->apiKey,
+                ]);
+            }
+
+            $response = $request
                 ->post("{$this->baseUrl}/ai/execute", [
                     'featureContext' => 'report_summary',
                     'userId' => (string) auth()->id(),

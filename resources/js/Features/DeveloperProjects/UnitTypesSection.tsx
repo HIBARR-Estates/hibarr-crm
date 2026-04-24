@@ -56,7 +56,7 @@ interface UnitTypesSectionProps {
     /**
      * Optional callback for refreshing data after mutations.
      * When provided, uses this instead of router.reload (for API-driven contexts like modals).
-     * When omitted, falls back to router.reload({ only: ["project"] }) for Inertia pages.
+     * When omitted, falls back to router.reload() for Inertia pages.
      */
     onRefresh?: () => void;
 }
@@ -563,7 +563,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
         if (onRefresh) {
             onRefresh();
         } else {
-            router.reload({ only: ["project"] });
+            router.reload();
         }
     };
 
