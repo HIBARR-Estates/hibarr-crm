@@ -22,6 +22,43 @@ interface PropertyCardProps {
     onDelete?: (property: Property) => void;
 }
 
+type PropertyPhotoValue =
+    | string
+    | {
+          url?: string;
+          file_url?: string;
+          original_url?: string;
+          path?: string;
+          file_path?: string;
+      }
+    | null
+    | undefined;
+
+function resolveImageSrc(photo: PropertyPhotoValue): string | null {
+    if (!photo) return null;
+
+    const rawSrc =
+        typeof photo === "string"
+            ? photo
+            : (photo.url ??
+              photo.file_url ??
+              photo.original_url ??
+              photo.path ??
+              photo.file_path ??
+              null);
+
+    if (!rawSrc || typeof rawSrc !== "string") return null;
+
+    const src = rawSrc.trim();
+    if (!src) return null;
+
+    if (/^(https?:|data:|blob:|\/\/)/i.test(src) || src.startsWith("/")) {
+        return src;
+    }
+
+    return `/${src.replace(/^\.\/?/, "")}`;
+}
+
 function formatPrice(
     price: number | string | null | undefined,
     currencyCode?: string,
@@ -50,7 +87,6 @@ function formatPrice(
     return currencySymbol ? `${currencySymbol}${formatted}` : formatted;
 }
 
-
 const SALE_TYPE_LABEL: Record<string, string> = {
     sale: "For Sale",
     rent: "For Rent",
@@ -64,7 +100,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     onDelete,
 }) => {
     const firstPhoto =
-        property.photos?.[0] ?? null;
+        resolveImageSrc(property.photos?.[0] as PropertyPhotoValue) ??
+        property.assets?.[0]?.url ??
+        null;
 
     const menuItems: MenuProps["items"] = [
         {
@@ -112,7 +150,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
         },
     ];
 
-    const saleTypeLabel = SALE_TYPE_LABEL[property.sale_type] ?? property.sale_type;
+    const saleTypeLabel =
+        SALE_TYPE_LABEL[property.sale_type] ?? property.sale_type;
 
     return (
         <div
@@ -160,8 +199,13 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
                 {/* Published indicator */}
                 {property.is_published && (
-                    <div className="absolute bottom-2 right-2" onClick={(e) => e.stopPropagation()}>
-                        <Tag color="green" className="!m-0 !text-[10px]">Published</Tag>
+                    <div
+                        className="absolute bottom-2 right-2"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <Tag color="green" className="!m-0 !text-[10px]">
+                            Published
+                        </Tag>
                     </div>
                 )}
             </div>
@@ -174,7 +218,9 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
 
                 <p className="flex items-center gap-1 text-xs text-gray-400 mb-3">
                     <MapPin size={11} className="text-gray-300 shrink-0" />
-                    {[property.area, property.city].filter(Boolean).join(", ") || "No location"}
+                    {[property.area, property.city]
+                        .filter(Boolean)
+                        .join(", ") || "No location"}
                 </p>
 
                 {/* Stats row */}
@@ -182,7 +228,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     <div className="flex items-center gap-3">
                         {property.bedrooms != null && (
                             <span className="flex items-center gap-1">
-                                <BedDouble size={12} className="text-gray-400" />
+                                <BedDouble
+                                    size={12}
+                                    className="text-gray-400"
+                                />
                                 {property.bedrooms}
                             </span>
                         )}
@@ -194,7 +243,10 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                         )}
                         {property.land_size != null && (
                             <span className="flex items-center gap-1">
-                                <Maximize2 size={12} className="text-gray-400" />
+                                <Maximize2
+                                    size={12}
+                                    className="text-gray-400"
+                                />
                                 {property.land_size} m²
                             </span>
                         )}
@@ -202,11 +254,14 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     {property.created_at && (
                         <span className="flex items-center gap-1 text-gray-400">
                             <Calendar size={11} />
-                            {new Date(property.created_at).toLocaleDateString("en-GB", {
-                                day: "numeric",
-                                month: "short",
-                                year: "numeric",
-                            })}
+                            {new Date(property.created_at).toLocaleDateString(
+                                "en-GB",
+                                {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                },
+                            )}
                         </span>
                     )}
                 </div>
@@ -214,16 +269,22 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 {/* Price + type */}
                 <div className="flex items-end justify-between border-t border-gray-100 pt-2.5">
                     <div>
-                        <p className="text-[10px] text-gray-400 mb-0.5">Price</p>
+                        <p className="text-[10px] text-gray-400 mb-0.5">
+                            Price
+                        </p>
                         <p className="font-bold text-sm text-slate-900">
-                            {formatPrice(property.price, currencyCode, currencySymbol)}
+                            {formatPrice(
+                                property.price,
+                                currencyCode,
+                                currencySymbol,
+                            )}
                         </p>
                     </div>
                     {property.property_type && (
                         <span className="text-[10px] font-semibold text-gray-400 bg-gray-100 rounded px-1.5 py-0.5 capitalize">
                             {typeof property.property_type === "string"
                                 ? property.property_type
-                                : (property.property_type as any)?.name ?? ""}
+                                : ((property.property_type as any)?.name ?? "")}
                         </span>
                     )}
                 </div>
