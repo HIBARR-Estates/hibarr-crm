@@ -185,6 +185,44 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
         (p) => !attachedPropertyIds.has(p.id),
     );
 
+    const propertySelectOptions = useMemo(
+        () =>
+            filteredResults.map((p) => {
+                const title =
+                    generatePropertySubtitle(p) || p.title || `Property #${p.id}`;
+                const meta = [p.property_type?.replace(/_/g, " "), p.city]
+                    .filter(Boolean)
+                    .join(" · ");
+
+                return {
+                    value: p.id,
+                    displayLabel: title,
+                    label: (
+                        <div className="flex items-center justify-between py-0.5">
+                            <div className="min-w-0 flex-1">
+                                <span className="font-medium text-sm">{title}</span>
+                                <div className="text-xs text-gray-400 truncate">
+                                    {meta}
+                                </div>
+                            </div>
+                            {p.sale_type && (
+                                <Tag
+                                    color={
+                                        SALE_TYPE_COLORS[p.sale_type] ??
+                                        "default"
+                                    }
+                                    className="!text-[10px] ml-2 shrink-0"
+                                >
+                                    {p.sale_type}
+                                </Tag>
+                            )}
+                        </div>
+                    ),
+                };
+            }),
+        [filteredResults],
+    );
+
     // ── Project unit types ────────────────────────────────────────
     const { data: unitTypesData, isLoading: loadingUnitTypes } =
         useApiQuery<ProjectUnitTypesResponse>({
@@ -323,6 +361,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                 className="flex-1"
                                                 showSearch
                                                 placeholder="Search approved properties by name, city, area..."
+                                                optionLabelProp="displayLabel"
                                                 filterOption={false}
                                                 onFocus={() =>
                                                     setPropertySelectOpened(
@@ -345,55 +384,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                         </Text>
                                                     )
                                                 }
-                                                options={filteredResults.map(
-                                                    (p) => ({
-                                                        value: p.id,
-                                                        label: (
-                                                            <div className="flex items-center justify-between py-0.5">
-                                                                <div className="min-w-0 flex-1">
-                                                                    <span className="font-medium text-sm">
-                                                                        {generatePropertySubtitle(
-                                                                            p,
-                                                                        ) ||
-                                                                            p.title ||
-                                                                            `Property #${p.id}`}
-                                                                    </span>
-                                                                    <div className="text-xs text-gray-400 truncate">
-                                                                        {[
-                                                                            p.property_type?.replace(
-                                                                                /_/g,
-                                                                                " ",
-                                                                            ),
-                                                                            p.city,
-                                                                        ]
-                                                                            .filter(
-                                                                                Boolean,
-                                                                            )
-                                                                            .join(
-                                                                                " · ",
-                                                                            )}
-                                                                    </div>
-                                                                </div>
-                                                                {p.sale_type && (
-                                                                    <Tag
-                                                                        color={
-                                                                            SALE_TYPE_COLORS[
-                                                                                p
-                                                                                    .sale_type
-                                                                            ] ??
-                                                                            "default"
-                                                                        }
-                                                                        className="!text-[10px] ml-2 shrink-0"
-                                                                    >
-                                                                        {
-                                                                            p.sale_type
-                                                                        }
-                                                                    </Tag>
-                                                                )}
-                                                            </div>
-                                                        ),
-                                                    }),
-                                                )}
+                                                options={propertySelectOptions}
                                                 allowClear
                                             />
                                             <Button
