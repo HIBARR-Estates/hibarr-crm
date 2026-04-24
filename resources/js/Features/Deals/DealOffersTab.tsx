@@ -19,6 +19,7 @@ import { useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
 import type { DealOfferApplication } from "@/Types/api/offers";
 import { router } from "@inertiajs/react";
+import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 
 const { Text } = Typography;
 
@@ -36,6 +37,15 @@ interface DealOffersResponse {
 
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
     const { message } = App.useApp();
+    const insight = getDealValueInsight(deal);
+    const currencySymbol = deal.currency?.currency_symbol || "£";
+
+    const formatMoney = (value: number | null) => {
+        if (value === null || value === undefined) {
+            return "--";
+        }
+        return `${currencySymbol}${Number(value).toLocaleString("en-GB")}`;
+    };
 
     const { data, isLoading, refetch } = useApiQuery<DealOffersResponse>({
         path: route("deals.offers.index", deal.id),
@@ -172,6 +182,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                         type="primary"
                         icon={<ReloadOutlined />}
                         onClick={handleRecalculate}
+                        disabled={deal.is_locked}
                     >
                         Calculate Offers
                     </Button>
@@ -182,6 +193,53 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     return (
         <div className="p-6 space-y-4">
+            <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                <Space size={24} wrap>
+                    <div>
+                        <Text type="secondary">Final</Text>
+                        <div>
+                            <Text strong>
+                                {formatMoney(insight.finalValue)}
+                            </Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Source</Text>
+                        <div>
+                            <Tag
+                                color={
+                                    insight.source === "manual"
+                                        ? "blue"
+                                        : "green"
+                                }
+                            >
+                                {insight.sourceLabel}
+                            </Tag>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Base</Text>
+                        <div>
+                            <Text>{formatMoney(insight.baseTotal)}</Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Discount</Text>
+                        <div>
+                            <Text type="success">
+                                -{formatMoney(insight.discountTotal)}
+                            </Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Calculated</Text>
+                        <div>
+                            <Text>{formatMoney(insight.calculatedValue)}</Text>
+                        </div>
+                    </div>
+                </Space>
+            </div>
+
             <div className="flex items-center justify-between">
                 <Text strong>Applied Offers</Text>
                 <Space>
@@ -189,6 +247,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                         size="small"
                         icon={<ReloadOutlined />}
                         onClick={handleRecalculate}
+                        disabled={deal.is_locked}
                     >
                         Recalculate
                     </Button>
@@ -197,8 +256,14 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                         onConfirm={handleRemoveAll}
                         okText="Remove"
                         okType="danger"
+                        disabled={deal.is_locked}
                     >
-                        <Button size="small" danger icon={<DeleteOutlined />}>
+                        <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={deal.is_locked}
+                        >
                             Remove All
                         </Button>
                     </Popconfirm>

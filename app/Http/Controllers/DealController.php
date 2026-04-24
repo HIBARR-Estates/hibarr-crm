@@ -58,6 +58,7 @@ use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Services\PermissionService;
 use App\Services\DealOfferService;
+use App\Services\DealValueResolver;
 
 class DealController extends AccountBaseController
 {
@@ -206,6 +207,9 @@ class DealController extends AccountBaseController
             'deals.added_by',
             'deals.next_follow_up',
             'deals.value',
+            'deals.manual_value',
+            'deals.calculated_value',
+            'deals.value_source',
             'deals.pipeline_stage_id',
             'deals.created_at',
             'deals.close_date',
@@ -831,7 +835,10 @@ class DealController extends AccountBaseController
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
-        $deal->value = ($request->value) ?: 0;
+        $manualValue = $request->manual_value ?? $request->value ?? 0;
+        $deal->manual_value = $manualValue;
+        $deal->value_source = app(DealValueResolver::class)->normalizeSource($request->value_source);
+        $deal->value = $manualValue;
         $deal->currency_id = $this->company->currency_id;
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
@@ -1069,7 +1076,12 @@ class DealController extends AccountBaseController
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
-        $deal->value = ($request->value) ?: 0;
+        $manualValue = $request->manual_value ?? $request->value;
+        if ($manualValue !== null && $manualValue !== '') {
+            $deal->manual_value = (float) $manualValue;
+            $deal->value = (float) $manualValue;
+        }
+        $deal->value_source = app(DealValueResolver::class)->normalizeSource($request->value_source ?? $deal->value_source);
         $deal->currency_id = $this->company->currency_id;
         $deal->category_id = $request->category_id;
         // TODO: Einstein sync issue - comment these two lines for now
@@ -1210,7 +1222,9 @@ class DealController extends AccountBaseController
             // 1. Update Deal Fields
             $dealFields = [
                 'deal_name' => 'name',
-                'value' => 'value',
+                'value' => 'manual_value',
+                'manual_value' => 'manual_value',
+                'value_source' => 'value_source',
                 'currency_id' => 'currency_id',
                 'pipeline_stage_id' => 'pipeline_stage_id',
                 'lead_pipeline_id' => 'lead_pipeline_id',
@@ -1230,6 +1244,10 @@ class DealController extends AccountBaseController
                 if (array_key_exists($requestKey, $validatedData)) {
                     $dealUpdates[$dbColumn] = $validatedData[$requestKey];
                 }
+            }
+
+            if (array_key_exists('value_source', $dealUpdates)) {
+                $dealUpdates['value_source'] = app(DealValueResolver::class)->normalizeSource($dealUpdates['value_source']);
             }
 
             // Handle dates
@@ -1291,8 +1309,19 @@ class DealController extends AccountBaseController
             }
             
             // 3. Handle Products
+            $productsUpdated = false;
             if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
                 $deal->products()->sync($validatedData['products']);
+                $productsUpdated = true;
+                app(DealOfferService::class)->applyOffersToDeal($deal);
+            }
+
+            if (!$productsUpdated && (
+                array_key_exists('value', $validatedData)
+                || array_key_exists('manual_value', $validatedData)
+                || array_key_exists('value_source', $validatedData)
+            )) {
+                app(DealValueResolver::class)->resolveAndPersist($deal->fresh());
             }
 
             

@@ -13,6 +13,7 @@ class DealOfferService
 {
     public function __construct(
         private OfferPolicyContract $policy,
+        private DealValueResolver $dealValueResolver,
     ) {}
 
     /**
@@ -85,6 +86,8 @@ class DealOfferService
             'applications_count' => $applications->count(),
         ]);
 
+        $this->dealValueResolver->resolveAndPersist($deal);
+
         return $applications;
     }
 
@@ -98,6 +101,8 @@ class DealOfferService
         Log::info('DealOfferService: Removed all offers from deal', [
             'deal_id' => $deal->id,
         ]);
+
+        $this->dealValueResolver->resolveAndPersist($deal);
     }
 
     /**
