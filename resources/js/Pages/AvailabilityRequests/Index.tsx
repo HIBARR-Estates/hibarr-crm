@@ -26,6 +26,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 interface AvailabilityRequest {
     id: number;
@@ -185,7 +186,10 @@ const Index = () => {
                         href={`/account/properties/${record.property?.id}`}
                         className="font-medium"
                     >
-                        {record.property?.title || "N/A"}
+                        {(record.property &&
+                            generatePropertySubtitle(record.property)) ||
+                            record.property?.title ||
+                            "N/A"}
                     </a>
                     {record.property?.reference_code && (
                         <div className="text-xs text-gray-500">
@@ -297,7 +301,10 @@ const Index = () => {
             <PageLayout
                 title={t("app.properties.actions.availability_requests")}
                 breadcrumbs={[
-                    { name: t("app.menu.properties"), url: route("properties.index") },
+                    {
+                        name: t("app.menu.properties"),
+                        url: route("properties.index"),
+                    },
                     { name: t("app.properties.actions.availability_requests") },
                 ]}
             >
