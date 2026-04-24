@@ -300,12 +300,12 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 {!isEditing &&
                     selectedProjectIds.length > 0 &&
                     availableUnitTypes.length > 0 && (
-                        <div className="mb-4">
+                        <div className="mb-4 flex flex-col gap-y-2">
                             <label className="block text-sm font-medium mb-1">
                                 Apply to Unit Types
                             </label>
                             <Select
-                                className="w-full mb-2"
+                                className="w-full"
                                 value={unitTypeScope}
                                 onChange={(v) => {
                                     setUnitTypeScope(v);
@@ -457,6 +457,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                                 onClick={() => add()}
                                 icon={<PlusOutlined />}
                                 size="small"
+                                className="ml-4"
                             >
                                 Add Link
                             </Button>
