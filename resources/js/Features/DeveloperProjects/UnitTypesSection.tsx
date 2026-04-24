@@ -17,6 +17,7 @@ import {
     Badge,
     Image,
     App,
+    Modal,
 } from "antd";
 import {
     PlusOutlined,
@@ -25,11 +26,16 @@ import {
     EyeOutlined,
     CopyOutlined,
     GiftOutlined,
-    DownOutlined,
-    UpOutlined,
+    HomeOutlined,
+    DollarOutlined,
+    PictureOutlined,
+    InfoCircleOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
-import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import type {
+    DeveloperProjectUnitType,
+    DeveloperProjectUnitTypeAsset,
+} from "@/Types/developerProject";
 import type { Offer } from "@/Types/api/offers";
 import UnitTypeFormModal from "./UnitTypeFormModal";
 import OfferAttachSection from "@/Features/Offers/OfferAttachSection";
@@ -89,6 +95,25 @@ const formatPrice = (price: number | null, currency: string): string => {
 
 const categoryColor = (cat: string) =>
     cat === "residential" ? "blue" : "orange";
+
+const getAssetUrl = (asset?: DeveloperProjectUnitTypeAsset): string | null =>
+    asset?.url ?? asset?.external_url ?? null;
+
+const getImageAssets = (
+    unitType: DeveloperProjectUnitType,
+): DeveloperProjectUnitTypeAsset[] =>
+    (unitType.assets ?? []).filter(
+        (asset): asset is DeveloperProjectUnitTypeAsset =>
+            asset.asset_type === "image" && !!getAssetUrl(asset),
+    );
+
+const getUnitTypeTitle = (unitType: DeveloperProjectUnitType) =>
+    generatePropertySubtitle(unitType) ?? unitType.display_label ?? "Unit Type";
+
+const formatOfferValue = (offer: Offer) =>
+    offer.type === "percentage"
+        ? `${offer.value}%`
+        : Number(offer.value).toLocaleString("en-GB");
 
 // ── Mini helpers ────────────────────────────────────────────────────────────
 
@@ -154,344 +179,527 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
         ut.furniture_status,
         FURNITURE_STATUS_OPTIONS,
     );
-
-    const hasExpandableContent = !!(
-        ut.description ||
-        ut.view_types?.length ||
-        ut.unit_style?.length ||
-        ut.outside_features?.length ||
-        ut.inside_features?.length ||
-        ut.assets?.length ||
-        ut.floor ||
-        ut.completion_date ||
-        ut.living_area_sqm ||
-        ut.terrace_balcony_sqm ||
-        ut.plot_size_sqm ||
-        ut.military_base_distance_km
-    );
+    const imageAssets = getImageAssets(ut);
+    const imageUrls = imageAssets
+        .map((asset) => getAssetUrl(asset)!)
+        .filter(Boolean);
+    const heroImage = imageUrls[0] ?? null;
+    const title = getUnitTypeTitle(ut);
+    const offerCount = ut.offers?.length ?? 0;
     const { message } = App.useApp();
 
     return (
-        <div className="border border-gray-200 rounded-xl bg-white flex flex-col overflow-hidden">
-            {/* ── Ref code bar ── */}
-            {ut.reference_code && (
-                <div className="flex items-center gap-1.5 px-4 pt-3 pb-0">
-                    <Text code className="!text-[11px] text-gray-400">
-                        {ut.reference_code}
-                    </Text>
-                    <Button
-                        type="text"
-                        size="small"
-                        className="!p-0 !h-auto text-gray-400 hover:text-gray-600"
-                        icon={<CopyOutlined style={{ fontSize: 11 }} />}
-                        onClick={() => {
-                            navigator.clipboard.writeText(ut.reference_code!);
-                            message.success("Code copied");
-                        }}
-                    />
-                </div>
-            )}
+        <>
+            <div className="border border-gray-200 rounded-xl bg-white flex flex-col overflow-hidden shadow-sm transition-shadow hover:shadow-md">
+                <div className="relative h-48 bg-gray-100">
+                    {heroImage ? (
+                        <img
+                            src={heroImage}
+                            alt={title}
+                            className="w-full h-full object-cover"
+                        />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-300">
+                            <HomeOutlined style={{ fontSize: 34 }} />
+                        </div>
+                    )}
 
-            {/* ── Card header: title + tag + actions ── */}
-            <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-gray-100">
-                <div className="flex flex-col gap-1.5 min-w-0">
-                    <span className="text-[13px] font-semibold text-gray-800 leading-tight">
-                        {generatePropertySubtitle(ut) ??
-                            ut.display_label ??
-                            "Unit Type"}
-                    </span>
-                    <Tag
-                        color={categoryColor(ut.primary_category)}
-                        className="!text-[10px] !m-0 !px-1.5 !py-0 w-fit"
-                    >
-                        {ut.primary_category === "residential"
-                            ? "Residential"
-                            : "Commercial"}
-                    </Tag>
+                    <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
+                        <Tag
+                            color={categoryColor(ut.primary_category)}
+                            className="!m-0 !rounded-full !px-2.5 !py-0.5 !text-[10px]"
+                        >
+                            {ut.primary_category === "residential"
+                                ? "Residential"
+                                : "Commercial"}
+                        </Tag>
+                        {ut.reference_code && (
+                            <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-gray-700 shadow-sm cursor-pointer"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(
+                                        ut.reference_code!,
+                                    );
+                                    message.success("Code copied");
+                                }}
+                            >
+                                <span>{ut.reference_code}</span>
+                                <CopyOutlined style={{ fontSize: 11 }} />
+                            </button>
+                        )}
+                    </div>
+
+                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/65 to-transparent">
+                        <div className="min-w-0">
+                            <div className="text-white text-base font-semibold leading-tight line-clamp-2">
+                                {title}
+                            </div>
+                            <div className="text-white/80 text-xs capitalize mt-1 line-clamp-1">
+                                {ut.property_type?.replace(/_/g, " ") ??
+                                    "Unit type"}
+                                {ut.floor
+                                    ? ` · ${snakeToReadable(floorLabel)}`
+                                    : ""}
+                            </div>
+                        </div>
+                        <div className="shrink-0 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white">
+                            {imageUrls.length} photo
+                            {imageUrls.length === 1 ? "" : "s"}
+                        </div>
+                    </div>
                 </div>
-                <div className="flex items-center gap-0.5 shrink-0">
-                    <Button
-                        type="text"
-                        size="small"
-                        icon={<EditOutlined />}
-                        onClick={() => onEdit(ut)}
-                    />
-                    <Button
-                        type="text"
-                        size="small"
-                        icon={<CopyOutlined />}
-                        onClick={() => onDuplicate(ut)}
-                        title="Duplicate"
-                    />
-                    <Popconfirm
-                        title="Delete this unit type?"
-                        description="This action cannot be undone."
-                        onConfirm={() => onDelete(ut)}
-                        okText="Delete"
-                        okType="danger"
-                    >
+
+                <div className="px-4 py-4 space-y-3 flex-1">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 space-y-1">
+                            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 capitalize">
+                                <HomeOutlined className="shrink-0" />
+                                <span className="truncate">
+                                    {ut.property_type?.replace(/_/g, " ") ??
+                                        "Unit type"}
+                                    {ut.furniture_status
+                                        ? ` · ${furnitureLabel}`
+                                        : ""}
+                                </span>
+                            </div>
+                            {(ut.quantity != null || ut.completion_date) && (
+                                <div className="flex items-center gap-1.5 text-[11px] text-gray-500">
+                                    <InfoCircleOutlined className="shrink-0" />
+                                    <span className="truncate">
+                                        {ut.quantity != null
+                                            ? `${ut.quantity} unit${ut.quantity === 1 ? "" : "s"}`
+                                            : "Inventory tracked"}
+                                        {ut.completion_date
+                                            ? ` · ${ut.completion_date}`
+                                            : ""}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        {ut.starting_price != null && (
+                            <div className="text-right shrink-0">
+                                <div className="flex items-center justify-end gap-1 text-[11px] text-gray-500 uppercase tracking-wide">
+                                    <DollarOutlined />
+                                    <span>Starting from</span>
+                                </div>
+                                <div className="text-lg font-semibold text-gray-900">
+                                    {formatPrice(
+                                        ut.starting_price,
+                                        ut.currency,
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 sm:grid-cols-4">
+                        {ut.bedrooms != null && (
+                            <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-gray-400">
+                                    Bedrooms
+                                </div>
+                                <div className="font-semibold text-gray-800">
+                                    {ut.bedrooms}
+                                </div>
+                            </div>
+                        )}
+                        {ut.bathrooms != null && (
+                            <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-gray-400">
+                                    Bathrooms
+                                </div>
+                                <div className="font-semibold text-gray-800">
+                                    {ut.bathrooms}
+                                </div>
+                            </div>
+                        )}
+                        {ut.total_area_sqm != null && (
+                            <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-gray-400">
+                                    Total Area
+                                </div>
+                                <div className="font-semibold text-gray-800">
+                                    {Number(ut.total_area_sqm).toLocaleString()}{" "}
+                                    m²
+                                </div>
+                            </div>
+                        )}
+                        {ut.plot_size_sqm != null && (
+                            <div className="rounded-lg bg-gray-50 px-3 py-2">
+                                <div className="text-[10px] uppercase tracking-wide text-gray-400">
+                                    Plot Size
+                                </div>
+                                <div className="font-semibold text-gray-800">
+                                    {Number(ut.plot_size_sqm).toLocaleString()}{" "}
+                                    m²
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {ut.description && (
+                        <Paragraph
+                            ellipsis={{ rows: 2 }}
+                            className="!mb-0 !text-xs text-gray-600"
+                        >
+                            {ut.description}
+                        </Paragraph>
+                    )}
+                </div>
+
+                <div className="border-t border-gray-200 px-4 py-3 flex flex-wrap items-center justify-between gap-2 bg-gray-50/70">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button icon={<EyeOutlined />} onClick={onToggle}>
+                            View details
+                        </Button>
+                        <Button icon={<GiftOutlined />} onClick={onToggle}>
+                            Offers{offerCount > 0 ? ` (${offerCount})` : ""}
+                        </Button>
+                    </div>
+
+                    <div className="flex items-center gap-1">
                         <Button
                             type="text"
                             size="small"
-                            danger
-                            icon={<DeleteOutlined />}
+                            icon={<EditOutlined />}
+                            onClick={() => onEdit(ut)}
                         />
-                    </Popconfirm>
-                </div>
-            </div>
-
-            {/* ── Stats row ── */}
-            <div className="px-4 py-3 flex flex-col gap-2">
-                <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm">
-                    {ut.bedrooms != null && (
-                        <span className="text-gray-700">
-                            <span className="font-semibold text-gray-800">
-                                {ut.bedrooms}
-                            </span>{" "}
-                            {ut.bedrooms === 1 ? "Bedroom" : "Bedrooms"}
-                        </span>
-                    )}
-                    {ut.bathrooms != null && (
-                        <span className="text-gray-700">
-                            <span className="font-semibold text-gray-800">
-                                {ut.bathrooms}
-                            </span>{" "}
-                            {ut.bathrooms === 1 ? "Bathroom" : "Bathrooms"}
-                        </span>
-                    )}
-                    {ut.total_area_sqm != null && (
-                        <span className="text-gray-700">
-                            <span className="font-semibold text-gray-800">
-                                {Number(ut.total_area_sqm).toLocaleString()} m²
-                            </span>{" "}
-                            Total Area
-                        </span>
-                    )}
-                    {ut.quantity != null && ut.quantity > 1 && (
-                        <span className="text-gray-700">
-                            <span className="font-semibold text-gray-800">
-                                {ut.quantity}
-                            </span>{" "}
-                            Units
-                        </span>
-                    )}
-                    {ut.starting_price != null && (
-                        <span className="ml-auto font-bold text-gray-800 text-sm">
-                            {formatPrice(ut.starting_price, ut.currency)}
-                        </span>
-                    )}
-                </div>
-
-                {/* Offer tags */}
-                {(ut.offers?.length ?? 0) > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                        {ut.offers!.map((offer: Offer) => (
-                            <Tag
-                                key={offer.id}
-                                color={
-                                    offer.type === "percentage"
-                                        ? "blue"
-                                        : "green"
-                                }
-                                icon={<GiftOutlined />}
-                                className="!text-[11px] !m-0"
-                            >
-                                {offer.type === "percentage"
-                                    ? `${offer.value}%`
-                                    : Number(offer.value).toLocaleString(
-                                          "en-GB",
-                                      )}
-                            </Tag>
-                        ))}
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={<CopyOutlined />}
+                            onClick={() => onDuplicate(ut)}
+                            title="Duplicate"
+                        />
+                        <Popconfirm
+                            title="Delete this unit type?"
+                            description="This action cannot be undone."
+                            onConfirm={() => onDelete(ut)}
+                            okText="Delete"
+                            okType="danger"
+                        >
+                            <Button
+                                type="text"
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                            />
+                        </Popconfirm>
                     </div>
-                )}
+                </div>
             </div>
 
-            {/* ── Expand toggle + detail panel ── */}
-            {hasExpandableContent && (
-                <>
-                    <button
-                        type="button"
-                        className="w-full px-4 py-2.5 text-xs font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 border-t border-gray-200 flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-                        onClick={onToggle}
-                    >
-                        {expanded ? (
-                            <UpOutlined style={{ fontSize: 11 }} />
-                        ) : (
-                            <DownOutlined style={{ fontSize: 11 }} />
-                        )}
-                        {expanded ? "Hide details" : "Show details"}
-                    </button>
+            <Modal
+                open={expanded}
+                onCancel={onToggle}
+                footer={null}
+                width={1080}
+                title={
+                    <div className="flex flex-col gap-1 pr-8">
+                        <span className="text-lg font-semibold text-gray-900">
+                            {title}
+                        </span>
+                        <span className="text-sm text-gray-500 capitalize">
+                            {ut.property_type?.replace(/_/g, " ") ??
+                                "Unit type"}
+                        </span>
+                    </div>
+                }
+            >
+                <div className="space-y-6">
+                    <Image.PreviewGroup items={imageUrls}>
+                        <div className="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
+                            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 min-h-[280px]">
+                                {heroImage ? (
+                                    <Image
+                                        src={heroImage}
+                                        alt={title}
+                                        className="h-full w-full object-cover"
+                                        style={{
+                                            height: 360,
+                                            width: "100%",
+                                            objectFit: "cover",
+                                        }}
+                                        preview={{ mask: <EyeOutlined /> }}
+                                    />
+                                ) : (
+                                    <div className="h-full min-h-[280px] flex items-center justify-center text-gray-300">
+                                        <HomeOutlined
+                                            style={{ fontSize: 40 }}
+                                        />
+                                    </div>
+                                )}
+                            </div>
 
-                    {expanded && (
-                        <div className="border-t border-gray-100 px-4 py-4 bg-gray-50/40 flex flex-col gap-3">
-                            {/* Spec grid */}
-                            {(ut.floor ||
-                                ut.floors_in_building ||
-                                ut.living_area_sqm ||
-                                ut.terrace_balcony_sqm ||
-                                ut.plot_size_sqm ||
-                                ut.furniture_status ||
-                                ut.completion_date ||
-                                ut.military_base_distance_km ||
-                                ut.has_restrictions) && (
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-2.5">
-                                    {ut.floor && (
-                                        <SpecRow
-                                            label="Floor"
-                                            value={floorLabel}
-                                        />
-                                    )}
-                                    {ut.floors_in_building && (
-                                        <SpecRow
-                                            label="Floors in Building"
-                                            value={String(
-                                                ut.floors_in_building,
+                            <div className="space-y-3">
+                                <Card size="small" className="!rounded-2xl">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <div className="text-xs uppercase tracking-wide text-gray-400">
+                                                Starting price
+                                            </div>
+                                            <div className="text-2xl font-semibold text-gray-900 mt-1">
+                                                {ut.starting_price != null
+                                                    ? formatPrice(
+                                                          ut.starting_price,
+                                                          ut.currency,
+                                                      )
+                                                    : "-"}
+                                            </div>
+                                        </div>
+                                        <Tag
+                                            color={categoryColor(
+                                                ut.primary_category,
                                             )}
-                                        />
-                                    )}
-                                    {ut.living_area_sqm && (
+                                            className="!m-0"
+                                        >
+                                            {snakeToReadable(
+                                                ut.primary_category,
+                                            )}
+                                        </Tag>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3 mt-4">
                                         <SpecRow
-                                            label="Living Area"
-                                            value={`${Number(ut.living_area_sqm).toLocaleString()} m²`}
+                                            label="Reference"
+                                            value={ut.reference_code || "-"}
                                         />
-                                    )}
-                                    {ut.terrace_balcony_sqm && (
                                         <SpecRow
-                                            label="Terrace / Balcony"
-                                            value={`${Number(ut.terrace_balcony_sqm).toLocaleString()} m²`}
-                                        />
-                                    )}
-                                    {ut.plot_size_sqm && (
-                                        <SpecRow
-                                            label="Plot Size"
-                                            value={`${Number(ut.plot_size_sqm).toLocaleString()} m²`}
-                                        />
-                                    )}
-                                    {ut.furniture_status && (
-                                        <SpecRow
-                                            label="Furniture"
-                                            value={furnitureLabel}
-                                        />
-                                    )}
-                                    {ut.completion_date && (
-                                        <SpecRow
-                                            label="Completion"
-                                            value={ut.completion_date}
-                                        />
-                                    )}
-                                    {ut.military_base_distance_km && (
-                                        <SpecRow
-                                            label="Military Dist."
-                                            value={`${ut.military_base_distance_km} km`}
-                                        />
-                                    )}
-                                    {ut.has_restrictions && (
-                                        <SpecRow
-                                            label="Restrictions"
+                                            label="Quantity"
                                             value={
-                                                ut.restriction_notes || "Yes"
+                                                ut.quantity != null
+                                                    ? String(ut.quantity)
+                                                    : "-"
                                             }
                                         />
-                                    )}
+                                        <SpecRow
+                                            label="Photos"
+                                            value={String(imageUrls.length)}
+                                        />
+                                        <SpecRow
+                                            label="Offers"
+                                            value={String(offerCount)}
+                                        />
+                                    </div>
+                                </Card>
+
+                                {imageUrls.length > 1 && (
+                                    <div className="grid grid-cols-3 gap-2">
+                                        {imageUrls
+                                            .slice(1, 7)
+                                            .map((url, index) => (
+                                                <Image
+                                                    key={`${url}-${index}`}
+                                                    src={url}
+                                                    alt={`${title} ${index + 2}`}
+                                                    className="rounded-xl object-cover"
+                                                    style={{
+                                                        height: 88,
+                                                        width: "100%",
+                                                        objectFit: "cover",
+                                                    }}
+                                                    preview={{
+                                                        mask: <EyeOutlined />,
+                                                    }}
+                                                />
+                                            ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </Image.PreviewGroup>
+
+                    <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
+                        <div className="space-y-4">
+                            <Card
+                                size="small"
+                                title="Overview"
+                                className="!rounded-2xl"
+                            >
+                                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                    <SpecRow
+                                        label="Property Type"
+                                        value={
+                                            ut.property_type
+                                                ? snakeToReadable(
+                                                      ut.property_type,
+                                                  )
+                                                : "-"
+                                        }
+                                    />
+                                    <SpecRow label="Floor" value={floorLabel} />
+                                    <SpecRow
+                                        label="Furniture"
+                                        value={furnitureLabel}
+                                    />
+                                    <SpecRow
+                                        label="Completion"
+                                        value={ut.completion_date || "-"}
+                                    />
+                                    <SpecRow
+                                        label="Living Area"
+                                        value={
+                                            ut.living_area_sqm != null
+                                                ? `${Number(ut.living_area_sqm).toLocaleString()} m²`
+                                                : "-"
+                                        }
+                                    />
+                                    <SpecRow
+                                        label="Terrace / Balcony"
+                                        value={
+                                            ut.terrace_balcony_sqm != null
+                                                ? `${Number(ut.terrace_balcony_sqm).toLocaleString()} m²`
+                                                : "-"
+                                        }
+                                    />
                                 </div>
-                            )}
 
-                            {/* Feature tags */}
-                            {viewLabels.length > 0 && (
-                                <FeatureTags
-                                    label="Views"
-                                    items={viewLabels}
-                                    color="geekblue"
-                                />
-                            )}
-                            {styleLabels.length > 0 && (
-                                <FeatureTags
-                                    label="Styles"
-                                    items={styleLabels}
-                                    color="purple"
-                                />
-                            )}
-                            {outsideLabels.length > 0 && (
-                                <FeatureTags
-                                    label="Outside"
-                                    items={outsideLabels}
-                                    color="green"
-                                />
-                            )}
-                            {insideLabels.length > 0 && (
-                                <FeatureTags
-                                    label="Inside"
-                                    items={insideLabels}
-                                    color="cyan"
-                                />
-                            )}
+                                {ut.description && (
+                                    <Paragraph className="!mb-0 !mt-4 whitespace-pre-wrap text-sm text-gray-700">
+                                        {ut.description}
+                                    </Paragraph>
+                                )}
+                            </Card>
 
-                            {/* Description */}
-                            {ut.description && (
-                                <Paragraph
-                                    ellipsis={{ rows: 3, expandable: true }}
-                                    className="!text-xs text-gray-600 !mb-0"
+                            {(viewLabels.length > 0 ||
+                                styleLabels.length > 0 ||
+                                outsideLabels.length > 0 ||
+                                insideLabels.length > 0) && (
+                                <Card
+                                    size="small"
+                                    title="Features"
+                                    className="!rounded-2xl"
                                 >
-                                    {ut.description}
-                                </Paragraph>
+                                    <div className="flex flex-col gap-3">
+                                        {viewLabels.length > 0 && (
+                                            <FeatureTags
+                                                label="Views"
+                                                items={viewLabels}
+                                                color="geekblue"
+                                            />
+                                        )}
+                                        {styleLabels.length > 0 && (
+                                            <FeatureTags
+                                                label="Styles"
+                                                items={styleLabels}
+                                                color="purple"
+                                            />
+                                        )}
+                                        {outsideLabels.length > 0 && (
+                                            <FeatureTags
+                                                label="Outside"
+                                                items={outsideLabels}
+                                                color="green"
+                                            />
+                                        )}
+                                        {insideLabels.length > 0 && (
+                                            <FeatureTags
+                                                label="Inside"
+                                                items={insideLabels}
+                                                color="cyan"
+                                            />
+                                        )}
+                                    </div>
+                                </Card>
                             )}
+                        </div>
 
-                            {/* Image strip */}
-                            {ut.assets && ut.assets.length > 0 && (
-                                <div>
-                                    <Image.PreviewGroup>
-                                        <div className="flex flex-wrap gap-1.5">
-                                            {ut.assets
-                                                .slice(0, 6)
-                                                .map((asset) => (
-                                                    <Image
-                                                        key={asset.id}
-                                                        src={
-                                                            asset.url ??
-                                                            asset.external_url ??
-                                                            ""
-                                                        }
-                                                        width={48}
-                                                        height={48}
-                                                        className="object-cover rounded"
-                                                        preview={{
-                                                            mask: (
-                                                                <EyeOutlined />
-                                                            ),
-                                                        }}
-                                                    />
-                                                ))}
-                                            {ut.assets.length > 6 && (
-                                                <span className="text-xs text-gray-400 self-center">
-                                                    +{ut.assets.length - 6} more
-                                                </span>
-                                            )}
-                                        </div>
-                                    </Image.PreviewGroup>
+                        <div className="space-y-4">
+                            <Card
+                                size="small"
+                                title={
+                                    <span className="flex items-center gap-2">
+                                        <PictureOutlined />
+                                        Media & facts
+                                    </span>
+                                }
+                                className="!rounded-2xl"
+                            >
+                                <div className="space-y-3">
+                                    <SpecRow
+                                        label="Bedrooms"
+                                        value={
+                                            ut.bedrooms != null
+                                                ? String(ut.bedrooms)
+                                                : "-"
+                                        }
+                                    />
+                                    <SpecRow
+                                        label="Bathrooms"
+                                        value={
+                                            ut.bathrooms != null
+                                                ? String(ut.bathrooms)
+                                                : "-"
+                                        }
+                                    />
+                                    <SpecRow
+                                        label="Total Area"
+                                        value={
+                                            ut.total_area_sqm != null
+                                                ? `${Number(ut.total_area_sqm).toLocaleString()} m²`
+                                                : "-"
+                                        }
+                                    />
+                                    <SpecRow
+                                        label="Military Distance"
+                                        value={
+                                            ut.military_base_distance_km != null
+                                                ? `${ut.military_base_distance_km} km`
+                                                : "-"
+                                        }
+                                    />
+                                    <SpecRow
+                                        label="Restrictions"
+                                        value={
+                                            ut.has_restrictions
+                                                ? ut.restriction_notes || "Yes"
+                                                : "None"
+                                        }
+                                    />
                                 </div>
-                            )}
+                            </Card>
 
-                            {/* Offer attach */}
-                            <div>
-                                <Text
-                                    type="secondary"
-                                    className="text-xs block mb-1"
-                                >
-                                    Offer:
-                                </Text>
+                            <Card
+                                size="small"
+                                title={
+                                    <span className="flex items-center gap-2">
+                                        <GiftOutlined />
+                                        Offer actions
+                                    </span>
+                                }
+                                className="!rounded-2xl"
+                            >
+                                {offerCount > 0 && (
+                                    <div className="flex flex-wrap gap-1.5 mb-3">
+                                        {ut.offers!.map((offer) => (
+                                            <Tag
+                                                key={offer.id}
+                                                color={
+                                                    offer.type === "percentage"
+                                                        ? "blue"
+                                                        : "green"
+                                                }
+                                                className="!m-0"
+                                            >
+                                                {formatOfferValue(offer)}
+                                            </Tag>
+                                        ))}
+                                    </div>
+                                )}
                                 <OfferAttachSection
                                     offers={ut.offers ?? []}
                                     offerableType="unit_type"
                                     offerableId={ut.id}
                                     onRefresh={onRefresh}
                                 />
-                            </div>
+                            </Card>
                         </div>
-                    )}
-                </>
-            )}
-        </div>
+                    </div>
+                </div>
+            </Modal>
+        </>
     );
 };
 

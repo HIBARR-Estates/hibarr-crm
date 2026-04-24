@@ -154,7 +154,7 @@ const Index = ({
             const stored = localStorage.getItem("hibarr_properties_view");
             if (stored === "grid" || stored === "list") return stored;
         } catch {}
-        return "list";
+        return "grid";
     });
     const handleViewModeChange = useCallback((mode: "list" | "grid") => {
         setViewMode(mode);
