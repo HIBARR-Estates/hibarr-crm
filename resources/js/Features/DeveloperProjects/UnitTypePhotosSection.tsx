@@ -29,6 +29,7 @@ import {
     CloseCircleOutlined,
     SaveOutlined,
 } from "@ant-design/icons";
+import { router } from "@inertiajs/react";
 import type { UploadFile } from "antd";
 import type { DeveloperProjectUnitTypeAsset } from "@/Types/developerProject";
 import type { IUploadResponseItem } from "@/Types/uploads";
@@ -180,6 +181,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                 setUploadStatuses([]);
                 setSelectedTags([]);
                 refetchAssets();
+                router.reload();
             },
         );
 
@@ -338,6 +340,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         .then(() => {
                             messageApi.success("Photo deleted");
                             refetchAssets();
+                            router.reload();
                         })
                         .catch(() => {
                             messageApi.error("Failed to delete photo");
