@@ -29,7 +29,7 @@ import { ApiResponse } from "@/lib/api/types";
 import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import PropertyCarousel from "./PropertyCarousel";
-import AttachPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
+import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import useTranslation from "@/Hooks/useTranslation";
 
 interface Props {
@@ -776,7 +776,7 @@ export default function DealInfoSection({
                                     </span>
                                 )}
                             </div>
-                            <AttachPropertiesModal
+                            <ManageDealPropertiesModal
                                 open={propertyModalOpen}
                                 onClose={() => setPropertyModalOpen(false)}
                                 deal={currentDeal}
@@ -1123,11 +1123,9 @@ export default function DealInfoSection({
                         )}
                         {isEditMode && hasUnsavedChanges && (
                             <Tag color="orange" className="text-xs">
-                                {Object.keys(pendingChanges).length} unsaved
-                                change
-                                {Object.keys(pendingChanges).length > 1
-                                    ? "s"
-                                    : ""}
+                                {t("pages.deals.info.unsaved_changes", {
+                                    count: Object.keys(pendingChanges).length,
+                                })}
                             </Tag>
                         )}
                     </div>
