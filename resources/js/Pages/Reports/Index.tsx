@@ -3,6 +3,7 @@ import { router, usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 import FilterBar from "./components/FilterBar";
 import KpiCards from "./components/KpiCards";
 import DeepDiveSection from "./components/DeepDiveSection";
@@ -89,13 +90,15 @@ const Index: React.FC = () => {
         return currentAgent?.name ?? "Agent";
     }, [filters.view_type, departmentName, currentAgent]);
 
+    const { t } = useTranslation();
+
     return (
         <DashboardLayout>
             <PageLayout
-                title="Agent Reports"
+                title={t("app.reports.title")}
                 breadcrumbs={[
-                    { name: "Dashboard", url: "/account/dashboard" },
-                    { name: "Agent Reports" },
+                    { name: t("app.menu.dashboard"), url: "/account/dashboard" },
+                    { name: t("app.reports.title") },
                 ]}
                 onRefresh={refresh}
                 isRefreshing={isRefreshing}

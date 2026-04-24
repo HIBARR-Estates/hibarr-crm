@@ -39,6 +39,7 @@ import { createPropertyFilterConfig } from "@/configs/propertyFilterConfig";
 import { createPropertySearchConfig } from "@/configs/searchConfigs";
 import usePageSort from "@/Hooks/usePageSort";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 import type {
     DeveloperProjectOption,
@@ -109,6 +110,8 @@ const Index = ({
     developerProjects,
     constructionProjects,
 }: IndexProps) => {
+    const { t } = useTranslation();
+
     // ── Active tab state ──
     type ActiveTab =
         | "all"
@@ -306,17 +309,17 @@ const Index = ({
     const tabOptions = [
         {
             value: "all",
-            label: "All",
+            label: t("pages.properties.index.tabs.all"),
             icon: <AppstoreOutlined />,
         },
         {
             value: "properties",
-            label: "Properties",
+            label: t("app.menu.properties"),
             icon: <HomeOutlined />,
         },
         {
             value: "my_drafts",
-            label: "My Drafts",
+            label: t("pages.properties.index.tabs.my_drafts"),
             icon: <FileTextOutlined />,
         },
         // {
@@ -341,7 +344,7 @@ const Index = ({
             label: (
                 <Link href={route("properties.show", record.id)}>
                     <EyeOutlined className="mr-2" />
-                    View
+                    {t("app.view")}
                 </Link>
             ),
         },
@@ -350,7 +353,7 @@ const Index = ({
             label: (
                 <span>
                     <EditOutlined className="mr-2" />
-                    Edit
+                    {t("app.edit")}
                 </span>
             ),
             onClick: () => {
@@ -365,7 +368,7 @@ const Index = ({
             label: (
                 <span className="text-red-600">
                     <DeleteOutlined className="mr-2" />
-                    Delete
+                    {t("app.delete")}
                 </span>
             ),
             onClick: () => {
@@ -380,6 +383,7 @@ const Index = ({
         currencies,
         currencyCode,
         currencySymbol,
+        t,
     );
 
     // Whether we're showing the properties table or construction projects
@@ -392,11 +396,11 @@ const Index = ({
         <>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Properties" }]}
+                breadcrumbs={[{ name: t("app.menu.properties") }]}
                 searchComp={
                     showPropertiesTable ? (
                         <UniversalSearchBox
-                            placeholder="Search properties by title, area, description..."
+                            placeholder={t("app.properties.search_placeholder")}
                             className="w-full"
                         />
                     ) : undefined
@@ -429,7 +433,7 @@ const Index = ({
                                         icon={<PlusOutlined />}
                                         onClick={() => handleAction("add")}
                                     >
-                                        Add Property
+                                        {t("app.properties.actions.add")}
                                     </Button>
                                     <Button
                                         type="text"
@@ -438,14 +442,16 @@ const Index = ({
                                             handleAction("import");
                                         }}
                                     >
-                                        Import
+                                        {t("app.import")}
                                     </Button>
                                     <Link href="/account/availability-requests">
                                         <Button
                                             type="text"
                                             icon={<SafetyOutlined />}
                                         >
-                                            Availability Requests
+                                            {t(
+                                                "app.properties.actions.availability_requests",
+                                            )}
                                         </Button>
                                     </Link>
                                     {isSalesManager ? (
@@ -454,7 +460,9 @@ const Index = ({
                                                 type="text"
                                                 icon={<GlobalOutlined />}
                                             >
-                                                Publish Requests
+                                                {t(
+                                                    "app.properties.actions.publish_requests",
+                                                )}
                                             </Button>
                                         </Link>
                                     ) : null}
@@ -466,7 +474,9 @@ const Index = ({
                                                 type="text"
                                                 icon={<SettingOutlined />}
                                             >
-                                                Configuration
+                                                {t(
+                                                    "app.properties.actions.configuration",
+                                                )}
                                             </Button>
                                         </Link>
                                     ) : null}
@@ -483,14 +493,14 @@ const Index = ({
                                         disabled={isRefreshing}
                                         type="text"
                                     >
-                                        Refresh
+                                        {t("app.common.actions.refresh")}
                                     </Button>
                                     {/* Advanced Filters Button */}
                                     <Button
                                         icon={<FilterOutlined />}
                                         onClick={openDrawer}
                                     >
-                                        Filters
+                                        {t("app.filter")}
                                     </Button>
 
                                     {/* View mode toggle */}

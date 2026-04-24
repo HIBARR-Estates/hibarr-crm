@@ -23,6 +23,7 @@ import { Button, MenuProps, Table, Select } from "antd";
 import { useState } from "react";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 const Index = ({
     pageTitle,
@@ -59,7 +60,7 @@ const Index = ({
                 label: (
                     <Link href={route("agents.show", record.id)}>
                         <EyeOutlined className="mr-2" />
-                        View
+                        {t("app.view")}
                     </Link>
                 ),
             });
@@ -70,7 +71,7 @@ const Index = ({
                     label: (
                         <span>
                             <EditOutlined className="mr-2" />
-                            Edit
+                            {t("app.edit")}
                         </span>
                     ),
                     onClick: () => handleAction("edit", record),
@@ -85,7 +86,7 @@ const Index = ({
                         label: (
                             <span className="text-red-600">
                                 <DeleteOutlined className="mr-2" />
-                                Delete
+                                {t("app.delete")}
                             </span>
                         ),
                         onClick: () => handleAction("delete", record),
@@ -104,6 +105,7 @@ const Index = ({
     );
 
     const { refresh, isRefreshing } = usePageRefresh();
+    const { t } = useTranslation();
 
     // Simple inline filters
     const [statusFilter, setStatusFilter] = useState<string | undefined>(
@@ -132,11 +134,11 @@ const Index = ({
     return (
         <>
             <PageLayout
-                title="Agents"
-                breadcrumbs={[{ name: "Agents" }]}
+                title={t("app.agents.title")}
+                breadcrumbs={[{ name: t("app.agents.title") }]}
                 searchComp={
                     <UniversalSearchBox
-                        placeholder="Search agents by name or email..."
+                        placeholder={t("app.agents.search_placeholder")}
                         className="w-full"
                     />
                 }
@@ -150,7 +152,7 @@ const Index = ({
                                     icon={<PlusOutlined />}
                                     onClick={handleCreateAgent}
                                 >
-                                    Add Agent
+                                    {t("app.agents.actions.add")}
                                 </Button>
                             )}
                             {permissions.add_lead_agent !== "none" && (
@@ -159,7 +161,7 @@ const Index = ({
                                     icon={<ImportOutlined />}
                                     onClick={handleImportAgents}
                                 >
-                                    Import
+                                    {t("app.import")}
                                 </Button>
                             )}
                         </div>
@@ -171,10 +173,10 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                Refresh
+                                {t("app.common.actions.refresh")}
                             </Button>
                             <Select
-                                placeholder="Status"
+                                placeholder={t("app.agents.filters.status")}
                                 value={statusFilter}
                                 onChange={(v) => {
                                     setStatusFilter(v);
@@ -184,12 +186,12 @@ const Index = ({
                                 style={{ width: 130 }}
                                 size="small"
                                 options={[
-                                    { label: "Active", value: "enabled" },
-                                    { label: "Disabled", value: "disabled" },
+                                    { label: t("app.agents.status.active"), value: "enabled" },
+                                    { label: t("app.agents.status.disabled"), value: "disabled" },
                                 ]}
                             />
                             <Select
-                                placeholder="Category"
+                                placeholder={t("app.agents.filters.category")}
                                 value={categoryFilter}
                                 onChange={(v) => {
                                     setCategoryFilter(v);

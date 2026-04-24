@@ -13,6 +13,7 @@ import {
 } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
+import useTranslation from "@/Hooks/useTranslation";
 
 // Import the new PropertyForm component
 
@@ -46,6 +47,7 @@ export default function CreateProperty({
     isPage = false,
     useWizard,
 }: CreatePropertyProps) {
+    const { t } = useTranslation();
     const [projectId, setProjectId] = useState<number | undefined>(undefined);
     // Default: use category form for all (new default), keep wizard and tabs as alternatives
     const isEditing = !!property?.id;
@@ -62,7 +64,9 @@ export default function CreateProperty({
     const saveForUploadRef = useRef(false);
 
     // Submit button text based on mode
-    const submitText = isEditing ? "Update Property" : "Create Property";
+    const submitText = isEditing
+        ? t("pages.properties.create.actions.update_property")
+        : t("pages.properties.create.actions.create_property");
 
     // Form errors state
     const [errors, setErrors] = useState<string[]>([]);
@@ -83,7 +87,9 @@ export default function CreateProperty({
                 if (createdProperty) {
                     setProperty?.(createdProperty);
                 }
-                message.success("Property saved! You can now upload photos.");
+                message.success(
+                    t("pages.properties.create.messages.property_saved_upload"),
+                );
                 return;
             }
 
@@ -141,12 +147,14 @@ export default function CreateProperty({
                     setProperty?.(createdProject as any);
                 }
                 message.success(
-                    "Project saved! You can now upload photos and manage unit types.",
+                    t("pages.properties.create.messages.project_saved_upload"),
                 );
                 return;
             }
 
-            message.success("Construction project created!");
+            message.success(
+                t("pages.properties.create.messages.project_created"),
+            );
             if (onSuccess) {
                 onSuccess();
             } else if (!isPage) {
@@ -169,7 +177,9 @@ export default function CreateProperty({
         "PUT",
         (res) => {
             if (res?.status === "success") {
-                message.success("Construction project updated!");
+                message.success(
+                    t("pages.properties.create.messages.project_updated"),
+                );
                 const updatedProject =
                     res.data || (res as any).developer_project;
                 if (updatedProject) {
@@ -223,7 +233,9 @@ export default function CreateProperty({
                 } else if (error?.message) {
                     setErrors([error.message]);
                 }
-                message.error("Please check the form for errors");
+                message.error(
+                    t("pages.properties.create.messages.check_form_errors"),
+                );
             };
 
             // ── Construction Project path ──
@@ -321,17 +333,17 @@ export default function CreateProperty({
     const formModeOptions = [
         {
             value: "category",
-            label: "Form",
+            label: t("pages.properties.create.form_modes.form"),
             icon: <AppstoreOutlined />,
         },
         {
             value: "wizard",
-            label: "Wizard",
+            label: t("pages.properties.create.form_modes.wizard"),
             icon: <NumberOutlined />,
         },
         {
             value: "tabs",
-            label: "Tabs",
+            label: t("pages.properties.create.form_modes.tabs"),
             icon: <UnorderedListOutlined />,
         },
     ];
@@ -372,7 +384,7 @@ export default function CreateProperty({
                 setErrors={setErrors}
                 onErrorsClear={handleErrorsClear}
                 submitText={submitText}
-                cancelText="Cancel"
+                cancelText={t("pages.properties.create.actions.cancel")}
                 visible={visible}
             />
         );
@@ -381,7 +393,11 @@ export default function CreateProperty({
         return (
             <div className="p-6">
                 <div className="mb-6 flex items-center justify-between">
-                    <Title level={2}>{title}</Title>
+                    <Title level={2}>
+                        {title === "Create New Property"
+                            ? t("pages.properties.create.title")
+                            : title}
+                    </Title>
                     <Segmented
                         options={formModeOptions}
                         value={formMode}

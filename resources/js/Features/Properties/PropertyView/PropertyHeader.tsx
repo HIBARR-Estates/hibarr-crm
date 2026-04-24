@@ -29,6 +29,7 @@ import {
     getStatusColor,
     parsePropertyPrice,
     formatCurrencyWithSymbol,
+    generatePropertySubtitle,
 } from "@/lib/utils";
 import { usePage } from "@inertiajs/react";
 import { PropertyPermissions } from "@/Hooks/usePropertyPermissions";
@@ -239,7 +240,8 @@ function PropertyHeader({
 
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                         <Title level={2} className="mb-0">
-                            {property.display_title || property.title}
+                            {generatePropertySubtitle(property) ||
+                                property.title}
                         </Title>
                         <Tag
                             color={getStatusColor(property.status)}

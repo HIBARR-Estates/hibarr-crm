@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Card, Button, Typography, Tag, Divider, Space } from "antd";
 import {
     ArrowLeftOutlined,
@@ -33,6 +34,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { t } = useTranslation();
     const canEdit =
         permissions.edit_lead_note === "all" ||
         (permissions.edit_lead_note === "added" &&
@@ -94,7 +96,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                         <Space>
                             <ClockCircleOutlined />
                             <span>
-                                Created{" "}
+                                {t("pages.leads.notes.view_created")}{" "}
                                 {dayjs(note.created_at).format(
                                     "MMMM DD, YYYY at HH:mm"
                                 )}
@@ -113,7 +115,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
 
                         {note.updated_at !== note.created_at && (
                             <Tag color="orange">
-                                Updated{" "}
+                                {t("pages.leads.notes.view_updated")}{" "}
                                 {dayjs(note.updated_at).format("MMM DD, YYYY")}
                             </Tag>
                         )}
@@ -125,7 +127,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                 {/* Note Content */}
                 <div className="mb-8">
                     <Title level={5} className="mb-4 text-gray-800">
-                        Note Content
+                        {t("pages.leads.notes.view_content_title")}
                     </Title>
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 min-h-[200px]">
                         {note.details ? (
@@ -136,7 +138,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                             />
                         ) : (
                             <Text type="secondary" italic className="text-base">
-                                No content provided for this note.
+                                {t("pages.leads.notes.view_no_content")}
                             </Text>
                         )}
                     </div>

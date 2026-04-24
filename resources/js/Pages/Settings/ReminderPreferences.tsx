@@ -27,6 +27,7 @@ import {
 } from "@ant-design/icons";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import axios from "axios";
@@ -69,6 +70,7 @@ const REMINDER_TYPE_OPTIONS = [
 ];
 
 export default function ReminderPreferences() {
+    const { t } = useTranslation();
     const { message, modal } = App.useApp();
     const queryClient = useQueryClient();
 
@@ -308,14 +310,14 @@ export default function ReminderPreferences() {
     ];
 
     const breadcrumbs = [
-        { name: "Settings", url: route("profile-settings.index") },
-        { name: "Reminder Preferences" },
+        { name: t("app.menu.settings"), url: route("profile-settings.index") },
+        { name: t("app.settings.reminder_preferences") },
     ];
 
     return (
         <DashboardLayout>
             <PageLayout
-                title="Reminder Preferences"
+                title={t("app.settings.reminder_preferences")}
                 breadcrumbs={breadcrumbs}
                 config={{ showTitle: true }}
             >

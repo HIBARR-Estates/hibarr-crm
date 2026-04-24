@@ -30,12 +30,6 @@ class DealFollowUpObserver
      */
     public function created(DealFollowUp $dealFollowUp): void
     {
-        Log::info('[DealFollowUpObserver::created] Fired.', [
-            'followup_id' => $dealFollowUp->id,
-            'deal_id' => $dealFollowUp->deal_id,
-            'has_deal_relation' => (bool) $dealFollowUp->deal,
-        ]);
-
         //deal automation trigger
         if ($dealFollowUp->deal) {
             $this->dealAutomation->process($dealFollowUp->deal, 'followup_created');

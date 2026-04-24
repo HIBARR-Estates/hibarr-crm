@@ -5,6 +5,7 @@ import { BarChart3, Search } from "lucide-react";
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useAgentMetrics } from "@/Features/Mlm/api";
 import { LevelBadge, ProgressToNextLevel } from "@/Features/Mlm/Components";
 import type {
@@ -18,6 +19,7 @@ interface Props extends PageProps {
 }
 
 const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
+    const { t } = useTranslation();
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [levelFilter, setLevelFilter] = useState<string | undefined>();
@@ -150,10 +152,10 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="Agent Metrics"
+                title={t("app.mlm.admin.agent_metrics")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Agent Metrics" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.admin.agent_metrics") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

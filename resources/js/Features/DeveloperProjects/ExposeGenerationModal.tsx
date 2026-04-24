@@ -32,6 +32,7 @@ import type { TableColumnsType } from "antd";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
 import axios from "axios";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 const { Text, Paragraph } = Typography;
 
@@ -493,7 +494,9 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                 dataIndex: "title",
                 key: "title",
                 render: (title: string, record) =>
-                    title || `Property #${record.id}`,
+                    generatePropertySubtitle(record as any) ||
+                    title ||
+                    `Property #${record.id}`,
             },
             {
                 title: "Beds",

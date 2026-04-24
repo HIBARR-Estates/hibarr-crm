@@ -52,6 +52,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 dayjs.extend(utc);
 
@@ -110,18 +111,21 @@ const getPlatformIcon = (location: string) => {
     }
 };
 
-const getLocationLabel = (location: string): string => {
+const getLocationLabel = (
+    location: string,
+    t: (k: string) => string,
+): string => {
     const labels: Record<string, string> = {
-        zoho: "Video Meeting",
-        zoom: "Zoom",
-        teams: "Microsoft Teams",
-        meet: "Google Meet",
-        google_meet: "Google Meet",
-        phone: "Phone",
-        office: "Office",
-        physical: "Physical",
-        skype: "Skype",
-        other: "Other",
+        zoho: t("pages.meetings.platforms.video_meeting"),
+        zoom: t("pages.meetings.platforms.zoom"),
+        teams: t("pages.meetings.platforms.teams"),
+        meet: t("pages.meetings.platforms.google_meet"),
+        google_meet: t("pages.meetings.platforms.google_meet"),
+        phone: t("pages.meetings.platforms.phone"),
+        office: t("pages.meetings.platforms.office"),
+        physical: t("pages.meetings.platforms.physical"),
+        skype: t("pages.meetings.platforms.skype"),
+        other: t("pages.meetings.platforms.other"),
     };
     return labels[location] ?? location;
 };
@@ -179,6 +183,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { t } = useTranslation();
     const live = isLiveMeeting(meeting);
     const localDate = dayjs.utc(meeting.next_follow_up_date).local();
     const hasValidLink =
@@ -207,7 +212,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                       label: (
                           <span>
                               <EyeOutlined className="mr-2" />
-                              View
+                              {t("pages.meetings.card.actions.view")}
                           </span>
                       ),
                       onClick: onView,
@@ -221,7 +226,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                       label: (
                           <span>
                               <EditOutlined className="mr-2" />
-                              Edit
+                              {t("pages.meetings.card.actions.edit")}
                           </span>
                       ),
                       onClick: onEdit,
@@ -239,7 +244,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                               rel="noopener noreferrer"
                           >
                               <LinkOutlined className="mr-2" />
-                              Join Meeting
+                              {t("pages.meetings.card.actions.join_meeting")}
                           </a>
                       ),
                   },
@@ -252,7 +257,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                       label: (
                           <span>
                               <DeleteOutlined className="mr-2" />
-                              Delete
+                              {t("pages.meetings.card.actions.delete")}
                           </span>
                       ),
                       danger: true,
@@ -285,7 +290,11 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
         }
 
         if (!isSafeUrl(meeting.meeting_link)) {
-            return <span className="text-xs text-gray-400">Invalid link</span>;
+            return (
+                <span className="text-xs text-gray-400">
+                    {t("pages.meetings.card.invalid_link")}
+                </span>
+            );
         }
 
         return (
@@ -297,7 +306,9 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 onClick={(e) => e.stopPropagation()}
             >
                 {getPlatformIcon(meeting.location)}
-                <span className="underline">Join Meeting</span>
+                <span className="underline">
+                    {t("pages.meetings.card.actions.join_meeting")}
+                </span>
             </a>
         );
     };
@@ -318,14 +329,14 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                     }}
                 >
                     <FileTextOutlined />
-                    View Summary
+                    {t("pages.meetings.card.view_summary")}
                 </span>
             );
         }
 
         return (
             <Tag color="orange" className="text-xs m-0 whitespace-nowrap">
-                Generating Summary
+                {t("pages.meetings.card.generating_summary")}
             </Tag>
         );
     };
@@ -347,7 +358,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                     </span>
                     <span className="font-medium text-gray-800 text-sm truncate">
                         {meeting.meeting_type?.name ??
-                            getLocationLabel(meeting.location)}
+                            getLocationLabel(meeting.location, t)}
                     </span>
                     {live && (
                         <Tag
@@ -355,7 +366,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             className="animate-pulse text-xs ml-1 flex-shrink-0"
                         >
                             <ThunderboltOutlined className="mr-1" />
-                            Live
+                            {t("pages.meetings.card.live")}
                         </Tag>
                     )}
                 </div>
@@ -392,7 +403,9 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         {meeting.deal.name}
                     </p>
                 ) : (
-                    <p className="text-gray-400 text-sm mb-0">No deal</p>
+                    <p className="text-gray-400 text-sm mb-0">
+                        {t("pages.meetings.card.no_deal")}
+                    </p>
                 )}
             </div>
 
@@ -443,20 +456,22 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             <span className="text-xs text-gray-500 whitespace-nowrap">
                                 {participantUsers.length}{" "}
                                 {participantUsers.length === 1
-                                    ? "participant"
-                                    : "participants"}
+                                    ? t("pages.meetings.card.participant")
+                                    : t("pages.meetings.card.participants")}
                             </span>
                         </div>
                     ) : (
                         <span className="text-xs text-gray-400 flex items-center gap-1">
-                            <UserOutlined /> No participants
+                            <UserOutlined />{" "}
+                            {t("pages.meetings.card.no_participants")}
                         </span>
                     )}
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
                     {meeting.added_by && (
                         <span className="text-xs text-gray-400 truncate max-w-[100px]">
-                            by {meeting.added_by.name}
+                            {t("pages.meetings.card.added_by")}{" "}
+                            {meeting.added_by.name}
                         </span>
                     )}
                 </div>
@@ -571,6 +586,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
     onClose,
     userDeals,
 }) => {
+    const { t } = useTranslation();
     const [selectedDealId, setSelectedDealId] = useState<number | null>(null);
     const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
     const [loadingDeal, setLoadingDeal] = useState(false);
@@ -608,7 +624,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 }
             })
             .catch(() => {
-                setErrors(["Failed to load deal details. Please try again."]);
+                setErrors([t("pages.meetings.schedule.failed_to_load")]);
             })
             .finally(() => setLoadingDeal(false));
     }, [selectedDealId]);
@@ -646,7 +662,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
 
     return (
         <Drawer
-            title="Schedule Meeting"
+            title={t("app.meetings.schedule_drawer_title")}
             placement="right"
             size="large"
             open={open}
@@ -657,11 +673,12 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 {/* Step 1: Select deal */}
                 <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Select Deal <span className="text-red-500">*</span>
+                        {t("app.meetings.select_deal_label")}{" "}
+                        <span className="text-red-500">*</span>
                     </label>
                     <Select
                         showSearch
-                        placeholder="Search and select a deal..."
+                        placeholder={t("app.meetings.select_deal_placeholder")}
                         optionFilterProp="label"
                         className="w-full"
                         value={selectedDealId}
@@ -681,7 +698,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 {/* Loading state */}
                 {loadingDeal && (
                     <div className="flex justify-center py-8">
-                        <Spin tip="Loading deal details..." />
+                        <Spin tip={t("pages.meetings.schedule.loading_deal")} />
                     </div>
                 )}
 
@@ -702,7 +719,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                     <div className="text-center py-8 text-gray-400">
                         <CalendarOutlined className="text-4xl mb-3 block" />
                         <p className="text-sm">
-                            Select a deal above to schedule a meeting
+                            {t("pages.meetings.schedule.select_deal_prompt")}
                         </p>
                     </div>
                 )}
@@ -742,19 +759,19 @@ function MeetingsIndex() {
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
-
+    const { t } = useTranslation();
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
         <PageLayout
-            title={pageTitle || "Meetings"}
-            breadcrumbs={[{ name: "Meetings" }]}
+            title={t("app.menu.meetings")}
+            breadcrumbs={[{ name: t("app.menu.meetings") }]}
         >
             <div className="px-4 sm:px-6 py-6 space-y-8">
                 {/* ── Header ────────────────────────────────────────── */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h1 className="text-2xl font-bold text-gray-900 mb-0">
-                        My Meetings
+                        {t("app.meetings.my_meetings")}
                     </h1>
                     <div className="flex items-center gap-3">
                         <Button
@@ -763,7 +780,7 @@ function MeetingsIndex() {
                             disabled={isRefreshing}
                             type="text"
                         >
-                            Refresh
+                            {t("app.common.actions.refresh")}
                         </Button>
                         {canAdd && (
                             <Button
@@ -772,7 +789,7 @@ function MeetingsIndex() {
                                 onClick={() => setScheduleOpen(true)}
                                 className="bg-blue-600 hover:bg-blue-700"
                             >
-                                Schedule Meeting
+                                {t("app.meetings.actions.schedule")}
                             </Button>
                         )}
                     </div>
@@ -784,7 +801,7 @@ function MeetingsIndex() {
                         icon={
                             <CalendarOutlined className="text-xl text-blue-600" />
                         }
-                        label="Upcoming"
+                        label={t("app.meetings.stats.upcoming")}
                         value={overviewStats.upcoming}
                         color="bg-blue-100"
                         bgColor="bg-white border-blue-100"
@@ -793,7 +810,7 @@ function MeetingsIndex() {
                         icon={
                             <ClockCircleOutlined className="text-xl text-indigo-600" />
                         }
-                        label="This Week"
+                        label={t("app.meetings.stats.this_week")}
                         value={overviewStats.this_week}
                         color="bg-indigo-100"
                         bgColor="bg-white border-indigo-100"
@@ -802,7 +819,7 @@ function MeetingsIndex() {
                         icon={
                             <ThunderboltOutlined className="text-xl text-red-600" />
                         }
-                        label="Live Now"
+                        label={t("app.meetings.stats.live_now")}
                         value={overviewStats.live}
                         color="bg-red-100"
                         bgColor="bg-white border-red-100"
@@ -811,7 +828,7 @@ function MeetingsIndex() {
                         icon={
                             <CheckCircleOutlined className="text-xl text-green-600" />
                         }
-                        label="Completed"
+                        label={t("app.meetings.stats.completed")}
                         value={overviewStats.completed}
                         color="bg-green-100"
                         bgColor="bg-white border-green-100"
@@ -820,11 +837,11 @@ function MeetingsIndex() {
 
                 {/* ── Upcoming Section ──────────────────────────────── */}
                 <MeetingSection
-                    title="Upcoming Meetings"
+                    title={t("app.meetings.sections.upcoming")}
                     total={upcomingMeetings.total}
                     data={upcomingMeetings}
                     pageName="upcoming"
-                    emptyMessage="No upcoming meetings scheduled."
+                    emptyMessage={t("app.meetings.empty.upcoming")}
                     permissions={permissions}
                     userId={user?.id}
                     onView={(m) => handleAction("view", m)}
@@ -834,11 +851,11 @@ function MeetingsIndex() {
 
                 {/* ── Past Section ──────────────────────────────────── */}
                 <MeetingSection
-                    title="Past Meetings"
+                    title={t("app.meetings.sections.past")}
                     total={pastMeetings.total}
                     data={pastMeetings}
                     pageName="past"
-                    emptyMessage="No past meetings found."
+                    emptyMessage={t("app.meetings.empty.past")}
                     permissions={permissions}
                     userId={user?.id}
                     onView={(m) => handleAction("view", m)}

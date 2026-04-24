@@ -101,8 +101,8 @@ class SettingsController extends AccountBaseController
             'ip'              => $request->ip(),
         ]);
 
-        // Validate locale is supported
-        $supportedLocales = ['en', 'ar', 'ru', 'tr', 'de', 'fa'];
+        // Validate locale is supported (exactly four languages per spec)
+        $supportedLocales = ['en', 'de', 'ru', 'tr'];
         if (!in_array($locale, $supportedLocales)) {
             \Log::channel('daily')->warning('[i18n] Unsupported locale requested, falling back to en', ['locale' => $locale]);
             $locale = 'en';
@@ -112,8 +112,8 @@ class SettingsController extends AccountBaseController
         if (auth()->check()) {
             $user = auth()->user();
             $user->locale = $locale;
-            // Set RTL flag based on locale
-            $user->rtl = in_array($locale, ['ar', 'fa', 'he']) ? 1 : 0;
+            // None of the four supported languages are RTL
+            $user->rtl = 0;
             $user->save();
 
             \Log::channel('daily')->info('[i18n] User locale updated in DB', [

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     useMlmCommissions,
     useBulkMarkCommissionsPaid,
@@ -63,6 +64,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
     commissions: initialCommissions,
     summaryStats,
 }) => {
+    const { t } = useTranslation();
     const [page, setPage] = useState(1);
     const [filters, setFilters] = useState<Record<string, any>>({});
     const [selectedRows, setSelectedRows] = useState<number[]>([]);
@@ -241,10 +243,10 @@ const MlmCommissionLedger: React.FC<Props> = ({
     return (
         <DashboardLayout>
             <PageLayout
-                title="Commission Ledger"
+                title={t("app.mlm.admin.commission_ledger")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Commission Ledger" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.admin.commission_ledger") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

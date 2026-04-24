@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Lead } from "@/Types/api/leads";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import { Link, usePage } from "@inertiajs/react";
@@ -35,6 +36,7 @@ interface Props {
 }
 
 export default function LeadDealsTab({ lead, deals, permissions }: Props) {
+    const { t } = useTranslation();
     const { props } = usePage();
     const user = props.auth.user;
     const {
@@ -46,7 +48,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
 
     const columns: ColumnsType<Deal> = [
         {
-            title: "Deal Name",
+            title: t("pages.leads.deals.column_name"),
             dataIndex: "name",
             key: "name",
             width: "25%",
@@ -69,7 +71,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
             ),
         },
         {
-            title: "Deal Value",
+            title: t("pages.leads.deals.column_value"),
             dataIndex: "value",
             key: "value",
             width: "15%",
@@ -89,7 +91,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
             },
         },
         {
-            title: "Stage",
+            title: t("pages.leads.deals.column_stage"),
             dataIndex: "stage",
             key: "stage",
             width: "20%",
@@ -116,7 +118,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
             },
         },
         {
-            title: "Deal Agent",
+            title: t("pages.leads.deals.column_agent"),
             dataIndex: "agent_name",
             key: "agent_name",
             width: "20%",
@@ -142,7 +144,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
             },
         },
         {
-            title: "Close Date",
+            title: t("pages.leads.deals.column_close_date"),
             dataIndex: "close_date",
             key: "close_date",
             width: "15%",
@@ -158,7 +160,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
             },
         },
         {
-            title: "Actions",
+            title: t("pages.leads.deals.column_actions"),
             key: "actions",
             width: "10%",
             render: (_, record) => {
@@ -202,7 +204,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                                           href={route("deals.show", record.id)}
                                       >
                                           <EyeOutlined className="mr-2" />
-                                          View
+                                          {t("app.view")}
                                       </Link>
                                   ),
                               },
@@ -215,7 +217,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                                   label: (
                                       <span>
                                           <EditOutlined className="mr-2" />
-                                          Edit
+                                          {t("app.edit")}
                                       </span>
                                   ),
                                   onClick: () => handleAction("edit", record),
@@ -230,7 +232,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                                   label: (
                                       <span className="text-red-600">
                                           <DeleteOutlined className="mr-2" />
-                                          Delete
+                                          {t("app.delete")}
                                       </span>
                                   ),
                                   danger: true,
@@ -262,7 +264,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                         description={
                             <div className="text-center">
                                 <p className="text-gray-500 mb-2">
-                                    No deals found for this lead
+                                    {t("pages.leads.deals.empty_message")}
                                 </p>
                                 {(permissions.add_deals === "all" ||
                                     permissions.add_deals === "added" ||
@@ -272,7 +274,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                                         icon={<PlusOutlined />}
                                         onClick={() => handleAction("add")}
                                     >
-                                        Create First Deal
+                                        {t("pages.leads.deals.create_first")}
                                     </Button>
                                 )}
                             </div>
@@ -285,7 +287,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-4">
                         <h3 className="text-lg font-medium text-gray-900">
-                            Deals ({deals.length})
+                            {t("pages.leads.deals.header")} ({deals.length})
                         </h3>
                         {(permissions.add_deals === "all" ||
                             permissions.add_deals === "added" ||
@@ -295,7 +297,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                                 icon={<PlusOutlined />}
                                 onClick={() => handleAction("add")}
                             >
-                                Add Deal
+                                {t("pages.leads.deals.add_deal")}
                             </Button>
                         )}
                     </div>
@@ -308,7 +310,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                             pageSize: 10,
                             showSizeChanger: true,
                             showQuickJumper: true,
-                            showTotal: (total) => `Total ${total} deals`,
+                            showTotal: (total) => `${t("pages.leads.deals.total")} ${total} ${t("pages.leads.deals.items")}`,
                         }}
                         className="deals-table"
                         scroll={{ x: 800 }}

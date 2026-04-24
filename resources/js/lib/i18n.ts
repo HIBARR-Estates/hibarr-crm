@@ -1,17 +1,31 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
+// Ensure react-i18next always has an instance before any hook runs.
+if (!i18n.isInitialized) {
+    i18n.use(initReactI18next).init({
+        resources: { en: { translation: {} } },
+        lng: "en",
+        fallbackLng: "en",
+        interpolation: {
+            escapeValue: false,
+        },
+        returnEmptyString: false,
+        react: {
+            useSuspense: false,
+        },
+    });
+}
+
 /**
  * Supported languages configuration
  * Matches LanguageSetting::LANGUAGES in Laravel
  */
 export const SUPPORTED_LANGUAGES = {
     en: { name: "English", native: "English", dir: "ltr", flag: "gb" },
+    de: { name: "German", native: "Deutsch", dir: "ltr", flag: "de" },
     ru: { name: "Russian", native: "Русский", dir: "ltr", flag: "ru" },
     tr: { name: "Turkish", native: "Türkçe", dir: "ltr", flag: "tr" },
-    de: { name: "German", native: "Deutsch", dir: "ltr", flag: "de" },
-    fa: { name: "Persian", native: "فارسی", dir: "rtl", flag: "ir" },
-    ar: { name: "Arabic", native: "العربية", dir: "rtl", flag: "sa" },
 } as const;
 
 export type SupportedLocale = keyof typeof SUPPORTED_LANGUAGES;
@@ -85,7 +99,8 @@ export const initI18n = (
  * Check if a locale is RTL
  */
 export const isRtlLocale = (locale: string): boolean => {
-    return ["ar", "fa", "he"].includes(locale);
+    // None of the four supported languages (en, de, ru, tr) are RTL
+    return false;
 };
 
 export default i18n;

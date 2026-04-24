@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Lead } from "@/Types/api/leads";
 import { LeadNote } from "@/Types/api/lead-note";
 import { usePage } from "@inertiajs/react";
@@ -19,6 +20,7 @@ interface Props {
 }
 
 export default function LeadNotesTab({ lead, notes, permissions }: Props) {
+    const { t } = useTranslation();
     const { props } = usePage();
     const user = props.auth.user;
 
@@ -88,7 +90,7 @@ export default function LeadNotesTab({ lead, notes, permissions }: Props) {
                         onCancel={handleNavigateToList}
                     />
                 ) : (
-                    <div>Note not found</div>
+                    <div>{t("pages.leads.notes.not_found")}</div>
                 );
 
             case "view":
@@ -103,7 +105,7 @@ export default function LeadNotesTab({ lead, notes, permissions }: Props) {
                         onDelete={handleDeleteFromView}
                     />
                 ) : (
-                    <div>Note not found</div>
+                    <div>{t("pages.leads.notes.not_found")}</div>
                 );
 
             case "list":

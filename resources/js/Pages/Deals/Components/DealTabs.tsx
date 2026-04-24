@@ -21,6 +21,7 @@ import SaveProposal from "./Tabs/proposals/SaveProposal";
 import TasksTab from "@/Components/TasksTab";
 import { Task } from "@/Types/api/tasks";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Props {
     deal: Deal;
@@ -60,6 +61,7 @@ export default function DealTabs({
     projects,
 }: Props) {
     const [activeTab, setActiveTab] = useState("notes");
+    const { t } = useTranslation();
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 
@@ -71,7 +73,7 @@ export default function DealTabs({
         if (permissions.view_deal_note !== "none") {
             items.push({
                 key: "notes",
-                label: "Notes",
+                label: t("pages.deals.tabs.notes"),
                 children: (
                     <NotesTab
                         deal={deal}
@@ -104,7 +106,7 @@ export default function DealTabs({
         if (permissions.view_lead_follow_up !== "none") {
             items.push({
                 key: "follow-up",
-                label: "Meeting",
+                label: t("pages.deals.tabs.meeting"),
                 children: (
                     <FollowUpTab
                         deal={deal}
@@ -119,7 +121,7 @@ export default function DealTabs({
         if (permissions.view_lead_files !== "none") {
             items.push({
                 key: "files",
-                label: "Files",
+                label: t("pages.deals.tabs.files"),
                 children: (
                     <FilesTab
                         deal={deal}
@@ -133,7 +135,7 @@ export default function DealTabs({
         // Recommendations Tab - AI-powered property recommendations
         items.push({
             key: "recommendations",
-            label: "Recommendations",
+            label: t("pages.deals.tabs.recommendations"),
             children: (
                 <RecommendationsTab deal={deal} permissions={permissions} />
             ),
@@ -176,7 +178,7 @@ export default function DealTabs({
             label: (
                 <span>
                     <GiftOutlined className="mr-1" />
-                    Offers
+                    {t("pages.deals.tabs.offers")}
                 </span>
             ),
             children: <DealOffersTab deal={deal} />,
@@ -185,7 +187,7 @@ export default function DealTabs({
         // History Tab
         items.push({
             key: "history",
-            label: "History",
+            label: t("pages.deals.tabs.history"),
             children: <HistoryTab deal={deal} histories={histories} />,
         });
 
@@ -209,7 +211,7 @@ export default function DealTabs({
                                 handleAction("add_note");
                             }}
                         >
-                            Add Note
+                            {t("pages.deals.actions.add_note")}
                         </Button>
                     );
                 }
@@ -230,7 +232,7 @@ export default function DealTabs({
                                 handleAction("add_follow_up");
                             }}
                         >
-                            Add Meeting
+                            {t("pages.deals.actions.add_meeting")}
                         </Button>
                     );
                 }
@@ -241,7 +243,7 @@ export default function DealTabs({
                 ) {
                     return (
                         <Alert
-                            message="Cannot add follow-up for completed deals"
+                            message={t("pages.deals.tabs.followup_locked")}
                             type="info"
                             showIcon
                         />
@@ -262,7 +264,7 @@ export default function DealTabs({
                                 handleAction("add_file");
                             }}
                         >
-                            Upload File
+                            {t("pages.deals.actions.upload_file")}
                         </Button>
                     );
                 }
@@ -281,7 +283,7 @@ export default function DealTabs({
                                 handleAction("add_proposal");
                             }}
                         >
-                            Create Proposal
+                            {t("pages.deals.actions.create_proposal")}
                         </Button>
                     );
                 }
@@ -295,7 +297,7 @@ export default function DealTabs({
                             handleAction("add_task");
                         }}
                     >
-                        Add Task
+                        {t("pages.deals.actions.add_task")}
                     </Button>
                 );
 
@@ -353,7 +355,7 @@ export default function DealTabs({
                 {/* Tab Header with Action */}
                 <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50">
                     <h2 className="text-lg font-semibold text-gray-900">
-                        Deal Details
+                        {t("pages.deals.tabs.header")}
                     </h2>
                     <div className="tab-action">{getTabAction()}</div>
                 </div>

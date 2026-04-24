@@ -13,6 +13,7 @@ import GenerateExposeModal from "@/Features/Properties/GenerateExposeModal";
 import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyModal";
 import { generatePropertySubtitle } from "@/lib/utils";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface ShowProps {
     pageTitle: string;
@@ -37,17 +38,18 @@ const Show = ({
     employees,
     projects,
 }: ShowProps) => {
+    const { t } = useTranslation();
     // Breadcrumbs for the page
     const breadcrumbs = [
         {
-            name: "Properties",
+            name: t("app.menu.properties"),
             url: route("properties.index"),
         },
         {
             name:
                 generatePropertySubtitle(property) ||
                 property.reference_code ||
-                `Property #${property.id}`,
+                `${t("pages.properties.show.property_reference_prefix")} #${property.id}`,
         },
     ];
 
@@ -79,16 +81,20 @@ const Show = ({
         navigator.clipboard
             .writeText(url)
             .then(() => {
-                message.success("Property link copied to clipboard!");
+                message.success(
+                    t("pages.properties.show.messages.link_copied"),
+                );
             })
             .catch(() => {
-                message.error("Failed to copy link");
+                message.error(
+                    t("pages.properties.show.messages.link_copy_failed"),
+                );
             });
     };
 
     const handleFavorite = () => {
         // This would typically make an API call to add/remove from favorites
-        message.success("Property added to favorites!");
+        message.success(t("pages.properties.show.messages.added_to_favorites"));
     };
 
     const handleBack = () => {
@@ -97,7 +103,10 @@ const Show = ({
 
     return (
         <>
-            <PageLayout title={pageTitle} breadcrumbs={breadcrumbs}>
+            <PageLayout
+                title={generatePropertySubtitle(property) || pageTitle}
+                breadcrumbs={breadcrumbs}
+            >
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center justify-end mb-4">
                         <Button
@@ -106,7 +115,7 @@ const Show = ({
                             disabled={isRefreshing}
                             type="text"
                         >
-                            Refresh
+                            {t("app.common.actions.refresh")}
                         </Button>
                     </div>
                     <PropertyView

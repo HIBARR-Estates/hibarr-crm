@@ -18,6 +18,7 @@ import { motion } from "framer-motion";
 import { Save, Calculator, Play } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     useMlmSettings,
     useUpdateMlmSettings,
@@ -39,6 +40,7 @@ const MlmCommissionSettings: React.FC<Props> = ({
     agents = [],
 }) => {
     const { data: settingsData, isLoading } = useMlmSettings();
+    const { t } = useTranslation();
     const settings: MlmSettings =
         (settingsData as any)?.data ?? initialSettings;
 
@@ -77,10 +79,10 @@ const MlmCommissionSettings: React.FC<Props> = ({
     return (
         <DashboardLayout>
             <PageLayout
-                title="Commission Settings"
+                title={t("app.mlm.admin.commission_settings")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Commission Settings" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.admin.commission_settings") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

@@ -29,6 +29,7 @@ import { filterProperties } from "@/lib/utils";
 import usePageFilter from "@/Hooks/usePageFilter";
 import FilterDrawer from "@/Components/FilterDrawer";
 import ActiveFilters from "@/Components/ActiveFilters";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Project {
     id: number;
@@ -69,6 +70,8 @@ export default function Index({
     default_currency_symbol: currencySymbol,
     currencies = [],
 }: IndexProps) {
+    const { t } = useTranslation();
+
     const {
         handleAction,
         handleClose,
@@ -119,7 +122,7 @@ export default function Index({
             label: (
                 <Link href={route("properties.show", record.id)}>
                     <EyeOutlined className="mr-2" />
-                    View
+                    {t("app.view")}
                 </Link>
             ),
         },
@@ -128,7 +131,7 @@ export default function Index({
             label: (
                 <span>
                     <EditOutlined className="mr-2" />
-                    Edit
+                    {t("app.edit")}
                 </span>
             ),
             onClick: () => {
@@ -143,7 +146,7 @@ export default function Index({
             label: (
                 <span className="text-red-600">
                     <DeleteOutlined className="mr-2" />
-                    Delete
+                    {t("app.delete")}
                 </span>
             ),
             onClick: () => {
@@ -153,13 +156,19 @@ export default function Index({
     ];
 
     // Table columns
-    const columns = PROPERTY_TABLE_COLUMNS(getActionItems, currencies, currencyCode, currencySymbol);
+    const columns = PROPERTY_TABLE_COLUMNS(
+        getActionItems,
+        currencies,
+        currencyCode,
+        currencySymbol,
+        t,
+    );
 
     return (
         <DashboardLayout>
             <PageLayout
                 title={pageTitle}
-                breadcrumbs={[{ name: "Properties" }]}
+                breadcrumbs={[{ name: t("app.menu.properties") }]}
                 searchComp={
                     <BasicPropertyFilterBox
                         filters={filters}
@@ -189,7 +198,7 @@ export default function Index({
                                 icon={<PlusOutlined />}
                                 onClick={() => handleAction("add")}
                             >
-                                Add Property
+                                {t("app.properties.actions.add")}
                             </Button>
                             <Button
                                 type="text"
@@ -198,7 +207,7 @@ export default function Index({
                                     handleAction("import");
                                 }}
                             >
-                                Import
+                                {t("app.import")}
                             </Button>
                         </div>
 
@@ -208,14 +217,16 @@ export default function Index({
                                 icon={<FilterOutlined />}
                                 onClick={openFilterDrawer}
                             >
-                                Advanced Filters
+                                {t(
+                                    "pages.properties.index_old.advanced_filters",
+                                )}
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}
                             {selectedEntities.length > 0 && (
                                 <BulkActionSelector
                                     selectedEntityIds={selectedEntities?.map(
-                                        ({ id }) => id
+                                        ({ id }) => id,
                                     )}
                                     clearSelected={clearSelected}
                                 />
@@ -229,7 +240,7 @@ export default function Index({
                             columns={columns}
                             dataSource={filterProperties(
                                 properties.data,
-                                filters
+                                filters,
                             )}
                             rowKey="id"
                             rowSelection={rowSelection}
@@ -240,7 +251,7 @@ export default function Index({
                                 showSizeChanger: false,
                                 showQuickJumper: false,
                                 showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} of ${total} properties`,
+                                    `${range[0]}-${range[1]} ${t("pages.properties.index.pagination.of")} ${total} ${t("pages.properties.index.pagination.properties")}`,
                                 onChange: (page, pageSize) => {
                                     router.get(
                                         route("properties.index"),
@@ -252,7 +263,7 @@ export default function Index({
                                         {
                                             preserveState: true,
                                             preserveScroll: true,
-                                        }
+                                        },
                                     );
                                 },
                             }}
@@ -287,7 +298,9 @@ export default function Index({
             <FilterDrawer
                 open={drawerOpen}
                 onClose={closeFilterDrawer}
-                title="Advanced Property Filters"
+                title={t(
+                    "pages.properties.index_old.advanced_property_filters",
+                )}
                 filters={filters}
                 onApplyFilters={handleFilterSubmit}
                 onResetFilters={handleResetFilters}

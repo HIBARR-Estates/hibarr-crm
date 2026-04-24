@@ -5,6 +5,7 @@ import { Link } from "@inertiajs/react";
 import { MapPin, ArrowLeft } from "lucide-react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import type { PageProps } from "../../Components/DashboardLayout";
 import type {
     DeveloperProject,
@@ -182,6 +183,7 @@ const Show = ({
     unitTypes,
     developerProjects,
 }: ShowProps) => {
+    const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
     const [editModalOpen, setEditModalOpen] = useState(false);
 
@@ -273,7 +275,7 @@ const Show = ({
                 title={pageTitle}
                 breadcrumbs={[
                     {
-                        name: "Projects",
+                        name: t("app.menu.projects"),
                         url: route("developer-projects.index"),
                     },
                     { name: project.name },

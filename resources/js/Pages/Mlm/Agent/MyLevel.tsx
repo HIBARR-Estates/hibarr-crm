@@ -16,6 +16,7 @@ import { motion } from "framer-motion";
 import { Award, TrendingUp, History } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useMyLevel } from "@/Features/Mlm/api";
 import {
     LevelBadge,
@@ -38,6 +39,7 @@ interface Props extends PageProps {
 }
 
 const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
+    const { t } = useTranslation();
     const { data, isLoading } = useMyLevel();
     const levelData: LevelData = (data as any)?.data ?? initialData;
 
@@ -81,10 +83,10 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="My Level"
+                title={t("app.mlm.agent.level")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/agent/dashboard" },
-                    { name: "My Level" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/agent/dashboard" },
+                    { name: t("app.mlm.agent.level") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

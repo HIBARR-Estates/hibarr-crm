@@ -1,0 +1,486 @@
+<?php
+
+/**
+ * pages.php — Frontend page-level UI strings (React / Inertia)
+ *
+ * Convention:
+ *   pages.<folder>.<key>
+ *
+ * e.g.  pages.deals.add_deal     → "Add Deal"
+ *       pages.clients.title      → "Clients"
+ *
+ * Keys here are consumed by the t() helper in React components via
+ * the useTranslation() hook.  Do NOT put backend / Laravel strings here.
+ *
+ * Matching locale files: de/pages.php  ru/pages.php  tr/pages.php
+ */
+
+return [
+
+    'dashboard' => [
+        'stats' => [
+            'total_tasks'       => 'Total Tasks',
+            'overdue_tasks'     => 'Overdue Tasks',
+            'total_deals'       => 'Total Deals',
+            'weekly_activities' => 'Weekly Activities',
+        ],
+    ],
+
+    'leads' => [
+        'contacts'                 => 'Contacts',
+        'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
+        'save_before_tab_switch'   => 'Please save or cancel your changes before switching tabs.',
+        'tabs' => [
+            'profile'   => 'Profile',
+            'notes'     => 'Notes',
+            'marketing' => 'Marketing',
+            'tasks'     => 'Tasks',
+            'events'    => 'Events',
+        ],
+        'contacts_table' => [
+            'columns' => [
+                'lead_name'       => 'Lead Name',
+                'contact_details' => 'Contact Details',
+                'country'         => 'Country',
+                'source'          => 'Source',
+                'lead_owner'      => 'Lead Owner',
+                'created'         => 'Created',
+                'actions'         => 'Actions',
+            ],
+        ],
+        'info' => [
+            'title'               => 'Lead Information',
+            'editing'             => 'Editing',
+            'save_all_success'    => 'All changes saved successfully',
+            'save_all_error'      => 'Failed to save changes',
+            'file_upload_success' => 'File uploaded successfully',
+            'actions' => [
+                'save_all'          => 'Save All',
+                'save_all_tooltip'  => 'Save All Changes',
+                'cancel_edit'       => 'Cancel Edit',
+                'edit_mode'         => 'Edit Mode',
+                'add_task'          => 'Add Task',
+                'convert_to_client' => 'Convert to Client',
+                'delete_lead'       => 'Delete Lead',
+            ],
+            'tab_overview' => 'Overview',
+            'sections' => [
+                'contact'        => 'Contact Information',
+                'personal'       => 'Personal Details',
+                'classification' => 'Classification',
+                'address'        => 'Address',
+                'notes'          => 'Notes',
+            ],
+            'fields' => [
+                'name'          => 'Name',
+                'email'         => 'Email',
+                'mobile'        => 'Mobile',
+                'office_phone'  => 'Office Phone',
+                'gender'        => 'Gender',
+                'gender_male'   => 'Male',
+                'gender_female' => 'Female',
+                'company'       => 'Company',
+                'website'       => 'Website',
+                'lead_owner'    => 'Lead Owner',
+                'added_by'      => 'Added By',
+                'lead_source'   => 'Lead Source',
+                'category'      => 'Category',
+                'created_at'    => 'Created At',
+                'updated_at'    => 'Updated At',
+                'country'       => 'Country',
+                'state'         => 'State',
+                'city'          => 'City',
+                'postal_code'   => 'Postal Code',
+                'address'       => 'Address',
+                'notes'         => 'Notes',
+            ],
+            'placeholders' => [
+                'email'        => 'Add email',
+                'mobile'       => 'Add mobile',
+                'office_phone' => 'Add office phone',
+                'company'      => 'Add company name',
+                'website'      => 'Add website',
+                'country'      => 'Select country',
+                'state'        => 'Add state',
+                'city'         => 'Add city',
+                'postal_code'  => 'Add postal code',
+                'address'      => 'Add address',
+                'notes'        => 'Add notes',
+            ],
+        ],
+        'deals' => [
+            'column_name'       => 'Deal Name',
+            'column_value'      => 'Deal Value',
+            'column_stage'      => 'Stage',
+            'column_agent'      => 'Deal Agent',
+            'column_close_date' => 'Close Date',
+            'column_actions'    => 'Actions',
+            'empty_message'     => 'No deals found for this lead',
+            'create_first'      => 'Create First Deal',
+            'add_deal'          => 'Add Deal',
+            'header'            => 'Deals',
+            'total'             => 'Total',
+            'items'             => 'deals',
+        ],
+        'marketing' => [
+            'empty'                  => 'No marketing information available for this lead',
+            'utm_section'            => 'UTM & Campaign Tracking',
+            'social_section'         => 'Social Media Tracking',
+            'engagement_section'     => 'Engagement & Scoring',
+            'utm_source'             => 'UTM Source',
+            'utm_medium'             => 'UTM Medium',
+            'utm_campaign'           => 'UTM Campaign',
+            'utm_content'            => 'UTM Content',
+            'utm_term'               => 'UTM Term',
+            'utm_audience'           => 'UTM Audience',
+            'traffic_source_id'      => 'Traffic Source ID',
+            'facebook_click_id'      => 'Facebook Click ID',
+            'facebook_lead_id'       => 'Facebook Lead ID',
+            'facebook_browser_id'    => 'Facebook Browser ID',
+            'ip_address'             => 'IP Address',
+            'user_agent'             => 'User Agent',
+            'contact_score'          => 'Contact Score',
+            'last_webinar_date'      => 'Last Webinar Date',
+            'registered_for_webinar' => 'Registered for Webinar',
+            'attended_webinar'       => 'Attended Webinar',
+            'joined_facebook_group'  => 'Joined Facebook Group',
+            'downloaded_ebook'       => 'Downloaded eBook',
+            'registered_for_zoom'    => 'Registered for Zoom',
+            'yes'                    => 'Yes',
+            'no'                     => 'No',
+        ],
+        'notes' => [
+            'not_found'                => 'Note not found',
+            'add_new_title'            => 'Add New Note',
+            'click_to_write'           => 'Click to start writing',
+            'no_notes_yet'             => 'No notes yet',
+            'no_notes_found'           => 'No notes found for',
+            'search_placeholder'       => 'Search notes by title or content...',
+            'breadcrumb'               => 'Notes',
+            'breadcrumb_new'           => 'New',
+            'breadcrumb_edit'          => 'Edit',
+            'breadcrumb_fallback'      => 'Note',
+            'created_success'          => 'Note created successfully!',
+            'updated_success'          => 'Note updated successfully!',
+            'errors_title'             => 'Please fix the following errors:',
+            'label_title'              => 'Note Title',
+            'placeholder_title'        => 'Enter a descriptive title for your note...',
+            'label_content'            => 'Note Content',
+            'placeholder_content_add'  => 'Write your note content here...',
+            'placeholder_content_edit' => 'Edit your note content...',
+            'rule_title'               => 'Please enter a note title',
+            'rule_details'             => 'Please enter note details',
+            'btn_cancel'               => 'Cancel',
+            'btn_save'                 => 'Save Note',
+            'btn_update'               => 'Update Note',
+            'back_to_notes'            => 'Back to Notes',
+            'view_content_title'       => 'Note Content',
+            'view_created'             => 'Created',
+            'view_updated'             => 'Updated',
+            'view_no_content'          => 'No content provided for this note.',
+            'view_details'             => 'View Details',
+            'edit_note'                => 'Edit Note',
+            'delete_note'              => 'Delete Note',
+        ],
+    ],
+
+    'deals' => [
+        'actions' => [
+            'add_task' => 'Add Task',
+        ],
+        'info' => [
+            'title'               => 'Deal Information',
+            'locked'              => 'Locked',
+            'edit_mode'           => 'Edit Mode',
+            'tab_overview'        => 'Overview',
+            'tab_details'         => 'Details',
+            'save_all_success'    => 'All changes saved successfully',
+            'save_all_error'      => 'Failed to save changes',
+            'file_upload_success' => 'File uploaded successfully',
+            'client_tag'          => 'Client',
+            'no_properties'       => 'No properties linked to this deal',
+            'unsaved_changes'     => '{{count}} unsaved changes',
+            'sections' => [
+                'overview'     => 'Deal Overview',
+                'contact_info' => 'Contact Info',
+                'team'         => 'Team',
+            ],
+            'fields' => [
+                'deal_name'         => 'Deal Name',
+                'deal_value'        => 'Deal Value',
+                'close_date'        => 'Close Date',
+                'packages'          => 'Packages',
+                'lead_contact'      => 'Lead Contact',
+                'deal_category'     => 'Deal Category',
+                'properties'        => 'Properties',
+                'status'            => 'Status',
+                'email'             => 'Email',
+                'mobile'            => 'Mobile',
+                'company_name'      => 'Company Name',
+                'deal_agent'        => 'Deal Agent',
+                'deal_participants' => 'Deal Participants',
+                'deal_watchers'     => 'Deal Watchers',
+            ],
+            'actions' => [
+                'edit'              => 'Edit',
+                'save_all_tooltip'  => 'Save All Changes',
+                'no_changes'        => 'No changes to save',
+                'cancel_edit'       => 'Cancel Edit',
+                'delete'            => 'Delete Deal',
+                'manage_properties' => 'Manage Properties',
+            ],
+        ],
+        'table' => [
+            'columns' => [
+                'deal_name'       => 'Deal Name',
+                'contact_details' => 'Contact Details',
+                'country'         => 'Country',
+                'lead_source'     => 'Lead Source',
+                'lead_name'       => 'Lead Name',
+                'stage'           => 'Stage',
+                'assigned_agent'  => 'Assigned Agent',
+                'created'         => 'Created',
+                'actions'         => 'Actions',
+            ],
+            'no_lead_assigned' => 'No lead assigned',
+        ],
+    ],
+
+    'properties' => [
+        'table' => [
+            'columns' => [
+                'title'      => 'Title',
+                'type'       => 'Type',
+                'sale_type'  => 'Sale Type',
+                'price'      => 'Price',
+                'location'   => 'Location',
+                'visibility' => 'Visibility',
+                'status'     => 'Status',
+                'created'    => 'Created',
+                'actions'    => 'Actions',
+            ],
+            'property_reference_prefix' => 'Property',
+            'unit_type_tooltip'         => 'This is a developer project unit type',
+            'unit_type_badge'           => 'Unit Type',
+            'per_month'                 => '/month',
+            'published'                 => 'Published',
+            'draft'                     => 'Draft',
+            'view_sold_property'        => 'View sold property',
+            'view_property'             => 'View Property',
+            'sold_prefix'               => 'Sold',
+            'sold_times_suffix'         => 'times',
+            'sold_short'                => 'Sold',
+        ],
+        'index' => [
+            'tabs' => [
+                'all'       => 'All',
+                'my_drafts' => 'My Drafts',
+            ],
+            'pagination' => [
+                'of'         => 'of',
+                'properties' => 'properties',
+            ],
+            'unit_type_bulk_disabled' => 'Bulk actions are not available when unit types are selected.',
+        ],
+        'index_old' => [
+            'advanced_filters'          => 'Advanced Filters',
+            'advanced_property_filters' => 'Advanced Property Filters',
+        ],
+        'create' => [
+            'title' => 'Create New Property',
+            'actions' => [
+                'create_property' => 'Create Property',
+                'update_property' => 'Update Property',
+                'cancel'          => 'Cancel',
+            ],
+            'form_modes' => [
+                'form'   => 'Form',
+                'wizard' => 'Wizard',
+                'tabs'   => 'Tabs',
+            ],
+            'messages' => [
+                'property_saved_upload' => 'Property saved! You can now upload photos.',
+                'project_saved_upload'  => 'Project saved! You can now upload photos and manage unit types.',
+                'project_created'       => 'Construction project created!',
+                'project_updated'       => 'Construction project updated!',
+                'check_form_errors'     => 'Please check the form for errors',
+            ],
+        ],
+        'config' => [
+            'breadcrumb'       => 'Configuration',
+            'categories_title' => 'Categories',
+            'no_description'   => 'No description',
+            'delete_title'     => 'Delete item?',
+            'delete_description' => 'This will permanently delete :label.',
+            'search_prefix'    => 'Search',
+            'filter_by_city'   => 'Filter by city',
+            'shown_count'      => 'Showing :shown of :total',
+            'selected_count'   => ':count selected',
+            'assign_category'  => 'Assign category',
+            'empty_description' => 'No :label configured yet.',
+            'empty_filtered_description' => 'No matching :label found.',
+            'actions' => [
+                'add'           => 'Add',
+                'assign'        => 'Assign',
+                'clear'         => 'Clear',
+                'add_first'     => 'Add the first one',
+                'clear_filters' => 'Clear filters',
+            ],
+            'table' => [
+                'columns' => [
+                    'display_label' => 'Display Label',
+                    'parent_type'   => 'Parent Type',
+                    'city'          => 'City',
+                    'category'      => 'Category',
+                    'icon'          => 'Icon',
+                    'description'   => 'Description',
+                    'actions'       => 'Actions',
+                ],
+            ],
+            'categories' => [
+                'property-types' => [
+                    'label'       => 'Property Types',
+                    'description' => 'Types of properties (Apartment, Villa, Land, etc.)',
+                ],
+                'sub-types' => [
+                    'label'       => 'Sub Types',
+                    'description' => 'Sub-classifications within property types',
+                ],
+                'primary-categories' => [
+                    'label'       => 'Primary Categories',
+                    'description' => 'Primary listing categories (Residential, Commercial, Land)',
+                ],
+                'view-types' => [
+                    'label'       => 'View Types',
+                    'description' => 'Property view options (Sea View, Mountain View, etc.)',
+                ],
+                'title-deed-types' => [
+                    'label'       => 'Title Deed Types',
+                    'description' => 'Types of title deeds (Turkish/British, Exchange, etc.)',
+                ],
+                'exterior-features' => [
+                    'label'       => 'Exterior Features',
+                    'description' => 'Exterior amenities (Pool, Garden, Parking, etc.)',
+                ],
+                'interior-features' => [
+                    'label'       => 'Interior Features',
+                    'description' => 'Interior amenities (AC, Fireplace, Built-in Kitchen, etc.)',
+                ],
+                'floor-types' => [
+                    'label'       => 'Floor Types',
+                    'description' => 'Floor levels (Ground Floor, Floor 1-15, etc.)',
+                ],
+                'deed-statuses' => [
+                    'label'       => 'Deed Statuses',
+                    'description' => 'Status of property deeds (Owner Individual, No Deed, etc.)',
+                ],
+                'construction-statuses' => [
+                    'label'       => 'Construction Statuses',
+                    'description' => 'Construction stage (Off-Plan, Under Construction, Resale, etc.)',
+                ],
+                'occupancy-types' => [
+                    'label'       => 'Occupancy Types',
+                    'description' => 'Current occupancy (Owner Occupied, Tenant, Vacant)',
+                ],
+                'furniture-statuses' => [
+                    'label'       => 'Furniture Statuses',
+                    'description' => 'Furnishing level (Unfurnished, Fully Furnished, etc.)',
+                ],
+                'heating-types' => [
+                    'label'       => 'Heating Types',
+                    'description' => 'Heating system (Central, Underfloor, AC, Solar, etc.)',
+                ],
+                'cities' => [
+                    'label'       => 'Cities',
+                    'description' => 'TRNC cities (Kyrenia, Gazimagusa, Nicosia, etc.)',
+                ],
+                'areas' => [
+                    'label'       => 'Areas',
+                    'description' => 'Districts/areas within each city (Alsancak, Catalkoy, etc.)',
+                ],
+                'sale-types' => [
+                    'label'       => 'Sale Types',
+                    'description' => 'Listing purpose (For Sale, For Rent, For Daily Rental)',
+                ],
+                'statuses' => [
+                    'label'       => 'Property Statuses',
+                    'description' => 'Listing status (Available, Reserved, Sold, etc.)',
+                ],
+                'location-features' => [
+                    'label'       => 'Location Features',
+                    'description' => 'Proximity features (Near Beach, Near School, etc.)',
+                ],
+                'add-ons' => [
+                    'label'       => 'Add-Ons',
+                    'description' => 'Optional extras (Furniture Package, Rental Guarantee, etc.)',
+                ],
+                'project-facilities' => [
+                    'label'       => 'Project Facilities',
+                    'description' => 'Facilities available in developer projects (Gym, Pool, etc.)',
+                ],
+            ],
+        ],
+        'manage_assets' => [
+            'title'             => 'Manage Assets',
+            'property_fallback' => 'Property',
+            'actions' => [
+                'upload_assets' => 'Upload Assets',
+                'upload'        => 'Upload',
+                'cancel'        => 'Cancel',
+            ],
+            'pagination' => [
+                'previous' => 'Previous',
+                'next'     => 'Next',
+                'page_of'  => 'Page {{current}} of {{total}}',
+            ],
+            'modal' => [
+                'upload_title' => 'Upload Assets',
+            ],
+            'progress' => [
+                'saving_to_property' => 'Saving to property...',
+                'uploading_files'    => 'Uploading {{count}} file(s)...',
+                'saving'             => 'Saving...',
+            ],
+            'fields' => [
+                'tags_optional'   => 'Tags (optional)',
+                'tags_placeholder' => 'Select tags to apply to all uploaded assets',
+            ],
+            'upload_info' => [
+                'title'       => 'Upload Info',
+                'description' => 'Files will be uploaded to our secure cloud storage. Supported formats: JPEG, PNG, GIF, WebP, MP4, WebM. Maximum file size: 50MB.',
+            ],
+            'messages' => [
+                'select_files'           => 'Please select files to upload',
+                'no_valid_files'         => 'No valid files to upload',
+                'upload_failed'          => 'Upload failed',
+                'failed_to_upload_file'  => 'Failed to upload "{{file}}": {{error}}',
+                'partial_upload_warning' => '{{failed}} file(s) failed to upload. {{success}} file(s) will be saved.',
+                'all_uploads_failed'     => 'All uploads failed. Please check your files and try again.',
+                'upload_process_failed'  => 'Upload process failed',
+                'upload_error'           => 'Upload error: {{error}}. Please try again.',
+                'uploads_cancelled'      => 'Uploads cancelled',
+            ],
+        ],
+        'show' => [
+            'property_reference_prefix' => 'Property',
+            'messages' => [
+                'link_copied'        => 'Property link copied to clipboard!',
+                'link_copy_failed'   => 'Failed to copy link',
+                'added_to_favorites' => 'Property added to favorites!',
+            ],
+        ],
+        'unit_type_show' => [
+            'unit_type_reference_prefix' => 'Unit Type',
+            'unit_type_label'            => 'Unit Type',
+            'messages' => [
+                'no_availability_link' => 'No availability link configured for this project.',
+            ],
+        ],
+    ],
+
+    'tasks' => [
+        'drawer_title_prefix' => 'Task',
+        'pagination_total'    => '{{start}}-{{end}} of {{total}} items',
+    ],
+
+];

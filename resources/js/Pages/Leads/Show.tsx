@@ -17,6 +17,7 @@ import TasksTab from "@/Components/TasksTab";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
 import { usePage } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import useTranslation from "@/Hooks/useTranslation";
 
 export interface LeadShowProps {
     lead: Lead;
@@ -60,6 +61,7 @@ const Show = ({
     permissions,
 }: LeadShowProps) => {
     const { props } = usePage<PageProps>();
+    const { t } = useTranslation();
 
     const [activeTab, setActiveTab] = useState("profile");
     const [isEditMode, setIsEditMode] = useState(false);
@@ -71,9 +73,7 @@ const Show = ({
 
     const handleTabChange = (key: string) => {
         if (isEditMode) {
-            message.warning(
-                "Please save or cancel your changes before switching tabs.",
-            );
+            message.warning(t("pages.leads.save_before_tab_switch"));
             return;
         }
         setActiveTab(key);
@@ -82,7 +82,7 @@ const Show = ({
     const tabItems = [
         {
             key: "profile",
-            label: "Profile",
+            label: t("pages.leads.tabs.profile"),
             children: (
                 <LeadInfoSection
                     lead={lead}
@@ -102,7 +102,7 @@ const Show = ({
         },
         {
             key: "deals",
-            label: "Deals",
+            label: t("app.deal"),
             children: (
                 <LeadDealsTab
                     lead={lead}
@@ -113,7 +113,7 @@ const Show = ({
         },
         {
             key: "notes",
-            label: "Notes",
+            label: t("pages.leads.tabs.notes"),
             children: (
                 <LeadNotesTab
                     lead={lead}
@@ -124,12 +124,12 @@ const Show = ({
         },
         {
             key: "marketing",
-            label: "Marketing",
+            label: t("pages.leads.tabs.marketing"),
             children: <LeadMarketingTab lead={lead} />,
         },
         {
             key: "tasks",
-            label: "Tasks",
+            label: t("pages.leads.tabs.tasks"),
             children: (
                 <TasksTab
                     tasks={tasks}
@@ -145,7 +145,7 @@ const Show = ({
         },
         {
             key: "events",
-            label: "Events",
+            label: t("pages.leads.tabs.events"),
             children: (
                 <CrmEventTimeline
                     modelType="App\\Models\\Lead"
@@ -175,7 +175,10 @@ const Show = ({
         <PageLayout
             title={lead?.client_name_salutation}
             breadcrumbs={[
-                { name: "Contacts", url: route("lead-contact.index") },
+                {
+                    name: t("pages.leads.contacts"),
+                    url: route("lead-contact.index"),
+                },
                 { name: lead?.client_name || "" },
             ]}
             mainContentClassName=""
@@ -185,8 +188,8 @@ const Show = ({
                     <Tooltip
                         title={
                             isEditMode
-                                ? "Save or cancel changes before refreshing"
-                                : "Refresh"
+                                ? t("pages.leads.refresh_tooltip_disabled")
+                                : t("app.common.actions.refresh")
                         }
                     >
                         <Button
@@ -195,7 +198,7 @@ const Show = ({
                             disabled={isRefreshing || isEditMode}
                             type="text"
                         >
-                            Refresh
+                            {t("app.common.actions.refresh")}
                         </Button>
                     </Tooltip>
                 </div>
