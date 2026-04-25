@@ -217,7 +217,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 setUploadStatuses([]);
                 setSelectedTags([]);
                 refetchAssets();
-                router.reload();
+                router.reload({ only: ["project"] });
             },
         );
 
