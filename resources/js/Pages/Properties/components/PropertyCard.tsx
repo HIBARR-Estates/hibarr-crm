@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { MenuProps } from "antd";
 import type { Property } from "@/Types";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 interface PropertyCardProps {
     property: Property;
@@ -179,13 +180,16 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                 {firstPhoto ? (
                     <img
                         src={firstPhoto}
-                        alt={property.title}
+                        alt={
+                            generatePropertySubtitle(property) ||
+                            "Property Photo"
+                        }
                         className="w-full h-full object-cover"
                     />
                 ) : (
                     <div className="w-full h-full bg-[#001529] flex items-center justify-center px-4">
                         <span className="text-white/60 text-sm font-semibold text-center leading-snug select-none">
-                            {property.title}
+                            {generatePropertySubtitle(property)}
                         </span>
                     </div>
                 )}
