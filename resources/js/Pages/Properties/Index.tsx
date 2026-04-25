@@ -158,7 +158,9 @@ const Index = ({
     });
     const handleViewModeChange = useCallback((mode: "list" | "grid") => {
         setViewMode(mode);
-        try { localStorage.setItem("hibarr_properties_view", mode); } catch {}
+        try {
+            localStorage.setItem("hibarr_properties_view", mode);
+        } catch {}
     }, []);
     // Check if user is a sales manager (edit_product === 'all')
     const { props } = usePage<any>();
@@ -235,7 +237,7 @@ const Index = ({
             // Map tab to backend filter params
             const params: Record<string, any> = {
                 page: 1,
-                per_page: 15,
+                per_page: 16,
                 sort_by: "",
                 sort_direction: "asc",
             };
@@ -509,15 +511,27 @@ const Index = ({
                                             type="text"
                                             icon={<BarsOutlined />}
                                             title="List view"
-                                            className={viewMode === "list" ? "!bg-white !shadow-sm" : "hover:bg-white hover:shadow-sm"}
-                                            onClick={() => handleViewModeChange("list")}
+                                            className={
+                                                viewMode === "list"
+                                                    ? "!bg-white !shadow-sm"
+                                                    : "hover:bg-white hover:shadow-sm"
+                                            }
+                                            onClick={() =>
+                                                handleViewModeChange("list")
+                                            }
                                         />
                                         <Button
                                             type="text"
                                             icon={<AppstoreOutlined />}
                                             title="Grid view"
-                                            className={viewMode === "grid" ? "!bg-white !shadow-sm" : "hover:bg-white hover:shadow-sm"}
-                                            onClick={() => handleViewModeChange("grid")}
+                                            className={
+                                                viewMode === "grid"
+                                                    ? "!bg-white !shadow-sm"
+                                                    : "hover:bg-white hover:shadow-sm"
+                                            }
+                                            onClick={() =>
+                                                handleViewModeChange("grid")
+                                            }
                                         />
                                     </div>
 
@@ -556,9 +570,11 @@ const Index = ({
                                                 record: Property,
                                             ) => ({
                                                 disabled:
-                                                    record._source === "unit_type",
+                                                    record._source ===
+                                                    "unit_type",
                                                 title:
-                                                    record._source === "unit_type"
+                                                    record._source ===
+                                                    "unit_type"
                                                         ? "Unit types cannot be selected for bulk actions"
                                                         : undefined,
                                             }),
@@ -594,46 +610,92 @@ const Index = ({
                             ) : (
                                 <>
                                     <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
-                                        {(properties.data ?? []).map((property) => (
-                                            <PropertyCard
-                                                key={
-                                                    property._source === "unit_type"
-                                                        ? `ut_${property._unit_type_id}`
-                                                        : property.id
-                                                }
-                                                property={property}
-                                                currencyCode={currencyCode}
-                                                currencySymbol={currencySymbol}
-                                                onEdit={(p) => handleAction("edit", p)}
-                                                onDelete={(p) => handleAction("delete", p)}
-                                            />
-                                        ))}
+                                        {(properties.data ?? []).map(
+                                            (property) => (
+                                                <PropertyCard
+                                                    key={
+                                                        property._source ===
+                                                        "unit_type"
+                                                            ? `ut_${property._unit_type_id}`
+                                                            : property.id
+                                                    }
+                                                    property={property}
+                                                    currencyCode={currencyCode}
+                                                    currencySymbol={
+                                                        currencySymbol
+                                                    }
+                                                    onEdit={(p) =>
+                                                        handleAction("edit", p)
+                                                    }
+                                                    onDelete={(p) =>
+                                                        handleAction(
+                                                            "delete",
+                                                            p,
+                                                        )
+                                                    }
+                                                />
+                                            ),
+                                        )}
                                     </div>
                                     {/* Grid pagination */}
                                     {properties.total > properties.per_page && (
                                         <div className="flex justify-center pt-2">
                                             <Button
-                                                disabled={properties.current_page <= 1}
+                                                disabled={
+                                                    properties.current_page <= 1
+                                                }
                                                 onClick={() =>
                                                     router.get(
-                                                        route("properties.index"),
-                                                        { ...filters, ...sortParams, page: properties.current_page - 1, per_page: properties.per_page },
-                                                        { preserveState: true, preserveScroll: false },
+                                                        route(
+                                                            "properties.index",
+                                                        ),
+                                                        {
+                                                            ...filters,
+                                                            ...sortParams,
+                                                            page:
+                                                                properties.current_page -
+                                                                1,
+                                                            per_page:
+                                                                properties.per_page,
+                                                        },
+                                                        {
+                                                            preserveState: true,
+                                                            preserveScroll: false,
+                                                        },
                                                     )
                                                 }
                                             >
                                                 Previous
                                             </Button>
                                             <span className="px-4 flex items-center text-sm text-gray-500">
-                                                Page {properties.current_page} of {properties.last_page} &nbsp;·&nbsp; {properties.total} properties
+                                                Page {properties.current_page}{" "}
+                                                of {properties.last_page}{" "}
+                                                &nbsp;·&nbsp; {properties.total}{" "}
+                                                properties
                                             </span>
                                             <Button
-                                                disabled={properties.current_page >= properties.last_page}
+                                                disabled={
+                                                    properties.current_page >=
+                                                    properties.last_page
+                                                }
                                                 onClick={() =>
                                                     router.get(
-                                                        route("properties.index"),
-                                                        { ...filters, ...sortParams, page: properties.current_page + 1, per_page: properties.per_page },
-                                                        { preserveState: true, preserveScroll: false },
+                                                        route(
+                                                            "properties.index",
+                                                        ),
+                                                        {
+                                                            ...filters,
+                                                            ...sortParams,
+                                                            page:
+                                                                properties.current_page +
+                                                                1,
+                                                            per_page:
+                                                                properties.per_page,
+                                                        },
+                                                        {
+                                                            preserveState: true,
+                                                            preserveScroll: false,
+                                                        },
                                                     )
                                                 }
                                             >

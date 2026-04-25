@@ -142,17 +142,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
         <div className="flex flex-col gap-6">
             {/* ── Main card ────────────────────────────────────────── */}
             <div className="bg-white border border-gray-200 rounded-2xl p-7">
-                <div className="flex flex-col gap-2 mb-4">
-                    <h1 className="text-[28px] font-bold text-slate-900 leading-tight capitalize">
-                        {project.name}
-                    </h1>
-                    {project.location?.name && (
-                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mb-7">
-                            <MapPin size={14} className="text-gray-400" />
-                            {project.location.name}
-                        </p>
-                    )}
-                </div>
+
 
                 {/* Stat Cards */}
                 <div className="flex flex-wrap gap-3 mb-9">

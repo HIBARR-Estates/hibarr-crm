@@ -55,8 +55,14 @@ interface LocationsResponse {
 function EmptyState({ onAdd }: { onAdd: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Building2 size={52} className="text-gray-200 mb-4" strokeWidth={1.5} />
-            <p className="text-base font-semibold text-gray-500 mb-1">No projects found</p>
+            <Building2
+                size={52}
+                className="text-gray-200 mb-4"
+                strokeWidth={1.5}
+            />
+            <p className="text-base font-semibold text-gray-500 mb-1">
+                No projects found
+            </p>
             <p className="text-sm text-gray-400 mb-5">
                 Create your first construction project to get started.
             </p>
@@ -71,7 +77,11 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
 // Main Page
 // ============================================
 
-const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexProps) => {
+const Index = ({
+    pageTitle,
+    projects: rawProjects,
+    filters: rawFilters,
+}: IndexProps) => {
     // Normalise server data — Laravel serialises empty arrays/objects inconsistently.
     // An empty PHP array arrives as `[]` in JSON; we must treat it as `{}`.
     const safeFilters =
@@ -80,7 +90,7 @@ const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexP
         data: [],
         current_page: 1,
         last_page: 1,
-        per_page: 15,
+        per_page: 12,
         total: 0,
         from: 0,
         to: 0,
@@ -187,14 +197,25 @@ const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexP
                             {/* Row 1: title + search */}
                             <div className="flex items-center justify-between mb-3 flex-wrap gap-2.5">
                                 <div className="flex items-baseline gap-2.5">
-                                    <span className="text-[22px] font-bold text-slate-900">Projects</span>
-                                    <span className="text-sm text-gray-400 font-normal">{projects.total}</span>
+                                    <span className="text-[22px] font-bold text-slate-900">
+                                        Projects
+                                    </span>
+                                    <span className="text-sm text-gray-400 font-normal">
+                                        {projects.total}
+                                    </span>
                                 </div>
                                 <Input
                                     value={search}
-                                    onChange={(e) => handleSearchChange(e.target.value)}
+                                    onChange={(e) =>
+                                        handleSearchChange(e.target.value)
+                                    }
                                     placeholder="Search projects…"
-                                    prefix={<Search size={14} className="text-gray-400" />}
+                                    prefix={
+                                        <Search
+                                            size={14}
+                                            className="text-gray-400"
+                                        />
+                                    }
                                     className="w-56"
                                     allowClear
                                 />
@@ -217,11 +238,16 @@ const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexP
                                 </Link>
 
                                 <Link href={route("developers.index")}>
-                                    <Button icon={<Users size={14} />}>Developers</Button>
+                                    <Button icon={<Users size={14} />}>
+                                        Developers
+                                    </Button>
                                 </Link>
 
                                 <div className="ml-auto">
-                                    <SortDropdown value={sortValue} onChange={handleSortChange} />
+                                    <SortDropdown
+                                        value={sortValue}
+                                        onChange={handleSortChange}
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -247,7 +273,8 @@ const Index = ({ pageTitle, projects: rawProjects, filters: rawFilters }: IndexP
                                 {projects.last_page > 1 && (
                                     <div className="flex items-center justify-between pt-6 border-t border-gray-200 mt-6">
                                         <span className="text-sm text-gray-400">
-                                            {projects.from}–{projects.to} of {projects.total} projects
+                                            {projects.from}–{projects.to} of{" "}
+                                            {projects.total} projects
                                         </span>
                                         <AntPagination
                                             current={projects.current_page}
@@ -284,4 +311,3 @@ Index.layout = (page: React.ReactNode) => (
 );
 
 export default Index;
-

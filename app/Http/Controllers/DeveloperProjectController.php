@@ -83,7 +83,7 @@ class DeveloperProjectController extends AccountBaseController
                 break;
         }
 
-        $projects = $query->paginate(15);
+        $projects = $query->paginate(12);
 
         // For Inertia page render
         // if (!$request->ajax() && !$request->wantsJson()) {

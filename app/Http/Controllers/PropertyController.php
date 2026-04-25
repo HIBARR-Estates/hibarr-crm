@@ -212,7 +212,7 @@ class PropertyController extends AccountBaseController
             $query->orderBy('created_at', 'asc');
         }
 
-        $perPage = (int) $request->get('per_page', 15) ?: 15;
+        $perPage = (int) $request->get('per_page', 16) ?: 16;
         $perPage = max(1, min(100, $perPage));
 
         // ── Source filter: all | properties | unit_types ──

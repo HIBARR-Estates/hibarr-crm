@@ -189,7 +189,9 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
         () =>
             filteredResults.map((p) => {
                 const title =
-                    generatePropertySubtitle(p) || p.title || `Property #${p.id}`;
+                    generatePropertySubtitle(p) ||
+                    p.title ||
+                    `Property #${p.id}`;
                 const meta = [p.property_type?.replace(/_/g, " "), p.city]
                     .filter(Boolean)
                     .join(" · ");
@@ -200,7 +202,9 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                     label: (
                         <div className="flex items-center justify-between py-0.5">
                             <div className="min-w-0 flex-1">
-                                <span className="font-medium text-sm">{title}</span>
+                                <span className="font-medium text-sm">
+                                    {title}
+                                </span>
                                 <div className="text-xs text-gray-400 truncate">
                                     {meta}
                                 </div>
@@ -795,10 +799,9 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
             >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2">
                             <span className="text-sm font-medium text-gray-900 capitalize">
-                                {unitType.property_type?.replace(/_/g, " ") ??
-                                    "Unit Type"}
+                                {generatePropertySubtitle(unitType)}
                             </span>
                             {unitType.reference_code && (
                                 <Tag className="!text-[10px]">
