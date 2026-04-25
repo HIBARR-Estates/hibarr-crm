@@ -49,6 +49,7 @@ import {
     FLOOR_OPTIONS,
 } from "./unitTypeConfig";
 import { generatePropertySubtitle, snakeToReadable } from "@/lib/utils";
+import dayjs from "dayjs";
 
 const { Text, Paragraph } = Typography;
 
@@ -231,18 +232,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                     </div>
 
                     <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/65 to-transparent">
-                        <div className="min-w-0">
-                            <div className="text-white text-base font-semibold leading-tight line-clamp-2">
-                                {title}
-                            </div>
-                            <div className="text-white/80 text-xs capitalize mt-1 line-clamp-1">
-                                {ut.property_type?.replace(/_/g, " ") ??
-                                    "Unit type"}
-                                {ut.floor
-                                    ? ` · ${snakeToReadable(floorLabel)}`
-                                    : ""}
-                            </div>
-                        </div>
+
                         <div className="shrink-0 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white">
                             {imageUrls.length} photo
                             {imageUrls.length === 1 ? "" : "s"}
@@ -250,17 +240,27 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                     </div>
                 </div>
 
-                <div className="px-4 py-4 space-y-3 flex-1">
+                <div className="px-4 py-4 flex flex-col gap-y-3 flex-1">
                     <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0 space-y-1">
+                        <div className="min-w-0 flex flex-col gap-y-1">
+                            <div className="min-w-0">
+                                <div className="text-base font-semibold leading-tight line-clamp-2">
+                                    {title}
+                                </div>
+
+                            </div>
                             <div className="flex items-center gap-1.5 text-[11px] text-gray-500 capitalize">
                                 <HomeOutlined className="shrink-0" />
                                 <span className="truncate">
                                     {ut.property_type?.replace(/_/g, " ") ??
                                         "Unit type"}
+                                    {ut.floor
+                                        ? ` · ${snakeToReadable(floorLabel)}`
+                                        : " "}
                                     {ut.furniture_status
                                         ? ` · ${furnitureLabel}`
                                         : ""}
+
                                 </span>
                             </div>
                             {(ut.quantity != null || ut.completion_date) && (
@@ -271,7 +271,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                             ? `${ut.quantity} unit${ut.quantity === 1 ? "" : "s"}`
                                             : "Inventory tracked"}
                                         {ut.completion_date
-                                            ? ` · ${ut.completion_date}`
+                                            ? ` · Completion Date: ${dayjs(ut.completion_date).format("D MMMM YYYY")}`
                                             : ""}
                                     </span>
                                 </div>
@@ -408,7 +408,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                     </div>
                 }
             >
-                <div className="space-y-6">
+                <div className="flex flex-col gap-y-6">
                     <Image.PreviewGroup items={imageUrls}>
                         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
                             <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 min-h-[280px]">
@@ -433,7 +433,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 )}
                             </div>
 
-                            <div className="space-y-3">
+                            <div className="flex flex-col gap-y-3">
                                 <Card size="small" className="!rounded-2xl">
                                     <div className="flex items-center justify-between gap-3">
                                         <div>
@@ -443,9 +443,9 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                             <div className="text-2xl font-semibold text-gray-900 mt-1">
                                                 {ut.starting_price != null
                                                     ? formatPrice(
-                                                          ut.starting_price,
-                                                          ut.currency,
-                                                      )
+                                                        ut.starting_price,
+                                                        ut.currency,
+                                                    )
                                                     : "-"}
                                             </div>
                                         </div>
@@ -512,7 +512,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                     </Image.PreviewGroup>
 
                     <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(280px,1fr)]">
-                        <div className="space-y-4">
+                        <div className="flex flex-col gap-y-4">
                             <Card
                                 size="small"
                                 title="Overview"
@@ -524,8 +524,8 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         value={
                                             ut.property_type
                                                 ? snakeToReadable(
-                                                      ut.property_type,
-                                                  )
+                                                    ut.property_type,
+                                                )
                                                 : "-"
                                         }
                                     />
@@ -536,7 +536,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     />
                                     <SpecRow
                                         label="Completion"
-                                        value={ut.completion_date || "-"}
+                                        value={dayjs(ut.completion_date).format("D MMMM YYYY") || "-"}
                                     />
                                     <SpecRow
                                         label="Living Area"
@@ -567,46 +567,46 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 styleLabels.length > 0 ||
                                 outsideLabels.length > 0 ||
                                 insideLabels.length > 0) && (
-                                <Card
-                                    size="small"
-                                    title="Features"
-                                    className="!rounded-2xl"
-                                >
-                                    <div className="flex flex-col gap-3">
-                                        {viewLabels.length > 0 && (
-                                            <FeatureTags
-                                                label="Views"
-                                                items={viewLabels}
-                                                color="geekblue"
-                                            />
-                                        )}
-                                        {styleLabels.length > 0 && (
-                                            <FeatureTags
-                                                label="Styles"
-                                                items={styleLabels}
-                                                color="purple"
-                                            />
-                                        )}
-                                        {outsideLabels.length > 0 && (
-                                            <FeatureTags
-                                                label="Outside"
-                                                items={outsideLabels}
-                                                color="green"
-                                            />
-                                        )}
-                                        {insideLabels.length > 0 && (
-                                            <FeatureTags
-                                                label="Inside"
-                                                items={insideLabels}
-                                                color="cyan"
-                                            />
-                                        )}
-                                    </div>
-                                </Card>
-                            )}
+                                    <Card
+                                        size="small"
+                                        title="Features"
+                                        className="!rounded-2xl"
+                                    >
+                                        <div className="flex flex-col gap-3">
+                                            {viewLabels.length > 0 && (
+                                                <FeatureTags
+                                                    label="Views"
+                                                    items={viewLabels}
+                                                    color="geekblue"
+                                                />
+                                            )}
+                                            {styleLabels.length > 0 && (
+                                                <FeatureTags
+                                                    label="Styles"
+                                                    items={styleLabels}
+                                                    color="purple"
+                                                />
+                                            )}
+                                            {outsideLabels.length > 0 && (
+                                                <FeatureTags
+                                                    label="Outside"
+                                                    items={outsideLabels}
+                                                    color="green"
+                                                />
+                                            )}
+                                            {insideLabels.length > 0 && (
+                                                <FeatureTags
+                                                    label="Inside"
+                                                    items={insideLabels}
+                                                    color="cyan"
+                                                />
+                                            )}
+                                        </div>
+                                    </Card>
+                                )}
                         </div>
 
-                        <div className="space-y-4">
+                        <div className="flex flex-col gap-y-4">
                             <Card
                                 size="small"
                                 title={
@@ -617,7 +617,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 }
                                 className="!rounded-2xl"
                             >
-                                <div className="space-y-3">
+                                <div className="flex flex-col gap-y-3">
                                     <SpecRow
                                         label="Bedrooms"
                                         value={
@@ -809,7 +809,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                         </Button>
                     </Empty>
                 ) : (
-                    <div className="grid grid-cols-1 gap-4">
+                    <div className="grid grid-cols-3 gap-4">
                         {unitTypes.map((ut) => (
                             <UnitTypeCard
                                 key={ut.id}
