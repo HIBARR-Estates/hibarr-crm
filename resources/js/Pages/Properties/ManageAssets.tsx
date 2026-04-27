@@ -34,6 +34,8 @@ import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import createPropertyAssetFilterConfig from "@/configs/propertyAssetFilterConfig";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { IUploadResponseItem, IUploadProgress } from "@/Types/uploads";
+import { generatePropertySubtitle } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { UploadFile } from "antd";
 
 const { Text } = Typography;
@@ -72,6 +74,7 @@ const ManageAssets = ({
     filters,
 }: ManageAssetsProps) => {
     const { message } = App.useApp();
+    const { t } = useTranslation();
 
     const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
     const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
@@ -92,12 +95,16 @@ const ManageAssets = ({
     const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
     const breadcrumbs = [
-        { name: "Properties", url: route("properties.index") },
+        { name: t("app.menu.properties"), url: route("properties.index") },
         {
-            name: property.title || property.reference_code || "Property",
+            name:
+                generatePropertySubtitle(property) ||
+                property.title ||
+                property.reference_code ||
+                t("pages.properties.manage_assets.property_fallback"),
             url: route("properties.show", property.id),
         },
-        { name: "Manage Assets" },
+        { name: t("pages.properties.manage_assets.title") },
     ];
 
     const filterConfig = createPropertyAssetFilterConfig(
@@ -171,7 +178,9 @@ const ManageAssets = ({
     // Handle file upload using FileUploadService
     const handleUpload = useCallback(async () => {
         if (uploadFileList.length === 0) {
-            message.warning("Please select files to upload");
+            message.warning(
+                t("pages.properties.manage_assets.messages.select_files"),
+            );
             return;
         }
 
@@ -184,7 +193,9 @@ const ManageAssets = ({
         }
 
         if (files.length === 0) {
-            message.error("No valid files to upload");
+            message.error(
+                t("pages.properties.manage_assets.messages.no_valid_files"),
+            );
             return;
         }
 
@@ -264,7 +275,9 @@ const ManageAssets = ({
                     const errorMessage =
                         error instanceof Error
                             ? error.message
-                            : "Upload failed";
+                            : t(
+                                  "pages.properties.manage_assets.messages.upload_failed",
+                              );
                     setUploadStatuses((prev) =>
                         prev.map((s) =>
                             s.fileId === fileId
@@ -275,7 +288,13 @@ const ManageAssets = ({
 
                     // Show individual file error notification
                     message.error(
-                        `Failed to upload "${file.name}": ${errorMessage}`,
+                        t(
+                            "pages.properties.manage_assets.messages.failed_to_upload_file",
+                            {
+                                file: file.name,
+                                error: errorMessage,
+                            },
+                        ),
                     );
                 }
             }
@@ -286,7 +305,13 @@ const ManageAssets = ({
                 const failedUploads = files.length - successfulUploads.length;
                 if (failedUploads > 0) {
                     message.warning(
-                        `${failedUploads} file(s) failed to upload. ${successfulUploads.length} file(s) will be saved.`,
+                        t(
+                            "pages.properties.manage_assets.messages.partial_upload_warning",
+                            {
+                                failed: failedUploads,
+                                success: successfulUploads.length,
+                            },
+                        ),
                     );
                 }
 
@@ -317,7 +342,9 @@ const ManageAssets = ({
                 });
             } else {
                 message.error(
-                    "All uploads failed. Please check your files and try again.",
+                    t(
+                        "pages.properties.manage_assets.messages.all_uploads_failed",
+                    ),
                 );
                 setIsUploading(false);
             }
@@ -325,8 +352,14 @@ const ManageAssets = ({
             const errorMessage =
                 error instanceof Error
                     ? error.message
-                    : "Upload process failed";
-            message.error(`Upload error: ${errorMessage}. Please try again.`);
+                    : t(
+                          "pages.properties.manage_assets.messages.upload_process_failed",
+                      );
+            message.error(
+                t("pages.properties.manage_assets.messages.upload_error", {
+                    error: errorMessage,
+                }),
+            );
             setIsUploading(false);
         } finally {
             setIsUploading(false);
@@ -344,7 +377,9 @@ const ManageAssets = ({
         uploadService.cancelAll();
         setIsUploading(false);
         setUploadStatuses([]);
-        message.info("Uploads cancelled");
+        message.info(
+            t("pages.properties.manage_assets.messages.uploads_cancelled"),
+        );
     }, [uploadService]);
 
     // Close modal and reset state
@@ -402,7 +437,9 @@ const ManageAssets = ({
                                 icon={<UploadOutlined />}
                                 onClick={() => setIsUploadModalOpen(true)}
                             >
-                                Upload Assets
+                                {t(
+                                    "pages.properties.manage_assets.actions.upload_assets",
+                                )}
                             </Button>
 
                             {selectedAssets.length > 0 && (
@@ -471,11 +508,18 @@ const ManageAssets = ({
                                         )
                                     }
                                 >
-                                    Previous
+                                    {t(
+                                        "pages.properties.manage_assets.pagination.previous",
+                                    )}
                                 </Button>
                                 <span className="px-4">
-                                    Page {assets.current_page} of{" "}
-                                    {assets.last_page}
+                                    {t(
+                                        "pages.properties.manage_assets.pagination.page_of",
+                                        {
+                                            current: assets.current_page,
+                                            total: assets.last_page,
+                                        },
+                                    )}
                                 </span>
                                 <Button
                                     disabled={!assets.next_page_url}
@@ -486,7 +530,9 @@ const ManageAssets = ({
                                         )
                                     }
                                 >
-                                    Next
+                                    {t(
+                                        "pages.properties.manage_assets.pagination.next",
+                                    )}
                                 </Button>
                             </Space>
                         </div>
@@ -495,27 +541,35 @@ const ManageAssets = ({
 
                 {/* Upload Modal */}
                 <Modal
-                    title="Upload Assets"
+                    title={t(
+                        "pages.properties.manage_assets.modal.upload_title",
+                    )}
                     open={isUploadModalOpen}
                     onCancel={handleCloseModal}
                     footer={
                         isUploading || isSavingToBackend ? (
                             <Space>
                                 <Button onClick={handleCancelUploads} danger>
-                                    Cancel
+                                    {t(
+                                        "pages.properties.manage_assets.actions.cancel",
+                                    )}
                                 </Button>
                             </Space>
                         ) : (
                             <Space>
                                 <Button onClick={handleCloseModal}>
-                                    Cancel
+                                    {t(
+                                        "pages.properties.manage_assets.actions.cancel",
+                                    )}
                                 </Button>
                                 <Button
                                     type="primary"
                                     onClick={handleUpload}
                                     disabled={uploadFileList.length === 0}
                                 >
-                                    Upload{" "}
+                                    {t(
+                                        "pages.properties.manage_assets.actions.upload",
+                                    )}{" "}
                                     {uploadFileList.length > 0 &&
                                         `(${uploadFileList.length})`}
                                 </Button>
@@ -532,8 +586,13 @@ const ManageAssets = ({
                             <div className="mb-3">
                                 <Text strong>
                                     {isSavingToBackend
-                                        ? "Saving to property..."
-                                        : `Uploading ${uploadStatuses.length} file(s)...`}
+                                        ? t(
+                                              "pages.properties.manage_assets.progress.saving_to_property",
+                                          )
+                                        : t(
+                                              "pages.properties.manage_assets.progress.uploading_files",
+                                              { count: uploadStatuses.length },
+                                          )}
                                 </Text>
                             </div>
                             <Progress
@@ -550,7 +609,9 @@ const ManageAssets = ({
                                 }
                                 format={() =>
                                     isSavingToBackend
-                                        ? "Saving..."
+                                        ? t(
+                                              "pages.properties.manage_assets.progress.saving",
+                                          )
                                         : `${completedCount}/${uploadStatuses.length}`
                                 }
                             />
@@ -598,11 +659,15 @@ const ManageAssets = ({
                         <>
                             <div className="mb-4">
                                 <Text className="block mb-2">
-                                    Tags (optional)
+                                    {t(
+                                        "pages.properties.manage_assets.fields.tags_optional",
+                                    )}
                                 </Text>
                                 <Select
                                     mode="multiple"
-                                    placeholder="Select tags to apply to all uploaded assets"
+                                    placeholder={t(
+                                        "pages.properties.manage_assets.fields.tags_placeholder",
+                                    )}
                                     value={selectedTags}
                                     onChange={setSelectedTags}
                                     className="w-full"
@@ -627,15 +692,23 @@ const ManageAssets = ({
                             >
                                 <div>
                                     <PlusOutlined />
-                                    <div style={{ marginTop: 8 }}>Upload</div>
+                                    <div style={{ marginTop: 8 }}>
+                                        {t(
+                                            "pages.properties.manage_assets.actions.upload",
+                                        )}
+                                    </div>
                                 </div>
                             </Upload>
                             <div className="mt-4">
                                 <Alert
                                     type="info"
                                     showIcon
-                                    message="Upload Info"
-                                    description="Files will be uploaded to our secure cloud storage. Supported formats: JPEG, PNG, GIF, WebP, MP4, WebM. Maximum file size: 50MB."
+                                    message={t(
+                                        "pages.properties.manage_assets.upload_info.title",
+                                    )}
+                                    description={t(
+                                        "pages.properties.manage_assets.upload_info.description",
+                                    )}
                                 />
                             </div>
                         </>

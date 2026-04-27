@@ -5,6 +5,7 @@ import { Link } from "@inertiajs/react";
 import { MapPin, ArrowLeft } from "lucide-react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import type { PageProps } from "../../Components/DashboardLayout";
 import type {
     DeveloperProject,
@@ -71,6 +72,28 @@ export interface PriceListItem {
     }>;
 }
 
+export interface UnitTypePriceListItem {
+    type: string;
+    count: number;
+    min_price: number | null;
+    max_price: number | null;
+    currency: string;
+    currency_symbol: string;
+    unit_types: Array<{
+        id: number;
+        reference_code: string | null;
+        starting_price: number | null;
+        formatted_price: string | null;
+        currency: string;
+        currency_symbol: string;
+        bedrooms: number | null;
+        bathrooms: number | null;
+        floor: string | null;
+        total_area_sqm: number | null;
+        quantity: number | null;
+    }>;
+}
+
 export interface ShowProps extends PageProps {
     pageTitle: string;
     project: DeveloperProject & {
@@ -81,9 +104,10 @@ export interface ShowProps extends PageProps {
     };
     statistics: Statistics;
     unitTypesSummary: UnitTypeSummary[];
-    facilities: string[];
+    facilities: { name: string; label: string; icon: string | null }[];
     imagesByTag: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
+    unitTypePriceList: UnitTypePriceListItem[];
     unitTypes: DeveloperProjectUnitType[];
     developerProjects: DeveloperProject[];
 }
@@ -155,9 +179,11 @@ const Show = ({
     facilities,
     imagesByTag,
     priceList,
+    unitTypePriceList,
     unitTypes,
     developerProjects,
 }: ShowProps) => {
+    const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
     const [editModalOpen, setEditModalOpen] = useState(false);
 
@@ -181,6 +207,8 @@ const Show = ({
                     <DevelopersSection
                         developer={project.developer}
                         developerProjects={developerProjects}
+                        googleDriveLink={project.google_drive_link}
+                        availabilityLink={project.availability_link}
                     />
                 );
             case "unit_types":
@@ -188,6 +216,9 @@ const Show = ({
                     <UnitTypesSection
                         projectId={project.id}
                         unitTypes={unitTypes ?? []}
+                        onRefresh={() =>
+                            router.reload({ only: ["unitTypes", "project"] })
+                        }
                     />
                 );
             case "photos":
@@ -219,7 +250,7 @@ const Show = ({
                     />
                 );
             case "pricelist":
-                return <PriceListSection priceList={priceList} />;
+                return <PriceListSection priceList={unitTypePriceList} />;
             case "pdf":
                 return (
                     <PdfFilesSection
@@ -247,7 +278,7 @@ const Show = ({
                 title={pageTitle}
                 breadcrumbs={[
                     {
-                        name: "Projects",
+                        name: t("app.menu.projects"),
                         url: route("developer-projects.index"),
                     },
                     { name: project.name },
@@ -255,39 +286,45 @@ const Show = ({
             >
                 {/* ── Project identity header — always visible across tabs ── */}
                 <div className="mb-5 pb-4 border-b border-gray-200">
-                    <div className="flex items-center gap-3 mb-1">
-                        <Link
-                            href={route("developer-projects.index")}
-                            className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm transition-colors"
-                        >
-                            <ArrowLeft size={14} />
-                            <span>Back</span>
-                        </Link>
-                        <span className="text-gray-300">|</span>
-                        <h1 className="text-2xl font-bold text-slate-900 leading-tight">
-                            {project.name}
-                        </h1>
-                    </div>
-                    {project.developer && (
-                        <p className="text-sm text-gray-500 ml-[calc(14px+0.25rem+1px+0.75rem+1px+0.75rem)] mb-0.5 ">
-                            by{" "}
-                            <Link
-                                href={route(
-                                    "developers.show",
-                                    project.developer.id,
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="flex items-center gap-3 mt-1.5 shrink-0">
+                                <Link
+                                    href={route("developer-projects.index")}
+                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm transition-colors"
+                                >
+                                    <ArrowLeft size={14} />
+                                    <span>Back</span>
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-slate-900 leading-tight">
+                                    {project.name}
+                                </h1>
+                                {project.developer && (
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        by{" "}
+                                        <Link
+                                            href={route(
+                                                "developers.show",
+                                                project.developer.id,
+                                            )}
+                                            className="text-blue-600 hover:text-blue-800 font-medium capitalize"
+                                        >
+                                            {project.developer.name}
+                                        </Link>
+                                    </p>
                                 )}
-                                className="text-blue-600 hover:text-blue-800 font-medium capitalize"
-                            >
-                                {project.developer.name}
-                            </Link>
-                        </p>
-                    )}
-                    {project.location?.name && (
-                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5 capitalize">
-                            <MapPin size={14} className="text-gray-400" />
-                            {project.location.name}
-                        </p>
-                    )}
+                            </div>
+                        </div>
+                        {project.location?.name && (
+                            <p className="flex items-center gap-1.5 text-sm text-gray-500 capitalize shrink-0 mt-1.5">
+                                <MapPin size={14} className="text-gray-400" />
+                                {project.location.name}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex gap-6">
@@ -295,6 +332,7 @@ const Show = ({
                         activeSection={activeSection}
                         onSelect={setActiveSection}
                         onEdit={() => setEditModalOpen(true)}
+                        availabilityLink={project.availability_link}
                         unitTypesCount={unitTypes?.length || 0}
                         exteriorCount={imagesByTag.exterior?.length || 0}
                         interiorCount={imagesByTag.interior?.length || 0}

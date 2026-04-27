@@ -14,6 +14,8 @@ import {
     Typography,
     Popconfirm,
     Divider,
+    Checkbox,
+    Tooltip,
 } from "antd";
 import {
     PlusOutlined,
@@ -24,11 +26,12 @@ import {
     SearchOutlined,
     LinkOutlined,
     ExportOutlined,
+    GiftOutlined,
 } from "@ant-design/icons";
-import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { generatePropertySubtitle } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import type {
     AttachedProperty,
@@ -37,6 +40,8 @@ import type {
     ProjectUnitTypesResponse,
 } from "@/Types/api/deal-properties";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import type { Offer } from "@/Types/api/offers";
+import dayjs from "dayjs";
 
 const { Text } = Typography;
 
@@ -122,7 +127,7 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 // ── Props ─────────────────────────────────────────────────────────
-interface AttachPropertiesModalProps {
+interface ManageDealPropertiesModalProps {
     open: boolean;
     onClose: () => void;
     deal: Deal;
@@ -130,16 +135,15 @@ interface AttachPropertiesModalProps {
 }
 
 // ── Component ─────────────────────────────────────────────────────
-const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
+const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
     open,
     onClose,
     deal,
     onRefresh,
 }) => {
-    const queryClient = useQueryClient();
-
     // ── State ─────────────────────────────────────────────────────
     const [searchQuery, setSearchQuery] = useState("");
+    const [propertySelectOpened, setPropertySelectOpened] = useState(false);
     const [selectedPropertyId, setSelectedPropertyId] = useState<number | null>(
         null,
     );
@@ -170,8 +174,8 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
         ApiSuccessResponse<PropertySearchResult[]>
     >({
         path: route("deals.properties.search"),
-        params: { q: searchQuery },
-        options: { enabled: searchQuery.length >= 2 },
+        params: searchQuery.trim() ? { q: searchQuery } : undefined,
+        options: { enabled: open && propertySelectOpened },
     });
 
     const searchResults = searchData?.data ?? [];
@@ -184,6 +188,48 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
     );
     const filteredResults = searchResults.filter(
         (p) => !attachedPropertyIds.has(p.id),
+    );
+
+    const propertySelectOptions = useMemo(
+        () =>
+            filteredResults.map((p) => {
+                const title =
+                    generatePropertySubtitle(p) ||
+                    p.title ||
+                    `Property #${p.id}`;
+                const meta = [p.property_type?.replace(/_/g, " "), p.city]
+                    .filter(Boolean)
+                    .join(" · ");
+
+                return {
+                    value: p.id,
+                    displayLabel: title,
+                    label: (
+                        <div className="flex items-center justify-between py-0.5">
+                            <div className="min-w-0 flex-1">
+                                <span className="font-medium text-sm">
+                                    {title}
+                                </span>
+                                <div className="text-xs text-gray-400 truncate">
+                                    {meta}
+                                </div>
+                            </div>
+                            {p.sale_type && (
+                                <Tag
+                                    color={
+                                        SALE_TYPE_COLORS[p.sale_type] ??
+                                        "default"
+                                    }
+                                    className="!text-[10px] ml-2 shrink-0"
+                                >
+                                    {p.sale_type}
+                                </Tag>
+                            )}
+                        </div>
+                    ),
+                };
+            }),
+        [filteredResults],
     );
 
     // ── Project unit types ────────────────────────────────────────
@@ -263,6 +309,7 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                 overrides.outside_features ?? unitType.outside_features,
             inside_features:
                 overrides.inside_features ?? unitType.inside_features,
+            offer_ids: overrides.selected_offer_ids ?? [],
         });
         setExpandedUnitTypeId(null);
         setUnitTypeOverrides((prev) => {
@@ -303,7 +350,7 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
             destroyOnClose
             maskClosable={false}
         >
-            <div className="space-y-6">
+            <div className="flex flex-col gap-y-6">
                 {/* ── Add Property Section ───────────────── */}
                 <Card size="small" className="border-gray-200">
                     <Tabs
@@ -318,13 +365,19 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                     </span>
                                 ),
                                 children: (
-                                    <div className="space-y-3">
+                                    <div className="flex flex-col gap-y-3">
                                         <div className="flex items-center gap-3">
                                             <Select
                                                 className="flex-1"
                                                 showSearch
                                                 placeholder="Search approved properties by name, city, area..."
+                                                optionLabelProp="displayLabel"
                                                 filterOption={false}
+                                                onFocus={() =>
+                                                    setPropertySelectOpened(
+                                                        true,
+                                                    )
+                                                }
                                                 onSearch={setSearchQuery}
                                                 value={selectedPropertyId}
                                                 onChange={setSelectedPropertyId}
@@ -332,15 +385,6 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                 notFoundContent={
                                                     searching ? (
                                                         <Spin size="small" />
-                                                    ) : searchQuery.length <
-                                                      2 ? (
-                                                        <Text
-                                                            type="secondary"
-                                                            className="text-xs"
-                                                        >
-                                                            Type at least 2
-                                                            characters...
-                                                        </Text>
                                                     ) : (
                                                         <Text
                                                             type="secondary"
@@ -350,52 +394,7 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                         </Text>
                                                     )
                                                 }
-                                                options={filteredResults.map(
-                                                    (p) => ({
-                                                        value: p.id,
-                                                        label: (
-                                                            <div className="flex items-center justify-between py-0.5">
-                                                                <div className="min-w-0 flex-1">
-                                                                    <span className="font-medium text-sm">
-                                                                        {p.title ||
-                                                                            `Property #${p.id}`}
-                                                                    </span>
-                                                                    <div className="text-xs text-gray-400 truncate">
-                                                                        {[
-                                                                            p.property_type?.replace(
-                                                                                /_/g,
-                                                                                " ",
-                                                                            ),
-                                                                            p.city,
-                                                                        ]
-                                                                            .filter(
-                                                                                Boolean,
-                                                                            )
-                                                                            .join(
-                                                                                " · ",
-                                                                            )}
-                                                                    </div>
-                                                                </div>
-                                                                {p.sale_type && (
-                                                                    <Tag
-                                                                        color={
-                                                                            SALE_TYPE_COLORS[
-                                                                                p
-                                                                                    .sale_type
-                                                                            ] ??
-                                                                            "default"
-                                                                        }
-                                                                        className="!text-[10px] ml-2 shrink-0"
-                                                                    >
-                                                                        {
-                                                                            p.sale_type
-                                                                        }
-                                                                    </Tag>
-                                                                )}
-                                                            </div>
-                                                        ),
-                                                    }),
-                                                )}
+                                                options={propertySelectOptions}
                                                 allowClear
                                             />
                                             <Button
@@ -420,9 +419,9 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                     </span>
                                 ),
                                 children: (
-                                    <div className="space-y-4">
+                                    <div className="flex flex-col gap-y-4">
                                         {/* Project selector */}
-                                        <div className="space-y-2">
+                                        <div className="flex flex-col gap-y-2">
                                             <Select
                                                 className="w-full"
                                                 showSearch
@@ -468,6 +467,34 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                     Check Availability
                                                 </a>
                                             )}
+                                            {projectInfo &&
+                                                !projectInfo?.availability_link && (
+                                                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                                                        <LinkOutlined />
+                                                        No availability info
+                                                    </span>
+                                                )}
+                                            {/* Google drive link */}
+                                            {projectInfo?.google_drive_link && (
+                                                <a
+                                                    href={
+                                                        projectInfo.google_drive_link
+                                                    }
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                                >
+                                                    <ExportOutlined />
+                                                    Google Drive Info
+                                                </a>
+                                            )}
+                                            {projectInfo &&
+                                                !projectInfo?.google_drive_link && (
+                                                    <span className="inline-flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+                                                        <LinkOutlined />
+                                                        No google drive info
+                                                    </span>
+                                                )}
                                         </div>
 
                                         {/* Unit types list */}
@@ -486,7 +513,7 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                         className="my-4"
                                                     />
                                                 ) : (
-                                                    <div className="space-y-2">
+                                                    <div className="flex flex-col gap-y-2">
                                                         {unitTypes.map((ut) => (
                                                             <UnitTypeCard
                                                                 key={ut.id}
@@ -618,7 +645,7 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                             </div>
 
                                             {/* Info */}
-                                            <div className="min-w-0 flex-1 space-y-1">
+                                            <div className="min-w-0 flex-1 flex flex-col gap-y-1">
                                                 {/* Title row */}
                                                 <div className="flex items-center gap-2 flex-wrap">
                                                     {prop ? (
@@ -631,7 +658,10 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                             rel="noopener noreferrer"
                                                             className="text-sm font-semibold text-blue-600 hover:text-blue-800 truncate"
                                                         >
-                                                            {prop.title ||
+                                                            {generatePropertySubtitle(
+                                                                prop,
+                                                            ) ||
+                                                                prop.title ||
                                                                 item.product_name}
                                                         </a>
                                                     ) : (
@@ -722,6 +752,27 @@ const AttachPropertiesModal: React.FC<AttachPropertiesModalProps> = ({
                                                         </span>
                                                     )}
                                                 </div>
+
+                                                {/* Applied offers */}
+                                                {item.offer_applications
+                                                    ?.length > 0 && (
+                                                    <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                                        <GiftOutlined className="text-[10px] text-green-500 shrink-0" />
+                                                        {item.offer_applications.map(
+                                                            (app) => (
+                                                                <Tag
+                                                                    key={app.id}
+                                                                    color="green"
+                                                                    className="!text-[10px] !m-0"
+                                                                >
+                                                                    {app.offer
+                                                                        ?.name ??
+                                                                        `Offer #${app.offer_id}`}
+                                                                </Tag>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </List.Item>
@@ -775,10 +826,9 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
             >
                 <div className="flex items-center gap-3 min-w-0 flex-1">
                     <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col gap-2">
                             <span className="text-sm font-medium text-gray-900 capitalize">
-                                {unitType.property_type?.replace(/_/g, " ") ??
-                                    "Unit Type"}
+                                {generatePropertySubtitle(unitType)}
                             </span>
                             {unitType.reference_code && (
                                 <Tag className="!text-[10px]">
@@ -820,7 +870,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 
             {/* Expanded edit form */}
             {expanded && (
-                <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/30 space-y-3">
+                <div className="px-4 pb-4 pt-1 border-t border-gray-100 bg-gray-50/30 flex flex-col gap-y-3">
                     <div className="grid grid-cols-2 gap-3">
                         {/* Price */}
                         <div>
@@ -920,6 +970,81 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         />
                     </div>
 
+                    {/* Applicable Offers */}
+                    {unitType.active_offers &&
+                        unitType.active_offers.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                                    Apply Offers{" "}
+                                    <span className="text-gray-400 font-normal">
+                                        (optional)
+                                    </span>
+                                </label>
+                                <div className="flex flex-col gap-y-2 p-2.5 bg-white rounded border border-gray-100">
+                                    {unitType.active_offers.map(
+                                        (offer: Offer) => {
+                                            const selectedIds: number[] =
+                                                overrides.selected_offer_ids ??
+                                                [];
+                                            const isChecked =
+                                                selectedIds.includes(offer.id);
+                                            return (
+                                                <label
+                                                    key={offer.id}
+                                                    className="flex items-start gap-2 cursor-pointer group"
+                                                >
+                                                    <Checkbox
+                                                        checked={isChecked}
+                                                        onChange={(e) => {
+                                                            const current: number[] =
+                                                                overrides.selected_offer_ids ??
+                                                                [];
+                                                            onOverrideChange(
+                                                                "selected_offer_ids",
+                                                                e.target.checked
+                                                                    ? [
+                                                                          ...current,
+                                                                          offer.id,
+                                                                      ]
+                                                                    : current.filter(
+                                                                          (
+                                                                              id,
+                                                                          ) =>
+                                                                              id !==
+                                                                              offer.id,
+                                                                      ),
+                                                            );
+                                                        }}
+                                                        className="mt-0.5 shrink-0"
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <span className="text-xs font-medium text-gray-800">
+                                                            {offer.name}
+                                                        </span>
+                                                        <div className="text-xs text-gray-400">
+                                                            {offer.type ===
+                                                            "percentage"
+                                                                ? `${offer.value}% off`
+                                                                : offer.type ===
+                                                                    "fixed"
+                                                                  ? `${offer.value} off`
+                                                                  : "Perks"}
+                                                            {offer.ends_at &&
+                                                                ` · Expires ${dayjs(
+                                                                    offer.ends_at,
+                                                                ).format(
+                                                                    "D MMM YYYY",
+                                                                )}`}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            );
+                                        },
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
                     <Divider className="!my-2" />
 
                     <div className="flex justify-end">
@@ -939,4 +1064,4 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     );
 };
 
-export default AttachPropertiesModal;
+export default ManageDealPropertiesModal;

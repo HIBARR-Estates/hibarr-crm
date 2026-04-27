@@ -49,6 +49,8 @@ class PatchRequest extends CoreRequest
             // Deal Information (all optional for patch)
             'deal_name' => 'sometimes|string|max:255',
             'value' => 'sometimes|numeric|min:0',
+            'manual_value' => 'sometimes|numeric|min:0',
+            'value_source' => ['sometimes', 'string', Rule::in(['manual', 'calculated'])],
             'currency_id' => 'sometimes|integer|exists:currencies,id',
             'pipeline_stage_id' => 'sometimes|integer|exists:pipeline_stages,id',
             'lead_pipeline_id' => 'sometimes|integer|exists:lead_pipelines,id',

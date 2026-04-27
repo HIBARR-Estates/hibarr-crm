@@ -14,6 +14,7 @@ import {
 import { router } from "@inertiajs/react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import AccountDetailsTab from "@/Features/Clients/SaveClient/AccountDetailsTab";
 import CompanyDetailsTab from "@/Features/Clients/SaveClient/CompanyDetailsTab";
 
@@ -45,6 +46,7 @@ const CreateClient: React.FC<Props> = ({
     fields,
     permissions,
 }) => {
+    const { t } = useTranslation();
     const [form] = Form.useForm();
     const [loading, setLoading] = useState(false);
     const [activeTab, setActiveTab] = useState("account");
@@ -136,7 +138,7 @@ const CreateClient: React.FC<Props> = ({
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[
-                    { name: "Clients", url: route("clients.index") },
+                    { name: t("app.menu.clients"), url: route("clients.index") },
                     {
                         name: lead
                             ? `Convert Lead: ${lead.client_name}`

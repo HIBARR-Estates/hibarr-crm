@@ -44,6 +44,8 @@ import type {
     ConfigTypeSlug,
 } from "@/Types/propertyConfig";
 import { CONFIG_CATEGORIES, CONFIG_TYPE_ORDER } from "@/Types/propertyConfig";
+import { getFacilityIconComponent } from "@/lib/facilityIcons";
+import useTranslation from "@/Hooks/useTranslation";
 
 const { Text, Title } = Typography;
 
@@ -72,6 +74,8 @@ interface ConfigProps {
 }
 
 const Config = ({ pageTitle }: ConfigProps) => {
+    const { t } = useTranslation();
+
     const [activeType, setActiveType] =
         useState<ConfigTypeSlug>("property-types");
     const [modalOpen, setModalOpen] = useState(false);
@@ -79,7 +83,26 @@ const Config = ({ pageTitle }: ConfigProps) => {
         null,
     );
 
-    const activeMeta = CONFIG_CATEGORIES[activeType];
+    const translatedCategories = useMemo(
+        () =>
+            Object.fromEntries(
+                CONFIG_TYPE_ORDER.map((slug) => [
+                    slug,
+                    {
+                        ...CONFIG_CATEGORIES[slug],
+                        label: t(
+                            `pages.properties.config.categories.${slug}.label`,
+                        ),
+                        description: t(
+                            `pages.properties.config.categories.${slug}.description`,
+                        ),
+                    },
+                ]),
+            ) as typeof CONFIG_CATEGORIES,
+        [t],
+    );
+
+    const activeMeta = translatedCategories[activeType];
 
     // Search & filter state
     const [searchText, setSearchText] = useState("");
@@ -200,7 +223,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
     const columns: ColumnsType<PropertyConfigItem> = useMemo(() => {
         const cols: ColumnsType<PropertyConfigItem> = [
             {
-                title: "Display Label",
+                title: t("pages.properties.config.table.columns.display_label"),
                 dataIndex: "label",
                 key: "label",
                 width: 220,
@@ -211,7 +234,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
         // Show parent_type column only for sub-types
         if (activeType === "sub-types") {
             cols.push({
-                title: "Parent Type",
+                title: t("pages.properties.config.table.columns.parent_type"),
                 dataIndex: "parent_type",
                 key: "parent_type",
                 width: 160,
@@ -223,7 +246,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
         // Show city column only for areas
         if (activeType === "areas") {
             cols.push({
-                title: "City",
+                title: t("pages.properties.config.table.columns.city"),
                 dataIndex: "city_id",
                 key: "city_id",
                 width: 160,
@@ -241,7 +264,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
         // Show category column only for property-types
         if (activeType === "property-types") {
             cols.push({
-                title: "Category",
+                title: t("pages.properties.config.table.columns.category"),
                 dataIndex: "category",
                 key: "category",
                 width: 140,
@@ -262,9 +285,24 @@ const Config = ({ pageTitle }: ConfigProps) => {
             });
         }
 
+        // Show icon column only for project-facilities
+        if (activeType === "project-facilities") {
+            cols.push({
+                title: t("pages.properties.config.table.columns.icon"),
+                dataIndex: "icon",
+                key: "icon",
+                width: 80,
+                align: "center",
+                render: (val: string | null) => {
+                    const IconComp = getFacilityIconComponent(val);
+                    return <IconComp size={18} className="text-gray-600" />;
+                },
+            });
+        }
+
         cols.push(
             {
-                title: "Description",
+                title: t("pages.properties.config.table.columns.description"),
                 dataIndex: "description",
                 key: "description",
                 ellipsis: true,
@@ -276,12 +314,12 @@ const Config = ({ pageTitle }: ConfigProps) => {
                         </Tooltip>
                     ) : (
                         <Text type="secondary" italic>
-                            No description
+                            {t("pages.properties.config.no_description")}
                         </Text>
                     ),
             },
             {
-                title: "Actions",
+                title: t("pages.properties.config.table.columns.actions"),
                 key: "actions",
                 width: 100,
                 align: "right",
@@ -294,11 +332,13 @@ const Config = ({ pageTitle }: ConfigProps) => {
                             onClick={() => handleOpenEdit(record)}
                         />
                         <Popconfirm
-                            title="Delete this item?"
-                            description={`"${record.label}" will be permanently removed.`}
+                            title={t("pages.properties.config.delete_title")}
+                            description={t(
+                                "pages.properties.config.delete_description",
+                            ).replace(":label", record.label)}
                             onConfirm={() => handleDelete(record.id)}
-                            okText="Delete"
-                            cancelText="Cancel"
+                            okText={t("app.delete")}
+                            cancelText={t("app.cancel")}
                             okButtonProps={{
                                 danger: true,
                                 loading:
@@ -376,8 +416,11 @@ const Config = ({ pageTitle }: ConfigProps) => {
         <PageLayout
             title={pageTitle}
             breadcrumbs={[
-                { name: "Properties", url: route("properties.index") },
-                { name: "Configuration" },
+                {
+                    name: t("app.menu.properties"),
+                    url: route("properties.index"),
+                },
+                { name: t("pages.properties.config.breadcrumb") },
             ]}
         >
             <div
@@ -397,7 +440,9 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                     level={5}
                                     className="!mb-0 !text-gray-600"
                                 >
-                                    Categories
+                                    {t(
+                                        "pages.properties.config.categories_title",
+                                    )}
                                 </Title>
                             </div>
                             <div className="flex-1 overflow-y-auto overflow-x-hidden">
@@ -454,14 +499,14 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         onClick={() => itemsQuery.refetch()}
                                         loading={isLoadingItems}
                                     >
-                                        Refresh
+                                        {t("app.common.actions.refresh")}
                                     </Button>
                                     <Button
                                         type="primary"
                                         icon={<PlusOutlined />}
                                         onClick={handleOpenCreate}
                                     >
-                                        Add {activeMeta.label.replace(/s$/, "")}
+                                        {`${t("pages.properties.config.actions.add")} ${activeMeta.label.replace(/s$/, "")}`}
                                     </Button>
                                 </Space>
                             </div>
@@ -472,7 +517,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                     prefix={
                                         <SearchOutlined className="text-gray-400" />
                                     }
-                                    placeholder={`Search ${activeMeta.label.toLowerCase()}...`}
+                                    placeholder={`${t("pages.properties.config.search_prefix")} ${activeMeta.label.toLowerCase()}...`}
                                     value={searchText}
                                     onChange={(e) =>
                                         setSearchText(e.target.value)
@@ -482,7 +527,9 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                 />
                                 {activeType === "areas" && (
                                     <Select
-                                        placeholder="Filter by city"
+                                        placeholder={t(
+                                            "pages.properties.config.filter_by_city",
+                                        )}
                                         value={filterCityId}
                                         onChange={setFilterCityId}
                                         allowClear
@@ -500,8 +547,17 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         type="secondary"
                                         className="text-xs ml-auto"
                                     >
-                                        {filteredItems.length} of {items.length}{" "}
-                                        shown
+                                        {t(
+                                            "pages.properties.config.shown_count",
+                                        )
+                                            .replace(
+                                                ":shown",
+                                                String(filteredItems.length),
+                                            )
+                                            .replace(
+                                                ":total",
+                                                String(items.length),
+                                            )}
                                     </Text>
                                 )}
                             </div>
@@ -513,11 +569,19 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                     selectedRowKeys.length > 0 && (
                                         <div className="flex items-center gap-3 mb-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
                                             <Text className="text-sm text-blue-700">
-                                                {selectedRowKeys.length}{" "}
-                                                selected
+                                                {t(
+                                                    "pages.properties.config.selected_count",
+                                                ).replace(
+                                                    ":count",
+                                                    String(
+                                                        selectedRowKeys.length,
+                                                    ),
+                                                )}
                                             </Text>
                                             <Select
-                                                placeholder="Assign category"
+                                                placeholder={t(
+                                                    "pages.properties.config.assign_category",
+                                                )}
                                                 value={bulkCategory}
                                                 onChange={setBulkCategory}
                                                 style={{ width: 180 }}
@@ -541,7 +605,9 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                     handleBulkAssignCategory
                                                 }
                                             >
-                                                Assign
+                                                {t(
+                                                    "pages.properties.config.actions.assign",
+                                                )}
                                             </Button>
                                             <Button
                                                 size="small"
@@ -550,7 +616,9 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                     setBulkCategory(undefined);
                                                 }}
                                             >
-                                                Clear
+                                                {t(
+                                                    "pages.properties.config.actions.clear",
+                                                )}
                                             </Button>
                                         </div>
                                     )}
@@ -559,9 +627,12 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         <Empty
                                             description={
                                                 <span>
-                                                    No{" "}
-                                                    {activeMeta.label.toLowerCase()}{" "}
-                                                    configured yet.
+                                                    {t(
+                                                        "pages.properties.config.empty_description",
+                                                    ).replace(
+                                                        ":label",
+                                                        activeMeta.label.toLowerCase(),
+                                                    )}
                                                     <br />
                                                     <Button
                                                         type="link"
@@ -570,7 +641,9 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                         }
                                                         className="!p-0"
                                                     >
-                                                        Add the first one
+                                                        {t(
+                                                            "pages.properties.config.actions.add_first",
+                                                        )}
                                                     </Button>
                                                 </span>
                                             }
@@ -582,9 +655,12 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         <Empty
                                             description={
                                                 <span>
-                                                    No matching{" "}
-                                                    {activeMeta.label.toLowerCase()}{" "}
-                                                    found.
+                                                    {t(
+                                                        "pages.properties.config.empty_filtered_description",
+                                                    ).replace(
+                                                        ":label",
+                                                        activeMeta.label.toLowerCase(),
+                                                    )}
                                                     <br />
                                                     <Button
                                                         type="link"
@@ -596,7 +672,9 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                         }}
                                                         className="!p-0"
                                                     >
-                                                        Clear filters
+                                                        {t(
+                                                            "pages.properties.config.actions.clear_filters",
+                                                        )}
                                                     </Button>
                                                 </span>
                                             }

@@ -1,5 +1,4 @@
 import React from "react";
-import { Link } from "@inertiajs/react";
 import { Button } from "antd";
 import {
     LayoutGrid,
@@ -18,6 +17,7 @@ interface ShowSidebarProps {
     activeSection: SectionKey;
     onSelect: (key: SectionKey) => void;
     onEdit: () => void;
+    availabilityLink?: string | null;
     unitTypesCount: number;
     exteriorCount: number;
     interiorCount: number;
@@ -28,6 +28,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
     activeSection,
     onSelect,
     onEdit,
+    availabilityLink,
     unitTypesCount,
     exteriorCount,
     interiorCount,
@@ -37,6 +38,8 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
         key: SectionKey;
         icon: React.ReactNode;
         label: string;
+        externalUrl?: string;
+        disabled?: boolean;
     }[] = [
         { key: "overview", icon: <LayoutGrid size={16} />, label: "Overview" },
         { key: "developers", icon: <Users size={16} />, label: "Developer" },
@@ -66,28 +69,70 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
             key: "pricelist",
             icon: <DollarSign size={16} />,
             label: "Price List",
+            externalUrl: availabilityLink ?? undefined,
+            disabled: !availabilityLink,
         },
         { key: "pdf", icon: <FileText size={16} />, label: "PDF Files" },
-        { key: "offers", icon: <Gift size={16} />, label: "Offers" },
+        // { key: "offers", icon: <Gift size={16} />, label: "Offers" },
     ];
 
     return (
         <div className="w-64 flex-shrink-0 sticky top-4 flex flex-col gap-2">
             {/* Nav items – each is its own card */}
-            {navItems.map((item) => (
-                <div
-                    key={item.key}
-                    onClick={() => onSelect(item.key)}
-                    className={`flex items-center gap-4 p-2 rounded-md border cursor-pointer hover:${activeSection === item.key ? "bg-gray-600" : "bg-gray-50"} transition-colors ${
-                        activeSection === item.key
-                            ? "bg-[#1a2a6c] text-white border-[#1a2a6c]"
-                            : "bg-white border-gray-200 text-gray-700"
-                    }`}
-                >
-                    <span className="flex-shrink-0">{item.icon}</span>
-                    <span className="text-sm font-medium">{item.label}</span>
-                </div>
-            ))}
+            {navItems.map((item) => {
+                const isDisabled = Boolean(item.disabled);
+                const isActive = activeSection === item.key;
+                const baseClasses = `flex items-center gap-4 p-2 rounded-md border transition-colors ${
+                    isDisabled
+                        ? "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"
+                        : isActive
+                          ? "bg-[#1a2a6c] text-white border-[#1a2a6c] cursor-pointer"
+                          : "bg-white border-gray-200 text-gray-700 cursor-pointer hover:bg-gray-50"
+                }`;
+
+                if (item.externalUrl && !isDisabled) {
+                    return (
+                        <a
+                            key={item.key}
+                            href={item.externalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={baseClasses}
+                            title="Open availability link"
+                        >
+                            <span className="flex-shrink-0">{item.icon}</span>
+                            <span className="text-sm font-medium">
+                                {item.label}
+                            </span>
+                        </a>
+                    );
+                }
+
+                return (
+                    <div
+                        key={item.key}
+                        onClick={() => !isDisabled && onSelect(item.key)}
+                        className={baseClasses}
+                        title={
+                            item.key === "pricelist" && isDisabled
+                                ? "Availability link absent"
+                                : undefined
+                        }
+                    >
+                        <span className="flex-shrink-0">{item.icon}</span>
+                        <div className="flex min-w-0 flex-col">
+                            <span className="text-sm font-medium">
+                                {item.label}
+                            </span>
+                            {item.key === "pricelist" && isDisabled && (
+                                <span className="text-xs">
+                                    Availability link absent
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
 
             {/* Action buttons */}
             <div className="flex flex-col gap-2 pt-2">

@@ -27,6 +27,7 @@ import {
     TagsOutlined,
     EditOutlined,
 } from "@ant-design/icons";
+import { router } from "@inertiajs/react";
 import type { UploadFile } from "antd";
 import type { AssetTag } from "@/Types";
 import type { DeveloperProjectAsset } from "@/Types/developerProject";
@@ -216,6 +217,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 setUploadStatuses([]);
                 setSelectedTags([]);
                 refetchAssets();
+                router.reload({ only: ["project"] });
             },
         );
 
@@ -240,6 +242,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             setSelectedAssetIds(new Set());
             setIsSelecting(false);
             refetchAssets();
+            router.reload();
         },
     );
 
@@ -389,6 +392,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                         .then(() => {
                             messageApi.success("Photo deleted");
                             refetchAssets();
+                            router.reload();
                         })
                         .catch(() => {
                             messageApi.error("Failed to delete photo");

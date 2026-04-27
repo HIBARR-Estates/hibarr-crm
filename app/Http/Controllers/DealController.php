@@ -53,10 +53,12 @@ use App\Traits\DealFormDataTrait;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use GuzzleHttp\Client;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use App\Services\PermissionService;
 use App\Services\DealOfferService;
+use App\Services\DealValueResolver;
 
 class DealController extends AccountBaseController
 {
@@ -205,6 +207,9 @@ class DealController extends AccountBaseController
             'deals.added_by',
             'deals.next_follow_up',
             'deals.value',
+            'deals.manual_value',
+            'deals.calculated_value',
+            'deals.value_source',
             'deals.pipeline_stage_id',
             'deals.created_at',
             'deals.close_date',
@@ -830,7 +835,10 @@ class DealController extends AccountBaseController
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
-        $deal->value = ($request->value) ?: 0;
+        $manualValue = $request->manual_value ?? $request->value ?? 0;
+        $deal->manual_value = $manualValue;
+        $deal->value_source = app(DealValueResolver::class)->normalizeSource($request->value_source);
+        $deal->value = $manualValue;
         $deal->currency_id = $this->company->currency_id;
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
@@ -1068,7 +1076,12 @@ class DealController extends AccountBaseController
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
-        $deal->value = ($request->value) ?: 0;
+        $manualValue = $request->manual_value ?? $request->value;
+        if ($manualValue !== null && $manualValue !== '') {
+            $deal->manual_value = (float) $manualValue;
+            $deal->value = (float) $manualValue;
+        }
+        $deal->value_source = app(DealValueResolver::class)->normalizeSource($request->value_source ?? $deal->value_source);
         $deal->currency_id = $this->company->currency_id;
         $deal->category_id = $request->category_id;
         // TODO: Einstein sync issue - comment these two lines for now
@@ -1209,7 +1222,9 @@ class DealController extends AccountBaseController
             // 1. Update Deal Fields
             $dealFields = [
                 'deal_name' => 'name',
-                'value' => 'value',
+                'value' => 'manual_value',
+                'manual_value' => 'manual_value',
+                'value_source' => 'value_source',
                 'currency_id' => 'currency_id',
                 'pipeline_stage_id' => 'pipeline_stage_id',
                 'lead_pipeline_id' => 'lead_pipeline_id',
@@ -1229,6 +1244,10 @@ class DealController extends AccountBaseController
                 if (array_key_exists($requestKey, $validatedData)) {
                     $dealUpdates[$dbColumn] = $validatedData[$requestKey];
                 }
+            }
+
+            if (array_key_exists('value_source', $dealUpdates)) {
+                $dealUpdates['value_source'] = app(DealValueResolver::class)->normalizeSource($dealUpdates['value_source']);
             }
 
             // Handle dates
@@ -1290,8 +1309,19 @@ class DealController extends AccountBaseController
             }
             
             // 3. Handle Products
+            $productsUpdated = false;
             if (array_key_exists('products', $validatedData) && is_array($validatedData['products'])) {
                 $deal->products()->sync($validatedData['products']);
+                $productsUpdated = true;
+                app(DealOfferService::class)->applyOffersToDeal($deal);
+            }
+
+            if (!$productsUpdated && (
+                array_key_exists('value', $validatedData)
+                || array_key_exists('manual_value', $validatedData)
+                || array_key_exists('value_source', $validatedData)
+            )) {
+                app(DealValueResolver::class)->resolveAndPersist($deal->fresh());
             }
 
             
@@ -1510,51 +1540,114 @@ class DealController extends AccountBaseController
 
     public function applyQuickAction(Request $request)
     {
-        switch ($request->action_type) {
-            case 'delete':
-                $this->deleteRecords($request);
+        // Suppress per-deal notifications/emails during bulk operations
+        app()->instance('suppress_bulk_notifications', true);
 
-                // return Reply::success(__('messages.deleteSuccess'));
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.deleteSuccess')
-                ]); 
-            case 'change-status':
-                $this->changeBulkStatus($request);
+        try {
+            $rowIds = $request->filled('row_ids')
+                ? explode(',', $request->row_ids)
+                : [];
+            $rowIds = array_values(array_filter(array_map('intval', $rowIds)));
+            $records = [];
 
-                // return Reply::success(__('messages.updateSuccess'));
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess')
-                ]);
+            switch ($request->action_type) {
+                case 'delete':
+                    $deals = Deal::whereIn('id', $rowIds)
+                        ->where('is_locked', false)
+                        ->get(['id', 'name']);
+                    $deletableIds = $deals->pluck('id')->map(fn ($id) => (int) $id)->values()->all();
+                    $records = $deals->map(function (Deal $deal) {
+                        return [
+                            'label' => 'Deleted: ' . ($deal->name ?? ('#' . $deal->id)),
+                            'url' => '',
+                        ];
+                    })->values()->all();
 
-            case 'change-deal-agents':
-                $this->changeAgentStatus($request);
+                    $this->deleteRecords($request, $deletableIds);
 
-                // return Reply::success(__('messages.updateSuccess'));
-                return back()->with([
-                    'status' => 'success',
-                    'message' => __('messages.updateSuccess')
-                ]);
+                    if (user() && !empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'delete', count($records), $records));
+                    }
 
-            default:
-                // return Reply::error(__('messages.selectAction'));
-                return back()->with([
-                    'status' => 'error',
-                    'message' => __('messages.selectAction')
-                ]);
+                    return back()->with([
+                        'status' => 'success',
+                        'message' => __('messages.deleteSuccess')
+                    ]);
+
+                case 'change-status':
+                    $stage = PipelineStage::find($request->status);
+                    $stageLabel = $stage?->name ?? ('ID ' . $request->status);
+                    $editableIds = Deal::whereIn('id', $rowIds)
+                        ->where('is_locked', false)
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->values()
+                        ->all();
+                    $deals = Deal::whereIn('id', $editableIds)->get(['id', 'name']);
+                    $records = $deals->map(function (Deal $deal) use ($stageLabel) {
+                        return [
+                            'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $stageLabel . ')',
+                            'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                        ];
+                    })->values()->all();
+
+                    $this->changeBulkStatus($request, $editableIds);
+
+                    if (user() && !empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-status', count($records), $records));
+                    }
+
+                    return back()->with([
+                        'status' => 'success',
+                        'message' => __('messages.updateSuccess')
+                    ]);
+
+                case 'change-deal-agents':
+                    $leadAgent = LeadAgent::with('user')->find($request->agent);
+                    $agentLabel = $leadAgent?->user?->name ?? ('ID ' . $request->agent);
+                    $eligibleDeals = $this->eligibleDealsForAgentChange($rowIds);
+                    $records = $eligibleDeals->map(function (Deal $deal) use ($agentLabel) {
+                        return [
+                            'label' => ($deal->name ?? ('#' . $deal->id)) . ' (' . $agentLabel . ')',
+                            'url' => getDomainSpecificUrl(route('deals.show', $deal->id), company()),
+                        ];
+                    })->values()->all();
+
+                    $this->changeAgentStatus($request, $eligibleDeals);
+
+                    if (user() && !empty($records)) {
+                        user()->notify(new \App\Notifications\BulkActionCompleted('deal', 'change-deal-agents', count($records), $records));
+                    }
+
+                    return back()->with([
+                        'status' => 'success',
+                        'message' => __('messages.updateSuccess')
+                    ]);
+
+                default:
+                    return back()->with([
+                        'status' => 'error',
+                        'message' => __('messages.selectAction')
+                    ]);
+            }
+        } finally {
+            app()->forgetInstance('suppress_bulk_notifications');
         }
     }
 
-    protected function deleteRecords($request)
+    protected function deleteRecords($request, ?array $deletableIds = null)
     {
         abort_403(user()->permission('delete_deals') != 'all');
 
-        $rowIds = explode(',', $request->row_ids);
-
-        // Exclude locked deals from bulk deletion
-        $lockedIds = Deal::whereIn('id', $rowIds)->where('is_locked', true)->pluck('id')->toArray();
-        $deletableIds = array_diff($rowIds, $lockedIds);
+        if (is_null($deletableIds)) {
+            $rowIds = explode(',', $request->row_ids);
+            $deletableIds = Deal::whereIn('id', $rowIds)
+                ->where('is_locked', false)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
 
         if (empty($deletableIds)) {
             return;
@@ -1570,20 +1663,26 @@ class DealController extends AccountBaseController
         Deal::whereIn('id', $deletableIds)->delete();
     }
 
-    protected function changeBulkStatus($request)
+    protected function changeBulkStatus($request, ?array $editableIds = null)
     {
         $canEditDeals = user()->permission('edit_deals') == 'all';
         $canChangeStages = user()->permission('change_deal_stages') == 'all';
 
         abort_403(!($canEditDeals || $canChangeStages));
 
-        $rowIds = explode(',', $request->row_ids);
         $newStatus = $request->status;
 
         $stage = PipelineStage::find($newStatus);
 
-        // Exclude locked deals from bulk status change
-        $editableIds = Deal::whereIn('id', $rowIds)->where('is_locked', false)->pluck('id')->toArray();
+        if (is_null($editableIds)) {
+            $rowIds = explode(',', $request->row_ids);
+            $editableIds = Deal::whereIn('id', $rowIds)
+                ->where('is_locked', false)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->values()
+                ->all();
+        }
 
         if (empty($editableIds)) {
             return;
@@ -1596,16 +1695,23 @@ class DealController extends AccountBaseController
         Deal::whereIn('id', $editableIds)->update(['pipeline_stage_id' => $newStatus]);
     }
 
-    protected function changeAgentStatus($request)
+    protected function changeAgentStatus($request, ?Collection $eligibleDeals = null)
     {
         abort_403(user()->permission('edit_deals') != 'all');
-        $agent = LeadAgent::find($request->agent);
+        $agent = LeadAgent::findOrFail($request->agent);
         $agentsWithSameUser = LeadAgent::where('user_id', $agent->user_id)->get();
-        $rowIds = explode(',', $request->row_ids);
+        $deals = $eligibleDeals;
 
-        $leads = Deal::with('leadAgent', 'category')->whereIn('id', $rowIds)->get();
+        if (is_null($deals)) {
+            $rowIds = explode(',', $request->row_ids);
+            $deals = $this->eligibleDealsForAgentChange(array_values(array_filter(array_map('intval', $rowIds))));
+        }
 
-        foreach ($leads as $deal) {
+        foreach ($deals as $deal) {
+            if ((bool) $deal->is_locked) {
+                continue;
+            }
+
             // Find an agent from the list with matching category
             $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
 
@@ -1615,6 +1721,13 @@ class DealController extends AccountBaseController
                 $deal->save();
             }
         }
+    }
+
+    protected function eligibleDealsForAgentChange(array $rowIds): Collection
+    {
+        return Deal::whereIn('id', $rowIds)
+            ->where('is_locked', false)
+            ->get(['id', 'name', 'category_id', 'agent_id', 'is_locked']);
     }
 
     /**

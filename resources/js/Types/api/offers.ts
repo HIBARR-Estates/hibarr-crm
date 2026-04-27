@@ -39,6 +39,7 @@ export interface Offer {
     // Counts
     deal_applications_count?: number;
     developer_projects_count?: number;
+    unit_types_count?: number;
 }
 
 export interface DealOfferApplication {
@@ -56,7 +57,13 @@ export interface DealOfferApplication {
     updated_at: string;
     // Relations (when loaded)
     offer?: Offer;
-    product?: Product;
+    product?: Product & {
+        property?: {
+            id: number;
+            title: string | null;
+            property_type: string | null;
+        } | null;
+    };
     resolved_from?: DeveloperProject | DeveloperProjectUnitType;
 }
 

@@ -1,4 +1,5 @@
 import React from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import { Lead } from "@/Types/api/leads";
 import { Descriptions, Tag, Card, Empty } from "antd";
 import {
@@ -15,12 +16,13 @@ interface Props {
 }
 
 const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
+    const { t } = useTranslation();
     const marketing = lead.marketing;
 
     if (!marketing) {
         return (
             <div className="p-8 text-center">
-                <Empty description="No marketing information available for this lead" />
+                <Empty description={t("pages.leads.marketing.empty")} />
             </div>
         );
     }
@@ -28,11 +30,11 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
     const renderBoolean = (value: boolean) => {
         return value ? (
             <Tag color="success" icon={<CheckCircleOutlined />}>
-                Yes
+                {t("pages.leads.marketing.yes")}
             </Tag>
         ) : (
             <Tag color="default" icon={<CloseCircleOutlined />}>
-                No
+                {t("pages.leads.marketing.no")}
             </Tag>
         );
     };
@@ -45,7 +47,7 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                     title={
                         <span>
                             <GlobalOutlined className="mr-2" />
-                            UTM & Campaign Tracking
+                            {t("pages.leads.marketing.utm_section")}
                         </span>
                     }
                     size="small"
@@ -56,25 +58,25 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                         bordered
                         size="small"
                     >
-                        <Descriptions.Item label="UTM Source">
+                        <Descriptions.Item label={t("pages.leads.marketing.utm_source")}>
                             {marketing.utm_source || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="UTM Medium">
+                        <Descriptions.Item label={t("pages.leads.marketing.utm_medium")}>
                             {marketing.utm_medium || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="UTM Campaign">
+                        <Descriptions.Item label={t("pages.leads.marketing.utm_campaign")}>
                             {marketing.utm_campaign || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="UTM Content">
+                        <Descriptions.Item label={t("pages.leads.marketing.utm_content")}>
                             {marketing.utm_content || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="UTM Term">
+                        <Descriptions.Item label={t("pages.leads.marketing.utm_term")}>
                             {marketing.utm_term || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="UTM Audience">
+                        <Descriptions.Item label={t("pages.leads.marketing.utm_audience")}>
                             {marketing.utm_audience || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Traffic Source ID">
+                        <Descriptions.Item label={t("pages.leads.marketing.traffic_source_id")}>
                             {marketing.traffic_source_id || "--"}
                         </Descriptions.Item>
                     </Descriptions>
@@ -85,7 +87,7 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                     title={
                         <span>
                             <FacebookOutlined className="mr-2" />
-                            Social Media Tracking
+                            {t("pages.leads.marketing.social_section")}
                         </span>
                     }
                     className="shadow-sm"
@@ -97,19 +99,19 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                         bordered
                         size="small"
                     >
-                        <Descriptions.Item label="Facebook Click ID">
+                        <Descriptions.Item label={t("pages.leads.marketing.facebook_click_id")}>
                             {marketing.facebook_click_id || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Facebook Lead ID">
+                        <Descriptions.Item label={t("pages.leads.marketing.facebook_lead_id")}>
                             {marketing.facebook_lead_id || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Facebook Browser ID">
+                        <Descriptions.Item label={t("pages.leads.marketing.facebook_browser_id")}>
                             {marketing.facebook_browser_id || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="IP Address">
+                        <Descriptions.Item label={t("pages.leads.marketing.ip_address")}>
                             {marketing.ip_address || "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="User Agent" span={2}>
+                        <Descriptions.Item label={t("pages.leads.marketing.user_agent")} span={2}>
                             <span
                                 title={marketing.user_agent || undefined}
                                 className="break-all text-xs"
@@ -125,7 +127,7 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                     title={
                         <span>
                             <TrophyOutlined className="mr-2" />
-                            Engagement & Scoring
+                            {t("pages.leads.marketing.engagement_section")}
                         </span>
                     }
                     className="shadow-sm"
@@ -137,35 +139,35 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                         bordered
                         size="small"
                     >
-                        <Descriptions.Item label="Contact Score">
+                        <Descriptions.Item label={t("pages.leads.marketing.contact_score")}>
                             <Tag color="blue" className="text-base px-3 py-1">
                                 {marketing.contact_score || 0}
                             </Tag>
                         </Descriptions.Item>
-                        <Descriptions.Item label="Last Webinar Date">
+                        <Descriptions.Item label={t("pages.leads.marketing.last_webinar_date")}>
                             {marketing.last_webinar_date
                                 ? dayjs(marketing.last_webinar_date).format(
                                       "MMM DD, YYYY"
                                   )
                                 : "--"}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Registered for Webinar">
+                        <Descriptions.Item label={t("pages.leads.marketing.registered_for_webinar")}>
                             {renderBoolean(
                                 marketing.has_registered_for_the_webinar
                             )}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Attended Webinar">
+                        <Descriptions.Item label={t("pages.leads.marketing.attended_webinar")}>
                             {renderBoolean(marketing.has_attended_the_webinar)}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Joined Facebook Group">
+                        <Descriptions.Item label={t("pages.leads.marketing.joined_facebook_group")}>
                             {renderBoolean(
                                 marketing.has_joined_the_facebook_group
                             )}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Downloaded eBook">
+                        <Descriptions.Item label={t("pages.leads.marketing.downloaded_ebook")}>
                             {renderBoolean(marketing.has_downloaded_the_ebook)}
                         </Descriptions.Item>
-                        <Descriptions.Item label="Registered for Zoom">
+                        <Descriptions.Item label={t("pages.leads.marketing.registered_for_zoom")}>
                             {renderBoolean(
                                 marketing.registered_for_zoom_meeting
                             )}

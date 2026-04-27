@@ -100,7 +100,7 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
     ];
 
     return (
-        <div className="space-y-6">
+        <div className="flex flex-col gap-y-6">
             {/* Project-Level Offers */}
             <Card title="Project Offers" size="small">
                 <OfferAttachSection

@@ -21,6 +21,7 @@ import { Plus, Pencil, Trash2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     useMlmLevelCriteria,
     useMlmLevel,
@@ -84,6 +85,7 @@ const MlmLevelRules: React.FC<Props> = ({
     level: initialLevel,
     criteria: initialCriteria,
 }) => {
+    const { t } = useTranslation();
     const { data: levelData } = useMlmLevel(initialLevel?.id ?? 0);
     const { data: criteriaData, refetch } = useMlmLevelCriteria(
         initialLevel?.id ?? 0,
@@ -255,10 +257,13 @@ const MlmLevelRules: React.FC<Props> = ({
     return (
         <DashboardLayout>
             <PageLayout
-                title={`Level Rules: ${level?.name ?? ""}`}
+                title={`${t("app.mlm.admin.level_rules")}: ${level?.name ?? ""}`}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Levels", url: "/account/mlm/levels" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    {
+                        name: t("app.mlm.admin.levels_short"),
+                        url: "/account/mlm/levels",
+                    },
                     { name: level?.name ?? "Rules" },
                 ]}
             >

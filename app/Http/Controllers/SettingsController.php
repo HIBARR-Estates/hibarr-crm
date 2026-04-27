@@ -94,9 +94,17 @@ class SettingsController extends AccountBaseController
     {
         $locale = $request->get('locale', 'en');
 
-        // Validate locale is supported
-        $supportedLocales = ['en', 'ar', 'ru', 'tr', 'de', 'fa'];
+        \Log::channel('daily')->info('[i18n] changeLanguage called', [
+            'requested_locale' => $locale,
+            'user_id'         => auth()->id(),
+            'user_permission' => function_exists('user') && user() ? user()->permission('manage_company_setting') : 'N/A',
+            'ip'              => $request->ip(),
+        ]);
+
+        // Validate locale is supported (exactly four languages per spec)
+        $supportedLocales = ['en', 'de', 'ru', 'tr'];
         if (!in_array($locale, $supportedLocales)) {
+            \Log::channel('daily')->warning('[i18n] Unsupported locale requested, falling back to en', ['locale' => $locale]);
             $locale = 'en';
         }
 
@@ -104,17 +112,31 @@ class SettingsController extends AccountBaseController
         if (auth()->check()) {
             $user = auth()->user();
             $user->locale = $locale;
-            // Set RTL flag based on locale
-            $user->rtl = in_array($locale, ['ar', 'fa', 'he']) ? 1 : 0;
+            // None of the four supported languages are RTL
+            $user->rtl = 0;
             $user->save();
+
+            \Log::channel('daily')->info('[i18n] User locale updated in DB', [
+                'user_id'      => $user->id,
+                'locale'       => $locale,
+                'save_success' => true,
+            ]);
+        } else {
+            \Log::channel('daily')->warning('[i18n] changeLanguage called but user is NOT authenticated');
         }
 
         // Clear cached translations so the next request loads fresh data
         Cache::forget("translations_{$locale}");
+        \Log::channel('daily')->info('[i18n] Translation cache cleared', ['cache_key' => "translations_{$locale}"]);
 
         // Update session locale
         session(['locale' => $locale]);
         app()->setLocale($locale);
+
+        \Log::channel('daily')->info('[i18n] Session and app locale set', [
+            'session_locale' => session('locale'),
+            'app_locale'     => app()->getLocale(),
+        ]);
 
         // Redirect back to previous page
         return redirect()->back();

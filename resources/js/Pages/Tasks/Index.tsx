@@ -10,6 +10,7 @@ import {
 import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
+import useTranslation from "@/Hooks/useTranslation";
 
 import { TasksStats } from "@/Features/Tasks/Components/TasksStats";
 
@@ -314,14 +315,16 @@ const TasksIndex = ({
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
 
+    const { t } = useTranslation();
+
     return (
         <>
             <PageLayout
-                title="Tasks"
-                breadcrumbs={[{ name: "Tasks" }]}
+                title={t("app.menu.tasks")}
+                breadcrumbs={[{ name: t("app.menu.tasks") }]}
                 searchComp={
                     <UniversalSearchBox
-                        placeholder="Search by title ..."
+                        placeholder={t("app.tasks.search_placeholder")}
                         className="w-full"
                     />
                 }
@@ -337,10 +340,10 @@ const TasksIndex = ({
                         <Col>
                             <Space direction="vertical" size={0}>
                                 <Title level={2} style={{ margin: 0 }}>
-                                    Tasks
+                                    {t("app.menu.tasks")}
                                 </Title>
                                 <Text type="secondary">
-                                    Manage and track tasks
+                                    {t("app.tasks.manage_subtitle")}
                                 </Text>
                             </Space>
                         </Col>
@@ -357,7 +360,7 @@ const TasksIndex = ({
                                                 ? "!bg-white !shadow-sm"
                                                 : "hover:bg-white hover:shadow-sm"
                                         }
-                                        title="Kanban Board"
+                                        title={t("app.views.kanban")}
                                         onClick={() => setView("kanban")}
                                     />
 
@@ -370,7 +373,7 @@ const TasksIndex = ({
                                                 ? "!bg-white !shadow-sm"
                                                 : "hover:bg-white hover:shadow-sm"
                                         }
-                                        title="List View"
+                                        title={t("app.views.list")}
                                         onClick={() => setView("table")}
                                     />
                                 </div>
@@ -380,7 +383,7 @@ const TasksIndex = ({
                                         icon={<FilterOutlined />}
                                         onClick={openDrawer}
                                     >
-                                        Filters
+                                        {t("app.filter")}
                                     </Button>
                                 </div>
                                 <Button
@@ -391,7 +394,7 @@ const TasksIndex = ({
                                     disabled={isRefreshing}
                                     type="text"
                                 >
-                                    Refresh
+                                    {t("app.common.actions.refresh")}
                                 </Button>
 
                                 {/* 
@@ -405,7 +408,7 @@ const TasksIndex = ({
                                         icon={<PlusOutlined />}
                                         onClick={handleCreateTask}
                                     >
-                                        Create Task
+                                        {t("app.tasks.actions.create")}
                                     </Button>
                                 )}
                             </Space>
@@ -468,7 +471,11 @@ const TasksIndex = ({
                                         }
                                         size="small"
                                         showTotal={(total, range) =>
-                                            `${range[0]}-${range[1]} of ${total} items`
+                                            t("pages.tasks.pagination_total", {
+                                                start: range[0],
+                                                end: range[1],
+                                                total,
+                                            })
                                         }
                                         onChange={(page, pageSize) => {
                                             router.get(
@@ -551,7 +558,7 @@ const TasksIndex = ({
 
                     {/* Task Details Drawer */}
                     <Drawer
-                        title={`Task: ${selectedTask?.heading || ""}`}
+                        title={`${t("pages.tasks.drawer_title_prefix")}: ${selectedTask?.heading || ""}`}
                         placement="right"
                         size="large"
                         open={action === "view"}

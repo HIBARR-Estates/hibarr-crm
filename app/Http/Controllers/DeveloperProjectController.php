@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\Property;
+use App\Models\ProjectFacility;
 use App\Models\Lead;
 use App\Helper\Reply;
 use App\Services\PdfExpose\ExposeGeneratorService;
@@ -82,7 +83,7 @@ class DeveloperProjectController extends AccountBaseController
                 break;
         }
 
-        $projects = $query->paginate(15);
+        $projects = $query->paginate(12);
 
         // For Inertia page render
         // if (!$request->ajax() && !$request->wantsJson()) {
@@ -165,6 +166,7 @@ class DeveloperProjectController extends AccountBaseController
             'facilities' => $facilities,
             'imagesByTag' => $imagesByTag,
             'priceList' => $priceList,
+            'unitTypePriceList' => $this->getUnitTypePriceList($project->unitTypes),
             'unitTypes' => $project->unitTypes->sortBy('order')->values(),
             'developerProjects' => $developerProjects,
         ]);
@@ -216,19 +218,34 @@ class DeveloperProjectController extends AccountBaseController
      */
     private function getAggregatedFacilities(DeveloperProject $project)
     {
-        $facilities = collect($project->facilities ?? []);
+        $slugs = collect($project->facilities ?? []);
 
         // Merge unique facilities from properties' exterior and interior features
         foreach ($project->properties as $property) {
             if (!empty($property->exterior_features)) {
-                $facilities = $facilities->merge($property->exterior_features);
+                $slugs = $slugs->merge($property->exterior_features);
             }
             if (!empty($property->interior_features)) {
-                $facilities = $facilities->merge($property->interior_features);
+                $slugs = $slugs->merge($property->interior_features);
             }
         }
 
-        return $facilities->unique()->values()->all();
+        $uniqueSlugs = $slugs->unique()->values();
+
+        // Resolve slugs to enriched objects from project_facilities table
+        $facilityMap = ProjectFacility::where('company_id', user()->company_id)
+            ->whereIn('name', $uniqueSlugs)
+            ->get()
+            ->keyBy('name');
+
+        return $uniqueSlugs->map(function ($slug) use ($facilityMap) {
+            if ($facilityMap->has($slug)) {
+                $f = $facilityMap->get($slug);
+                return ['name' => $f->name, 'label' => $f->label, 'icon' => $f->icon];
+            }
+            // Fallback for slugs not in the DB
+            return ['name' => $slug, 'label' => ucfirst(str_replace('_', ' ', $slug)), 'icon' => null];
+        })->values()->all();
     }
 
     /**
@@ -281,7 +298,7 @@ class DeveloperProjectController extends AccountBaseController
     }
 
     /**
-     * Get price list organized by property type.
+     * Get price list organized by property type (legacy — used by ExposeGenerationModal).
      */
     private function getPriceListByType($properties)
     {
@@ -305,6 +322,45 @@ class DeveloperProjectController extends AccountBaseController
                     'status' => $p->status,
                     'bedrooms' => $p->bedrooms,
                     'bathrooms' => $p->bathrooms,
+                ])->values()->all(),
+            ];
+        }
+
+        return $priceList;
+    }
+
+    /**
+     * Get price list organized by property type from unit types.
+     */
+    private function getUnitTypePriceList($unitTypes)
+    {
+        $grouped = $unitTypes->groupBy('property_type');
+        $priceList = [];
+
+        foreach ($grouped as $type => $units) {
+            if (empty($type)) continue;
+
+            $prices = $units->pluck('starting_price')->filter();
+
+            $priceList[] = [
+                'type' => $type,
+                'count' => $units->count(),
+                'min_price' => $prices->min() ? (float) $prices->min() : null,
+                'max_price' => $prices->max() ? (float) $prices->max() : null,
+                'currency' => $units->first()->currency ?? 'GBP',
+                'currency_symbol' => $units->first()->currency_symbol ?? '£',
+                'unit_types' => $units->map(fn($ut) => [
+                    'id' => $ut->id,
+                    'reference_code' => $ut->reference_code,
+                    'starting_price' => $ut->starting_price ? (float) $ut->starting_price : null,
+                    'formatted_price' => $ut->formatted_price,
+                    'currency' => $ut->currency,
+                    'currency_symbol' => $ut->currency_symbol,
+                    'bedrooms' => $ut->bedrooms,
+                    'bathrooms' => $ut->bathrooms,
+                    'floor' => $ut->floor,
+                    'total_area_sqm' => $ut->total_area_sqm ? (float) $ut->total_area_sqm : null,
+                    'quantity' => $ut->quantity,
                 ])->values()->all(),
             ];
         }

@@ -9,6 +9,7 @@ import React, {
 import { usePage } from "@inertiajs/react";
 import { useTranslation as useI18nTranslation } from "react-i18next";
 import {
+    default as i18n,
     initI18n,
     type AvailableLocales,
     type SupportedLocale,
@@ -42,11 +43,12 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
 }) => {
     const { props } = usePage();
-    const [isReady, setIsReady] = useState(false);
+    const [isReady, setIsReady] = useState(i18n.isInitialized);
 
     // Extract i18n props from Inertia shared props (type-safe access)
     const locale = (props.locale as string) || "en";
     const translations = (props.translations as Record<string, string>) || {};
+    console.log(translations, "translations  ....");
     const fallbackTranslations =
         (props.fallbackTranslations as Record<string, string> | null) || null;
     const isRtl = (props.isRtl as boolean) || false;
@@ -57,7 +59,7 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
     // Initialize i18next on mount or when locale/translations change
     useEffect(() => {
         initI18n(locale, translations, fallbackTranslations);
-        setIsReady(true);
+        setIsReady(i18n.isInitialized);
 
         // Update document direction and language
         document.documentElement.dir = isRtl ? "rtl" : "ltr";

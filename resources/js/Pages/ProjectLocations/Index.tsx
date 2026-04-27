@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo } from "react";
 import { router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Table,
     Button,
@@ -903,6 +904,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 // ============================================
 
 const Index = ({ pageTitle, locations, filters }: IndexProps) => {
+    const { t } = useTranslation();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] =
         useState<ProjectLocation | null>(null);
@@ -1129,10 +1131,10 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 title={pageTitle}
                 breadcrumbs={[
                     {
-                        name: "Projects",
+                        name: t("app.menu.projects"),
                         url: route("developer-projects.index"),
                     },
-                    { name: "Locations" },
+                    { name: t("app.project_locations.locations") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto flex flex-col gap-y-6">

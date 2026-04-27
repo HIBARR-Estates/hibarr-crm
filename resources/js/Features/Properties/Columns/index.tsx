@@ -22,11 +22,12 @@ export const PROPERTY_TABLE_COLUMNS = (
     currencies: any[] = [],
     defaultCurrencyCode: string | null | undefined = "TRY",
     defaultCurrencySymbol: string | null | undefined = "",
+    t: (key: string) => string = (key) => key,
 ): ColumnsType<Property> => [
     {
         title: (
             <span className="flex items-center">
-                Title
+                {t("pages.properties.table.columns.title")}
                 <PageDataSorter field="title" routeName="properties.index" />
             </span>
         ),
@@ -38,7 +39,7 @@ export const PROPERTY_TABLE_COLUMNS = (
             const referenceCode =
                 record?.reference_code ||
                 displayTitle ||
-                `Property #${record.id}`;
+                `${t("pages.properties.table.property_reference_prefix")} #${record.id}`;
 
             const href = isUnitType(record)
                 ? route("properties.unit-type.show", record._unit_type_id!)
@@ -59,13 +60,17 @@ export const PROPERTY_TABLE_COLUMNS = (
                         </Link>
                     </div>
                     {isUnitType(record) && (
-                        <Tooltip title="This is a developer project unit type">
+                        <Tooltip
+                            title={t(
+                                "pages.properties.table.unit_type_tooltip",
+                            )}
+                        >
                             <Tag
                                 color="purple"
                                 icon={<BlockOutlined />}
                                 className="ml-1 text-[10px] leading-tight"
                             >
-                                Unit Type
+                                {t("pages.properties.table.unit_type_badge")}
                             </Tag>
                         </Tooltip>
                     )}
@@ -74,7 +79,7 @@ export const PROPERTY_TABLE_COLUMNS = (
         },
     },
     {
-        title: "Type",
+        title: t("pages.properties.table.columns.type"),
         dataIndex: "property_type",
         key: "property_type",
         width: 120,
@@ -85,7 +90,7 @@ export const PROPERTY_TABLE_COLUMNS = (
         ),
     },
     {
-        title: "Sale Type",
+        title: t("pages.properties.table.columns.sale_type"),
         dataIndex: "sale_type",
         key: "sale_type",
         width: 100,
@@ -98,7 +103,7 @@ export const PROPERTY_TABLE_COLUMNS = (
     {
         title: (
             <span className="flex items-center">
-                Price
+                {t("pages.properties.table.columns.price")}
                 <PageDataSorter field="price" routeName="properties.index" />
             </span>
         ),
@@ -120,28 +125,30 @@ export const PROPERTY_TABLE_COLUMNS = (
                 <div className="font-medium">
                     {formatCurrencyWithSymbol(amount, symbol)}
                     {record.sale_type === "rent" && (
-                        <span className="text-xs text-gray-500">/month</span>
+                        <span className="text-xs text-gray-500">
+                            {t("pages.properties.table.per_month")}
+                        </span>
                     )}
                 </div>
             );
         },
     },
+    // {
+    //     title: "Project",
+    //     key: "developer_project",
+    //     width: 140,
+    //     render: (_, record: Property) => {
+    //         const project = record?.developer_project;
+    //         if (!project) return <span className="text-gray-400">—</span>;
+    //         return (
+    //             <span className="text-sm text-gray-800">
+    //                 {truncateText(project.name, 25)}
+    //             </span>
+    //         );
+    //     },
+    // },
     {
-        title: "Project",
-        key: "developer_project",
-        width: 140,
-        render: (_, record: Property) => {
-            const project = record?.developer_project;
-            if (!project) return <span className="text-gray-400">—</span>;
-            return (
-                <span className="text-sm text-gray-800">
-                    {truncateText(project.name, 25)}
-                </span>
-            );
-        },
-    },
-    {
-        title: "Location",
+        title: t("pages.properties.table.columns.location"),
         key: "location",
         width: 150,
         render: (_, record: Property) => {
@@ -158,7 +165,7 @@ export const PROPERTY_TABLE_COLUMNS = (
         },
     },
     {
-        title: "Visibility",
+        title: t("pages.properties.table.columns.visibility"),
         key: "publish_status",
         width: 120,
         render: (_, record: Property) =>
@@ -166,12 +173,14 @@ export const PROPERTY_TABLE_COLUMNS = (
                 <span>--</span>
             ) : (
                 <Tag color={record.is_published ? "green" : "orange"}>
-                    {record.is_published ? "Published" : "Draft"}
+                    {record.is_published
+                        ? t("pages.properties.table.published")
+                        : t("pages.properties.table.draft")}
                 </Tag>
             ),
     },
     {
-        title: "Status",
+        title: t("pages.properties.table.columns.status"),
         dataIndex: "status",
         key: "status",
         width: 120,
@@ -182,8 +191,8 @@ export const PROPERTY_TABLE_COLUMNS = (
                     <Tooltip
                         title={
                             (record._sold_count ?? 0) > 1
-                                ? `Sold ${record._sold_count} times`
-                                : "View sold property"
+                                ? `${t("pages.properties.table.sold_prefix")} ${record._sold_count} ${t("pages.properties.table.sold_times_suffix")}`
+                                : t("pages.properties.table.view_sold_property")
                         }
                     >
                         <Link
@@ -194,8 +203,8 @@ export const PROPERTY_TABLE_COLUMNS = (
                             className="text-[10px] text-blue-600 hover:underline"
                         >
                             {(record._sold_count ?? 0) === 1
-                                ? "View Property"
-                                : `${record._sold_count} Sold`}
+                                ? t("pages.properties.table.view_property")
+                                : `${record._sold_count} ${t("pages.properties.table.sold_short")}`}
                         </Link>
                     </Tooltip>
                 )}
@@ -205,7 +214,7 @@ export const PROPERTY_TABLE_COLUMNS = (
     {
         title: (
             <span className="flex items-center">
-                Created
+                {t("pages.properties.table.columns.created")}
                 <PageDataSorter
                     field="created_at"
                     routeName="properties.index"
@@ -221,7 +230,7 @@ export const PROPERTY_TABLE_COLUMNS = (
         ),
     },
     {
-        title: "Actions",
+        title: t("pages.properties.table.columns.actions"),
         key: "actions",
         width: 80,
         fixed: "right",
@@ -236,7 +245,7 @@ export const PROPERTY_TABLE_COLUMNS = (
                         )}
                         className="text-blue-600 hover:text-blue-800 text-sm"
                     >
-                        View
+                        {t("app.view")}
                     </Link>
                 );
             }

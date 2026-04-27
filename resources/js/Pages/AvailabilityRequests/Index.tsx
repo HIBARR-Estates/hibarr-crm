@@ -1,6 +1,7 @@
 import { useState } from "react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Table,
     Tag,
@@ -25,6 +26,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 interface AvailabilityRequest {
     id: number;
@@ -87,6 +89,7 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 const Index = () => {
+    const { t } = useTranslation();
     const [direction, setDirection] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("");
     const [page, setPage] = useState(1);
@@ -183,7 +186,10 @@ const Index = () => {
                         href={`/account/properties/${record.property?.id}`}
                         className="font-medium"
                     >
-                        {record.property?.title || "N/A"}
+                        {(record.property &&
+                            generatePropertySubtitle(record.property)) ||
+                            record.property?.title ||
+                            "N/A"}
                     </a>
                     {record.property?.reference_code && (
                         <div className="text-xs text-gray-500">
@@ -293,10 +299,13 @@ const Index = () => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="Availability Requests"
+                title={t("app.properties.actions.availability_requests")}
                 breadcrumbs={[
-                    { name: "Properties", url: route("properties.index") },
-                    { name: "Availability Requests" },
+                    {
+                        name: t("app.menu.properties"),
+                        url: route("properties.index"),
+                    },
+                    { name: t("app.properties.actions.availability_requests") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

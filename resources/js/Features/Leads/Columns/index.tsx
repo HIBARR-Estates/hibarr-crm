@@ -10,11 +10,12 @@ import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
 
 export const LEAD_TABLE_COLUMNS = (
     actionItems?: (item: Lead) => MenuProps["items"],
+    t: (key: string) => string = (key) => key,
 ): ColumnsType<Lead> => [
     {
         title: (
             <span className="flex items-center">
-                Lead Name
+                {t("pages.leads.contacts_table.columns.lead_name")}
                 <PageDataSorter
                     field="client_name"
                     routeName="lead-contact.index"
@@ -47,7 +48,7 @@ export const LEAD_TABLE_COLUMNS = (
         ),
     },
     {
-        title: "Contact Details",
+        title: t("pages.leads.contacts_table.columns.contact_details"),
         dataIndex: "contact_details",
         key: "contact_details",
         width: 200,
@@ -95,7 +96,7 @@ export const LEAD_TABLE_COLUMNS = (
     },
 
     {
-        title: "Country",
+        title: t("pages.leads.contacts_table.columns.country"),
         dataIndex: "country",
         key: "country",
         width: 120,
@@ -111,7 +112,7 @@ export const LEAD_TABLE_COLUMNS = (
         },
     },
     {
-        title: "Source",
+        title: t("pages.leads.contacts_table.columns.source"),
         dataIndex: "source",
         key: "source",
         width: 120,
@@ -131,7 +132,7 @@ export const LEAD_TABLE_COLUMNS = (
     {
         title: (
             <span className="flex items-center">
-                Lead Owner
+                {t("pages.leads.contacts_table.columns.lead_owner")}
                 <PageDataSorter
                     field="lead_owner"
                     routeName="lead-contact.index"
@@ -186,7 +187,7 @@ export const LEAD_TABLE_COLUMNS = (
     {
         title: (
             <span className="flex items-center">
-                Created
+                {t("pages.leads.contacts_table.columns.created")}
                 <PageDataSorter
                     field="created_at"
                     routeName="lead-contact.index"
@@ -208,7 +209,7 @@ export const LEAD_TABLE_COLUMNS = (
     },
 
     {
-        title: "Actions",
+        title: t("pages.leads.contacts_table.columns.actions"),
         key: "actions",
         width: 80,
         fixed: "right",

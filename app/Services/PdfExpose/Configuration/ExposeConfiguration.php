@@ -4,6 +4,7 @@ namespace App\Services\PdfExpose\Configuration;
 
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
+use App\Models\ProjectFacility;
 use Illuminate\Contracts\Support\Arrayable;
 
 class ExposeConfiguration implements Arrayable
@@ -230,10 +231,15 @@ class ExposeConfiguration implements Arrayable
         $city = $location?->state ?? $location?->name ?? null;
         $area = $location?->name ?? null;
 
-        // Get facility labels
+        // Get facility labels from DB
+        $facilitySlugs = $project->facilities ?? [];
+        $facilityLabelMap = ProjectFacility::where('company_id', $project->company_id)
+            ->whereIn('name', $facilitySlugs)
+            ->pluck('label', 'name');
+
         $facilityLabels = [];
-        foreach ($project->facilities ?? [] as $facilityKey) {
-            $facilityLabels[] = DeveloperProject::FACILITY_LABELS[$facilityKey] ?? ucfirst(str_replace('_', ' ', $facilityKey));
+        foreach ($facilitySlugs as $facilityKey) {
+            $facilityLabels[] = $facilityLabelMap[$facilityKey] ?? ucfirst(str_replace('_', ' ', $facilityKey));
         }
 
         return new self(

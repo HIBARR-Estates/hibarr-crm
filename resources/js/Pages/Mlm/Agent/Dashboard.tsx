@@ -25,6 +25,7 @@ import {
 } from "recharts";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useMlmAgentDashboard } from "@/Features/Mlm/api";
 import {
     LevelBadge,
@@ -45,6 +46,7 @@ interface Props extends PageProps {
 }
 
 const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
+    const { t } = useTranslation();
     const { data, isLoading } = useMlmAgentDashboard();
     const stats: MlmAgentDashboardStats = (data as any)?.data ?? initialStats;
     const levelData: LevelData = (data as any)?.data;
@@ -135,8 +137,8 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="My MLM Dashboard"
-                breadcrumbs={[{ name: "MLM" }, { name: "Dashboard" }]}
+                title={t("app.mlm.agent.dashboard")}
+                breadcrumbs={[{ name: t("app.mlm.title") }, { name: t("app.menu.dashboard") }]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <Skeleton

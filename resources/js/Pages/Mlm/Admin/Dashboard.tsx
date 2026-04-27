@@ -31,6 +31,7 @@ import {
 } from "recharts";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useMlmAdminDashboard, useActiveCycle } from "@/Features/Mlm/api";
 import { LevelBadge, CycleStatusBadge } from "@/Features/Mlm/Components";
 import type {
@@ -77,6 +78,7 @@ const statCards = (stats: MlmAdminDashboardStats) => [
 ];
 
 const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
+    const { t } = useTranslation();
     const { data, isLoading } = useMlmAdminDashboard();
     const stats: MlmAdminDashboardStats = (data as any) ?? initialStats;
 
@@ -166,10 +168,10 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
     return (
         <DashboardLayout>
             <PageLayout
-                title="MLM Dashboard"
+                title={t("app.mlm.admin.dashboard")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Dashboard" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.menu.dashboard") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto space-y-6">

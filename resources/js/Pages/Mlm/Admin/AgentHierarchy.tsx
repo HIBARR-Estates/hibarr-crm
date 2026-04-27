@@ -37,6 +37,7 @@ import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     useAgentHierarchy,
     useAssignDownline,
@@ -274,6 +275,7 @@ const MlmAgentHierarchy: React.FC<Props> = ({
     hierarchy: initialHierarchy,
     agents = [],
 }) => {
+    const { t } = useTranslation();
     const { data, isLoading, refetch } = useAgentHierarchy();
     const hierarchy: AgentHierarchyNode[] =
         (data as any)?.data ?? initialHierarchy ?? [];
@@ -318,10 +320,10 @@ const MlmAgentHierarchy: React.FC<Props> = ({
     return (
         <DashboardLayout>
             <PageLayout
-                title="Agent Hierarchy"
+                title={t("app.mlm.admin.agent_hierarchy")}
                 breadcrumbs={[
-                    { name: "MLM", url: "/account/mlm/dashboard" },
-                    { name: "Agent Hierarchy" },
+                    { name: t("app.mlm.title"), url: "/account/mlm/dashboard" },
+                    { name: t("app.mlm.admin.agent_hierarchy") },
                 ]}
             >
                 <div className="max-w-7xl mx-auto flex flex-col gap-y-6">

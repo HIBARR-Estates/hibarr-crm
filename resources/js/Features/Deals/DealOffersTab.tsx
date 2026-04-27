@@ -11,14 +11,13 @@ import {
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
-    ReloadOutlined,
     DeleteOutlined,
     GiftOutlined,
 } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
 import type { DealOfferApplication } from "@/Types/api/offers";
-import { router } from "@inertiajs/react";
+import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 
 const { Text } = Typography;
 
@@ -36,6 +35,15 @@ interface DealOffersResponse {
 
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
     const { message } = App.useApp();
+    const insight = getDealValueInsight(deal);
+    const currencySymbol = deal.currency?.currency_symbol || "£";
+
+    const formatMoney = (value: number | null) => {
+        if (value === null || value === undefined) {
+            return "--";
+        }
+        return `${currencySymbol}${Number(value).toLocaleString("en-GB")}`;
+    };
 
     const { data, isLoading, refetch } = useApiQuery<DealOffersResponse>({
         path: route("deals.offers.index", deal.id),
@@ -43,31 +51,6 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     const applications = data?.data?.applications ?? [];
     const totalDiscount = data?.data?.total_discount ?? 0;
-
-    const handleRecalculate = async () => {
-        try {
-            const res = await fetch(route("deals.offers.apply", deal.id), {
-                method: "POST",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
-            });
-            const result = await res.json();
-            if (result.status === "success") {
-                message.success("Offers recalculated");
-                refetch();
-            } else {
-                message.error(result.message || "Failed to recalculate");
-            }
-        } catch {
-            message.error("Failed to recalculate offers");
-        }
-    };
 
     const handleRemoveAll = async () => {
         try {
@@ -92,22 +75,14 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         }
     };
 
-    const resolvedFromLabel = (app: DealOfferApplication) => {
-        if (app.resolved_from_type?.includes("UnitType")) {
-            return <Tag color="purple">Unit Type</Tag>;
-        }
-        if (app.resolved_from_type?.includes("DeveloperProject")) {
-            return <Tag color="orange">Project</Tag>;
-        }
-        return <Tag>{app.resolved_from_type}</Tag>;
-    };
-
     const columns: TableColumnsType<DealOfferApplication> = [
         {
             title: "Property",
             key: "product",
             render: (_, record) =>
-                record.product?.name || `Product #${record.product_id}`,
+                (record.product as any)?.property?.title ||
+                record.product?.name ||
+                `Product #${record.product_id}`,
         },
         {
             title: "Offer",
@@ -118,12 +93,6 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                     {record.offer?.name || `Offer #${record.offer_id}`}
                 </Space>
             ),
-        },
-        {
-            title: "Source",
-            key: "source",
-            width: 120,
-            render: (_, record) => resolvedFromLabel(record),
         },
         {
             title: "Type",
@@ -168,13 +137,11 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                     description="No offers applied to this deal"
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                 >
-                    <Button
-                        type="primary"
-                        icon={<ReloadOutlined />}
-                        onClick={handleRecalculate}
-                    >
-                        Calculate Offers
-                    </Button>
+                    <Text type="secondary" className="text-xs">
+                        Offers are applied when attaching a property from a
+                        project. Use the Properties section to attach properties
+                        with offers.
+                    </Text>
                 </Empty>
             </div>
         );
@@ -182,24 +149,56 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     return (
         <div className="p-6 space-y-4">
+            <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                <Space size={24} wrap>
+                    <div>
+                        <Text type="secondary">Final</Text>
+                        <div>
+                            <Text strong>
+                                {formatMoney(insight.finalValue)}
+                            </Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Base</Text>
+                        <div>
+                            <Text>{formatMoney(insight.baseTotal)}</Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Discount</Text>
+                        <div>
+                            <Text type="success">
+                                -{formatMoney(insight.discountTotal)}
+                            </Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Calculated</Text>
+                        <div>
+                            <Text>{formatMoney(insight.calculatedValue)}</Text>
+                        </div>
+                    </div>
+                </Space>
+            </div>
+
             <div className="flex items-center justify-between">
                 <Text strong>Applied Offers</Text>
                 <Space>
-                    <Button
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={handleRecalculate}
-                    >
-                        Recalculate
-                    </Button>
                     <Popconfirm
-                        title="Remove all offers from this deal?"
+                        title="Remove all applied offers from this deal? You can re-apply offers by re-attaching properties."
                         onConfirm={handleRemoveAll}
                         okText="Remove"
                         okType="danger"
+                        disabled={deal.is_locked}
                     >
-                        <Button size="small" danger icon={<DeleteOutlined />}>
-                            Remove All
+                        <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={deal.is_locked}
+                        >
+                            Clear All Offers
                         </Button>
                     </Popconfirm>
                 </Space>
@@ -214,10 +213,10 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                 size="small"
                 summary={() => (
                     <Table.Summary.Row>
-                        <Table.Summary.Cell index={0} colSpan={5} align="right">
+                        <Table.Summary.Cell index={0} colSpan={4} align="right">
                             <Text strong>Total Discount</Text>
                         </Table.Summary.Cell>
-                        <Table.Summary.Cell index={5} align="right">
+                        <Table.Summary.Cell index={4} align="right">
                             <Text strong type="success">
                                 -{Number(totalDiscount).toLocaleString("en-GB")}
                             </Text>

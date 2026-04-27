@@ -60,7 +60,14 @@ class PropertyController extends AccountBaseController
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with(['product', 'developerProject.location', 'projectLocation', 'addedBy', 'responsibleAgent']);
+        $query = Property::with([
+            'product',
+            'developerProject.location',
+            'projectLocation',
+            'addedBy',
+            'responsibleAgent',
+            'assets' => fn ($q) => $q->where('asset_type', \App\Models\PropertyAsset::TYPE_IMAGE)->orderBy('order'),
+        ]);
 
         // Apply visibility filter - users see published + their own drafts
         $userId = user()->id;
@@ -212,7 +219,7 @@ class PropertyController extends AccountBaseController
             $query->orderBy('created_at', 'asc');
         }
 
-        $perPage = (int) $request->get('per_page', 15) ?: 15;
+        $perPage = (int) $request->get('per_page', 16) ?: 16;
         $perPage = max(1, min(100, $perPage));
 
         // ── Source filter: all | properties | unit_types ──

@@ -35,6 +35,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\OfferPolicyContract::class,
             \App\Services\ProximityOfferPolicy::class,
         );
+
+        $this->app->bind(
+            \App\Contracts\AiSummaryInterface::class,
+            \App\Services\AiSummary\HibarrAiSummaryService::class,
+        );
     }
 
     public function boot()

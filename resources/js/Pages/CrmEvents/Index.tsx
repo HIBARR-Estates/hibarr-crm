@@ -2,6 +2,7 @@ import React, { useCallback, useState } from "react";
 import { router } from "@inertiajs/react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Table,
     Tag,
@@ -142,6 +143,7 @@ function Index({
     filters,
     filterOptions,
 }: CrmEventsIndexProps) {
+    const { t } = useTranslation();
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [localFilters, setLocalFilters] = useState<
         Record<string, string | undefined>
@@ -325,7 +327,7 @@ function Index({
     const hasActiveFilters = Object.values(filters).some((v) => v);
 
     return (
-        <PageLayout title={pageTitle} breadcrumbs={[{ name: "CRM Events" }]}>
+        <PageLayout title={pageTitle} breadcrumbs={[{ name: t("app.crm_events.title") }]}>
             <div className="max-w-7xl mx-auto">
                 {/* Toolbar */}
                 <div className="flex items-center justify-between mb-4 gap-3 flex-wrap">

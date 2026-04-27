@@ -35,6 +35,11 @@ class TaskUpdatedClient extends BaseNotification
     {
         $via = ['database'];
 
+        // During bulk updates, suppress individual transactional emails.
+        if ($this->suppressBulkTransactionalEmails) {
+            return $via;
+        }
+
         if ($this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
             array_push($via, 'mail');
         }

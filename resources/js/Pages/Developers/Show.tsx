@@ -2,6 +2,7 @@ import { useState, useCallback } from "react";
 import { Link, router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     Table,
     Button,
@@ -77,6 +78,7 @@ const Show = ({
     offers,
     filters,
 }: ShowProps) => {
+    const { t } = useTranslation();
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [editProject, setEditProject] = useState<DeveloperProject | null>(
         null,
@@ -136,6 +138,43 @@ const Show = ({
             key: "properties_count",
             align: "center",
             render: (count: number) => <Tag color="blue">{count || 0}</Tag>,
+        },
+        {
+            title: "Links",
+            key: "links",
+            render: (_, record) => (
+                <Space size="small" wrap>
+                    {record.google_drive_link && (
+                        <a
+                            href={record.google_drive_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Tag
+                                color="blue"
+                                icon={<SettingOutlined />}
+                                className="cursor-pointer"
+                            >
+                                Drive
+                            </Tag>
+                        </a>
+                    )}
+                    {record.availability_link && (
+                        <a
+                            href={record.availability_link}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                        >
+                            <Tag color="purple" className="cursor-pointer">
+                                Availability
+                            </Tag>
+                        </a>
+                    )}
+                    {!record.google_drive_link && !record.availability_link && (
+                        <Text type="secondary">—</Text>
+                    )}
+                </Space>
+            ),
         },
         {
             title: "Expose",
@@ -218,7 +257,7 @@ const Show = ({
         <PageLayout
             title={pageTitle}
             breadcrumbs={[
-                { name: "Developers", url: route("developers.index") },
+                { name: t("app.developers.title"), url: route("developers.index") },
                 { name: developer.name },
             ]}
         >
@@ -304,9 +343,7 @@ const Show = ({
                             description="No projects found for this developer"
                         >
                             <Link href={route("developer-projects.index")}>
-                                <Button type="primary">
-                                    Go to Projects
-                                </Button>
+                                <Button type="primary">Go to Projects</Button>
                             </Link>
                         </Empty>
                     ) : (
