@@ -179,6 +179,17 @@ return [
     'deals' => [
         'actions' => [
             'add_task' => 'Aufgabe hinzufügen',
+            'add_note' => 'Notiz hinzufügen',
+        ],
+        'tabs' => [
+            'header'          => 'Kopfzeile',
+            'notes'           => 'Notizen',
+            'tasks'           => 'Aufgaben',
+            'meeting'         => 'Termine',
+            'files'           => 'Dateien',
+            'recommendations' => 'Empfehlungen',
+            'offers'          => 'Angebote',
+            'history'         => 'Verlauf',
         ],
         'info' => [
             'title'               => 'Deal-Informationen',

@@ -179,6 +179,17 @@ return [
     'deals' => [
         'actions' => [
             'add_task' => 'Görev Ekle',
+            'add_note' => 'Not Ekle',
+        ],
+        'tabs' => [
+            'header'          => 'Başlık',
+            'notes'           => 'Notlar',
+            'tasks'           => 'Görevler',
+            'meeting'         => 'Toplantı',
+            'files'           => 'Dosyalar',
+            'recommendations' => 'Öneriler',
+            'offers'          => 'Teklifler',
+            'history'         => 'Geçmiş',
         ],
         'info' => [
             'title'               => 'Anlaşma Bilgileri',
