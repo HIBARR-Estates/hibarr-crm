@@ -101,8 +101,8 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
     onDelete,
 }) => {
     const firstPhoto =
-        resolveImageSrc(property.photos?.[0] as PropertyPhotoValue) ??
         property.assets?.[0]?.url ??
+        resolveImageSrc(property.photos?.[0] as PropertyPhotoValue) ??
         null;
 
     const menuItems: MenuProps["items"] = [
@@ -217,7 +217,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
             {/* ── Card body ── */}
             <div className="px-4 pt-3 pb-4">
                 <p className="font-bold text-sm text-slate-900 truncate mb-0.5">
-                    {property.title}
+                    {generatePropertySubtitle(property) || property.title}
                 </p>
 
                 <p className="flex items-center gap-1 text-xs text-gray-400 mb-3">

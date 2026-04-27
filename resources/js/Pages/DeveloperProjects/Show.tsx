@@ -216,7 +216,9 @@ const Show = ({
                     <UnitTypesSection
                         projectId={project.id}
                         unitTypes={unitTypes ?? []}
-                        onRefresh={() => router.reload({ only: ["project"] })}
+                        onRefresh={() =>
+                            router.reload({ only: ["unitTypes", "project"] })
+                        }
                     />
                 );
             case "photos":
