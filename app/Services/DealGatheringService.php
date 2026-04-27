@@ -264,6 +264,12 @@ class DealGatheringService
                     }
                 }
 
+                // When the user explicitly provides a value, treat it as a manual override
+                // unless they also explicitly sent a value_source in the same request
+                if (isset($cleanData['manual_value']) && !array_key_exists('value_source', $data)) {
+                    $cleanData['value_source'] = 'manual';
+                }
+
                 if (array_key_exists('value_source', $cleanData)) {
                     $cleanData['value_source'] = $this->dealValueResolver->normalizeSource($cleanData['value_source']);
                 }

@@ -41,15 +41,17 @@ class DealPropertyController extends AccountBaseController
             $result = $this->service->attachExistingProperty($deal, $request->input('property_id'));
         } elseif ($request->has('unit_type_id')) {
             $request->validate([
-                'unit_type_id' => 'required|integer|exists:developer_project_unit_types,id',
-                'price' => 'nullable|numeric|min:0',
-                'floor_number' => 'nullable|string',
-                'view_types' => 'nullable|array',
-                'view_types.*' => 'string',
-                'outside_features' => 'nullable|array',
+                'unit_type_id'      => 'required|integer|exists:developer_project_unit_types,id',
+                'price'             => 'nullable|numeric|min:0',
+                'floor_number'      => 'nullable|string',
+                'view_types'        => 'nullable|array',
+                'view_types.*'      => 'string',
+                'outside_features'  => 'nullable|array',
                 'outside_features.*' => 'string',
-                'inside_features' => 'nullable|array',
+                'inside_features'   => 'nullable|array',
                 'inside_features.*' => 'string',
+                'offer_ids'         => 'nullable|array',
+                'offer_ids.*'       => 'integer|exists:offers,id',
             ]);
 
             $overrides = $request->only([
@@ -57,7 +59,12 @@ class DealPropertyController extends AccountBaseController
                 'outside_features', 'inside_features',
             ]);
 
-            $result = $this->service->createFromUnitType($deal, $request->input('unit_type_id'), $overrides);
+            $result = $this->service->createFromUnitType(
+                $deal,
+                $request->input('unit_type_id'),
+                $overrides,
+                $request->input('offer_ids', [])
+            );
         } else {
             return response()->json([
                 'status' => 'fail',

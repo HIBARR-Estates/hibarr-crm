@@ -3,20 +3,23 @@
 namespace App\Services;
 
 use App\Models\Deal;
+use App\Models\DealOfferApplication;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
+use App\Models\Offer;
 use App\Models\Product;
 use App\Models\Property;
 use Illuminate\Support\Collection;
 
 class DealPropertyService
 {
+    public function __construct(private DealValueResolver $dealValueResolver) {}
     /**
-     * Get all properties attached to a deal (via products).
+     * Get all properties attached to a deal (via products), including applied offer applications.
      */
     public function getAttachedProperties(Deal $deal): Collection
     {
-        return $deal->products()
+        $products = $deal->products()
             ->with([
                 'property' => function ($q) {
                     $q->select(
@@ -30,17 +33,26 @@ class DealPropertyService
                     $q->select('id', 'name', 'availability_link');
                 },
             ])
+            ->get();
+
+        $productIds = $products->pluck('id');
+        $offerApps = DealOfferApplication::where('deal_id', $deal->id)
+            ->whereIn('product_id', $productIds)
+            ->with(['offer:id,name,type,value,max_discount_amount,ends_at'])
             ->get()
-            ->map(function ($product) {
-                return [
-                    'product_id' => $product->id,
-                    'product_name' => $product->name,
-                    'property' => $product->property ? array_merge(
-                        $product->property->toArray(),
-                        ['developer_project' => $product->property->developerProject?->toArray()]
-                    ) : null,
-                ];
-            });
+            ->groupBy('product_id');
+
+        return $products->map(function ($product) use ($offerApps) {
+            return [
+                'product_id' => $product->id,
+                'product_name' => $product->name,
+                'property' => $product->property ? array_merge(
+                    $product->property->toArray(),
+                    ['developer_project' => $product->property->developerProject?->toArray()]
+                ) : null,
+                'offer_applications' => ($offerApps[$product->id] ?? collect())->values()->toArray(),
+            ];
+        });
     }
 
     /**
@@ -67,19 +79,28 @@ class DealPropertyService
 
     /**
      * Detach a product (and its property) from a deal.
+     * Cleans up any applied offer applications and recalculates deal value.
      */
     public function detachProperty(Deal $deal, int $productId): array
     {
+        DealOfferApplication::where('deal_id', $deal->id)
+            ->where('product_id', $productId)
+            ->delete();
+
         $deal->products()->detach($productId);
+
+        $this->dealValueResolver->resolveAndPersist($deal);
 
         return ['status' => 'success', 'message' => 'Property detached successfully.'];
     }
 
     /**
      * Create a new Property from a DeveloperProjectUnitType, with field overrides,
-     * then attach it to the deal.
+     * then attach it to the deal. Applies selected offers immediately.
+     *
+     * @param array $offerIds IDs of active offers the agent has selected for this property.
      */
-    public function createFromUnitType(Deal $deal, int $unitTypeId, array $overrides): array
+    public function createFromUnitType(Deal $deal, int $unitTypeId, array $overrides, array $offerIds = []): array
     {
         $unitType = DeveloperProjectUnitType::where('id', $unitTypeId)
             ->where('company_id', $deal->company_id)
@@ -130,6 +151,36 @@ class DealPropertyService
 
         $deal->products()->attach($product->id);
 
+        // Apply selected offers immediately
+        if (!empty($offerIds)) {
+            $validOfferIds = $unitType->activeOffers()
+                ->whereIn('offers.id', $offerIds)
+                ->pluck('offers.id');
+
+            $originalAmount = (float) ($product->price ?? 0);
+
+            foreach ($validOfferIds as $offerId) {
+                $offer = Offer::find($offerId);
+                if (!$offer) {
+                    continue;
+                }
+
+                DealOfferApplication::create([
+                    'deal_id'             => $deal->id,
+                    'offer_id'            => $offerId,
+                    'product_id'          => $product->id,
+                    'resolved_from_type'  => DeveloperProjectUnitType::class,
+                    'resolved_from_id'    => $unitType->id,
+                    'original_amount'     => $originalAmount,
+                    'discount_amount'     => $offer->computeDiscount($originalAmount),
+                    'offer_type'          => $offer->type->value,
+                    'offer_value'         => $offer->value,
+                ]);
+            }
+
+            $this->dealValueResolver->resolveAndPersist($deal);
+        }
+
         return ['status' => 'success', 'message' => 'Property created and attached successfully.'];
     }
 
@@ -152,7 +203,7 @@ class DealPropertyService
     }
 
     /**
-     * Get unit types for a project.
+     * Get unit types for a project, including their currently active offers.
      */
     public function getProjectUnitTypes(int $projectId, int $companyId): Collection
     {
@@ -166,6 +217,7 @@ class DealPropertyService
                 'terrace_balcony_sqm', 'plot_size_sqm', 'outside_features', 'inside_features',
                 'description'
             )
+            ->with(['activeOffers:id,name,type,value,max_discount_amount,ends_at'])
             ->orderBy('order')
             ->get();
     }

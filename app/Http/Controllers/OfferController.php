@@ -294,40 +294,6 @@ class OfferController extends AccountBaseController
     // ── Deal Offer Endpoints ─────────────────────────────────────
 
     /**
-     * Apply (or re-apply) offers to a deal based on its products/properties.
-     */
-    public function applyToDeal(int $dealId)
-    {
-        $deal = \App\Models\Deal::findOrFail($dealId);
-
-        if ($deal->isLocked()) {
-            return Reply::error(__('messages.dealLocked'));
-        }
-
-        $applications = $this->dealOfferService->applyOffersToDeal($deal);
-
-        return Reply::successWithData('Offers applied to deal', [
-            'applications' => $applications,
-            'total_discount' => $applications->sum('discount_amount'),
-        ]);
-    }
-
-    /**
-     * Preview what offers would apply to a deal without persisting.
-     */
-    public function previewForDeal(int $dealId)
-    {
-        $deal = \App\Models\Deal::findOrFail($dealId);
-
-        $previews = $this->dealOfferService->previewOffers($deal);
-
-        return Reply::successWithData('Offer preview for deal', [
-            'previews' => $previews,
-            'total_discount' => $previews->sum('discount_amount'),
-        ]);
-    }
-
-    /**
      * Get applied offers for a deal.
      */
     public function dealOffers(int $dealId)
@@ -335,7 +301,11 @@ class OfferController extends AccountBaseController
         $deal = \App\Models\Deal::findOrFail($dealId);
 
         $applications = $deal->offerApplications()
-            ->with(['offer', 'product', 'resolvedFrom'])
+            ->with([
+                'offer:id,name,type,value,max_discount_amount',
+                'product:id,name,price',
+                'product.property:id,product_id,title,property_type',
+            ])
             ->get();
 
         return Reply::successWithData('Deal offers fetched', [

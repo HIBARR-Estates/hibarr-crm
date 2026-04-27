@@ -1,4 +1,17 @@
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import type { Offer, OfferType } from "@/Types/api/offers";
+
+export interface AppliedOfferApplication {
+    id: number;
+    offer_id: number;
+    offer?: Pick<
+        Offer,
+        "id" | "name" | "type" | "value" | "max_discount_amount" | "ends_at"
+    >;
+    discount_amount: number;
+    offer_type: OfferType;
+    offer_value: number;
+}
 
 export interface AttachedProperty {
     product_id: number;
@@ -27,6 +40,7 @@ export interface AttachedProperty {
             availability_link: string | null;
         } | null;
     } | null;
+    offer_applications: AppliedOfferApplication[];
 }
 
 export interface PropertySearchResult {
@@ -51,6 +65,7 @@ export interface AttachPropertyPayload {
     view_types?: string[];
     outside_features?: string[];
     inside_features?: string[];
+    offer_ids?: number[];
 }
 
 export interface ProjectUnitTypesResponse {

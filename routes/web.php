@@ -1214,8 +1214,6 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     // Deal offer endpoints
     Route::prefix('deals/{dealId}/offers')->name('deals.offers.')->group(function () {
         Route::get('/', [App\Http\Controllers\OfferController::class, 'dealOffers'])->name('index');
-        Route::post('/apply', [App\Http\Controllers\OfferController::class, 'applyToDeal'])->name('apply');
-        Route::get('/preview', [App\Http\Controllers\OfferController::class, 'previewForDeal'])->name('preview');
         Route::delete('/', [App\Http\Controllers\OfferController::class, 'removeFromDeal'])->name('remove');
     });
 
