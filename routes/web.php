@@ -1205,6 +1205,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::post('/{offerId}/attach', [App\Http\Controllers\OfferController::class, 'attach'])->name('attach');
         Route::post('/{offerId}/disable', [App\Http\Controllers\OfferController::class, 'disable'])->name('disable');
         Route::post('/{offerId}/enable', [App\Http\Controllers\OfferController::class, 'enable'])->name('enable');
+        Route::post('/{id}/toggle', [App\Http\Controllers\OfferController::class, 'toggle'])->name('toggle');
+        Route::delete('/{offerId}/detach', [App\Http\Controllers\OfferController::class, 'detach'])->name('detach');
     });
 
     // Deal offer endpoints

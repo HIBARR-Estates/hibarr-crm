@@ -39,6 +39,7 @@ export interface Offer {
     // Counts
     deal_applications_count?: number;
     developer_projects_count?: number;
+    unit_types_count?: number;
 }
 
 export interface DealOfferApplication {
