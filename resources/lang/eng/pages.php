@@ -187,6 +187,17 @@ return [
     'deals' => [
         'actions' => [
             'add_task' => 'Add Task',
+            'add_note' => 'Add Note',
+        ],
+        'tabs' => [
+            'header'          => 'Header',
+            'notes'           => 'Notes',
+            'tasks'           => 'Tasks',
+            'meeting'         => 'Meeting',
+            'files'           => 'Files',
+            'recommendations' => 'Recommendations',
+            'offers'          => 'Offers',
+            'history'         => 'History',
         ],
         'info' => [
             'title'               => 'Deal Information',
