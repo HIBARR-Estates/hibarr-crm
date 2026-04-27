@@ -28,7 +28,7 @@ class OfferController extends AccountBaseController
     {
         $query = Offer::where('company_id', user()->company_id)
             ->with(['developer:id,name'])
-            ->withCount(['dealApplications', 'developerProjects']);
+            ->withCount(['dealApplications', 'developerProjects', 'unitTypes']);
 
         if ($request->boolean('active_only')) {
             $query->active();
@@ -114,7 +114,12 @@ class OfferController extends AccountBaseController
     public function show(int $id)
     {
         $offer = Offer::where('company_id', user()->company_id)
-            ->with(['developer:id,name', 'developerProjects', 'unitTypes'])
+            ->with([
+                'developer:id,name',
+                'developerProjects',
+                'developerProjects.unitTypes',
+                'unitTypes',
+            ])
             ->withCount(['dealApplications'])
             ->findOrFail($id);
 
@@ -146,9 +151,49 @@ class OfferController extends AccountBaseController
     public function destroy(int $id)
     {
         $offer = Offer::where('company_id', user()->company_id)->findOrFail($id);
+
+        if ($offer->dealApplications()->exists()) {
+            return Reply::error('This offer has been applied to deals and cannot be deleted. Deactivate it instead.');
+        }
+
         $offer->delete();
 
         return Reply::success('Offer deleted successfully');
+    }
+
+    /**
+     * Toggle the global is_active flag on an offer.
+     */
+    public function toggle(int $id)
+    {
+        $offer = Offer::where('company_id', user()->company_id)->findOrFail($id);
+        $offer->update(['is_active' => !$offer->is_active]);
+
+        return Reply::successWithData('Offer toggled', [
+            'is_active' => $offer->is_active,
+        ]);
+    }
+
+    /**
+     * Detach (hard-remove) an offer from a DeveloperProject or DeveloperProjectUnitType.
+     * Use disable() to keep the row but deactivate it.
+     */
+    public function detach(Request $request, int $offerId)
+    {
+        $request->validate([
+            'offerable_type' => 'required|in:developer_project,unit_type',
+            'offerable_id'   => 'required|integer',
+        ]);
+
+        $offer = Offer::where('company_id', user()->company_id)->findOrFail($offerId);
+
+        if ($request->offerable_type === 'unit_type') {
+            $offer->unitTypes()->detach($request->offerable_id);
+        } else {
+            $offer->developerProjects()->detach($request->offerable_id);
+        }
+
+        return Reply::success('Detached successfully');
     }
 
     // ── Attach / Disable / Enable ────────────────────────────────

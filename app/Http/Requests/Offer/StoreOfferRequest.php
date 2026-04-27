@@ -58,6 +58,21 @@ class StoreOfferRequest extends FormRequest
                     $validator->errors()->add('project_ids', 'Some projects do not belong to the selected developer.');
                 }
             }
+
+            // Validate unit_type_ids all belong to the selected developer
+            if ($this->filled('unit_type_ids') && $this->filled('developer_id')) {
+                $validIds = \App\Models\DeveloperProjectUnitType::whereHas('project', function ($q) {
+                    $q->where('developer_id', $this->input('developer_id'));
+                })->whereIn('id', $this->input('unit_type_ids'))
+                    ->pluck('id')
+                    ->toArray();
+
+                $invalid = array_diff($this->input('unit_type_ids'), $validIds);
+
+                if (!empty($invalid)) {
+                    $validator->errors()->add('unit_type_ids', 'Some unit types do not belong to the selected developer.');
+                }
+            }
         });
     }
 }
