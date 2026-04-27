@@ -606,22 +606,27 @@ export default function DealInfoSection({
                             label={t("pages.deals.info.fields.deal_value")}
                         >
                             <div className="flex items-center gap-2 flex-wrap">
-                                <Typography.Text className="font-semibold">
-                                    {formatCurrency(
-                                        Number(valueInsight.finalValue || 0),
-                                        currentDeal.currency?.currency_symbol ||
-                                            "£",
-                                    )}
-                                </Typography.Text>
-                                <Tag
-                                    color={
-                                        valueInsight.source === "manual"
-                                            ? "blue"
-                                            : "green"
+                                <EditableField
+                                    value={{
+                                        amount: currentDeal.value ?? null,
+                                        currency:
+                                            currentDeal.currency
+                                                ?.currency_code ||
+                                            defaultCurrencyCode,
+                                    }}
+                                    fieldName="value"
+                                    fieldType="currency"
+                                    onSave={(val) =>
+                                        handleFieldUpdate("value", val)
                                     }
-                                >
-                                    {valueInsight.sourceLabel}
-                                </Tag>
+                                    className="font-semibold"
+                                    alwaysEditing={isFieldEditable}
+                                    onChange={handleFieldChange}
+                                    loading={
+                                        isSavingAll || isFieldLoading("value")
+                                    }
+                                    disabled={!canEdit || isLocked}
+                                />
                                 <Tooltip
                                     placement="topLeft"
                                     title={
@@ -658,6 +663,34 @@ export default function DealInfoSection({
                                                       )
                                                     : "--"}
                                             </div>
+                                            {valueInsight.deltaVsManual !==
+                                                null &&
+                                                valueInsight.deltaVsManual !==
+                                                    0 && (
+                                                    <div
+                                                        style={{
+                                                            marginTop: 6,
+                                                            color:
+                                                                valueInsight.deltaVsManual >
+                                                                0
+                                                                    ? "#faad14"
+                                                                    : "#ff4d4f",
+                                                        }}
+                                                    >
+                                                        Adjusted:{" "}
+                                                        {valueInsight.deltaVsManual >
+                                                        0
+                                                            ? "+"
+                                                            : ""}
+                                                        {formatCurrency(
+                                                            valueInsight.deltaVsManual,
+                                                            currentDeal.currency
+                                                                ?.currency_symbol ||
+                                                                "£",
+                                                        )}{" "}
+                                                        vs calculated
+                                                    </div>
+                                                )}
                                             {valueInsight.status ===
                                                 "no-offers" && (
                                                 <div style={{ marginTop: 6 }}>
@@ -667,7 +700,7 @@ export default function DealInfoSection({
                                         </div>
                                     }
                                 >
-                                    <InfoCircleOutlined className="text-blue-500" />
+                                    <InfoCircleOutlined className="text-blue-500 cursor-help" />
                                 </Tooltip>
                                 {currentDeal.total_discount != null &&
                                     currentDeal.total_discount > 0 && (
@@ -684,80 +717,6 @@ export default function DealInfoSection({
                                     )}
                             </div>
                         </DetailField>
-
-                        <DetailField label="Value Source">
-                            <EditableField
-                                value={valueInsight.source}
-                                fieldName="value_source"
-                                fieldType="select"
-                                options={[
-                                    { value: "manual", label: "Manual" },
-                                    {
-                                        value: "calculated",
-                                        label: "Calculated",
-                                    },
-                                ]}
-                                onSave={(value) =>
-                                    handleFieldUpdate("value_source", value)
-                                }
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll ||
-                                    isFieldLoading("value_source")
-                                }
-                                disabled={!canEdit || isLocked}
-                            />
-                        </DetailField>
-
-                        <DetailField label="Manual Value">
-                            <EditableField
-                                value={{
-                                    amount:
-                                        currentDeal.manual_value ??
-                                        currentDeal.value ??
-                                        null,
-                                    currency:
-                                        currentDeal.currency?.currency_code ||
-                                        defaultCurrencyCode,
-                                }}
-                                fieldName="manual_value"
-                                fieldType="currency"
-                                onSave={(value) =>
-                                    handleFieldUpdate("manual_value", value)
-                                }
-                                className="font-semibold"
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={
-                                    isSavingAll ||
-                                    isFieldLoading("manual_value")
-                                }
-                                disabled={
-                                    !canEdit ||
-                                    isLocked ||
-                                    valueInsight.source === "calculated"
-                                }
-                            />
-                        </DetailField>
-
-                        {valueInsight.deltaVsManual !== null && (
-                            <DetailField label="Delta (Manual - Calculated)">
-                                <Tag
-                                    color={
-                                        valueInsight.deltaVsManual >= 0
-                                            ? "gold"
-                                            : "red"
-                                    }
-                                >
-                                    {formatCurrency(
-                                        valueInsight.deltaVsManual,
-                                        currentDeal.currency?.currency_symbol ||
-                                            "£",
-                                    )}
-                                </Tag>
-                            </DetailField>
-                        )}
 
                         <DetailField
                             label={t("pages.deals.info.fields.close_date")}

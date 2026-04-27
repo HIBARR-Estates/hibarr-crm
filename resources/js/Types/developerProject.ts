@@ -271,12 +271,12 @@ export interface DeveloperProjectUnitType {
     // Offers
     offers?: import("./api/offers").Offer[];
     offers_count?: number;
+    active_offers?: import("./api/offers").Offer[];
     // Computed
     display_label?: string;
     formatted_price?: string;
     currency_symbol?: string;
 }
-
 export interface DeveloperProjectUnitTypeAsset {
     id: number;
     unit_type_id: number;

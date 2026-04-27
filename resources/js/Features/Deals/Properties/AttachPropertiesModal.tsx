@@ -14,6 +14,8 @@ import {
     Typography,
     Popconfirm,
     Divider,
+    Checkbox,
+    Tooltip,
 } from "antd";
 import {
     PlusOutlined,
@@ -24,6 +26,7 @@ import {
     SearchOutlined,
     LinkOutlined,
     ExportOutlined,
+    GiftOutlined,
 } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client";
@@ -37,6 +40,8 @@ import type {
     ProjectUnitTypesResponse,
 } from "@/Types/api/deal-properties";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import type { Offer } from "@/Types/api/offers";
+import dayjs from "dayjs";
 
 const { Text } = Typography;
 
@@ -304,6 +309,7 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                 overrides.outside_features ?? unitType.outside_features,
             inside_features:
                 overrides.inside_features ?? unitType.inside_features,
+            offer_ids: overrides.selected_offer_ids ?? [],
         });
         setExpandedUnitTypeId(null);
         setUnitTypeOverrides((prev) => {
@@ -746,6 +752,27 @@ const ManageDealPropertiesModal: React.FC<ManageDealPropertiesModalProps> = ({
                                                         </span>
                                                     )}
                                                 </div>
+
+                                                {/* Applied offers */}
+                                                {item.offer_applications
+                                                    ?.length > 0 && (
+                                                    <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                                                        <GiftOutlined className="text-[10px] text-green-500 shrink-0" />
+                                                        {item.offer_applications.map(
+                                                            (app) => (
+                                                                <Tag
+                                                                    key={app.id}
+                                                                    color="green"
+                                                                    className="!text-[10px] !m-0"
+                                                                >
+                                                                    {app.offer
+                                                                        ?.name ??
+                                                                        `Offer #${app.offer_id}`}
+                                                                </Tag>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </List.Item>
@@ -942,6 +969,81 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             placeholder="Select inside features"
                         />
                     </div>
+
+                    {/* Applicable Offers */}
+                    {unitType.active_offers &&
+                        unitType.active_offers.length > 0 && (
+                            <div>
+                                <label className="block text-xs font-medium text-gray-600 mb-1.5">
+                                    Apply Offers{" "}
+                                    <span className="text-gray-400 font-normal">
+                                        (optional)
+                                    </span>
+                                </label>
+                                <div className="flex flex-col gap-y-2 p-2.5 bg-white rounded border border-gray-100">
+                                    {unitType.active_offers.map(
+                                        (offer: Offer) => {
+                                            const selectedIds: number[] =
+                                                overrides.selected_offer_ids ??
+                                                [];
+                                            const isChecked =
+                                                selectedIds.includes(offer.id);
+                                            return (
+                                                <label
+                                                    key={offer.id}
+                                                    className="flex items-start gap-2 cursor-pointer group"
+                                                >
+                                                    <Checkbox
+                                                        checked={isChecked}
+                                                        onChange={(e) => {
+                                                            const current: number[] =
+                                                                overrides.selected_offer_ids ??
+                                                                [];
+                                                            onOverrideChange(
+                                                                "selected_offer_ids",
+                                                                e.target.checked
+                                                                    ? [
+                                                                          ...current,
+                                                                          offer.id,
+                                                                      ]
+                                                                    : current.filter(
+                                                                          (
+                                                                              id,
+                                                                          ) =>
+                                                                              id !==
+                                                                              offer.id,
+                                                                      ),
+                                                            );
+                                                        }}
+                                                        className="mt-0.5 shrink-0"
+                                                    />
+                                                    <div className="min-w-0 flex-1">
+                                                        <span className="text-xs font-medium text-gray-800">
+                                                            {offer.name}
+                                                        </span>
+                                                        <div className="text-xs text-gray-400">
+                                                            {offer.type ===
+                                                            "percentage"
+                                                                ? `${offer.value}% off`
+                                                                : offer.type ===
+                                                                    "fixed"
+                                                                  ? `${offer.value} off`
+                                                                  : "Perks"}
+                                                            {offer.ends_at &&
+                                                                ` · Expires ${dayjs(
+                                                                    offer.ends_at,
+                                                                ).format(
+                                                                    "D MMM YYYY",
+                                                                )}`}
+                                                        </div>
+                                                    </div>
+                                                </label>
+                                            );
+                                        },
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                     <Divider className="!my-2" />
 
