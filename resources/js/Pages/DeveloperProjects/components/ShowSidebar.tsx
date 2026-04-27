@@ -73,7 +73,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
             disabled: !availabilityLink,
         },
         { key: "pdf", icon: <FileText size={16} />, label: "PDF Files" },
-        { key: "offers", icon: <Gift size={16} />, label: "Offers" },
+        // { key: "offers", icon: <Gift size={16} />, label: "Offers" },
     ];
 
     return (
@@ -101,7 +101,9 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                             title="Open availability link"
                         >
                             <span className="flex-shrink-0">{item.icon}</span>
-                            <span className="text-sm font-medium">{item.label}</span>
+                            <span className="text-sm font-medium">
+                                {item.label}
+                            </span>
                         </a>
                     );
                 }
@@ -119,9 +121,13 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                     >
                         <span className="flex-shrink-0">{item.icon}</span>
                         <div className="flex min-w-0 flex-col">
-                            <span className="text-sm font-medium">{item.label}</span>
+                            <span className="text-sm font-medium">
+                                {item.label}
+                            </span>
                             {item.key === "pricelist" && isDisabled && (
-                                <span className="text-xs">Availability link absent</span>
+                                <span className="text-xs">
+                                    Availability link absent
+                                </span>
                             )}
                         </div>
                     </div>
