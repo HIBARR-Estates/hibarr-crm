@@ -119,7 +119,7 @@ const Index = ({
         | "my_drafts"
         | "construction_projects";
 
-    // Derive tab from URL params — kept in sync after every Inertia navigation
+    // Derive tab from URL params — kept in sync after every Inertia navigation  cvc
     const deriveTabFromUrl = (): ActiveTab => {
         const urlParams = new URLSearchParams(window.location.search);
         const pubStatus = urlParams.get("publishing_status");
