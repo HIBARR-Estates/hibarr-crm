@@ -236,6 +236,7 @@ export interface DeveloperProjectUnitType {
     primary_category: "residential" | "commercial";
     property_type: string | null;
     quantity: number | null;
+    total_sold: number | null;
     unit_style: string[] | null;
     view_types: string[] | null;
     furniture_status: string | null;

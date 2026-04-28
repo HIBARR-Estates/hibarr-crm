@@ -64,6 +64,21 @@ class DeveloperProjectController extends AccountBaseController
             $query->where('project_location_id', $request->location_id);
         }
 
+        // Filter by developer
+        if ($request->filled('developer_id')) {
+            $query->where('developer_id', $request->developer_id);
+        }
+
+        // Filter by construction status
+        if ($request->filled('construction_status')) {
+            $query->where('construction_status', $request->construction_status);
+        }
+
+        // Filter by primary category (JSON array contains)
+        if ($request->filled('primary_category')) {
+            $query->whereJsonContains('primary_categories', $request->primary_category);
+        }
+
         // Apply sort
         switch ($request->input('sort', 'newest')) {
             case 'oldest':
@@ -85,12 +100,39 @@ class DeveloperProjectController extends AccountBaseController
 
         $projects = $query->paginate(12);
 
+        $developers = \App\Models\Developer::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $locations = \App\Models\ProjectLocation::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $constructionStatuses = \App\Models\PropertyConstructionStatus::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
+        $primaryCategories = \App\Models\PropertyPrimaryCategory::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
         // For Inertia page render
         // if (!$request->ajax() && !$request->wantsJson()) {
             return Inertia::render('DeveloperProjects/Index', [
                 'pageTitle' => 'Construction Projects',
                 'projects' => $projects,
-                'filters' => $request->only(['search', 'location_id', 'sort']),
+                'developers' => $developers,
+                'locations' => $locations,
+                'constructionStatuses' => $constructionStatuses,
+                'primaryCategories' => $primaryCategories,
+                'filters' => $request->only([
+                    'search', 'location_id', 'sort',
+                    'developer_id', 'construction_status', 'primary_category',
+                ]),
             ]);
         // }
 
@@ -112,6 +154,8 @@ class DeveloperProjectController extends AccountBaseController
 
         // Calculate statistics
         $totalUnits = $project->unitTypes->sum('quantity');
+        $unitCount = $project->unitTypes->count();
+        $totalSold = $project->unitTypes->sum('total_sold');
         $soldProperties = $project->properties->where('status', Property::STATUS_SOLD)->count();
         $underOfferProperties = $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count();
 
@@ -157,6 +201,9 @@ class DeveloperProjectController extends AccountBaseController
             'project' => $project,
             'statistics' => [
                 'total_units' => $totalUnits,
+                'unit_count' => $unitCount,
+                'sold_properties' => $totalSold,
+                'total_sold' => $totalSold,
                 'sold_properties' => $soldProperties,
                 'under_offer_properties' => $underOfferProperties,
                 'starting_price' => $startingPrice,
@@ -272,6 +319,21 @@ class DeveloperProjectController extends AccountBaseController
                     'source' => 'project',
                 ]);
             $images = $images->merge($projectImages);
+
+            // Get images from unit type assets
+            foreach ($project->unitTypes as $unitType) {
+                $unitTypeImages = $unitType->assets
+                    ->filter(fn($a) => $a->asset_type === 'image' && in_array($tag, $a->tags ?? []))
+                    ->map(fn($asset) => [
+                        'id'             => $asset->id,
+                        'url'            => $asset->url,
+                        'name'           => $asset->name,
+                        'source'         => 'unit_type',
+                        'unit_type_id'   => $unitType->id,
+                        'unit_type_name' => $unitType->display_label ?? $unitType->reference_code,
+                    ]);
+                $images = $images->merge($unitTypeImages);
+            }
 
             // Get images from property assets
             foreach ($project->properties as $property) {
