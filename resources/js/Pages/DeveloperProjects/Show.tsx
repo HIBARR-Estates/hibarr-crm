@@ -53,9 +53,11 @@ export interface ImageItem {
     id: number;
     url: string;
     name: string;
-    source: "project" | "property";
+    source: "project" | "property" | "unit_type";
     property_id?: number;
     property_title?: string;
+    unit_type_id?: number;
+    unit_type_name?: string;
 }
 
 export interface PriceListItem {
@@ -340,7 +342,9 @@ const Show = ({
                     </div>
 
                     {/* Sidebar — always visible on lg+, toggle-controlled below */}
-                    <div className={`${sidebarOpen ? "block" : "hidden"} lg:block`}>
+                    <div
+                        className={`${sidebarOpen ? "block" : "hidden"} lg:block`}
+                    >
                         <ShowSidebar
                             activeSection={activeSection}
                             onSelect={setActiveSection}

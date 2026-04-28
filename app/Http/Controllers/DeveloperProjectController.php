@@ -273,6 +273,21 @@ class DeveloperProjectController extends AccountBaseController
                 ]);
             $images = $images->merge($projectImages);
 
+            // Get images from unit type assets
+            foreach ($project->unitTypes as $unitType) {
+                $unitTypeImages = $unitType->assets
+                    ->filter(fn($a) => $a->asset_type === 'image' && in_array($tag, $a->tags ?? []))
+                    ->map(fn($asset) => [
+                        'id'             => $asset->id,
+                        'url'            => $asset->url,
+                        'name'           => $asset->name,
+                        'source'         => 'unit_type',
+                        'unit_type_id'   => $unitType->id,
+                        'unit_type_name' => $unitType->display_label ?? $unitType->reference_code,
+                    ]);
+                $images = $images->merge($unitTypeImages);
+            }
+
             // Get images from property assets
             foreach ($project->properties as $property) {
                 $propertyImages = $property->assets()
