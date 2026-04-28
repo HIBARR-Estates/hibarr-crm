@@ -151,18 +151,9 @@ class PropertyController extends AccountBaseController
             $query->where('project_location_id', $request->project_location_id);
         }
 
-        // Filter by city - search in property's own city OR project location name
-        if ($request->filled('city')) {
-            $citySearch = $request->city;
-            $query->where(function($q) use ($citySearch) {
-                $q->where('city', 'like', '%' . $citySearch . '%')
-                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
-                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
-                  })
-                  ->orWhereHas('projectLocation', function($locQuery) use ($citySearch) {
-                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
-                  });
-            });
+        // Filter by city — exact match against the PropertyCity name (slug)
+        if ($request->filled('city') && $request->city !== 'all') {
+            $query->where('city', $request->city);
         }
 
         // Filter by project location (searches project location name)
@@ -253,6 +244,11 @@ class PropertyController extends AccountBaseController
             ->where('company_id', user()->company_id)
             ->get();
 
+        $cities = \App\Models\PropertyCity::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
         return Inertia::render('Properties/Index', [
             'pageTitle' => 'Properties',
             'properties' => $this->properties,
@@ -261,6 +257,7 @@ class PropertyController extends AccountBaseController
             'developerProjects' => $developerProjects,
             'projectLocations' => $projectLocations,
             'developers' => $developers,
+            'cities' => $cities,
             'enumValues' => Property::getEnumValues(),
             'filters' => $request->only([
                 'search', 'property_type', 'sale_type', 'status', 'city', 
