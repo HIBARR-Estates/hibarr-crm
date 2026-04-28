@@ -231,18 +231,38 @@ class AgentReportController extends AccountBaseController
         $end = Carbon::parse($validated['end_date']);
         $viewType = $validated['view_type'];
 
+        \Illuminate\Support\Facades\Log::info('AI Summary request', [
+            'user_id'   => user()->id,
+            'view_type' => $viewType,
+            'agent_ids' => $agentIds,
+            'start'     => $start->toDateString(),
+            'end'       => $end->toDateString(),
+        ]);
+
         // Build a cache key unique to this user + filters
         $cacheKey = 'ai_summary:' . user()->id . ':' . md5(implode(',', $agentIds ?? []) . $start . $end);
 
         $summary = Cache::get($cacheKey);
 
-        if (!$summary) {
+        if ($summary) {
+            \Illuminate\Support\Facades\Log::info('AI Summary served from cache', ['cache_key' => $cacheKey]);
+        } else {
             $notesText = $this->reportingService->noteMetrics()
                 ->getBodiesForAi($agentIds, $start, $end);
+
+            \Illuminate\Support\Facades\Log::info('AI Summary notes fetched', [
+                'notes_length'  => mb_strlen($notesText),
+                'notes_preview' => mb_substr($notesText, 0, 300),
+                'is_empty'      => empty($notesText),
+            ]);
 
             $context = $viewType === 'department'
                 ? ($this->reportingService->getDepartmentName(user()) ?? 'Department')
                 : ($this->resolveAgentName($agentIds) ?? 'Agent');
+
+            \Illuminate\Support\Facades\Log::info('AI Summary context resolved', [
+                'context' => $context,
+            ]);
 
             $summary = $this->aiSummary->summarize(
                 $notesText,

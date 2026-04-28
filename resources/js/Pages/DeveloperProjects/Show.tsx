@@ -19,6 +19,7 @@ import UnitTypesSection from "../../Features/DeveloperProjects/UnitTypesSection"
 import ConstructionProjectFormModal from "../../Features/DeveloperProjects/ConstructionProjectFormModal";
 import ProjectPhotosSection from "../../Features/DeveloperProjects/ProjectPhotosSection";
 import ShowSidebar from "./components/ShowSidebar";
+import MobileSidebarToggle from "./components/MobileSidebarToggle";
 import OverviewSection from "./components/OverviewSection";
 import FacilitiesSection from "./components/FacilitiesSection";
 import ImageGallerySection from "./components/ImageGallerySection";
@@ -42,7 +43,9 @@ export interface UnitTypeSummary {
 
 export interface Statistics {
     total_units: number;
+    unit_count: number;
     sold_properties: number;
+    total_sold: number;
     under_offer_properties: number;
     starting_price: number | null;
     starting_price_formatted: string | null;
@@ -52,9 +55,11 @@ export interface ImageItem {
     id: number;
     url: string;
     name: string;
-    source: "project" | "property";
+    source: "project" | "property" | "unit_type";
     property_id?: number;
     property_title?: string;
+    unit_type_id?: number;
+    unit_type_name?: string;
 }
 
 export interface PriceListItem {
@@ -186,6 +191,7 @@ const Show = ({
     const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
     const [editModalOpen, setEditModalOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const handleEditSuccess = useCallback(() => {
         router.reload();
@@ -327,20 +333,35 @@ const Show = ({
                     </div>
                 </div>
 
-                <div className="flex gap-6">
-                    <ShowSidebar
-                        activeSection={activeSection}
-                        onSelect={setActiveSection}
-                        onEdit={() => setEditModalOpen(true)}
-                        availabilityLink={project.availability_link}
-                        unitTypesCount={unitTypes?.length || 0}
-                        exteriorCount={imagesByTag.exterior?.length || 0}
-                        interiorCount={imagesByTag.interior?.length || 0}
-                        siteplanCount={
-                            (imagesByTag["floor-plan"]?.length || 0) +
-                            (imagesByTag["site-plan"]?.length || 0)
-                        }
-                    />
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Mobile toggle — hidden on large screens */}
+                    <div className="lg:hidden">
+                        <MobileSidebarToggle
+                            isOpen={sidebarOpen}
+                            onToggle={() => setSidebarOpen((v) => !v)}
+                            activeSection={activeSection}
+                        />
+                    </div>
+
+                    {/* Sidebar — always visible on lg+, toggle-controlled below */}
+                    <div
+                        className={`${sidebarOpen ? "block" : "hidden"} lg:block`}
+                    >
+                        <ShowSidebar
+                            activeSection={activeSection}
+                            onSelect={setActiveSection}
+                            onClose={() => setSidebarOpen(false)}
+                            onEdit={() => setEditModalOpen(true)}
+                            availabilityLink={project.availability_link}
+                            unitTypesCount={unitTypes?.length || 0}
+                            exteriorCount={imagesByTag.exterior?.length || 0}
+                            interiorCount={imagesByTag.interior?.length || 0}
+                            siteplanCount={
+                                (imagesByTag["floor-plan"]?.length || 0) +
+                                (imagesByTag["site-plan"]?.length || 0)
+                            }
+                        />
+                    </div>
 
                     {/* Main Content */}
                     <div className="flex-1 min-w-0">{renderSection()}</div>

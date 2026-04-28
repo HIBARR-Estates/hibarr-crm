@@ -84,6 +84,7 @@ interface UnitTypeFormValues {
     restriction_notes: string | null;
     reference_code: string | null;
     quantity: number | null;
+    total_sold: number | null;
 }
 
 interface UnitTypeFormModalProps {
@@ -246,6 +247,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     ? null
                     : editingItem?.reference_code,
                 quantity: editingItem.quantity ?? 1,
+                total_sold: editingItem.total_sold ?? null,
             });
         } else if (open) {
             form.resetFields();
@@ -258,6 +260,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 outside_features: [],
                 inside_features: [],
                 quantity: 1,
+                total_sold: null,
             });
         }
     }, [open, editingItem, isDuplicating, form]);
@@ -453,6 +456,19 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                             <InputNumber
                                 min={1}
                                 placeholder="1"
+                                className="!w-full"
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item
+                            name="total_sold"
+                            label="Total Sold"
+                            tooltip="Number of units sold so far"
+                        >
+                            <InputNumber
+                                min={0}
+                                placeholder="0"
                                 className="!w-full"
                             />
                         </Form.Item>

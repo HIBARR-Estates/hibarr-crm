@@ -142,25 +142,23 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
         <div className="flex flex-col gap-6">
             {/* ── Main card ────────────────────────────────────────── */}
             <div className="bg-white border border-gray-200 rounded-2xl p-7">
-
-
                 {/* Stat Cards */}
                 <div className="flex flex-wrap gap-3 mb-9">
                     <StatCard
                         icon={<Building2 size={22} />}
-                        value={statistics.total_units}
+                        value={`${statistics.unit_count}`}
                         label="Total Units"
                     />
                     <StatCard
                         icon={<CheckCircle2 size={22} />}
-                        value={statistics.sold_properties}
+                        value={statistics.total_sold}
                         label="Total Sold"
                     />
                     <StatCard
                         icon={<TrendingUp size={22} />}
                         value={
                             statistics.total_units > 0
-                                ? `${Math.round((statistics.sold_properties / statistics.total_units) * 100)}%`
+                                ? `${Math.round((statistics.total_sold / statistics.total_units) * 100)}%`
                                 : "0%"
                         }
                         label="Sold %"
@@ -197,7 +195,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
             </div>
 
             {/* ── Units Table ──────────────────────────────────────────── */}
-            <Card title="Units">
+            {/* <Card title="Units">
                 {unitTypesSummary.length > 0 ? (
                     <Table
                         columns={columns}
@@ -209,7 +207,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                 ) : (
                     <Empty description="No unit types added to this project" />
                 )}
-            </Card>
+            </Card> */}
         </div>
     );
 };

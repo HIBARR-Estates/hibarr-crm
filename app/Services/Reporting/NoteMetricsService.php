@@ -41,25 +41,46 @@ class NoteMetricsService
      */
     public function getBodiesForAi(?array $agentIds, Carbon $start, Carbon $end, int $maxChars = 100000): string
     {
-        $dealNotes = DealNote::when($agentIds !== null, fn ($q) =>
+        $startOfDay = $start->copy()->startOfDay();
+        $endOfDay   = $end->copy()->endOfDay();
+
+        $dealNotesCollection = DealNote::when($agentIds !== null, fn ($q) =>
                 $q->whereHas('deal', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
             )
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
+            ->whereBetween('created_at', [$startOfDay, $endOfDay])
             ->pluck('details')
             ->filter()
-            ->implode("\n---\n");
+            ->values();
 
-        $leadNotes = LeadNote::when($agentIds !== null, fn ($q) =>
+        $leadNotesCollection = LeadNote::when($agentIds !== null, fn ($q) =>
                 $q->whereHas('lead', function ($lq) use ($agentIds) {
                     $lq->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
                 })
             )
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
+            ->whereBetween('created_at', [$startOfDay, $endOfDay])
             ->pluck('details')
             ->filter()
-            ->implode("\n---\n");
+            ->values();
 
-        $combined = trim($dealNotes . "\n---\n" . $leadNotes);
+        \Illuminate\Support\Facades\Log::debug('AI Summary getBodiesForAi', [
+            'agent_ids'        => $agentIds,
+            'start'            => $startOfDay->toDateTimeString(),
+            'end'              => $endOfDay->toDateTimeString(),
+            'deal_notes_count' => $dealNotesCollection->count(),
+            'lead_notes_count' => $leadNotesCollection->count(),
+        ]);
+
+        $parts = [];
+
+        if ($dealNotesCollection->isNotEmpty()) {
+            $parts[] = $dealNotesCollection->implode("\n---\n");
+        }
+
+        if ($leadNotesCollection->isNotEmpty()) {
+            $parts[] = $leadNotesCollection->implode("\n---\n");
+        }
+
+        $combined = implode("\n---\n", $parts);
 
         if (mb_strlen($combined) > $maxChars) {
             $combined = mb_substr($combined, 0, $maxChars) . "\n\n[Truncated — exceeded {$maxChars} character limit]";

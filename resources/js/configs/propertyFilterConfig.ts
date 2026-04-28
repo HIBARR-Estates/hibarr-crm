@@ -1,8 +1,14 @@
 import { FilterConfig } from "@/contexts/FilterContext";
 import type { DeveloperProjectOption } from "@/Types/developerProject";
 
+interface CityOption {
+    name: string;
+    label: string;
+}
+
 interface PropertyFilterProps {
     developerProjects?: DeveloperProjectOption[];
+    cities?: CityOption[];
     excludeFields?: string[];
 }
 
@@ -92,9 +98,13 @@ export const createPropertyFilterConfig = (
         {
             key: "city",
             label: "City / Location",
-            type: "text",
-            placeholder: "Search by city or project location",
+            type: "select",
+            placeholder: "Select city",
             span: 12,
+            options: [
+                { value: "", label: "All Cities" },
+                ...(props.cities?.map((c) => ({ value: c.name, label: c.label })) ?? []),
+            ],
         },
         {
             key: "project_location",

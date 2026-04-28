@@ -151,18 +151,9 @@ class PropertyController extends AccountBaseController
             $query->where('project_location_id', $request->project_location_id);
         }
 
-        // Filter by city - search in property's own city OR project location name
-        if ($request->filled('city')) {
-            $citySearch = $request->city;
-            $query->where(function($q) use ($citySearch) {
-                $q->where('city', 'like', '%' . $citySearch . '%')
-                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
-                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
-                  })
-                  ->orWhereHas('projectLocation', function($locQuery) use ($citySearch) {
-                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
-                  });
-            });
+        // Filter by city — exact match against the PropertyCity name (slug)
+        if ($request->filled('city') && $request->city !== 'all') {
+            $query->where('city', $request->city);
         }
 
         // Filter by project location (searches project location name)
@@ -222,21 +213,7 @@ class PropertyController extends AccountBaseController
         $perPage = (int) $request->get('per_page', 16) ?: 16;
         $perPage = max(1, min(100, $perPage));
 
-        // ── Source filter: all | properties | unit_types ──
-        $source = $request->get('source', 'all');
-
-        if ($source === 'unit_types') {
-            // Only return unit types transformed as properties
-            $properties = $this->getUnitTypeProperties($request, $perPage);
-        } elseif ($source === 'properties') {
-            // Only return real properties (default query)
-            $properties = $query->paginate($perPage);
-        } else {
-            // ── Two-query merge + PHP sort/slice ──
-            // Both sources are filtered independently, then merged, sorted, and
-            // sliced in PHP so that pagination totals reflect the combined set.
-            $properties = $this->getMergedPropertiesAndUnitTypes($query, $request, $perPage);
-        }
+        $properties = $query->paginate($perPage);
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -267,6 +244,11 @@ class PropertyController extends AccountBaseController
             ->where('company_id', user()->company_id)
             ->get();
 
+        $cities = \App\Models\PropertyCity::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
         return Inertia::render('Properties/Index', [
             'pageTitle' => 'Properties',
             'properties' => $this->properties,
@@ -275,13 +257,14 @@ class PropertyController extends AccountBaseController
             'developerProjects' => $developerProjects,
             'projectLocations' => $projectLocations,
             'developers' => $developers,
+            'cities' => $cities,
             'enumValues' => Property::getEnumValues(),
             'filters' => $request->only([
                 'search', 'property_type', 'sale_type', 'status', 'city', 
                 'min_price', 'max_price', 'developer_project_id', 'project_location',
                 'primary_category', 'unit_style', 'construction_status', 
                 'publishing_status', 'project_location_id', 'view_types',
-                'occupancy_type', 'added_by', 'responsible_agent_id', 'source'
+                'occupancy_type', 'added_by', 'responsible_agent_id'
             ]),
             // Lazy-loaded: only fetched when frontend requests it (Construction Projects tab)
             'constructionProjects' => Inertia::lazy(function () use ($request) {

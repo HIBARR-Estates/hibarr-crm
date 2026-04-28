@@ -94,6 +94,7 @@ export interface IndexProps extends PageProps {
     developerProjects?: DeveloperProjectOption[];
     /** Lazy-loaded construction projects for the Construction Projects tab */
     constructionProjects?: ConstructionProjectsPaginationData;
+    cities?: Array<{ name: string; label: string }>;
     currencies?: any[];
     default_currency_code?: string;
     default_currency_symbol?: string;
@@ -109,6 +110,7 @@ const Index = ({
     developers,
     developerProjects,
     constructionProjects,
+    cities,
 }: IndexProps) => {
     const { t } = useTranslation();
 
@@ -294,9 +296,10 @@ const Index = ({
                 // projects,
                 // developers,
                 developerProjects,
+                cities,
                 excludeFields: ["publishing_status", "search"],
             }),
-        [projects, developers, developerProjects],
+        [projects, developers, developerProjects, cities],
     );
 
     // Setup search and filter contexts
