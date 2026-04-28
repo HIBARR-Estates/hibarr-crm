@@ -27,6 +27,18 @@ class HibarrAiSummaryService implements AiSummaryInterface
 
     public function summarize(string $notesText, string $context, string $startDate, string $endDate): string
     {
+        Log::info('HibarrAiSummaryService::summarize called', [
+            'context'       => $context,
+            'start_date'    => $startDate,
+            'end_date'      => $endDate,
+            'notes_length'  => mb_strlen($notesText),
+            'is_empty'      => empty($notesText),
+            'base_url'      => $this->baseUrl,
+            'provider'      => $this->provider,
+            'model'         => $this->model,
+            'api_key_set'   => !empty($this->apiKey),
+        ]);
+
         if (empty(trim($notesText))) {
             return "No notes found for {$context} between {$startDate} and {$endDate}.";
         }
@@ -75,13 +87,20 @@ PROMPT;
             if ($response->failed()) {
                 Log::error('AI Summary API error', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'body'   => $response->body(),
+                    'url'    => "{$this->baseUrl}/ai/execute",
                 ]);
 
                 return 'Unable to generate AI summary at this time. Please try again later.';
             }
 
             $data = $response->json();
+
+            Log::info('AI Summary API response received', [
+                'status'  => $response->status(),
+                'success' => $data['success'] ?? null,
+                'has_completion' => !empty($data['data']['completion']),
+            ]);
 
             if (!($data['success'] ?? false) || empty($data['data']['completion'])) {
                 Log::warning('AI Summary unexpected response', ['response' => $data]);
