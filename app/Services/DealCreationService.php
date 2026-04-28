@@ -830,6 +830,7 @@ class DealCreationService
         $deal = new Deal();
         $deal->company_id = $companyId;
         $deal->lead_id = $contactId;
+        $deal->added_by = 1;
         $deal->hash = $dealHash;
         $deal->name = $dealName;
         

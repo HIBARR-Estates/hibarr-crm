@@ -240,6 +240,7 @@ class DealContactApiController extends Controller
                     // Create new contact
                     $contact = new Lead();
                     $contact->company_id = $companyId;
+                    $contact->added_by = 1;
                     $contact->client_name = $request->name;
                     $contact->client_email = $request->email;
                     $contact->mobile = $request->phone;
@@ -397,6 +398,7 @@ class DealContactApiController extends Controller
         // Create new contact if not found
         $contact = new Lead();
         $contact->company_id = $companyId;
+        $contact->added_by = 1;
         $contact->client_name = $request->name;
         $contact->client_email = $request->email;
         $contact->mobile = $request->phone;
