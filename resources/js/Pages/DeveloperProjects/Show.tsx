@@ -43,7 +43,9 @@ export interface UnitTypeSummary {
 
 export interface Statistics {
     total_units: number;
+    unit_count: number;
     sold_properties: number;
+    total_sold: number;
     under_offer_properties: number;
     starting_price: number | null;
     starting_price_formatted: string | null;

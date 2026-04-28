@@ -146,19 +146,19 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                 <div className="flex flex-wrap gap-3 mb-9">
                     <StatCard
                         icon={<Building2 size={22} />}
-                        value={statistics.total_units}
+                        value={`${statistics.unit_count}`}
                         label="Total Units"
                     />
                     <StatCard
                         icon={<CheckCircle2 size={22} />}
-                        value={statistics.sold_properties}
+                        value={statistics.total_sold}
                         label="Total Sold"
                     />
                     <StatCard
                         icon={<TrendingUp size={22} />}
                         value={
                             statistics.total_units > 0
-                                ? `${Math.round((statistics.sold_properties / statistics.total_units) * 100)}%`
+                                ? `${Math.round((statistics.total_sold / statistics.total_units) * 100)}%`
                                 : "0%"
                         }
                         label="Sold %"

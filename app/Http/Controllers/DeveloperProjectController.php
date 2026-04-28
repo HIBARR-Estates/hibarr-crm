@@ -154,6 +154,8 @@ class DeveloperProjectController extends AccountBaseController
 
         // Calculate statistics
         $totalUnits = $project->unitTypes->sum('quantity');
+        $unitCount = $project->unitTypes->count();
+        $totalSold = $project->unitTypes->sum('total_sold');
         $soldProperties = $project->properties->where('status', Property::STATUS_SOLD)->count();
         $underOfferProperties = $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count();
 
@@ -199,6 +201,9 @@ class DeveloperProjectController extends AccountBaseController
             'project' => $project,
             'statistics' => [
                 'total_units' => $totalUnits,
+                'unit_count' => $unitCount,
+                'sold_properties' => $totalSold,
+                'total_sold' => $totalSold,
                 'sold_properties' => $soldProperties,
                 'under_offer_properties' => $underOfferProperties,
                 'starting_price' => $startingPrice,
