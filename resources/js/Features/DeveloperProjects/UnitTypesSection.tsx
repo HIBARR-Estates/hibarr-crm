@@ -288,7 +288,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         )}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 text-[11px] text-gray-600 lg:grid-cols-3 xxl:grid-cols-4">
                         {ut.bedrooms != null && (
                             <div className="rounded-lg bg-gray-50 px-3 py-2">
                                 <div className="text-[10px] uppercase tracking-wide text-gray-400">
@@ -800,7 +800,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                         </Button>
                     </Empty>
                 ) : (
-                    <div className="grid grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4 gap-4">
                         {unitTypes.map((ut) => (
                             <UnitTypeCard
                                 key={ut.id}
