@@ -222,21 +222,7 @@ class PropertyController extends AccountBaseController
         $perPage = (int) $request->get('per_page', 16) ?: 16;
         $perPage = max(1, min(100, $perPage));
 
-        // ── Source filter: all | properties | unit_types ──
-        $source = $request->get('source', 'all');
-
-        if ($source === 'unit_types') {
-            // Only return unit types transformed as properties
-            $properties = $this->getUnitTypeProperties($request, $perPage);
-        } elseif ($source === 'properties') {
-            // Only return real properties (default query)
-            $properties = $query->paginate($perPage);
-        } else {
-            // ── Two-query merge + PHP sort/slice ──
-            // Both sources are filtered independently, then merged, sorted, and
-            // sliced in PHP so that pagination totals reflect the combined set.
-            $properties = $this->getMergedPropertiesAndUnitTypes($query, $request, $perPage);
-        }
+        $properties = $query->paginate($perPage);
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -281,7 +267,7 @@ class PropertyController extends AccountBaseController
                 'min_price', 'max_price', 'developer_project_id', 'project_location',
                 'primary_category', 'unit_style', 'construction_status', 
                 'publishing_status', 'project_location_id', 'view_types',
-                'occupancy_type', 'added_by', 'responsible_agent_id', 'source'
+                'occupancy_type', 'added_by', 'responsible_agent_id'
             ]),
             // Lazy-loaded: only fetched when frontend requests it (Construction Projects tab)
             'constructionProjects' => Inertia::lazy(function () use ($request) {
