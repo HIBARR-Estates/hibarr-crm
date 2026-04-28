@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, router } from "@inertiajs/react";
-import { Button, Input, Pagination as AntPagination } from "antd";
-import { Plus, MapPin, Search, Building2, Users } from "lucide-react";
+import { Button, Input, Pagination as AntPagination, Select } from "antd";
+import { Plus, MapPin, Search, Building2, Users, X } from "lucide-react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -21,6 +21,11 @@ import SortDropdown from "./components/SortDropdown";
 // Types
 // ============================================
 
+interface LookupOption {
+    name: string;
+    label: string;
+}
+
 interface PaginationData {
     data: DeveloperProject[];
     current_page: number;
@@ -34,10 +39,18 @@ interface PaginationData {
 export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
     projects: PaginationData | null | undefined;
+    developers: Array<{ id: number; name: string }>;
+    locations: Array<{ id: number; name: string }>;
+    constructionStatuses: LookupOption[];
+    primaryCategories: LookupOption[];
     filters?:
         | {
               search?: string;
               sort?: string;
+              location_id?: string;
+              developer_id?: string;
+              construction_status?: string;
+              primary_category?: string;
           }
         | null
         | undefined;
@@ -81,6 +94,10 @@ const Index = ({
     pageTitle,
     projects: rawProjects,
     filters: rawFilters,
+    developers,
+    locations: filterLocations,
+    constructionStatuses,
+    primaryCategories,
 }: IndexProps) => {
     // Normalise server data — Laravel serialises empty arrays/objects inconsistently.
     // An empty PHP array arrives as `[]` in JSON; we must treat it as `{}`.
@@ -104,6 +121,10 @@ const Index = ({
         useState<DeveloperProject | null>(null);
     const [search, setSearch] = useState(safeFilters.search ?? "");
     const [sortValue, setSortValue] = useState(safeFilters.sort ?? "newest");
+    const [locationId, setLocationId] = useState(safeFilters.location_id ?? "");
+    const [developerId, setDeveloperId] = useState(safeFilters.developer_id ?? "");
+    const [constructionStatus, setConstructionStatus] = useState(safeFilters.construction_status ?? "");
+    const [primaryCategory, setPrimaryCategory] = useState(safeFilters.primary_category ?? "");
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Locations — only loaded when modal is open
@@ -135,6 +156,21 @@ const Index = ({
         }
     }, [projectToDelete]);
 
+    // Build a params object from all current filter state
+    const buildParams = (overrides: Record<string, string> = {}) => {
+        const base: Record<string, string> = {};
+        if (search) base.search = search;
+        if (sortValue && sortValue !== "newest") base.sort = sortValue;
+        if (locationId) base.location_id = locationId;
+        if (developerId) base.developer_id = developerId;
+        if (constructionStatus) base.construction_status = constructionStatus;
+        if (primaryCategory) base.primary_category = primaryCategory;
+        const merged = { ...base, ...overrides };
+        // Remove empty values
+        Object.keys(merged).forEach((k) => { if (!merged[k]) delete merged[k]; });
+        return merged;
+    };
+
     // Debounced search → server reload
     const handleSearchChange = (value: string) => {
         setSearch(value);
@@ -142,7 +178,7 @@ const Index = ({
         searchDebounce.current = setTimeout(() => {
             router.get(
                 route("developer-projects.index"),
-                { search: value, sort: sortValue },
+                buildParams({ search: value }),
                 { preserveState: true, preserveScroll: true, replace: true },
             );
         }, 380);
@@ -153,7 +189,38 @@ const Index = ({
         setSortValue(value);
         router.get(
             route("developer-projects.index"),
-            { search, sort: value },
+            buildParams({ sort: value }),
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    };
+
+    const handleFilterChange = (key: string, value: string) => {
+        switch (key) {
+            case "location_id":         setLocationId(value); break;
+            case "developer_id":        setDeveloperId(value); break;
+            case "construction_status": setConstructionStatus(value); break;
+            case "primary_category":    setPrimaryCategory(value); break;
+        }
+        router.get(
+            route("developer-projects.index"),
+            buildParams({ [key]: value }),
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    };
+
+    const hasActiveFilters = !!(locationId || developerId || constructionStatus || primaryCategory);
+
+    const handleClearFilters = () => {
+        setLocationId("");
+        setDeveloperId("");
+        setConstructionStatus("");
+        setPrimaryCategory("");
+        const params: Record<string, string> = {};
+        if (search) params.search = search;
+        if (sortValue && sortValue !== "newest") params.sort = sortValue;
+        router.get(
+            route("developer-projects.index"),
+            params,
             { preserveState: true, preserveScroll: true, replace: true },
         );
     };
@@ -179,7 +246,7 @@ const Index = ({
     const goToPage = (page: number) => {
         router.get(
             route("developer-projects.index"),
-            { search, sort: sortValue, page },
+            { ...buildParams(), page: String(page) },
             { preserveState: true, preserveScroll: true },
         );
     };
@@ -249,6 +316,64 @@ const Index = ({
                                         onChange={handleSortChange}
                                     />
                                 </div>
+                            </div>
+
+                            {/* Row 3: filters */}
+                            <div className="flex items-center gap-2 flex-wrap pt-2.5 border-t border-gray-100 mt-2.5">
+                                <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
+                                    Filter:
+                                </span>
+                                <Select
+                                    value={locationId || undefined}
+                                    onChange={(v) => handleFilterChange("location_id", v ?? "")}
+                                    placeholder="All Locations"
+                                    allowClear
+                                    options={filterLocations.map((l) => ({
+                                        value: String(l.id),
+                                        label: l.name,
+                                    }))}
+                                    style={{ width: 160 }}
+                                    size="small"
+                                />
+                                <Select
+                                    value={developerId || undefined}
+                                    onChange={(v) => handleFilterChange("developer_id", v ?? "")}
+                                    placeholder="All Developers"
+                                    allowClear
+                                    options={developers.map((d) => ({
+                                        value: String(d.id),
+                                        label: d.name,
+                                    }))}
+                                    style={{ width: 160 }}
+                                    size="small"
+                                />
+                                <Select
+                                    value={constructionStatus || undefined}
+                                    onChange={(v) => handleFilterChange("construction_status", v ?? "")}
+                                    placeholder="Any Status"
+                                    allowClear
+                                    options={constructionStatuses.map((s) => ({ value: s.name, label: s.label }))}
+                                    style={{ width: 180 }}
+                                    size="small"
+                                />
+                                <Select
+                                    value={primaryCategory || undefined}
+                                    onChange={(v) => handleFilterChange("primary_category", v ?? "")}
+                                    placeholder="Any Category"
+                                    allowClear
+                                    options={primaryCategories.map((c) => ({ value: c.name, label: c.label }))}
+                                    style={{ width: 150 }}
+                                    size="small"
+                                />
+                                {hasActiveFilters && (
+                                    <button
+                                        onClick={handleClearFilters}
+                                        className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 transition-colors ml-1"
+                                    >
+                                        <X size={12} />
+                                        Clear filters
+                                    </button>
+                                )}
                             </div>
                         </div>
                     </div>

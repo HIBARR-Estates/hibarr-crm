@@ -6,6 +6,18 @@ export const SORT_OPTIONS = [
     { value: "properties_desc", label: "Most Properties" },
 ];
 
+export const CONSTRUCTION_STATUS_OPTIONS = [
+    { value: "pre_construction", label: "Pre-construction" },
+    { value: "active_construction", label: "Active Construction" },
+    { value: "post_construction", label: "Post Construction" },
+    { value: "complete", label: "Complete" },
+];
+
+export const PRIMARY_CATEGORY_OPTIONS = [
+    { value: "residential", label: "Residential" },
+    { value: "commercial", label: "Commercial" },
+];
+
 // Cohesive gradient palette keyed by first letter — dynamic value, inline style required
 export const CARD_GRADIENTS: Record<string, string> = {
     A: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",

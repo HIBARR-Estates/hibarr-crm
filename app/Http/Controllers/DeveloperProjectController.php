@@ -64,6 +64,21 @@ class DeveloperProjectController extends AccountBaseController
             $query->where('project_location_id', $request->location_id);
         }
 
+        // Filter by developer
+        if ($request->filled('developer_id')) {
+            $query->where('developer_id', $request->developer_id);
+        }
+
+        // Filter by construction status
+        if ($request->filled('construction_status')) {
+            $query->where('construction_status', $request->construction_status);
+        }
+
+        // Filter by primary category (JSON array contains)
+        if ($request->filled('primary_category')) {
+            $query->whereJsonContains('primary_categories', $request->primary_category);
+        }
+
         // Apply sort
         switch ($request->input('sort', 'newest')) {
             case 'oldest':
@@ -85,12 +100,39 @@ class DeveloperProjectController extends AccountBaseController
 
         $projects = $query->paginate(12);
 
+        $developers = \App\Models\Developer::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $locations = \App\Models\ProjectLocation::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $constructionStatuses = \App\Models\PropertyConstructionStatus::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
+        $primaryCategories = \App\Models\PropertyPrimaryCategory::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
         // For Inertia page render
         // if (!$request->ajax() && !$request->wantsJson()) {
             return Inertia::render('DeveloperProjects/Index', [
                 'pageTitle' => 'Construction Projects',
                 'projects' => $projects,
-                'filters' => $request->only(['search', 'location_id', 'sort']),
+                'developers' => $developers,
+                'locations' => $locations,
+                'constructionStatuses' => $constructionStatuses,
+                'primaryCategories' => $primaryCategories,
+                'filters' => $request->only([
+                    'search', 'location_id', 'sort',
+                    'developer_id', 'construction_status', 'primary_category',
+                ]),
             ]);
         // }
 
