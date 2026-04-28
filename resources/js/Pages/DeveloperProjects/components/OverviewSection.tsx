@@ -142,8 +142,6 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
         <div className="flex flex-col gap-6">
             {/* ── Main card ────────────────────────────────────────── */}
             <div className="bg-white border border-gray-200 rounded-2xl p-7">
-
-
                 {/* Stat Cards */}
                 <div className="flex flex-wrap gap-3 mb-9">
                     <StatCard
@@ -197,7 +195,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
             </div>
 
             {/* ── Units Table ──────────────────────────────────────────── */}
-            <Card title="Units">
+            {/* <Card title="Units">
                 {unitTypesSummary.length > 0 ? (
                     <Table
                         columns={columns}
@@ -209,7 +207,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                 ) : (
                     <Empty description="No unit types added to this project" />
                 )}
-            </Card>
+            </Card> */}
         </div>
     );
 };
