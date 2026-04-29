@@ -122,9 +122,15 @@ const Index = ({
     const [search, setSearch] = useState(safeFilters.search ?? "");
     const [sortValue, setSortValue] = useState(safeFilters.sort ?? "newest");
     const [locationId, setLocationId] = useState(safeFilters.location_id ?? "");
-    const [developerId, setDeveloperId] = useState(safeFilters.developer_id ?? "");
-    const [constructionStatus, setConstructionStatus] = useState(safeFilters.construction_status ?? "");
-    const [primaryCategory, setPrimaryCategory] = useState(safeFilters.primary_category ?? "");
+    const [developerId, setDeveloperId] = useState(
+        safeFilters.developer_id ?? "",
+    );
+    const [constructionStatus, setConstructionStatus] = useState(
+        safeFilters.construction_status ?? "",
+    );
+    const [primaryCategory, setPrimaryCategory] = useState(
+        safeFilters.primary_category ?? "",
+    );
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Locations — only loaded when modal is open
@@ -167,7 +173,9 @@ const Index = ({
         if (primaryCategory) base.primary_category = primaryCategory;
         const merged = { ...base, ...overrides };
         // Remove empty values
-        Object.keys(merged).forEach((k) => { if (!merged[k]) delete merged[k]; });
+        Object.keys(merged).forEach((k) => {
+            if (!merged[k]) delete merged[k];
+        });
         return merged;
     };
 
@@ -196,10 +204,18 @@ const Index = ({
 
     const handleFilterChange = (key: string, value: string) => {
         switch (key) {
-            case "location_id":         setLocationId(value); break;
-            case "developer_id":        setDeveloperId(value); break;
-            case "construction_status": setConstructionStatus(value); break;
-            case "primary_category":    setPrimaryCategory(value); break;
+            case "location_id":
+                setLocationId(value);
+                break;
+            case "developer_id":
+                setDeveloperId(value);
+                break;
+            case "construction_status":
+                setConstructionStatus(value);
+                break;
+            case "primary_category":
+                setPrimaryCategory(value);
+                break;
         }
         router.get(
             route("developer-projects.index"),
@@ -208,7 +224,12 @@ const Index = ({
         );
     };
 
-    const hasActiveFilters = !!(locationId || developerId || constructionStatus || primaryCategory);
+    const hasActiveFilters = !!(
+        locationId ||
+        developerId ||
+        constructionStatus ||
+        primaryCategory
+    );
 
     const handleClearFilters = () => {
         setLocationId("");
@@ -218,11 +239,11 @@ const Index = ({
         const params: Record<string, string> = {};
         if (search) params.search = search;
         if (sortValue && sortValue !== "newest") params.sort = sortValue;
-        router.get(
-            route("developer-projects.index"),
-            params,
-            { preserveState: true, preserveScroll: true, replace: true },
-        );
+        router.get(route("developer-projects.index"), params, {
+            preserveState: true,
+            preserveScroll: true,
+            replace: true,
+        });
     };
 
     const handleAdd = () => {
@@ -325,19 +346,31 @@ const Index = ({
                                 </span>
                                 <Select
                                     value={locationId || undefined}
-                                    onChange={(v) => handleFilterChange("location_id", v ?? "")}
+                                    onChange={(v) =>
+                                        handleFilterChange(
+                                            "location_id",
+                                            v ?? "",
+                                        )
+                                    }
                                     placeholder="All Locations"
                                     allowClear
-                                    options={filterLocations.map((l) => ({
-                                        value: String(l.id),
-                                        label: l.name,
-                                    }))}
+                                    options={filterLocations
+                                        .filter((l) => Boolean(l.name?.trim()))
+                                        .map((l) => ({
+                                            value: String(l.id),
+                                            label: l.name,
+                                        }))}
                                     style={{ width: 160 }}
                                     size="small"
                                 />
                                 <Select
                                     value={developerId || undefined}
-                                    onChange={(v) => handleFilterChange("developer_id", v ?? "")}
+                                    onChange={(v) =>
+                                        handleFilterChange(
+                                            "developer_id",
+                                            v ?? "",
+                                        )
+                                    }
                                     placeholder="All Developers"
                                     allowClear
                                     options={developers.map((d) => ({
@@ -349,19 +382,35 @@ const Index = ({
                                 />
                                 <Select
                                     value={constructionStatus || undefined}
-                                    onChange={(v) => handleFilterChange("construction_status", v ?? "")}
+                                    onChange={(v) =>
+                                        handleFilterChange(
+                                            "construction_status",
+                                            v ?? "",
+                                        )
+                                    }
                                     placeholder="Any Status"
                                     allowClear
-                                    options={constructionStatuses.map((s) => ({ value: s.name, label: s.label }))}
+                                    options={constructionStatuses.map((s) => ({
+                                        value: s.name,
+                                        label: s.label,
+                                    }))}
                                     style={{ width: 180 }}
                                     size="small"
                                 />
                                 <Select
                                     value={primaryCategory || undefined}
-                                    onChange={(v) => handleFilterChange("primary_category", v ?? "")}
+                                    onChange={(v) =>
+                                        handleFilterChange(
+                                            "primary_category",
+                                            v ?? "",
+                                        )
+                                    }
                                     placeholder="Any Category"
                                     allowClear
-                                    options={primaryCategories.map((c) => ({ value: c.name, label: c.label }))}
+                                    options={primaryCategories.map((c) => ({
+                                        value: c.name,
+                                        label: c.label,
+                                    }))}
                                     style={{ width: 150 }}
                                     size="small"
                                 />
