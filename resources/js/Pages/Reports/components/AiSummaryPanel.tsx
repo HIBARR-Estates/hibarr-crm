@@ -69,6 +69,9 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                     icon={<RobotOutlined />}
                     loading={loading}
                     onClick={handleGenerate}
+                    disabled={
+                        loading || !filters.start_date || !filters.end_date
+                    }
                 >
                     {summary ? "Regenerate" : "Generate AI Summary"}
                 </Button>
