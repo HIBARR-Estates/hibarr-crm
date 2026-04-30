@@ -177,9 +177,11 @@ export default function DealInfoSection({
                 type: "recalculate_value",
                 data: {},
             });
-            message.success("Deal value recalculated");
+            message.success(t("pages.deals.info.recalculate_success"));
         } catch (error: any) {
-            message.error(error?.message || "Unable to recalculate deal value");
+            message.error(
+                error?.message || t("pages.deals.info.recalculate_error"),
+            );
         } finally {
             setIsRecalculatingValue(false);
             setUpdatingField(null);
@@ -657,7 +659,10 @@ export default function DealInfoSection({
                                     title={
                                         <div style={{ minWidth: 220 }}>
                                             <div>
-                                                Products:{" "}
+                                                {t(
+                                                    "pages.deals.info.value_insight.products",
+                                                )}
+                                                :{" "}
                                                 {valueInsight.productsTotal !==
                                                 null
                                                     ? formatCurrency(
@@ -669,7 +674,10 @@ export default function DealInfoSection({
                                                     : "--"}
                                             </div>
                                             <div>
-                                                Packages:{" "}
+                                                {t(
+                                                    "pages.deals.info.value_insight.packages",
+                                                )}
+                                                :{" "}
                                                 {formatCurrency(
                                                     valueInsight.packagesTotal,
                                                     currentDeal.currency
@@ -678,7 +686,10 @@ export default function DealInfoSection({
                                                 )}
                                             </div>
                                             <div>
-                                                Gross:{" "}
+                                                {t(
+                                                    "pages.deals.info.value_insight.gross",
+                                                )}
+                                                :{" "}
                                                 {valueInsight.grossTotal !==
                                                 null
                                                     ? formatCurrency(
@@ -690,7 +701,10 @@ export default function DealInfoSection({
                                                     : "--"}
                                             </div>
                                             <div>
-                                                Discount: -
+                                                {t(
+                                                    "pages.deals.info.value_insight.discount",
+                                                )}
+                                                : -
                                                 {formatCurrency(
                                                     valueInsight.discountTotal,
                                                     currentDeal.currency
@@ -699,7 +713,10 @@ export default function DealInfoSection({
                                                 )}
                                             </div>
                                             <div>
-                                                Calculated:{" "}
+                                                {t(
+                                                    "pages.deals.info.value_insight.calculated",
+                                                )}
+                                                :{" "}
                                                 {valueInsight.calculatedValue !==
                                                 null
                                                     ? formatCurrency(
@@ -711,11 +728,22 @@ export default function DealInfoSection({
                                                     : "--"}
                                             </div>
                                             <div>
-                                                Source:{" "}
-                                                {valueInsight.sourceLabel}
+                                                {t(
+                                                    "pages.deals.info.value_insight.source",
+                                                )}
+                                                :{" "}
+                                                {t(
+                                                    valueInsight.source ===
+                                                        "manual"
+                                                        ? "pages.deals.info.value_insight.source_manual"
+                                                        : "pages.deals.info.value_insight.source_calculated",
+                                                )}
                                             </div>
                                             <div>
-                                                Final:{" "}
+                                                {t(
+                                                    "pages.deals.info.value_insight.final",
+                                                )}
+                                                :{" "}
                                                 {formatCurrency(
                                                     valueInsight.finalValue,
                                                     currentDeal.currency
@@ -737,7 +765,10 @@ export default function DealInfoSection({
                                                                     : "#ff4d4f",
                                                         }}
                                                     >
-                                                        Adjusted:{" "}
+                                                        {t(
+                                                            "pages.deals.info.value_insight.adjusted",
+                                                        )}
+                                                        :{" "}
                                                         {valueInsight.deltaVsManual >
                                                         0
                                                             ? "+"
@@ -748,13 +779,17 @@ export default function DealInfoSection({
                                                                 ?.currency_symbol ||
                                                                 "£",
                                                         )}{" "}
-                                                        vs calculated
+                                                        {t(
+                                                            "pages.deals.info.value_insight.vs_calculated",
+                                                        )}
                                                     </div>
                                                 )}
                                             {valueInsight.status ===
                                                 "no-offers" && (
                                                 <div style={{ marginTop: 6 }}>
-                                                    No applied offers yet.
+                                                    {t(
+                                                        "pages.deals.info.value_insight.no_offers",
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -762,7 +797,11 @@ export default function DealInfoSection({
                                 >
                                     <InfoCircleOutlined className="text-blue-500 cursor-help" />
                                 </Tooltip>
-                                <Tooltip title="Recalculate value from attached products, packages, and applied offers">
+                                <Tooltip
+                                    title={t(
+                                        "pages.deals.info.actions.recalculate_value_tooltip",
+                                    )}
+                                >
                                     <Button
                                         type="text"
                                         size="small"

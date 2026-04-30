@@ -4,7 +4,6 @@ type Source = "manual" | "calculated";
 
 export interface DealValueInsight {
     source: Source;
-    sourceLabel: string;
     finalValue: number;
     manualValue: number | null;
     calculatedValue: number | null;
@@ -120,7 +119,6 @@ export const getDealValueInsight = (deal: Deal): DealValueInsight => {
 
     return {
         source,
-        sourceLabel: source === "manual" ? "Manual" : "Calculated",
         finalValue,
         manualValue,
         calculatedValue,

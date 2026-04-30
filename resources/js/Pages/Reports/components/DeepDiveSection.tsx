@@ -362,7 +362,7 @@ const ReportNoteCard: React.FC<{
             )}
             <Space size="small" className="text-xs text-gray-400">
                 <ClockCircleOutlined />
-                <span>{dayjs(note.created_at).format("MMM DD, YYYY")}</span>
+                <span>{dayjs(note.created_at).format("D MMMM YYYY")}</span>
             </Space>
         </div>
     </Card>
