@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Contracts\AiSummaryInterface;
 use App\Exports\AgentReportExport;
 use App\Http\Requests\ReportFilterRequest;
+use App\Http\Requests\SaveAiSummaryRequest;
+use App\Models\AgentReportSummary;
 use App\Models\LeadAgent;
 use App\Models\Team;
 use App\Services\Reporting\ReportingService;
@@ -276,6 +278,90 @@ class AgentReportController extends AccountBaseController
         }
 
         return response()->json(['summary' => $summary]);
+    }
+
+    /**
+     * Persist the generated AI summary as a note-style record.
+     */
+    public function saveSummary(SaveAiSummaryRequest $request): JsonResponse
+    {
+        $validated = $request->validated();
+        $user = user();
+
+        $saved = AgentReportSummary::create([
+            'company_id' => $user->company_id,
+            'title' => $validated['title'] ?? null,
+            'description' => $validated['description'] ?? null,
+            'summary' => $validated['summary'],
+            'filter_start_date' => $validated['start_date'],
+            'filter_end_date' => $validated['end_date'],
+            'filter_agent_id' => $validated['agent_id'] ?? null,
+            'filter_view_type' => $validated['view_type'],
+            'context_label' => $validated['context_label'],
+            'added_by' => $user->id,
+            'last_updated_by' => $user->id,
+        ]);
+
+        return response()->json([
+            'id' => $saved->id,
+            'created_at' => optional($saved->created_at)->toDateTimeString(),
+        ], 201);
+    }
+
+    /**
+     * Render paginated saved AI summaries.
+     */
+    public function savedSummaries(Request $request)
+    {
+        $user = user();
+        $permission = $user->permission('view_lead_report');
+        $perPage = (int) $request->input('per_page', 15);
+
+        $query = AgentReportSummary::query()
+            ->with(['addedBy:id,name,image', 'agent.user:id,name'])
+            ->orderByDesc('created_at');
+
+        if ($permission !== 'all') {
+            $query->where('added_by', $user->id);
+        }
+
+        if ($request->filled('search')) {
+            $term = trim((string) $request->input('search'));
+            $query->where(function ($q) use ($term) {
+                $q->where('title', 'like', '%' . $term . '%')
+                    ->orWhere('description', 'like', '%' . $term . '%')
+                    ->orWhere('context_label', 'like', '%' . $term . '%')
+                    ->orWhere('summary', 'like', '%' . $term . '%');
+            });
+        }
+
+        $summaries = $query->paginate($perPage)->withQueryString();
+
+        return Inertia::render('Reports/SavedSummaries/Index', [
+            'pageTitle' => 'Saved AI Summaries',
+            'summaries' => $summaries,
+            'filters' => [
+                'search' => $request->input('search', ''),
+                'per_page' => $perPage,
+            ],
+            'canViewAll' => $permission === 'all',
+        ]);
+    }
+
+    /**
+     * Delete a saved summary note.
+     */
+    public function destroySummary(AgentReportSummary $summary): JsonResponse
+    {
+        $user = user();
+        $permission = $user->permission('view_lead_report');
+        $canDelete = $permission === 'all' || (int) $summary->added_by === (int) $user->id;
+
+        abort_unless($canDelete, 403);
+
+        $summary->delete();
+
+        return response()->json(['success' => true]);
     }
 
     /**

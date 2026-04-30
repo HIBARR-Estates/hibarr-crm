@@ -923,21 +923,28 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function generateProjectExpose(Request $request, $id)
     {
-        $project = DeveloperProject::with(['developer', 'location', 'assets', 'unitTypes.assets'])
-            ->where('company_id', user()->company_id)
-            ->findOrFail($id);
+        $project = DeveloperProject::where('company_id', user()->company_id)->findOrFail($id);
 
-        $clientData = [];
-        if ($request->filled('client_name')) {
-            $clientData['client_name'] = $request->input('client_name');
-        }
-        if ($request->filled('client_email')) {
-            $clientData['client_email'] = $request->input('client_email');
-        }
+        $payload = [
+            'client_name'  => $request->input('client_name'),
+            'client_email' => $request->input('client_email'),
+        ];
 
-        $config = ExposeConfiguration::fromDeveloperProject($project, 'project-expose-template', $clientData);
+        $exposeJob = \App\Models\ExposeJob::create([
+            'company_id'  => user()->company_id,
+            'user_id'     => user()->id,
+            'entity_type' => \App\Models\ExposeJob::ENTITY_DEVELOPER_PROJECT,
+            'entity_id'   => $project->id,
+            'status'      => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename'    => \Illuminate\Support\Str::slug($project->name) . '-brochure.pdf',
+            'payload'     => $payload,
+        ]);
 
-        return $this->exposeService->generate($config);
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+
+        return Reply::successWithData('Brochure generation queued', [
+            'data' => ['job_id' => $exposeJob->id],
+        ]);
     }
 
     /**
@@ -967,25 +974,34 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function generateUnitTypeExpose(Request $request, $projectId, $unitTypeId)
     {
-        // Verify project belongs to company
-        DeveloperProject::where('company_id', user()->company_id)
-            ->findOrFail($projectId);
+        $project = DeveloperProject::where('company_id', user()->company_id)->findOrFail($projectId);
 
-        $unitType = DeveloperProjectUnitType::with(['project.developer', 'project.location', 'project.assets', 'assets'])
-            ->where('developer_project_id', $projectId)
+        $unitType = DeveloperProjectUnitType::where('developer_project_id', $projectId)
             ->findOrFail($unitTypeId);
 
-        $clientData = [];
-        if ($request->filled('client_name')) {
-            $clientData['client_name'] = $request->input('client_name');
-        }
-        if ($request->filled('client_email')) {
-            $clientData['client_email'] = $request->input('client_email');
-        }
+        $payload = [
+            'client_name'  => $request->input('client_name'),
+            'client_email' => $request->input('client_email'),
+        ];
 
-        $config = ExposeConfiguration::fromUnitType($unitType, 'expose-template', $clientData);
+        $label = $unitType->display_label ?? $unitType->property_type ?? 'unit';
 
-        return $this->exposeService->generate($config);
+        $exposeJob = \App\Models\ExposeJob::create([
+            'company_id'    => user()->company_id,
+            'user_id'       => user()->id,
+            'entity_type'   => \App\Models\ExposeJob::ENTITY_UNIT_TYPE,
+            'entity_id'     => $project->id,
+            'sub_entity_id' => $unitType->id,
+            'status'        => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename'      => \Illuminate\Support\Str::slug($project->name . '-' . $label) . '-expose.pdf',
+            'payload'       => $payload,
+        ]);
+
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+
+        return Reply::successWithData('Expose generation queued', [
+            'data' => ['job_id' => $exposeJob->id],
+        ]);
     }
 
     /**

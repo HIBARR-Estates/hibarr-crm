@@ -973,6 +973,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('/deal-notes', [AgentReportController::class, 'dealNotes'])->name('deal-notes');
         Route::get('/lead-notes', [AgentReportController::class, 'leadNotes'])->name('lead-notes');
         Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->name('ai-summary');
+        Route::get('/saved-summaries', [AgentReportController::class, 'savedSummaries'])->name('saved-summaries.index');
+        Route::post('/saved-summaries', [AgentReportController::class, 'saveSummary'])->name('saved-summaries.store');
+        Route::delete('/saved-summaries/{summary}', [AgentReportController::class, 'destroySummary'])->name('saved-summaries.destroy');
         Route::get('/export', [AgentReportController::class, 'export'])->name('export');
     });
 
@@ -1090,6 +1093,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
     Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
+
+    // Expose job status polling
+    Route::get('expose-jobs/{id}', [App\Http\Controllers\ExposeJobController::class, 'show'])->name('expose-jobs.show');
 
     Route::get('properties/slug/{slug}', [App\Http\Controllers\PropertyController::class, 'showBySlug'])->name('properties.show_by_slug');
 
