@@ -242,7 +242,6 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             setSelectedAssetIds(new Set());
             setIsSelecting(false);
             refetchAssets();
-            router.reload();
         },
     );
 
@@ -392,7 +391,6 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                         .then(() => {
                             messageApi.success("Photo deleted");
                             refetchAssets();
-                            router.reload();
                         })
                         .catch(() => {
                             messageApi.error("Failed to delete photo");
@@ -438,6 +436,63 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             action: bulkTagAction,
         });
     }, [selectedAssetIds, bulkTags, bulkTagAction, bulkUpdateTags]);
+
+    const handleBulkDeleteAssets = useCallback(() => {
+        const ids = Array.from(selectedAssetIds);
+        if (ids.length === 0) return;
+
+        deleteModal.confirm({
+            title: `Delete ${ids.length} photo${ids.length !== 1 ? "s" : ""}?`,
+            content: "This cannot be undone.",
+            okText: "Delete",
+            okType: "danger",
+            onOk: async () => {
+                const token =
+                    document
+                        .querySelector('meta[name="csrf-token"]')
+                        ?.getAttribute("content") || "";
+                const results = await Promise.allSettled(
+                    ids.map((assetId) =>
+                        fetch(
+                            route("developer-projects.assets.destroy", [
+                                projectId,
+                                assetId,
+                            ]),
+                            {
+                                method: "DELETE",
+                                headers: {
+                                    "X-Requested-With": "XMLHttpRequest",
+                                    "X-CSRF-TOKEN": token,
+                                    Accept: "application/json",
+                                },
+                            },
+                        ).then((res) => res.json()),
+                    ),
+                );
+                const failed = results.filter((r) => r.status === "rejected");
+                const ok = results.length - failed.length;
+                if (ok > 0) {
+                    messageApi.success(
+                        ok === results.length
+                            ? `${ok} photo${ok !== 1 ? "s" : ""} deleted`
+                            : `${ok} deleted, ${failed.length} failed`,
+                    );
+                    refetchAssets();
+                    exitSelectionMode();
+                }
+                if (failed.length > 0 && ok === 0) {
+                    messageApi.error("Failed to delete photos");
+                }
+            },
+        });
+    }, [
+        selectedAssetIds,
+        projectId,
+        deleteModal,
+        messageApi,
+        refetchAssets,
+        exitSelectionMode,
+    ]);
 
     // ─── Photo card renderer ───
     const renderPhotoCard = (asset: DeveloperProjectAsset) => {
@@ -809,6 +864,15 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                                 onClick={() => setIsTagModalOpen(true)}
                             >
                                 Edit Tags ({selectedAssetIds.size})
+                            </Button>
+                            <Button
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                disabled={selectedAssetIds.size === 0}
+                                onClick={handleBulkDeleteAssets}
+                            >
+                                Delete ({selectedAssetIds.size})
                             </Button>
                             <Button size="small" onClick={exitSelectionMode}>
                                 Cancel
