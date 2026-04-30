@@ -125,6 +125,8 @@ class DeveloperProject extends BaseModel
         'title_deed_type',
         'unit_types',
         'number_of_units',
+        'total_units',
+        'total_units_sold',
         'number_of_blocks',
         'project_total_area_sqm',
         'construction_status',

@@ -161,6 +161,8 @@ export interface DeveloperProject {
     title_deed_type: string | null;
     unit_types: string[] | null;
     number_of_units: number | null;
+    total_units: number | null;
+    total_units_sold: number | null;
     number_of_blocks: number | null;
     project_total_area_sqm: number | null;
     construction_status: string | null;

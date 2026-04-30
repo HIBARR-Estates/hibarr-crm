@@ -153,9 +153,12 @@ class DeveloperProjectController extends AccountBaseController
             ->findOrFail($id);
 
         // Calculate statistics
-        $totalUnits = $project->unitTypes->sum('quantity');
+        $computedTotalUnits = $project->unitTypes->sum('quantity');
         $unitCount = $project->unitTypes->count();
-        $totalSold = $project->unitTypes->sum('total_sold');
+        $computedTotalSold = $project->unitTypes->sum('total_sold');
+        // Use explicit project-level overrides when set, otherwise fall back to computed values
+        $totalUnits = $project->total_units ?? $computedTotalUnits;
+        $totalSold = $project->total_units_sold ?? $computedTotalSold;
         $soldProperties = $project->properties->where('status', Property::STATUS_SOLD)->count();
         $underOfferProperties = $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count();
 
@@ -454,6 +457,8 @@ class DeveloperProjectController extends AccountBaseController
             'unit_types' => 'nullable|array',
             'unit_types.*' => 'string|in:' . implode(',', DeveloperProject::UNIT_TYPES),
             'number_of_units' => 'nullable|integer|min:0',
+            'total_units' => 'nullable|integer|min:0',
+            'total_units_sold' => 'nullable|integer|min:0',
             'number_of_blocks' => 'nullable|integer|min:0',
             'project_total_area_sqm' => 'nullable|numeric|min:0',
             'construction_status' => 'nullable|string|in:' . implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
@@ -548,6 +553,8 @@ class DeveloperProjectController extends AccountBaseController
             'title_deed_type' => $request->title_deed_type,
             'unit_types' => $request->unit_types,
             'number_of_units' => $request->number_of_units,
+            'total_units' => $request->total_units,
+            'total_units_sold' => $request->total_units_sold,
             'number_of_blocks' => $request->number_of_blocks,
             'project_total_area_sqm' => $request->project_total_area_sqm,
             'construction_status' => $request->construction_status,
@@ -589,6 +596,8 @@ class DeveloperProjectController extends AccountBaseController
             'unit_types' => 'nullable|array',
             'unit_types.*' => 'string|in:' . implode(',', DeveloperProject::UNIT_TYPES),
             'number_of_units' => 'nullable|integer|min:0',
+            'total_units' => 'nullable|integer|min:0',
+            'total_units_sold' => 'nullable|integer|min:0',
             'number_of_blocks' => 'nullable|integer|min:0',
             'project_total_area_sqm' => 'nullable|numeric|min:0',
             'construction_status' => 'nullable|string|in:' . implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
@@ -671,7 +680,7 @@ class DeveloperProjectController extends AccountBaseController
             'name', 'reference_code', 'description', 'developer_id', 'project_location_id',
             'google_drive_link', 'availability_link', 'starting_price',
             'primary_categories', 'title_deed_type', 'unit_types',
-            'number_of_units', 'number_of_blocks', 'project_total_area_sqm',
+            'number_of_units', 'total_units', 'total_units_sold', 'number_of_blocks', 'project_total_area_sqm',
             'construction_status', 'completion_date', 'number_of_phases',
             'furniture_package', 'rental_guarantee', 'payment_plan',
             'facilities', 'distances',
