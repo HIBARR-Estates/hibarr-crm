@@ -55,9 +55,28 @@ class DealValueResolver
 
     public function calculateDealValue(Deal $deal): float
     {
-        $productsTotal = (float) $deal->products()->sum('products.price');
-        $discountTotal = (float) $deal->offerApplications()->sum('discount_amount');
+        $breakdown = $this->getBreakdown($deal);
 
-        return max(0, $productsTotal - $discountTotal);
+        return (float) $breakdown['calculated_value'];
+    }
+
+    public function getBreakdown(Deal $deal): array
+    {
+        $productsTotal = (float) $deal->products()->sum('products.price');
+        $packagesTotal = (float) $deal->packages()->sum('packages.value');
+        $grossTotal = $productsTotal + $packagesTotal;
+        $discountTotal = (float) $deal->offerApplications()->sum('discount_amount');
+        $calculatedValue = max(0, $grossTotal - $discountTotal);
+
+        return [
+            'products_total' => round($productsTotal, 2),
+            'packages_total' => round($packagesTotal, 2),
+            'gross_total' => round($grossTotal, 2),
+            'discount_total' => round($discountTotal, 2),
+            'calculated_value' => round($calculatedValue, 2),
+            'manual_value' => $deal->manual_value !== null ? round((float) $deal->manual_value, 2) : null,
+            'value_source' => $this->normalizeSource($deal->value_source),
+            'final_value' => round((float) ($deal->value ?? 0), 2),
+        ];
     }
 }

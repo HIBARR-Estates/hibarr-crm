@@ -21,6 +21,7 @@ import {
     LockOutlined,
     GiftOutlined,
     InfoCircleOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect, useMemo } from "react";
@@ -90,6 +91,7 @@ export default function DealInfoSection({
         {},
     );
     const [isSavingAll, setIsSavingAll] = useState(false);
+    const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
 
     // Check if there are unsaved changes
     const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
@@ -97,7 +99,12 @@ export default function DealInfoSection({
     // API Mutation for inline updates
     const { mutateAsync: updateDeal, status } = useApiMutate<
         {
-            type: "details" | "contact" | "custom_field" | "hibarr_field";
+            type:
+                | "details"
+                | "contact"
+                | "custom_field"
+                | "hibarr_field"
+                | "recalculate_value";
             data: Record<string, any>;
         },
         Deal,
@@ -159,6 +166,24 @@ export default function DealInfoSection({
             ...prev,
             [fieldName]: value,
         }));
+    };
+
+    const handleRecalculateValue = async () => {
+        setIsRecalculatingValue(true);
+        setUpdatingField("value_recalculate");
+
+        try {
+            await updateDeal({
+                type: "recalculate_value",
+                data: {},
+            });
+            message.success("Deal value recalculated");
+        } catch (error: any) {
+            message.error(error?.message || "Unable to recalculate deal value");
+        } finally {
+            setIsRecalculatingValue(false);
+            setUpdatingField(null);
+        }
     };
 
     // Save all pending changes
@@ -632,10 +657,32 @@ export default function DealInfoSection({
                                     title={
                                         <div style={{ minWidth: 220 }}>
                                             <div>
-                                                Base:{" "}
-                                                {valueInsight.baseTotal !== null
+                                                Products:{" "}
+                                                {valueInsight.productsTotal !==
+                                                null
                                                     ? formatCurrency(
-                                                          valueInsight.baseTotal,
+                                                          valueInsight.productsTotal,
+                                                          currentDeal.currency
+                                                              ?.currency_symbol ||
+                                                              "£",
+                                                      )
+                                                    : "--"}
+                                            </div>
+                                            <div>
+                                                Packages:{" "}
+                                                {formatCurrency(
+                                                    valueInsight.packagesTotal,
+                                                    currentDeal.currency
+                                                        ?.currency_symbol ||
+                                                        "£",
+                                                )}
+                                            </div>
+                                            <div>
+                                                Gross:{" "}
+                                                {valueInsight.grossTotal !==
+                                                null
+                                                    ? formatCurrency(
+                                                          valueInsight.grossTotal,
                                                           currentDeal.currency
                                                               ?.currency_symbol ||
                                                               "£",
@@ -662,6 +709,19 @@ export default function DealInfoSection({
                                                               "£",
                                                       )
                                                     : "--"}
+                                            </div>
+                                            <div>
+                                                Source:{" "}
+                                                {valueInsight.sourceLabel}
+                                            </div>
+                                            <div>
+                                                Final:{" "}
+                                                {formatCurrency(
+                                                    valueInsight.finalValue,
+                                                    currentDeal.currency
+                                                        ?.currency_symbol ||
+                                                        "£",
+                                                )}
                                             </div>
                                             {valueInsight.deltaVsManual !==
                                                 null &&
@@ -701,6 +761,24 @@ export default function DealInfoSection({
                                     }
                                 >
                                     <InfoCircleOutlined className="text-blue-500 cursor-help" />
+                                </Tooltip>
+                                <Tooltip title="Recalculate value from attached products, packages, and applied offers">
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={
+                                            <ReloadOutlined
+                                                spin={isRecalculatingValue}
+                                            />
+                                        }
+                                        onClick={handleRecalculateValue}
+                                        disabled={
+                                            !canEdit ||
+                                            isLocked ||
+                                            isSavingAll ||
+                                            isRecalculatingValue
+                                        }
+                                    />
                                 </Tooltip>
                                 {currentDeal.total_discount != null &&
                                     currentDeal.total_discount > 0 && (
