@@ -73,6 +73,46 @@ const TAG_COLORS: Record<AssetTag, string> = {
     gallery: "lime",
 };
 
+/**
+ * Validate DELETE developer-project asset response without assuming JSON.
+ * Handles 204 / empty bodies; checks HTTP status and Laravel Reply payloads.
+ */
+async function assertDeveloperProjectAssetDestroyOk(
+    res: Response,
+): Promise<void> {
+    const raw = await res.text();
+    const trimmed = raw.trim();
+
+    let payload: { status?: string; message?: string } | null = null;
+    if (trimmed) {
+        try {
+            payload = JSON.parse(trimmed) as {
+                status?: string;
+                message?: string;
+            };
+        } catch {
+            if (!res.ok) {
+                throw new Error(
+                    trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed,
+                );
+            }
+            return;
+        }
+    }
+
+    if (!res.ok) {
+        throw new Error(
+            payload?.message ||
+                trimmed ||
+                `Delete failed (${res.status} ${res.statusText})`,
+        );
+    }
+
+    if (payload && payload.status === "fail") {
+        throw new Error(payload.message || "Delete failed");
+    }
+}
+
 // ────────────────────────────────────────────────────────────
 // Upload status tracking
 // ────────────────────────────────────────────────────────────
@@ -387,7 +427,9 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             Accept: "application/json",
                         },
                     })
-                        .then((res) => res.json())
+                        .then((res) =>
+                            assertDeveloperProjectAssetDestroyOk(res),
+                        )
                         .then(() => {
                             messageApi.success("Photo deleted");
                             refetchAssets();
@@ -466,7 +508,9 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                                     Accept: "application/json",
                                 },
                             },
-                        ).then((res) => res.json()),
+                        ).then((res) =>
+                            assertDeveloperProjectAssetDestroyOk(res),
+                        ),
                     ),
                 );
                 const failed = results.filter((r) => r.status === "rejected");
