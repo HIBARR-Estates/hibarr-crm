@@ -35,7 +35,7 @@ interface KpiSummary {
 interface Filters {
     start_date: string;
     end_date: string;
-    agent_id: number | null;
+    agent_id: string | number | null;
     view_type: "agent" | "department";
     [key: string]: any;
 }
@@ -99,7 +99,10 @@ const Index: React.FC = () => {
             <PageLayout
                 title={t("app.reports.title")}
                 breadcrumbs={[
-                    { name: t("app.menu.dashboard"), url: "/account/dashboard" },
+                    {
+                        name: t("app.menu.dashboard"),
+                        url: "/account/dashboard",
+                    },
                     { name: t("app.reports.title") },
                 ]}
                 onRefresh={refresh}
@@ -129,19 +132,6 @@ const Index: React.FC = () => {
                         filters={filters}
                         contextLabel={contextLabel}
                     />
-
-                    <div className="flex justify-end">
-                        <Button
-                            icon={<BookOutlined />}
-                            onClick={() =>
-                                router.get(
-                                    "/account/agent-reports/saved-summaries",
-                                )
-                            }
-                        >
-                            View Saved AI Summaries
-                        </Button>
-                    </div>
                 </div>
             </PageLayout>
         </DashboardLayout>

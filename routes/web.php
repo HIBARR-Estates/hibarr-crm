@@ -1242,6 +1242,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     // Unit Type as Property — show & mark-as-sold (before resource route to avoid {property} catch)
     Route::get('properties/unit-type/{unitTypeId}', [App\Http\Controllers\PropertyController::class, 'showUnitType'])->name('properties.unit-type.show');
     Route::post('properties/unit-type/{unitTypeId}/mark-as-sold', [App\Http\Controllers\PropertyController::class, 'markUnitTypeAsSold'])->name('properties.unit-type.mark-as-sold');
+    Route::post('properties/ai-description', [App\Http\Controllers\PropertyAiController::class, 'generateDescription'])->name('properties.ai-description');
 
     Route::resource('properties', App\Http\Controllers\PropertyController::class);    Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     // Meta Conversion Triggers

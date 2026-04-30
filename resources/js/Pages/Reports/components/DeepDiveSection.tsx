@@ -31,7 +31,7 @@ import { ContentRenderer } from "@/Components/ContentRenderer";
 interface Filters {
     start_date: string;
     end_date: string;
-    agent_id: number | null;
+    agent_id: string | number | null;
     view_type: "agent" | "department";
 }
 
@@ -75,7 +75,7 @@ const leadColumns: ColumnsType<any> = [
         title: "Created",
         dataIndex: "created_at",
         key: "created_at",
-        render: (v: string) => new Date(v).toLocaleDateString(),
+        render: (v: string) => dayjs(v).format("D MMMM YYYY"),
     },
 ];
 
@@ -115,7 +115,7 @@ const dealsCreatedColumns: ColumnsType<any> = [
         title: "Created",
         dataIndex: "created_at",
         key: "created_at",
-        render: (v: string) => new Date(v).toLocaleDateString(),
+        render: (v: string) => dayjs(v).format("D MMMM YYYY"),
     },
 ];
 
@@ -150,7 +150,7 @@ const dealsClosedColumns: ColumnsType<any> = [
         title: "Won At",
         dataIndex: "won_at",
         key: "won_at",
-        render: (v: string) => (v ? new Date(v).toLocaleDateString() : "—"),
+        render: (v: string) => (v ? dayjs(v).format("D MMMM YYYY") : "—"),
     },
 ];
 
@@ -180,7 +180,7 @@ const getMeetingsColumns = (
         title: "Date",
         dataIndex: "next_follow_up_date",
         key: "next_follow_up_date",
-        render: (v: string) => (v ? new Date(v).toLocaleDateString() : "—"),
+        render: (v: string) => (v ? dayjs(v).format("D MMMM YYYY") : "—"),
     },
     {
         title: "Status",
@@ -441,14 +441,15 @@ const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
     return (
         <div className="flex flex-col gap-y-6">
             <div className="flex justify-end">
-                <Input.Search
-                    placeholder="Search notes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    allowClear
-                    size="small"
-                    className="w-72"
-                />
+                <div className="w-72">
+                    <Input.Search
+                        placeholder="Search notes..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        allowClear
+                        size="small"
+                    />
+                </div>
             </div>
 
             {filteredNotes.length === 0 ? (
@@ -551,14 +552,15 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
     return (
         <div className="flex flex-col gap-y-6">
             <div className="flex justify-end">
-                <Input.Search
-                    placeholder="Search notes..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    allowClear
-                    size="small"
-                    className="w-72"
-                />
+                <div className="w-72">
+                    <Input.Search
+                        placeholder="Search notes..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        allowClear
+                        size="small"
+                    />
+                </div>
             </div>
 
             {filteredNotes.length === 0 ? (

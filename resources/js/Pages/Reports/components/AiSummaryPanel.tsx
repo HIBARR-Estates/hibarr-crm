@@ -1,14 +1,15 @@
 import React, { useState, useCallback } from "react";
 import { Button, Card, Input, Modal, Skeleton, message } from "antd";
-import { RobotOutlined, SaveOutlined } from "@ant-design/icons";
+import { BookOutlined, RobotOutlined, SaveOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { router } from "@inertiajs/react";
 
 interface Filters {
     start_date: string;
     end_date: string;
-    agent_id: number | null;
+    agent_id: string | number | null;
     view_type: "agent" | "department";
 }
 
@@ -150,6 +151,15 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                     >
                         {summary ? "Regenerate" : "Generate AI Summary"}
                     </Button>
+                    <Button
+                        icon={<BookOutlined />}
+                        variant="link"
+                        onClick={() =>
+                            router.get("/account/agent-reports/saved-summaries")
+                        }
+                    >
+                        View Saved AI Summaries
+                    </Button>
                 </div>
             }
         >
@@ -190,7 +200,9 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
             >
                 <div className="space-y-3">
                     <div>
-                        <div className="text-xs text-gray-500 mb-1">Title (optional)</div>
+                        <div className="text-xs text-gray-500 mb-1">
+                            Title (optional)
+                        </div>
                         <Input
                             value={saveTitle}
                             onChange={(e) => setSaveTitle(e.target.value)}
@@ -200,7 +212,9 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                     </div>
 
                     <div>
-                        <div className="text-xs text-gray-500 mb-1">Description (optional)</div>
+                        <div className="text-xs text-gray-500 mb-1">
+                            Description (optional)
+                        </div>
                         <Input.TextArea
                             value={saveDescription}
                             onChange={(e) => setSaveDescription(e.target.value)}
@@ -211,12 +225,16 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                     </div>
 
                     <div>
-                        <div className="text-xs text-gray-500 mb-1">Summary preview</div>
+                        <div className="text-xs text-gray-500 mb-1">
+                            Summary preview
+                        </div>
                         <div className="max-h-48 overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700">
                             {summary ? (
                                 <div
                                     className="space-y-1 [&_p]:mb-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5 [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1"
-                                    dangerouslySetInnerHTML={renderMarkdown(summary)}
+                                    dangerouslySetInnerHTML={renderMarkdown(
+                                        summary,
+                                    )}
                                 />
                             ) : (
                                 "No summary to save."
