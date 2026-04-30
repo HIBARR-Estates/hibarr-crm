@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo } from "react";
 import { router, usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import { Button } from "antd";
+import { BookOutlined } from "@ant-design/icons";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import FilterBar from "./components/FilterBar";
@@ -127,6 +129,19 @@ const Index: React.FC = () => {
                         filters={filters}
                         contextLabel={contextLabel}
                     />
+
+                    <div className="flex justify-end">
+                        <Button
+                            icon={<BookOutlined />}
+                            onClick={() =>
+                                router.get(
+                                    "/account/agent-reports/saved-summaries",
+                                )
+                            }
+                        >
+                            View Saved AI Summaries
+                        </Button>
+                    </div>
                 </div>
             </PageLayout>
         </DashboardLayout>
