@@ -225,6 +225,8 @@ const ConstructionProjectFormModal: React.FC<
                 title_deed_type: project.title_deed_type,
                 unit_types: project.unit_types,
                 number_of_units: project.number_of_units,
+                total_units: project.total_units,
+                total_units_sold: project.total_units_sold,
                 number_of_blocks: project.number_of_blocks,
                 project_total_area_sqm: project.project_total_area_sqm,
                 construction_status: project.construction_status,

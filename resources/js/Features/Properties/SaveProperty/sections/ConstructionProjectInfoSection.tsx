@@ -4,6 +4,7 @@ import {
     Select,
     AutoComplete,
     Input,
+    InputNumber,
     Button,
     Typography,
     Row,
@@ -147,6 +148,28 @@ const ConstructionProjectInfoSection: React.FC<
                         Open Google Drive
                     </Button>
                 )}
+            </Col>
+
+            {/* Total Units */}
+            <Col xs={24} md={6}>
+                <Form.Item name="total_units" label="Total Units">
+                    <InputNumber
+                        min={0}
+                        placeholder="0"
+                        className="w-full"
+                    />
+                </Form.Item>
+            </Col>
+
+            {/* Total Units Sold */}
+            <Col xs={24} md={6}>
+                <Form.Item name="total_units_sold" label="Total Units Sold">
+                    <InputNumber
+                        min={0}
+                        placeholder="0"
+                        className="w-full"
+                    />
+                </Form.Item>
             </Col>
 
             {/* WhatsApp Group Link — inherited from developer */}
