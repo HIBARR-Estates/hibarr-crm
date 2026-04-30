@@ -2,6 +2,8 @@ import React, { useState, useCallback } from "react";
 import { Button, Card, Input, Modal, Skeleton, message } from "antd";
 import { RobotOutlined, SaveOutlined } from "@ant-design/icons";
 import axios from "axios";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
 
 interface Filters {
     start_date: string;
@@ -28,6 +30,17 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
     const [saveDescription, setSaveDescription] = useState("");
 
     const defaultTitle = `AI Summary: ${contextLabel} (${filters.start_date} to ${filters.end_date})`;
+
+    const renderMarkdown = useCallback((content: string) => {
+        const html = marked.parse(content, {
+            breaks: true,
+            gfm: true,
+        }) as string;
+
+        return {
+            __html: DOMPurify.sanitize(html),
+        };
+    }, []);
 
     const handleGenerate = useCallback(async () => {
         setLoading(true);
@@ -152,9 +165,10 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                         Summary for {contextLabel} &middot; {filters.start_date}{" "}
                         to {filters.end_date}
                     </div>
-                    <div className="whitespace-pre-wrap text-sm text-gray-700 leading-relaxed">
-                        {summary}
-                    </div>
+                    <div
+                        className="text-sm text-gray-700 leading-relaxed space-y-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:text-base [&_h3]:font-semibold [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_code]:rounded [&_code]:bg-gray-100 [&_code]:px-1 [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-gray-100 [&_pre]:p-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:text-gray-600 [&_a]:text-blue-600 [&_a]:underline"
+                        dangerouslySetInnerHTML={renderMarkdown(summary)}
+                    />
                 </div>
             )}
 
@@ -198,8 +212,15 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
 
                     <div>
                         <div className="text-xs text-gray-500 mb-1">Summary preview</div>
-                        <div className="max-h-48 overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700 whitespace-pre-wrap">
-                            {summary || "No summary to save."}
+                        <div className="max-h-48 overflow-auto rounded border border-gray-200 bg-gray-50 p-2 text-xs text-gray-700">
+                            {summary ? (
+                                <div
+                                    className="space-y-1 [&_p]:mb-1 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5 [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1"
+                                    dangerouslySetInnerHTML={renderMarkdown(summary)}
+                                />
+                            ) : (
+                                "No summary to save."
+                            )}
                         </div>
                     </div>
                 </div>
