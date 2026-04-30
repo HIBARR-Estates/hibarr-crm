@@ -240,8 +240,8 @@ class DealGatheringController extends AccountBaseController
                 }
             }
             
-            // Validate that we have some data
-            if (empty($data)) {
+            // Validate that we have some data, except explicit recalculate actions
+            if (empty($data) && $type !== DealUpdateType::RECALCULATE_VALUE->value) {
                 Log::error('DealGatheringController: No data extracted', [
                     'type' => $type,
                     'has_files' => !empty($request->allFiles()),
@@ -290,6 +290,7 @@ class DealGatheringController extends AccountBaseController
         // Refresh deal with all relationships and custom fields data
         $freshDeal = $updatedDeal->fresh(['currency', 'contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products.property', 'dealWatchers', 'dealParticipants']);
         $freshDeal->withCustomFields();
+        $freshDeal->setAttribute('value_breakdown', app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal));
 
             return response()->json([
                 'status' => 'success',

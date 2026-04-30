@@ -8,4 +8,5 @@ enum DealUpdateType: string
     case CONTACT = 'contact';
     case CUSTOM_FIELD = 'custom_field';
     case HIBARR_FIELD = 'hibarr_field';
+    case RECALCULATE_VALUE = 'recalculate_value';
 }

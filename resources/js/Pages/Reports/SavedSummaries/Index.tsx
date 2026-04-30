@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import {
     Button,
@@ -17,6 +17,9 @@ import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { AgentReportSummary } from "@/Types/api";
 import dayjs from "dayjs";
+import { marked } from "marked";
+import DOMPurify from "dompurify";
+import DeleteSummary from "../components/DeleteSummary";
 
 interface PaginationData<T> {
     data: T[];
@@ -42,6 +45,18 @@ const Index: React.FC = () => {
 
     const [search, setSearch] = useState(filters.search ?? "");
     const [viewing, setViewing] = useState<AgentReportSummary | null>(null);
+    const [deleting, setDeleting] = useState<AgentReportSummary | null>(null);
+
+    const renderMarkdown = useCallback((content: string) => {
+        const html = marked.parse(content, {
+            breaks: true,
+            gfm: true,
+        }) as string;
+
+        return {
+            __html: DOMPurify.sanitize(html),
+        };
+    }, []);
 
     const applyFilters = (extra: Record<string, any> = {}) => {
         router.get(
@@ -53,21 +68,6 @@ const Index: React.FC = () => {
             },
             { preserveState: true, preserveScroll: true },
         );
-    };
-
-    const deleteSummary = async (summary: AgentReportSummary) => {
-        try {
-            await router.delete(
-                `/account/agent-reports/saved-summaries/${summary.id}`,
-                {
-                    preserveScroll: true,
-                    onSuccess: () => message.success("Summary deleted."),
-                    onError: () => message.error("Unable to delete summary."),
-                },
-            );
-        } catch {
-            message.error("Unable to delete summary.");
-        }
     };
 
     const columns = useMemo(
@@ -135,20 +135,15 @@ const Index: React.FC = () => {
                         >
                             View
                         </Button>
-                        <Popconfirm
-                            title="Delete this summary?"
-                            okText="Delete"
-                            cancelText="Cancel"
-                            onConfirm={() => deleteSummary(row)}
+
+                        <Button
+                            size="small"
+                            onClick={() => setDeleting(row)}
+                            danger
+                            icon={<DeleteOutlined />}
                         >
-                            <Button
-                                size="small"
-                                danger
-                                icon={<DeleteOutlined />}
-                            >
-                                Delete
-                            </Button>
-                        </Popconfirm>
+                            Delete
+                        </Button>
                     </Space>
                 ),
             },
@@ -158,6 +153,11 @@ const Index: React.FC = () => {
 
     return (
         <DashboardLayout>
+            <DeleteSummary
+                onClose={() => setDeleting(null)}
+                open={!!deleting}
+                summary={deleting}
+            />
             <PageLayout
                 title={pageTitle}
                 breadcrumbs={[
@@ -222,13 +222,18 @@ const Index: React.FC = () => {
                             size={12}
                             className="w-full"
                         >
-                            <Space wrap>
+                            <Space wrap className="capitalize">
                                 <Tag color="blue">
                                     {viewing.filter_view_type}
                                 </Tag>
                                 <Tag>
-                                    {viewing.filter_start_date} to{" "}
-                                    {viewing.filter_end_date}
+                                    {dayjs(viewing.filter_start_date).format(
+                                        "D MMMM YYYY",
+                                    )}{" "}
+                                    to{" "}
+                                    {dayjs(viewing.filter_end_date).format(
+                                        "D MMMM YYYY",
+                                    )}
                                 </Tag>
                                 <Tag>{viewing.context_label}</Tag>
                                 <Tag>
@@ -243,8 +248,13 @@ const Index: React.FC = () => {
                                 </Typography.Paragraph>
                             )}
 
-                            <div className="rounded border border-gray-200 bg-gray-50 p-3 whitespace-pre-wrap text-sm text-gray-700 max-h-[50vh] overflow-auto">
-                                {viewing.summary}
+                            <div className="rounded border border-gray-200 bg-gray-50 p-3 text-sm text-gray-700 max-h-[50vh] overflow-auto">
+                                <div
+                                    className="leading-relaxed space-y-2 [&_h1]:text-xl [&_h1]:font-semibold [&_h2]:text-lg [&_h2]:font-semibold [&_h3]:text-base [&_h3]:font-semibold [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_li]:mb-1 [&_code]:rounded [&_code]:bg-gray-200 [&_code]:px-1 [&_pre]:overflow-auto [&_pre]:rounded [&_pre]:bg-white [&_pre]:p-3 [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:text-gray-600 [&_a]:text-blue-600 [&_a]:underline"
+                                    dangerouslySetInnerHTML={renderMarkdown(
+                                        viewing.summary,
+                                    )}
+                                />
                             </div>
                         </Space>
                     )}

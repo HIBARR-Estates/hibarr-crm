@@ -73,6 +73,7 @@ class DealPropertyService
         }
 
         $deal->products()->attach($product->id);
+        $this->dealValueResolver->resolveAndPersist($deal->fresh());
 
         return ['status' => 'success', 'message' => 'Property attached successfully.'];
     }
@@ -177,9 +178,9 @@ class DealPropertyService
                     'offer_value'         => $offer->value,
                 ]);
             }
-
-            $this->dealValueResolver->resolveAndPersist($deal);
         }
+
+        $this->dealValueResolver->resolveAndPersist($deal->fresh());
 
         return ['status' => 'success', 'message' => 'Property created and attached successfully.'];
     }
