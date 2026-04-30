@@ -16,6 +16,7 @@ import { DeleteOutlined, EyeOutlined } from "@ant-design/icons";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { AgentReportSummary } from "@/Types/api";
+import dayjs from "dayjs";
 
 interface PaginationData<T> {
     data: T[];
@@ -107,7 +108,9 @@ const Index: React.FC = () => {
                 render: (_: unknown, row: AgentReportSummary) => (
                     <Space direction="vertical" size={2}>
                         <span className="text-xs text-gray-500">
-                            {row.filter_start_date} to {row.filter_end_date}
+                            {dayjs(row.filter_start_date).format("D MMMM YYYY")}{" "}
+                            to{" "}
+                            {dayjs(row.filter_end_date).format("D MMMM YYYY")}
                         </span>
                         <span className="text-xs text-gray-500">
                             {row.filter_view_type === "department"
@@ -178,9 +181,13 @@ const Index: React.FC = () => {
                             />
                             <Button
                                 onClick={() =>
-                                    router.get("/account/agent-reports", {}, {
-                                        preserveScroll: true,
-                                    })
+                                    router.get(
+                                        "/account/agent-reports",
+                                        {},
+                                        {
+                                            preserveScroll: true,
+                                        },
+                                    )
                                 }
                             >
                                 Back to Reports
@@ -210,15 +217,23 @@ const Index: React.FC = () => {
                     width={760}
                 >
                     {viewing && (
-                        <Space direction="vertical" size={12} className="w-full">
+                        <Space
+                            direction="vertical"
+                            size={12}
+                            className="w-full"
+                        >
                             <Space wrap>
-                                <Tag color="blue">{viewing.filter_view_type}</Tag>
+                                <Tag color="blue">
+                                    {viewing.filter_view_type}
+                                </Tag>
                                 <Tag>
-                                    {viewing.filter_start_date} to {viewing.filter_end_date}
+                                    {viewing.filter_start_date} to{" "}
+                                    {viewing.filter_end_date}
                                 </Tag>
                                 <Tag>{viewing.context_label}</Tag>
                                 <Tag>
-                                    Created by {viewing.added_by?.name || "Unknown"}
+                                    Created by{" "}
+                                    {viewing.added_by?.name || "Unknown"}
                                 </Tag>
                             </Space>
 

@@ -132,19 +132,6 @@ const Index: React.FC = () => {
                         filters={filters}
                         contextLabel={contextLabel}
                     />
-
-                    <div className="flex justify-end">
-                        <Button
-                            icon={<BookOutlined />}
-                            onClick={() =>
-                                router.get(
-                                    "/account/agent-reports/saved-summaries",
-                                )
-                            }
-                        >
-                            View Saved AI Summaries
-                        </Button>
-                    </div>
                 </div>
             </PageLayout>
         </DashboardLayout>

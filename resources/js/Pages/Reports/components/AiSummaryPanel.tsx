@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from "react";
 import { Button, Card, Input, Modal, Skeleton, message } from "antd";
-import { RobotOutlined, SaveOutlined } from "@ant-design/icons";
+import { BookOutlined, RobotOutlined, SaveOutlined } from "@ant-design/icons";
 import axios from "axios";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
+import { router } from "@inertiajs/react";
 
 interface Filters {
     start_date: string;
@@ -149,6 +150,15 @@ const AiSummaryPanel: React.FC<AiSummaryPanelProps> = ({
                         }
                     >
                         {summary ? "Regenerate" : "Generate AI Summary"}
+                    </Button>
+                    <Button
+                        icon={<BookOutlined />}
+                        variant="link"
+                        onClick={() =>
+                            router.get("/account/agent-reports/saved-summaries")
+                        }
+                    >
+                        View Saved AI Summaries
                     </Button>
                 </div>
             }
