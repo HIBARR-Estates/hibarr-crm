@@ -31,7 +31,7 @@ import { ContentRenderer } from "@/Components/ContentRenderer";
 interface Filters {
     start_date: string;
     end_date: string;
-    agent_id: number | null;
+    agent_id: string | number | null;
     view_type: "agent" | "department";
 }
 
