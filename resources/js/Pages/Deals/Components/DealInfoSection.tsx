@@ -632,7 +632,7 @@ export default function DealInfoSection({
                         <DetailField
                             label={t("pages.deals.info.fields.deal_value")}
                         >
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 md:flex-row flex-col">
                                 <EditableField
                                     value={{
                                         amount: currentDeal.value ?? null,
