@@ -5,7 +5,7 @@ import axios from "axios";
  * Enabled by default and can be toggled off via AI_API_KEY.
  */
 export function isAiEnabled(): boolean {
-    return !!process?.env?.AI_API_KEY;
+    return !!process?.env?.MIX_AI_API_KEY;
 }
 
 // ---------------------------------------------------------------------------
