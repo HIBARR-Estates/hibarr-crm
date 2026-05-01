@@ -21,6 +21,7 @@ import {
     LockOutlined,
     GiftOutlined,
     InfoCircleOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect, useMemo } from "react";
@@ -90,6 +91,7 @@ export default function DealInfoSection({
         {},
     );
     const [isSavingAll, setIsSavingAll] = useState(false);
+    const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
 
     // Check if there are unsaved changes
     const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
@@ -97,7 +99,12 @@ export default function DealInfoSection({
     // API Mutation for inline updates
     const { mutateAsync: updateDeal, status } = useApiMutate<
         {
-            type: "details" | "contact" | "custom_field" | "hibarr_field";
+            type:
+                | "details"
+                | "contact"
+                | "custom_field"
+                | "hibarr_field"
+                | "recalculate_value";
             data: Record<string, any>;
         },
         Deal,
@@ -159,6 +166,26 @@ export default function DealInfoSection({
             ...prev,
             [fieldName]: value,
         }));
+    };
+
+    const handleRecalculateValue = async () => {
+        setIsRecalculatingValue(true);
+        setUpdatingField("value_recalculate");
+
+        try {
+            await updateDeal({
+                type: "recalculate_value",
+                data: {},
+            });
+            message.success(t("pages.deals.info.recalculate_success"));
+        } catch (error: any) {
+            message.error(
+                error?.message || t("pages.deals.info.recalculate_error"),
+            );
+        } finally {
+            setIsRecalculatingValue(false);
+            setUpdatingField(null);
+        }
     };
 
     // Save all pending changes
@@ -605,7 +632,7 @@ export default function DealInfoSection({
                         <DetailField
                             label={t("pages.deals.info.fields.deal_value")}
                         >
-                            <div className="flex items-center gap-2 flex-wrap">
+                            <div className="flex items-center gap-2 md:flex-row flex-col">
                                 <EditableField
                                     value={{
                                         amount: currentDeal.value ?? null,
@@ -632,10 +659,14 @@ export default function DealInfoSection({
                                     title={
                                         <div style={{ minWidth: 220 }}>
                                             <div>
-                                                Base:{" "}
-                                                {valueInsight.baseTotal !== null
+                                                {t(
+                                                    "pages.deals.info.value_insight.products",
+                                                )}
+                                                :{" "}
+                                                {valueInsight.productsTotal !==
+                                                null
                                                     ? formatCurrency(
-                                                          valueInsight.baseTotal,
+                                                          valueInsight.productsTotal,
                                                           currentDeal.currency
                                                               ?.currency_symbol ||
                                                               "£",
@@ -643,7 +674,37 @@ export default function DealInfoSection({
                                                     : "--"}
                                             </div>
                                             <div>
-                                                Discount: -
+                                                {t(
+                                                    "pages.deals.info.value_insight.packages",
+                                                )}
+                                                :{" "}
+                                                {formatCurrency(
+                                                    valueInsight.packagesTotal,
+                                                    currentDeal.currency
+                                                        ?.currency_symbol ||
+                                                        "£",
+                                                )}
+                                            </div>
+                                            <div>
+                                                {t(
+                                                    "pages.deals.info.value_insight.gross",
+                                                )}
+                                                :{" "}
+                                                {valueInsight.grossTotal !==
+                                                null
+                                                    ? formatCurrency(
+                                                          valueInsight.grossTotal,
+                                                          currentDeal.currency
+                                                              ?.currency_symbol ||
+                                                              "£",
+                                                      )
+                                                    : "--"}
+                                            </div>
+                                            <div>
+                                                {t(
+                                                    "pages.deals.info.value_insight.discount",
+                                                )}
+                                                : -
                                                 {formatCurrency(
                                                     valueInsight.discountTotal,
                                                     currentDeal.currency
@@ -652,7 +713,10 @@ export default function DealInfoSection({
                                                 )}
                                             </div>
                                             <div>
-                                                Calculated:{" "}
+                                                {t(
+                                                    "pages.deals.info.value_insight.calculated",
+                                                )}
+                                                :{" "}
                                                 {valueInsight.calculatedValue !==
                                                 null
                                                     ? formatCurrency(
@@ -662,6 +726,30 @@ export default function DealInfoSection({
                                                               "£",
                                                       )
                                                     : "--"}
+                                            </div>
+                                            <div>
+                                                {t(
+                                                    "pages.deals.info.value_insight.source",
+                                                )}
+                                                :{" "}
+                                                {t(
+                                                    valueInsight.source ===
+                                                        "manual"
+                                                        ? "pages.deals.info.value_insight.source_manual"
+                                                        : "pages.deals.info.value_insight.source_calculated",
+                                                )}
+                                            </div>
+                                            <div>
+                                                {t(
+                                                    "pages.deals.info.value_insight.final",
+                                                )}
+                                                :{" "}
+                                                {formatCurrency(
+                                                    valueInsight.finalValue,
+                                                    currentDeal.currency
+                                                        ?.currency_symbol ||
+                                                        "£",
+                                                )}
                                             </div>
                                             {valueInsight.deltaVsManual !==
                                                 null &&
@@ -677,7 +765,10 @@ export default function DealInfoSection({
                                                                     : "#ff4d4f",
                                                         }}
                                                     >
-                                                        Adjusted:{" "}
+                                                        {t(
+                                                            "pages.deals.info.value_insight.adjusted",
+                                                        )}
+                                                        :{" "}
                                                         {valueInsight.deltaVsManual >
                                                         0
                                                             ? "+"
@@ -688,19 +779,45 @@ export default function DealInfoSection({
                                                                 ?.currency_symbol ||
                                                                 "£",
                                                         )}{" "}
-                                                        vs calculated
+                                                        {t(
+                                                            "pages.deals.info.value_insight.vs_calculated",
+                                                        )}
                                                     </div>
                                                 )}
                                             {valueInsight.status ===
                                                 "no-offers" && (
                                                 <div style={{ marginTop: 6 }}>
-                                                    No applied offers yet.
+                                                    {t(
+                                                        "pages.deals.info.value_insight.no_offers",
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
                                     }
                                 >
                                     <InfoCircleOutlined className="text-blue-500 cursor-help" />
+                                </Tooltip>
+                                <Tooltip
+                                    title={t(
+                                        "pages.deals.info.actions.recalculate_value_tooltip",
+                                    )}
+                                >
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={
+                                            <ReloadOutlined
+                                                spin={isRecalculatingValue}
+                                            />
+                                        }
+                                        onClick={handleRecalculateValue}
+                                        disabled={
+                                            !canEdit ||
+                                            isLocked ||
+                                            isSavingAll ||
+                                            isRecalculatingValue
+                                        }
+                                    />
                                 </Tooltip>
                                 {currentDeal.total_discount != null &&
                                     currentDeal.total_discount > 0 && (

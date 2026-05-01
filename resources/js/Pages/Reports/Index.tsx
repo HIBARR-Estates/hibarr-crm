@@ -2,6 +2,8 @@ import React, { useState, useCallback, useMemo } from "react";
 import { router, usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
+import { Button } from "antd";
+import { BookOutlined } from "@ant-design/icons";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import FilterBar from "./components/FilterBar";
@@ -33,7 +35,7 @@ interface KpiSummary {
 interface Filters {
     start_date: string;
     end_date: string;
-    agent_id: number | null;
+    agent_id: string | number | null;
     view_type: "agent" | "department";
     [key: string]: any;
 }
@@ -97,7 +99,10 @@ const Index: React.FC = () => {
             <PageLayout
                 title={t("app.reports.title")}
                 breadcrumbs={[
-                    { name: t("app.menu.dashboard"), url: "/account/dashboard" },
+                    {
+                        name: t("app.menu.dashboard"),
+                        url: "/account/dashboard",
+                    },
                     { name: t("app.reports.title") },
                 ]}
                 onRefresh={refresh}

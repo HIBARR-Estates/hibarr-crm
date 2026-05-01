@@ -40,6 +40,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\AiSummaryInterface::class,
             \App\Services\AiSummary\HibarrAiSummaryService::class,
         );
+
+        $this->app->bind(
+            \App\Contracts\PropertyDescriptionInterface::class,
+            \App\Services\AiDescription\HibarrPropertyDescriptionService::class,
+        );
     }
 
     public function boot()

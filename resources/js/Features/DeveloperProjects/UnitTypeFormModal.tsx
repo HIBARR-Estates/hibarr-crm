@@ -450,8 +450,8 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="quantity"
-                            label="Quantity"
-                            tooltip="Number of units of this type"
+                            label="Quantity (Internal Use Only)"
+                            tooltip="Number of units of this type (Internal Use Only)"
                         >
                             <InputNumber
                                 min={1}
@@ -463,8 +463,8 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     <Col span={12}>
                         <Form.Item
                             name="total_sold"
-                            label="Total Sold"
-                            tooltip="Number of units sold so far"
+                            label="Total Sold (Internal Use Only)"
+                            tooltip="Number of units sold so far (Internal Use Only)"
                         >
                             <InputNumber
                                 min={0}

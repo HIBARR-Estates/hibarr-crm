@@ -14,6 +14,14 @@ class Property extends BaseModel
 {
     use HasFactory, HasCompany;
 
+    /**
+     * The DeveloperProjectUnitType this property belongs to.
+     */
+    public function developerProjectUnitType(): BelongsTo
+    {
+        return $this->belongsTo(DeveloperProjectUnitType::class, 'developer_project_unit_type_id');
+    }
+
     // Property categories based on TypeScript enum
     const CATEGORY_HOUSING = 'housing';
     const CATEGORY_LAND = 'land';

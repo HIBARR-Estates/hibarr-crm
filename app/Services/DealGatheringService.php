@@ -282,6 +282,7 @@ class DealGatheringService
                 // Handle relationships
                 if (array_key_exists('product_id', $data)) {
                     $deal->products()->sync($data['product_id']);
+                    $this->dealValueResolver->resolveAndPersist($deal->fresh());
                 }
                 
                 if (array_key_exists('package_id', $data)) {
@@ -311,6 +312,8 @@ class DealGatheringService
                             $this->notificationService->notifyPackageRemoved($deal, $removedNames);
                         }
                     }
+
+                    $this->dealValueResolver->resolveAndPersist($deal->fresh());
                 }
 
                 if (array_key_exists('deal_watcher', $data)) {
@@ -378,8 +381,12 @@ class DealGatheringService
                 // This is needed because updating Hibarr fields doesn't trigger the Deal model's observer
                 $this->dealAutomationService->process($deal, 'deal_updated');
                 break;
+
+            case DealUpdateType::RECALCULATE_VALUE:
+                $this->dealValueResolver->resolveAndPersist($deal->fresh());
+                break;
         }
 
-        return $deal;
+        return $deal->fresh();
     }
 }
