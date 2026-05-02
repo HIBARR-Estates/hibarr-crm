@@ -16,16 +16,26 @@
 
                         @if (Request::segment($i) != 'account')
                             @php
-                                $langKey = 'app.'.str(Request::segment($i))->camel();
-
+                                $segmentSlug = Request::segment($i);
+                                $segmentHuman = ucwords(str_replace('-', ' ', $segmentSlug));
+                                $langKey = 'app.'.str($segmentSlug)->camel();
                                 if (!Lang::has($langKey)) {
                                     $langKey = str($langKey)->replace('app.', 'app.menu.')->__toString();
                                 }
-                                $segmentText = Lang::has($langKey) ? __($langKey) : ucwords(str_replace('-', ' ', Request::segment($i)));
+                                $segmentText = Lang::has($langKey) ? __($langKey) : $segmentHuman;
+                                if (!is_string($segmentText)) {
+                                    $menuKey = 'app.menu.'.str($segmentSlug)->camel();
+                                    if (Lang::has($menuKey)) {
+                                        $fromMenu = __($menuKey);
+                                        $segmentText = is_string($fromMenu) ? $fromMenu : $segmentHuman;
+                                    } else {
+                                        $segmentText = $segmentHuman;
+                                    }
+                                }
                                 $segmentLink = str_contains(url()->current(), 'public') ? '/public' . $link : $link;
                             @endphp
 
-                            @if (in_array(Request::segment($i), App\Enums\NonClickableSegments::getValues()))
+                            @if (in_array($segmentSlug, App\Enums\NonClickableSegments::getValues()))
                                 {{ $segmentText }} &bull;
                             @else
                                 <a href="{{ $segmentLink }}" class="text-lightest">
