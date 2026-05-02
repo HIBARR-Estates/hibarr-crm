@@ -1494,19 +1494,27 @@ class PropertyController extends AccountBaseController
     public function generateExpose(Request $request, $id)
     {
         $property = Property::with(['product.addedBy', 'assets'])->findOrFail($id);
-        // $layout = $request->input('layout', 'expose-template');
-        $layout = 'expose-template';
-        
-        // Collect client data for personalization
-        $clientData = [
-            'client_name' => $request->input('client_name'),
+
+        $payload = [
+            'client_name'  => $request->input('client_name'),
             'client_email' => $request->input('client_email'),
         ];
-        
-        $config = ExposeConfiguration::fromProperty($property, $layout, $clientData);
-        
-        // Return the download response directly
-        return $this->exposeService->generate($config);
+
+        $exposeJob = \App\Models\ExposeJob::create([
+            'company_id'  => user()->company_id,
+            'user_id'     => user()->id,
+            'entity_type' => \App\Models\ExposeJob::ENTITY_PROPERTY,
+            'entity_id'   => $property->id,
+            'status'      => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename'    => \Illuminate\Support\Str::slug($property->title ?? $property->reference_code ?? 'property') . '-expose.pdf',
+            'payload'     => $payload,
+        ]);
+
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+
+        return Reply::successWithData('Expose generation queued', [
+            'data' => ['job_id' => $exposeJob->id],
+        ]);
     }
 
     /**

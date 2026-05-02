@@ -518,7 +518,7 @@ class DealController extends AccountBaseController
                           }]);
                       }]);
             },
-            'packages:id,name',
+            'packages:id,name,value',
             'communicationActivities',
             'hibarrFields',
             'offerApplications.offer',
@@ -679,6 +679,7 @@ class DealController extends AccountBaseController
         // Prepare deal with custom fields data
         $dealWithCustomFields = $deal->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
+        $dealWithCustomFields['value_breakdown'] = app(DealValueResolver::class)->getBreakdown($deal);
         
         $formData = $this->getDealFormData();
 
