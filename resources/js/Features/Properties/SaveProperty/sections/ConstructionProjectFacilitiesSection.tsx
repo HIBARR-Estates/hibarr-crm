@@ -12,49 +12,10 @@ interface ConstructionProjectFacilitiesSectionProps {
     projectFacilities?: string[] | null;
 }
 
-export const FULL_SYSTEM_FACILITIES: Array<{ name: string; label: string }> = [
-    { name: "gym", label: "Gym" },
-    { name: "hamam", label: "Hamam" },
-    { name: "sauna", label: "Sauna" },
-    { name: "massage_spa", label: "Massage and Spa" },
-    { name: "indoor_pool", label: "Indoor Pool" },
-    { name: "outdoor_pool", label: "Outdoor Pool" },
-    { name: "heated_indoor_pool", label: "Heated Indoor Pool" },
-    { name: "kids_playground", label: "Kids Playground" },
-    { name: "aquapark", label: "Aquapark" },
-    { name: "mini_zoo", label: "Mini Zoo" },
-    { name: "clinics", label: "Clinics" },
-    { name: "restaurant", label: "Restaurant" },
-    { name: "beauty_center", label: "Beauty Center" },
-    { name: "walking_paths", label: "Walking Paths" },
-    { name: "cycling_routes", label: "Cycling Routes" },
-    { name: "hiking_routes", label: "Hiking Routes" },
-    { name: "dentist", label: "Dentist" },
-    { name: "healing_yoga", label: "Healing/Yoga" },
-    { name: "tennis_court", label: "Tennis Court" },
-    { name: "basketball_court", label: "Basketball Court" },
-    { name: "reception", label: "Reception" },
-    { name: "security_24_7", label: "24/7 Security" },
-    { name: "beach", label: "Beach" },
-    { name: "beach_cinema", label: "Beach Cinema" },
-    { name: "cinema", label: "Cinema" },
-    { name: "casino", label: "Casino" },
-    { name: "jacuzzi", label: "Jacuzzi" },
-    { name: "gated_community", label: "Gated Community" },
-    { name: "football_court", label: "Football Court" },
-    { name: "volleyball_court", label: "Volleyball Court" },
-    { name: "supermarket", label: "Supermarket" },
-    { name: "cafe", label: "Cafe" },
-    { name: "bar", label: "Bar" },
-    { name: "car_park", label: "Car Park" },
-    { name: "cleaning_service", label: "Cleaning Service" },
-    { name: "central_generator", label: "Central Generator" },
-    { name: "on_site_management", label: "On-site Management" },
-];
-
 /**
- * Project facilities checkboxes — fetched from the property-config API.
- * Stored as a JSON array of selected facility slugs in developer_projects.facilities.
+ * Project facilities checkboxes — options come only from property-config (`project-facilities`).
+ * If the form already has saved slugs missing from config, those are appended so selections stay visible.
+ * Stored as a JSON array of facility slugs in developer_projects.facilities.
  */
 const ConstructionProjectFacilitiesSection: React.FC<
     ConstructionProjectFacilitiesSectionProps
@@ -85,16 +46,17 @@ const ConstructionProjectFacilitiesSection: React.FC<
     const facilities = useMemo(() => {
         const merged = new Map<string, { name: string; label: string }>();
 
-        for (const facility of FULL_SYSTEM_FACILITIES) {
-            merged.set(facility.name, facility);
-        }
-
         for (const facility of configuredFacilities) {
-            merged.set(facility.name, facility);
+            merged.set(facility.name, {
+                name: facility.name,
+                label: facility.label,
+            });
         }
 
         for (const facility of fallbackFacilities) {
-            merged.set(facility.name, facility);
+            if (!merged.has(facility.name)) {
+                merged.set(facility.name, facility);
+            }
         }
 
         return Array.from(merged.values());
