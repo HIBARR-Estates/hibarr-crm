@@ -59,6 +59,9 @@ class FileStorageService
                 ->withHeaders([
                     'X-Api-Key' => $this->apiKey,
                 ])
+                ->withQueryParameters([
+                    'targetFolder' => $folder,
+                ])
                 ->attach(
                     'file',
                     file_get_contents($file->getRealPath()),
@@ -104,6 +107,9 @@ class FileStorageService
             $response = Http::timeout($this->timeout)
                 ->withHeaders([
                     'X-Api-Key' => $this->apiKey,
+                ])
+                ->withQueryParameters([
+                    'targetFolder' => $folder,
                 ])
                 ->attach(
                     'file',
