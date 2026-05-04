@@ -1728,7 +1728,7 @@ class DealController extends AccountBaseController
     {
         return Deal::whereIn('id', $rowIds)
             ->where('is_locked', false)
-            ->get(['id', 'name', 'category_id', 'agent_id', 'is_locked']);
+            ->get(['id', 'name', 'category_id', 'agent_id', 'is_locked', 'lead_pipeline_id']);
     }
 
     /**
