@@ -7,6 +7,7 @@ import type { Deal } from "@/Types/api/deals";
 import type { DealOfferApplication } from "@/Types/api/offers";
 import type { ApiResponse } from "@/lib/api/types";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -56,7 +57,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             title: "Property",
             key: "product",
             render: (_, record) =>
-                (record.product as any)?.property?.title ||
+                generatePropertySubtitle((record.product as any)?.property) ||
                 record.product?.name ||
                 `Product #${record.product_id}`,
         },

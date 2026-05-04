@@ -512,7 +512,7 @@ class DealController extends AccountBaseController
             'products' => function ($query) {
                 $query->select('products.id', 'products.name')
                       ->with(['property' => function ($pq) {
-                          $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos');
+                          $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
                           $pq->with(['developerProject' => function ($dpq) {
                               $dpq->select('id', 'name', 'availability_link');
                           }]);
