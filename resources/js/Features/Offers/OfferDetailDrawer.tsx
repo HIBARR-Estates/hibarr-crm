@@ -75,9 +75,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
         {
             title: "Unit Type",
             key: "label",
-            render: (_, record) =>
-                record.display_label ||
-                `${record.primary_category} — ${record.property_type || "N/A"}`,
+            render: (_, record) => generatePropertySubtitle(record) || "N/A",
         },
         {
             title: "Beds",

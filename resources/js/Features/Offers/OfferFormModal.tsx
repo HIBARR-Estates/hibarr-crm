@@ -28,7 +28,10 @@ import {
 } from "@ant-design/icons";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
-import { isLoading as getLoadingStatus } from "@/lib/utils";
+import {
+    generatePropertySubtitle,
+    isLoading as getLoadingStatus,
+} from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import type {
     Offer,
@@ -360,8 +363,7 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
                                                 : "text-gray-400"
                                         }`}
                                     >
-                                        {ut.display_label ||
-                                            `${ut.primary_category} — ${ut.property_type ?? "N/A"}`}
+                                        {generatePropertySubtitle(ut)}
                                     </span>
                                     {ut.bedrooms != null && (
                                         <Tag className="text-xs shrink-0">
