@@ -438,6 +438,21 @@ return [
         ],
     ],
 
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'Нет участников',
+            'added_by'        => 'Добавил',
+            'participant'     => 'участник',
+            'participants'    => 'участники',
+            'actions' => [
+                'view'         => 'Просмотреть',
+                'edit'         => 'Редактировать',
+                'join_meeting' => 'Присоединиться к встрече',
+                'delete'       => 'Удалить',
+            ],
+        ],
+    ],
+
     'tasks' => [
         'drawer_title_prefix' => 'Задача',
         'pagination_total'    => '{{start}}-{{end}} из {{total}} записей',

@@ -506,6 +506,21 @@ return [
         ],
     ],
 
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'No participants',
+            'added_by'        => 'Added by',
+            'participant'     => 'participant',
+            'participants'    => 'participants',
+            'actions' => [
+                'view'         => 'View',
+                'edit'         => 'Edit',
+                'join_meeting' => 'Join Meeting',
+                'delete'       => 'Delete',
+            ],
+        ],
+    ],
+
     'tasks' => [
         'drawer_title_prefix' => 'Task',
         'pagination_total'    => '{{start}}-{{end}} of {{total}} items',

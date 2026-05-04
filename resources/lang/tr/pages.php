@@ -438,6 +438,21 @@ return [
         ],
     ],
 
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'Katılımcı yok',
+            'added_by'        => 'Ekleyen',
+            'participant'     => 'katılımcı',
+            'participants'    => 'katılımcılar',
+            'actions' => [
+                'view'         => 'Görüntüle',
+                'edit'         => 'Düzenle',
+                'join_meeting' => 'Toplantıya katıl',
+                'delete'       => 'Sil',
+            ],
+        ],
+    ],
+
     'tasks' => [
         'drawer_title_prefix' => 'Görev',
         'pagination_total'    => '{{start}}-{{end}} / {{total}} öğe',

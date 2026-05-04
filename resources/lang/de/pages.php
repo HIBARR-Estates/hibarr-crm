@@ -438,6 +438,21 @@ return [
         ],
     ],
 
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'Keine Teilnehmer',
+            'added_by'        => 'Hinzugefügt von',
+            'participant'     => 'Teilnehmer',
+            'participants'    => 'Teilnehmer',
+            'actions' => [
+                'view'         => 'Anzeigen',
+                'edit'         => 'Bearbeiten',
+                'join_meeting' => 'Meeting beitreten',
+                'delete'       => 'Löschen',
+            ],
+        ],
+    ],
+
     'tasks' => [
         'drawer_title_prefix' => 'Aufgabe',
         'pagination_total'    => '{{start}}-{{end}} von {{total}} Einträgen',
