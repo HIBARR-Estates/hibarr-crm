@@ -1,22 +1,11 @@
 import React from "react";
-import {
-    Table,
-    Tag,
-    Button,
-    Popconfirm,
-    Empty,
-    Space,
-    Typography,
-    App,
-} from "antd";
+import { Table, Tag, Button, Popconfirm, Empty, Space, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import {
-    DeleteOutlined,
-    GiftOutlined,
-} from "@ant-design/icons";
-import { useApiQuery } from "@/lib/api/client";
+import { DeleteOutlined, GiftOutlined } from "@ant-design/icons";
+import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
 import type { DealOfferApplication } from "@/Types/api/offers";
+import type { ApiResponse } from "@/lib/api/types";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 
 const { Text } = Typography;
@@ -27,14 +16,11 @@ interface DealOffersTabProps {
 
 interface DealOffersResponse {
     status: string;
-    data: {
-        applications: DealOfferApplication[];
-        total_discount: number;
-    };
+    applications: DealOfferApplication[];
+    total_discount: number;
 }
 
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
-    const { message } = App.useApp();
     const insight = getDealValueInsight(deal);
     const currencySymbol = deal.currency?.currency_symbol || "£";
 
@@ -49,30 +35,20 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
         path: route("deals.offers.index", deal.id),
     });
 
-    const applications = data?.data?.applications ?? [];
-    const totalDiscount = data?.data?.total_discount ?? 0;
-
-    const handleRemoveAll = async () => {
-        try {
-            const res = await fetch(route("deals.offers.remove", deal.id), {
-                method: "DELETE",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
-            });
-            const result = await res.json();
-            if (result.status === "success") {
-                message.success("All offers removed");
+    const { mutate: removeAllOffers, isPending: isRemovingAllOffers } =
+        useApiMutate<undefined, unknown, ApiResponse<unknown>>(
+            route("deals.offers.remove", deal.id),
+            "DELETE",
+            () => {
                 refetch();
-            }
-        } catch {
-            message.error("Failed to remove offers");
-        }
+            },
+        );
+
+    const applications = data?.applications ?? [];
+    const totalDiscount = data?.total_discount ?? 0;
+
+    const handleRemoveAll = () => {
+        removeAllOffers(undefined);
     };
 
     const columns: TableColumnsType<DealOfferApplication> = [
@@ -197,6 +173,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                             danger
                             icon={<DeleteOutlined />}
                             disabled={deal.is_locked}
+                            loading={isRemovingAllOffers}
                         >
                             Clear All Offers
                         </Button>
