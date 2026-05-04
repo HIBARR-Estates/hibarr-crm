@@ -198,13 +198,13 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                           },
                       ],
         },
-        // {
-        //     key: "offers",
-        //     label: t("app.menu.offers"),
-        //     icon: <GiftOutlined />,
-        //     href: "/account/offers",
-        //     hidden: !isSalesManger,
-        // },
+        {
+            key: "offers",
+            label: t("app.menu.offers"),
+            icon: <GiftOutlined />,
+            href: "/account/offers",
+            hidden: !isSalesManger,
+        },
         {
             key: "meetings",
             label: t("app.menu.meetings"),
