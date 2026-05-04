@@ -542,7 +542,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 description: offer.description,
                 links: offer.links ?? [],
                 type: offer.type,
-                value: offer.value,
+                value: offer.value ? Number(offer.value) : undefined,
                 max_discount_amount: offer.max_discount_amount,
                 starts_at: offer.starts_at
                     ? (dayjs(offer.starts_at) as any)
