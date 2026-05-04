@@ -190,7 +190,7 @@ return [
             'add_note' => 'Add Note',
         ],
         'tabs' => [
-            'header'          => 'Header',
+            'header'          => 'Details',
             'notes'           => 'Notes',
             'tasks'           => 'Tasks',
             'meeting'         => 'Meeting',

@@ -182,7 +182,7 @@ return [
             'add_note' => 'Not Ekle',
         ],
         'tabs' => [
-            'header'          => 'Başlık',
+            'header'          => 'Detaylar',
             'notes'           => 'Notlar',
             'tasks'           => 'Görevler',
             'meeting'         => 'Toplantı',

@@ -182,7 +182,7 @@ return [
             'add_note' => 'Notiz hinzufügen',
         ],
         'tabs' => [
-            'header'          => 'Kopfzeile',
+            'header'          => 'Details',
             'notes'           => 'Notizen',
             'tasks'           => 'Aufgaben',
             'meeting'         => 'Termine',
