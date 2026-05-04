@@ -82,7 +82,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                 >
                     {record.offer_type === "percentage"
                         ? `${record.offer_value}%`
-                        : `${Number(record.offer_value).toLocaleString("en-GB")}`}
+                        : formatMoney(Number(record.offer_value))}
                 </Tag>
             ),
         },
@@ -92,7 +92,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             key: "original_amount",
             width: 120,
             align: "right",
-            render: (v: number) => Number(v).toLocaleString("en-GB"),
+            render: (v: number) => formatMoney(v),
         },
         {
             title: "Discount",
@@ -101,7 +101,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             width: 120,
             align: "right",
             render: (v: number) => (
-                <Text type="success">-{Number(v).toLocaleString("en-GB")}</Text>
+                <Text type="success">-{formatMoney(v)}</Text>
             ),
         },
     ];
@@ -195,7 +195,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                         </Table.Summary.Cell>
                         <Table.Summary.Cell index={4} align="right">
                             <Text strong type="success">
-                                -{Number(totalDiscount).toLocaleString("en-GB")}
+                                -{formatMoney(totalDiscount)}
                             </Text>
                         </Table.Summary.Cell>
                     </Table.Summary.Row>

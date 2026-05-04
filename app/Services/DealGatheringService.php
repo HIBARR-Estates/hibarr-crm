@@ -134,7 +134,7 @@ class DealGatheringService
             'value' => 0,
             'manual_value' => 0,
             'calculated_value' => 0,
-            'value_source' => DealValueResolver::SOURCE_MANUAL,
+            'value_source' => DealValueResolver::SOURCE_CALCULATED,
             'added_by' => user()->id,
             'close_date' => now()->addDays(30),
         ]);
@@ -383,7 +383,11 @@ class DealGatheringService
                 break;
 
             case DealUpdateType::RECALCULATE_VALUE:
-                $this->dealValueResolver->resolveAndPersist($deal->fresh());
+                $this->dealValueResolver->resolveAndPersist(
+                    $deal->fresh(),
+                    null,
+                    DealValueResolver::SOURCE_CALCULATED,
+                );
                 break;
         }
 

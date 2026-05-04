@@ -837,9 +837,15 @@ class DealController extends AccountBaseController
         $deal->agent_id = $agentId;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $manualValue = $request->manual_value ?? $request->value ?? 0;
+        $hasExplicitManualValue = $request->filled('manual_value') || $request->filled('value');
+        $valueSource = $request->filled('value_source')
+            ? app(DealValueResolver::class)->normalizeSource($request->value_source)
+            : ($hasExplicitManualValue
+                ? DealValueResolver::SOURCE_MANUAL
+                : DealValueResolver::SOURCE_CALCULATED);
         $deal->manual_value = $manualValue;
-        $deal->value_source = app(DealValueResolver::class)->normalizeSource($request->value_source);
-        $deal->value = $manualValue;
+        $deal->value_source = $valueSource;
+        $deal->value = $valueSource === DealValueResolver::SOURCE_MANUAL ? $manualValue : 0;
         $deal->currency_id = $this->company->currency_id;
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
