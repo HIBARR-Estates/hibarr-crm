@@ -75,9 +75,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
         {
             title: "Unit Type",
             key: "label",
-            render: (_, record) =>
-                record.display_label ||
-                `${record.primary_category} — ${record.property_type || "N/A"}`,
+            render: (_, record) => generatePropertySubtitle(record) || "N/A",
         },
         {
             title: "Beds",
@@ -258,7 +256,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                 ({ project, unitTypes, activeCount }) => (
                                     <div
                                         key={project.id}
-                                        className="border rounded-lg mb-3 overflow-hidden"
+                                        className="border border-gray-200/50 rounded-lg mb-3 overflow-hidden"
                                     >
                                         <div className="flex items-center gap-3 px-3 py-2.5 bg-gray-50 border-b border-gray-100">
                                             <span className="font-medium text-sm text-gray-800 flex-1">
