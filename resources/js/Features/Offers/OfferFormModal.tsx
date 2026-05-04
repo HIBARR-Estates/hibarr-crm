@@ -15,7 +15,6 @@ import {
     Spin,
     Switch,
     Tooltip,
-    App,
     Typography,
 } from "antd";
 import { router } from "@inertiajs/react";
@@ -28,7 +27,10 @@ import {
 } from "@ant-design/icons";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
-import { isLoading as getLoadingStatus } from "@/lib/utils";
+import {
+    generatePropertySubtitle,
+    isLoading as getLoadingStatus,
+} from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import type {
     Offer,
@@ -48,6 +50,14 @@ type UnitTypeWithPivot = DeveloperProjectUnitType & { pivot?: OfferablePivot };
 type ProjectWithUnitTypes = DeveloperProject & {
     unit_types?: DeveloperProjectUnitType[];
 };
+type OfferUnitTypeAttachPayload = {
+    offerable_type: "unit_type";
+    offerable_ids: number[];
+};
+type OfferUnitTypeTogglePayload = {
+    offerable_type: "unit_type";
+    offerable_id: number;
+};
 
 interface OfferFormModalProps {
     open: boolean;
@@ -57,17 +67,6 @@ interface OfferFormModalProps {
     /** Pre-fill developer when creating from Developer Show page */
     defaultDeveloperId?: number;
 }
-
-// ── CSRF helper ────────────────────────────────────────────
-const csrfHeaders = () => ({
-    "Content-Type": "application/json",
-    "X-Requested-With": "XMLHttpRequest",
-    "X-CSRF-TOKEN":
-        document
-            .querySelector('meta[name="csrf-token"]')
-            ?.getAttribute("content") ?? "",
-    Accept: "application/json",
-});
 
 // ── Lazy unit-type fetcher ──────────────────────────────────
 const fetchUnitTypes = async (
@@ -253,8 +252,22 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
     offerId,
     onRefetch,
 }) => {
-    const { message } = App.useApp();
     const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
+    const { mutateAsync: attachUnitType } = useApiMutate<
+        OfferUnitTypeAttachPayload,
+        unknown,
+        ApiResponse<unknown>
+    >(route("offers.attach", offerId), "POST", onRefetch);
+    const { mutateAsync: enableUnitType } = useApiMutate<
+        OfferUnitTypeTogglePayload,
+        unknown,
+        ApiResponse<unknown>
+    >(route("offers.enable", offerId), "POST", onRefetch);
+    const { mutateAsync: disableUnitType } = useApiMutate<
+        OfferUnitTypeTogglePayload,
+        unknown,
+        ApiResponse<unknown>
+    >(route("offers.disable", offerId), "POST", onRefetch);
 
     const allProjectUnitTypes: DeveloperProjectUnitType[] =
         (project as any).unit_types ?? [];
@@ -274,39 +287,28 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
         setLoading(unitTypeId, true);
         try {
             const attached = attachedById.get(unitTypeId);
+
             if (!attached) {
-                // New unit type — needs attaching
-                const res = await fetch(route("offers.attach", offerId), {
-                    method: "POST",
-                    headers: csrfHeaders(),
-                    body: JSON.stringify({
-                        offerable_type: "unit_type",
-                        offerable_ids: [unitTypeId],
-                    }),
+                await attachUnitType({
+                    offerable_type: "unit_type",
+                    offerable_ids: [unitTypeId],
                 });
-                const result = await res.json();
-                if (result.status === "success") {
-                    message.success("Unit type attached");
-                    onRefetch();
-                } else {
-                    message.error(result.message || "Failed to attach");
-                }
+
+                return;
+            }
+
+            const payload: OfferUnitTypeTogglePayload = {
+                offerable_type: "unit_type",
+                offerable_id: unitTypeId,
+            };
+
+            if (enable) {
+                await enableUnitType(payload);
             } else {
-                const endpoint = enable
-                    ? route("offers.enable", offerId)
-                    : route("offers.disable", offerId);
-                await fetch(endpoint, {
-                    method: "POST",
-                    headers: csrfHeaders(),
-                    body: JSON.stringify({
-                        offerable_type: "unit_type",
-                        offerable_id: unitTypeId,
-                    }),
-                });
-                onRefetch();
+                await disableUnitType(payload);
             }
         } catch {
-            message.error("Failed to update unit type");
+            return;
         } finally {
             setLoading(unitTypeId, false);
         }
@@ -360,8 +362,7 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
                                                 : "text-gray-400"
                                         }`}
                                     >
-                                        {ut.display_label ||
-                                            `${ut.primary_category} — ${ut.property_type ?? "N/A"}`}
+                                        {generatePropertySubtitle(ut)}
                                     </span>
                                     {ut.bedrooms != null && (
                                         <Tag className="text-xs shrink-0">
@@ -541,7 +542,7 @@ const OfferFormModal: React.FC<OfferFormModalProps> = ({
                 description: offer.description,
                 links: offer.links ?? [],
                 type: offer.type,
-                value: offer.value,
+                value: offer.value ? Number(offer.value) : undefined,
                 max_discount_amount: offer.max_discount_amount,
                 starts_at: offer.starts_at
                     ? (dayjs(offer.starts_at) as any)
