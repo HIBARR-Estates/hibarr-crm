@@ -304,7 +304,7 @@ class OfferController extends AccountBaseController
             ->with([
                 'offer:id,name,type,value,max_discount_amount',
                 'product:id,name,price',
-                'product.property:id,product_id,title,property_type',
+                'product.property:id,product_id,title,property_type,bedrooms,city,area,unit_style,view_types,furniture_status,primary_category,construction_status',
             ])
             ->get();
 

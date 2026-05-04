@@ -157,6 +157,9 @@ const ConstructionProjectInfoSection: React.FC<
                         min={0}
                         placeholder="0"
                         className="w-full"
+                        style={{
+                            width: "100%",
+                        }}
                     />
                 </Form.Item>
             </Col>
@@ -168,6 +171,7 @@ const ConstructionProjectInfoSection: React.FC<
                         min={0}
                         placeholder="0"
                         className="w-full"
+                        style={{ width: "100%" }}
                     />
                 </Form.Item>
             </Col>

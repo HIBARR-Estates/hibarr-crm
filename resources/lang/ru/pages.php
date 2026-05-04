@@ -182,7 +182,7 @@ return [
             'add_note' => 'Добавить заметку',
         ],
         'tabs' => [
-            'header'          => 'Заголовок',
+            'header'          => 'Детали',
             'notes'           => 'Заметки',
             'tasks'           => 'Задачи',
             'meeting'         => 'Встречи',
@@ -434,6 +434,21 @@ return [
             'unit_type_label'            => 'Тип юнита',
             'messages' => [
                 'no_availability_link' => 'Для этого проекта не настроена ссылка на наличие.',
+            ],
+        ],
+    ],
+
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'Нет участников',
+            'added_by'        => 'Добавил',
+            'participant'     => 'участник',
+            'participants'    => 'участники',
+            'actions' => [
+                'view'         => 'Просмотреть',
+                'edit'         => 'Редактировать',
+                'join_meeting' => 'Присоединиться к встрече',
+                'delete'       => 'Удалить',
             ],
         ],
     ],

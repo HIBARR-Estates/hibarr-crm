@@ -190,7 +190,7 @@ return [
             'add_note' => 'Add Note',
         ],
         'tabs' => [
-            'header'          => 'Header',
+            'header'          => 'Details',
             'notes'           => 'Notes',
             'tasks'           => 'Tasks',
             'meeting'         => 'Meeting',
@@ -502,6 +502,21 @@ return [
             'unit_type_label'            => 'Unit Type',
             'messages' => [
                 'no_availability_link' => 'No availability link configured for this project.',
+            ],
+        ],
+    ],
+
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'No participants',
+            'added_by'        => 'Added by',
+            'participant'     => 'participant',
+            'participants'    => 'participants',
+            'actions' => [
+                'view'         => 'View',
+                'edit'         => 'Edit',
+                'join_meeting' => 'Join Meeting',
+                'delete'       => 'Delete',
             ],
         ],
     ],

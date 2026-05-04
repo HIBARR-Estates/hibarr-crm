@@ -22,7 +22,9 @@ function PropertyCard({ product }: { product: any }) {
     const prop = product?.property ?? null;
     const photo = prop?.photos?.[0] ?? null;
     const statusColor = prop?.status
-        ? (PROPERTY_STATUS_COLORS[prop.status.toLowerCase().replace(/ /g, "_")] ?? "default")
+        ? (PROPERTY_STATUS_COLORS[
+              prop.status.toLowerCase().replace(/ /g, "_")
+          ] ?? "default")
         : "default";
 
     return (
@@ -49,11 +51,13 @@ function PropertyCard({ product }: { product: any }) {
                             href={route("properties.show", { id: prop.id })}
                             className="text-xs font-semibold text-blue-600 hover:text-blue-800 leading-snug line-clamp-2"
                         >
-                            {generatePropertySubtitle(prop) || prop?.title}
+                            {generatePropertySubtitle(prop) ||
+                                prop.title ||
+                                product.name}
                         </a>
                     ) : (
                         <span className="text-xs font-semibold text-gray-800 leading-snug line-clamp-2">
-                            {generatePropertySubtitle(product) || product?.title}
+                            {generatePropertySubtitle(product) || product.name}
                         </span>
                     )}
                     {prop?.status && (
@@ -81,7 +85,9 @@ function PropertyCard({ product }: { product: any }) {
                 {(prop?.city || prop?.area) && (
                     <div className="flex items-center gap-1 text-[11px] text-gray-500">
                         <EnvironmentOutlined className="shrink-0" />
-                        <span className="truncate">{[prop.area, prop.city].filter(Boolean).join(", ")}</span>
+                        <span className="truncate">
+                            {[prop.area, prop.city].filter(Boolean).join(", ")}
+                        </span>
                     </div>
                 )}
 
@@ -126,7 +132,10 @@ export default function PropertyCarousel({ products }: { products: any[] }) {
         setPageIndex((p) => (p + 1) % totalPages);
     };
 
-    const visible = products.slice(pageIndex * PER_PAGE, (pageIndex + 1) * PER_PAGE);
+    const visible = products.slice(
+        pageIndex * PER_PAGE,
+        (pageIndex + 1) * PER_PAGE,
+    );
 
     return (
         <div className="w-full mt-0.5 space-y-2">
@@ -134,7 +143,8 @@ export default function PropertyCarousel({ products }: { products: any[] }) {
             {totalPages > 1 && (
                 <div className="flex items-center justify-between">
                     <span className="text-[11px] text-gray-400">
-                        {pageIndex * PER_PAGE + 1}–{Math.min((pageIndex + 1) * PER_PAGE, total)} of {total}
+                        {pageIndex * PER_PAGE + 1}–
+                        {Math.min((pageIndex + 1) * PER_PAGE, total)} of {total}
                     </span>
                     <div className="flex items-center gap-1">
                         <button

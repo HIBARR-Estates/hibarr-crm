@@ -182,7 +182,7 @@ return [
             'add_note' => 'Not Ekle',
         ],
         'tabs' => [
-            'header'          => 'Başlık',
+            'header'          => 'Detaylar',
             'notes'           => 'Notlar',
             'tasks'           => 'Görevler',
             'meeting'         => 'Toplantı',
@@ -434,6 +434,21 @@ return [
             'unit_type_label'            => 'Birim Türü',
             'messages' => [
                 'no_availability_link' => 'Bu proje için bir uygunluk bağlantısı yapılandırılmamış.',
+            ],
+        ],
+    ],
+
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'Katılımcı yok',
+            'added_by'        => 'Ekleyen',
+            'participant'     => 'katılımcı',
+            'participants'    => 'katılımcılar',
+            'actions' => [
+                'view'         => 'Görüntüle',
+                'edit'         => 'Düzenle',
+                'join_meeting' => 'Toplantıya katıl',
+                'delete'       => 'Sil',
             ],
         ],
     ],

@@ -141,6 +141,7 @@ export default function DealInfoSection({
         () => getDealValueInsight(currentDeal),
         [currentDeal],
     );
+    const currentCurrencySymbol = currentDeal.currency?.currency_symbol || "£";
 
     // Fields are editable only when in edit mode AND user has permission
     const isFieldEditable = isEditMode && canEdit;
@@ -707,9 +708,7 @@ export default function DealInfoSection({
                                                 : -
                                                 {formatCurrency(
                                                     valueInsight.discountTotal,
-                                                    currentDeal.currency
-                                                        ?.currency_symbol ||
-                                                        "£",
+                                                    currentCurrencySymbol,
                                                 )}
                                             </div>
                                             <div>
@@ -746,9 +745,7 @@ export default function DealInfoSection({
                                                 :{" "}
                                                 {formatCurrency(
                                                     valueInsight.finalValue,
-                                                    currentDeal.currency
-                                                        ?.currency_symbol ||
-                                                        "£",
+                                                    currentCurrencySymbol,
                                                 )}
                                             </div>
                                             {valueInsight.deltaVsManual !==
@@ -775,9 +772,7 @@ export default function DealInfoSection({
                                                             : ""}
                                                         {formatCurrency(
                                                             valueInsight.deltaVsManual,
-                                                            currentDeal.currency
-                                                                ?.currency_symbol ||
-                                                                "£",
+                                                            currentCurrencySymbol,
                                                         )}{" "}
                                                         {t(
                                                             "pages.deals.info.value_insight.vs_calculated",
@@ -827,9 +822,12 @@ export default function DealInfoSection({
                                             className="ml-2"
                                         >
                                             -
-                                            {Number(
-                                                currentDeal.total_discount,
-                                            ).toLocaleString("en-GB")}
+                                            {formatCurrency(
+                                                Number(
+                                                    currentDeal.total_discount,
+                                                ),
+                                                currentCurrencySymbol,
+                                            )}
                                         </Tag>
                                     )}
                             </div>
