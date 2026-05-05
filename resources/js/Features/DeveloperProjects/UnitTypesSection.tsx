@@ -405,18 +405,30 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                 <div className="flex flex-col gap-y-6">
                     <Image.PreviewGroup items={imageUrls}>
                         <div className="grid gap-3 lg:grid-cols-[minmax(0,1.7fr)_minmax(300px,1fr)]">
-                            <div className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 min-h-[280px]">
+                            <div
+                                className="overflow-hidden rounded-2xl border border-gray-200 bg-gray-100 min-h-[280px] relative"
+                                style={
+                                    heroImage
+                                        ? {
+                                              backgroundImage: `url(${heroImage})`,
+                                              backgroundSize: "cover",
+                                              backgroundPosition: "center",
+                                          }
+                                        : undefined
+                                }
+                            >
                                 {heroImage ? (
                                     <Image
                                         src={heroImage}
                                         alt={title}
-                                        className="h-full w-full object-cover"
+                                        className="!absolute inset-0 opacity-0 w-full h-full"
                                         style={{
                                             height: "100%",
                                             width: "100%",
-                                            objectFit: "cover",
                                         }}
-                                        preview={{ mask: <EyeOutlined /> }}
+                                        preview={{ mask: null }}
+                                        wrapperClassName="!absolute inset-0 cursor-zoom-in"
+                                        wrapperStyle={{ inset: 0 }}
                                     />
                                 ) : (
                                     <div className="h-full min-h-[280px] flex items-center justify-center text-gray-300">
