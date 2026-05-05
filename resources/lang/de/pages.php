@@ -182,7 +182,7 @@ return [
             'add_note' => 'Notiz hinzufügen',
         ],
         'tabs' => [
-            'header'          => 'Kopfzeile',
+            'header'          => 'Details',
             'notes'           => 'Notizen',
             'tasks'           => 'Aufgaben',
             'meeting'         => 'Termine',
@@ -434,6 +434,21 @@ return [
             'unit_type_label'            => 'Einheitstyp',
             'messages' => [
                 'no_availability_link' => 'Für dieses Projekt ist kein Verfügbarkeitslink konfiguriert.',
+            ],
+        ],
+    ],
+
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'Keine Teilnehmer',
+            'added_by'        => 'Hinzugefügt von',
+            'participant'     => 'Teilnehmer',
+            'participants'    => 'Teilnehmer',
+            'actions' => [
+                'view'         => 'Anzeigen',
+                'edit'         => 'Bearbeiten',
+                'join_meeting' => 'Meeting beitreten',
+                'delete'       => 'Löschen',
             ],
         ],
     ],

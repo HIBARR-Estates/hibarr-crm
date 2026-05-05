@@ -412,7 +412,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         alt={title}
                                         className="h-full w-full object-cover"
                                         style={{
-                                            height: 360,
+                                            height: "100%",
                                             width: "100%",
                                             objectFit: "cover",
                                         }}

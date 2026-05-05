@@ -512,7 +512,7 @@ class DealController extends AccountBaseController
             'products' => function ($query) {
                 $query->select('products.id', 'products.name')
                       ->with(['property' => function ($pq) {
-                          $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos');
+                          $pq->select('id', 'product_id', 'developer_project_id', 'title', 'property_type', 'sale_type', 'price', 'bedrooms', 'bathrooms', 'city', 'area', 'land_size', 'status', 'photos', 'unit_style', 'view_types', 'furniture_status', 'primary_category', 'construction_status');
                           $pq->with(['developerProject' => function ($dpq) {
                               $dpq->select('id', 'name', 'availability_link');
                           }]);
@@ -837,9 +837,15 @@ class DealController extends AccountBaseController
         $deal->agent_id = $agentId;
         $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
         $manualValue = $request->manual_value ?? $request->value ?? 0;
+        $hasExplicitManualValue = $request->filled('manual_value') || $request->filled('value');
+        $valueSource = $request->filled('value_source')
+            ? app(DealValueResolver::class)->normalizeSource($request->value_source)
+            : ($hasExplicitManualValue
+                ? DealValueResolver::SOURCE_MANUAL
+                : DealValueResolver::SOURCE_CALCULATED);
         $deal->manual_value = $manualValue;
-        $deal->value_source = app(DealValueResolver::class)->normalizeSource($request->value_source);
-        $deal->value = $manualValue;
+        $deal->value_source = $valueSource;
+        $deal->value = $valueSource === DealValueResolver::SOURCE_MANUAL ? $manualValue : 0;
         $deal->currency_id = $this->company->currency_id;
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
