@@ -16,6 +16,7 @@ import type { ApiSuccessResponse } from "@/lib/api/types";
 import ProjectCard from "./components/ProjectCard";
 import ProjectFormModal from "./components/ProjectFormModal";
 import SortDropdown from "./components/SortDropdown";
+import { usePermission } from "@/lib/permissionUtils";
 
 // ============================================
 // Types
@@ -68,7 +69,7 @@ interface LocationsResponse {
 // Empty State
 // ============================================
 
-function EmptyState({ onAdd }: { onAdd: () => void }) {
+function EmptyState({ onAdd }: { onAdd?: () => void }) {
     return (
         <div className="flex flex-col items-center justify-center py-20 text-center">
             <Building2
@@ -82,9 +83,11 @@ function EmptyState({ onAdd }: { onAdd: () => void }) {
             <p className="text-sm text-gray-400 mb-5">
                 Create your first construction project to get started.
             </p>
-            <Button type="primary" icon={<Plus size={14} />} onClick={onAdd}>
-                New Project
-            </Button>
+            {onAdd && (
+                <Button type="primary" icon={<Plus size={14} />} onClick={onAdd}>
+                    New Project
+                </Button>
+            )}
         </div>
     );
 }
@@ -117,6 +120,10 @@ const Index = ({
     };
 
     const { t } = useTranslation();
+    const { hasPermission } = usePermission();
+    const canAdd = hasPermission("add_developer_projects");
+    const canEdit = hasPermission("edit_developer_projects");
+    const canDelete = hasPermission("delete_developer_projects");
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedProject, setSelectedProject] =
         useState<DeveloperProject | null>(null);
@@ -345,13 +352,15 @@ const Index = ({
 
                             {/* Row 2: actions + sort */}
                             <div className="flex items-center gap-2 flex-wrap">
-                                <Button
-                                    type="primary"
-                                    icon={<Plus size={14} />}
-                                    onClick={handleAdd}
-                                >
-                                    New Project
-                                </Button>
+                                {canAdd && (
+                                    <Button
+                                        type="primary"
+                                        icon={<Plus size={14} />}
+                                        onClick={handleAdd}
+                                    >
+                                        New Project
+                                    </Button>
+                                )}
 
                                 <Link href={route("project-locations.index")}>
                                     <Button icon={<MapPin size={14} />}>
@@ -510,7 +519,7 @@ const Index = ({
                     {/* ── Card grid ── */}
                     <div className="max-w-screen-xl mx-auto px-7 py-7 pb-12">
                         {(projects.data ?? []).length === 0 ? (
-                            <EmptyState onAdd={handleAdd} />
+                            <EmptyState onAdd={canAdd ? handleAdd : undefined} />
                         ) : (
                             <>
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
@@ -518,8 +527,8 @@ const Index = ({
                                         <ProjectCard
                                             key={project.id}
                                             project={project}
-                                            onEdit={handleEdit}
-                                            onDelete={handleDelete}
+                                            onEdit={canEdit ? handleEdit : undefined}
+                                            onDelete={canDelete ? handleDelete : undefined}
                                         />
                                     ))}
                                 </div>
