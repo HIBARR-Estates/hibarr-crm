@@ -146,7 +146,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                 <div className="flex flex-wrap gap-3 mb-9">
                     <StatCard
                         icon={<Building2 size={22} />}
-                        value={`${statistics.unit_count}`}
+                        value={`${statistics.total_units}`}
                         label="Total Units"
                     />
                     <StatCard
