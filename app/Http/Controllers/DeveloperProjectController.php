@@ -79,6 +79,19 @@ class DeveloperProjectController extends AccountBaseController
             $query->whereJsonContains('primary_categories', $request->primary_category);
         }
 
+        // Filter by payment plan duration (months)
+        if ($request->filled('payment_plan_duration')) {
+            $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(payment_plan, '$.period_months')) = ?", [(int) $request->payment_plan_duration]);
+        }
+
+        // Filter by starting price range
+        if ($request->filled('price_min')) {
+            $query->where('starting_price', '>=', (float) $request->price_min);
+        }
+        if ($request->filled('price_max')) {
+            $query->where('starting_price', '<=', (float) $request->price_max);
+        }
+
         // Apply sort
         switch ($request->input('sort', 'newest')) {
             case 'oldest':
@@ -132,6 +145,7 @@ class DeveloperProjectController extends AccountBaseController
                 'filters' => $request->only([
                     'search', 'location_id', 'sort',
                     'developer_id', 'construction_status', 'primary_category',
+                    'payment_plan_duration', 'price_min', 'price_max',
                 ]),
             ]);
         // }

@@ -12,6 +12,7 @@ import {
     Gift,
 } from "lucide-react";
 import type { SectionKey } from "../Show";
+import { usePermission } from "@/lib/permissionUtils";
 
 interface ShowSidebarProps {
     activeSection: SectionKey;
@@ -36,6 +37,8 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
     interiorCount,
     siteplanCount,
 }) => {
+    const { hasPermission } = usePermission();
+    const canEdit = hasPermission("edit_developer_projects");
     const navItems: {
         key: SectionKey;
         icon: React.ReactNode;
@@ -144,9 +147,11 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
 
             {/* Action buttons */}
             <div className="flex flex-col gap-2 pt-2">
-                <Button icon={<Pencil size={14} />} block onClick={onEdit}>
-                    Edit Project
-                </Button>
+                {canEdit && (
+                    <Button icon={<Pencil size={14} />} block onClick={onEdit}>
+                        Edit Project
+                    </Button>
+                )}
             </div>
         </div>
     );
