@@ -7,6 +7,16 @@ import dayjs from "dayjs";
 
 type OfferWithPivot = Offer & { pivot?: OfferablePivot };
 
+const isOfferablePivotActive = (pivot?: OfferablePivot): boolean => {
+    const raw = (pivot as any)?.is_active;
+
+    if (raw === undefined || raw === null) {
+        return true;
+    }
+
+    return raw === true || raw === 1 || raw === "1";
+};
+
 interface OfferAttachSectionProps {
     /** All attached offers (including disabled ones) */
     offers?: OfferWithPivot[];
@@ -106,7 +116,7 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                     size="small"
                     dataSource={offers}
                     renderItem={(offer) => {
-                        const pivotActive = offer.pivot?.is_active !== false;
+                        const pivotActive = isOfferablePivotActive(offer.pivot);
                         return (
                             <List.Item
                                 key={offer.id}

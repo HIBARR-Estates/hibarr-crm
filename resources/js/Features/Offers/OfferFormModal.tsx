@@ -47,6 +47,17 @@ import dayjs from "dayjs";
 const { Text } = Typography;
 
 type UnitTypeWithPivot = DeveloperProjectUnitType & { pivot?: OfferablePivot };
+
+const isOfferablePivotActive = (pivot?: OfferablePivot): boolean => {
+    const raw = (pivot as any)?.is_active;
+
+    if (raw === undefined || raw === null) {
+        return true;
+    }
+
+    return raw === true || raw === 1 || raw === "1";
+};
+
 type ProjectWithUnitTypes = DeveloperProject & {
     unit_types?: DeveloperProjectUnitType[];
     unit_types_details?: DeveloperProjectUnitType[];
@@ -300,8 +311,8 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
     }, [project.id]);
 
     const attachedById = new Map(attachedUnitTypes.map((ut) => [ut.id, ut]));
-    const activeCount = attachedUnitTypes.filter(
-        (ut) => ut.pivot?.is_active !== false,
+    const activeCount = attachedUnitTypes.filter((ut) =>
+        isOfferablePivotActive(ut.pivot),
     ).length;
 
     const unitTypesForRender =
@@ -375,7 +386,7 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
                         {unitTypesForRender.map((ut) => {
                             const attached = attachedById.get(ut.id);
                             const isActive = attached
-                                ? attached.pivot?.is_active !== false
+                                ? isOfferablePivotActive(attached.pivot)
                                 : false;
                             const isNew = !attached;
                             const isLoading = loadingIds.has(ut.id);

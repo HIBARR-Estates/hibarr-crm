@@ -29,6 +29,16 @@ const { Text } = Typography;
 
 type UnitTypeWithPivot = DeveloperProjectUnitType & { pivot?: OfferablePivot };
 
+const isOfferablePivotActive = (pivot?: OfferablePivot): boolean => {
+    const raw = (pivot as any)?.is_active;
+
+    if (raw === undefined || raw === null) {
+        return true;
+    }
+
+    return raw === true || raw === 1 || raw === "1";
+};
+
 interface OfferDetailDrawerProps {
     open: boolean;
     onClose: () => void;
@@ -65,8 +75,8 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
         const projectUnitTypes = (offer?.unit_types ?? []).filter(
             (ut) => ut.developer_project_id === project.id,
         );
-        const activeCount = projectUnitTypes.filter(
-            (ut) => ut.pivot?.is_active !== false,
+        const activeCount = projectUnitTypes.filter((ut) =>
+            isOfferablePivotActive(ut.pivot),
         ).length;
         return { project, unitTypes: projectUnitTypes, activeCount };
     });
@@ -91,7 +101,7 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
             width: 100,
             align: "center",
             render: (_, record) => {
-                const active = record.pivot?.is_active !== false;
+                const active = isOfferablePivotActive(record.pivot);
                 return (
                     <Tag color={active ? "green" : "default"}>
                         {active ? "Active" : "Disabled"}
@@ -206,8 +216,8 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         </Descriptions.Item>
                         <Descriptions.Item label="Unit Types Active">
                             {
-                                (offer.unit_types ?? []).filter(
-                                    (ut) => ut.pivot?.is_active !== false,
+                                (offer.unit_types ?? []).filter((ut) =>
+                                    isOfferablePivotActive(ut.pivot),
                                 ).length
                             }{" "}
                             / {offer.unit_types?.length ?? 0}
