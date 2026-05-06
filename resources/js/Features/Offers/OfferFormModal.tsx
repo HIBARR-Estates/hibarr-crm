@@ -49,6 +49,7 @@ const { Text } = Typography;
 type UnitTypeWithPivot = DeveloperProjectUnitType & { pivot?: OfferablePivot };
 type ProjectWithUnitTypes = DeveloperProject & {
     unit_types?: DeveloperProjectUnitType[];
+    unit_types_details?: DeveloperProjectUnitType[];
 };
 type OfferUnitTypeAttachPayload = {
     offerable_type: "unit_type";
@@ -253,6 +254,11 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
     onRefetch,
 }) => {
     const [loadingIds, setLoadingIds] = useState<Set<number>>(new Set());
+    const [allProjectUnitTypes, setAllProjectUnitTypes] = useState<
+        DeveloperProjectUnitType[]
+    >([]);
+    const [isLoadingUnitTypes, setIsLoadingUnitTypes] =
+        useState<boolean>(false);
     const { mutateAsync: attachUnitType } = useApiMutate<
         OfferUnitTypeAttachPayload,
         unknown,
@@ -269,12 +275,39 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
         ApiResponse<unknown>
     >(route("offers.disable", offerId), "POST", onRefetch);
 
-    const allProjectUnitTypes: DeveloperProjectUnitType[] =
-        (project as any).unit_types ?? [];
+    useEffect(() => {
+        let isMounted = true;
+
+        const loadUnitTypes = async () => {
+            setIsLoadingUnitTypes(true);
+            try {
+                const units = await fetchUnitTypes(project.id);
+                if (isMounted) {
+                    setAllProjectUnitTypes(units ?? []);
+                }
+            } finally {
+                if (isMounted) {
+                    setIsLoadingUnitTypes(false);
+                }
+            }
+        };
+
+        loadUnitTypes();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [project.id]);
+
     const attachedById = new Map(attachedUnitTypes.map((ut) => [ut.id, ut]));
     const activeCount = attachedUnitTypes.filter(
         (ut) => ut.pivot?.is_active !== false,
     ).length;
+
+    const unitTypesForRender =
+        allProjectUnitTypes.length > 0
+            ? allProjectUnitTypes
+            : attachedUnitTypes;
 
     const setLoading = (id: number, on: boolean) =>
         setLoadingIds((prev) => {
@@ -328,13 +361,18 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
 
             {/* Unit types */}
             <div className="px-3 py-2 bg-white">
-                {allProjectUnitTypes.length === 0 ? (
+                {isLoadingUnitTypes ? (
+                    <div className="flex items-center gap-2 py-3 text-gray-400 text-xs justify-center">
+                        <Spin size="small" />
+                        <span>Loading unit types...</span>
+                    </div>
+                ) : unitTypesForRender.length === 0 ? (
                     <p className="text-xs text-gray-400 py-2 text-center">
                         No unit types in this project.
                     </p>
                 ) : (
                     <div className="space-y-1">
-                        {allProjectUnitTypes.map((ut) => {
+                        {unitTypesForRender.map((ut) => {
                             const attached = attachedById.get(ut.id);
                             const isActive = attached
                                 ? attached.pivot?.is_active !== false
@@ -362,7 +400,9 @@ const ProjectPanelEdit: React.FC<ProjectPanelEditProps> = ({
                                                 : "text-gray-400"
                                         }`}
                                     >
-                                        {generatePropertySubtitle(ut)}
+                                        {generatePropertySubtitle(ut) ||
+                                            ut.display_label ||
+                                            `${ut.primary_category} — ${ut.property_type ?? "N/A"}`}
                                     </span>
                                     {ut.bedrooms != null && (
                                         <Tag className="text-xs shrink-0">
