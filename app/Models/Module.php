@@ -37,6 +37,15 @@ class Module extends BaseModel
 
     const MODULE_LIST = [
         [
+            'module_name' => 'developer_projects',
+            'permissions' => [
+                ['allowed_permissions' => Permission::ALL_NONE, 'is_custom' => 0, 'name' => 'add_developer_projects'],
+                ['allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5, 'is_custom' => 0, 'name' => 'view_developer_projects'],
+                ['allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5, 'is_custom' => 0, 'name' => 'edit_developer_projects'],
+                ['allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5, 'is_custom' => 0, 'name' => 'delete_developer_projects'],
+            ]
+        ],
+        [
             'module_name' => 'clients',
             'permissions' => [
                 [
