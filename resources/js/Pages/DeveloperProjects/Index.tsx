@@ -51,6 +51,9 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
               developer_id?: string;
               construction_status?: string;
               primary_category?: string;
+              payment_plan_duration?: string;
+              price_min?: string;
+              price_max?: string;
           }
         | null
         | undefined;
@@ -131,7 +134,13 @@ const Index = ({
     const [primaryCategory, setPrimaryCategory] = useState(
         safeFilters.primary_category ?? "",
     );
+    const [paymentPlanDuration, setPaymentPlanDuration] = useState(
+        safeFilters.payment_plan_duration ?? "",
+    );
+    const [priceMin, setPriceMin] = useState(safeFilters.price_min ?? "");
+    const [priceMax, setPriceMax] = useState(safeFilters.price_max ?? "");
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const priceDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Locations — only loaded when modal is open
     const locationsQuery = useApiQuery<LocationsResponse>({
@@ -171,6 +180,9 @@ const Index = ({
         if (developerId) base.developer_id = developerId;
         if (constructionStatus) base.construction_status = constructionStatus;
         if (primaryCategory) base.primary_category = primaryCategory;
+        if (paymentPlanDuration) base.payment_plan_duration = paymentPlanDuration;
+        if (priceMin) base.price_min = priceMin;
+        if (priceMax) base.price_max = priceMax;
         const merged = { ...base, ...overrides };
         // Remove empty values
         Object.keys(merged).forEach((k) => {
@@ -202,6 +214,19 @@ const Index = ({
         );
     };
 
+    const handlePriceChange = (key: "price_min" | "price_max", value: string) => {
+        if (key === "price_min") setPriceMin(value);
+        else setPriceMax(value);
+        if (priceDebounce.current) clearTimeout(priceDebounce.current);
+        priceDebounce.current = setTimeout(() => {
+            router.get(
+                route("developer-projects.index"),
+                buildParams({ [key]: value }),
+                { preserveState: true, preserveScroll: true, replace: true },
+            );
+        }, 380);
+    };
+
     const handleFilterChange = (key: string, value: string) => {
         switch (key) {
             case "location_id":
@@ -216,6 +241,9 @@ const Index = ({
             case "primary_category":
                 setPrimaryCategory(value);
                 break;
+            case "payment_plan_duration":
+                setPaymentPlanDuration(value);
+                break;
         }
         router.get(
             route("developer-projects.index"),
@@ -228,7 +256,10 @@ const Index = ({
         locationId ||
         developerId ||
         constructionStatus ||
-        primaryCategory
+        primaryCategory ||
+        paymentPlanDuration ||
+        priceMin ||
+        priceMax
     );
 
     const handleClearFilters = () => {
@@ -236,6 +267,9 @@ const Index = ({
         setDeveloperId("");
         setConstructionStatus("");
         setPrimaryCategory("");
+        setPaymentPlanDuration("");
+        setPriceMin("");
+        setPriceMax("");
         const params: Record<string, string> = {};
         if (search) params.search = search;
         if (sortValue && sortValue !== "newest") params.sort = sortValue;
@@ -413,6 +447,52 @@ const Index = ({
                                     }))}
                                     style={{ width: 150 }}
                                     size="small"
+                                />
+                                <Select
+                                    value={paymentPlanDuration || undefined}
+                                    onChange={(v) =>
+                                        handleFilterChange(
+                                            "payment_plan_duration",
+                                            v ?? "",
+                                        )
+                                    }
+                                    placeholder="Any Duration"
+                                    allowClear
+                                    options={[
+                                        { value: "12", label: "12 months" },
+                                        { value: "24", label: "24 months" },
+                                        { value: "36", label: "36 months" },
+                                        { value: "48", label: "48 months" },
+                                        { value: "60", label: "60 months" },
+                                        { value: "72", label: "72 months" },
+                                        { value: "84", label: "84 months" },
+                                        { value: "120", label: "120 months" },
+                                    ]}
+                                    style={{ width: 140 }}
+                                    size="small"
+                                />
+                                <Input
+                                    value={priceMin}
+                                    onChange={(e) =>
+                                        handlePriceChange("price_min", e.target.value)
+                                    }
+                                    placeholder="Min price"
+                                    size="small"
+                                    style={{ width: 110 }}
+                                    type="number"
+                                    min={0}
+                                />
+                                <span className="text-xs text-gray-400">–</span>
+                                <Input
+                                    value={priceMax}
+                                    onChange={(e) =>
+                                        handlePriceChange("price_max", e.target.value)
+                                    }
+                                    placeholder="Max price"
+                                    size="small"
+                                    style={{ width: 110 }}
+                                    type="number"
+                                    min={0}
                                 />
                                 {hasActiveFilters && (
                                     <button
