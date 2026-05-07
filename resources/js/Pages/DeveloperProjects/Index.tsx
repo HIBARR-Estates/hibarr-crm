@@ -84,7 +84,11 @@ function EmptyState({ onAdd }: { onAdd?: () => void }) {
                 Create your first construction project to get started.
             </p>
             {onAdd && (
-                <Button type="primary" icon={<Plus size={14} />} onClick={onAdd}>
+                <Button
+                    type="primary"
+                    icon={<Plus size={14} />}
+                    onClick={onAdd}
+                >
                     New Project
                 </Button>
             )}
@@ -147,6 +151,7 @@ const Index = ({
     const [priceMin, setPriceMin] = useState(safeFilters.price_min ?? "");
     const [priceMax, setPriceMax] = useState(safeFilters.price_max ?? "");
     const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const durationDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
     const priceDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Locations — only loaded when modal is open
@@ -187,7 +192,8 @@ const Index = ({
         if (developerId) base.developer_id = developerId;
         if (constructionStatus) base.construction_status = constructionStatus;
         if (primaryCategory) base.primary_category = primaryCategory;
-        if (paymentPlanDuration) base.payment_plan_duration = paymentPlanDuration;
+        if (paymentPlanDuration)
+            base.payment_plan_duration = paymentPlanDuration;
         if (priceMin) base.price_min = priceMin;
         if (priceMax) base.price_max = priceMax;
         const merged = { ...base, ...overrides };
@@ -221,7 +227,10 @@ const Index = ({
         );
     };
 
-    const handlePriceChange = (key: "price_min" | "price_max", value: string) => {
+    const handlePriceChange = (
+        key: "price_min" | "price_max",
+        value: string,
+    ) => {
         if (key === "price_min") setPriceMin(value);
         else setPriceMax(value);
         if (priceDebounce.current) clearTimeout(priceDebounce.current);
@@ -229,6 +238,19 @@ const Index = ({
             router.get(
                 route("developer-projects.index"),
                 buildParams({ [key]: value }),
+                { preserveState: true, preserveScroll: true, replace: true },
+            );
+        }, 380);
+    };
+
+    const handlePaymentPlanDurationChange = (value: string) => {
+        const normalizedValue = value.replace(/\D/g, "");
+        setPaymentPlanDuration(normalizedValue);
+        if (durationDebounce.current) clearTimeout(durationDebounce.current);
+        durationDebounce.current = setTimeout(() => {
+            router.get(
+                route("developer-projects.index"),
+                buildParams({ payment_plan_duration: normalizedValue }),
                 { preserveState: true, preserveScroll: true, replace: true },
             );
         }, 380);
@@ -247,9 +269,6 @@ const Index = ({
                 break;
             case "primary_category":
                 setPrimaryCategory(value);
-                break;
-            case "payment_plan_duration":
-                setPaymentPlanDuration(value);
                 break;
         }
         router.get(
@@ -457,33 +476,26 @@ const Index = ({
                                     style={{ width: 150 }}
                                     size="small"
                                 />
-                                <Select
-                                    value={paymentPlanDuration || undefined}
-                                    onChange={(v) =>
-                                        handleFilterChange(
-                                            "payment_plan_duration",
-                                            v ?? "",
+                                <Input
+                                    value={paymentPlanDuration}
+                                    onChange={(e) =>
+                                        handlePaymentPlanDurationChange(
+                                            e.target.value,
                                         )
                                     }
-                                    placeholder="Any Duration"
-                                    allowClear
-                                    options={[
-                                        { value: "12", label: "12 months" },
-                                        { value: "24", label: "24 months" },
-                                        { value: "36", label: "36 months" },
-                                        { value: "48", label: "48 months" },
-                                        { value: "60", label: "60 months" },
-                                        { value: "72", label: "72 months" },
-                                        { value: "84", label: "84 months" },
-                                        { value: "120", label: "120 months" },
-                                    ]}
-                                    style={{ width: 140 }}
+                                    placeholder="Plan months"
                                     size="small"
+                                    style={{ width: 140 }}
+                                    type="number"
+                                    min={0}
                                 />
                                 <Input
                                     value={priceMin}
                                     onChange={(e) =>
-                                        handlePriceChange("price_min", e.target.value)
+                                        handlePriceChange(
+                                            "price_min",
+                                            e.target.value,
+                                        )
                                     }
                                     placeholder="Min price"
                                     size="small"
@@ -495,7 +507,10 @@ const Index = ({
                                 <Input
                                     value={priceMax}
                                     onChange={(e) =>
-                                        handlePriceChange("price_max", e.target.value)
+                                        handlePriceChange(
+                                            "price_max",
+                                            e.target.value,
+                                        )
                                     }
                                     placeholder="Max price"
                                     size="small"
@@ -519,7 +534,9 @@ const Index = ({
                     {/* ── Card grid ── */}
                     <div className="max-w-screen-xl mx-auto px-7 py-7 pb-12">
                         {(projects.data ?? []).length === 0 ? (
-                            <EmptyState onAdd={canAdd ? handleAdd : undefined} />
+                            <EmptyState
+                                onAdd={canAdd ? handleAdd : undefined}
+                            />
                         ) : (
                             <>
                                 <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">
@@ -527,8 +544,14 @@ const Index = ({
                                         <ProjectCard
                                             key={project.id}
                                             project={project}
-                                            onEdit={canEdit ? handleEdit : undefined}
-                                            onDelete={canDelete ? handleDelete : undefined}
+                                            onEdit={
+                                                canEdit ? handleEdit : undefined
+                                            }
+                                            onDelete={
+                                                canDelete
+                                                    ? handleDelete
+                                                    : undefined
+                                            }
                                         />
                                     ))}
                                 </div>

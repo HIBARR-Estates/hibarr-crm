@@ -236,6 +236,7 @@ return [
                 'recalculate_value_tooltip' => 'Bağlı ürünler, paketler ve uygulanan tekliflere göre değeri yeniden hesapla',
             ],
             'value_insight' => [
+                'properties'        => 'Mülkler',
                 'products'          => 'Ürünler',
                 'packages'          => 'Paketler',
                 'gross'             => 'Brüt',
@@ -245,6 +246,7 @@ return [
                 'source_manual'     => 'Manuel',
                 'source_calculated' => 'Hesaplanan',
                 'final'             => 'Nihai',
+                'total'             => 'Toplam',
                 'adjusted'          => 'Düzeltilen',
                 'vs_calculated'     => 'hesaplanana göre',
                 'no_offers'         => 'Henüz uygulanan teklif yok.',
