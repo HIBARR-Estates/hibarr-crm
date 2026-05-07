@@ -12,7 +12,6 @@
                 <div class="row py-20">
                     <div class="col-md-12">
                         <x-forms.link-secondary :link="asset('sample-import/lead-contact-sample.xlsx')" icon="download">@lang('app.downloadSampleImport')</x-forms.link-secondary>
-
                         <x-forms.file :fieldLabel="__('modules.import.file')" fieldName="import_file" fieldId="lead_import" />
                     </div>
                     <div class="col-md-12">

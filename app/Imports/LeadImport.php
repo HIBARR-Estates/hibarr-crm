@@ -11,7 +11,7 @@ class LeadImport implements ToArray
     {
         return array(
             array('id' => 'name', 'name' => __('modules.lead.clientName'), 'required' => 'Yes'),
-            array('id' => 'email', 'name' => __('modules.lead.clientEmail'), 'required' => 'Yes'),
+            array('id' => 'email', 'name' => __('modules.lead.clientEmail'), 'required' => 'no'),
             array('id' => 'salutation', 'name' => __('app.salutation'), 'required' => 'No'),
             array('id' => 'gender', 'name' => __('app.gender'), 'required' => 'No'),
             array('id' => 'note', 'name' => __('app.note'), 'required' => 'No'),
@@ -25,7 +25,6 @@ class LeadImport implements ToArray
             array('id' => 'postal_code', 'name' => __('modules.stripeCustomerAddress.postalCode'), 'required' => 'No'),
             array('id' => 'address', 'name' => __('app.address'), 'required' => 'No'),
             array('id' => 'source', 'name' => __('modules.lead.leadSource'), 'required' => 'No'),
-            array('id' => 'created_at', 'name' => __('app.createdOn'), 'required' => 'No'),
         );
     }
 

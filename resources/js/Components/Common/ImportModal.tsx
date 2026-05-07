@@ -5,14 +5,12 @@ import {
     Upload,
     Switch,
     Button,
-    Space,
     Typography,
     Alert,
 } from "antd";
 import { UploadOutlined, DownloadOutlined } from "@ant-design/icons";
-import type { UploadFile, UploadProps } from "antd/es/upload/interface";
 
-const { Title, Text, Link } = Typography;
+const { Title, Text } = Typography;
 
 interface ImportModalProps {
     visible: boolean;

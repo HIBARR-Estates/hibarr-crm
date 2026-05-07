@@ -17,7 +17,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
@@ -103,7 +102,6 @@ class ImportLeadJob implements ShouldQueue
                 $lead->postal_code = $this->isColumnExists('postal_code') ? $this->getColumnValue('postal_code') : null;
                 $lead->address = $this->isColumnExists('address') ? $this->getColumnValue('address') : null;
                 $lead->source_id = $leadSource?->id;
-                $lead->created_at = $this->isColumnExists('created_at') ? Carbon::parse($this->getColumnValue('created_at')) : now();
 
                 $leads = Session::get('leads', []);
 
