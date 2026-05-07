@@ -662,7 +662,7 @@ export default function DealInfoSection({
                                             <div style={{ minWidth: 220 }}>
                                                 <div>
                                                     {t(
-                                                        "pages.deals.info.value_insight.products",
+                                                        "pages.deals.info.value_insight.properties",
                                                     )}
                                                     :{" "}
                                                     {valueInsight.productsTotal !==
@@ -714,7 +714,7 @@ export default function DealInfoSection({
                                                         currentCurrencySymbol,
                                                     )}
                                                 </div>
-                                                <div>
+                                                {/* <div>
                                                     {t(
                                                         "pages.deals.info.value_insight.calculated",
                                                     )}
@@ -729,8 +729,8 @@ export default function DealInfoSection({
                                                                   "£",
                                                           )
                                                         : "--"}
-                                                </div>
-                                                <div>
+                                                </div> */}
+                                                {/* <div>
                                                     {t(
                                                         "pages.deals.info.value_insight.source",
                                                     )}
@@ -741,10 +741,10 @@ export default function DealInfoSection({
                                                             ? "pages.deals.info.value_insight.source_manual"
                                                             : "pages.deals.info.value_insight.source_calculated",
                                                     )}
-                                                </div>
+                                                </div> */}
                                                 <div>
                                                     {t(
-                                                        "pages.deals.info.value_insight.final",
+                                                        "pages.deals.info.value_insight.total",
                                                     )}
                                                     :{" "}
                                                     {formatCurrency(
@@ -752,7 +752,7 @@ export default function DealInfoSection({
                                                         currentCurrencySymbol,
                                                     )}
                                                 </div>
-                                                {valueInsight.deltaVsManual !==
+                                                {/* {valueInsight.deltaVsManual !==
                                                     null &&
                                                     valueInsight.deltaVsManual !==
                                                         0 && (
@@ -782,8 +782,8 @@ export default function DealInfoSection({
                                                                 "pages.deals.info.value_insight.vs_calculated",
                                                             )}
                                                         </div>
-                                                    )}
-                                                {valueInsight.status ===
+                                                    )} */}
+                                                {/* {valueInsight.status ===
                                                     "no-offers" && (
                                                     <div
                                                         style={{ marginTop: 6 }}
@@ -792,7 +792,7 @@ export default function DealInfoSection({
                                                             "pages.deals.info.value_insight.no_offers",
                                                         )}
                                                     </div>
-                                                )}
+                                                )} */}
                                             </div>
                                         }
                                     >
