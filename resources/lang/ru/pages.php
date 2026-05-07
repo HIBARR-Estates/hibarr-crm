@@ -246,6 +246,7 @@ return [
                 'source_manual'     => 'Вручную',
                 'source_calculated' => 'Расчетная',
                 'final'             => 'Итог',
+                'total'             => 'Итого',
                 'adjusted'          => 'Скорректировано',
                 'vs_calculated'     => 'относительно расчетной',
                 'no_offers'         => 'Примененных предложений пока нет.',

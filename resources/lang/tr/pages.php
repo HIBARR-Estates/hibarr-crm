@@ -246,6 +246,7 @@ return [
                 'source_manual'     => 'Manuel',
                 'source_calculated' => 'Hesaplanan',
                 'final'             => 'Nihai',
+                'total'             => 'Toplam',
                 'adjusted'          => 'Düzeltilen',
                 'vs_calculated'     => 'hesaplanana göre',
                 'no_offers'         => 'Henüz uygulanan teklif yok.',

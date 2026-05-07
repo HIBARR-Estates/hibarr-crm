@@ -254,6 +254,7 @@ return [
                 'source_manual'     => 'Manual',
                 'source_calculated' => 'Calculated',
                 'final'             => 'Final',
+                'total'             => 'Total',
                 'adjusted'          => 'Adjusted',
                 'vs_calculated'     => 'vs calculated',
                 'no_offers'         => 'No applied offers yet.',

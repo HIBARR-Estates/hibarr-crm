@@ -246,6 +246,7 @@ return [
                 'source_manual'     => 'Manuell',
                 'source_calculated' => 'Berechnet',
                 'final'             => 'Endwert',
+                'total'             => 'Gesamt',
                 'adjusted'          => 'Angepasst',
                 'vs_calculated'     => 'gegenüber berechnetem Wert',
                 'no_offers'         => 'Noch keine Angebote angewendet.',
