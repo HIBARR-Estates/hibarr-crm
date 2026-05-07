@@ -90,7 +90,7 @@ class ImportLeadJob implements ShouldQueue
                 $lead = new Lead();
                 $lead->company_id = $this->company?->id;
                 $lead->client_name = $this->getColumnValue('name');
-                $lead->client_email = $this->isColumnExists('email') && filter_var($this->getColumnValue('email'), FILTER_VALIDATE_EMAIL) ? $this->getColumnValue('email') : null;
+                $lead->client_email = $emailForDupCheck !== '' ? $emailForDupCheck : null;
                 $lead->salutation = $this->isColumnExists('salutation') ? $this->getColumnValue('salutation') : null;
                 $genderValue = $this->isColumnExists('gender') ? strtolower(trim($this->getColumnValue('gender'))) : null;
                 $lead->gender = ($genderValue && in_array($genderValue, ['male', 'female'])) ? $genderValue : null;
