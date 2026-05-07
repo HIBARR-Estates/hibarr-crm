@@ -1152,20 +1152,27 @@ class LeadContactController extends AccountBaseController
         $fieldIndexByPosition = 0;
 
         foreach (array_keys($sampleRow) as $idx) {
-            if ($this->hasHeading && ! empty($this->heading) && isset($this->heading[$idx])) {
-                $header = mb_strtolower(trim(strip_tags((string) $this->heading[$idx])));
-                $matchedId = null;
-                if ($header !== '') {
-                    foreach ($fields as $field) {
-                        $id = (string) $field['id'];
-                        $label = is_string($field['name']) ? mb_strtolower(trim(strip_tags($field['name']))) : '';
-                        if ($header === mb_strtolower($id) || ($label !== '' && $header === $label)) {
-                            $matchedId = $field['id'];
-                            break;
+            // With headings, never use position-based fall-through: extra data columns or
+            // missing heading cells must stay unmapped (null) to avoid shifted field values.
+            if ($this->hasHeading) {
+                if (! empty($this->heading) && isset($this->heading[$idx])) {
+                    $header = mb_strtolower(trim(strip_tags((string) $this->heading[$idx])));
+                    $matchedId = null;
+                    if ($header !== '') {
+                        foreach ($fields as $field) {
+                            $id = (string) $field['id'];
+                            $label = is_string($field['name']) ? mb_strtolower(trim(strip_tags($field['name']))) : '';
+                            if ($header === mb_strtolower($id) || ($label !== '' && $header === $label)) {
+                                $matchedId = $field['id'];
+                                break;
+                            }
                         }
                     }
+                    $columns[$idx] = $matchedId;
+                } else {
+                    $columns[$idx] = null;
                 }
-                $columns[$idx] = $matchedId;
+
                 continue;
             }
 
