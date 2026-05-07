@@ -81,7 +81,16 @@ class DeveloperProjectController extends AccountBaseController
 
         // Filter by payment plan duration (months)
         if ($request->filled('payment_plan_duration')) {
-            $query->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(payment_plan, '$.period_months')) = ?", [(int) $request->payment_plan_duration]);
+            $durationMonths = filter_var($request->payment_plan_duration, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 0],
+            ]);
+
+            if ($durationMonths !== false) {
+                $query->whereRaw(
+                    "CAST(JSON_UNQUOTE(JSON_EXTRACT(payment_plan, '$.period_months')) AS UNSIGNED) = ?",
+                    [$durationMonths]
+                );
+            }
         }
 
         // Filter by starting price range
