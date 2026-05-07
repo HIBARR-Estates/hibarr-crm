@@ -509,6 +509,43 @@ class MlmAdminApiController extends AccountBaseController
         return response()->json($paginated);
     }
 
+    /**
+     * Manually assign a level to an agent.
+     */
+    public function assignAgentLevel(Request $request, int $agentId): JsonResponse
+    {
+        $agent = LeadAgent::where('company_id', company()->id)->findOrFail($agentId);
+
+        $validated = $request->validate([
+            'level_id' => 'required|integer|exists:mlm_levels,id',
+        ]);
+
+        $level = MlmLevel::where('company_id', company()->id)
+            ->findOrFail($validated['level_id']);
+
+        $currentLevel = $this->levelService->getCurrentLevel($agent);
+
+        if ($currentLevel?->id === $level->id) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Agent is already assigned to this level.',
+            ], 422);
+        }
+
+        $history = $this->levelService->assignLevel(
+            $agent,
+            $level,
+            assignedBy: auth()->id(),
+            systemAssigned: false
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Level assigned successfully.',
+            'data' => $history->load(['agent.user:id,name,email,image', 'level', 'assignedByUser:id,name']),
+        ]);
+    }
+
     // ══════════════════════════════════════════════════════════════
     //  LEVEL HISTORY
     // ══════════════════════════════════════════════════════════════
