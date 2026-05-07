@@ -236,6 +236,7 @@ return [
                 'recalculate_value_tooltip' => 'Wert anhand der verknüpften Produkte, Pakete und angewendeten Angebote neu berechnen',
             ],
             'value_insight' => [
+                'properties'        => 'Immobilien',
                 'products'          => 'Produkte',
                 'packages'          => 'Pakete',
                 'gross'             => 'Brutto',
@@ -245,6 +246,7 @@ return [
                 'source_manual'     => 'Manuell',
                 'source_calculated' => 'Berechnet',
                 'final'             => 'Endwert',
+                'total'             => 'Gesamt',
                 'adjusted'          => 'Angepasst',
                 'vs_calculated'     => 'gegenüber berechnetem Wert',
                 'no_offers'         => 'Noch keine Angebote angewendet.',
