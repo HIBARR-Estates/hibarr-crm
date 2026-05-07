@@ -236,6 +236,7 @@ return [
                 'recalculate_value_tooltip' => 'Пересчитать сумму по связанным продуктам, пакетам и примененным предложениям',
             ],
             'value_insight' => [
+                'properties'        => 'Объекты',
                 'products'          => 'Продукты',
                 'packages'          => 'Пакеты',
                 'gross'             => 'Валовая сумма',

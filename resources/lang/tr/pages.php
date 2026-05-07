@@ -236,6 +236,7 @@ return [
                 'recalculate_value_tooltip' => 'Bağlı ürünler, paketler ve uygulanan tekliflere göre değeri yeniden hesapla',
             ],
             'value_insight' => [
+                'properties'        => 'Mülkler',
                 'products'          => 'Ürünler',
                 'packages'          => 'Paketler',
                 'gross'             => 'Brüt',

@@ -244,6 +244,7 @@ return [
                 'recalculate_value_tooltip' => 'Recalculate value from attached products, packages, and applied offers',
             ],
             'value_insight' => [
+                'properties'        => 'Properties',
                 'products'          => 'Products',
                 'packages'          => 'Packages',
                 'gross'             => 'Gross',
