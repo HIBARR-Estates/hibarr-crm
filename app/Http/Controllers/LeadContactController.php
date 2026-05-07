@@ -1060,17 +1060,23 @@ class LeadContactController extends AccountBaseController
         $rvalue = $this->importFileProcess($request, LeadImport::class);
 
         if ($rvalue == 'abort') {
-            if ($request->wantsJson() || $request->inertia()) {
-                return response()->json(['error' => __('messages.abortAction')], 400);
+            if ($request->inertia()) {
+                return redirect()->back()->with('error', __('messages.abortAction'));
+            }
+            if ($request->wantsJson()) {
+                return response()->json(['error' => __('messages.abortAction')], 422);
             }
             return Reply::error(__('messages.abortAction'));
         }
 
-        // For Inertia requests, return a simple success response
-        if ($request->inertia() || $request->wantsJson()) {
+        if ($request->inertia()) {
+            return $this->completeInertiaLeadImportAfterUpload();
+        }
+
+        if ($request->wantsJson()) {
             return response()->json([
                 'status' => 'success',
-                'message' => __('messages.importUploadSuccess')
+                'message' => __('messages.importUploadSuccess'),
             ]);
         }
 
@@ -1083,15 +1089,95 @@ class LeadContactController extends AccountBaseController
     {
         $batch = $this->importJobProcess($request, LeadImport::class, ImportLeadJob::class);
 
-        if ($request->inertia() || $request->wantsJson()) {
+        if ($request->inertia()) {
+            return redirect()->back()->with('success', __('messages.importProcessStart'));
+        }
+
+        if ($request->wantsJson()) {
             return response()->json([
                 'status' => 'success',
                 'message' => __('messages.importProcessStart'),
-                'batch' => $batch
+                'batch' => $batch,
             ]);
         }
 
         return Reply::successWithData(__('messages.importProcessStart'), ['batch' => $batch]);
+    }
+
+    /**
+     * Traditional import shows a column-mapping step; Inertia posts only the file.
+     * Auto-map columns (same rules as the Blade matcher) then queue ImportLeadJob rows.
+     */
+    private function completeInertiaLeadImportAfterUpload()
+    {
+        $columnsMapping = $this->buildAutoLeadImportColumnMap();
+        $mappedValues = array_filter($columnsMapping, fn ($v) => $v !== null && $v !== '');
+
+        if ($mappedValues === [] || ! in_array('name', $mappedValues, true)) {
+            return redirect()->back()->with(
+                'error',
+                __('messages.requiredColumnsUnmatched', ['columns' => __('modules.lead.clientName')])
+            );
+        }
+
+        $processRequest = Request::create('/', 'POST', [
+            'file' => $this->file,
+            'has_heading' => $this->hasHeading,
+            'columns' => $columnsMapping,
+        ]);
+
+        try {
+            $this->importJobProcess($processRequest, LeadImport::class, ImportLeadJob::class);
+        } catch (\Throwable $e) {
+            Log::error('Lead Inertia import failed after upload', [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()->with('error', __('messages.somethingWentWrong'));
+        }
+
+        return redirect()->back()->with('success', __('messages.importProcessStart'));
+    }
+
+    /**
+     * @return array<int, string|null> spreadsheet column index => LeadImport field id
+     */
+    private function buildAutoLeadImportColumnMap(): array
+    {
+        $fields = LeadImport::fields();
+        $sampleRow = $this->importSample[0] ?? [];
+        $columns = [];
+
+        $fieldIndexByPosition = 0;
+
+        foreach (array_keys($sampleRow) as $idx) {
+            if ($this->hasHeading && ! empty($this->heading) && isset($this->heading[$idx])) {
+                $header = mb_strtolower(trim(strip_tags((string) $this->heading[$idx])));
+                $matchedId = null;
+                if ($header !== '') {
+                    foreach ($fields as $field) {
+                        $id = (string) $field['id'];
+                        $label = is_string($field['name']) ? mb_strtolower(trim(strip_tags($field['name']))) : '';
+                        if ($header === mb_strtolower($id) || ($label !== '' && $header === $label)) {
+                            $matchedId = $field['id'];
+                            break;
+                        }
+                    }
+                }
+                $columns[$idx] = $matchedId;
+                continue;
+            }
+
+            if ($fieldIndexByPosition < count($fields)) {
+                $columns[$idx] = $fields[$fieldIndexByPosition]['id'];
+                $fieldIndexByPosition++;
+            } else {
+                $columns[$idx] = null;
+            }
+        }
+
+        return $columns;
     }
 
     public function destroySession()
