@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { Lead } from "@/Types/api/leads";
 import { router, usePage } from "@inertiajs/react";
@@ -73,46 +73,85 @@ export default function LeadInfoSection({
     const { props } = usePage();
     const user = props.auth.user;
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState("overview");
+    const [activeSection, setActiveSection] = useState("overview");
     const [openSections, setOpenSections] = useState<Record<string, boolean>>(
         {},
     );
 
-    const OVERVIEW_SECTIONS = [
+    const ALL_SECTIONS = useMemo(() => [
         "lead-contact",
         "lead-personal",
         "lead-classification",
         "lead-address",
         "lead-notes",
-    ];
-
-    const getSectionsForTab = (tabKey: string): string[] => {
-        if (tabKey === "overview") return OVERVIEW_SECTIONS;
-        if (tabKey.startsWith("category-")) {
-            return [`lead-category-${tabKey.replace("category-", "")}`];
-        }
-        return [];
-    };
+        ...(customFieldCategories || []).map((cat: any) => `lead-category-${cat.id}`),
+    ], [customFieldCategories]);
 
     const toggleSection = (id: string) => {
         setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
     };
 
-    const currentSections = getSectionsForTab(activeTab);
     const allSectionsOpen =
-        currentSections.length > 0 &&
-        currentSections.every((id) => openSections[id] ?? false);
+        ALL_SECTIONS.length > 0 &&
+        ALL_SECTIONS.every((id) => openSections[id] ?? false);
 
     const handleToggleAll = () => {
         const next = !allSectionsOpen;
         setOpenSections((prev) => {
             const updated = { ...prev };
-            currentSections.forEach((id) => {
+            ALL_SECTIONS.forEach((id) => {
                 updated[id] = next;
             });
             return updated;
         });
     };
+
+    const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+    const getSectionsForKey = useCallback((key: string): string[] => {
+        if (key === "overview") return ["lead-contact", "lead-personal", "lead-classification", "lead-address", "lead-notes"];
+        if (key.startsWith("category-")) return [`lead-category-${key.replace("category-", "")}`];
+        return [];
+    }, []);
+
+    const handleNavClick = useCallback((key: string) => {
+        const el = sectionRefs.current[key];
+        const container = scrollContainerRef.current;
+        if (el && container) {
+            container.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" });
+        }
+        const sectionsToExpand = getSectionsForKey(key);
+        if (sectionsToExpand.length > 0) {
+            setOpenSections((prev) => {
+                const updated = { ...prev };
+                sectionsToExpand.forEach((id) => { updated[id] = true; });
+                return updated;
+            });
+        }
+        setActiveSection(key);
+    }, [getSectionsForKey]);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        const key = entry.target.getAttribute("data-section-key");
+                        if (key) setActiveSection(key);
+                    }
+                }
+            },
+            { root: container, threshold: 0.2, rootMargin: "0px 0px -60% 0px" },
+        );
+        const refs = sectionRefs.current;
+        Object.values(refs).forEach((el) => {
+            if (el) observer.observe(el);
+        });
+        return () => observer.disconnect();
+    }, [customFieldCategories?.length]);
 
     const {
         action,
@@ -493,11 +532,10 @@ export default function LeadInfoSection({
             : []),
     ];
 
-    // Tab items for overview and custom field categories
-    const tabItems = [
+    // Section groups for scroll nav
+    const sectionGroups = [
         {
             key: "overview",
-            label: t("pages.leads.info.tab_overview"),
             children: (
                 <div className="p-4 space-y-4">
                     {/* Contact Information */}
@@ -935,10 +973,9 @@ export default function LeadInfoSection({
                 </div>
             ),
         },
-        // Custom field categories as tabs
+        // Custom field categories as scroll sections
         ...(customFieldCategories || []).map((category) => ({
             key: `category-${category.id}`,
-            label: category.name,
             children: (
                 <div className="p-4">
                     <CustomFieldDisplay
@@ -978,10 +1015,6 @@ export default function LeadInfoSection({
             label: cat.name,
         })),
     ];
-
-    const activeContent = tabItems.find(
-        (item) => item.key === activeTab,
-    )?.children;
 
     return (
         <>
@@ -1057,15 +1090,15 @@ export default function LeadInfoSection({
                 </div>
 
                 {/* Sidebar + Content */}
-                <div className="flex min-h-0">
+                <div className="flex overflow-hidden max-h-[calc(100vh-14rem)]">
                     <SideNavTabs
                         items={sideNavItems}
-                        activeKey={activeTab}
-                        onChange={setActiveTab}
+                        activeKey={activeSection}
+                        onChange={handleNavClick}
                     />
-                    <div className="flex-1 min-w-0">
+                    <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto">
                         {/* Toggle all */}
-                        <div className="flex items-center justify-end px-4 py-2 border-b border-gray-100 bg-white">
+                        <div className="flex items-center justify-end px-4 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
                             <Button
                                 type="link"
                                 size="small"
@@ -1084,7 +1117,15 @@ export default function LeadInfoSection({
                                     : t("app.common.actions.expand_all")}
                             </Button>
                         </div>
-                        {activeContent}
+                        {sectionGroups.map((item) => (
+                            <div
+                                key={item.key}
+                                ref={(el) => { sectionRefs.current[item.key] = el; }}
+                                data-section-key={item.key}
+                            >
+                                {item.children}
+                            </div>
+                        ))}
                     </div>
                 </div>
             </div>
