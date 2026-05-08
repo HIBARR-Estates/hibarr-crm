@@ -180,6 +180,7 @@ return [
         'actions' => [
             'add_task' => 'Aufgabe hinzufügen',
             'add_note' => 'Notiz hinzufügen',
+            'add_meeting' => 'Besprechung hinzufügen',
         ],
         'tabs' => [
             'header'          => 'Details',

@@ -188,6 +188,7 @@ return [
         'actions' => [
             'add_task' => 'Add Task',
             'add_note' => 'Add Note',
+            'add_meeting' => 'Add Meeting',
         ],
         'tabs' => [
             'header'          => 'Details',

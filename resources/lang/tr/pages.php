@@ -180,6 +180,7 @@ return [
         'actions' => [
             'add_task' => 'Görev Ekle',
             'add_note' => 'Not Ekle',
+            'add_meeting' => 'Toplantı Ekle',
         ],
         'tabs' => [
             'header'          => 'Detaylar',
