@@ -3,7 +3,6 @@ import {
     Drawer,
     Descriptions,
     Tag,
-    Table,
     Button,
     Space,
     Empty,
@@ -14,6 +13,7 @@ import {
     App,
     Switch,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import type { TableColumnsType } from "antd";
 import { GiftOutlined, LinkOutlined, EditOutlined } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
@@ -284,13 +284,13 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                                             </Tag>
                                         </div>
                                         {unitTypes.length > 0 && (
-                                            <Table
+                                            <DataTable
                                                 columns={unitTypeColumns}
                                                 dataSource={unitTypes}
                                                 rowKey="id"
-                                                pagination={false}
                                                 size="small"
                                                 className="border-0"
+                                                scroll={{ x: "max-content" }}
                                             />
                                         )}
                                     </div>

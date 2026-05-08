@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
     Card,
-    Table,
     Tag,
     Empty,
     DatePicker,
@@ -10,6 +9,8 @@ import {
     Statistic,
     Button,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { Briefcase, Filter, CalendarDays } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -287,26 +288,23 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                             }
                             className="shadow-sm"
                         >
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={records}
                                 rowKey="deal_id"
                                 loading={isLoading}
                                 size="middle"
-                                pagination={{
-                                    current: contributions?.current_page ?? 1,
+                                paginationData={{
+                                    current_page: contributions?.current_page ?? 1,
+                                    last_page: Math.ceil((contributions?.total ?? 0) / (contributions?.per_page ?? 20)),
+                                    per_page: contributions?.per_page ?? 20,
                                     total: contributions?.total ?? 0,
-                                    pageSize: contributions?.per_page ?? 20,
-                                    showSizeChanger: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}–${range[1]} of ${total}`,
-                                    onChange: (p) => setPage(p),
+                                    from: null,
+                                    to: null,
                                 }}
-                                locale={{
-                                    emptyText: (
-                                        <Empty description="No deal contributions yet" />
-                                    ),
-                                }}
+                                onPageChange={(p) => setPage(p)}
+                                emptyState={{ description: "No deal contributions yet" }}
+                                scroll={{ y: "calc(100vh - 420px)" }}
                             />
                         </Card>
                     </motion.div>

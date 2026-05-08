@@ -33,7 +33,7 @@ const ImportLeads: React.FC<Props> = ({ open, onClose }) => {
             onSuccess: (response) => {
                 console.log("Import success:", response);
                 message.success(
-                    "Import file uploaded successfully. Processing will begin shortly."
+                    "Import has been queued. Leads will appear shortly if the queue worker is running."
                 );
                 onClose();
                 // Refresh the leads list

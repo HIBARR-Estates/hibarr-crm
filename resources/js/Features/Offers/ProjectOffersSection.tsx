@@ -1,5 +1,6 @@
 import React from "react";
-import { Card, Table, Tag, Empty, Button, Space } from "antd";
+import { Card, Tag, Empty, Button, Space } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import type { TableColumnsType } from "antd";
 import { PlusOutlined, GiftOutlined } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
@@ -127,12 +128,12 @@ const ProjectOffersSection: React.FC<ProjectOffersSectionProps> = ({
                 }
             >
                 {unitTypes.length > 0 ? (
-                    <Table
+                    <DataTable
                         columns={unitTypeColumns}
                         dataSource={unitTypes}
                         rowKey="id"
-                        pagination={false}
                         size="small"
+                        scroll={{ x: "max-content" }}
                         expandable={{
                             expandedRowRender: (record) => (
                                 <OfferAttachSection

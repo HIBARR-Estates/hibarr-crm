@@ -25,7 +25,9 @@ import {
     ReloadOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
-import { Button, MenuProps, Table } from "antd";
+import { Button, MenuProps } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
@@ -247,40 +249,37 @@ const Index = ({
                         </div>
                     </div>
                     {/* Properties Table */}
-                    <div className="bg-white rounded-lg border border-gray-200">
-                        <Table
-                            columns={columns}
-                            dataSource={leads.data}
-                            rowKey="id"
-                            rowSelection={rowSelection}
-                            pagination={{
-                                current: leads.current_page,
-                                total: leads.total,
-                                pageSize: leads.per_page,
-                                showSizeChanger: false,
-                                showQuickJumper: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} of ${total} entries`,
-                                onChange: (page, pageSize) => {
-                                    router.get(
-                                        route("lead-contact.index"),
-                                        {
-                                            // ...filters,
-                                            ...sortParams,
-                                            page,
-                                            per_page: pageSize,
-                                        },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                        },
-                                    );
+                    <DataTable<Lead>
+                        columns={columns}
+                        dataSource={leads.data}
+                        rowKey="id"
+                        rowSelection={rowSelection}
+                        paginationData={{
+                            current_page: leads.current_page,
+                            last_page: leads.last_page,
+                            per_page: leads.per_page,
+                            total: leads.total,
+                            from: leads.from,
+                            to: leads.to,
+                        }}
+                        onPageChange={(page) => {
+                            router.get(
+                                route("lead-contact.index"),
+                                {
+                                    // ...filters,
+                                    ...sortParams,
+                                    page,
+                                    per_page: leads.per_page,
                                 },
-                            }}
-                            scroll={{ x: 1200 }}
-                            size="small"
-                        />
-                    </div>
+                                {
+                                    preserveState: true,
+                                    preserveScroll: true,
+                                },
+                            );
+                        }}
+                        scroll={{ x: 1200, y: "calc(100vh - 280px)" }}
+                        size="small"
+                    />
                 </div>
             </PageLayout>
 

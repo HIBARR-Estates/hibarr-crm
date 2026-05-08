@@ -16,11 +16,11 @@ import {
     Typography,
     Space,
     Skeleton,
-    Table,
     message,
     Segmented,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     ReloadOutlined,
     HomeOutlined,
@@ -213,7 +213,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     };
 
     // Table columns definition
-    const tableColumns: ColumnsType<PropertyRecommendation> = [
+    const tableColumns: TableColumnsType<PropertyRecommendation> = [
         {
             title: "Rank",
             dataIndex: "rank",
@@ -574,13 +574,12 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
 
             {/* Table View */}
             {viewMode === "table" && (
-                <Table
+                <DataTable
                     rowSelection={rowSelection}
                     columns={tableColumns}
                     dataSource={recommendations}
                     rowKey="rank"
-                    pagination={false}
-                    scroll={{ x: 1200 }}
+                    scroll={{ x: "max-content" }}
                     size="middle"
                 />
             )}

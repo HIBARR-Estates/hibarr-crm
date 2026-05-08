@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from "react";
 import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import {
-    Table,
     Button,
     Tabs,
     Badge,
@@ -16,7 +15,8 @@ import {
     Select,
     Input,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     PlusOutlined,
     EditOutlined,
@@ -220,8 +220,8 @@ const Config = ({ pageTitle }: ConfigProps) => {
     }, [typesQuery.data]);
 
     // Table columns
-    const columns: ColumnsType<PropertyConfigItem> = useMemo(() => {
-        const cols: ColumnsType<PropertyConfigItem> = [
+    const columns: TableColumnsType<PropertyConfigItem> = useMemo(() => {
+        const cols: TableColumnsType<PropertyConfigItem> = [
             {
                 title: t("pages.properties.config.table.columns.display_label"),
                 dataIndex: "label",
@@ -681,7 +681,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         />
                                     </div>
                                 ) : (
-                                    <Table
+                                    <DataTable
                                         columns={columns}
                                         dataSource={filteredItems}
                                         rowKey="id"
@@ -697,16 +697,8 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                   }
                                                 : undefined
                                         }
-                                        pagination={
-                                            filteredItems.length > 20
-                                                ? {
-                                                      pageSize: 20,
-                                                      showSizeChanger: false,
-                                                  }
-                                                : false
-                                        }
                                         size="middle"
-                                        scroll={{ y: "calc(100vh - 420px)" }}
+                                        scroll={{ x: "max-content", y: "calc(100vh - 420px)" }}
                                         tableLayout="auto"
                                     />
                                 )}

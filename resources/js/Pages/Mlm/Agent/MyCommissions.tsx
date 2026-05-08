@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
     Card,
-    Table,
     Select,
     DatePicker,
     Tag,
@@ -11,6 +10,8 @@ import {
     Statistic,
     Button,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { DollarSign, Filter, CalendarDays } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -304,26 +305,23 @@ const MyCommissions: React.FC<Props> = ({
                         transition={{ duration: 0.4, delay: 0.2 }}
                     >
                         <Card className="shadow-sm">
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={records}
                                 rowKey="id"
                                 loading={isLoading}
                                 size="middle"
-                                pagination={{
-                                    current: commissions?.current_page ?? 1,
+                                paginationData={{
+                                    current_page: commissions?.current_page ?? 1,
+                                    last_page: Math.ceil((commissions?.total ?? 0) / (commissions?.per_page ?? 20)),
+                                    per_page: commissions?.per_page ?? 20,
                                     total: commissions?.total ?? 0,
-                                    pageSize: commissions?.per_page ?? 20,
-                                    showSizeChanger: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}–${range[1]} of ${total}`,
-                                    onChange: (p) => setPage(p),
+                                    from: null,
+                                    to: null,
                                 }}
-                                locale={{
-                                    emptyText: (
-                                        <Empty description="No commissions yet" />
-                                    ),
-                                }}
+                                onPageChange={(p) => setPage(p)}
+                                emptyState={{ description: "No commissions yet" }}
+                                scroll={{ y: "calc(100vh - 420px)" }}
                             />
                         </Card>
                     </motion.div>

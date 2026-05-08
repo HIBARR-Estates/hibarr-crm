@@ -29,7 +29,9 @@ import {
     ReloadOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, MenuProps, Select, Table } from "antd";
+import { Button, MenuProps, Select } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -441,42 +443,38 @@ const Index = ({
 
                     {/* Table View */}
                     {isTableView && (
-                        <div className="bg-white rounded-lg border border-gray-200">
-                            <Table
-                                columns={columns}
-                                dataSource={deals.data}
-                                rowKey="id"
-                                rowSelection={rowSelection}
-                                pagination={{
-                                    current: deals.current_page,
-                                    total: deals.total,
-                                    pageSize: deals.per_page,
-                                    showSizeChanger: false,
-                                    showQuickJumper: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}-${range[1]} of ${total} entries`,
-                                    onChange: (page, pageSize) => {
-                                        router.get(
-                                            route("deals.index"),
-                                            {
-                                                ...filters,
-                                                lead_pipeline_id:
-                                                    valueLeadPipelineId,
-                                                ...sortParams,
-                                                page,
-                                                per_page: pageSize,
-                                            },
-                                            {
-                                                preserveState: true,
-                                                preserveScroll: true,
-                                            },
-                                        );
+                        <DataTable<Deal>
+                            columns={columns}
+                            dataSource={deals.data}
+                            rowKey="id"
+                            rowSelection={rowSelection}
+                            paginationData={{
+                                current_page: deals.current_page,
+                                last_page: deals.last_page,
+                                per_page: deals.per_page,
+                                total: deals.total,
+                                from: deals.from,
+                                to: deals.to,
+                            }}
+                            onPageChange={(page) => {
+                                router.get(
+                                    route("deals.index"),
+                                    {
+                                        ...filters,
+                                        lead_pipeline_id: valueLeadPipelineId,
+                                        ...sortParams,
+                                        page,
+                                        per_page: deals.per_page,
                                     },
-                                }}
-                                scroll={{ x: 1200 }}
-                                size="small"
-                            />
-                        </div>
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            scroll={{ x: 1200, y: "calc(100vh - 280px)" }}
+                            size="small"
+                        />
                     )}
 
                     {/* Kanban View */}
