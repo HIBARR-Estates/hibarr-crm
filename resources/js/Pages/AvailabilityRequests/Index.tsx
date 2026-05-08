@@ -3,7 +3,6 @@ import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import {
-    Table,
     Tag,
     Button,
     Segmented,
@@ -11,18 +10,17 @@ import {
     Tooltip,
     Modal,
     Input,
-    Empty,
 } from "antd";
+import type { TableColumnsType } from "antd";
 import {
     CheckCircleOutlined,
     CloseCircleOutlined,
     ClockCircleOutlined,
     ExclamationCircleOutlined,
     EyeOutlined,
-    FilterOutlined,
-    SafetyOutlined,
 } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
@@ -176,7 +174,7 @@ const Index = () => {
         }
     };
 
-    const columns: ColumnsType<AvailabilityRequest> = [
+    const columns: TableColumnsType<AvailabilityRequest> = [
         {
             title: "Property",
             key: "property",
@@ -340,30 +338,22 @@ const Index = () => {
                         </Space>
                     </div>
 
-                    <Table
+                    <DataTable
                         dataSource={requests}
                         columns={columns}
                         rowKey="id"
                         loading={isLoading}
-                        pagination={
-                            pagination
-                                ? {
-                                      current: pagination.current_page,
-                                      pageSize: pagination.per_page,
-                                      total: pagination.total,
-                                      showSizeChanger: false,
-                                      onChange: (p) => setPage(p),
-                                  }
-                                : false
-                        }
-                        locale={{
-                            emptyText: (
-                                <Empty
-                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description="No availability requests yet"
-                                />
-                            ),
-                        }}
+                        paginationData={pagination ? {
+                            current_page: pagination.current_page,
+                            last_page: pagination.last_page,
+                            per_page: pagination.per_page,
+                            total: pagination.total,
+                            from: null,
+                            to: null,
+                        } : null}
+                        onPageChange={pagination ? (p) => setPage(p) : undefined}
+                        emptyState={{ description: "No availability requests yet" }}
+                        scroll={{ x: 1000, y: "calc(100vh - 320px)" }}
                     />
                 </div>
 

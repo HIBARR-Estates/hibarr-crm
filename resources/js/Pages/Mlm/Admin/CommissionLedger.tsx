@@ -1,7 +1,6 @@
 import React, { useState, useCallback } from "react";
 import {
     Card,
-    Table,
     Button,
     Select,
     DatePicker,
@@ -14,6 +13,8 @@ import {
     Col,
     Statistic,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import {
     Download,
@@ -410,7 +411,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                         transition={{ duration: 0.4, delay: 0.1 }}
                     >
                         <Card className="shadow-sm">
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={commissions?.data ?? []}
                                 rowKey="id"
@@ -424,15 +425,16 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                         disabled: record.status !== "pending",
                                     }),
                                 }}
-                                pagination={{
-                                    current: commissions?.current_page ?? 1,
+                                paginationData={{
+                                    current_page: commissions?.current_page ?? 1,
+                                    last_page: Math.ceil((commissions?.total ?? 0) / (commissions?.per_page ?? 20)),
+                                    per_page: commissions?.per_page ?? 20,
                                     total: commissions?.total ?? 0,
-                                    pageSize: commissions?.per_page ?? 20,
-                                    showSizeChanger: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}–${range[1]} of ${total}`,
-                                    onChange: (p) => setPage(p),
+                                    from: null,
+                                    to: null,
                                 }}
+                                onPageChange={(p) => setPage(p)}
+                                scroll={{ y: "calc(100vh - 420px)" }}
                             />
                         </Card>
                     </motion.div>

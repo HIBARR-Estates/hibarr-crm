@@ -1,7 +1,6 @@
 import { Deal } from "@/Types/api/deals";
 import { Proposal } from "@/Types/api/proposal";
 import {
-    Table,
     Button,
     Tag,
     Avatar,
@@ -14,6 +13,7 @@ import {
     message,
     Badge,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     MoreOutlined,
     UserOutlined,
@@ -28,7 +28,7 @@ import {
     DollarOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
 import { usePage } from "@inertiajs/react";
 import AddProposal from "./proposals/AddProposal";
 import EditProposal from "./proposals/EditProposal";
@@ -134,7 +134,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
         );
     };
 
-    const columns: ColumnsType<Proposal> = [
+    const columns: TableColumnsType<Proposal> = [
         {
             title: "Proposal Number",
             dataIndex: "proposal_number",
@@ -451,19 +451,12 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
                         )}
                     </div>
 
-                    <Table
+                    <DataTable
                         columns={columns}
                         dataSource={proposals}
                         rowKey="id"
-                        pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
-                            showQuickJumper: true,
-                            showTotal: (total, range) =>
-                                `${range[0]}-${range[1]} of ${total} proposals`,
-                        }}
                         className="proposals-table"
-                        scroll={{ x: 1000 }}
+                        scroll={{ x: "max-content" }}
                     />
                 </div>
             )}
