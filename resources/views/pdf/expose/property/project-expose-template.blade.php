@@ -344,7 +344,8 @@ body {
 }
 
 .container {
-  padding: 15mm;
+  /* padding: 15mm; */
+  padding: 8mm;
   height: 100%;
   box-sizing: border-box;
   display: flex;
@@ -666,6 +667,44 @@ p {
 
 <!-- PAGE 2: PROJECT OVERVIEW -->
 <div class="page bg">
+  @php
+    $unitTypesOverview = $data['unit_types'] ?? null;
+    if (is_array($unitTypesOverview)) {
+      $unitTypesOverview = collect($unitTypesOverview)
+        ->map(function ($unitType) {
+          if (is_array($unitType)) {
+            return $unitType['display_label'] ?? $unitType['property_type'] ?? null;
+          }
+
+          return is_string($unitType) ? $unitType : null;
+        })
+        ->filter()
+        ->unique()
+        ->implode(', ');
+    }
+
+    $facilitiesOverview = $data['facilities'] ?? null;
+    $facilitiesOverviewList = [];
+    if (is_array($facilitiesOverview)) {
+      if (!empty($data['facility_labels']) && is_array($data['facility_labels'])) {
+        $facilitiesOverviewList = collect($data['facility_labels'])->filter()->values()->all();
+      } else {
+        $facilitiesOverviewList = collect($facilitiesOverview)
+          ->map(function ($facility) {
+            if (is_array($facility)) {
+              return $facility['label'] ?? $facility['name'] ?? null;
+            }
+
+            return is_string($facility) ? $facility : null;
+          })
+          ->filter()
+          ->values()
+          ->all();
+      }
+    } elseif (is_string($facilitiesOverview) && $facilitiesOverview !== '') {
+      $facilitiesOverviewList = [$facilitiesOverview];
+    }
+  @endphp
     <img
         src="https://minio.hibarr.org/backend-uploads/backend-uploads/1778220690459-2ef518d6-project-overview-space-for-img.png"
         alt="Project Overview Space"
@@ -701,10 +740,10 @@ p {
                         <h3 class="item-header">CITY</h3>
                         <div class="item-value">{{ $data['city'] }}</div>
                     </div>
-                    @endif @if(!empty($data['unit_types']))
+                    @endif @if(!empty($unitTypesOverview))
                     <div class="item">
                         <h3 class="item-header">TYPES</h3>
-                        <div class="item-value">{{ $data['unit_types'] }}</div>
+                      <div class="item-value">{{ $unitTypesOverview }}</div>
                     </div>
                     @endif @if(!empty($data['completion_date']))
                     <div class="item">
@@ -713,14 +752,13 @@ p {
                             {{ $data['completion_date'] }}
                         </div>
                     </div>
-                    @endif @if(!empty($data['facilities']))
+                    @endif @if(!empty($facilitiesOverviewList))
                     <div class="item">
                         <h3 class="item-header">FACILITIES</h3>
-                        <div class="item-value">{{ $data['facilities'] }}</div>
                         <ul class="item-list">
-                            <!-- should be looping through to get facilities -->
-                            <li>{{ $data['bedrooms'] ?? '—' }} Bedrooms</li>
-                            <li>{{ $data['bathrooms'] ?? '—' }} Bathrooms</li>
+                            @foreach($facilitiesOverviewList as $facility)
+                              <li>{{ $facility }}</li>
+                            @endforeach
                         </ul>
                     </div>
                     @endif
