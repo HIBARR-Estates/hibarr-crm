@@ -12,7 +12,7 @@ class LeadImport implements ToArray
     {
         return array(
             array('id' => 'name', 'name' => __('modules.lead.clientName'), 'required' => 'Yes'),
-            array('id' => 'email', 'name' => __('modules.lead.clientEmail'), 'required' => 'no'),
+            array('id' => 'email', 'name' => __('modules.lead.clientEmail'), 'required' => 'No'),
             array('id' => 'salutation', 'name' => __('app.salutation'), 'required' => 'No'),
             array('id' => 'gender', 'name' => __('app.gender'), 'required' => 'No'),
             array('id' => 'note', 'name' => __('app.note'), 'required' => 'No'),
