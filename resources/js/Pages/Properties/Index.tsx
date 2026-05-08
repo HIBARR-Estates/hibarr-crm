@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { Link, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
-import { Table, Button, Segmented } from "antd";
+import { Button, Segmented } from "antd";
 import type { MenuProps } from "antd";
 import {
     PlusOutlined,
@@ -47,6 +47,8 @@ import type {
 } from "@/Types/developerProject";
 import ConstructionProjectsTable from "@/Features/DeveloperProjects/ConstructionProjectsTable";
 import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 
 // Legacy Project interface - kept for backwards compatibility
 interface Project {
@@ -394,6 +396,37 @@ const Index = ({
     // Whether we're showing the properties table or construction projects
     const showPropertiesTable = activeTab !== "construction_projects";
 
+    const handlePropertiesPageChange = useCallback(
+        (page: number) => {
+            router.get(
+                route("properties.index"),
+                { ...filters, ...sortParams, page },
+                { preserveState: true, preserveScroll: true },
+            );
+        },
+        [filters, sortParams],
+    );
+
+    const handlePropertiesPageSizeChange = useCallback(
+        (per_page: number) => {
+            router.get(
+                route("properties.index"),
+                { ...filters, ...sortParams, page: 1, per_page },
+                { preserveState: true, preserveScroll: true },
+            );
+        },
+        [filters, sortParams],
+    );
+
+    const propertiesPaginationMeta: LaravelPaginationMeta = {
+        current_page: properties.current_page,
+        last_page: properties.last_page,
+        per_page: properties.per_page,
+        total: properties.total,
+        from: properties.from,
+        to: properties.to,
+    };
+
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
 
@@ -558,58 +591,38 @@ const Index = ({
 
                             {/* Properties: List or Grid */}
                             {viewMode === "list" ? (
-                                <div className="bg-white rounded-lg border border-gray-200">
-                                    <Table
-                                        columns={columns}
-                                        dataSource={properties.data}
-                                        rowKey={(record) =>
-                                            record._source === "unit_type"
-                                                ? `ut_${record._unit_type_id}`
-                                                : record.id
-                                        }
-                                        rowSelection={{
-                                            ...rowSelection,
-                                            getCheckboxProps: (
-                                                record: Property,
-                                            ) => ({
-                                                disabled:
-                                                    record._source ===
-                                                    "unit_type",
-                                                title:
-                                                    record._source ===
-                                                    "unit_type"
-                                                        ? "Unit types cannot be selected for bulk actions"
-                                                        : undefined,
-                                            }),
-                                        }}
-                                        pagination={{
-                                            current: properties.current_page,
-                                            total: properties.total,
-                                            pageSize: properties.per_page,
-                                            showSizeChanger: false,
-                                            showQuickJumper: false,
-                                            showTotal: (total, range) =>
-                                                `${range[0]}-${range[1]} of ${total} properties`,
-                                            onChange: (page, pageSize) => {
-                                                router.get(
-                                                    route("properties.index"),
-                                                    {
-                                                        ...filters,
-                                                        ...sortParams,
-                                                        page,
-                                                        per_page: pageSize,
-                                                    },
-                                                    {
-                                                        preserveState: true,
-                                                        preserveScroll: true,
-                                                    },
-                                                );
-                                            },
-                                        }}
-                                        scroll={{ x: 1200 }}
-                                        size="small"
-                                    />
-                                </div>
+                                <DataTable<Property>
+                                    columns={columns}
+                                    dataSource={properties.data}
+                                    rowKey={(record) =>
+                                        record._source === "unit_type"
+                                            ? `ut_${record._unit_type_id}`
+                                            : record.id
+                                    }
+                                    rowSelection={{
+                                        ...rowSelection,
+                                        getCheckboxProps: (
+                                            record: Property,
+                                        ) => ({
+                                            disabled:
+                                                record._source === "unit_type",
+                                            title:
+                                                record._source === "unit_type"
+                                                    ? "Unit types cannot be selected for bulk actions"
+                                                    : undefined,
+                                        }),
+                                    }}
+                                    paginationData={propertiesPaginationMeta}
+                                    onPageChange={handlePropertiesPageChange}
+                                    onPageSizeChange={handlePropertiesPageSizeChange}
+                                    emptyState={{
+                                        title: "No properties found",
+                                        description:
+                                            "Try adjusting your filters or add a new property.",
+                                    }}
+                                    scroll={{ x: 1200, y: "calc(100vh - 320px)" }}
+                                    size="small"
+                                />
                             ) : (
                                 <>
                                     <div className="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-5">

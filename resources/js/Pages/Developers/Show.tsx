@@ -4,7 +4,6 @@ import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import {
-    Table,
     Button,
     Input,
     Tag,
@@ -16,6 +15,8 @@ import {
     Empty,
     message,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import type { MenuProps, TableColumnsType } from "antd";
 import type { PageProps } from "../../Components/DashboardLayout";
 import {
@@ -347,23 +348,26 @@ const Show = ({
                             </Link>
                         </Empty>
                     ) : (
-                        <Table
+                        <DataTable<DeveloperProject>
                             columns={columns}
                             dataSource={projects.data}
                             rowKey="id"
-                            pagination={{
-                                current: projects.current_page,
-                                pageSize: projects.per_page,
+                            paginationData={{
+                                current_page: projects.current_page,
+                                last_page: projects.last_page,
+                                per_page: projects.per_page,
                                 total: projects.total,
-                                showSizeChanger: false,
-                                onChange: (page) => {
-                                    router.get(
-                                        route("developers.show", developer.id),
-                                        { ...filters, page },
-                                        { preserveState: true },
-                                    );
-                                },
+                                from: projects.from,
+                                to: projects.to,
                             }}
+                            onPageChange={(page) => {
+                                router.get(
+                                    route("developers.show", developer.id),
+                                    { ...filters, page },
+                                    { preserveState: true },
+                                );
+                            }}
+                            scroll={{ x: 1000, y: "calc(100vh - 280px)" }}
                         />
                     )}
                 </Card>
@@ -406,10 +410,9 @@ const Show = ({
                             </Button>
                         </Empty>
                     ) : (
-                        <Table
+                        <DataTable<Offer>
                             dataSource={offers}
                             rowKey="id"
-                            pagination={false}
                             size="small"
                             columns={[
                                 {

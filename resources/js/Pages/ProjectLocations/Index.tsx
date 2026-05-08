@@ -4,7 +4,6 @@ import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import {
-    Table,
     Button,
     Drawer,
     Form,
@@ -26,6 +25,8 @@ import {
     Tabs,
     Alert,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import type {
     MenuProps,
     TableColumnsType,
@@ -1180,30 +1181,27 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                 </Button>
                             </Empty>
                         ) : (
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={locations.data}
                                 rowKey="id"
-                                pagination={{
-                                    current: locations.current_page,
+                                paginationData={{
+                                    current_page: locations.current_page,
+                                    last_page: locations.last_page,
+                                    per_page: locations.per_page,
                                     total: locations.total,
-                                    pageSize: locations.per_page,
-                                    showSizeChanger: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}-${range[1]} of ${total} locations`,
-                                    onChange: (page) => {
-                                        router.get(
-                                            route("project-locations.index"),
-                                            { ...filters, page },
-                                            {
-                                                preserveState: true,
-                                                preserveScroll: true,
-                                            },
-                                        );
-                                    },
+                                    from: null,
+                                    to: null,
+                                }}
+                                onPageChange={(page) => {
+                                    router.get(
+                                        route("project-locations.index"),
+                                        { ...filters, page },
+                                        { preserveState: true, preserveScroll: true },
+                                    );
                                 }}
                                 size="middle"
-                                className="location-table"
+                                scroll={{ x: 800, y: "calc(100vh - 320px)" }}
                             />
                         )}
                     </Card>
@@ -1226,9 +1224,6 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 .location-uploader .ant-upload.ant-upload-select {
                     width: 120px !important;
                     height: 80px !important;
-                }
-                .location-table .ant-table-row:hover {
-                    cursor: pointer;
                 }
                 .location-form .ant-tabs-nav {
                     margin-bottom: 24px;

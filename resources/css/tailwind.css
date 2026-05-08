@@ -1,10 +1,92 @@
-@config "../../tailwind.config.js";
 @import "tailwindcss";
 
 @layer base {
     :root {
         --tw-prefix: tw-;
     }
+}
+
+/* ============================================================
+   DataTable Design Tokens
+   ============================================================ */
+:root {
+    --bg-subtle: rgb(249 250 251);            /* gray-50  — zebra stripe */
+    --dt-header-bg: rgb(248 250 252);         /* slate-50 — header row  */
+    --dt-border-color: rgb(229 231 235);      /* gray-200 — all borders */
+    --dt-row-hover: rgb(239 246 255);         /* blue-50  — row hover   */
+    --dt-sort-active: rgb(37 99 235);         /* blue-600 — sorted col indicator */
+    --dt-container-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.07), 0 1px 2px -1px rgb(0 0 0 / 0.05);
+}
+
+/* ============================================================
+   DataTable Container
+   ============================================================ */
+.dt-container {
+    background: #fff;
+    border-radius: 8px;
+    border: 1px solid var(--dt-border-color);
+    box-shadow: var(--dt-container-shadow);
+    /*
+     * overflow:clip — visually clips the border-radius corners without creating
+     * a scroll container (unlike hidden or auto).  Horizontal scrolling is handled
+     * inside Ant Design's own .ant-table-body via scroll.x on the Table.
+     * With scroll.y set on the Table, Ant Design renders a fixed-height scrollable
+     * body and a permanently-visible header above it — no CSS position:sticky needed.
+     */
+    overflow: clip;
+}
+
+/* ============================================================
+   DataTable Scoped Ant Design Overrides
+   All rules are scoped to .dt-table to avoid leaking globally.
+   ============================================================ */
+
+/* Uppercase headers with tracking */
+.dt-table .ant-table-thead > tr > th,
+.dt-table .ant-table-thead > tr > td {
+    text-transform: uppercase !important;
+    letter-spacing: 0.05em !important;
+    font-size: 11px !important;
+    font-weight: 600 !important;
+    white-space: nowrap !important;
+    background-color: var(--dt-header-bg) !important;
+    color: #374151 !important;
+}
+
+/* Sticky header sort active state */
+.dt-table .ant-table-thead th.ant-table-column-sort {
+    background-color: #eff6ff !important;
+    color: var(--dt-sort-active) !important;
+}
+
+/* Zebra striping — even rows get the subtle background */
+.dt-table .ant-table-tbody .dt-row-stripe > td {
+    background-color: var(--bg-subtle) !important;
+}
+
+/* Preserve hover for stripe rows */
+.dt-table .ant-table-tbody .dt-row-stripe:hover > td {
+    background-color: var(--dt-row-hover) !important;
+}
+
+/* Sort active column body cells */
+.dt-table .ant-table-tbody > tr > td.ant-table-column-sort {
+    background-color: transparent;
+}
+
+/* Remove Ant Design's default outer table border so our container handles it */
+.dt-container .ant-table-wrapper {
+    border-radius: 0;
+}
+
+/* No bottom-border on last row — container border handles it */
+.dt-container .ant-table-tbody > tr:last-child > td {
+    border-bottom: none;
+}
+
+/* Ensure overflow scroll works on small viewports */
+.dt-container .ant-table-content {
+    overflow-x: auto !important;
 }
 
 @layer utilities {

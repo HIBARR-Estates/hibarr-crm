@@ -9,7 +9,6 @@ import {
     Row,
     Col,
     Divider,
-    Table,
     Checkbox,
     Tag,
     Empty,
@@ -29,6 +28,7 @@ import {
     CheckCircleOutlined,
 } from "@ant-design/icons";
 import type { TableColumnsType } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
 import axios from "axios";
@@ -572,7 +572,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     </Text>
                 </div>
 
-                <Table
+                <DataTable
                     rowSelection={{
                         type: "checkbox",
                         selectedRowKeys: selectedPropertyIds,
@@ -582,7 +582,7 @@ const ExposeGenerationModal: React.FC<ExposeGenerationModalProps> = ({
                     dataSource={priceListItem.properties}
                     rowKey="id"
                     size="small"
-                    pagination={{ pageSize: 10 }}
+                    scroll={{ x: "max-content" }}
                 />
 
                 <Divider className="my-6" />

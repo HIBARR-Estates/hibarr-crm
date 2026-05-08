@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Button, Space, Typography, Row, Col, Drawer, Pagination } from "antd";
+import { Button, Space, Typography, Row, Col, Drawer } from "antd";
+import type { TableRowSelection } from "antd/es/table/interface";
 import {
     PlusOutlined,
     AppstoreOutlined,
@@ -31,8 +32,10 @@ import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
-import TaskListView from "@/Features/Tasks/Components/TaskListView";
 import { taskApi } from "@/lib/api/tasks";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
+import { useTasksTableColumns } from "@/Features/Tasks/Columns";
 import { Task } from "@/Types/Task";
 import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
 import TasksKanban from "@/Features/Tasks/Components/TasksKanban";
@@ -156,6 +159,74 @@ export interface TasksIndexProps extends PageProps {
         dueToday: number;
     };
 }
+
+interface TasksTableViewProps {
+    tasks: Task[];
+    tableTasks: TasksIndexProps["tableTasks"];
+    columns: TaskboardColumn[];
+    permissions: TasksIndexProps["permissions"];
+    rowSelection: TableRowSelection<Task>;
+    filters: Record<string, any>;
+    sortParams: Record<string, any>;
+    onEdit: (task: Task) => void;
+    onView: (task: Task) => void;
+    onDelete: (task: Task) => void;
+    onDuplicate: (task: Task) => void;
+    onStatusChange: (task: Task, newStatus: string, newColumnId: number) => void;
+}
+
+const TasksTableView: React.FC<TasksTableViewProps> = ({
+    tasks,
+    tableTasks,
+    columns,
+    permissions,
+    rowSelection,
+    filters,
+    sortParams,
+    onEdit,
+    onView,
+    onDelete,
+    onDuplicate,
+    onStatusChange,
+}) => {
+    const tableColumns = useTasksTableColumns({
+        columns,
+        permissions,
+        onEdit,
+        onView,
+        onDuplicate,
+        onDelete,
+        onStatusChange,
+    });
+
+    const paginationData: LaravelPaginationMeta = {
+        current_page: tableTasks?.current_page || 1,
+        last_page: tableTasks?.last_page || 1,
+        per_page: tableTasks?.per_page || 50,
+        total: tableTasks?.total || 0,
+        from: null,
+        to: null,
+    };
+
+    return (
+        <DataTable
+            columns={tableColumns}
+            dataSource={tasks}
+            rowKey="id"
+            rowSelection={rowSelection}
+            paginationData={paginationData}
+            onPageChange={(page) => {
+                router.get(
+                    route("tasks.index"),
+                    { ...filters, ...sortParams, page },
+                    { preserveState: true, preserveScroll: true },
+                );
+            }}
+            scroll={{ x: 1000, y: "calc(100vh - 380px)" }}
+            size="small"
+        />
+    );
+};
 
 const TasksIndex = ({
     tableTasks,
@@ -310,8 +381,6 @@ const TasksIndex = ({
         defaultView: "table",
     });
 
-    console.log(tableTasks, "TABLE COTNET");
-
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
 
@@ -431,70 +500,24 @@ const TasksIndex = ({
                     </div>
 
                     <div>
-                        {/* TODO : Refactor to have server size pagination/changes */}
                         {/* Table or Kanban View */}
                         {isTableView ? (
-                            <div className="space-y-4">
-                                <TaskListView
-                                    tasks={filteredTableTasks}
-                                    columns={columns}
-                                    selectedIds={selectedEntities.map(
-                                        (t) => t.id,
-                                    )}
-                                    onSelectionChange={(ids, tasks) =>
-                                        rowSelection.onChange(ids, tasks)
-                                    }
-                                    onEdit={handleEditTask}
-                                    onView={handleViewTask}
-                                    onDelete={handleDeleteTask}
-                                    onDuplicate={handleDuplicateTask}
-                                    onStatusChange={(
-                                        task,
-                                        newStatus,
-                                        newColumnId,
-                                    ) =>
-                                        handleStatusChange(
-                                            task.id,
-                                            newStatus,
-                                            newColumnId,
-                                        )
-                                    }
-                                />
-                                <div className="flex justify-end">
-                                    <Pagination
-                                        total={tableTasks?.total || 0}
-                                        current={tableTasks?.current_page || 1}
-                                        pageSize={
-                                            filters.per_page ||
-                                            tableTasks?.per_page ||
-                                            50
-                                        }
-                                        size="small"
-                                        showTotal={(total, range) =>
-                                            t("pages.tasks.pagination_total", {
-                                                start: range[0],
-                                                end: range[1],
-                                                total,
-                                            })
-                                        }
-                                        onChange={(page, pageSize) => {
-                                            router.get(
-                                                route("tasks.index"),
-                                                {
-                                                    ...filters,
-                                                    ...sortParams,
-                                                    page,
-                                                    per_page: pageSize,
-                                                },
-                                                {
-                                                    preserveState: true,
-                                                    preserveScroll: true,
-                                                },
-                                            );
-                                        }}
-                                    />
-                                </div>
-                            </div>
+                            <TasksTableView
+                                tasks={filteredTableTasks}
+                                tableTasks={tableTasks}
+                                columns={columns}
+                                permissions={permissions}
+                                rowSelection={rowSelection}
+                                filters={filters}
+                                sortParams={sortParams}
+                                onEdit={handleEditTask}
+                                onView={handleViewTask}
+                                onDelete={handleDeleteTask}
+                                onDuplicate={handleDuplicateTask}
+                                onStatusChange={(task, newStatus, newColumnId) =>
+                                    handleStatusChange(task.id, newStatus, newColumnId)
+                                }
+                            />
                         ) : (
                             <TasksKanban
                                 tasks={filteredKanbanTasks}

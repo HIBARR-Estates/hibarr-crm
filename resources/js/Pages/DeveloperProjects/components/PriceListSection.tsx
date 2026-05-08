@@ -1,5 +1,6 @@
 import React from "react";
-import { Card, Table, Tabs, Tag, Empty, Typography } from "antd";
+import { Card, Tabs, Tag, Empty, Typography } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import type { UnitTypePriceListItem } from "../Show";
 import { snakeToReadable } from "../../../lib/utils";
 
@@ -67,11 +68,11 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                     )}
                                 </div>
                             </div>
-                            <Table
+                            <DataTable
                                 dataSource={item.unit_types}
                                 rowKey="id"
                                 size="small"
-                                pagination={{ pageSize: 10 }}
+                                scroll={{ x: "max-content" }}
                                 columns={[
                                     {
                                         title: "Reference",
