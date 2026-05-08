@@ -27,6 +27,7 @@ import {
     TagsOutlined,
     EditOutlined,
 } from "@ant-design/icons";
+import { router } from "@inertiajs/react";
 import type { UploadFile } from "antd";
 import type { AssetTag } from "@/Types";
 import type { DeveloperProjectAsset } from "@/Types/developerProject";
@@ -71,6 +72,46 @@ const TAG_COLORS: Record<AssetTag, string> = {
     footer: "geekblue",
     gallery: "lime",
 };
+
+/**
+ * Validate DELETE developer-project asset response without assuming JSON.
+ * Handles 204 / empty bodies; checks HTTP status and Laravel Reply payloads.
+ */
+async function assertDeveloperProjectAssetDestroyOk(
+    res: Response,
+): Promise<void> {
+    const raw = await res.text();
+    const trimmed = raw.trim();
+
+    let payload: { status?: string; message?: string } | null = null;
+    if (trimmed) {
+        try {
+            payload = JSON.parse(trimmed) as {
+                status?: string;
+                message?: string;
+            };
+        } catch {
+            if (!res.ok) {
+                throw new Error(
+                    trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed,
+                );
+            }
+            return;
+        }
+    }
+
+    if (!res.ok) {
+        throw new Error(
+            payload?.message ||
+                trimmed ||
+                `Delete failed (${res.status} ${res.statusText})`,
+        );
+    }
+
+    if (payload && payload.status === "fail") {
+        throw new Error(payload.message || "Delete failed");
+    }
+}
 
 // ────────────────────────────────────────────────────────────
 // Upload status tracking
@@ -216,6 +257,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 setUploadStatuses([]);
                 setSelectedTags([]);
                 refetchAssets();
+                router.reload({ only: ["project"] });
             },
         );
 
@@ -385,7 +427,9 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             Accept: "application/json",
                         },
                     })
-                        .then((res) => res.json())
+                        .then((res) =>
+                            assertDeveloperProjectAssetDestroyOk(res),
+                        )
                         .then(() => {
                             messageApi.success("Photo deleted");
                             refetchAssets();
@@ -434,6 +478,65 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             action: bulkTagAction,
         });
     }, [selectedAssetIds, bulkTags, bulkTagAction, bulkUpdateTags]);
+
+    const handleBulkDeleteAssets = useCallback(() => {
+        const ids = Array.from(selectedAssetIds);
+        if (ids.length === 0) return;
+
+        deleteModal.confirm({
+            title: `Delete ${ids.length} photo${ids.length !== 1 ? "s" : ""}?`,
+            content: "This cannot be undone.",
+            okText: "Delete",
+            okType: "danger",
+            onOk: async () => {
+                const token =
+                    document
+                        .querySelector('meta[name="csrf-token"]')
+                        ?.getAttribute("content") || "";
+                const results = await Promise.allSettled(
+                    ids.map((assetId) =>
+                        fetch(
+                            route("developer-projects.assets.destroy", [
+                                projectId,
+                                assetId,
+                            ]),
+                            {
+                                method: "DELETE",
+                                headers: {
+                                    "X-Requested-With": "XMLHttpRequest",
+                                    "X-CSRF-TOKEN": token,
+                                    Accept: "application/json",
+                                },
+                            },
+                        ).then((res) =>
+                            assertDeveloperProjectAssetDestroyOk(res),
+                        ),
+                    ),
+                );
+                const failed = results.filter((r) => r.status === "rejected");
+                const ok = results.length - failed.length;
+                if (ok > 0) {
+                    messageApi.success(
+                        ok === results.length
+                            ? `${ok} photo${ok !== 1 ? "s" : ""} deleted`
+                            : `${ok} deleted, ${failed.length} failed`,
+                    );
+                    refetchAssets();
+                    exitSelectionMode();
+                }
+                if (failed.length > 0 && ok === 0) {
+                    messageApi.error("Failed to delete photos");
+                }
+            },
+        });
+    }, [
+        selectedAssetIds,
+        projectId,
+        deleteModal,
+        messageApi,
+        refetchAssets,
+        exitSelectionMode,
+    ]);
 
     // ─── Photo card renderer ───
     const renderPhotoCard = (asset: DeveloperProjectAsset) => {
@@ -805,6 +908,15 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                                 onClick={() => setIsTagModalOpen(true)}
                             >
                                 Edit Tags ({selectedAssetIds.size})
+                            </Button>
+                            <Button
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                disabled={selectedAssetIds.size === 0}
+                                onClick={handleBulkDeleteAssets}
+                            >
+                                Delete ({selectedAssetIds.size})
                             </Button>
                             <Button size="small" onClick={exitSelectionMode}>
                                 Cancel

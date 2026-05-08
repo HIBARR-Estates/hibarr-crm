@@ -22,7 +22,7 @@ interface Department {
 interface Filters {
     start_date: string;
     end_date: string;
-    agent_id: number | null;
+    agent_id: number | string | null;
     view_type: "agent" | "department";
 }
 
@@ -57,8 +57,14 @@ const FilterBar: React.FC<FilterBarProps> = ({
         });
     };
 
-    const handleAgentChange = (value: number | undefined) => {
-        onChange({ agent_id: value ?? null });
+    const handleAgentChange = (value: string | number | undefined) => {
+        if (value === undefined || value === null || value === "") {
+            onChange({ agent_id: null });
+            return;
+        }
+
+        const normalizedValue = Number(value);
+        onChange({ agent_id: Number.isNaN(normalizedValue) ? null : normalizedValue });
     };
 
     const handleExport = (format: string) => {
@@ -157,7 +163,12 @@ const FilterBar: React.FC<FilterBarProps> = ({
                             allowClear
                             showSearch
                             optionFilterProp="label"
-                            value={filters.agent_id ?? undefined}
+                            value={
+                                filters.agent_id === null ||
+                                filters.agent_id === undefined
+                                    ? undefined
+                                    : Number(filters.agent_id)
+                            }
                             onChange={handleAgentChange}
                             style={{ width: 200 }}
                             options={agents.map((a) => ({

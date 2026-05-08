@@ -1,6 +1,22 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 
+// Ensure react-i18next always has an instance before any hook runs.
+if (!i18n.isInitialized) {
+    i18n.use(initReactI18next).init({
+        resources: { en: { translation: {} } },
+        lng: "en",
+        fallbackLng: "en",
+        interpolation: {
+            escapeValue: false,
+        },
+        returnEmptyString: false,
+        react: {
+            useSuspense: false,
+        },
+    });
+}
+
 /**
  * Supported languages configuration
  * Matches LanguageSetting::LANGUAGES in Laravel

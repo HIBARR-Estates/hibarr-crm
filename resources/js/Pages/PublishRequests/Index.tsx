@@ -24,6 +24,7 @@ import type { ColumnsType } from "antd/es/table";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 interface PublishRequest {
     id: number;
@@ -173,23 +174,30 @@ const Index = () => {
         {
             title: "Property",
             key: "property",
-            render: (_, record) => (
-                <div>
-                    <a
-                        href={`/account/properties/${record.property?.id}`}
-                        className="font-medium"
-                    >
-                        {record.property?.display_title ||
-                            record.property?.title ||
-                            "N/A"}
-                    </a>
-                    {record.property?.reference_code && (
-                        <div className="text-xs text-gray-500">
-                            {record.property.reference_code}
-                        </div>
-                    )}
-                </div>
-            ),
+            render: (_, record) => {
+                const propertyTitle =
+                    (record.property &&
+                        generatePropertySubtitle(record.property as any)) ||
+                    record.property?.display_title ||
+                    record.property?.title ||
+                    "N/A";
+
+                return (
+                    <div>
+                        <a
+                            href={`/account/properties/${record.property?.id}`}
+                            className="font-medium"
+                        >
+                            {propertyTitle}
+                        </a>
+                        {record.property?.reference_code && (
+                            <div className="text-xs text-gray-500">
+                                {record.property.reference_code}
+                            </div>
+                        )}
+                    </div>
+                );
+            },
         },
         {
             title: "Requesting Agent",
@@ -294,7 +302,10 @@ const Index = () => {
             <PageLayout
                 title={t("app.properties.actions.publish_requests")}
                 breadcrumbs={[
-                    { name: t("app.menu.properties"), url: route("properties.index") },
+                    {
+                        name: t("app.menu.properties"),
+                        url: route("properties.index"),
+                    },
                     { name: t("app.properties.actions.publish_requests") },
                 ]}
             >

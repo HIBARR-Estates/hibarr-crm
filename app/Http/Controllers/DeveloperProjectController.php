@@ -64,6 +64,43 @@ class DeveloperProjectController extends AccountBaseController
             $query->where('project_location_id', $request->location_id);
         }
 
+        // Filter by developer
+        if ($request->filled('developer_id')) {
+            $query->where('developer_id', $request->developer_id);
+        }
+
+        // Filter by construction status
+        if ($request->filled('construction_status')) {
+            $query->where('construction_status', $request->construction_status);
+        }
+
+        // Filter by primary category (JSON array contains)
+        if ($request->filled('primary_category')) {
+            $query->whereJsonContains('primary_categories', $request->primary_category);
+        }
+
+        // Filter by payment plan duration (months)
+        if ($request->filled('payment_plan_duration')) {
+            $durationMonths = filter_var($request->payment_plan_duration, FILTER_VALIDATE_INT, [
+                'options' => ['min_range' => 0],
+            ]);
+
+            if ($durationMonths !== false) {
+                $query->whereRaw(
+                    "CAST(JSON_UNQUOTE(JSON_EXTRACT(payment_plan, '$.period_months')) AS UNSIGNED) = ?",
+                    [$durationMonths]
+                );
+            }
+        }
+
+        // Filter by starting price range
+        if ($request->filled('price_min')) {
+            $query->where('starting_price', '>=', (float) $request->price_min);
+        }
+        if ($request->filled('price_max')) {
+            $query->where('starting_price', '<=', (float) $request->price_max);
+        }
+
         // Apply sort
         switch ($request->input('sort', 'newest')) {
             case 'oldest':
@@ -83,14 +120,42 @@ class DeveloperProjectController extends AccountBaseController
                 break;
         }
 
-        $projects = $query->paginate(15);
+        $projects = $query->paginate(12);
+
+        $developers = \App\Models\Developer::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $locations = \App\Models\ProjectLocation::where('company_id', user()->company_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $constructionStatuses = \App\Models\PropertyConstructionStatus::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
+        $primaryCategories = \App\Models\PropertyPrimaryCategory::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
 
         // For Inertia page render
         // if (!$request->ajax() && !$request->wantsJson()) {
             return Inertia::render('DeveloperProjects/Index', [
                 'pageTitle' => 'Construction Projects',
                 'projects' => $projects,
-                'filters' => $request->only(['search', 'location_id', 'sort']),
+                'developers' => $developers,
+                'locations' => $locations,
+                'constructionStatuses' => $constructionStatuses,
+                'primaryCategories' => $primaryCategories,
+                'filters' => $request->only([
+                    'search', 'location_id', 'sort',
+                    'developer_id', 'construction_status', 'primary_category',
+                    'payment_plan_duration', 'price_min', 'price_max',
+                ]),
             ]);
         // }
 
@@ -111,7 +176,12 @@ class DeveloperProjectController extends AccountBaseController
             ->findOrFail($id);
 
         // Calculate statistics
-        $totalUnits = $project->unitTypes->sum('quantity');
+        $computedTotalUnits = $project->unitTypes->sum('quantity');
+        $unitCount = $project->unitTypes->count();
+        $computedTotalSold = $project->unitTypes->sum('total_sold');
+        // Use explicit project-level overrides when set, otherwise fall back to computed values
+        $totalUnits = $project->total_units ?? $computedTotalUnits;
+        $totalSold = $project->total_units_sold ?? $computedTotalSold;
         $soldProperties = $project->properties->where('status', Property::STATUS_SOLD)->count();
         $underOfferProperties = $project->properties->where('status', Property::STATUS_UNDER_OFFER)->count();
 
@@ -157,6 +227,9 @@ class DeveloperProjectController extends AccountBaseController
             'project' => $project,
             'statistics' => [
                 'total_units' => $totalUnits,
+                'unit_count' => $unitCount,
+                'sold_properties' => $totalSold,
+                'total_sold' => $totalSold,
                 'sold_properties' => $soldProperties,
                 'under_offer_properties' => $underOfferProperties,
                 'starting_price' => $startingPrice,
@@ -272,6 +345,21 @@ class DeveloperProjectController extends AccountBaseController
                     'source' => 'project',
                 ]);
             $images = $images->merge($projectImages);
+
+            // Get images from unit type assets
+            foreach ($project->unitTypes as $unitType) {
+                $unitTypeImages = $unitType->assets
+                    ->filter(fn($a) => $a->asset_type === 'image' && in_array($tag, $a->tags ?? []))
+                    ->map(fn($asset) => [
+                        'id'             => $asset->id,
+                        'url'            => $asset->url,
+                        'name'           => $asset->name,
+                        'source'         => 'unit_type',
+                        'unit_type_id'   => $unitType->id,
+                        'unit_type_name' => $unitType->display_label ?? $unitType->reference_code,
+                    ]);
+                $images = $images->merge($unitTypeImages);
+            }
 
             // Get images from property assets
             foreach ($project->properties as $property) {
@@ -392,6 +480,8 @@ class DeveloperProjectController extends AccountBaseController
             'unit_types' => 'nullable|array',
             'unit_types.*' => 'string|in:' . implode(',', DeveloperProject::UNIT_TYPES),
             'number_of_units' => 'nullable|integer|min:0',
+            'total_units' => 'nullable|integer|min:0',
+            'total_units_sold' => 'nullable|integer|min:0',
             'number_of_blocks' => 'nullable|integer|min:0',
             'project_total_area_sqm' => 'nullable|numeric|min:0',
             'construction_status' => 'nullable|string|in:' . implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
@@ -486,6 +576,8 @@ class DeveloperProjectController extends AccountBaseController
             'title_deed_type' => $request->title_deed_type,
             'unit_types' => $request->unit_types,
             'number_of_units' => $request->number_of_units,
+            'total_units' => $request->total_units,
+            'total_units_sold' => $request->total_units_sold,
             'number_of_blocks' => $request->number_of_blocks,
             'project_total_area_sqm' => $request->project_total_area_sqm,
             'construction_status' => $request->construction_status,
@@ -527,6 +619,8 @@ class DeveloperProjectController extends AccountBaseController
             'unit_types' => 'nullable|array',
             'unit_types.*' => 'string|in:' . implode(',', DeveloperProject::UNIT_TYPES),
             'number_of_units' => 'nullable|integer|min:0',
+            'total_units' => 'nullable|integer|min:0',
+            'total_units_sold' => 'nullable|integer|min:0',
             'number_of_blocks' => 'nullable|integer|min:0',
             'project_total_area_sqm' => 'nullable|numeric|min:0',
             'construction_status' => 'nullable|string|in:' . implode(',', DeveloperProject::CONSTRUCTION_STATUSES),
@@ -609,7 +703,7 @@ class DeveloperProjectController extends AccountBaseController
             'name', 'reference_code', 'description', 'developer_id', 'project_location_id',
             'google_drive_link', 'availability_link', 'starting_price',
             'primary_categories', 'title_deed_type', 'unit_types',
-            'number_of_units', 'number_of_blocks', 'project_total_area_sqm',
+            'number_of_units', 'total_units', 'total_units_sold', 'number_of_blocks', 'project_total_area_sqm',
             'construction_status', 'completion_date', 'number_of_phases',
             'furniture_package', 'rental_guarantee', 'payment_plan',
             'facilities', 'distances',
@@ -852,21 +946,28 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function generateProjectExpose(Request $request, $id)
     {
-        $project = DeveloperProject::with(['developer', 'location', 'assets', 'unitTypes.assets'])
-            ->where('company_id', user()->company_id)
-            ->findOrFail($id);
+        $project = DeveloperProject::where('company_id', user()->company_id)->findOrFail($id);
 
-        $clientData = [];
-        if ($request->filled('client_name')) {
-            $clientData['client_name'] = $request->input('client_name');
-        }
-        if ($request->filled('client_email')) {
-            $clientData['client_email'] = $request->input('client_email');
-        }
+        $payload = [
+            'client_name'  => $request->input('client_name'),
+            'client_email' => $request->input('client_email'),
+        ];
 
-        $config = ExposeConfiguration::fromDeveloperProject($project, 'project-expose-template', $clientData);
+        $exposeJob = \App\Models\ExposeJob::create([
+            'company_id'  => user()->company_id,
+            'user_id'     => user()->id,
+            'entity_type' => \App\Models\ExposeJob::ENTITY_DEVELOPER_PROJECT,
+            'entity_id'   => $project->id,
+            'status'      => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename'    => \Illuminate\Support\Str::slug($project->name) . '-brochure.pdf',
+            'payload'     => $payload,
+        ]);
 
-        return $this->exposeService->generate($config);
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+
+        return Reply::successWithData('Brochure generation queued', [
+            'data' => ['job_id' => $exposeJob->id],
+        ]);
     }
 
     /**
@@ -896,25 +997,34 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function generateUnitTypeExpose(Request $request, $projectId, $unitTypeId)
     {
-        // Verify project belongs to company
-        DeveloperProject::where('company_id', user()->company_id)
-            ->findOrFail($projectId);
+        $project = DeveloperProject::where('company_id', user()->company_id)->findOrFail($projectId);
 
-        $unitType = DeveloperProjectUnitType::with(['project.developer', 'project.location', 'project.assets', 'assets'])
-            ->where('developer_project_id', $projectId)
+        $unitType = DeveloperProjectUnitType::where('developer_project_id', $projectId)
             ->findOrFail($unitTypeId);
 
-        $clientData = [];
-        if ($request->filled('client_name')) {
-            $clientData['client_name'] = $request->input('client_name');
-        }
-        if ($request->filled('client_email')) {
-            $clientData['client_email'] = $request->input('client_email');
-        }
+        $payload = [
+            'client_name'  => $request->input('client_name'),
+            'client_email' => $request->input('client_email'),
+        ];
 
-        $config = ExposeConfiguration::fromUnitType($unitType, 'expose-template', $clientData);
+        $label = $unitType->display_label ?? $unitType->property_type ?? 'unit';
 
-        return $this->exposeService->generate($config);
+        $exposeJob = \App\Models\ExposeJob::create([
+            'company_id'    => user()->company_id,
+            'user_id'       => user()->id,
+            'entity_type'   => \App\Models\ExposeJob::ENTITY_UNIT_TYPE,
+            'entity_id'     => $project->id,
+            'sub_entity_id' => $unitType->id,
+            'status'        => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename'      => \Illuminate\Support\Str::slug($project->name . '-' . $label) . '-expose.pdf',
+            'payload'       => $payload,
+        ]);
+
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+
+        return Reply::successWithData('Expose generation queued', [
+            'data' => ['job_id' => $exposeJob->id],
+        ]);
     }
 
     /**

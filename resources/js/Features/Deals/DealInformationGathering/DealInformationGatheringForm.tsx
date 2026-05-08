@@ -10,7 +10,7 @@ import { isLoading } from "@/lib/utils";
 import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import { ApiResponse } from "@/lib/api/types";
-import AttachPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
+import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 
 interface Props {
     open: boolean;
@@ -336,7 +336,7 @@ const DealInformationGatheringForm: React.FC<Props> = ({
                                     Attach Properties
                                 </Button>
                             </div>
-                            <AttachPropertiesModal
+                            <ManageDealPropertiesModal
                                 open={propertyModalOpen}
                                 onClose={() => setPropertyModalOpen(false)}
                                 deal={deal || editDeal!}

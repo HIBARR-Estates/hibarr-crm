@@ -276,6 +276,17 @@ export const useRemoveHierarchy = (
         onSuccess,
     );
 
+/** Manually assign level to an agent */
+export const useAssignAgentLevel = (
+    agentId: number,
+    onSuccess?: (res?: any) => void,
+) =>
+    useApiMutate<{ level_id: number }, void, ApiResponse<void>>(
+        `${ADMIN_API}/agents/${agentId}/assign-level`,
+        "POST",
+        onSuccess,
+    );
+
 /** Update cycle configuration */
 export const useCreateCycle = (onSuccess?: (res?: any) => void) =>
     useApiMutate<MlmCycleFormData, MlmCycle, ApiResponse<MlmCycle>>(

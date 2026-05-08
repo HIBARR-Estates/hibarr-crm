@@ -1,8 +1,26 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { Tabs, Table, Skeleton, Drawer, Typography, Space, Avatar } from "antd";
+import {
+    Tabs,
+    Table,
+    Skeleton,
+    Drawer,
+    Typography,
+    Space,
+    Avatar,
+    Card,
+    Button,
+    Input,
+    Empty,
+    Pagination,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { Link } from "@inertiajs/react";
-import { UserOutlined, CalendarOutlined } from "@ant-design/icons";
+import {
+    UserOutlined,
+    CalendarOutlined,
+    EyeOutlined,
+    ClockCircleOutlined,
+} from "@ant-design/icons";
 import axios from "axios";
 import dayjs from "dayjs";
 import MeetingTypeBadge from "./MeetingTypeBadge";
@@ -13,7 +31,7 @@ import { ContentRenderer } from "@/Components/ContentRenderer";
 interface Filters {
     start_date: string;
     end_date: string;
-    agent_id: number | null;
+    agent_id: string | number | null;
     view_type: "agent" | "department";
 }
 
@@ -57,7 +75,7 @@ const leadColumns: ColumnsType<any> = [
         title: "Created",
         dataIndex: "created_at",
         key: "created_at",
-        render: (v: string) => new Date(v).toLocaleDateString(),
+        render: (v: string) => dayjs(v).format("D MMMM YYYY"),
     },
 ];
 
@@ -97,7 +115,7 @@ const dealsCreatedColumns: ColumnsType<any> = [
         title: "Created",
         dataIndex: "created_at",
         key: "created_at",
-        render: (v: string) => new Date(v).toLocaleDateString(),
+        render: (v: string) => dayjs(v).format("D MMMM YYYY"),
     },
 ];
 
@@ -132,7 +150,7 @@ const dealsClosedColumns: ColumnsType<any> = [
         title: "Won At",
         dataIndex: "won_at",
         key: "won_at",
-        render: (v: string) => (v ? new Date(v).toLocaleDateString() : "—"),
+        render: (v: string) => (v ? dayjs(v).format("D MMMM YYYY") : "—"),
     },
 ];
 
@@ -162,7 +180,7 @@ const getMeetingsColumns = (
         title: "Date",
         dataIndex: "next_follow_up_date",
         key: "next_follow_up_date",
-        render: (v: string) => (v ? new Date(v).toLocaleDateString() : "—"),
+        render: (v: string) => (v ? dayjs(v).format("D MMMM YYYY") : "—"),
     },
     {
         title: "Status",
@@ -181,111 +199,6 @@ const getMeetingsColumns = (
         dataIndex: "remark",
         key: "remark",
         ellipsis: true,
-    },
-];
-
-const getDealNotesColumns = (
-    onView: (record: any) => void,
-): ColumnsType<any> => [
-    {
-        title: "Title",
-        dataIndex: "title",
-        key: "title",
-        render: (v: string, r) => (
-            <a
-                className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                onClick={() => onView(r)}
-            >
-                {v}
-            </a>
-        ),
-    },
-    {
-        title: "Details",
-        dataIndex: "details",
-        key: "details",
-        ellipsis: true,
-    },
-    {
-        title: "Lead",
-        key: "lead",
-        render: (_, r) =>
-            r.deal?.contact ? (
-                <Link href={`/account/lead-contact/${r.deal.contact.id}`}>
-                    {r.deal.contact.client_name}
-                </Link>
-            ) : (
-                "—"
-            ),
-    },
-    {
-        title: "Deal",
-        key: "deal",
-        render: (_, r) =>
-            r.deal ? (
-                <Link href={`/account/deals/${r.deal.id}`}>{r.deal.name}</Link>
-            ) : (
-                "—"
-            ),
-    },
-    {
-        title: "Agent",
-        key: "agent",
-        render: (_, r) =>
-            r.deal?.lead_agent?.user?.name ?? r.added_by?.name ?? "—",
-    },
-    {
-        title: "Created",
-        dataIndex: "created_at",
-        key: "created_at",
-        render: (v: string) => new Date(v).toLocaleDateString(),
-    },
-];
-
-const getLeadNotesColumns = (
-    onView: (record: any) => void,
-): ColumnsType<any> => [
-    {
-        title: "Title",
-        dataIndex: "title",
-        key: "title",
-        render: (v: string, r) => (
-            <a
-                className="text-blue-600 hover:text-blue-800 cursor-pointer"
-                onClick={() => onView(r)}
-            >
-                {v}
-            </a>
-        ),
-    },
-    {
-        title: "Details",
-        dataIndex: "details",
-        key: "details",
-        ellipsis: true,
-    },
-    {
-        title: "Lead",
-        key: "lead",
-        render: (_, r) =>
-            r.lead ? (
-                <Link href={`/account/lead-contact/${r.lead.id}`}>
-                    {r.lead.client_name}
-                </Link>
-            ) : (
-                "—"
-            ),
-    },
-    {
-        title: "Agent",
-        key: "agent",
-        render: (_, r) => r.added_by?.name ?? "—",
-    },
-    {
-        title: "Created",
-        dataIndex: "created_at",
-        key: "created_at",
-        render: (v: string) => new Date(v).toLocaleDateString(),
     },
 ];
 
@@ -389,54 +302,314 @@ const MeetingsTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
     );
 };
 
-// ── Deal Notes Tab (with ViewNote drawer) ───────────────────────
-
-const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
-    const [selected, setSelected] = useState<any>(null);
-
-    const columns = getDealNotesColumns((record) => setSelected(record));
-
-    return (
-        <>
-            <TabContent
-                tabKey="deal-notes"
-                filters={filters}
-                config={{
-                    endpoint: "/account/agent-reports/deal-notes",
-                    columns,
-                }}
-            />
-            {selected?.deal && (
-                <ViewNote
-                    open={!!selected}
-                    onClose={() => setSelected(null)}
-                    deal={selected.deal}
-                    note={selected}
-                />
-            )}
-        </>
-    );
-};
-
-// ── Lead Notes Tab (with drawer viewer) ─────────────────────────
+// ── Shared typography ───────────────────────────────────────────
 
 const { Title, Text } = Typography;
 
-const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
-    const [selected, setSelected] = useState<any>(null);
+// ── Read-only note card for reports ────────────────────────────
 
-    const columns = getLeadNotesColumns((record) => setSelected(record));
+const ReportNoteCard: React.FC<{
+    note: any;
+    onView: (note: any) => void;
+    context?: React.ReactNode;
+}> = ({ note, onView, context }) => (
+    <Card
+        className="group transition-all duration-200 border border-gray-200 hover:border-blue-300"
+        styles={{ body: { padding: "20px" } }}
+        variant="outlined"
+    >
+        <div className="flex justify-between items-start mb-3 gap-2">
+            <div className="flex-1 min-w-0">
+                <Title
+                    level={5}
+                    className="mb-1 text-gray-800 cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() => onView(note)}
+                    ellipsis={{ tooltip: note.title, rows: 1 }}
+                >
+                    {note.title}
+                </Title>
+            </div>
+            <Button
+                type="text"
+                icon={<EyeOutlined />}
+                size="small"
+                className="text-gray-400 hover:text-blue-600 flex-shrink-0"
+                onClick={() => onView(note)}
+            />
+        </div>
+
+        <div className="mb-3 h-14 overflow-hidden">
+            <ContentRenderer
+                content={note.details}
+                maxLength={120}
+                showFullContent={false}
+                className="text-sm text-gray-600 leading-relaxed"
+            />
+        </div>
+
+        {context && <div className="mb-3 text-xs text-gray-500">{context}</div>}
+
+        <div className="flex items-center justify-between mt-2">
+            {note.added_by && (
+                <div className="flex items-center gap-x-2 text-xs text-gray-500">
+                    <Avatar
+                        size="small"
+                        icon={<UserOutlined />}
+                        src={note.added_by?.image_url}
+                    />
+                    <span>{note.added_by.name}</span>
+                </div>
+            )}
+            <Space size="small" className="text-xs text-gray-400">
+                <ClockCircleOutlined />
+                <span>{dayjs(note.created_at).format("D MMMM YYYY")}</span>
+            </Space>
+        </div>
+    </Card>
+);
+
+// ── Shared notes data-fetching hook ────────────────────────────
+
+function useNotesFetch(endpoint: string, filters: Filters) {
+    const [data, setData] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [pagination, setPagination] = useState({
+        current: 1,
+        pageSize: 15,
+        total: 0,
+    });
+
+    const fetchData = useCallback(
+        async (page = 1, perPage = 15) => {
+            setLoading(true);
+            try {
+                const params: Record<string, string | number> = {
+                    start_date: filters.start_date,
+                    end_date: filters.end_date,
+                    view_type: filters.view_type,
+                    page,
+                    per_page: perPage,
+                };
+                if (filters.agent_id) {
+                    params.agent_id = filters.agent_id;
+                }
+                const res = await axios.get<PaginatedResponse<any>>(endpoint, {
+                    params,
+                });
+                setData(res.data.data);
+                setPagination({
+                    current: res.data.current_page,
+                    pageSize: res.data.per_page,
+                    total: res.data.total,
+                });
+            } catch {
+                setData([]);
+            } finally {
+                setLoading(false);
+            }
+        },
+        [filters, endpoint],
+    );
+
+    useEffect(() => {
+        fetchData(1);
+    }, [fetchData]);
+
+    return { data, loading, pagination, fetchData };
+}
+
+// ── Deal Notes Tab (card-based, view-only) ──────────────────────
+
+const DealNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const [selected, setSelected] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const { data, loading, pagination, fetchData } = useNotesFetch(
+        "/account/agent-reports/deal-notes",
+        filters,
+    );
+
+    const filteredNotes = data.filter(
+        (n) =>
+            n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            n.details?.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+
+    if (loading && data.length === 0) {
+        return <Skeleton active paragraph={{ rows: 6 }} className="p-4" />;
+    }
 
     return (
-        <>
-            <TabContent
-                tabKey="lead-notes"
-                filters={filters}
-                config={{
-                    endpoint: "/account/agent-reports/lead-notes",
-                    columns,
-                }}
-            />
+        <div className="flex flex-col gap-y-6">
+            <div className="flex justify-end">
+                <div className="w-72">
+                    <Input.Search
+                        placeholder="Search notes..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        allowClear
+                        size="small"
+                    />
+                </div>
+            </div>
+
+            {filteredNotes.length === 0 ? (
+                <Empty
+                    description={
+                        searchTerm
+                            ? `No notes found for "${searchTerm}"`
+                            : "No deal notes in this period"
+                    }
+                />
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                    {filteredNotes.map((note) => (
+                        <ReportNoteCard
+                            key={note.id}
+                            note={note}
+                            onView={setSelected}
+                            context={
+                                note.deal ? (
+                                    <div className="flex flex-col gap-y-1">
+                                        <div>
+                                            <span className="mr-1 text-gray-400">
+                                                Deal:
+                                            </span>
+                                            <Link
+                                                href={`/account/deals/${note.deal.id}`}
+                                                className="text-blue-600 hover:text-blue-800"
+                                            >
+                                                {note.deal.name}
+                                            </Link>
+                                        </div>
+                                        {note.deal.contact && (
+                                            <div>
+                                                <span className="mr-1 text-gray-400">
+                                                    Contact:
+                                                </span>
+                                                <Link
+                                                    href={`/account/lead-contact/${note.deal.contact.id}`}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                >
+                                                    {
+                                                        note.deal.contact
+                                                            .client_name
+                                                    }
+                                                </Link>
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : undefined
+                            }
+                        />
+                    ))}
+                </div>
+            )}
+
+            {!searchTerm && pagination.total > pagination.pageSize && (
+                <Pagination
+                    current={pagination.current}
+                    pageSize={pagination.pageSize}
+                    total={pagination.total}
+                    showSizeChanger
+                    showTotal={(total) => `${total} notes`}
+                    onChange={(page, size) => fetchData(page, size)}
+                    className="flex justify-end"
+                />
+            )}
+
+            {selected && (
+                <ViewNote
+                    open={!!selected}
+                    onClose={() => setSelected(null)}
+                    deal={selected.deal ?? {}}
+                    note={selected}
+                />
+            )}
+        </div>
+    );
+};
+
+// ── Lead Notes Tab (card-based, view-only) ──────────────────────
+
+const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
+    const [selected, setSelected] = useState<any>(null);
+    const [searchTerm, setSearchTerm] = useState("");
+    const { data, loading, pagination, fetchData } = useNotesFetch(
+        "/account/agent-reports/lead-notes",
+        filters,
+    );
+
+    const filteredNotes = data.filter(
+        (n) =>
+            n.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            n.details?.toLowerCase().includes(searchTerm.toLowerCase()),
+    );
+
+    if (loading && data.length === 0) {
+        return <Skeleton active paragraph={{ rows: 6 }} className="p-4" />;
+    }
+
+    return (
+        <div className="flex flex-col gap-y-6">
+            <div className="flex justify-end">
+                <div className="w-72">
+                    <Input.Search
+                        placeholder="Search notes..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        allowClear
+                        size="small"
+                    />
+                </div>
+            </div>
+
+            {filteredNotes.length === 0 ? (
+                <Empty
+                    description={
+                        searchTerm
+                            ? `No notes found for "${searchTerm}"`
+                            : "No lead notes in this period"
+                    }
+                />
+            ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
+                    {filteredNotes.map((note) => (
+                        <ReportNoteCard
+                            key={note.id}
+                            note={note}
+                            onView={setSelected}
+                            context={
+                                note.lead ? (
+                                    <div>
+                                        <span className="mr-1 text-gray-400">
+                                            Lead:
+                                        </span>
+                                        <Link
+                                            href={`/account/lead-contact/${note.lead.id}`}
+                                            className="text-blue-600 hover:text-blue-800"
+                                        >
+                                            {note.lead.client_name}
+                                        </Link>
+                                    </div>
+                                ) : undefined
+                            }
+                        />
+                    ))}
+                </div>
+            )}
+
+            {!searchTerm && pagination.total > pagination.pageSize && (
+                <Pagination
+                    current={pagination.current}
+                    pageSize={pagination.pageSize}
+                    total={pagination.total}
+                    showSizeChanger
+                    showTotal={(total) => `${total} notes`}
+                    onChange={(page, size) => fetchData(page, size)}
+                    className="flex justify-end"
+                />
+            )}
+
             <Drawer
                 title={<span className="text-sm">View Note</span>}
                 placement="right"
@@ -520,7 +693,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                     </div>
                 )}
             </Drawer>
-        </>
+        </div>
     );
 };
 

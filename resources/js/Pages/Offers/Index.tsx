@@ -15,7 +15,7 @@ import {
     ReloadOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
-import { Button, Table, Tag, Select, Space } from "antd";
+import { Button, Table, Tag, Select, Space, Switch, App } from "antd";
 import type { TableColumnsType } from "antd";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
@@ -55,13 +55,42 @@ const Index = ({
     } = useGenericEntityAction<Offer>();
 
     const { t } = useTranslation();
+    const { message } = App.useApp();
     const { refresh, isRefreshing } = usePageRefresh();
+    const [togglingId, setTogglingId] = useState<number | null>(null);
     const [activeFilter, setActiveFilter] = useState<string | undefined>(
         filters.active_only,
     );
     const [developerFilter, setDeveloperFilter] = useState<string | undefined>(
         filters.developer_id,
     );
+
+    const handleToggleActive = async (record: Offer) => {
+        setTogglingId(record.id);
+        try {
+            const res = await fetch(route("offers.toggle", record.id), {
+                method: "POST",
+                headers: {
+                    "X-Requested-With": "XMLHttpRequest",
+                    "X-CSRF-TOKEN":
+                        document
+                            .querySelector('meta[name="csrf-token"]')
+                            ?.getAttribute("content") ?? "",
+                    Accept: "application/json",
+                },
+            });
+            const result = await res.json();
+            if (result.status === "success") {
+                router.reload({ only: ["offers"] });
+            } else {
+                message.error(result.message || "Failed to toggle offer");
+            }
+        } catch {
+            message.error("Failed to toggle offer");
+        } finally {
+            setTogglingId(null);
+        }
+    };
 
     const applyFilter = (key: string, value: string | undefined) => {
         const params: Record<string, string | undefined> = {
@@ -143,15 +172,21 @@ const Index = ({
                     v !== null ? Number(v).toLocaleString("en-GB") : "-",
             },
             {
-                title: "Status",
-                dataIndex: "is_active",
-                key: "is_active",
-                width: 90,
+                title: "Unit Types",
+                dataIndex: "unit_types_count",
+                key: "unit_types_count",
+                width: 100,
                 align: "center",
-                render: (active: boolean) => (
-                    <Tag color={active ? "green" : "default"}>
-                        {active ? "Active" : "Inactive"}
-                    </Tag>
+                render: (count: number | undefined) => (
+                    <span
+                        className={
+                            count
+                                ? "text-blue-600 font-medium"
+                                : "text-gray-400"
+                        }
+                    >
+                        {count ?? 0}
+                    </span>
                 ),
             },
             {
@@ -178,9 +213,23 @@ const Index = ({
                 },
             },
             {
+                title: "Active",
+                key: "is_active",
+                width: 80,
+                align: "center",
+                render: (_, record) => (
+                    <Switch
+                        size="small"
+                        checked={record.is_active}
+                        loading={togglingId === record.id}
+                        onChange={() => handleToggleActive(record)}
+                    />
+                ),
+            },
+            {
                 title: "Actions",
                 key: "actions",
-                width: 130,
+                width: 100,
                 align: "center",
                 render: (_, record) => (
                     <Space size="small">
@@ -188,20 +237,23 @@ const Index = ({
                             type="text"
                             size="small"
                             icon={<EyeOutlined />}
+                            title="View"
                             onClick={() => handleAction("view", record)}
                         />
                         <Button
                             type="text"
                             size="small"
                             icon={<EditOutlined />}
+                            title="Edit"
                             onClick={() => handleAction("edit", record)}
                         />
-                        {!((record.developer_projects_count ?? 0) > 0) && (
+                        {!record.is_active && (
                             <Button
                                 type="text"
                                 size="small"
                                 danger
                                 icon={<DeleteOutlined />}
+                                title="Delete"
                                 onClick={() => handleAction("delete", record)}
                             />
                         )}
@@ -209,7 +261,7 @@ const Index = ({
                 ),
             },
         ],
-        [handleAction],
+        [handleAction, togglingId],
     );
 
     return (
@@ -342,7 +394,9 @@ const Index = ({
 };
 
 Index.layout = (page: React.ReactNode) => (
-    <DashboardLayout>{page}</DashboardLayout>
+    <DashboardLayout>
+        <App>{page}</App>
+    </DashboardLayout>
 );
 
 export default Index;

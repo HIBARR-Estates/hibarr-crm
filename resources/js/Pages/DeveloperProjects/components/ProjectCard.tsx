@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import type { MenuProps } from "antd";
 import type { DeveloperProject } from "@/Types/developerProject";
+import { usePermission } from "@/lib/permissionUtils";
 
 function formatCompletionDate(
     dateStr: string | null | undefined,
@@ -31,6 +32,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     onEdit,
     onDelete,
 }) => {
+    const { hasPermission } = usePermission();
+    const canEdit = hasPermission("edit_developer_projects");
+    const canDelete = hasPermission("delete_developer_projects");
+
     const hasProperties = (project.properties_count ?? 0) > 0;
     const soldCount = project.sold_properties_count ?? 0;
     const totalCount = project.properties_count ?? 0;
@@ -54,37 +59,45 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                 </Link>
             ),
         },
-        {
-            key: "edit",
-            label: (
-                <span
-                    className="flex items-center gap-2"
-                    onClick={() => onEdit?.(project)}
-                >
-                    <Pencil size={13} />
-                    Edit
-                </span>
-            ),
-        },
-        { type: "divider" },
-        {
-            key: "delete",
-            label: (
-                <Popconfirm
-                    title="Delete Project"
-                    description="Are you sure? Properties will be unassigned."
-                    onConfirm={() => onDelete?.(project)}
-                    okText="Delete"
-                    cancelText="Cancel"
-                    okButtonProps={{ danger: true }}
-                >
-                    <span className="flex items-center gap-2 text-red-500">
-                        <Trash2 size={13} />
-                        Delete
-                    </span>
-                </Popconfirm>
-            ),
-        },
+        ...(canEdit
+            ? [
+                  {
+                      key: "edit",
+                      label: (
+                          <span
+                              className="flex items-center gap-2"
+                              onClick={() => onEdit?.(project)}
+                          >
+                              <Pencil size={13} />
+                              Edit
+                          </span>
+                      ),
+                  },
+              ]
+            : []),
+        ...(canDelete
+            ? [
+                  { type: "divider" as const },
+                  {
+                      key: "delete",
+                      label: (
+                          <Popconfirm
+                              title="Delete Project"
+                              description="Are you sure? Properties will be unassigned."
+                              onConfirm={() => onDelete?.(project)}
+                              okText="Delete"
+                              cancelText="Cancel"
+                              okButtonProps={{ danger: true }}
+                          >
+                              <span className="flex items-center gap-2 text-red-500">
+                                  <Trash2 size={13} />
+                                  Delete
+                              </span>
+                          </Popconfirm>
+                      ),
+                  },
+              ]
+            : []),
     ];
 
     return (
@@ -111,23 +124,21 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
 
             {/* ── Hero image ── */}
             <div className="relative h-48 overflow-hidden flex items-center justify-center bg-gray-50">
-                {/* Context menu — only visible on hover, only when handlers provided */}
-                {(onEdit != null || onDelete != null) && (
-                    <div
-                        className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-                        onClick={(e) => e.stopPropagation()}
+                {/* Context menu — always visible on hover */}
+                <div
+                    className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <Dropdown
+                        menu={{ items: menuItems }}
+                        trigger={["click"]}
+                        placement="bottomRight"
                     >
-                        <Dropdown
-                            menu={{ items: menuItems }}
-                            trigger={["click"]}
-                            placement="bottomRight"
-                        >
-                            <button className="w-7 h-7 flex items-center justify-center bg-white/90 rounded-md shadow text-gray-600 hover:bg-white transition-colors cursor-pointer">
-                                <MoreHorizontal size={16} />
-                            </button>
-                        </Dropdown>
-                    </div>
-                )}
+                        <button className="w-7 h-7 flex items-center justify-center bg-white/90 rounded-md shadow text-gray-600 hover:bg-white transition-colors cursor-pointer">
+                            <MoreHorizontal size={16} />
+                        </button>
+                    </Dropdown>
+                </div>
 
                 {firstPhoto ? (
                     <img

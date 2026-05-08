@@ -100,5 +100,6 @@ return [
         'timeout'  => (int) env('AI_TIMEOUT', 45),
         'provider' => env('AI_PROVIDER', 'openai'),
         'model'    => env('AI_MODEL', 'gpt-4o'),
+        'api_key'  => env('AI_API_KEY'),
     ],
 ];

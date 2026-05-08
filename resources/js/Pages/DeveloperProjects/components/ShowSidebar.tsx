@@ -12,10 +12,12 @@ import {
     Gift,
 } from "lucide-react";
 import type { SectionKey } from "../Show";
+import { usePermission } from "@/lib/permissionUtils";
 
 interface ShowSidebarProps {
     activeSection: SectionKey;
     onSelect: (key: SectionKey) => void;
+    onClose?: () => void;
     onEdit: () => void;
     availabilityLink?: string | null;
     unitTypesCount: number;
@@ -27,6 +29,7 @@ interface ShowSidebarProps {
 const ShowSidebar: React.FC<ShowSidebarProps> = ({
     activeSection,
     onSelect,
+    onClose,
     onEdit,
     availabilityLink,
     unitTypesCount,
@@ -34,6 +37,8 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
     interiorCount,
     siteplanCount,
 }) => {
+    const { hasPermission } = usePermission();
+    const canEdit = hasPermission("edit_developer_projects");
     const navItems: {
         key: SectionKey;
         icon: React.ReactNode;
@@ -73,11 +78,11 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
             disabled: !availabilityLink,
         },
         { key: "pdf", icon: <FileText size={16} />, label: "PDF Files" },
-        { key: "offers", icon: <Gift size={16} />, label: "Offers" },
+        // { key: "offers", icon: <Gift size={16} />, label: "Offers" },
     ];
 
     return (
-        <div className="w-64 flex-shrink-0 sticky top-4 flex flex-col gap-2">
+        <div className="w-full lg:w-64 lg:flex-shrink-0 lg:sticky lg:top-4 flex flex-col gap-2">
             {/* Nav items – each is its own card */}
             {navItems.map((item) => {
                 const isDisabled = Boolean(item.disabled);
@@ -99,9 +104,12 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                             rel="noopener noreferrer"
                             className={baseClasses}
                             title="Open availability link"
+                            onClick={() => onClose?.()}
                         >
                             <span className="flex-shrink-0">{item.icon}</span>
-                            <span className="text-sm font-medium">{item.label}</span>
+                            <span className="text-sm font-medium">
+                                {item.label}
+                            </span>
                         </a>
                     );
                 }
@@ -109,7 +117,12 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                 return (
                     <div
                         key={item.key}
-                        onClick={() => !isDisabled && onSelect(item.key)}
+                        onClick={() => {
+                            if (!isDisabled) {
+                                onSelect(item.key);
+                                onClose?.();
+                            }
+                        }}
                         className={baseClasses}
                         title={
                             item.key === "pricelist" && isDisabled
@@ -119,9 +132,13 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                     >
                         <span className="flex-shrink-0">{item.icon}</span>
                         <div className="flex min-w-0 flex-col">
-                            <span className="text-sm font-medium">{item.label}</span>
+                            <span className="text-sm font-medium">
+                                {item.label}
+                            </span>
                             {item.key === "pricelist" && isDisabled && (
-                                <span className="text-xs">Availability link absent</span>
+                                <span className="text-xs">
+                                    Availability link absent
+                                </span>
                             )}
                         </div>
                     </div>
@@ -130,9 +147,11 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
 
             {/* Action buttons */}
             <div className="flex flex-col gap-2 pt-2">
-                <Button icon={<Pencil size={14} />} block onClick={onEdit}>
-                    Edit Project
-                </Button>
+                {canEdit && (
+                    <Button icon={<Pencil size={14} />} block onClick={onEdit}>
+                        Edit Project
+                    </Button>
+                )}
             </div>
         </div>
     );

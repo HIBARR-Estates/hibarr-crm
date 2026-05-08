@@ -143,6 +143,8 @@ class Deal extends BaseModel
         'is_locked' => 'boolean',
         'locked_at' => 'datetime',
         'max_commission_percentage' => 'decimal:2',
+        'manual_value' => 'decimal:2',
+        'calculated_value' => 'decimal:2',
         'won_at' => 'datetime',
     ];
 

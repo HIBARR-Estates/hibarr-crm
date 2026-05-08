@@ -161,6 +161,8 @@ export interface DeveloperProject {
     title_deed_type: string | null;
     unit_types: string[] | null;
     number_of_units: number | null;
+    total_units: number | null;
+    total_units_sold: number | null;
     number_of_blocks: number | null;
     project_total_area_sqm: number | null;
     construction_status: string | null;
@@ -236,6 +238,7 @@ export interface DeveloperProjectUnitType {
     primary_category: "residential" | "commercial";
     property_type: string | null;
     quantity: number | null;
+    total_sold: number | null;
     unit_style: string[] | null;
     view_types: string[] | null;
     furniture_status: string | null;
@@ -271,12 +274,12 @@ export interface DeveloperProjectUnitType {
     // Offers
     offers?: import("./api/offers").Offer[];
     offers_count?: number;
+    active_offers?: import("./api/offers").Offer[];
     // Computed
     display_label?: string;
     formatted_price?: string;
     currency_symbol?: string;
 }
-
 export interface DeveloperProjectUnitTypeAsset {
     id: number;
     unit_type_id: number;

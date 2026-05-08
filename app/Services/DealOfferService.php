@@ -2,91 +2,101 @@
 
 namespace App\Services;
 
-use App\Contracts\OfferPolicyContract;
 use App\Models\Deal;
 use App\Models\DealOfferApplication;
-use App\Models\Product;
-use Illuminate\Support\Collection;
+use App\Models\DeveloperProject;
+use App\Models\DeveloperProjectUnitType;
 use Illuminate\Support\Facades\Log;
 
 class DealOfferService
 {
     public function __construct(
-        private OfferPolicyContract $policy,
+        private DealValueResolver $dealValueResolver,
     ) {}
 
     /**
-     * Apply offers to a deal based on its products' properties.
-     * Removes previously applied offers and recalculates from scratch.
-     * Multiple offers may apply per product (each independently, no compounding).
+     * Auto-apply all currently active offers for the deal's linked properties.
+     *
+     * The method is idempotent: existing applications are rebuilt from scratch
+     * to ensure stale offers are removed when attachments or validity change.
      */
-    public function applyOffersToDeal(Deal $deal): Collection
+    public function applyOffersToDeal(Deal $deal): void
     {
-        // Clear existing applications for this deal
-        $deal->offerApplications()->delete();
+        $deal->loadMissing([
+            'products.property.developerProject',
+            'products.property.developerProjectUnitType',
+        ]);
 
-        $applications = collect();
+        $applications = [];
 
-        // Load products with their properties and the full hierarchy
-        $products = $deal->products()
-            ->whereHas('property')
-            ->with([
-                'property.unitType.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
-                'property.unitType.project.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
-                'property.developerProject.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
-            ])
-            ->get();
-
-        foreach ($products as $product) {
+        foreach ($deal->products as $product) {
             $property = $product->property;
 
             if (!$property) {
                 continue;
             }
 
-            $resolved = $this->policy->resolve($property);
+            $resolvedOffers = [];
 
-            if ($resolved->isEmpty()) {
-                continue;
+            // Unit type offers have higher priority than project-level offers. 
+            // Simply apply just developer project unit type offers for now, as dictated by current business rules. We can re-introduce project-level offers in the future if needed, but it adds complexity to offer application and potential conflicts when both unit type and project offers are active.
+            if ($property->developerProjectUnitType) {
+                foreach ($property->developerProjectUnitType->activeOffers()->get() as $offer) {
+                    $resolvedOffers[$offer->id] = [
+                        'offer' => $offer,
+                        'resolved_from_type' => DeveloperProjectUnitType::class,
+                        'resolved_from_id' => $property->developer_project_unit_type_id,
+                    ];
+                }
             }
+
+            // if ($property->developerProject) {
+            //     foreach ($property->developerProject->activeOffers()->get() as $offer) {
+            //         if (!isset($resolvedOffers[$offer->id])) {
+            //             $resolvedOffers[$offer->id] = [
+            //                 'offer' => $offer,
+            //                 'resolved_from_type' => DeveloperProject::class,
+            //                 'resolved_from_id' => $property->developer_project_id,
+            //             ];
+            //         }
+            //     }
+            // }
 
             $originalAmount = (float) ($product->price ?? 0);
 
-            if ($originalAmount <= 0) {
-                continue;
-            }
+            foreach ($resolvedOffers as $resolvedOffer) {
+                $offer = $resolvedOffer['offer'];
 
-            foreach ($resolved as $entry) {
-                $offer = $entry['offer'];
-                $discountAmount = $offer->computeDiscount($originalAmount);
-
-                if ($discountAmount <= 0 && $offer->type !== \App\Enums\OfferType::PERKS) {
-                    continue;
-                }
-
-                $application = DealOfferApplication::create([
+                $applications[] = [
                     'deal_id' => $deal->id,
                     'offer_id' => $offer->id,
                     'product_id' => $product->id,
-                    'resolved_from_type' => $entry['resolved_from_type'],
-                    'resolved_from_id' => $entry['resolved_from_id'],
+                    'resolved_from_type' => $resolvedOffer['resolved_from_type'],
+                    'resolved_from_id' => $resolvedOffer['resolved_from_id'],
                     'original_amount' => $originalAmount,
-                    'discount_amount' => $discountAmount,
+                    'discount_amount' => $offer->computeDiscount($originalAmount),
                     'offer_type' => $offer->type->value,
                     'offer_value' => $offer->value,
-                ]);
-
-                $applications->push($application);
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             }
+        }
+
+        $deal->offerApplications()->delete();
+
+        if (!empty($applications)) {
+            DealOfferApplication::insert($applications);
         }
 
         Log::info('DealOfferService: Applied offers to deal', [
             'deal_id' => $deal->id,
-            'applications_count' => $applications->count(),
+            'applications_count' => count($applications),
         ]);
 
-        return $applications;
+        $this->dealValueResolver->resolveAndPersist($deal);
     }
+
 
     /**
      * Remove all offer applications from a deal.
@@ -98,65 +108,8 @@ class DealOfferService
         Log::info('DealOfferService: Removed all offers from deal', [
             'deal_id' => $deal->id,
         ]);
-    }
 
-    /**
-     * Preview what offers would apply to a deal without persisting.
-     *
-     * @return Collection<int, array{product_id: int, offer: \App\Models\Offer, resolved_from_type: string, resolved_from_id: int, original_amount: float, discount_amount: float}>
-     */
-    public function previewOffers(Deal $deal): Collection
-    {
-        $previews = collect();
-
-        $products = $deal->products()
-            ->whereHas('property')
-            ->with([
-                'property.unitType.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
-                'property.unitType.project.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
-                'property.developerProject.offers' => fn ($q) => $q->active()->wherePivot('is_active', true),
-            ])
-            ->get();
-
-        foreach ($products as $product) {
-            $property = $product->property;
-
-            if (!$property) {
-                continue;
-            }
-
-            $resolved = $this->policy->resolve($property);
-
-            if ($resolved->isEmpty()) {
-                continue;
-            }
-
-            $originalAmount = (float) ($product->price ?? 0);
-
-            if ($originalAmount <= 0) {
-                continue;
-            }
-
-            foreach ($resolved as $entry) {
-                $offer = $entry['offer'];
-                $discountAmount = $offer->computeDiscount($originalAmount);
-
-                if ($discountAmount <= 0 && $offer->type !== \App\Enums\OfferType::PERKS) {
-                    continue;
-                }
-
-                $previews->push([
-                    'product_id' => $product->id,
-                    'offer' => $offer,
-                    'resolved_from_type' => $entry['resolved_from_type'],
-                    'resolved_from_id' => $entry['resolved_from_id'],
-                    'original_amount' => $originalAmount,
-                    'discount_amount' => $discountAmount,
-                ]);
-            }
-        }
-
-        return $previews;
+        $this->dealValueResolver->resolveAndPersist($deal);
     }
 
     /**

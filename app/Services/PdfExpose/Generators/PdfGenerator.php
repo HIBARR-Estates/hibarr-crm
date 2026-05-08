@@ -16,7 +16,8 @@ class PdfGenerator
     public function generate(string $html, ExposeConfiguration $config)
     {
         $filename = $this->generateFilename($config);
-        $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
+        // $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
+        $orientation = 'landscape';
 
         // Generate PDF using Spatie and return download response
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
@@ -38,6 +39,34 @@ class PdfGenerator
             ->margins(10, 10, 10, 10);
 
         return $pdf->download($filename);
+    }
+
+    /**
+     * Generate PDF and save to a local file path (for async queue jobs).
+     * The caller is responsible for cleaning up the file.
+     */
+    public function saveToFile(string $html, ExposeConfiguration $config, string $destinationPath): void
+    {
+        // $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
+        $orientation = 'landscape';
+
+        Pdf::view('pdf.wrapper', ['content' => $html])
+            ->format('a4')
+            ->orientation($orientation)
+            ->withBrowsershot(function ($browsershot) {
+                $browsershot->noSandbox();
+                $browsershot->disableSetuidSandbox();
+                $browsershot->setOption('args', [
+                    '--disable-dev-shm-usage',
+                    '--ignore-certificate-errors',
+                    '--allow-running-insecure-content',
+                ]);
+                $browsershot->waitUntilNetworkIdle();
+                $browsershot->setDelay(1500);
+                $browsershot->timeout(120);
+            })
+            ->margins(10, 10, 10, 10)
+            ->save($destinationPath);
     }
 
     /**

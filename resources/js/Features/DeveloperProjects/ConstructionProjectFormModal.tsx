@@ -225,6 +225,8 @@ const ConstructionProjectFormModal: React.FC<
                 title_deed_type: project.title_deed_type,
                 unit_types: project.unit_types,
                 number_of_units: project.number_of_units,
+                total_units: project.total_units,
+                total_units_sold: project.total_units_sold,
                 number_of_blocks: project.number_of_blocks,
                 project_total_area_sqm: project.project_total_area_sqm,
                 construction_status: project.construction_status,
@@ -235,7 +237,9 @@ const ConstructionProjectFormModal: React.FC<
                 furniture_package: project.furniture_package,
                 rental_guarantee: project.rental_guarantee,
                 payment_plan: project.payment_plan,
-                facilities: project.facilities,
+                facilities: Array.isArray(project.facilities)
+                    ? project.facilities
+                    : [],
                 distances: project.distances,
                 project_location_id: project.project_location_id,
                 ...locationFields,
@@ -246,6 +250,7 @@ const ConstructionProjectFormModal: React.FC<
             if (developer) {
                 form.setFieldValue("developer_id", developer.id);
             }
+            form.setFieldValue("facilities", []);
         }
     }, [open, project, developer, form]);
 
@@ -256,8 +261,13 @@ const ConstructionProjectFormModal: React.FC<
                 .then((values) => {
                     const { _selected_developer_id, ...cleanData } = values;
 
+                    const facilities = Array.isArray(cleanData.facilities)
+                        ? cleanData.facilities
+                        : [];
+
                     const submitData = removeUndefined({
                         ...cleanData,
+                        facilities,
                         completion_date: cleanData.completion_date
                             ? cleanData.completion_date.format("YYYY-MM-DD")
                             : cleanData.completion_date,
@@ -404,7 +414,11 @@ const ConstructionProjectFormModal: React.FC<
                             description="Amenities and facilities available in the project"
                             defaultOpen={false}
                         >
-                            <ConstructionProjectFacilitiesSection form={form} />
+                            <ConstructionProjectFacilitiesSection
+                                form={form}
+                                open={open}
+                                projectFacilities={effectiveProject?.facilities}
+                            />
                         </FormSection>
 
                         {/* Photos */}

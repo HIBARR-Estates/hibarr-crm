@@ -204,10 +204,10 @@ export const Show = ({
                                     </div>
                                 </div>
 
-                                <QuickActions
+                                {/* <QuickActions
                                     deal={deal}
                                     permissions={permissions}
-                                />
+                                /> */}
                                 <Tooltip
                                     title={
                                         isDealEditMode
@@ -296,10 +296,10 @@ export const Show = ({
                             {/* Right Column - Activities Sidebar */}
                             <Col xs={24} lg={10} xl={10}>
                                 <div className="lg:sticky lg:top-8 flex flex-col gap-y-4">
-                                    <ActivitySidebar
+                                    {/* <ActivitySidebar
                                         deal={deal}
                                         permissions={permissions}
-                                    />
+                                    /> */}
                                     <CrmEventTimeline
                                         modelType="App\\Models\\Deal"
                                         modelId={deal.id}

@@ -185,6 +185,81 @@ return [
     ],
 
     'deals' => [
+        'actions' => [
+            'add_task' => 'Add Task',
+            'add_note' => 'Add Note',
+        ],
+        'tabs' => [
+            'header'          => 'Details',
+            'notes'           => 'Notes',
+            'tasks'           => 'Tasks',
+            'meeting'         => 'Meeting',
+            'files'           => 'Files',
+            'recommendations' => 'Recommendations',
+            'offers'          => 'Offers',
+            'history'         => 'History',
+        ],
+        'info' => [
+            'title'               => 'Deal Information',
+            'locked'              => 'Locked',
+            'edit_mode'           => 'Edit Mode',
+            'tab_overview'        => 'Overview',
+            'tab_details'         => 'Details',
+            'save_all_success'    => 'All changes saved successfully',
+            'save_all_error'      => 'Failed to save changes',
+            'recalculate_success' => 'Deal value recalculated',
+            'recalculate_error'   => 'Unable to recalculate deal value',
+            'file_upload_success' => 'File uploaded successfully',
+            'client_tag'          => 'Client',
+            'no_properties'       => 'No properties linked to this deal',
+            'unsaved_changes'     => '{{count}} unsaved changes',
+            'sections' => [
+                'overview'     => 'Deal Overview',
+                'contact_info' => 'Contact Info',
+                'team'         => 'Team',
+            ],
+            'fields' => [
+                'deal_name'         => 'Deal Name',
+                'deal_value'        => 'Deal Value',
+                'close_date'        => 'Close Date',
+                'packages'          => 'Packages',
+                'lead_contact'      => 'Lead Contact',
+                'deal_category'     => 'Deal Category',
+                'properties'        => 'Properties',
+                'status'            => 'Status',
+                'email'             => 'Email',
+                'mobile'            => 'Mobile',
+                'company_name'      => 'Company Name',
+                'deal_agent'        => 'Deal Agent',
+                'deal_participants' => 'Deal Participants',
+                'deal_watchers'     => 'Deal Watchers',
+            ],
+            'actions' => [
+                'edit'              => 'Edit',
+                'save_all_tooltip'  => 'Save All Changes',
+                'no_changes'        => 'No changes to save',
+                'cancel_edit'       => 'Cancel Edit',
+                'delete'            => 'Delete Deal',
+                'manage_properties' => 'Manage Properties',
+                'recalculate_value_tooltip' => 'Recalculate value from attached products, packages, and applied offers',
+            ],
+            'value_insight' => [
+                'properties'        => 'Properties',
+                'products'          => 'Products',
+                'packages'          => 'Packages',
+                'gross'             => 'Gross',
+                'discount'          => 'Discount',
+                'calculated'        => 'Calculated',
+                'source'            => 'Source',
+                'source_manual'     => 'Manual',
+                'source_calculated' => 'Calculated',
+                'final'             => 'Final',
+                'total'             => 'Total',
+                'adjusted'          => 'Adjusted',
+                'vs_calculated'     => 'vs calculated',
+                'no_offers'         => 'No applied offers yet.',
+            ],
+        ],
         'table' => [
             'columns' => [
                 'deal_name'       => 'Deal Name',
@@ -225,6 +300,226 @@ return [
             'sold_prefix'               => 'Sold',
             'sold_times_suffix'         => 'times',
             'sold_short'                => 'Sold',
+        ],
+        'index' => [
+            'tabs' => [
+                'all'       => 'All',
+                'my_drafts' => 'My Drafts',
+            ],
+            'pagination' => [
+                'of'         => 'of',
+                'properties' => 'properties',
+            ],
+            'unit_type_bulk_disabled' => 'Bulk actions are not available when unit types are selected.',
+        ],
+        'index_old' => [
+            'advanced_filters'          => 'Advanced Filters',
+            'advanced_property_filters' => 'Advanced Property Filters',
+        ],
+        'create' => [
+            'title' => 'Create New Property',
+            'actions' => [
+                'create_property' => 'Create Property',
+                'update_property' => 'Update Property',
+                'cancel'          => 'Cancel',
+            ],
+            'form_modes' => [
+                'form'   => 'Form',
+                'wizard' => 'Wizard',
+                'tabs'   => 'Tabs',
+            ],
+            'messages' => [
+                'property_saved_upload' => 'Property saved! You can now upload photos.',
+                'project_saved_upload'  => 'Project saved! You can now upload photos and manage unit types.',
+                'project_created'       => 'Construction project created!',
+                'project_updated'       => 'Construction project updated!',
+                'check_form_errors'     => 'Please check the form for errors',
+            ],
+        ],
+        'config' => [
+            'breadcrumb'       => 'Configuration',
+            'categories_title' => 'Categories',
+            'no_description'   => 'No description',
+            'delete_title'     => 'Delete item?',
+            'delete_description' => 'This will permanently delete :label.',
+            'search_prefix'    => 'Search',
+            'filter_by_city'   => 'Filter by city',
+            'shown_count'      => 'Showing :shown of :total',
+            'selected_count'   => ':count selected',
+            'assign_category'  => 'Assign category',
+            'empty_description' => 'No :label configured yet.',
+            'empty_filtered_description' => 'No matching :label found.',
+            'actions' => [
+                'add'           => 'Add',
+                'assign'        => 'Assign',
+                'clear'         => 'Clear',
+                'add_first'     => 'Add the first one',
+                'clear_filters' => 'Clear filters',
+            ],
+            'table' => [
+                'columns' => [
+                    'display_label' => 'Display Label',
+                    'parent_type'   => 'Parent Type',
+                    'city'          => 'City',
+                    'category'      => 'Category',
+                    'icon'          => 'Icon',
+                    'description'   => 'Description',
+                    'actions'       => 'Actions',
+                ],
+            ],
+            'categories' => [
+                'property-types' => [
+                    'label'       => 'Property Types',
+                    'description' => 'Types of properties (Apartment, Villa, Land, etc.)',
+                ],
+                'sub-types' => [
+                    'label'       => 'Sub Types',
+                    'description' => 'Sub-classifications within property types',
+                ],
+                'primary-categories' => [
+                    'label'       => 'Primary Categories',
+                    'description' => 'Primary listing categories (Residential, Commercial, Land)',
+                ],
+                'view-types' => [
+                    'label'       => 'View Types',
+                    'description' => 'Property view options (Sea View, Mountain View, etc.)',
+                ],
+                'title-deed-types' => [
+                    'label'       => 'Title Deed Types',
+                    'description' => 'Types of title deeds (Turkish/British, Exchange, etc.)',
+                ],
+                'exterior-features' => [
+                    'label'       => 'Exterior Features',
+                    'description' => 'Exterior amenities (Pool, Garden, Parking, etc.)',
+                ],
+                'interior-features' => [
+                    'label'       => 'Interior Features',
+                    'description' => 'Interior amenities (AC, Fireplace, Built-in Kitchen, etc.)',
+                ],
+                'floor-types' => [
+                    'label'       => 'Floor Types',
+                    'description' => 'Floor levels (Ground Floor, Floor 1-15, etc.)',
+                ],
+                'deed-statuses' => [
+                    'label'       => 'Deed Statuses',
+                    'description' => 'Status of property deeds (Owner Individual, No Deed, etc.)',
+                ],
+                'construction-statuses' => [
+                    'label'       => 'Construction Statuses',
+                    'description' => 'Construction stage (Off-Plan, Under Construction, Resale, etc.)',
+                ],
+                'occupancy-types' => [
+                    'label'       => 'Occupancy Types',
+                    'description' => 'Current occupancy (Owner Occupied, Tenant, Vacant)',
+                ],
+                'furniture-statuses' => [
+                    'label'       => 'Furniture Statuses',
+                    'description' => 'Furnishing level (Unfurnished, Fully Furnished, etc.)',
+                ],
+                'heating-types' => [
+                    'label'       => 'Heating Types',
+                    'description' => 'Heating system (Central, Underfloor, AC, Solar, etc.)',
+                ],
+                'cities' => [
+                    'label'       => 'Cities',
+                    'description' => 'TRNC cities (Kyrenia, Gazimagusa, Nicosia, etc.)',
+                ],
+                'areas' => [
+                    'label'       => 'Areas',
+                    'description' => 'Districts/areas within each city (Alsancak, Catalkoy, etc.)',
+                ],
+                'sale-types' => [
+                    'label'       => 'Sale Types',
+                    'description' => 'Listing purpose (For Sale, For Rent, For Daily Rental)',
+                ],
+                'statuses' => [
+                    'label'       => 'Property Statuses',
+                    'description' => 'Listing status (Available, Reserved, Sold, etc.)',
+                ],
+                'location-features' => [
+                    'label'       => 'Location Features',
+                    'description' => 'Proximity features (Near Beach, Near School, etc.)',
+                ],
+                'add-ons' => [
+                    'label'       => 'Add-Ons',
+                    'description' => 'Optional extras (Furniture Package, Rental Guarantee, etc.)',
+                ],
+                'project-facilities' => [
+                    'label'       => 'Project Facilities',
+                    'description' => 'Facilities available in developer projects (Gym, Pool, etc.)',
+                ],
+            ],
+        ],
+        'manage_assets' => [
+            'title'             => 'Manage Assets',
+            'property_fallback' => 'Property',
+            'actions' => [
+                'upload_assets' => 'Upload Assets',
+                'upload'        => 'Upload',
+                'cancel'        => 'Cancel',
+            ],
+            'pagination' => [
+                'previous' => 'Previous',
+                'next'     => 'Next',
+                'page_of'  => 'Page {{current}} of {{total}}',
+            ],
+            'modal' => [
+                'upload_title' => 'Upload Assets',
+            ],
+            'progress' => [
+                'saving_to_property' => 'Saving to property...',
+                'uploading_files'    => 'Uploading {{count}} file(s)...',
+                'saving'             => 'Saving...',
+            ],
+            'fields' => [
+                'tags_optional'   => 'Tags (optional)',
+                'tags_placeholder' => 'Select tags to apply to all uploaded assets',
+            ],
+            'upload_info' => [
+                'title'       => 'Upload Info',
+                'description' => 'Files will be uploaded to our secure cloud storage. Supported formats: JPEG, PNG, GIF, WebP, MP4, WebM. Maximum file size: 50MB.',
+            ],
+            'messages' => [
+                'select_files'           => 'Please select files to upload',
+                'no_valid_files'         => 'No valid files to upload',
+                'upload_failed'          => 'Upload failed',
+                'failed_to_upload_file'  => 'Failed to upload "{{file}}": {{error}}',
+                'partial_upload_warning' => '{{failed}} file(s) failed to upload. {{success}} file(s) will be saved.',
+                'all_uploads_failed'     => 'All uploads failed. Please check your files and try again.',
+                'upload_process_failed'  => 'Upload process failed',
+                'upload_error'           => 'Upload error: {{error}}. Please try again.',
+                'uploads_cancelled'      => 'Uploads cancelled',
+            ],
+        ],
+        'show' => [
+            'property_reference_prefix' => 'Property',
+            'messages' => [
+                'link_copied'        => 'Property link copied to clipboard!',
+                'link_copy_failed'   => 'Failed to copy link',
+                'added_to_favorites' => 'Property added to favorites!',
+            ],
+        ],
+        'unit_type_show' => [
+            'unit_type_reference_prefix' => 'Unit Type',
+            'unit_type_label'            => 'Unit Type',
+            'messages' => [
+                'no_availability_link' => 'No availability link configured for this project.',
+            ],
+        ],
+    ],
+
+    'meetings' => [
+        'card' => [
+            'no_participants' => 'No participants',
+            'added_by'        => 'Added by',
+            'participant'     => 'participant',
+            'participants'    => 'participants',
+            'actions' => [
+                'view'         => 'View',
+                'edit'         => 'Edit',
+                'join_meeting' => 'Join Meeting',
+                'delete'       => 'Delete',
+            ],
         ],
     ],
 

@@ -171,6 +171,7 @@ class DeveloperProjectUnitType extends BaseModel
         'primary_category',
         'property_type',
         'quantity',
+        'total_sold',
         'unit_style',
         'view_types',
         'furniture_status',
@@ -192,6 +193,24 @@ class DeveloperProjectUnitType extends BaseModel
         'has_restrictions',
         'restriction_notes',
         'order',
+    ];
+
+    // ================================================================
+    // Appended Accessors
+    // ================================================================
+
+    /**
+     * These computed attributes are automatically included in toArray() / JSON
+     * serialization so that Inertia delivers them to the frontend.
+     *
+     * display_label   → human-readable card title (e.g. "2+1 Apartment")
+     * formatted_price → price with currency symbol (e.g. "£250,000")
+     * currency_symbol → just the symbol (e.g. "£", "€")
+     */
+    protected $appends = [
+        'display_label',
+        'formatted_price',
+        'currency_symbol',
     ];
 
     // ================================================================

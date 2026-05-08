@@ -117,7 +117,7 @@ const ConstructionProjectDetailsSection: React.FC<
             </Col>
 
             {/* Number of Units */}
-            <Col xs={24} md={6}>
+            {/* <Col xs={24} md={6}>
                 <Form.Item name="number_of_units" label="Number of Units">
                     <InputNumber
                         min={1}
@@ -126,7 +126,7 @@ const ConstructionProjectDetailsSection: React.FC<
                         style={{ width: "100%" }}
                     />
                 </Form.Item>
-            </Col>
+            </Col> */}
 
             {/* Number of Blocks (Apt) */}
             <Col xs={24} md={6}>

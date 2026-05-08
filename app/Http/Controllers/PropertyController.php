@@ -60,7 +60,14 @@ class PropertyController extends AccountBaseController
     public function index(Request $request)
     {
         // Get properties with pagination and filtering
-        $query = Property::with(['product', 'developerProject.location', 'projectLocation', 'addedBy', 'responsibleAgent']);
+        $query = Property::with([
+            'product',
+            'developerProject.location',
+            'projectLocation',
+            'addedBy',
+            'responsibleAgent',
+            'assets' => fn ($q) => $q->where('asset_type', \App\Models\PropertyAsset::TYPE_IMAGE)->orderBy('order'),
+        ]);
 
         // Apply visibility filter - users see published + their own drafts
         $userId = user()->id;
@@ -144,18 +151,9 @@ class PropertyController extends AccountBaseController
             $query->where('project_location_id', $request->project_location_id);
         }
 
-        // Filter by city - search in property's own city OR project location name
-        if ($request->filled('city')) {
-            $citySearch = $request->city;
-            $query->where(function($q) use ($citySearch) {
-                $q->where('city', 'like', '%' . $citySearch . '%')
-                  ->orWhereHas('developerProject.location', function($locQuery) use ($citySearch) {
-                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
-                  })
-                  ->orWhereHas('projectLocation', function($locQuery) use ($citySearch) {
-                      $locQuery->where('name', 'like', '%' . $citySearch . '%');
-                  });
-            });
+        // Filter by city — exact match against the PropertyCity name (slug)
+        if ($request->filled('city') && $request->city !== 'all') {
+            $query->where('city', $request->city);
         }
 
         // Filter by project location (searches project location name)
@@ -212,24 +210,10 @@ class PropertyController extends AccountBaseController
             $query->orderBy('created_at', 'asc');
         }
 
-        $perPage = (int) $request->get('per_page', 15) ?: 15;
+        $perPage = (int) $request->get('per_page', 16) ?: 16;
         $perPage = max(1, min(100, $perPage));
 
-        // ── Source filter: all | properties | unit_types ──
-        $source = $request->get('source', 'all');
-
-        if ($source === 'unit_types') {
-            // Only return unit types transformed as properties
-            $properties = $this->getUnitTypeProperties($request, $perPage);
-        } elseif ($source === 'properties') {
-            // Only return real properties (default query)
-            $properties = $query->paginate($perPage);
-        } else {
-            // ── Two-query merge + PHP sort/slice ──
-            // Both sources are filtered independently, then merged, sorted, and
-            // sliced in PHP so that pagination totals reflect the combined set.
-            $properties = $this->getMergedPropertiesAndUnitTypes($query, $request, $perPage);
-        }
+        $properties = $query->paginate($perPage);
 
         // Get products for property assignment in create drawer
         $products = Product::whereDoesntHave('property')->get();
@@ -260,6 +244,11 @@ class PropertyController extends AccountBaseController
             ->where('company_id', user()->company_id)
             ->get();
 
+        $cities = \App\Models\PropertyCity::where('company_id', user()->company_id)
+            ->select('name', 'label')
+            ->orderBy('label')
+            ->get();
+
         return Inertia::render('Properties/Index', [
             'pageTitle' => 'Properties',
             'properties' => $this->properties,
@@ -268,13 +257,14 @@ class PropertyController extends AccountBaseController
             'developerProjects' => $developerProjects,
             'projectLocations' => $projectLocations,
             'developers' => $developers,
+            'cities' => $cities,
             'enumValues' => Property::getEnumValues(),
             'filters' => $request->only([
                 'search', 'property_type', 'sale_type', 'status', 'city', 
                 'min_price', 'max_price', 'developer_project_id', 'project_location',
                 'primary_category', 'unit_style', 'construction_status', 
                 'publishing_status', 'project_location_id', 'view_types',
-                'occupancy_type', 'added_by', 'responsible_agent_id', 'source'
+                'occupancy_type', 'added_by', 'responsible_agent_id'
             ]),
             // Lazy-loaded: only fetched when frontend requests it (Construction Projects tab)
             'constructionProjects' => Inertia::lazy(function () use ($request) {
@@ -1504,19 +1494,27 @@ class PropertyController extends AccountBaseController
     public function generateExpose(Request $request, $id)
     {
         $property = Property::with(['product.addedBy', 'assets'])->findOrFail($id);
-        // $layout = $request->input('layout', 'expose-template');
-        $layout = 'expose-template';
-        
-        // Collect client data for personalization
-        $clientData = [
-            'client_name' => $request->input('client_name'),
+
+        $payload = [
+            'client_name'  => $request->input('client_name'),
             'client_email' => $request->input('client_email'),
         ];
-        
-        $config = ExposeConfiguration::fromProperty($property, $layout, $clientData);
-        
-        // Return the download response directly
-        return $this->exposeService->generate($config);
+
+        $exposeJob = \App\Models\ExposeJob::create([
+            'company_id'  => user()->company_id,
+            'user_id'     => user()->id,
+            'entity_type' => \App\Models\ExposeJob::ENTITY_PROPERTY,
+            'entity_id'   => $property->id,
+            'status'      => \App\Models\ExposeJob::STATUS_QUEUED,
+            'filename'    => \Illuminate\Support\Str::slug($property->title ?? $property->reference_code ?? 'property') . '-expose.pdf',
+            'payload'     => $payload,
+        ]);
+
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+
+        return Reply::successWithData('Expose generation queued', [
+            'data' => ['job_id' => $exposeJob->id],
+        ]);
     }
 
     /**

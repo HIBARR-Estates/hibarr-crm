@@ -37,6 +37,9 @@ export interface Deal {
     category_id: null | number;
     next_follow_up: string;
     value: number;
+    manual_value?: number;
+    calculated_value?: number;
+    value_source?: "manual" | "calculated";
     note?: null | string;
     hash?: string;
     currency_id?: number;
@@ -52,6 +55,7 @@ export interface Deal {
     packages?: {
         id: number;
         name: string;
+        value?: number;
     }[];
 
     package_id?: number;
@@ -88,6 +92,16 @@ export interface Deal {
     // Offers
     offer_applications?: DealOfferApplication[];
     total_discount?: number;
+    value_breakdown?: {
+        products_total: number;
+        packages_total: number;
+        gross_total: number;
+        discount_total: number;
+        calculated_value: number;
+        manual_value: number | null;
+        value_source: "manual" | "calculated";
+        final_value: number;
+    };
 }
 
 export interface HibarrDealFields {
@@ -313,6 +327,8 @@ export interface CreateDealFormData {
     pipeline?: number;
     stage_id?: number;
     value?: number;
+    manual_value?: number;
+    value_source?: "manual" | "calculated";
     close_date?: string;
     category_id?: number;
     agent_id?: number;

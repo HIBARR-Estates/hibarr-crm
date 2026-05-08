@@ -13,10 +13,12 @@ import {
     GiftOutlined,
     PlusSquareOutlined,
     MinusSquareOutlined,
+    InfoCircleOutlined,
+    ReloadOutlined,
 } from "@ant-design/icons";
 import SideNavTabs from "@/Components/SideNavTabs";
 import dayjs from "dayjs";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -32,8 +34,9 @@ import { ApiResponse } from "@/lib/api/types";
 import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import PropertyCarousel from "./PropertyCarousel";
-import AttachPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
+import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import useTranslation from "@/Hooks/useTranslation";
+import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 
 interface Props {
     deal: Deal;
@@ -120,6 +123,7 @@ export default function DealInfoSection({
         {},
     );
     const [isSavingAll, setIsSavingAll] = useState(false);
+    const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
 
     // Check if there are unsaved changes
     const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
@@ -127,7 +131,12 @@ export default function DealInfoSection({
     // API Mutation for inline updates
     const { mutateAsync: updateDeal, status } = useApiMutate<
         {
-            type: "details" | "contact" | "custom_field" | "hibarr_field";
+            type:
+                | "details"
+                | "contact"
+                | "custom_field"
+                | "hibarr_field"
+                | "recalculate_value";
             data: Record<string, any>;
         },
         Deal,
@@ -160,6 +169,11 @@ export default function DealInfoSection({
     const canEdit = dealPermissions.canEdit;
     const canDelete = dealPermissions.canDelete;
     const isLocked = dealPermissions.isLocked;
+    const valueInsight = useMemo(
+        () => getDealValueInsight(currentDeal),
+        [currentDeal],
+    );
+    const currentCurrencySymbol = currentDeal.currency?.currency_symbol || "£";
 
     // Fields are editable only when in edit mode AND user has permission
     const isFieldEditable = isEditMode && canEdit;
@@ -185,6 +199,26 @@ export default function DealInfoSection({
             ...prev,
             [fieldName]: value,
         }));
+    };
+
+    const handleRecalculateValue = async () => {
+        setIsRecalculatingValue(true);
+        setUpdatingField("value_recalculate");
+
+        try {
+            await updateDeal({
+                type: "recalculate_value",
+                data: {},
+            });
+            message.success(t("pages.deals.info.recalculate_success"));
+        } catch (error: any) {
+            message.error(
+                error?.message || t("pages.deals.info.recalculate_error"),
+            );
+        } finally {
+            setIsRecalculatingValue(false);
+            setUpdatingField(null);
+        }
     };
 
     // Save all pending changes
@@ -266,6 +300,45 @@ export default function DealInfoSection({
                                 ? parseFloat(value.toString())
                                 : 0;
                             detailsChanges[fieldName] = processedValue;
+                        }
+                    } else if (fieldName === "manual_value") {
+                        if (
+                            value &&
+                            typeof value === "object" &&
+                            ("amount" in value || "currency" in value)
+                        ) {
+                            const currencyCode =
+                                typeof value.currency === "string"
+                                    ? value.currency
+                                    : defaultCurrencyCode;
+
+                            const foundCurrency = currencies.find(
+                                (c: any) =>
+                                    (c.currency_code || "").toUpperCase() ===
+                                    currencyCode.toUpperCase(),
+                            );
+
+                            if (
+                                value.amount !== null &&
+                                value.amount !== undefined &&
+                                value.amount !== ""
+                            ) {
+                                detailsChanges.manual_value = Number(
+                                    value.amount,
+                                );
+                            } else {
+                                detailsChanges.manual_value = null;
+                            }
+                            if (foundCurrency?.id) {
+                                detailsChanges.currency_id = foundCurrency.id;
+                            }
+                        } else {
+                            detailsChanges.manual_value =
+                                value !== null &&
+                                value !== undefined &&
+                                value !== ""
+                                    ? Number(value)
+                                    : null;
                         }
                     } else if (fieldName === "close_date") {
                         processedValue = value || null;
@@ -426,7 +499,7 @@ export default function DealInfoSection({
                 effectiveType = "contact";
             } else if (fieldName === "company_name") {
                 effectiveType = "contact";
-            } else if (fieldName === "value") {
+            } else if (fieldName === "value" || fieldName === "manual_value") {
                 // Handle new currency format: { amount, currency }
                 if (
                     value &&
@@ -455,7 +528,9 @@ export default function DealInfoSection({
                         value.amount !== undefined &&
                         value.amount !== ""
                     ) {
-                        payloadData.value = Number(value.amount);
+                        payloadData[apiFieldName] = Number(value.amount);
+                    } else if (fieldName === "manual_value") {
+                        payloadData[apiFieldName] = null;
                     }
 
                     // If neither amount nor currency_id is resolvable, do nothing
@@ -593,59 +668,214 @@ export default function DealInfoSection({
                         <DetailField
                             label={t("pages.deals.info.fields.deal_value")}
                         >
-                            <EditableField
-                                value={{
-                                    amount: currentDeal.value ?? null,
-                                    currency:
-                                        currentDeal.currency?.currency_code ||
-                                        defaultCurrencyCode,
-                                }}
-                                fieldName="value"
-                                fieldType="currency"
-                                onSave={(value) =>
-                                    handleFieldUpdate("value", value)
-                                }
-                                formatValue={(value) => {
-                                    if (
-                                        value === null ||
-                                        value === undefined ||
-                                        (typeof value === "object" &&
-                                            (value.amount === null ||
-                                                value.amount === undefined))
-                                    ) {
-                                        return "--";
+                            <div className="flex items-center gap-2 md:flex-row flex-col">
+                                <EditableField
+                                    value={{
+                                        amount: currentDeal.value ?? null,
+                                        currency:
+                                            currentDeal.currency
+                                                ?.currency_code ||
+                                            defaultCurrencyCode,
+                                    }}
+                                    fieldName="value"
+                                    fieldType="currency"
+                                    onSave={(val) =>
+                                        handleFieldUpdate("value", val)
                                     }
-                                    const amount =
-                                        typeof value === "object"
-                                            ? value.amount
-                                            : value;
-                                    const currencySymbol =
-                                        currentDeal.currency?.currency_symbol ||
-                                        "£";
-                                    return formatCurrency(
-                                        Number(amount),
-                                        currencySymbol,
-                                    );
-                                }}
-                                className="font-semibold"
-                                alwaysEditing={isFieldEditable}
-                                onChange={handleFieldChange}
-                                loading={isSavingAll || isFieldLoading("value")}
-                                disabled={!canEdit}
-                            />
-                            {currentDeal.total_discount != null &&
-                                currentDeal.total_discount > 0 && (
-                                    <Tag
-                                        color="green"
-                                        icon={<GiftOutlined />}
-                                        className="ml-2"
+                                    className="font-semibold"
+                                    alwaysEditing={isFieldEditable}
+                                    onChange={handleFieldChange}
+                                    loading={
+                                        isSavingAll || isFieldLoading("value")
+                                    }
+                                    disabled={!canEdit || isLocked}
+                                />
+                                {!isFieldEditable && (
+                                    <Tooltip
+                                        placement="topLeft"
+                                        title={
+                                            <div style={{ minWidth: 220 }}>
+                                                <div>
+                                                    {t(
+                                                        "pages.deals.info.value_insight.properties",
+                                                    )}
+                                                    :{" "}
+                                                    {valueInsight.productsTotal !==
+                                                    null
+                                                        ? formatCurrency(
+                                                              valueInsight.productsTotal,
+                                                              currentDeal
+                                                                  .currency
+                                                                  ?.currency_symbol ||
+                                                                  "£",
+                                                          )
+                                                        : "--"}
+                                                </div>
+                                                <div>
+                                                    {t(
+                                                        "pages.deals.info.value_insight.packages",
+                                                    )}
+                                                    :{" "}
+                                                    {formatCurrency(
+                                                        valueInsight.packagesTotal,
+                                                        currentDeal.currency
+                                                            ?.currency_symbol ||
+                                                            "£",
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    {t(
+                                                        "pages.deals.info.value_insight.gross",
+                                                    )}
+                                                    :{" "}
+                                                    {valueInsight.grossTotal !==
+                                                    null
+                                                        ? formatCurrency(
+                                                              valueInsight.grossTotal,
+                                                              currentDeal
+                                                                  .currency
+                                                                  ?.currency_symbol ||
+                                                                  "£",
+                                                          )
+                                                        : "--"}
+                                                </div>
+                                                <div>
+                                                    {t(
+                                                        "pages.deals.info.value_insight.discount",
+                                                    )}
+                                                    : -
+                                                    {formatCurrency(
+                                                        valueInsight.discountTotal,
+                                                        currentCurrencySymbol,
+                                                    )}
+                                                </div>
+                                                {/* <div>
+                                                    {t(
+                                                        "pages.deals.info.value_insight.calculated",
+                                                    )}
+                                                    :{" "}
+                                                    {valueInsight.calculatedValue !==
+                                                    null
+                                                        ? formatCurrency(
+                                                              valueInsight.calculatedValue,
+                                                              currentDeal
+                                                                  .currency
+                                                                  ?.currency_symbol ||
+                                                                  "£",
+                                                          )
+                                                        : "--"}
+                                                </div> */}
+                                                {/* <div>
+                                                    {t(
+                                                        "pages.deals.info.value_insight.source",
+                                                    )}
+                                                    :{" "}
+                                                    {t(
+                                                        valueInsight.source ===
+                                                            "manual"
+                                                            ? "pages.deals.info.value_insight.source_manual"
+                                                            : "pages.deals.info.value_insight.source_calculated",
+                                                    )}
+                                                </div> */}
+                                                <div>
+                                                    {t(
+                                                        "pages.deals.info.value_insight.total",
+                                                    )}
+                                                    :{" "}
+                                                    {formatCurrency(
+                                                        valueInsight.finalValue,
+                                                        currentCurrencySymbol,
+                                                    )}
+                                                </div>
+                                                {/* {valueInsight.deltaVsManual !==
+                                                    null &&
+                                                    valueInsight.deltaVsManual !==
+                                                        0 && (
+                                                        <div
+                                                            style={{
+                                                                marginTop: 6,
+                                                                color:
+                                                                    valueInsight.deltaVsManual >
+                                                                    0
+                                                                        ? "#faad14"
+                                                                        : "#ff4d4f",
+                                                            }}
+                                                        >
+                                                            {t(
+                                                                "pages.deals.info.value_insight.adjusted",
+                                                            )}
+                                                            :{" "}
+                                                            {valueInsight.deltaVsManual >
+                                                            0
+                                                                ? "+"
+                                                                : ""}
+                                                            {formatCurrency(
+                                                                valueInsight.deltaVsManual,
+                                                                currentCurrencySymbol,
+                                                            )}{" "}
+                                                            {t(
+                                                                "pages.deals.info.value_insight.vs_calculated",
+                                                            )}
+                                                        </div>
+                                                    )} */}
+                                                {/* {valueInsight.status ===
+                                                    "no-offers" && (
+                                                    <div
+                                                        style={{ marginTop: 6 }}
+                                                    >
+                                                        {t(
+                                                            "pages.deals.info.value_insight.no_offers",
+                                                        )}
+                                                    </div>
+                                                )} */}
+                                            </div>
+                                        }
                                     >
-                                        -
-                                        {Number(
-                                            currentDeal.total_discount,
-                                        ).toLocaleString("en-GB")}
-                                    </Tag>
+                                        <InfoCircleOutlined className="text-blue-500 cursor-help" />
+                                    </Tooltip>
                                 )}
+                                {!isFieldEditable && (
+                                    <Tooltip
+                                        title={t(
+                                            "pages.deals.info.actions.recalculate_value_tooltip",
+                                        )}
+                                    >
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            icon={
+                                                <ReloadOutlined
+                                                    spin={isRecalculatingValue}
+                                                />
+                                            }
+                                            onClick={handleRecalculateValue}
+                                            disabled={
+                                                !canEdit ||
+                                                isLocked ||
+                                                isSavingAll ||
+                                                isRecalculatingValue
+                                            }
+                                        />
+                                    </Tooltip>
+                                )}
+                                {!isFieldEditable &&
+                                    currentDeal.total_discount != null &&
+                                    currentDeal.total_discount > 0 && (
+                                        <Tag
+                                            color="green"
+                                            icon={<GiftOutlined />}
+                                            className="ml-2"
+                                        >
+                                            -
+                                            {formatCurrency(
+                                                Number(
+                                                    currentDeal.total_discount,
+                                                ),
+                                                currentCurrencySymbol,
+                                            )}
+                                        </Tag>
+                                    )}
+                            </div>
                         </DetailField>
 
                         <DetailField
@@ -820,7 +1050,7 @@ export default function DealInfoSection({
                                     </span>
                                 )}
                             </div>
-                            <AttachPropertiesModal
+                            <ManageDealPropertiesModal
                                 open={propertyModalOpen}
                                 onClose={() => setPropertyModalOpen(false)}
                                 deal={currentDeal}
@@ -1199,11 +1429,9 @@ export default function DealInfoSection({
                         )}
                         {isEditMode && hasUnsavedChanges && (
                             <Tag color="orange" className="text-xs">
-                                {Object.keys(pendingChanges).length} unsaved
-                                change
-                                {Object.keys(pendingChanges).length > 1
-                                    ? "s"
-                                    : ""}
+                                {t("pages.deals.info.unsaved_changes", {
+                                    count: Object.keys(pendingChanges).length,
+                                })}
                             </Tag>
                         )}
                     </div>

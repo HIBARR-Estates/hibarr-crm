@@ -20,18 +20,17 @@ import { DealFormProps } from "./DealForm";
 import { formatCurrency } from "@/lib/utils";
 import CurrencyInput from "@/Components/CurrencyInput";
 
-interface DealDetailsTabProps
-    extends Pick<
-        DealFormProps,
-        | "onCancel"
-        | "loading"
-        | "submitText"
-        | "cancelText"
-        | "data"
-        | "onSubmit"
-        | "setErrors"
-        | "onErrorsClear"
-    > {
+interface DealDetailsTabProps extends Pick<
+    DealFormProps,
+    | "onCancel"
+    | "loading"
+    | "submitText"
+    | "cancelText"
+    | "data"
+    | "onSubmit"
+    | "setErrors"
+    | "onErrorsClear"
+> {
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
     onPipelineChange?: (pipelineId: number | undefined) => void;
@@ -51,6 +50,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onPipelineChange,
 }) => {
     const [form] = Form.useForm();
+    const selectedValueSource = Form.useWatch("value_source", form) || "manual";
     const { props } = usePage<any>();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const defaultCurrencyCode = props.default_currency_code || "TRY";
@@ -81,7 +81,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     // Populate form when data changes
     useEffect(() => {
         if (data) {
-            const rawValue = (data as any).value;
+            const rawValue = (data as any).manual_value ?? (data as any).value;
             // CurrencyInput expects { amount, currency }; support both DB shape (number + currency/currency_id) and existing object
             let valueForForm: { amount: number | null; currency: string };
             if (
@@ -90,7 +90,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 ("amount" in rawValue || "currency" in rawValue)
             ) {
                 const amt =
-                    rawValue.amount !== undefined && rawValue.amount !== "" && rawValue.amount !== null
+                    rawValue.amount !== undefined &&
+                    rawValue.amount !== "" &&
+                    rawValue.amount !== null
                         ? Number(rawValue.amount)
                         : null;
                 valueForForm = {
@@ -102,13 +104,16 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 };
             } else {
                 const numVal =
-                    rawValue !== null && rawValue !== undefined && rawValue !== ""
+                    rawValue !== null &&
+                    rawValue !== undefined &&
+                    rawValue !== ""
                         ? Number(rawValue)
                         : null;
                 const currencyCode =
                     (data as any).currency?.currency_code ||
-                    (currencies as any[]).find((c: any) => c.id === (data as any).currency_id)
-                        ?.currency_code ||
+                    (currencies as any[]).find(
+                        (c: any) => c.id === (data as any).currency_id,
+                    )?.currency_code ||
                     defaultCurrencyCode;
                 valueForForm = {
                     amount: numVal !== null && !isNaN(numVal) ? numVal : null,
@@ -117,7 +122,8 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             }
             const formData = {
                 ...data,
-                value: valueForForm,
+                manual_value: valueForForm,
+                value_source: (data as any).value_source || "manual",
                 pipeline: data.pipeline,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
                 deal_watcher: data.deal_watcher || [],
@@ -198,7 +204,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     const displayedAgents = useMemo(() => {
         if (selectedCategoryId) {
             return leadAgents.filter(
-                (agent: any) => agent.lead_category_id === selectedCategoryId
+                (agent: any) => agent.lead_category_id === selectedCategoryId,
             );
         }
         return uniqueAgents;
@@ -233,7 +239,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         // CurrencyInput stores { amount, currency }; API expects value (number) and currency_id
         let valueToSend: number | null = null;
         let currencyIdToSend: number | undefined;
-        const v = values.value;
+        const v = values.manual_value;
         if (v != null && v !== "") {
             if (typeof v === "object" && ("amount" in v || "currency" in v)) {
                 const amt = v.amount;
@@ -242,10 +248,13 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     if (!isNaN(n)) valueToSend = n;
                 }
                 const code =
-                    typeof v.currency === "string" ? v.currency : defaultCurrencyCode;
+                    typeof v.currency === "string"
+                        ? v.currency
+                        : defaultCurrencyCode;
                 const found = (currencies as any[]).find(
                     (c: any) =>
-                        (c.currency_code || "").toUpperCase() === code.toUpperCase()
+                        (c.currency_code || "").toUpperCase() ===
+                        code.toUpperCase(),
                 );
                 if (found?.id) currencyIdToSend = found.id;
             } else {
@@ -255,8 +264,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         }
         const formData = {
             ...values,
+            manual_value: valueToSend,
             value: valueToSend,
-            ...(currencyIdToSend !== undefined && { currency_id: currencyIdToSend }),
+            value_source: values.value_source || "manual",
+            ...(currencyIdToSend !== undefined && {
+                currency_id: currencyIdToSend,
+            }),
             close_date: values.close_date
                 ? values.close_date.format("YYYY-MM-DD")
                 : "",
@@ -278,7 +291,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             onFinishFailed={(errorInfo) => {
                 console.log("Form validation failed:", errorInfo);
                 setErrors?.(
-                    errorInfo.errorFields.map((field) => field.errors).flat()
+                    errorInfo.errorFields.map((field) => field.errors).flat(),
                 );
                 if (onErrorsClear) {
                     onErrorsClear();
@@ -302,7 +315,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                             <Select
                                 // Disabled if "lead_contact" is in the disableFields array
                                 disabled={disableFields.includes(
-                                    "lead_contact"
+                                    "lead_contact",
                                 )}
                                 placeholder="Select Lead Contact"
                                 allowClear
@@ -388,7 +401,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                         pipelineId
                                             ? stage.lead_pipeline_id ===
                                               pipelineId
-                                            : false
+                                            : false,
                                     )
                                     .map((stage: any) => (
                                         <Select.Option
@@ -411,20 +424,79 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
 
                     <Col span={8}>
                         <Form.Item
-                            name="value"
-                            label="Deal Value"
+                            name="value_source"
+                            label="Value Source"
+                            initialValue="manual"
                             rules={[
                                 {
                                     required: true,
-                                    message: "Please enter deal value",
+                                    message: "Please select value source",
                                 },
                             ]}
                         >
+                            <Select
+                                placeholder="Select value source"
+                                disabled={disableFields.includes("deal_value")}
+                                options={[
+                                    { value: "manual", label: "Manual" },
+                                    {
+                                        value: "calculated",
+                                        label: "Calculated",
+                                    },
+                                ]}
+                            />
+                        </Form.Item>
+                    </Col>
+
+                    <Col span={8}>
+                        <Form.Item
+                            name="manual_value"
+                            label="Manual Value"
+                            rules={[
+                                () => ({
+                                    validator(_, value) {
+                                        if (
+                                            selectedValueSource === "calculated"
+                                        ) {
+                                            return Promise.resolve();
+                                        }
+
+                                        const amount =
+                                            value &&
+                                            typeof value === "object" &&
+                                            "amount" in value
+                                                ? value.amount
+                                                : value;
+
+                                        if (
+                                            amount !== null &&
+                                            amount !== undefined &&
+                                            amount !== ""
+                                        ) {
+                                            return Promise.resolve();
+                                        }
+
+                                        return Promise.reject(
+                                            new Error(
+                                                "Please enter manual value",
+                                            ),
+                                        );
+                                    },
+                                }),
+                            ]}
+                        >
                             <CurrencyInput
-                                placeholder="Enter Value"
+                                placeholder={
+                                    selectedValueSource === "calculated"
+                                        ? "Manual value is optional in calculated mode"
+                                        : "Enter manual value"
+                                }
                                 showLabel={false}
                                 noFormItem={true}
-                                disabled={disableFields.includes("deal_value")}
+                                disabled={
+                                    disableFields.includes("deal_value") ||
+                                    selectedValueSource === "calculated"
+                                }
                             />
                         </Form.Item>
                     </Col>
@@ -513,7 +585,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                                 </span>
                                             </div>
                                         </Select.Option>
-                                    )
+                                    ),
                                 )}
                             </Select>
                         </Form.Item>

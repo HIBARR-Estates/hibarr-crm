@@ -221,7 +221,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             key: "properties",
             label: t("app.menu.properties"),
             icon: <HouseDoorIcon />,
-            href: "/account/properties?page=1&per_page=15&sort_by=&sort_direction=asc",
+            href: "/account/properties?page=1&per_page=16&sort_by=&sort_direction=asc",
         },
         // {
         //     key: "crm-events",

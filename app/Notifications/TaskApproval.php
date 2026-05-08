@@ -44,6 +44,11 @@ class TaskApproval extends BaseNotification
     {
         $via = ['database'];
 
+        // During bulk updates, suppress individual transactional emails.
+        if ($this->suppressBulkTransactionalEmails) {
+            return $via;
+        }
+
         if ($this->emailSetting->send_email == 'yes' && isset($notifiable) && $notifiable->email_notifications && $notifiable->email != '') {
             array_push($via, 'mail');
         }

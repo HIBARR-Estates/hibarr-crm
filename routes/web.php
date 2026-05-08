@@ -971,6 +971,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('/deal-notes', [AgentReportController::class, 'dealNotes'])->name('deal-notes');
         Route::get('/lead-notes', [AgentReportController::class, 'leadNotes'])->name('lead-notes');
         Route::post('/ai-summary', [AgentReportController::class, 'aiSummary'])->name('ai-summary');
+        Route::get('/saved-summaries', [AgentReportController::class, 'savedSummaries'])->name('saved-summaries.index');
+        Route::post('/saved-summaries', [AgentReportController::class, 'saveSummary'])->name('saved-summaries.store');
+        Route::delete('/saved-summaries/{summary}', [AgentReportController::class, 'destroySummary'])->name('saved-summaries.destroy');
         Route::get('/export', [AgentReportController::class, 'export'])->name('export');
     });
 
@@ -1089,6 +1092,9 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     Route::post('properties/{id}/expose/validate', [App\Http\Controllers\PropertyController::class, 'validateExpose'])->name('properties.expose.validate');
     Route::post('properties/{id}/expose/generate', [App\Http\Controllers\PropertyController::class, 'generateExpose'])->name('properties.expose.generate');
 
+    // Expose job status polling
+    Route::get('expose-jobs/{id}', [App\Http\Controllers\ExposeJobController::class, 'show'])->name('expose-jobs.show');
+
     Route::get('properties/slug/{slug}', [App\Http\Controllers\PropertyController::class, 'showBySlug'])->name('properties.show_by_slug');
 
     // =====================================================
@@ -1205,13 +1211,13 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::post('/{offerId}/attach', [App\Http\Controllers\OfferController::class, 'attach'])->name('attach');
         Route::post('/{offerId}/disable', [App\Http\Controllers\OfferController::class, 'disable'])->name('disable');
         Route::post('/{offerId}/enable', [App\Http\Controllers\OfferController::class, 'enable'])->name('enable');
+        Route::post('/{id}/toggle', [App\Http\Controllers\OfferController::class, 'toggle'])->name('toggle');
+        Route::delete('/{offerId}/detach', [App\Http\Controllers\OfferController::class, 'detach'])->name('detach');
     });
 
     // Deal offer endpoints
     Route::prefix('deals/{dealId}/offers')->name('deals.offers.')->group(function () {
         Route::get('/', [App\Http\Controllers\OfferController::class, 'dealOffers'])->name('index');
-        Route::post('/apply', [App\Http\Controllers\OfferController::class, 'applyToDeal'])->name('apply');
-        Route::get('/preview', [App\Http\Controllers\OfferController::class, 'previewForDeal'])->name('preview');
         Route::delete('/', [App\Http\Controllers\OfferController::class, 'removeFromDeal'])->name('remove');
     });
 
@@ -1234,6 +1240,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     // Unit Type as Property — show & mark-as-sold (before resource route to avoid {property} catch)
     Route::get('properties/unit-type/{unitTypeId}', [App\Http\Controllers\PropertyController::class, 'showUnitType'])->name('properties.unit-type.show');
     Route::post('properties/unit-type/{unitTypeId}/mark-as-sold', [App\Http\Controllers\PropertyController::class, 'markUnitTypeAsSold'])->name('properties.unit-type.mark-as-sold');
+    Route::post('properties/ai-description', [App\Http\Controllers\PropertyAiController::class, 'generateDescription'])->name('properties.ai-description');
 
     Route::resource('properties', App\Http\Controllers\PropertyController::class);    Route::post('gantt_link.task_update', [GanttLinkController::class, 'taskUpdateController'])->name('gantt_link.task_update');
     // Meta Conversion Triggers
@@ -1295,6 +1302,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             // Agent Metrics
             Route::get('agent-metrics', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentMetrics'])->name('agent_metrics');
             Route::get('agents/{agentId}/dashboard-stats', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentDashboardStats'])->name('agent_dashboard_stats');
+            Route::post('agents/{agentId}/assign-level', [App\Http\Controllers\MlmAdminApiController::class, 'assignAgentLevel'])->name('agent_assign_level');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');

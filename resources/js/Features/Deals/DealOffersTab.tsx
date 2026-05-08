@@ -1,24 +1,13 @@
 import React from "react";
-import {
-    Table,
-    Tag,
-    Button,
-    Popconfirm,
-    Empty,
-    Space,
-    Typography,
-    App,
-} from "antd";
+import { Table, Tag, Button, Popconfirm, Empty, Space, Typography } from "antd";
 import type { TableColumnsType } from "antd";
-import {
-    ReloadOutlined,
-    DeleteOutlined,
-    GiftOutlined,
-} from "@ant-design/icons";
-import { useApiQuery } from "@/lib/api/client";
+import { DeleteOutlined, GiftOutlined } from "@ant-design/icons";
+import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
 import type { DealOfferApplication } from "@/Types/api/offers";
-import { router } from "@inertiajs/react";
+import type { ApiResponse } from "@/lib/api/types";
+import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
+import { generatePropertySubtitle } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -28,87 +17,42 @@ interface DealOffersTabProps {
 
 interface DealOffersResponse {
     status: string;
-    data: {
-        applications: DealOfferApplication[];
-        total_discount: number;
-    };
+    applications: DealOfferApplication[];
+    total_discount: number;
 }
 
 const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
-    const { message } = App.useApp();
+    const insight = getDealValueInsight(deal);
+    const currencySymbol = deal.currency?.currency_symbol || "£";
+
+    const formatMoney = (value: number | null) => {
+        if (value === null || value === undefined) {
+            return "--";
+        }
+        return `${currencySymbol}${Number(value).toLocaleString("en-GB")}`;
+    };
 
     const { data, isLoading, refetch } = useApiQuery<DealOffersResponse>({
         path: route("deals.offers.index", deal.id),
     });
 
-    const applications = data?.data?.applications ?? [];
-    const totalDiscount = data?.data?.total_discount ?? 0;
-
-    const handleRecalculate = async () => {
-        try {
-            const res = await fetch(route("deals.offers.apply", deal.id), {
-                method: "POST",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
-            });
-            const result = await res.json();
-            if (result.status === "success") {
-                message.success("Offers recalculated");
+    const { mutate: removeAllOffers, isPending: isRemovingAllOffers } =
+        useApiMutate<undefined, unknown, ApiResponse<unknown>>(
+            route("deals.offers.remove", deal.id),
+            "DELETE",
+            () => {
                 refetch();
-            } else {
-                message.error(result.message || "Failed to recalculate");
-            }
-        } catch {
-            message.error("Failed to recalculate offers");
-        }
-    };
+            },
+        );
 
-    const handleRemoveAll = async () => {
-        try {
-            const res = await fetch(route("deals.offers.remove", deal.id), {
-                method: "DELETE",
-                headers: {
-                    "X-Requested-With": "XMLHttpRequest",
-                    "X-CSRF-TOKEN":
-                        document
-                            .querySelector('meta[name="csrf-token"]')
-                            ?.getAttribute("content") ?? "",
-                    Accept: "application/json",
-                },
-            });
-            const result = await res.json();
-            if (result.status === "success") {
-                message.success("All offers removed");
-                refetch();
-            }
-        } catch {
-            message.error("Failed to remove offers");
-        }
-    };
+    const applications = data?.applications ?? [];
+    const totalDiscount = data?.total_discount ?? 0;
 
-    const resolvedFromLabel = (app: DealOfferApplication) => {
-        if (app.resolved_from_type?.includes("UnitType")) {
-            return <Tag color="purple">Unit Type</Tag>;
-        }
-        if (app.resolved_from_type?.includes("DeveloperProject")) {
-            return <Tag color="orange">Project</Tag>;
-        }
-        return <Tag>{app.resolved_from_type}</Tag>;
+    const handleRemoveAll = () => {
+        removeAllOffers(undefined);
     };
 
     const columns: TableColumnsType<DealOfferApplication> = [
-        {
-            title: "Property",
-            key: "product",
-            render: (_, record) =>
-                record.product?.name || `Product #${record.product_id}`,
-        },
         {
             title: "Offer",
             key: "offer",
@@ -120,11 +64,14 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             ),
         },
         {
-            title: "Source",
-            key: "source",
-            width: 120,
-            render: (_, record) => resolvedFromLabel(record),
+            title: "Property",
+            key: "product",
+            render: (_, record) =>
+                generatePropertySubtitle((record.product as any)?.property) ||
+                record.product?.name ||
+                `Product #${record.product_id}`,
         },
+
         {
             title: "Type",
             key: "type",
@@ -134,21 +81,20 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                     color={
                         record.offer_type === "percentage" ? "blue" : "green"
                     }
+                    className="capitalize"
                 >
-                    {record.offer_type === "percentage"
-                        ? `${record.offer_value}%`
-                        : `${Number(record.offer_value).toLocaleString("en-GB")}`}
+                    {record.offer_type}
                 </Tag>
             ),
         },
-        {
-            title: "Original",
-            dataIndex: "original_amount",
-            key: "original_amount",
-            width: 120,
-            align: "right",
-            render: (v: number) => Number(v).toLocaleString("en-GB"),
-        },
+        // {
+        //     title: "Original",
+        //     dataIndex: "original_amount",
+        //     key: "original_amount",
+        //     width: 120,
+        //     align: "right",
+        //     render: (v: number) => formatMoney(v),
+        // },
         {
             title: "Discount",
             dataIndex: "discount_amount",
@@ -156,7 +102,7 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             width: 120,
             align: "right",
             render: (v: number) => (
-                <Text type="success">-{Number(v).toLocaleString("en-GB")}</Text>
+                <Text type="success">-{formatMoney(v)}</Text>
             ),
         },
     ];
@@ -168,13 +114,11 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                     description="No offers applied to this deal"
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                 >
-                    <Button
-                        type="primary"
-                        icon={<ReloadOutlined />}
-                        onClick={handleRecalculate}
-                    >
-                        Calculate Offers
-                    </Button>
+                    <Text type="secondary" className="text-xs">
+                        Offers are applied when attaching a property from a
+                        project. Use the Properties section to attach properties
+                        with offers.
+                    </Text>
                 </Empty>
             </div>
         );
@@ -182,24 +126,57 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     return (
         <div className="p-6 space-y-4">
+            <div className="rounded-md border border-gray-200 p-3 bg-gray-50">
+                <Space size={24} wrap>
+                    <div>
+                        <Text type="secondary">Final</Text>
+                        <div>
+                            <Text strong>
+                                {formatMoney(insight.finalValue)}
+                            </Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Base</Text>
+                        <div>
+                            <Text>{formatMoney(insight.baseTotal)}</Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Discount</Text>
+                        <div>
+                            <Text type="success">
+                                -{formatMoney(insight.discountTotal)}
+                            </Text>
+                        </div>
+                    </div>
+                    <div>
+                        <Text type="secondary">Calculated</Text>
+                        <div>
+                            <Text>{formatMoney(insight.calculatedValue)}</Text>
+                        </div>
+                    </div>
+                </Space>
+            </div>
+
             <div className="flex items-center justify-between">
                 <Text strong>Applied Offers</Text>
                 <Space>
-                    <Button
-                        size="small"
-                        icon={<ReloadOutlined />}
-                        onClick={handleRecalculate}
-                    >
-                        Recalculate
-                    </Button>
                     <Popconfirm
-                        title="Remove all offers from this deal?"
+                        title="Remove all applied offers from this deal? You can re-apply offers by re-attaching properties."
                         onConfirm={handleRemoveAll}
                         okText="Remove"
                         okType="danger"
+                        disabled={deal.is_locked}
                     >
-                        <Button size="small" danger icon={<DeleteOutlined />}>
-                            Remove All
+                        <Button
+                            size="small"
+                            danger
+                            icon={<DeleteOutlined />}
+                            disabled={deal.is_locked}
+                            loading={isRemovingAllOffers}
+                        >
+                            Clear All Offers
                         </Button>
                     </Popconfirm>
                 </Space>
@@ -214,12 +191,12 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                 size="small"
                 summary={() => (
                     <Table.Summary.Row>
-                        <Table.Summary.Cell index={0} colSpan={5} align="right">
+                        <Table.Summary.Cell index={0} colSpan={4} align="right">
                             <Text strong>Total Discount</Text>
                         </Table.Summary.Cell>
-                        <Table.Summary.Cell index={5} align="right">
+                        <Table.Summary.Cell index={4} align="right">
                             <Text strong type="success">
-                                -{Number(totalDiscount).toLocaleString("en-GB")}
+                                -{formatMoney(totalDiscount)}
                             </Text>
                         </Table.Summary.Cell>
                     </Table.Summary.Row>

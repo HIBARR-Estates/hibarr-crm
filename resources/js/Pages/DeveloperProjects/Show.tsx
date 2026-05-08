@@ -19,6 +19,7 @@ import UnitTypesSection from "../../Features/DeveloperProjects/UnitTypesSection"
 import ConstructionProjectFormModal from "../../Features/DeveloperProjects/ConstructionProjectFormModal";
 import ProjectPhotosSection from "../../Features/DeveloperProjects/ProjectPhotosSection";
 import ShowSidebar from "./components/ShowSidebar";
+import MobileSidebarToggle from "./components/MobileSidebarToggle";
 import OverviewSection from "./components/OverviewSection";
 import FacilitiesSection from "./components/FacilitiesSection";
 import ImageGallerySection from "./components/ImageGallerySection";
@@ -42,7 +43,9 @@ export interface UnitTypeSummary {
 
 export interface Statistics {
     total_units: number;
+    unit_count: number;
     sold_properties: number;
+    total_sold: number;
     under_offer_properties: number;
     starting_price: number | null;
     starting_price_formatted: string | null;
@@ -52,9 +55,11 @@ export interface ImageItem {
     id: number;
     url: string;
     name: string;
-    source: "project" | "property";
+    source: "project" | "property" | "unit_type";
     property_id?: number;
     property_title?: string;
+    unit_type_id?: number;
+    unit_type_name?: string;
 }
 
 export interface PriceListItem {
@@ -186,6 +191,7 @@ const Show = ({
     const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState<SectionKey>("overview");
     const [editModalOpen, setEditModalOpen] = useState(false);
+    const [sidebarOpen, setSidebarOpen] = useState(false);
 
     const handleEditSuccess = useCallback(() => {
         router.reload();
@@ -216,6 +222,9 @@ const Show = ({
                     <UnitTypesSection
                         projectId={project.id}
                         unitTypes={unitTypes ?? []}
+                        onRefresh={() =>
+                            router.reload({ only: ["unitTypes", "project"] })
+                        }
                     />
                 );
             case "photos":
@@ -283,55 +292,76 @@ const Show = ({
             >
                 {/* ── Project identity header — always visible across tabs ── */}
                 <div className="mb-5 pb-4 border-b border-gray-200">
-                    <div className="flex items-center gap-3 mb-1">
-                        <Link
-                            href={route("developer-projects.index")}
-                            className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm transition-colors"
-                        >
-                            <ArrowLeft size={14} />
-                            <span>Back</span>
-                        </Link>
-                        <span className="text-gray-300">|</span>
-                        <h1 className="text-2xl font-bold text-slate-900 leading-tight">
-                            {project.name}
-                        </h1>
-                    </div>
-                    {project.developer && (
-                        <p className="text-sm text-gray-500 ml-[calc(14px+0.25rem+1px+0.75rem+1px+0.75rem)] mb-0.5 ">
-                            by{" "}
-                            <Link
-                                href={route(
-                                    "developers.show",
-                                    project.developer.id,
+                    <div className="flex items-start justify-between gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="flex items-center gap-3 mt-1.5 shrink-0">
+                                <Link
+                                    href={route("developer-projects.index")}
+                                    className="flex items-center gap-1 text-gray-500 hover:text-gray-700 text-sm transition-colors"
+                                >
+                                    <ArrowLeft size={14} />
+                                    <span>Back</span>
+                                </Link>
+                                <span className="text-gray-300">|</span>
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-slate-900 leading-tight">
+                                    {project.name}
+                                </h1>
+                                {project.developer && (
+                                    <p className="text-sm text-gray-500 mt-0.5">
+                                        by{" "}
+                                        <Link
+                                            href={route(
+                                                "developers.show",
+                                                project.developer.id,
+                                            )}
+                                            className="text-blue-600 hover:text-blue-800 font-medium capitalize"
+                                        >
+                                            {project.developer.name}
+                                        </Link>
+                                    </p>
                                 )}
-                                className="text-blue-600 hover:text-blue-800 font-medium capitalize"
-                            >
-                                {project.developer.name}
-                            </Link>
-                        </p>
-                    )}
-                    {project.location?.name && (
-                        <p className="flex items-center gap-1.5 text-sm text-gray-500 mt-0.5 capitalize">
-                            <MapPin size={14} className="text-gray-400" />
-                            {project.location.name}
-                        </p>
-                    )}
+                            </div>
+                        </div>
+                        {project.location?.name && (
+                            <p className="flex items-center gap-1.5 text-sm text-gray-500 capitalize shrink-0 mt-1.5">
+                                <MapPin size={14} className="text-gray-400" />
+                                {project.location.name}
+                            </p>
+                        )}
+                    </div>
                 </div>
 
-                <div className="flex gap-6">
-                    <ShowSidebar
-                        activeSection={activeSection}
-                        onSelect={setActiveSection}
-                        onEdit={() => setEditModalOpen(true)}
-                        availabilityLink={project.availability_link}
-                        unitTypesCount={unitTypes?.length || 0}
-                        exteriorCount={imagesByTag.exterior?.length || 0}
-                        interiorCount={imagesByTag.interior?.length || 0}
-                        siteplanCount={
-                            (imagesByTag["floor-plan"]?.length || 0) +
-                            (imagesByTag["site-plan"]?.length || 0)
-                        }
-                    />
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Mobile toggle — hidden on large screens */}
+                    <div className="lg:hidden">
+                        <MobileSidebarToggle
+                            isOpen={sidebarOpen}
+                            onToggle={() => setSidebarOpen((v) => !v)}
+                            activeSection={activeSection}
+                        />
+                    </div>
+
+                    {/* Sidebar — always visible on lg+, toggle-controlled below */}
+                    <div
+                        className={`${sidebarOpen ? "block" : "hidden"} lg:block`}
+                    >
+                        <ShowSidebar
+                            activeSection={activeSection}
+                            onSelect={setActiveSection}
+                            onClose={() => setSidebarOpen(false)}
+                            onEdit={() => setEditModalOpen(true)}
+                            availabilityLink={project.availability_link}
+                            unitTypesCount={unitTypes?.length || 0}
+                            exteriorCount={imagesByTag.exterior?.length || 0}
+                            interiorCount={imagesByTag.interior?.length || 0}
+                            siteplanCount={
+                                (imagesByTag["floor-plan"]?.length || 0) +
+                                (imagesByTag["site-plan"]?.length || 0)
+                            }
+                        />
+                    </div>
 
                     {/* Main Content */}
                     <div className="flex-1 min-w-0">{renderSection()}</div>

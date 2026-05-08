@@ -258,11 +258,21 @@ export const generatePropertySubtitle = (
     let beds: string | number | null = null;
     let hasBeds = false;
 
-    if (typeof record.bedrooms === "number") {
-        beds = record.bedrooms;
+    // Normalise bedrooms: DB stores it as a string column (e.g. "2"), coerce to number.
+    const bedroomsRaw = record.bedrooms;
+    const bedroomsNormalized =
+        typeof bedroomsRaw === "string" && !isNaN(Number(bedroomsRaw))
+            ? Number(bedroomsRaw)
+            : bedroomsRaw;
+
+    if (typeof bedroomsNormalized === "number") {
+        beds = bedroomsNormalized;
         hasBeds = beds > 0;
-    } else if (record.bedrooms && typeof record.bedrooms === "object") {
-        const { min, max } = record.bedrooms;
+    } else if (bedroomsNormalized && typeof bedroomsNormalized === "object") {
+        const { min, max } = bedroomsNormalized as {
+            min: number | null;
+            max: number | null;
+        };
         if (min !== null && max !== null && min !== max) {
             beds = `${min}-${max}`;
             hasBeds = true;
@@ -356,6 +366,26 @@ export const generatePropertySubtitle = (
         );
     }
 
+    // 5b. Beds + Unit Style + Property Type (no location — e.g. unit types without city)
+    if (hasBeds && hasUnitStyle && hasPropertyType) {
+        const viewPart = hasViewType ? ` and ${viewType}` : "";
+        const furniturePart = hasFurniture
+            ? ` with ${furniture} interiors`
+            : "";
+        return clean(
+            `${beds} Bedroom ${unitStyle} ${propertyType}${viewPart}${furniturePart}`,
+        );
+    }
+
+    // 5c. Beds + Property Type (minimal readable title)
+    if (hasBeds && hasPropertyType) {
+        const viewPart = hasViewType ? ` with ${viewType}` : "";
+        const furniturePart = hasFurniture ? ` · ${furniture}` : "";
+        return clean(
+            `${beds} Bedroom ${propertyType}${viewPart}${furniturePart}`,
+        );
+    }
+
     // 6. The Distinction
     // Required: Furniture + Beds + Primary Category + Property Type + View Type
     if (
@@ -375,10 +405,10 @@ export const generatePropertySubtitle = (
     if (hasPropertyType || hasConstructionStatus) {
         const typePart =
             hasConstructionStatus && hasPropertyType
-                ? `${constructionStatus} ${propertyType}`
+                ? `${constructionStatus} ${formatEnumLabel(propertyType)}`
                 : hasConstructionStatus
                   ? `${constructionStatus}`
-                  : `${propertyType}`;
+                  : `${formatEnumLabel(propertyType)}`;
         const locationPart = hasLocation ? ` in ${location}` : "";
         return clean(`${typePart}${locationPart}`);
     }

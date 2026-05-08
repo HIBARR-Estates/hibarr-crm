@@ -344,7 +344,8 @@ body {
 }
 
 .container {
-  padding: 15mm;
+  /* padding: 15mm; */
+  padding: 8mm;
   height: 100%;
   box-sizing: border-box;
   display: flex;
@@ -619,101 +620,148 @@ p {
 @endphp
 
 <!-- PAGE 1: HERO -->
-<div class="page bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/icons/test.png' }}')">
+<div class="page bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778197940203-011a688d-cover-image-project.png' }}')">
     <div class="container">
         <div class="logo">
             <img src="{{ $data['branding']['logo_expose'] }}" alt="hibarr-expose-logo" />
         </div>
     </div>
 
-    <div style="position: absolute; bottom: 60mm; left: 15mm; color: white; text-shadow: 2px 2px 8px rgba(0,0,0,0.6);">
-        <h1 style="color: white; font-size: 42px; margin-bottom: 8px;">{{ $data['title'] ?? '' }}</h1>
-        @if(!empty($data['developer_name']))
-        <p style="color: rgba(255,255,255,0.9); font-size: 20px; font-weight: 500; margin-bottom: 4px;">by {{ $data['developer_name'] }}</p>
-        @endif
-        @if(!empty($data['city']))
-        <p style="color: rgba(255,255,255,0.85); font-size: 16px; margin-top: 4px;">{{ $data['city'] }}{{ !empty($data['area']) && $data['area'] !== $data['city'] ? ', ' . $data['area'] : '' }}</p>
-        @endif
-        @if(!empty($data['price']))
-        <p style="color: white; font-size: 24px; font-weight: 500; margin-top: 8px;">Starting from {{ $data['price'] }}</p>
-        @endif
+    <div
+        style="
+            position: absolute;
+            bottom: 60mm;
+            left: -7.9mm;
+            color: red;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.6);
+            z-index: 5;
+        "
+    >
+        <div class="name_space">
+            <img
+                src="https://minio.hibarr.org/backend-uploads/backend-uploads/1778193858830-ad66988e-name-space.png"
+                alt="name_space"
+            />
+        </div>
     </div>
 
     @if(!empty($data['client']['name']))
-    <div class="customer-name" style="position: absolute; bottom: 20mm; left: 15mm; color: white; font-size: 20px; font-weight: 500; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
-        Prepared for: {{ $data['client']['name'] }}
-    </div>
+      <div
+          class="customer-name"
+          style="
+              position: absolute;
+              top: 155mm;
+              left: 40mm;
+              color: #001529;
+              font-size: 40px;
+              font-weight: 500;
+              text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+              z-index: 100;
+          "
+      >
+          {{ $data['client']['name'] }}
+      </div>
     @endif
     <div class="page-num">{{ str_pad($pageNum++, 2, '0', STR_PAD_LEFT) }}</div>
 </div>
 
 <!-- PAGE 2: PROJECT OVERVIEW -->
-<div class="page">
-    <div class="container">
-        <div class="row">
-            <div class="col-half">
-                <div class="expose-title">
-                    <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
-                    <div class="text">
-                        <h1 style="margin-bottom: 0">PROJECT OVERVIEW</h1>
-                    </div>
-                </div>
+<div class="page bg">
+  @php
+    $unitTypesOverview = $data['unit_types'] ?? null;
+    if (is_array($unitTypesOverview)) {
+      $unitTypesOverview = collect($unitTypesOverview)
+        ->map(function ($unitType) {
+          if (is_array($unitType)) {
+            return $unitType['display_label'] ?? $unitType['property_type'] ?? null;
+          }
 
+          return is_string($unitType) ? $unitType : null;
+        })
+        ->filter()
+        ->unique()
+        ->implode(', ');
+    }
+
+    $facilitiesOverview = $data['facilities'] ?? null;
+    $facilitiesOverviewList = [];
+    if (is_array($facilitiesOverview)) {
+      if (!empty($data['facility_labels']) && is_array($data['facility_labels'])) {
+        $facilitiesOverviewList = collect($data['facility_labels'])->filter()->values()->all();
+      } else {
+        $facilitiesOverviewList = collect($facilitiesOverview)
+          ->map(function ($facility) {
+            if (is_array($facility)) {
+              return $facility['label'] ?? $facility['name'] ?? null;
+            }
+
+            return is_string($facility) ? $facility : null;
+          })
+          ->filter()
+          ->values()
+          ->all();
+      }
+    } elseif (is_string($facilitiesOverview) && $facilitiesOverview !== '') {
+      $facilitiesOverviewList = [$facilitiesOverview];
+    }
+  @endphp
+    <img
+        src="https://minio.hibarr.org/backend-uploads/backend-uploads/1778220690459-2ef518d6-project-overview-space-for-img.png"
+        alt="Project Overview Space"
+        style="
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+            position: absolute;
+            z-index: 2;
+            top: 0;
+            right: 0;
+        "
+    />
+    <img
+        src="{{ $data['assets']['area'][0] ?? $data['assets']['hero'][0] ?? 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778197940203-011a688d-cover-image-project.png' }}" 
+        alt="Project illustration"
+        style="
+            width: 100%;
+            height: auto;
+            object-fit: cover;
+            position: absolute;
+            z-index: 1;
+            top: 0;
+            right: 0;
+        "
+    />
+    <div class="container">
+        <div class="row" style="position: relative; z-index: 10">
+            <div class="col-half" style="padding-top: 80mm">
                 <div class="items">
                     @if(!empty($data['city']))
                     <div class="item">
-                        <h3 class="item-header">Location</h3>
-                        <div class="item-value">{{ $data['city'] }}{{ !empty($data['area']) && $data['area'] !== $data['city'] ? ', ' . $data['area'] : '' }}</div>
+                        <h3 class="item-header">CITY</h3>
+                        <div class="item-value">{{ $data['city'] }}</div>
                     </div>
-                    @endif
-
-                    @if(!empty($data['developer_name']))
+                    @endif @if(!empty($unitTypesOverview))
                     <div class="item">
-                        <h3 class="item-header">Developer</h3>
-                        <div class="item-value">{{ $data['developer_name'] }}</div>
+                        <h3 class="item-header">TYPES</h3>
+                      <div class="item-value">{{ $unitTypesOverview }}</div>
                     </div>
-                    @endif
-
-                    @if(!empty($data['construction_status']))
+                    @endif @if(!empty($data['completion_date']))
                     <div class="item">
-                        <h3 class="item-header">Construction Status</h3>
-                        <div class="item-value">{{ $data['construction_status'] }}</div>
+                        <h3 class="item-header">COMPLETION DATE</h3>
+                        <div class="item-value">
+                            {{ $data['completion_date'] }}
+                        </div>
                     </div>
-                    @endif
-
-                    @if(!empty($data['completion_date']))
+                    @endif @if(!empty($facilitiesOverviewList))
                     <div class="item">
-                        <h3 class="item-header">Completion</h3>
-                        <div class="item-value">{{ $data['completion_date'] }}</div>
+                        <h3 class="item-header">FACILITIES</h3>
+                        <ul class="item-list">
+                            @foreach($facilitiesOverviewList as $facility)
+                              <li>{{ $facility }}</li>
+                            @endforeach
+                        </ul>
                     </div>
                     @endif
-
-                    @if(!empty($data['title_deed_type']))
-                    <div class="item">
-                        <h3 class="item-header">Title Deed</h3>
-                        <div class="item-value">{{ $data['title_deed_type'] }}</div>
-                    </div>
-                    @endif
-
-                    @if(!empty($data['furniture_status']))
-                    <div class="item">
-                        <h3 class="item-header">Furniture Package</h3>
-                        <div class="item-value">{{ $data['furniture_status'] }}</div>
-                    </div>
-                    @endif
-
-                    @if(!empty($data['price']))
-                    <div class="item">
-                        <h3 class="item-header">Starting Price</h3>
-                        <div class="item-value">{{ $data['price'] }}</div>
-                    </div>
-                    @endif
-                </div>
-            </div>
-
-            <div class="col-half" style="display: flex; justify-content: center; align-items: center">
-                <div class="overflow-illustration">
-                    <img src="{{ $data['assets']['area'][0] ?? $data['assets']['hero'][0] ?? 'property/images/test.png' }}" alt="Project illustration" />
                 </div>
             </div>
         </div>

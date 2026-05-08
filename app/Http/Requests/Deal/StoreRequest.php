@@ -34,7 +34,9 @@ class StoreRequest extends CoreRequest
         $rules['pipeline'] = 'required';
         $rules['stage_id'] = 'required';
         $rules['close_date'] = 'nullable';
-        $rules['value'] = 'required';
+        $rules['value'] = 'nullable|numeric|min:0';
+        $rules['manual_value'] = 'nullable|numeric|min:0';
+        $rules['value_source'] = 'nullable|in:manual,calculated';
         $rules['deal_watcher'] = 'nullable|array';
         $rules['deal_watcher.*'] = 'exists:users,id';
         $rules['package_id'] = 'nullable|array';

@@ -20,6 +20,7 @@ import {
     Space,
     App,
     Spin,
+    Checkbox,
 } from "antd";
 import {
     UploadOutlined,
@@ -27,8 +28,10 @@ import {
     DeleteOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
+    EditOutlined,
     SaveOutlined,
 } from "@ant-design/icons";
+
 import type { UploadFile } from "antd";
 import type { DeveloperProjectUnitTypeAsset } from "@/Types/developerProject";
 import type { IUploadResponseItem } from "@/Types/uploads";
@@ -109,6 +112,11 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
     // Delete confirmation
     const [deleteModal, deleteContextHolder] = Modal.useModal();
 
+    const [isSelecting, setIsSelecting] = useState(false);
+    const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(
+        new Set(),
+    );
+
     // ─── Fetch existing assets ───
     const {
         data: assetsResponse,
@@ -180,6 +188,27 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                 setUploadStatuses([]);
                 setSelectedTags([]);
                 refetchAssets();
+            },
+        );
+
+    const { mutate: bulkDeleteAssets, isPending: isBulkDeleting } =
+        useApiMutate<
+            { asset_ids: number[] },
+            { count: number },
+            ApiSuccessResponse<{ count: number }>
+        >(
+            unitTypeId && projectId
+                ? route("developer-projects.unit-types.assets.bulk_destroy", {
+                      projectId,
+                      unitTypeId,
+                  })
+                : "",
+            "POST",
+            () => {
+                messageApi.success("Photos deleted");
+                refetchAssets();
+                setIsSelecting(false);
+                setSelectedAssetIds(new Set());
             },
         );
 
@@ -348,6 +377,57 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
         [projectId, unitTypeId, deleteModal, messageApi, refetchAssets],
     );
 
+    const toggleAssetSelection = useCallback((id: number) => {
+        setSelectedAssetIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) {
+                next.delete(id);
+            } else {
+                next.add(id);
+            }
+            return next;
+        });
+    }, []);
+
+    const selectAllUnitPhotos = useCallback(() => {
+        setSelectedAssetIds(new Set(imageAssets.map((a) => a.id)));
+    }, [imageAssets]);
+
+    const deselectAllUnitPhotos = useCallback(() => {
+        setSelectedAssetIds(new Set());
+    }, []);
+
+    const exitUnitSelectionMode = useCallback(() => {
+        setIsSelecting(false);
+        setSelectedAssetIds(new Set());
+    }, []);
+
+    const handleBulkDeleteUnitPhotos = useCallback(() => {
+        if (!projectId || !unitTypeId || selectedAssetIds.size === 0) return;
+        const ids = Array.from(selectedAssetIds);
+        deleteModal.confirm({
+            title: `Delete ${ids.length} photo${ids.length !== 1 ? "s" : ""}?`,
+            content: "This cannot be undone.",
+            okText: "Delete",
+            okType: "danger",
+            onOk: () =>
+                bulkDeleteAssets(
+                    { asset_ids: ids },
+                    {
+                        onError: () =>
+                            messageApi.error("Failed to delete photos"),
+                    },
+                ),
+        });
+    }, [
+        projectId,
+        unitTypeId,
+        selectedAssetIds,
+        deleteModal,
+        bulkDeleteAssets,
+        messageApi,
+    ]);
+
     // ─── Create mode: unit type not saved yet ───
     if (!unitTypeId) {
         return (
@@ -395,7 +475,44 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         ? `${imageAssets.length} photo${imageAssets.length !== 1 ? "s" : ""}`
                         : "No photos yet"}
                 </Text>
-                <Space>
+                <Space wrap>
+                    {!isSelecting ? (
+                        <Button
+                            size="small"
+                            icon={<EditOutlined />}
+                            onClick={() => setIsSelecting(true)}
+                        >
+                            Select
+                        </Button>
+                    ) : (
+                        <>
+                            <Button size="small" onClick={selectAllUnitPhotos}>
+                                Select All
+                            </Button>
+                            <Button size="small" onClick={deselectAllUnitPhotos}>
+                                Deselect
+                            </Button>
+                            <Button
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                disabled={
+                                    selectedAssetIds.size === 0 ||
+                                    isBulkDeleting
+                                }
+                                loading={isBulkDeleting}
+                                onClick={handleBulkDeleteUnitPhotos}
+                            >
+                                Delete ({selectedAssetIds.size})
+                            </Button>
+                            <Button
+                                size="small"
+                                onClick={exitUnitSelectionMode}
+                            >
+                                Cancel
+                            </Button>
+                        </>
+                    )}
                     <Button
                         type="primary"
                         icon={<UploadOutlined />}
@@ -408,59 +525,118 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
 
             {/* Existing photos grid */}
             {imageAssets.length > 0 ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
-                    {imageAssets.map((asset) => (
-                        <div
-                            key={asset.id}
-                            className="relative group border border-gray-200 rounded-lg overflow-hidden"
-                        >
-                            <Image
-                                src={asset.url || asset.external_url || ""}
-                                alt={asset.name || "Unit type photo"}
-                                width="100%"
-                                height={120}
-                                style={{ objectFit: "cover" }}
-                                preview={{ mask: "Preview" }}
-                            />
+                <Image.PreviewGroup>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                        {imageAssets.map((asset) => {
+                            const isSelected = selectedAssetIds.has(asset.id);
+                            return (
+                                <div
+                                    key={asset.id}
+                                    className={`relative group border rounded-lg overflow-hidden cursor-pointer ${
+                                        isSelecting && isSelected
+                                            ? "border-blue-500 ring-2 ring-blue-300"
+                                            : "border-gray-200"
+                                    }`}
+                                    onClick={
+                                        isSelecting
+                                            ? () =>
+                                                  toggleAssetSelection(
+                                                      asset.id,
+                                                  )
+                                            : undefined
+                                    }
+                                >
+                                    {isSelecting && (
+                                        <div className="absolute top-1 left-1 z-10">
+                                            <Checkbox
+                                                checked={isSelected}
+                                                onChange={() =>
+                                                    toggleAssetSelection(
+                                                        asset.id,
+                                                    )
+                                                }
+                                                onClick={(e) =>
+                                                    e.stopPropagation()
+                                                }
+                                            />
+                                        </div>
+                                    )}
 
-                            {/* Tags */}
-                            {asset.tags && asset.tags.length > 0 && (
-                                <div className="absolute top-1 left-1 flex flex-wrap gap-0.5">
-                                    {asset.tags.map((tag) => (
-                                        <Tag
-                                            key={tag}
-                                            color={TAG_COLORS[tag] || "default"}
-                                            className="text-[10px] leading-tight px-1 py-0"
+                                    <Image
+                                        src={
+                                            asset.url ||
+                                            asset.external_url ||
+                                            ""
+                                        }
+                                        alt={
+                                            asset.name || "Unit type photo"
+                                        }
+                                        width="100%"
+                                        height={120}
+                                        style={{ objectFit: "cover" }}
+                                        preview={
+                                            isSelecting
+                                                ? false
+                                                : { mask: "Preview" }
+                                        }
+                                    />
+
+                                    {/* Tags */}
+                                    {asset.tags &&
+                                        asset.tags.length > 0 && (
+                                            <div
+                                                className={`absolute flex flex-wrap gap-0.5 ${
+                                                    isSelecting
+                                                        ? "top-1 left-7"
+                                                        : "top-1 left-1"
+                                                }`}
+                                            >
+                                                {asset.tags.map((tag) => (
+                                                    <Tag
+                                                        key={tag}
+                                                        color={
+                                                            TAG_COLORS[
+                                                                tag
+                                                            ] ||
+                                                            "default"
+                                                        }
+                                                        className="text-[10px] leading-tight px-1 py-0"
+                                                    >
+                                                        {ASSET_TAGS[tag] ||
+                                                            tag}
+                                                    </Tag>
+                                                ))}
+                                            </div>
+                                        )}
+
+                                    {!isSelecting && (
+                                        <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button
+                                                type="primary"
+                                                danger
+                                                size="small"
+                                                icon={<DeleteOutlined />}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleDeleteAsset(asset);
+                                                }}
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="px-2 py-1 truncate">
+                                        <Text
+                                            className="text-xs"
+                                            ellipsis
                                         >
-                                            {ASSET_TAGS[tag] || tag}
-                                        </Tag>
-                                    ))}
+                                            {asset.name}
+                                        </Text>
+                                    </div>
                                 </div>
-                            )}
-
-                            {/* Delete overlay */}
-                            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button
-                                    type="primary"
-                                    danger
-                                    size="small"
-                                    icon={<DeleteOutlined />}
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleDeleteAsset(asset);
-                                    }}
-                                />
-                            </div>
-
-                            {/* Name */}
-                            <div className="px-2 py-1 truncate">
-                                <Text className="text-xs" ellipsis>
-                                    {asset.name}
-                                </Text>
-                            </div>
-                        </div>
-                    ))}
-                </div>
+                            );
+                        })}
+                    </div>
+                </Image.PreviewGroup>
             ) : (
                 <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}

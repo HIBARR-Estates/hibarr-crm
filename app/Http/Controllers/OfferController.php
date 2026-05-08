@@ -28,7 +28,7 @@ class OfferController extends AccountBaseController
     {
         $query = Offer::where('company_id', user()->company_id)
             ->with(['developer:id,name'])
-            ->withCount(['dealApplications', 'developerProjects']);
+            ->withCount(['dealApplications', 'developerProjects', 'unitTypes']);
 
         if ($request->boolean('active_only')) {
             $query->active();
@@ -114,7 +114,12 @@ class OfferController extends AccountBaseController
     public function show(int $id)
     {
         $offer = Offer::where('company_id', user()->company_id)
-            ->with(['developer:id,name', 'developerProjects', 'unitTypes'])
+            ->with([
+                'developer:id,name',
+                'developerProjects',
+                'developerProjects.unitTypes',
+                'unitTypes',
+            ])
             ->withCount(['dealApplications'])
             ->findOrFail($id);
 
@@ -146,9 +151,49 @@ class OfferController extends AccountBaseController
     public function destroy(int $id)
     {
         $offer = Offer::where('company_id', user()->company_id)->findOrFail($id);
+
+        if ($offer->dealApplications()->exists()) {
+            return Reply::error('This offer has been applied to deals and cannot be deleted. Deactivate it instead.');
+        }
+
         $offer->delete();
 
         return Reply::success('Offer deleted successfully');
+    }
+
+    /**
+     * Toggle the global is_active flag on an offer.
+     */
+    public function toggle(int $id)
+    {
+        $offer = Offer::where('company_id', user()->company_id)->findOrFail($id);
+        $offer->update(['is_active' => !$offer->is_active]);
+
+        return Reply::successWithData('Offer toggled', [
+            'is_active' => $offer->is_active,
+        ]);
+    }
+
+    /**
+     * Detach (hard-remove) an offer from a DeveloperProject or DeveloperProjectUnitType.
+     * Use disable() to keep the row but deactivate it.
+     */
+    public function detach(Request $request, int $offerId)
+    {
+        $request->validate([
+            'offerable_type' => 'required|in:developer_project,unit_type',
+            'offerable_id'   => 'required|integer',
+        ]);
+
+        $offer = Offer::where('company_id', user()->company_id)->findOrFail($offerId);
+
+        if ($request->offerable_type === 'unit_type') {
+            $offer->unitTypes()->detach($request->offerable_id);
+        } else {
+            $offer->developerProjects()->detach($request->offerable_id);
+        }
+
+        return Reply::success('Detached successfully');
     }
 
     // ── Attach / Disable / Enable ────────────────────────────────
@@ -249,36 +294,6 @@ class OfferController extends AccountBaseController
     // ── Deal Offer Endpoints ─────────────────────────────────────
 
     /**
-     * Apply (or re-apply) offers to a deal based on its products/properties.
-     */
-    public function applyToDeal(int $dealId)
-    {
-        $deal = \App\Models\Deal::findOrFail($dealId);
-
-        $applications = $this->dealOfferService->applyOffersToDeal($deal);
-
-        return Reply::successWithData('Offers applied to deal', [
-            'applications' => $applications,
-            'total_discount' => $applications->sum('discount_amount'),
-        ]);
-    }
-
-    /**
-     * Preview what offers would apply to a deal without persisting.
-     */
-    public function previewForDeal(int $dealId)
-    {
-        $deal = \App\Models\Deal::findOrFail($dealId);
-
-        $previews = $this->dealOfferService->previewOffers($deal);
-
-        return Reply::successWithData('Offer preview for deal', [
-            'previews' => $previews,
-            'total_discount' => $previews->sum('discount_amount'),
-        ]);
-    }
-
-    /**
      * Get applied offers for a deal.
      */
     public function dealOffers(int $dealId)
@@ -286,7 +301,11 @@ class OfferController extends AccountBaseController
         $deal = \App\Models\Deal::findOrFail($dealId);
 
         $applications = $deal->offerApplications()
-            ->with(['offer', 'product', 'resolvedFrom'])
+            ->with([
+                'offer:id,name,type,value,max_discount_amount',
+                'product:id,name,price',
+                'product.property:id,product_id,title,property_type,bedrooms,city,area,unit_style,view_types,furniture_status,primary_category,construction_status',
+            ])
             ->get();
 
         return Reply::successWithData('Deal offers fetched', [
@@ -301,6 +320,10 @@ class OfferController extends AccountBaseController
     public function removeFromDeal(int $dealId)
     {
         $deal = \App\Models\Deal::findOrFail($dealId);
+
+        if ($deal->isLocked()) {
+            return Reply::error(__('messages.dealLocked'));
+        }
 
         $this->dealOfferService->removeOffersFromDeal($deal);
 

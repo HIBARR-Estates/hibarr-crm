@@ -11,6 +11,7 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import UnitTypePropertyView from "@/Features/Properties/PropertyView/UnitTypePropertyView";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface MergedAsset {
     id: number | string;
@@ -49,6 +50,7 @@ const UnitTypeShow = ({
     deals,
     employees,
 }: UnitTypeShowProps) => {
+    const { t } = useTranslation();
     const [showMarkAsSoldModal, setShowMarkAsSoldModal] = useState(false);
     const [showExposeModal, setShowExposeModal] = useState(false);
     const [currentSoldCount, setCurrentSoldCount] = useState(soldCount);
@@ -56,11 +58,12 @@ const UnitTypeShow = ({
         useState<number[]>(soldPropertyIds);
 
     const breadcrumbs = [
-        { name: "Properties", url: route("properties.index") },
+        { name: t("app.menu.properties"), url: route("properties.index") },
         {
             name: unitType.display_label
                 ? `${developerProject.name} — ${unitType.display_label}`
-                : unitType.reference_code || `Unit Type #${unitType.id}`,
+                : unitType.reference_code ||
+                  `${t("pages.properties.unit_type_show.unit_type_reference_prefix")} #${unitType.id}`,
         },
     ];
 
@@ -68,7 +71,11 @@ const UnitTypeShow = ({
         if (developerProject.availability_link) {
             window.open(developerProject.availability_link, "_blank");
         } else {
-            message.info("No availability link configured for this project.");
+            message.info(
+                t(
+                    "pages.properties.unit_type_show.messages.no_availability_link",
+                ),
+            );
         }
     };
 
@@ -106,7 +113,7 @@ const UnitTypeShow = ({
                 unitTypeLabel={
                     unitType.display_label ||
                     unitType.reference_code ||
-                    "Unit Type"
+                    t("pages.properties.unit_type_show.unit_type_label")
                 }
                 projectName={developerProject.name}
                 deals={deals}

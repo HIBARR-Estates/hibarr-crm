@@ -1924,6 +1924,7 @@ return array(
     ),
     'timelogAlreadyExist' => 'Time-log already exist for this user.',
     'module' => array(
+        'developer_projects' => 'Developer Projects',
         'clients' => 'Clients',
         'employees' => 'Employees',
         'projects' => 'Projects',
