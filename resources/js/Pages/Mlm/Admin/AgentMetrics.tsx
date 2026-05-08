@@ -1,20 +1,33 @@
 import React, { useState } from "react";
-import { Card, Tag, Input, Select, Empty, Progress, Space } from "antd";
-import { DataTable } from "@/Components/DataTable";
-import type { LaravelPaginationMeta } from "@/Components/DataTable";
+import {
+    Card,
+    Tag,
+    Input,
+    Select,
+    Progress,
+    Button,
+    Modal,
+    message,
+} from "antd";
 import { motion } from "framer-motion";
-import { BarChart3, Search } from "lucide-react";
+import { BarChart3, Search, ShieldCheck } from "lucide-react";
 import { router } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
-import { useAgentMetrics } from "@/Features/Mlm/api";
+import {
+    useAgentMetrics,
+    useAssignAgentLevel,
+    useMlmLevels,
+} from "@/Features/Mlm/api";
 import { LevelBadge, ProgressToNextLevel } from "@/Features/Mlm/Components";
 import type {
     AgentMetricWithProgress,
+    MlmLevel,
     PaginatedResponse,
 } from "@/Features/Mlm/types";
 import { formatNumber } from "@/lib/utils";
+import { DataTable } from "@/Components/DataTable";
 
 interface Props extends PageProps {
     metrics: PaginatedResponse<AgentMetricWithProgress>;
@@ -25,16 +38,52 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
     const [levelFilter, setLevelFilter] = useState<string | undefined>();
+    const [assignModalOpen, setAssignModalOpen] = useState(false);
+    const [selectedLevelId, setSelectedLevelId] = useState<
+        number | undefined
+    >();
+    const [selectedAgent, setSelectedAgent] =
+        useState<AgentMetricWithProgress | null>(null);
 
-    const { data, isLoading } = useAgentMetrics({
+    const { data, isLoading, refetch } = useAgentMetrics({
         page,
         per_page: 20,
         ...(search ? { search } : {}),
         ...(levelFilter ? { level: levelFilter } : {}),
     });
 
+    const { data: levelsData } = useMlmLevels();
+
+    const levels: MlmLevel[] =
+        (levelsData as any)?.data?.data ?? (levelsData as any)?.data ?? [];
+
+    const assignLevel = useAssignAgentLevel(
+        selectedAgent?.agent_id ?? 0,
+        () => {
+            setAssignModalOpen(false);
+            setSelectedAgent(null);
+            setSelectedLevelId(undefined);
+            refetch();
+        },
+    );
+
     const metrics: PaginatedResponse<AgentMetricWithProgress> =
         (data as any) ?? initialMetrics;
+
+    const openAssignModal = (record: AgentMetricWithProgress) => {
+        setSelectedAgent(record);
+        setSelectedLevelId(record.current_level?.id);
+        setAssignModalOpen(true);
+    };
+
+    const handleAssignLevel = () => {
+        if (!selectedAgent || !selectedLevelId) {
+            message.warning("Please select a level first.");
+            return;
+        }
+
+        assignLevel.mutate({ level_id: selectedLevelId });
+    };
 
     const columns = [
         {
@@ -132,6 +181,21 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                     <Tag color="gold">Max Level</Tag>
                 ),
         },
+        {
+            title: "Actions",
+            key: "actions",
+            width: 140,
+            render: (_: any, record: AgentMetricWithProgress) => (
+                <Button
+                    type="default"
+                    size="small"
+                    icon={<ShieldCheck size={14} />}
+                    onClick={() => openAssignModal(record)}
+                >
+                    Assign Level
+                </Button>
+            ),
+        },
     ];
 
     const expandedRowRender = (record: AgentMetricWithProgress) =>
@@ -216,11 +280,61 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                                 }}
                                 onPageChange={(p) => setPage(p)}
                                 emptyState={{ description: "No agent metrics found" }}
-                                scroll={{ x: "max-content" }}
+                                scroll={{ y: "calc(100vh - 420px)" }}
                             />
                         </Card>
                     </motion.div>
                 </div>
+
+                <Modal
+                    title="Manual Agent Level Assignment"
+                    open={assignModalOpen}
+                    onCancel={() => {
+                        setAssignModalOpen(false);
+                        setSelectedAgent(null);
+                        setSelectedLevelId(undefined);
+                    }}
+                    onOk={handleAssignLevel}
+                    okText="Assign"
+                    okButtonProps={{
+                        loading: assignLevel.isPending,
+                        disabled: !selectedLevelId,
+                    }}
+                    destroyOnClose
+                >
+                    <div className="space-y-3">
+                        <div className="text-sm text-gray-600">
+                            Agent:{" "}
+                            <strong>
+                                {selectedAgent?.agent?.user?.name ?? "Unknown"}
+                            </strong>
+                        </div>
+                        <div className="text-sm text-gray-600">
+                            Current Level:{" "}
+                            <strong>
+                                {selectedAgent?.current_level?.name ??
+                                    "Unranked"}
+                            </strong>
+                        </div>
+
+                        <Select
+                            className="w-full"
+                            placeholder="Select a level"
+                            value={selectedLevelId}
+                            onChange={(val) => setSelectedLevelId(val)}
+                            options={levels.map((level) => ({
+                                value: level.id,
+                                label: `${level.name} (Rank #${level.rank})`,
+                            }))}
+                        />
+
+                        <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-2">
+                            This creates a manual level history entry
+                            immediately and will affect future commission
+                            distribution.
+                        </div>
+                    </div>
+                </Modal>
             </PageLayout>
         </DashboardLayout>
     );

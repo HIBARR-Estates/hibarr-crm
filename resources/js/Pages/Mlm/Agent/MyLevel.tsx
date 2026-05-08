@@ -274,7 +274,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                     dataSource={levelData?.level_history ?? []}
                                     rowKey="id"
                                     size="small"
-                                    scroll={{ x: "max-content", y: "calc(100vh - 520px)" }}
+                                    scroll={{ y: "calc(100vh - 520px)" }}
                                     emptyState={{ description: "No level changes yet" }}
                                 />
                             </Card>

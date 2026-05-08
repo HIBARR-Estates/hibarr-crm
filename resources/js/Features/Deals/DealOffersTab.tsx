@@ -55,14 +55,6 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     const columns: TableColumnsType<DealOfferApplication> = [
         {
-            title: "Property",
-            key: "product",
-            render: (_, record) =>
-                generatePropertySubtitle((record.product as any)?.property) ||
-                record.product?.name ||
-                `Product #${record.product_id}`,
-        },
-        {
             title: "Offer",
             key: "offer",
             render: (_, record) => (
@@ -73,6 +65,15 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             ),
         },
         {
+            title: "Property",
+            key: "product",
+            render: (_, record) =>
+                generatePropertySubtitle((record.product as any)?.property) ||
+                record.product?.name ||
+                `Product #${record.product_id}`,
+        },
+
+        {
             title: "Type",
             key: "type",
             width: 100,
@@ -81,21 +82,20 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                     color={
                         record.offer_type === "percentage" ? "blue" : "green"
                     }
+                    className="capitalize"
                 >
-                    {record.offer_type === "percentage"
-                        ? `${record.offer_value}%`
-                        : formatMoney(Number(record.offer_value))}
+                    {record.offer_type}
                 </Tag>
             ),
         },
-        {
-            title: "Original",
-            dataIndex: "original_amount",
-            key: "original_amount",
-            width: 120,
-            align: "right",
-            render: (v: number) => formatMoney(v),
-        },
+        // {
+        //     title: "Original",
+        //     dataIndex: "original_amount",
+        //     key: "original_amount",
+        //     width: 120,
+        //     align: "right",
+        //     render: (v: number) => formatMoney(v),
+        // },
         {
             title: "Discount",
             dataIndex: "discount_amount",

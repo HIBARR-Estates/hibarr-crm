@@ -244,6 +244,7 @@ return [
                 'recalculate_value_tooltip' => 'Recalculate value from attached products, packages, and applied offers',
             ],
             'value_insight' => [
+                'properties'        => 'Properties',
                 'products'          => 'Products',
                 'packages'          => 'Packages',
                 'gross'             => 'Gross',
@@ -253,6 +254,7 @@ return [
                 'source_manual'     => 'Manual',
                 'source_calculated' => 'Calculated',
                 'final'             => 'Final',
+                'total'             => 'Total',
                 'adjusted'          => 'Adjusted',
                 'vs_calculated'     => 'vs calculated',
                 'no_offers'         => 'No applied offers yet.',

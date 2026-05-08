@@ -304,7 +304,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
                                 }}
                                 onPageChange={(p) => setPage(p)}
                                 emptyState={{ description: "No deal contributions yet" }}
-                                scroll={{ x: "max-content" }}
+                                scroll={{ y: "calc(100vh - 420px)" }}
                             />
                         </Card>
                     </motion.div>

@@ -217,7 +217,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                                 }}
                                 onPageChange={(p) => setPage(p)}
                                 emptyState={{ description: "No level history yet" }}
-                                scroll={{ x: "max-content" }}
+                                scroll={{ y: "calc(100vh - 380px)" }}
                             />
                         </Card>
                     </motion.div>

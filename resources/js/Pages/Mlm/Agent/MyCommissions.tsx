@@ -321,7 +321,7 @@ const MyCommissions: React.FC<Props> = ({
                                 }}
                                 onPageChange={(p) => setPage(p)}
                                 emptyState={{ description: "No commissions yet" }}
-                                scroll={{ x: "max-content", y: "calc(100vh - 420px)" }}
+                                scroll={{ y: "calc(100vh - 420px)" }}
                             />
                         </Card>
                     </motion.div>

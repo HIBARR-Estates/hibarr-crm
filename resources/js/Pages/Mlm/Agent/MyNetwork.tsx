@@ -161,7 +161,7 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
                 to: null,
             }}
             onPageChange={(p) => setPage(p)}
-            scroll={{ x: "max-content" }}
+            scroll={{ y: "calc(100vh - 480px)" }}
         />
     );
 };
@@ -337,7 +337,7 @@ const InvitationsTab: React.FC = () => {
                             to: null,
                         }}
                         onPageChange={(p) => setInvitePage(p)}
-                        scroll={{ x: "max-content" }}
+                        scroll={{ y: "calc(100vh - 480px)" }}
                     />
                 </Card>
             </motion.div>
@@ -540,7 +540,7 @@ const DealsTab: React.FC = () => {
                         rowKey="id"
                         size="small"
                         loading={isLoading}
-                        scroll={{ x: "max-content" }}
+                        scroll={{ y: "calc(100vh - 420px)" }}
                         emptyState={{
                             description: selectedDownline
                                 ? "No deals found for this downline"

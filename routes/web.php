@@ -1302,6 +1302,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             // Agent Metrics
             Route::get('agent-metrics', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentMetrics'])->name('agent_metrics');
             Route::get('agents/{agentId}/dashboard-stats', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentDashboardStats'])->name('agent_dashboard_stats');
+            Route::post('agents/{agentId}/assign-level', [App\Http\Controllers\MlmAdminApiController::class, 'assignAgentLevel'])->name('agent_assign_level');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');

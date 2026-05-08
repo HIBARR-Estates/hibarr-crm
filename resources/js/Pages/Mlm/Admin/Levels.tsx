@@ -237,7 +237,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                 loading={isLoading}
                                 size="middle"
                                 emptyState={{ description: "No levels defined yet. Create one to get started." }}
-                                scroll={{ x: "max-content" }}
+                                scroll={{ y: "calc(100vh - 360px)" }}
                             />
                         </Card>
                     </motion.div>

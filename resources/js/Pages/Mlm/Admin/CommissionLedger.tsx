@@ -434,7 +434,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
                                     to: null,
                                 }}
                                 onPageChange={(p) => setPage(p)}
-                                scroll={{ x: "max-content" }}
+                                scroll={{ y: "calc(100vh - 420px)" }}
                             />
                         </Card>
                     </motion.div>

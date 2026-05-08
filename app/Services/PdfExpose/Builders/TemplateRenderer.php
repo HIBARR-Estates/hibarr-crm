@@ -15,11 +15,17 @@ class TemplateRenderer
      * and doesn't depend on Puppeteer being able to reach minio over the network.
      */
     private const BRANDING_URLS = [
-        'logo_expose'  => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719874403-1303eff6-hibarr-expose.png',
-        'logo_rounded' => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
-        'logo_white'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
-        'block_title'  => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
-        'logo_full'    => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
+        'logo_expose'          => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719874403-1303eff6-hibarr-expose.png',
+        'logo_rounded'         => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
+        'logo_white'           => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
+        'block_title'          => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
+        'logo_full'            => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
+        'name_space'           => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778193858830-ad66988e-name-space.png',
+        'hibarr_expose_text'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778194049167-64036beb-hibarr-expose-text.png',
+        'project_overview'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778220690459-2ef518d6-project-overview-space-for-img.png',
+        // examples to match
+        'cover_image_project'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778197940203-011a688d-cover-image-project.png',
+        'project_overview_example'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778204830425-e578b585-project-overview.png',
     ];
 
     /**
