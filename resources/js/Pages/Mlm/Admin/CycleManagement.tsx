@@ -6,13 +6,14 @@ import {
     InputNumber,
     DatePicker,
     Button,
-    Table,
     Tag,
     Empty,
     Spin,
     Popconfirm,
     Modal,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import {
     Plus,
@@ -352,19 +353,14 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
 
     return (
         <div className="p-2 bg-gray-50 rounded">
-            <Table
+            <DataTable
                 columns={columns}
                 dataSource={enrollments}
                 rowKey="id"
                 size="small"
                 loading={isLoading}
-                pagination={false}
-                scroll={{ x: 900 }}
-                locale={{
-                    emptyText: (
-                        <Empty description="No enrollments in this cycle" />
-                    ),
-                }}
+                scroll={{ x: "max-content" }}
+                emptyState={{ description: "No enrollments in this cycle" }}
             />
         </div>
     );
@@ -541,19 +537,21 @@ const CycleManagement: React.FC<Props> = () => {
                                 </Button>
                             }
                         >
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={cycles.data ?? []}
                                 rowKey="id"
                                 loading={isLoading}
                                 size="middle"
-                                pagination={{
-                                    current: cycles.current_page ?? 1,
+                                paginationData={{
+                                    current_page: cycles.current_page ?? 1,
+                                    last_page: Math.ceil((cycles.total ?? 0) / (cycles.per_page ?? 15)),
+                                    per_page: cycles.per_page ?? 15,
                                     total: cycles.total ?? 0,
-                                    pageSize: cycles.per_page ?? 15,
-                                    showSizeChanger: false,
-                                    onChange: (p) => setPage(p),
+                                    from: null,
+                                    to: null,
                                 }}
+                                onPageChange={(p) => setPage(p)}
                                 expandable={{
                                     expandedRowRender: (record: MlmCycle) => (
                                         <EnrollmentSubTable
@@ -563,11 +561,8 @@ const CycleManagement: React.FC<Props> = () => {
                                     rowExpandable: (record: MlmCycle) =>
                                         (record.enrollments_count ?? 0) > 0,
                                 }}
-                                locale={{
-                                    emptyText: (
-                                        <Empty description="No cycles yet. Click 'New Cycle' to create one." />
-                                    ),
-                                }}
+                                emptyState={{ description: "No cycles yet. Click 'New Cycle' to create one." }}
+                                scroll={{ x: "max-content" }}
                             />
                         </Card>
                     </motion.div>

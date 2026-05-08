@@ -4,7 +4,6 @@ import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import {
-    Table,
     Tag,
     Button,
     Segmented,
@@ -20,7 +19,9 @@ import {
     ClockCircleOutlined,
     EyeOutlined,
 } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
@@ -170,7 +171,7 @@ const Index = () => {
         }
     };
 
-    const columns: ColumnsType<PublishRequest> = [
+    const columns: TableColumnsType<PublishRequest> = [
         {
             title: "Property",
             key: "property",
@@ -347,30 +348,26 @@ const Index = () => {
                         </Space>
                     </div>
 
-                    <Table
+                    <DataTable
                         dataSource={requests}
                         columns={columns}
                         rowKey="id"
                         loading={isLoading}
-                        pagination={
+                        paginationData={
                             pagination
-                                ? {
-                                      current: pagination.current_page,
-                                      pageSize: pagination.per_page,
+                                ? ({
+                                      current_page: pagination.current_page,
+                                      last_page: pagination.last_page,
+                                      per_page: pagination.per_page,
                                       total: pagination.total,
-                                      showSizeChanger: false,
-                                      onChange: (p) => setPage(p),
-                                  }
-                                : false
+                                      from: null,
+                                      to: null,
+                                  } as LaravelPaginationMeta)
+                                : null
                         }
-                        locale={{
-                            emptyText: (
-                                <Empty
-                                    image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                    description="No publish requests yet"
-                                />
-                            ),
-                        }}
+                        onPageChange={(p) => setPage(p)}
+                        emptyState={{ description: "No publish requests yet" }}
+                        scroll={{ x: 1000, y: "calc(100vh - 280px)" }}
                     />
                 </div>
 

@@ -3,13 +3,13 @@ import {
     Card,
     Col,
     Row,
-    Table,
     Tag,
     Statistic,
     Empty,
     Skeleton,
     Divider,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { DollarSign, TrendingUp, Users, Award, Clock } from "lucide-react";
 import {
@@ -488,17 +488,13 @@ const AgentDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                 }
                                 variant="outlined"
                             >
-                                <Table
+                                <DataTable
                                     columns={recentCommissionCols}
                                     dataSource={stats.recent_commissions ?? []}
                                     rowKey="id"
-                                    pagination={false}
                                     size="small"
-                                    locale={{
-                                        emptyText: (
-                                            <Empty description="No commissions yet" />
-                                        ),
-                                    }}
+                                    scroll={{ x: "max-content" }}
+                                    emptyState={{ description: "No commissions yet" }}
                                 />
                             </Card>
                         </motion.div>

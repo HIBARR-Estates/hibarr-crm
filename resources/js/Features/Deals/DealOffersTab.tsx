@@ -1,5 +1,6 @@
 import React from "react";
 import { Table, Tag, Button, Popconfirm, Empty, Space, Typography } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import type { TableColumnsType } from "antd";
 import { DeleteOutlined, GiftOutlined } from "@ant-design/icons";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
@@ -182,13 +183,13 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                 </Space>
             </div>
 
-            <Table
+            <DataTable
                 columns={columns}
                 dataSource={applications}
                 rowKey="id"
                 loading={isLoading}
-                pagination={false}
                 size="small"
+                scroll={{ x: "max-content" }}
                 summary={() => (
                     <Table.Summary.Row>
                         <Table.Summary.Cell index={0} colSpan={4} align="right">

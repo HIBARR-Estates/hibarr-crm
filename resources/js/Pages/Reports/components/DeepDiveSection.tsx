@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from "react";
 import {
     Tabs,
-    Table,
     Skeleton,
     Drawer,
     Typography,
@@ -13,7 +12,9 @@ import {
     Empty,
     Pagination,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { Link } from "@inertiajs/react";
 import {
     UserOutlined,
@@ -51,7 +52,7 @@ interface DeepDiveSectionProps {
 
 // ── Column Definitions ──────────────────────────────────────────
 
-const leadColumns: ColumnsType<any> = [
+const leadColumns: TableColumnsType<any> = [
     {
         title: "Name",
         dataIndex: "client_name",
@@ -79,7 +80,7 @@ const leadColumns: ColumnsType<any> = [
     },
 ];
 
-const dealsCreatedColumns: ColumnsType<any> = [
+const dealsCreatedColumns: TableColumnsType<any> = [
     {
         title: "Deal Name",
         dataIndex: "name",
@@ -119,7 +120,7 @@ const dealsCreatedColumns: ColumnsType<any> = [
     },
 ];
 
-const dealsClosedColumns: ColumnsType<any> = [
+const dealsClosedColumns: TableColumnsType<any> = [
     {
         title: "Deal Name",
         dataIndex: "name",
@@ -156,7 +157,7 @@ const dealsClosedColumns: ColumnsType<any> = [
 
 const getMeetingsColumns = (
     onView: (record: any) => void,
-): ColumnsType<any> => [
+): TableColumnsType<any> => [
     {
         title: "Deal",
         key: "deal",
@@ -206,7 +207,7 @@ const getMeetingsColumns = (
 
 const TAB_CONFIG: Record<
     string,
-    { endpoint: string; columns: ColumnsType<any>; label: string }
+    { endpoint: string; columns: TableColumnsType<any>; label: string }
 > = {
     leads: {
         endpoint: "/account/agent-reports/leads",
@@ -702,7 +703,7 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
 const TabContent: React.FC<{
     tabKey: string;
     filters: Filters;
-    config: { endpoint: string; columns: ColumnsType<any> };
+    config: { endpoint: string; columns: TableColumnsType<any> };
 }> = ({ tabKey, filters, config }) => {
     const [data, setData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -753,21 +754,25 @@ const TabContent: React.FC<{
         return <Skeleton active paragraph={{ rows: 6 }} className="p-4" />;
     }
 
+    const paginationData: LaravelPaginationMeta = {
+        current_page: pagination.current,
+        last_page: Math.ceil(pagination.total / pagination.pageSize),
+        per_page: pagination.pageSize,
+        total: pagination.total,
+        from: null,
+        to: null,
+    };
+
     return (
-        <Table
+        <DataTable
             dataSource={data}
             columns={config.columns}
             rowKey="id"
             loading={loading}
             size="small"
-            pagination={{
-                current: pagination.current,
-                pageSize: pagination.pageSize,
-                total: pagination.total,
-                showSizeChanger: true,
-                showTotal: (total) => `${total} records`,
-                onChange: (page, pageSize) => fetchData(page, pageSize),
-            }}
+            paginationData={paginationData}
+            onPageChange={(page) => fetchData(page, pagination.pageSize)}
+            scroll={{ x: "max-content" }}
         />
     );
 };

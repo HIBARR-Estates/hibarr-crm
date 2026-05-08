@@ -15,7 +15,9 @@ import {
     ReloadOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
-import { Button, Table, Tag, Select, Space, Switch, App } from "antd";
+import { Button, Tag, Select, Space, Switch, App } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import type { TableColumnsType } from "antd";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
@@ -337,37 +339,28 @@ const Index = ({
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-lg border border-gray-200">
-                        <Table
-                            columns={columns}
-                            dataSource={offers.data}
-                            rowKey="id"
-                            pagination={{
-                                current: offers.current_page,
-                                total: offers.total,
-                                pageSize: offers.per_page,
-                                showSizeChanger: false,
-                                showTotal: (total, range) =>
-                                    `${range[0]}-${range[1]} of ${total} entries`,
-                                onChange: (page, pageSize) => {
-                                    router.get(
-                                        route("offers.index"),
-                                        {
-                                            ...filters,
-                                            page,
-                                            per_page: pageSize,
-                                        },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                        },
-                                    );
-                                },
-                            }}
-                            scroll={{ x: 1000 }}
-                            size="small"
-                        />
-                    </div>
+                    <DataTable
+                        columns={columns}
+                        dataSource={offers.data}
+                        rowKey="id"
+                        paginationData={{
+                            current_page: offers.current_page,
+                            last_page: offers.last_page,
+                            per_page: offers.per_page,
+                            total: offers.total,
+                            from: offers.from,
+                            to: offers.to,
+                        }}
+                        onPageChange={(page) => {
+                            router.get(
+                                route("offers.index"),
+                                { ...filters, page },
+                                { preserveState: true, preserveScroll: true },
+                            );
+                        }}
+                        scroll={{ x: 1000, y: "calc(100vh - 280px)" }}
+                        size="small"
+                    />
                 </div>
             </PageLayout>
 

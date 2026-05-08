@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
     Alert,
     Card,
-    Table,
     Button,
     Modal,
     Form,
@@ -13,6 +12,7 @@ import {
     Tag,
     Empty,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import {
     Plus,
@@ -230,18 +230,14 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                             }
                             className="shadow-sm"
                         >
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={levels}
                                 rowKey="id"
                                 loading={isLoading}
-                                pagination={false}
                                 size="middle"
-                                locale={{
-                                    emptyText: (
-                                        <Empty description="No levels defined yet. Create one to get started." />
-                                    ),
-                                }}
+                                emptyState={{ description: "No levels defined yet. Create one to get started." }}
+                                scroll={{ x: "max-content" }}
                             />
                         </Card>
                     </motion.div>

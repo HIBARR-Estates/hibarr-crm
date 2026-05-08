@@ -4,7 +4,6 @@ import DashboardLayout from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import {
-    Table,
     Tag,
     Select,
     Input,
@@ -15,7 +14,9 @@ import {
     Drawer,
     Typography,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import {
     ReloadOutlined,
     FilterOutlined,
@@ -181,7 +182,7 @@ function Index({
     );
 
     // Table columns
-    const columns: ColumnsType<CrmEvent> = [
+    const columns: TableColumnsType<CrmEvent> = [
         {
             title: "Event",
             dataIndex: ["event_type", "name"],
@@ -372,30 +373,30 @@ function Index({
                 </div>
 
                 {/* Table */}
-                <Table
+                <DataTable<CrmEvent>
                     dataSource={events.data}
                     columns={columns}
                     rowKey="uuid"
                     size="small"
-                    scroll={{ x: 1200 }}
-                    pagination={{
-                        current: events.current_page,
-                        pageSize: events.per_page,
+                    scroll={{ x: 1200, y: "calc(100vh - 280px)" }}
+                    paginationData={{
+                        current_page: events.current_page,
+                        last_page: events.last_page,
+                        per_page: events.per_page,
                         total: events.total,
-                        showSizeChanger: true,
-                        showTotal: (total, range) =>
-                            `${range[0]}-${range[1]} of ${total} events`,
-                        onChange: (page, pageSize) => {
-                            router.get(
-                                "/account/crm-events",
-                                {
-                                    ...filters,
-                                    page: String(page),
-                                    per_page: String(pageSize),
-                                },
-                                { preserveState: true, preserveScroll: true },
-                            );
-                        },
+                        from: events.from,
+                        to: events.to,
+                    }}
+                    onPageChange={(page) => {
+                        router.get(
+                            "/account/crm-events",
+                            {
+                                ...filters,
+                                page: String(page),
+                                per_page: String(events.per_page),
+                            },
+                            { preserveState: true, preserveScroll: true },
+                        );
                     }}
                     onChange={(_pagination, _tableFilters, sorter) => {
                         if (!Array.isArray(sorter) && sorter.field) {

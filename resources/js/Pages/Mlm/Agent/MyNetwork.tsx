@@ -9,7 +9,6 @@ import {
     Button,
     Space,
     Tabs,
-    Table,
     Input,
     Form,
     message,
@@ -21,6 +20,8 @@ import {
     Timeline,
     Popconfirm,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import {
     GitBranch,
@@ -144,21 +145,23 @@ const DownlineDealsSection: React.FC<{ agentId: number }> = ({ agentId }) => {
     ];
 
     return (
-        <Table
+        <DataTable
             dataSource={records}
             columns={columns}
             rowKey="deal_id"
             size="small"
             loading={isLoading}
-            locale={{ emptyText: <Empty description="No deals found" /> }}
-            pagination={{
-                current: page,
+            emptyState={{ description: "No deals found" }}
+            paginationData={{
+                current_page: page,
+                last_page: Math.ceil(total / 8),
+                per_page: 8,
                 total,
-                pageSize: 8,
-                size: "small",
-                showSizeChanger: false,
-                onChange: (p) => setPage(p),
+                from: null,
+                to: null,
             }}
+            onPageChange={(p) => setPage(p)}
+            scroll={{ x: "max-content" }}
         />
     );
 };
@@ -318,25 +321,23 @@ const InvitationsTab: React.FC = () => {
                         </Button>
                     }
                 >
-                    <Table
+                    <DataTable
                         dataSource={invitations}
                         columns={inviteColumns}
                         rowKey="id"
                         size="small"
                         loading={invitesLoading}
-                        locale={{
-                            emptyText: (
-                                <Empty description="No invitations sent yet" />
-                            ),
-                        }}
-                        pagination={{
-                            current: invitePage,
+                        emptyState={{ description: "No invitations sent yet" }}
+                        paginationData={{
+                            current_page: invitePage,
+                            last_page: Math.ceil(totalCount / 10),
+                            per_page: 10,
                             total: totalCount,
-                            pageSize: 10,
-                            size: "small",
-                            showSizeChanger: false,
-                            onChange: (p) => setInvitePage(p),
+                            from: null,
+                            to: null,
                         }}
+                        onPageChange={(p) => setInvitePage(p)}
+                        scroll={{ x: "max-content" }}
                     />
                 </Card>
             </motion.div>
@@ -533,33 +534,27 @@ const DealsTab: React.FC = () => {
                 transition={{ duration: 0.4, delay: 0.1 }}
             >
                 <Card size="small" className="shadow-sm">
-                    <Table
+                    <DataTable
                         dataSource={deals}
                         columns={dealColumns}
                         rowKey="id"
                         size="small"
                         loading={isLoading}
-                        scroll={{ x: 950 }}
-                        locale={{
-                            emptyText: (
-                                <Empty
-                                    description={
-                                        selectedDownline
-                                            ? "No deals found for this downline"
-                                            : "No deals found"
-                                    }
-                                />
-                            ),
+                        scroll={{ x: "max-content" }}
+                        emptyState={{
+                            description: selectedDownline
+                                ? "No deals found for this downline"
+                                : "No deals found",
                         }}
-                        pagination={{
-                            current: page,
+                        paginationData={{
+                            current_page: page,
+                            last_page: Math.ceil(totalDeals / 15),
+                            per_page: 15,
                             total: totalDeals,
-                            pageSize: 15,
-                            size: "small",
-                            showSizeChanger: false,
-                            showTotal: (total) => `${total} deals`,
-                            onChange: (p) => setPage(p),
+                            from: null,
+                            to: null,
                         }}
+                        onPageChange={(p) => setPage(p)}
                     />
                 </Card>
             </motion.div>

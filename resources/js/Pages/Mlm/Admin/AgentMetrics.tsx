@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Card, Table, Tag, Input, Select, Empty, Progress, Space } from "antd";
+import { Card, Tag, Input, Select, Empty, Progress, Space } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { BarChart3, Search } from "lucide-react";
 import { router } from "@inertiajs/react";
@@ -193,7 +195,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                                 />
                             </div>
 
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={metrics?.data ?? []}
                                 rowKey="id"
@@ -204,20 +206,17 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                                     rowExpandable: (record) =>
                                         !!record.criteria_progress?.length,
                                 }}
-                                pagination={{
-                                    current: metrics?.current_page ?? 1,
+                                paginationData={{
+                                    current_page: metrics?.current_page ?? 1,
+                                    last_page: Math.ceil((metrics?.total ?? 0) / (metrics?.per_page ?? 20)),
+                                    per_page: metrics?.per_page ?? 20,
                                     total: metrics?.total ?? 0,
-                                    pageSize: metrics?.per_page ?? 20,
-                                    showSizeChanger: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}–${range[1]} of ${total}`,
-                                    onChange: (p) => setPage(p),
+                                    from: null,
+                                    to: null,
                                 }}
-                                locale={{
-                                    emptyText: (
-                                        <Empty description="No agent metrics found" />
-                                    ),
-                                }}
+                                onPageChange={(p) => setPage(p)}
+                                emptyState={{ description: "No agent metrics found" }}
+                                scroll={{ x: "max-content" }}
                             />
                         </Card>
                     </motion.div>

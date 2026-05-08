@@ -1,5 +1,7 @@
 import React, { useState } from "react";
-import { Card, Table, Tag, Select, DatePicker, Empty, Space } from "antd";
+import { Card, Tag, Select, DatePicker, Empty, Space } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { History, ArrowUpRight, User, Bot } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -199,26 +201,23 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
                                 />
                             </div>
 
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={history?.data ?? []}
                                 rowKey="id"
                                 loading={isLoading}
                                 size="middle"
-                                pagination={{
-                                    current: history?.current_page ?? 1,
+                                paginationData={{
+                                    current_page: history?.current_page ?? 1,
+                                    last_page: Math.ceil((history?.total ?? 0) / (history?.per_page ?? 20)),
+                                    per_page: history?.per_page ?? 20,
                                     total: history?.total ?? 0,
-                                    pageSize: history?.per_page ?? 20,
-                                    showSizeChanger: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}–${range[1]} of ${total}`,
-                                    onChange: (p) => setPage(p),
+                                    from: null,
+                                    to: null,
                                 }}
-                                locale={{
-                                    emptyText: (
-                                        <Empty description="No level history yet" />
-                                    ),
-                                }}
+                                onPageChange={(p) => setPage(p)}
+                                emptyState={{ description: "No level history yet" }}
+                                scroll={{ x: "max-content" }}
                             />
                         </Card>
                     </motion.div>

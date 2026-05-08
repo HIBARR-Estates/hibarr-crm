@@ -1,12 +1,14 @@
 import React from "react";
 import { PropertyAsset } from "@/Types";
-import { Table, Image, Tag, Checkbox, Typography, Space } from "antd";
+import { Image, Tag, Checkbox, Typography, Space } from "antd";
+import type { TableColumnsType } from "antd";
 import {
     FileImageOutlined,
     VideoCameraOutlined,
     GlobalOutlined,
 } from "@ant-design/icons";
-import type { ColumnsType } from "antd/es/table";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import dayjs from "dayjs";
 
 const { Text } = Typography;
@@ -49,7 +51,7 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
         }
     };
 
-    const columns: ColumnsType<PropertyAsset> = [
+    const columns: TableColumnsType<PropertyAsset> = [
         {
             title: (
                 <Checkbox
@@ -167,22 +169,24 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
         },
     ];
 
+    const paginationMeta: LaravelPaginationMeta = {
+        current_page: pagination.current,
+        last_page: Math.ceil(pagination.total / pagination.pageSize),
+        per_page: pagination.pageSize,
+        total: pagination.total,
+        from: (pagination.current - 1) * pagination.pageSize + 1,
+        to: Math.min(pagination.current * pagination.pageSize, pagination.total),
+    };
+
     return (
-        <Table
+        <DataTable
             columns={columns}
             dataSource={assets}
             rowKey="id"
             loading={loading}
-            pagination={{
-                current: pagination.current,
-                pageSize: pagination.pageSize,
-                total: pagination.total,
-                showSizeChanger: true,
-                showTotal: (total, range) =>
-                    `${range[0]}-${range[1]} of ${total} assets`,
-                onChange: pagination.onChange,
-            }}
-            className="asset-table"
+            scroll={{ x: "max-content" }}
+            paginationData={paginationMeta}
+            onPageChange={(page) => pagination.onChange(page, pagination.pageSize)}
         />
     );
 };
