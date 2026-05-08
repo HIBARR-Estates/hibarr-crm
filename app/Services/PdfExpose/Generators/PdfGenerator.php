@@ -16,7 +16,8 @@ class PdfGenerator
     public function generate(string $html, ExposeConfiguration $config)
     {
         $filename = $this->generateFilename($config);
-        $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
+        // $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
+        $orientation = 'landscape';
 
         // Generate PDF using Spatie and return download response
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
@@ -46,7 +47,8 @@ class PdfGenerator
      */
     public function saveToFile(string $html, ExposeConfiguration $config, string $destinationPath): void
     {
-        $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
+        // $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
+        $orientation = 'landscape';
 
         Pdf::view('pdf.wrapper', ['content' => $html])
             ->format('a4')
