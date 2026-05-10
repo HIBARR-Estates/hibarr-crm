@@ -21,6 +21,7 @@ import {
     App,
     Spin,
     Checkbox,
+    Radio,
 } from "antd";
 import {
     UploadOutlined,
@@ -30,6 +31,7 @@ import {
     CloseCircleOutlined,
     EditOutlined,
     SaveOutlined,
+    TagsOutlined,
 } from "@ant-design/icons";
 
 import type { UploadFile } from "antd";
@@ -116,6 +118,13 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
     const [selectedAssetIds, setSelectedAssetIds] = useState<Set<number>>(
         new Set(),
     );
+
+    // Bulk tag modal
+    const [isTagModalOpen, setIsTagModalOpen] = useState(false);
+    const [bulkTags, setBulkTags] = useState<string[]>([]);
+    const [bulkTagAction, setBulkTagAction] = useState<
+        "add" | "replace" | "remove"
+    >("add");
 
     // ─── Fetch existing assets ───
     const {
@@ -211,6 +220,35 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                 setSelectedAssetIds(new Set());
             },
         );
+
+    // Mutation: bulk update tags
+    interface BulkUpdateTagsPayload {
+        asset_ids: number[];
+        tags: string[];
+        action: "add" | "replace" | "remove";
+    }
+
+    const { mutate: bulkUpdateTags, isPending: isBulkUpdating } = useApiMutate<
+        BulkUpdateTagsPayload,
+        { updated: number },
+        ApiSuccessResponse<{ updated: number }>
+    >(
+        unitTypeId && projectId
+            ? route("developer-projects.unit-types.assets.bulk_update_tags", {
+                  projectId,
+                  unitTypeId,
+              })
+            : "",
+        "PUT",
+        () => {
+            setIsTagModalOpen(false);
+            setBulkTags([]);
+            setBulkTagAction("add");
+            setSelectedAssetIds(new Set());
+            setIsSelecting(false);
+            refetchAssets();
+        },
+    );
 
     // ─── Upload flow ───
     const handleUpload = useCallback(async () => {
@@ -428,6 +466,15 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
         messageApi,
     ]);
 
+    const handleBulkTagSubmit = useCallback(() => {
+        if (selectedAssetIds.size === 0 || bulkTags.length === 0) return;
+        bulkUpdateTags({
+            asset_ids: Array.from(selectedAssetIds),
+            tags: bulkTags,
+            action: bulkTagAction,
+        });
+    }, [selectedAssetIds, bulkTags, bulkTagAction, bulkUpdateTags]);
+
     // ─── Create mode: unit type not saved yet ───
     if (!unitTypeId) {
         return (
@@ -491,6 +538,15 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                             </Button>
                             <Button size="small" onClick={deselectAllUnitPhotos}>
                                 Deselect
+                            </Button>
+                            <Button
+                                size="small"
+                                type="primary"
+                                icon={<TagsOutlined />}
+                                disabled={selectedAssetIds.size === 0}
+                                onClick={() => setIsTagModalOpen(true)}
+                            >
+                                Edit Tags ({selectedAssetIds.size})
                             </Button>
                             <Button
                                 size="small"
@@ -760,6 +816,76 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                         ))}
                     </div>
                 )}
+            </Modal>
+
+            {/* Bulk Tag Modal */}
+            <Modal
+                title={`Update Tags - ${selectedAssetIds.size} photo${selectedAssetIds.size !== 1 ? "s" : ""} selected`}
+                open={isTagModalOpen}
+                onCancel={() => {
+                    if (!isBulkUpdating) {
+                        setIsTagModalOpen(false);
+                        setBulkTags([]);
+                        setBulkTagAction("add");
+                    }
+                }}
+                width={480}
+                footer={[
+                    <Button
+                        key="cancel"
+                        onClick={() => setIsTagModalOpen(false)}
+                        disabled={isBulkUpdating}
+                    >
+                        Cancel
+                    </Button>,
+                    <Button
+                        key="apply"
+                        type="primary"
+                        onClick={handleBulkTagSubmit}
+                        loading={isBulkUpdating}
+                        disabled={bulkTags.length === 0}
+                    >
+                        Apply Tags
+                    </Button>,
+                ]}
+                maskClosable={!isBulkUpdating}
+            >
+                <div className="mb-4">
+                    <Text className="text-sm block mb-1 font-medium">
+                        Action
+                    </Text>
+                    <Radio.Group
+                        value={bulkTagAction}
+                        onChange={(e) => setBulkTagAction(e.target.value)}
+                    >
+                        <Radio value="add">Add tags</Radio>
+                        <Radio value="remove">Remove tags</Radio>
+                        <Radio value="replace">Replace all tags</Radio>
+                    </Radio.Group>
+                    <div className="mt-1">
+                        <Text type="secondary" className="text-xs">
+                            {bulkTagAction === "add" &&
+                                "Selected tags will be added to existing tags on each photo."}
+                            {bulkTagAction === "remove" &&
+                                "Selected tags will be removed from each photo."}
+                            {bulkTagAction === "replace" &&
+                                "All existing tags will be replaced with the selected tags."}
+                        </Text>
+                    </div>
+                </div>
+
+                <div>
+                    <Text className="text-sm block mb-1 font-medium">Tags</Text>
+                    <Select
+                        mode="multiple"
+                        placeholder="Select tags"
+                        options={TAG_OPTIONS}
+                        value={bulkTags}
+                        onChange={setBulkTags}
+                        style={{ width: "100%" }}
+                        allowClear
+                    />
+                </div>
             </Modal>
         </div>
     );
