@@ -15,6 +15,7 @@ class GeneratePropertyDescriptionRequest extends FormRequest
     {
         return [
             'form_data' => ['required', 'array'],
+            'feature_context' => ['nullable', 'string', 'in:property_description,location_description'],
         ];
     }
 }

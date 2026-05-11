@@ -5,6 +5,7 @@ import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     Button,
+    App,
     Drawer,
     Form,
     Input,
@@ -48,6 +49,7 @@ import {
     InfoCircleOutlined,
     CheckCircleOutlined,
     PictureOutlined,
+    ThunderboltOutlined,
 } from "@ant-design/icons";
 import type {
     ProjectLocation,
@@ -59,6 +61,7 @@ import {
     useLocationFormUpload,
     LocationFormValues,
 } from "@/Hooks/useLocationFormUpload";
+import { useGenerateDescription } from "@/lib/ai";
 
 const { Text, Title } = Typography;
 
@@ -173,8 +176,48 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     onSuccess,
 }) => {
     const [form] = Form.useForm<LocationFormValues>();
+    const { modal } = App.useApp();
     const [activeTab, setActiveTab] = useState("basic");
     const isEditing = !!location;
+
+    const locationDescriptionValidator = useCallback(
+        (formData: Record<string, any>) => {
+            const missing: string[] = [];
+            const name = String(formData.name ?? "").trim();
+            const hasContext =
+                String(formData.description ?? "").trim() !== "" ||
+                String(formData.address_street ?? "").trim() !== "" ||
+                String(formData.address_city ?? "").trim() !== "" ||
+                String(formData.address_state ?? "").trim() !== "" ||
+                String(formData.address_country ?? "").trim() !== "" ||
+                (formData.attractions?.length || 0) > 0 ||
+                (formData.infrastructure?.length || 0) > 0 ||
+                (formData.airports?.length || 0) > 0;
+
+            if (!name) {
+                missing.push("Location Name");
+            }
+
+            if (!hasContext) {
+                missing.push("Description or address details");
+            }
+
+            return { sufficient: missing.length === 0, missing };
+        },
+        [],
+    );
+
+    const {
+        isEnabled: aiEnabled,
+        isGenerating: isGeneratingDescription,
+        error: descriptionError,
+        insufficientMessage,
+        generate: generateDescription,
+    } = useGenerateDescription({
+        endpoint: route("properties.ai-description"),
+        featureContext: "location_description",
+        validateFormData: locationDescriptionValidator,
+    });
 
     // File upload hook
     const { isUploading, uploadProgress, processAndSubmit } =
@@ -225,6 +268,31 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             console.error("Validation failed:", error);
         }
     };
+
+    const handleGenerateDescription = useCallback(async () => {
+        const values = form.getFieldsValue(true);
+        const existingDescription = values.description;
+
+        const doGenerate = async () => {
+            const description = await generateDescription(values);
+            if (description) {
+                form.setFieldValue("description", description);
+            }
+        };
+
+        if (existingDescription?.trim()) {
+            modal.confirm({
+                title: "Replace existing description?",
+                content:
+                    "This will replace the current location description with an AI-generated version.",
+                okText: "Replace",
+                cancelText: "Cancel",
+                onOk: doGenerate,
+            });
+        } else {
+            await doGenerate();
+        }
+    }, [form, generateDescription, modal]);
 
     // Reset form when drawer opens/closes or location changes
     useEffect(() => {
@@ -283,14 +351,48 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         <Input placeholder="e.g., Kyrenia Waterfront" />
                     </Form.Item>
 
-                    <Form.Item name="description" label="Description">
+                    <div className="flex items-center justify-between gap-3">
+                        <label className="ant-form-item-label">
+                            <span>Description</span>
+                        </label>
+                        {aiEnabled && (
+                            <Button
+                                size="small"
+                                icon={<ThunderboltOutlined />}
+                                onClick={handleGenerateDescription}
+                                loading={isGeneratingDescription}
+                            >
+                                {isGeneratingDescription
+                                    ? "Generating..."
+                                    : "Generate with AI"}
+                            </Button>
+                        )}
+                    </div>
+                    <Form.Item name="description" noStyle>
                         <Input.TextArea
                             placeholder="Describe this location and its key features..."
                             rows={3}
                             showCount
                             maxLength={500}
+                            disabled={isGeneratingDescription}
                         />
                     </Form.Item>
+                    {insufficientMessage && (
+                        <Alert
+                            message={insufficientMessage}
+                            type="info"
+                            showIcon
+                            closable
+                        />
+                    )}
+                    {descriptionError && (
+                        <Alert
+                            message={descriptionError}
+                            type="error"
+                            showIcon
+                            closable
+                        />
+                    )}
 
                     <Divider orientation="left" plain>
                         <Text type="secondary">
@@ -1197,7 +1299,10 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                     router.get(
                                         route("project-locations.index"),
                                         { ...filters, page },
-                                        { preserveState: true, preserveScroll: true },
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: true,
+                                        },
                                     );
                                 }}
                                 size="middle"

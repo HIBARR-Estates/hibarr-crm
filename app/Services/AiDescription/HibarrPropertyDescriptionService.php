@@ -66,6 +66,23 @@ class HibarrPropertyDescriptionService implements PropertyDescriptionInterface
     ];
 
     /**
+     * @var array<string, string>
+     */
+    private const LOCATION_FIELD_LABELS = [
+        'name' => 'Location Name',
+        'description' => 'Location Description',
+        'map_url' => 'Location Image URL',
+        'address.street' => 'Street Address',
+        'address.city' => 'City',
+        'address.state' => 'State / Region',
+        'address.country' => 'Country',
+        'address.postalCode' => 'Postal Code',
+        'attractions' => 'Nearby Attractions',
+        'infrastructure' => 'Nearby Infrastructure',
+        'airports' => 'Nearby Airports',
+    ];
+
+    /**
      * @var array<int, string>
      */
     private const EXCLUDED_PROMPT_KEYS = [
@@ -90,6 +107,20 @@ Rules:
 - Output plain text only (no markdown, no bullet points, no HTML).
 PROMPT;
 
+    private const LOCATION_SYSTEM_INSTRUCTION = <<<'PROMPT'
+You are a professional real estate copywriter specialising in North Cyprus (TRNC) project locations.
+
+Rules:
+- Write a compelling location description in English.
+- Length: 120-220 words.
+- Tone: professional, warm, and useful for a project brochure or expose PDF.
+- Highlight the location's setting, address context, and nearby lifestyle benefits.
+- Mention nearby attractions, infrastructure, and airports only if they are provided.
+- Do NOT invent details that are not listed.
+- Do NOT include a title/heading - return only the body description.
+- Output plain text only (no markdown, no bullet points, no HTML).
+PROMPT;
+
     public function __construct()
     {
         $this->baseUrl = rtrim((string) config('services.ai.base_url'), '/');
@@ -101,13 +132,28 @@ PROMPT;
         $this->apiKey = is_string($apiKey) ? trim($apiKey) : null;
     }
 
-    public function generate(array $formData): string
+    public function generate(array $formData, ?string $featureContext = null): string
     {
-        $context = $this->buildPropertyContext($formData);
+        $isLocationContext = $featureContext === 'location_description';
+        $context = $isLocationContext
+            ? $this->buildLocationContext($formData)
+            : $this->buildPropertyContext($formData);
 
         if ($context === '') {
-            throw new \RuntimeException('No property details available to generate a description.');
+            throw new \RuntimeException(
+                $isLocationContext
+                    ? 'No location details available to generate a description.'
+                    : 'No property details available to generate a description.'
+            );
         }
+
+        $featureContextName = $isLocationContext
+            ? 'location_description'
+            : 'property_description';
+
+        $systemInstruction = $isLocationContext
+            ? self::LOCATION_SYSTEM_INSTRUCTION
+            : self::SYSTEM_INSTRUCTION;
 
         try {
             $request = Http::timeout($this->timeout);
@@ -119,14 +165,16 @@ PROMPT;
             }
 
             $response = $request->post("{$this->baseUrl}/ai/execute", [
-                'featureContext' => 'property_description',
+                'featureContext' => $featureContextName,
                 'userId' => (string) auth()->id(),
                 'payload' => [
                     'messages' => [
-                        ['role' => 'system', 'content' => self::SYSTEM_INSTRUCTION],
+                        ['role' => 'system', 'content' => $systemInstruction],
                         [
                             'role' => 'user',
-                            'content' => "Generate a property listing description based on these details:\n\n{$context}",
+                            'content' => $isLocationContext
+                                ? "Generate a location description based on these details:\n\n{$context}"
+                                : "Generate a property listing description based on these details:\n\n{$context}",
                         ],
                     ],
                     'maxTokens' => 1024,
@@ -227,5 +275,72 @@ PROMPT;
         }
 
         return implode("\n", $lines);
+    }
+
+    /**
+     * @param  array<string, mixed>  $formData
+     */
+    private function buildLocationContext(array $formData): string
+    {
+        $lines = [];
+
+        foreach (self::LOCATION_FIELD_LABELS as $key => $label) {
+            $value = $this->dataGet($formData, $key);
+
+            if ($value === null || $value === '' || $value === false) {
+                continue;
+            }
+
+            if (is_array($value)) {
+                if ($value === []) {
+                    continue;
+                }
+
+                $serializedValues = array_map(static function ($item): string {
+                    if (is_scalar($item)) {
+                        return (string) $item;
+                    }
+
+                    return json_encode($item, JSON_UNESCAPED_UNICODE) ?: '';
+                }, $value);
+
+                $serializedValues = array_values(array_filter($serializedValues, static fn ($item) => $item !== ''));
+
+                if ($serializedValues === []) {
+                    continue;
+                }
+
+                $lines[] = $label . ': ' . implode(', ', $serializedValues);
+                continue;
+            }
+
+            if (is_bool($value)) {
+                $lines[] = $label . ': ' . ($value ? 'Yes' : 'No');
+                continue;
+            }
+
+            $lines[] = $label . ': ' . (string) $value;
+        }
+
+        return implode("\n", $lines);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     */
+    private function dataGet(array $data, string $key): mixed
+    {
+        $segments = explode('.', $key);
+        $current = $data;
+
+        foreach ($segments as $segment) {
+            if (!is_array($current) || !array_key_exists($segment, $current)) {
+                return null;
+            }
+
+            $current = $current[$segment];
+        }
+
+        return $current;
     }
 }
