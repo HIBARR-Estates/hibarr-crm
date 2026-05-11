@@ -12,6 +12,7 @@ use App\Console\Commands\BirthdayReminderCommand;
 use App\Console\Commands\ClearLogs;
 use App\Console\Commands\ClearNullSessions;
 use App\Console\Commands\CreateEmployeeLeaveQuotaHistory;
+use App\Console\Commands\DeduplicateProjectLocations;
 use App\Console\Commands\CreateTranslations;
 use App\Console\Commands\FetchTicketEmails;
 use App\Console\Commands\HideCronJobMessage;
@@ -78,6 +79,7 @@ class Kernel extends ConsoleKernel
         ClearLogs::class,
         InActiveEmployee::class,
         CreateEmployeeLeaveQuotaHistory::class,
+        DeduplicateProjectLocations::class,
         AssignShiftRotation::class,
         AssignEmployeeShiftRotation::class,
         RecalculateLeavesQuotas::class,

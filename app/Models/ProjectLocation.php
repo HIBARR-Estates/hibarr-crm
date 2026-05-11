@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -17,8 +18,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * Address schema: {street?, state?, country?, postalCode?}
  * Note: City is stored at the property level, not the project location level.
  * 
- * A ProjectLocation has a 1:1 relationship with DeveloperProject - each project
- * is tied to exactly one location configuration.
+ * A ProjectLocation can be shared by multiple DeveloperProjects when they
+ * represent the same normalized city+area.
  */
 class ProjectLocation extends BaseModel
 {
@@ -50,15 +51,27 @@ class ProjectLocation extends BaseModel
     ];
 
     /**
-     * Get the developer project that uses this location.
-     * 
-     * While the schema allows multiple projects to reference a location,
-     * the business logic enforces 1:1 by having each project select
-     * or create its own location.
+     * Get all developer projects that use this location.
+     */
+    public function developerProjects(): HasMany
+    {
+        return $this->hasMany(DeveloperProject::class, 'project_location_id');
+    }
+
+    /**
+     * Backward-compatible singular relation accessor.
      */
     public function developerProject(): HasOne
     {
         return $this->hasOne(DeveloperProject::class, 'project_location_id');
+    }
+
+    /**
+     * Properties that directly reference this location.
+     */
+    public function properties(): HasMany
+    {
+        return $this->hasMany(Property::class, 'project_location_id');
     }
 
     /**
@@ -104,7 +117,7 @@ class ProjectLocation extends BaseModel
      */
     public function isInUse(): bool
     {
-        return $this->developerProject()->exists();
+        return $this->developerProjects()->exists() || $this->properties()->exists();
     }
 
     /**
