@@ -120,6 +120,7 @@ export interface ProjectLocation {
     description: string | null;
     address: LocationAddress | null;
     map_url: string | null;
+    image_url: string | null;
     attractions: LocationAttraction[];
     infrastructure: LocationInfrastructure[];
     airports: LocationAirport[];
@@ -460,6 +461,7 @@ export interface CreateProjectLocationInput {
     description?: string;
     address?: LocationAddress;
     map_url?: string;
+    image_url?: string;
     attractions?: LocationAttraction[];
     infrastructure?: LocationInfrastructureInput[];
     airports?: LocationAirportInput[];

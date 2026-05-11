@@ -541,9 +541,11 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     <SpecRow
                                         label="Completion"
                                         value={
-                                            dayjs(ut.completion_date).format(
-                                                "D MMMM YYYY",
-                                            ) || "-"
+                                            ut.completion_date
+                                                ? dayjs(
+                                                      ut.completion_date,
+                                                  ).format("D MMMM YYYY")
+                                                : "-"
                                         }
                                     />
                                     <SpecRow
@@ -809,15 +811,17 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                         />
                     </Space>
                 }
-                extra={canEdit ? (
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={handleAdd}
-                    >
-                        Add Unit Type
-                    </Button>
-                ) : null}
+                extra={
+                    canEdit ? (
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={handleAdd}
+                        >
+                            Add Unit Type
+                        </Button>
+                    ) : null
+                }
             >
                 {unitTypes.length === 0 ? (
                     <Empty
