@@ -33,6 +33,7 @@ class ProjectLocation extends BaseModel
         'area',
         'address',
         'map_url',
+        'image_url',
         'latitude',
         'longitude',
         'attractions',
@@ -130,6 +131,7 @@ class ProjectLocation extends BaseModel
         return [
             'name' => $this->name,
             'description' => $this->description ?? '',
+            'image' => $this->image_url ?? '',
             'address' => $this->address ?? [
                 'street' => '',
                 'state' => '',

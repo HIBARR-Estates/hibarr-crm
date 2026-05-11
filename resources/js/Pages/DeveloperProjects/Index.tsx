@@ -25,6 +25,7 @@ import ProjectCard from "./components/ProjectCard";
 import ProjectFormModal from "./components/ProjectFormModal";
 import SortDropdown from "./components/SortDropdown";
 import { usePermission } from "@/lib/permissionUtils";
+import { PROJECT_CONSTRUCTION_STATUSES } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
 
 // ============================================
 // Types
@@ -466,10 +467,13 @@ const Index = ({
                                     }
                                     placeholder="Any Status"
                                     allowClear
-                                    options={constructionStatuses.map((s) => ({
-                                        value: s.name,
-                                        label: s.label,
-                                    }))}
+                                    // options={constructionStatuses.map((s) => ({
+                                    options={PROJECT_CONSTRUCTION_STATUSES.map(
+                                        (s) => ({
+                                            value: s.value,
+                                            label: s.label,
+                                        }),
+                                    )}
                                     style={{ width: 180 }}
                                     size="small"
                                 />

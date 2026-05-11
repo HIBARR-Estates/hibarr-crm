@@ -27,7 +27,7 @@ class ExposeConfiguration implements Arrayable
         
         // Group assets by tags
         $assetsByTag = [];
-        $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
+        $availableTags = ['hero', 'cover', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
         
         foreach ($availableTags as $tag) {
             $assetsByTag[$tag] = $property->assets()
@@ -113,6 +113,13 @@ class ExposeConfiguration implements Arrayable
                 
                 // Distances (for infrastructure page)
                 'distances' => $property->distances ?? [],
+
+                // Location page payload (property exposes usually don't have project location image)
+                'location_payload' => [
+                    'name' => $property->area ?? $property->city ?? null,
+                    'description' => null,
+                    'image_url' => null,
+                ],
                 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
@@ -416,7 +423,7 @@ class ExposeConfiguration implements Arrayable
         // 1. Unit type assets for that tag
         // 2. Project assets for that tag
         // 3. Unit type "cover" tag → used as "hero" fallback
-        $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
+        $availableTags = ['hero', 'cover', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
         $assetsByTag = [];
 
         foreach ($availableTags as $tag) {
@@ -477,6 +484,76 @@ class ExposeConfiguration implements Arrayable
         // Resolve location-derived fields from ProjectLocation
         $city = $location?->state ?? $location?->name ?? null;
         $area = $location?->name ?? null;
+
+        // Resolve project facilities and image mapping from project assets tags (facilities:<slug>)
+        $facilitySlugs = $project?->facilities ?? [];
+        $facilityLabelMap = collect();
+        if ($project && !empty($facilitySlugs)) {
+            $facilityLabelMap = ProjectFacility::where('company_id', $project->company_id)
+                ->whereIn('name', $facilitySlugs)
+                ->pluck('label', 'name');
+        }
+
+        $facilityLabels = [];
+        foreach ($facilitySlugs as $facilityKey) {
+            $facilityLabels[] = $facilityLabelMap[$facilityKey] ?? ucfirst(str_replace('_', ' ', $facilityKey));
+        }
+
+        $facilityImagesBySlug = [];
+        foreach ($facilitySlugs as $facilityKey) {
+            $facilityImagesBySlug[$facilityKey] = [];
+        }
+
+        $genericFacilityImages = [];
+        if ($project) {
+            $projectImageAssets = $project->assets()
+                ->where('asset_type', 'image')
+                ->orderBy('order')
+                ->orderBy('created_at', 'desc')
+                ->get();
+
+            foreach ($projectImageAssets as $asset) {
+                $url = $asset->url;
+                if (empty($url)) {
+                    continue;
+                }
+
+                $tags = $asset->tags ?? [];
+                if (in_array('facilities', $tags, true)) {
+                    $genericFacilityImages[] = $url;
+                }
+
+                foreach ($tags as $tag) {
+                    if (!is_string($tag) || !str_starts_with($tag, 'facilities:')) {
+                        continue;
+                    }
+
+                    $slug = substr($tag, strlen('facilities:'));
+                    if ($slug === '' || !array_key_exists($slug, $facilityImagesBySlug)) {
+                        continue;
+                    }
+
+                    $facilityImagesBySlug[$slug][] = $url;
+                }
+            }
+        }
+
+        $facilityGalleryImages = [];
+        foreach ($facilitySlugs as $facilityKey) {
+            if (!empty($facilityImagesBySlug[$facilityKey])) {
+                $facilityGalleryImages[] = $facilityImagesBySlug[$facilityKey][0];
+            }
+        }
+
+        foreach ($genericFacilityImages as $url) {
+            if (!in_array($url, $facilityGalleryImages, true)) {
+                $facilityGalleryImages[] = $url;
+            }
+        }
+
+        if (!empty($facilityGalleryImages)) {
+            $assetsByTag['facilities'] = $facilityGalleryImages;
+        }
 
         // Build distances from project + location infrastructure/airports
         $distances = $project?->distances ?? [];
@@ -546,6 +623,12 @@ class ExposeConfiguration implements Arrayable
             $formattedPrice = $unitType->currency_symbol . number_format((float) $unitType->starting_price, 0);
         }
 
+        $unitStyleList = [];
+        foreach ($unitType->unit_style ?? [] as $styleKey) {
+            $label = DeveloperProjectUnitType::UNIT_STYLES[$styleKey] ?? ucfirst(str_replace('_', ' ', (string) $styleKey));
+            $unitStyleList[] = $label;
+        }
+
         return new self(
             entityType: 'property', // Masquerade as property to reuse template path
             entityId: $unitType->id,
@@ -602,12 +685,25 @@ class ExposeConfiguration implements Arrayable
 
                 // Features
                 'features' => array_merge($outsideFeatureLabels, $insideFeatureLabels),
-                'exterior_features' => $outsideFeatureLabels,
+                'exterior_features' => !empty($facilityLabels) ? $facilityLabels : $outsideFeatureLabels,
                 'interior_features' => $insideFeatureLabels,
                 'location_features' => [],
                 'outside_features' => $unitType->outside_features ?? [],
                 'inside_features' => $unitType->inside_features ?? [],
                 'view_types' => $viewTypeLabels,
+                'unit_style_list' => $unitStyleList,
+
+                // Project facilities for facilities page
+                'facilities' => $facilitySlugs,
+                'facility_labels' => $facilityLabels,
+                'facility_images_by_slug' => $facilityImagesBySlug,
+
+                // Project location page payload
+                'location_payload' => [
+                    'name' => $location?->name,
+                    'description' => $location?->description,
+                    'image_url' => $location?->image_url,
+                ],
 
                 // Distances (from project + location)
                 'distances' => $distances,
