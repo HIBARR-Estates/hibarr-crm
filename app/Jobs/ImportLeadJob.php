@@ -17,7 +17,6 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Session;
 
@@ -57,21 +56,24 @@ class ImportLeadJob implements ShouldQueue
 
         if ($this->isColumnExists('name')) {
 
-            if ($this->isColumnExists('email') && $this->isEmailValid($this->getColumnValue('email'))) {
-                $lead = Lead::where('client_email', $this->getColumnValue('email'))->where('company_id', $this->company?->id)->first();
-                $user = User::where('email', $this->getColumnValue('email'))->first();
+            $rawEmail = $this->isColumnExists('email') ? $this->getColumnValue('email') : null;
+            $emailForDupCheck = $rawEmail !== null && $rawEmail !== '' ? trim((string) $rawEmail) : '';
 
-                if ($lead || $user) {
-
-                    $this->failJobWithMessage(__('messages.duplicateEntryForEmail') . $this->getColumnValue('email'));
+            if ($emailForDupCheck !== '') {
+                if (! $this->isEmailValid($emailForDupCheck)) {
+                    $this->failJob(__('messages.invalidData'));
 
                     return;
                 }
-            }
-            else {
-                $this->failJob(__('messages.invalidData'));
 
-                return;
+                $lead = Lead::where('client_email', $emailForDupCheck)->where('company_id', $this->company?->id)->first();
+                $user = User::where('email', $emailForDupCheck)->first();
+
+                if ($lead || $user) {
+                    $this->failJobWithMessage(__('messages.duplicateEntryForEmail') . $emailForDupCheck);
+
+                    return;
+                }
             }
 
             DB::beginTransaction();
@@ -88,7 +90,7 @@ class ImportLeadJob implements ShouldQueue
                 $lead = new Lead();
                 $lead->company_id = $this->company?->id;
                 $lead->client_name = $this->getColumnValue('name');
-                $lead->client_email = $this->isColumnExists('email') && filter_var($this->getColumnValue('email'), FILTER_VALIDATE_EMAIL) ? $this->getColumnValue('email') : null;
+                $lead->client_email = $emailForDupCheck !== '' ? $emailForDupCheck : null;
                 $lead->salutation = $this->isColumnExists('salutation') ? $this->getColumnValue('salutation') : null;
                 $genderValue = $this->isColumnExists('gender') ? strtolower(trim($this->getColumnValue('gender'))) : null;
                 $lead->gender = ($genderValue && in_array($genderValue, ['male', 'female'])) ? $genderValue : null;
@@ -103,7 +105,6 @@ class ImportLeadJob implements ShouldQueue
                 $lead->postal_code = $this->isColumnExists('postal_code') ? $this->getColumnValue('postal_code') : null;
                 $lead->address = $this->isColumnExists('address') ? $this->getColumnValue('address') : null;
                 $lead->source_id = $leadSource?->id;
-                $lead->created_at = $this->isColumnExists('created_at') ? Carbon::parse($this->getColumnValue('created_at')) : now();
 
                 $leads = Session::get('leads', []);
 

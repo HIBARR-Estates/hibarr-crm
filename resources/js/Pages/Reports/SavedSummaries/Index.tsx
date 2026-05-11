@@ -7,7 +7,6 @@ import {
     Modal,
     Popconfirm,
     Space,
-    Table,
     Tag,
     Typography,
     message,
@@ -20,6 +19,8 @@ import dayjs from "dayjs";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import DeleteSummary from "../components/DeleteSummary";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 
 interface PaginationData<T> {
     data: T[];
@@ -195,17 +196,20 @@ const Index: React.FC = () => {
                         </Space>
                     }
                 >
-                    <Table
+                    <DataTable
                         rowKey="id"
                         dataSource={summaries.data}
                         columns={columns as any}
-                        pagination={{
-                            current: summaries.current_page,
+                        paginationData={{
+                            current_page: summaries.current_page,
+                            last_page: summaries.last_page,
+                            per_page: summaries.per_page,
                             total: summaries.total,
-                            pageSize: summaries.per_page,
-                            showSizeChanger: false,
-                            onChange: (page) => applyFilters({ page }),
-                        }}
+                            from: null,
+                            to: null,
+                        } as LaravelPaginationMeta}
+                        onPageChange={(page) => applyFilters({ page })}
+                        scroll={{ x: 1000, y: "calc(100vh - 280px)" }}
                     />
                 </Card>
 

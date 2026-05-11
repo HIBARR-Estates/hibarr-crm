@@ -9,7 +9,7 @@ import {
     Button,
     Avatar,
 } from "antd";
-import { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
 import {
     CalendarOutlined,
     EyeOutlined,
@@ -17,8 +17,7 @@ import {
     DeleteOutlined,
     MoreOutlined,
     CheckSquareOutlined,
-    ClockCircleOutlined,
-    UserOutlined,
+    DownOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
@@ -51,6 +50,7 @@ interface TasksTableColumnsProps {
     onView: (task: Task) => void;
     onDuplicate: (task: Task) => void;
     onDelete: (task: Task) => void;
+    onStatusChange?: (task: Task, newStatus: string, newColumnId: number) => void;
     exclude?: string[];
 }
 
@@ -61,8 +61,9 @@ export const useTasksTableColumns = ({
     onView,
     onDuplicate,
     onDelete,
+    onStatusChange,
     exclude = [],
-}: TasksTableColumnsProps): ColumnsType<Task> => {
+}: TasksTableColumnsProps): TableColumnsType<Task> => {
     const { props } = usePage();
     const userId = props.auth.user.id;
 
@@ -73,7 +74,7 @@ export const useTasksTableColumns = ({
         high: { color: "#ff4d4f", icon: "🔴", bg: "#fff1f0" },
     };
 
-    const tableColumns: ColumnsType<Task> = [
+    const tableColumns: TableColumnsType<Task> = [
         {
             title: (
                 <span className="flex items-center">
@@ -131,12 +132,46 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "status",
             key: "status",
-            render: (status: string) => {
-                const column = columns.find((col) => col.slug === status);
+            render: (status: string, record: Task) => {
+                const boardColumn = columns.find((col) => col.slug === status);
+                if (!onStatusChange) {
+                    return (
+                        <Tag color={getStatusColor(status)}>
+                            {boardColumn?.column_name || status}
+                        </Tag>
+                    );
+                }
                 return (
-                    <Tag color={getStatusColor(status)}>
-                        {column?.column_name || status}
-                    </Tag>
+                    <Dropdown
+                        menu={{
+                            items: columns.map((col) => ({
+                                key: col.id,
+                                label: (
+                                    <div className="flex items-center gap-2">
+                                        <div
+                                            className="w-2 h-2 rounded-full"
+                                            style={{ backgroundColor: col.label_color }}
+                                        />
+                                        <span>{col.column_name}</span>
+                                    </div>
+                                ),
+                                onClick: () => onStatusChange(record, col.slug, col.id),
+                            })),
+                        }}
+                        trigger={["click"]}
+                    >
+                        <span
+                            className="px-2 py-0.5 rounded text-xs font-medium border capitalize cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1"
+                            style={{
+                                borderColor: boardColumn?.label_color || "#d9d9d9",
+                                color: boardColumn?.label_color || "#666",
+                                backgroundColor: "white",
+                            }}
+                        >
+                            {(boardColumn?.column_name || status).split("_").join(" ")}
+                            <DownOutlined style={{ fontSize: "10px" }} />
+                        </span>
+                    </Dropdown>
                 );
             },
         },

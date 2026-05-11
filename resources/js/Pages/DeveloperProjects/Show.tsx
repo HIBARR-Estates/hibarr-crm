@@ -111,6 +111,7 @@ export interface ShowProps extends PageProps {
     unitTypesSummary: UnitTypeSummary[];
     facilities: { name: string; label: string; icon: string | null }[];
     imagesByTag: Record<string, ImageItem[]>;
+    facilityImagesBySlug: Record<string, ImageItem[]>;
     priceList: PriceListItem[];
     unitTypePriceList: UnitTypePriceListItem[];
     unitTypes: DeveloperProjectUnitType[];
@@ -183,6 +184,7 @@ const Show = ({
     unitTypesSummary,
     facilities,
     imagesByTag,
+    facilityImagesBySlug,
     priceList,
     unitTypePriceList,
     unitTypes,
@@ -230,7 +232,13 @@ const Show = ({
             case "photos":
                 return <ProjectPhotosSection projectId={project.id} />;
             case "facilities":
-                return <FacilitiesSection facilities={facilities} />;
+                return (
+                    <FacilitiesSection
+                        projectId={project.id}
+                        facilities={facilities}
+                        facilityImagesBySlug={facilityImagesBySlug}
+                    />
+                );
             case "exterior":
                 return (
                     <ImageGallerySection

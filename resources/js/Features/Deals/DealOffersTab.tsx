@@ -1,5 +1,6 @@
 import React from "react";
 import { Table, Tag, Button, Popconfirm, Empty, Space, Typography } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import type { TableColumnsType } from "antd";
 import { DeleteOutlined, GiftOutlined } from "@ant-design/icons";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
@@ -54,14 +55,6 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
 
     const columns: TableColumnsType<DealOfferApplication> = [
         {
-            title: "Property",
-            key: "product",
-            render: (_, record) =>
-                generatePropertySubtitle((record.product as any)?.property) ||
-                record.product?.name ||
-                `Product #${record.product_id}`,
-        },
-        {
             title: "Offer",
             key: "offer",
             render: (_, record) => (
@@ -72,6 +65,15 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
             ),
         },
         {
+            title: "Property",
+            key: "product",
+            render: (_, record) =>
+                generatePropertySubtitle((record.product as any)?.property) ||
+                record.product?.name ||
+                `Product #${record.product_id}`,
+        },
+
+        {
             title: "Type",
             key: "type",
             width: 100,
@@ -80,21 +82,20 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                     color={
                         record.offer_type === "percentage" ? "blue" : "green"
                     }
+                    className="capitalize"
                 >
-                    {record.offer_type === "percentage"
-                        ? `${record.offer_value}%`
-                        : formatMoney(Number(record.offer_value))}
+                    {record.offer_type}
                 </Tag>
             ),
         },
-        {
-            title: "Original",
-            dataIndex: "original_amount",
-            key: "original_amount",
-            width: 120,
-            align: "right",
-            render: (v: number) => formatMoney(v),
-        },
+        // {
+        //     title: "Original",
+        //     dataIndex: "original_amount",
+        //     key: "original_amount",
+        //     width: 120,
+        //     align: "right",
+        //     render: (v: number) => formatMoney(v),
+        // },
         {
             title: "Discount",
             dataIndex: "discount_amount",
@@ -182,13 +183,13 @@ const DealOffersTab: React.FC<DealOffersTabProps> = ({ deal }) => {
                 </Space>
             </div>
 
-            <Table
+            <DataTable
                 columns={columns}
                 dataSource={applications}
                 rowKey="id"
                 loading={isLoading}
-                pagination={false}
                 size="small"
+                scroll={{ x: "max-content" }}
                 summary={() => (
                     <Table.Summary.Row>
                         <Table.Summary.Cell index={0} colSpan={4} align="right">

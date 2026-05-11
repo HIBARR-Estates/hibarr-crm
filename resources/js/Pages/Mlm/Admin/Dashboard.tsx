@@ -3,13 +3,13 @@ import {
     Card,
     Col,
     Row,
-    Table,
     Tag,
     Statistic,
     Empty,
     Spin,
     Skeleton,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import {
     Users,
@@ -380,17 +380,13 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                         }
                                         className="shadow-sm"
                                     >
-                                        <Table
+                                        <DataTable
                                             columns={topAgentColumns}
                                             dataSource={stats.top_agents ?? []}
                                             rowKey="id"
-                                            pagination={false}
                                             size="small"
-                                            locale={{
-                                                emptyText: (
-                                                    <Empty description="No agents yet" />
-                                                ),
-                                            }}
+                                            scroll={{ x: "max-content" }}
+                                            emptyState={{ description: "No agents yet" }}
                                         />
                                     </Card>
                                 </motion.div>
@@ -416,19 +412,15 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
                                         }
                                         className="shadow-sm"
                                     >
-                                        <Table
+                                        <DataTable
                                             columns={promotionColumns}
                                             dataSource={
                                                 stats.recent_promotions ?? []
                                             }
                                             rowKey="id"
-                                            pagination={false}
                                             size="small"
-                                            locale={{
-                                                emptyText: (
-                                                    <Empty description="No promotions yet" />
-                                                ),
-                                            }}
+                                            scroll={{ x: "max-content" }}
+                                            emptyState={{ description: "No promotions yet" }}
                                         />
                                     </Card>
                                 </motion.div>

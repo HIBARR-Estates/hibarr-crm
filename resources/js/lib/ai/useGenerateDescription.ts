@@ -4,6 +4,8 @@ import {
     getMinimumFieldsPresent,
     generatePropertyDescription,
     toUserFriendlyError,
+    type FieldCheck,
+    type GenerateDescriptionOptions,
 } from "./geminiClient";
 
 export interface UseGenerateDescriptionReturn {
@@ -23,12 +25,20 @@ export interface UseGenerateDescriptionReturn {
     generate: (formData: Record<string, any>) => Promise<string | null>;
 }
 
+export interface UseGenerateDescriptionHookOptions {
+    endpoint?: string;
+    featureContext?: string;
+    validateFormData?: (formData: Record<string, any>) => FieldCheck;
+}
+
 /**
  * React hook that wraps the Gemini AI description generator.
  *
  * Manages loading, error, and insufficient-data states.
  */
-export function useGenerateDescription(): UseGenerateDescriptionReturn {
+export function useGenerateDescription(
+    options: UseGenerateDescriptionHookOptions = {},
+): UseGenerateDescriptionReturn {
     const isEnabled = isAiEnabled();
     const [isGenerating, setIsGenerating] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -43,7 +53,9 @@ export function useGenerateDescription(): UseGenerateDescriptionReturn {
             setInsufficientMessage(null);
 
             // Validate minimum fields
-            const check = getMinimumFieldsPresent(formData);
+            const check = options.validateFormData
+                ? options.validateFormData(formData)
+                : getMinimumFieldsPresent(formData);
             if (!check.sufficient) {
                 setInsufficientMessage(
                     `Please fill in ${check.missing.join(" and ")} before generating a description.`,
@@ -53,7 +65,13 @@ export function useGenerateDescription(): UseGenerateDescriptionReturn {
 
             setIsGenerating(true);
             try {
-                const description = await generatePropertyDescription(formData);
+                const description = await generatePropertyDescription(
+                    formData,
+                    {
+                        endpoint: options.endpoint,
+                        featureContext: options.featureContext,
+                    } satisfies GenerateDescriptionOptions,
+                );
                 return description;
             } catch (err: unknown) {
                 setError(toUserFriendlyError(err));
@@ -62,7 +80,7 @@ export function useGenerateDescription(): UseGenerateDescriptionReturn {
                 setIsGenerating(false);
             }
         },
-        [],
+        [options.endpoint, options.featureContext, options.validateFormData],
     );
 
     return { isEnabled, isGenerating, error, insufficientMessage, generate };

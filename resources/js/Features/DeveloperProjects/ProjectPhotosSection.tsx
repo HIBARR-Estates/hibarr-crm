@@ -36,6 +36,7 @@ import { getFileUploadService } from "@/Services/FileUploadService";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { usePermission } from "@/lib/permissionUtils";
 
 const { Text, Title } = Typography;
 
@@ -139,6 +140,8 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
     projectId,
 }) => {
     const { message: messageApi } = App.useApp();
+    const { hasPermission } = usePermission();
+    const canEdit = hasPermission("edit_developer_projects");
 
     // View mode: all photos or grouped by tag
     const [viewMode, setViewMode] = useState<"all" | "by-tag">("all");
@@ -287,6 +290,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
 
     // ─── Upload flow ───
     const handleUpload = useCallback(async () => {
+        if (!canEdit) return;
         if (!uploadService) return;
 
         const files: File[] = [];
@@ -394,6 +398,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             setIsUploading(false);
         }
     }, [
+        canEdit,
         uploadService,
         projectId,
         uploadFileList,
@@ -405,6 +410,8 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
     // ─── Delete handler ───
     const handleDeleteAsset = useCallback(
         (asset: DeveloperProjectAsset) => {
+            if (!canEdit) return;
+
             deleteModal.confirm({
                 title: "Delete Photo",
                 content: `Delete "${asset.name}"? This cannot be undone.`,
@@ -440,7 +447,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 },
             });
         },
-        [projectId, deleteModal, messageApi, refetchAssets],
+        [canEdit, projectId, deleteModal, messageApi, refetchAssets],
     );
 
     // ─── Bulk selection helpers ───
@@ -471,15 +478,17 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
     }, []);
 
     const handleBulkTagSubmit = useCallback(() => {
+        if (!canEdit) return;
         if (selectedAssetIds.size === 0 || bulkTags.length === 0) return;
         bulkUpdateTags({
             asset_ids: Array.from(selectedAssetIds),
             tags: bulkTags,
             action: bulkTagAction,
         });
-    }, [selectedAssetIds, bulkTags, bulkTagAction, bulkUpdateTags]);
+    }, [canEdit, selectedAssetIds, bulkTags, bulkTagAction, bulkUpdateTags]);
 
     const handleBulkDeleteAssets = useCallback(() => {
+        if (!canEdit) return;
         const ids = Array.from(selectedAssetIds);
         if (ids.length === 0) return;
 
@@ -530,6 +539,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
             },
         });
     }, [
+        canEdit,
         selectedAssetIds,
         projectId,
         deleteModal,
@@ -594,7 +604,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 )}
 
                 {/* Delete overlay */}
-                {!isSelecting && (
+                {canEdit && !isSelecting && (
                     <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                             type="primary"
@@ -635,7 +645,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
         return (
             <Card
                 title="Project Photos"
-                extra={
+                extra={canEdit ? (
                     <Button
                         type="primary"
                         icon={<UploadOutlined />}
@@ -643,7 +653,7 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                     >
                         Upload Photos
                     </Button>
-                }
+                ) : null}
             >
                 {deleteContextHolder}
                 <Empty
@@ -651,15 +661,17 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                     description="No photos uploaded yet"
                     className="my-8"
                 >
-                    <Button
-                        type="primary"
-                        icon={<UploadOutlined />}
-                        onClick={() => setIsUploadModalOpen(true)}
-                    >
-                        Upload Your First Photo
-                    </Button>
+                    {canEdit && (
+                        <Button
+                            type="primary"
+                            icon={<UploadOutlined />}
+                            onClick={() => setIsUploadModalOpen(true)}
+                        >
+                            Upload Your First Photo
+                        </Button>
+                    )}
                 </Empty>
-                {renderUploadModal()}
+                {canEdit && renderUploadModal()}
             </Card>
         );
     }
@@ -884,52 +896,55 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                             ]}
                         />
                     )}
-                    {!isSelecting ? (
+                    {canEdit &&
+                        (!isSelecting ? (
+                            <Button
+                                size="small"
+                                icon={<EditOutlined />}
+                                onClick={() => setIsSelecting(true)}
+                            >
+                                Select
+                            </Button>
+                        ) : (
+                            <>
+                                <Button size="small" onClick={selectAllVisible}>
+                                    Select All
+                                </Button>
+                                <Button size="small" onClick={deselectAll}>
+                                    Deselect
+                                </Button>
+                                <Button
+                                    size="small"
+                                    type="primary"
+                                    icon={<TagsOutlined />}
+                                    disabled={selectedAssetIds.size === 0}
+                                    onClick={() => setIsTagModalOpen(true)}
+                                >
+                                    Edit Tags ({selectedAssetIds.size})
+                                </Button>
+                                <Button
+                                    size="small"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                    disabled={selectedAssetIds.size === 0}
+                                    onClick={handleBulkDeleteAssets}
+                                >
+                                    Delete ({selectedAssetIds.size})
+                                </Button>
+                                <Button size="small" onClick={exitSelectionMode}>
+                                    Cancel
+                                </Button>
+                            </>
+                        ))}
+                    {canEdit && (
                         <Button
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => setIsSelecting(true)}
+                            type="primary"
+                            icon={<UploadOutlined />}
+                            onClick={() => setIsUploadModalOpen(true)}
                         >
-                            Select
+                            Upload Photos
                         </Button>
-                    ) : (
-                        <>
-                            <Button size="small" onClick={selectAllVisible}>
-                                Select All
-                            </Button>
-                            <Button size="small" onClick={deselectAll}>
-                                Deselect
-                            </Button>
-                            <Button
-                                size="small"
-                                type="primary"
-                                icon={<TagsOutlined />}
-                                disabled={selectedAssetIds.size === 0}
-                                onClick={() => setIsTagModalOpen(true)}
-                            >
-                                Edit Tags ({selectedAssetIds.size})
-                            </Button>
-                            <Button
-                                size="small"
-                                danger
-                                icon={<DeleteOutlined />}
-                                disabled={selectedAssetIds.size === 0}
-                                onClick={handleBulkDeleteAssets}
-                            >
-                                Delete ({selectedAssetIds.size})
-                            </Button>
-                            <Button size="small" onClick={exitSelectionMode}>
-                                Cancel
-                            </Button>
-                        </>
                     )}
-                    <Button
-                        type="primary"
-                        icon={<UploadOutlined />}
-                        onClick={() => setIsUploadModalOpen(true)}
-                    >
-                        Upload Photos
-                    </Button>
                 </Space>
             }
         >
@@ -989,8 +1004,8 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                 </div>
             )}
 
-            {renderUploadModal()}
-            {renderBulkTagModal()}
+            {canEdit && renderUploadModal()}
+            {canEdit && renderBulkTagModal()}
         </Card>
     );
 };

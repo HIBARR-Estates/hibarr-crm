@@ -4,7 +4,6 @@ import {
     Col,
     Row,
     Tag,
-    Table,
     Empty,
     Spin,
     Descriptions,
@@ -12,6 +11,7 @@ import {
     Progress,
     Skeleton,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { Award, TrendingUp, History } from "lucide-react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -269,17 +269,13 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
                                 }
                                 className="shadow-sm"
                             >
-                                <Table
+                                <DataTable
                                     columns={historyColumns}
                                     dataSource={levelData?.level_history ?? []}
                                     rowKey="id"
-                                    pagination={false}
                                     size="small"
-                                    locale={{
-                                        emptyText: (
-                                            <Empty description="No level changes yet" />
-                                        ),
-                                    }}
+                                    scroll={{ y: "calc(100vh - 520px)" }}
+                                    emptyState={{ description: "No level changes yet" }}
                                 />
                             </Card>
                         </motion.div>

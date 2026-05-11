@@ -1145,6 +1145,12 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     });
 
     // Developer Projects
+    Route::prefix('expose-configuration')->name('expose-configuration.')->group(function () {
+        Route::get('/', [App\Http\Controllers\CompanyExposeConfigurationController::class, 'show'])->name('show');
+        Route::put('/', [App\Http\Controllers\CompanyExposeConfigurationController::class, 'update'])->name('update');
+        Route::post('/upload-image', [App\Http\Controllers\CompanyExposeConfigurationController::class, 'uploadImage'])->name('upload-image');
+    });
+
     Route::prefix('developer-projects')->name('developer-projects.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeveloperProjectController::class, 'index'])->name('index');
         Route::get('/all', [App\Http\Controllers\DeveloperProjectController::class, 'all'])->name('all');
@@ -1196,6 +1202,7 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
                 Route::get('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'index'])->name('index');
                 Route::post('/', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'store'])->name('store');
                 Route::post('/from-urls', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'storeFromUrls'])->name('store_from_urls');
+                Route::put('/bulk-update-tags', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'bulkUpdateTags'])->name('bulk_update_tags');
                 Route::put('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'update'])->name('update');
                 Route::delete('/{assetId}', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'destroy'])->name('destroy');
                 Route::post('/bulk-delete', [App\Http\Controllers\DeveloperProjectUnitTypeAssetController::class, 'bulkDestroy'])->name('bulk_destroy');

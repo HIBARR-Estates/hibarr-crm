@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { Card, Table, Empty } from "antd";
+import { Card, Empty } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import type { TableColumnsType } from "antd";
 import {
     Building2,
@@ -197,12 +198,12 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
             {/* ── Units Table ──────────────────────────────────────────── */}
             {/* <Card title="Units">
                 {unitTypesSummary.length > 0 ? (
-                    <Table
+                    <DataTable
                         columns={columns}
                         dataSource={unitTypesSummary}
                         rowKey="type"
-                        pagination={false}
                         size="small"
+                        scroll={{ x: "max-content" }}
                     />
                 ) : (
                     <Empty description="No unit types added to this project" />

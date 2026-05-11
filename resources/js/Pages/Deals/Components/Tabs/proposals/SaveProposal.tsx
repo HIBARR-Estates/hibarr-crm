@@ -13,10 +13,10 @@ import {
     Divider,
     InputNumber,
     Space,
-    Table,
     Card,
     Drawer,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     PlusOutlined,
     DeleteOutlined,
@@ -553,15 +553,15 @@ export default function SaveProposal({
                         </div>
                     )}
 
-                    <Table
+                    <DataTable
                         dataSource={items}
                         columns={itemColumns}
-                        pagination={false}
                         rowKey={(record, index) => index?.toString() || "0"}
-                        locale={{
-                            emptyText:
+                        emptyState={{
+                            description:
                                 'No items added yet. Click "Add Item" to get started.',
                         }}
+                        scroll={{ x: "max-content" }}
                     />
                 </div>
 

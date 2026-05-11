@@ -7,11 +7,11 @@ import {
     Tabs,
     Tag,
     Descriptions,
-    Table,
     Button,
     Dropdown,
     Empty,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     EditOutlined,
     DeleteOutlined,
@@ -138,11 +138,11 @@ const Show = ({
             children: (
                 <Card>
                     {deals.length > 0 ? (
-                        <Table
+                        <DataTable
                             dataSource={deals}
                             rowKey="id"
                             size="small"
-                            pagination={{ pageSize: 10 }}
+                            scroll={{ x: "max-content" }}
                             columns={[
                                 {
                                     title: "Deal Name",

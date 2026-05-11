@@ -1,6 +1,9 @@
+import { useState, useMemo } from "react";
 import { Deal } from "@/Types/api/deals";
-import { Table, Avatar, Empty } from "antd";
-import { UserOutlined, ClockCircleOutlined } from "@ant-design/icons";
+import { Empty } from "antd";
+import { ClockCircleOutlined } from "@ant-design/icons";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import dayjs from "dayjs";
 import UserIndicator from "@/Components/UserIndicator";
 
@@ -9,7 +12,25 @@ interface Props {
     histories: any[];
 }
 
+const HISTORY_PAGE_SIZE = 15;
+
 export default function HistoryTab({ deal, histories }: Props) {
+    const [page, setPage] = useState(1);
+
+    const pagedHistories = useMemo(
+        () => histories.slice((page - 1) * HISTORY_PAGE_SIZE, page * HISTORY_PAGE_SIZE),
+        [histories, page],
+    );
+
+    const paginationMeta: LaravelPaginationMeta | null = histories.length > HISTORY_PAGE_SIZE ? {
+        current_page: page,
+        last_page: Math.ceil(histories.length / HISTORY_PAGE_SIZE),
+        per_page: HISTORY_PAGE_SIZE,
+        total: histories.length,
+        from: (page - 1) * HISTORY_PAGE_SIZE + 1,
+        to: Math.min(page * HISTORY_PAGE_SIZE, histories.length),
+    } : null;
+
     const columns = [
         {
             title: "Activity",
@@ -66,18 +87,14 @@ export default function HistoryTab({ deal, histories }: Props) {
 
     return (
         <div className="p-6">
-            <Table
+            <DataTable
                 columns={columns}
-                dataSource={histories}
+                dataSource={pagedHistories}
                 rowKey="id"
-                pagination={{
-                    pageSize: 15,
-                    showSizeChanger: true,
-                    showQuickJumper: true,
-                    showTotal: (total) => `Total ${total} activities`,
-                }}
-                className="history-table"
                 size="small"
+                scroll={{ x: "max-content" }}
+                paginationData={paginationMeta}
+                onPageChange={setPage}
             />
         </div>
     );
