@@ -38,17 +38,14 @@ class PdfGenerator
     public function generate(string $html, ExposeConfiguration $config)
     {
         $filename = $this->generateFilename($config);
-        // $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
-        $orientation = 'landscape';
 
         // Generate PDF using Spatie and return download response
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
-            ->format('a4')
-            ->orientation($orientation)
             ->withBrowsershot(function ($browsershot) {
+                $browsershot->setOption('preferCSSPageSize', true);
                 $this->configureBrowsershot($browsershot, 120);
             })
-            ->margins(10, 10, 10, 10);
+            ->margins(0, 0, 0, 0);
 
         return $pdf->download($filename);
     }
@@ -59,16 +56,12 @@ class PdfGenerator
      */
     public function saveToFile(string $html, ExposeConfiguration $config, string $destinationPath): void
     {
-        // $orientation = $config->layout === 'horizontal_premium' ? 'landscape' : 'portrait';
-        $orientation = 'landscape';
-
         Pdf::view('pdf.wrapper', ['content' => $html])
-            ->format('a4')
-            ->orientation($orientation)
             ->withBrowsershot(function ($browsershot) {
+                $browsershot->setOption('preferCSSPageSize', true);
                 $this->configureBrowsershot($browsershot, 240);
             })
-            ->margins(10, 10, 10, 10)
+            ->margins(0, 0, 0, 0)
             ->save($destinationPath);
     }
 
@@ -89,34 +82,13 @@ class PdfGenerator
     public function download(string $html, ExposeConfiguration $config, string $filename = null): \Symfony\Component\HttpFoundation\Response
     {
         $filename = $filename ?? $this->generateFilename($config);
-        
-        $orientation = 'portrait';
-        switch ($config->layout) {
-            case 'vertical_standard':
-                $orientation = 'portrait';
-                break;
-            case 'vertical':
-                $orientation = 'portrait';
-                break;
-            case 'horizontal_premium':
-                $orientation = 'landscape';
-                break;
-            case 'horizontal':
-                $orientation = 'landscape';
-                break;
-            
-            default:
-                $orientation = 'landscape';
-                break;
-        }
 
         return Pdf::view('pdf.wrapper', ['content' => $html])
-            ->format('a4')
-            ->orientation($orientation)
             ->withBrowsershot(function ($browsershot) {
+                $browsershot->setOption('preferCSSPageSize', true);
                 $this->configureBrowsershot($browsershot, 120);
             })
-            ->margins(10, 10, 10, 10)
+            ->margins(0, 0, 0, 0)
             ->name($filename)
             ->download();
     }

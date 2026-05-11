@@ -1,6 +1,6 @@
 <style>
     @page {
-  size: A4 landscape;
+  size: 297mm 93.79mm;
   margin: 0;
 }
 body {
@@ -13,8 +13,8 @@ body {
 }
 
 .page {
-  height: 210mm;
-  /* width: 297mm; */
+  width: 297mm;
+  height: 93.79mm;
   position: relative;
   page-break-after: always;
   overflow: hidden;
@@ -1447,7 +1447,7 @@ p {
                     <a href="https://{{ $data['company']['website'] ?? 'www.hibarr.de' }}">{{ $data['company']['website'] ?? 'www.hibarr.de' }}</a>
                     <h2>{{ $data['company']['address'] ?? 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus' }}</h2>
                 </div>
-
+{{-- 
                 @if(($outroConfig['enabled'] ?? false) || ($qrConfig['enabled'] ?? false))
                   <div style="margin-top: 18px; background: rgba(255, 255, 255, 0.92); border-radius: 14px; padding: 14px; max-width: 560px; color: #053160;">
                     @if($outroConfig['enabled'] ?? false)
@@ -1481,7 +1481,7 @@ p {
                       </div>
                     @endif
                   </div>
-                @endif
+                @endif --}}
             </div>
         </div>
     </div>
