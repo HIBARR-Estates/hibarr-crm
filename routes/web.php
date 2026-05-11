@@ -1143,6 +1143,12 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
     });
 
     // Developer Projects
+    Route::prefix('expose-configuration')->name('expose-configuration.')->group(function () {
+        Route::get('/', [App\Http\Controllers\CompanyExposeConfigurationController::class, 'show'])->name('show');
+        Route::put('/', [App\Http\Controllers\CompanyExposeConfigurationController::class, 'update'])->name('update');
+        Route::post('/upload-image', [App\Http\Controllers\CompanyExposeConfigurationController::class, 'uploadImage'])->name('upload-image');
+    });
+
     Route::prefix('developer-projects')->name('developer-projects.')->group(function () {
         Route::get('/', [App\Http\Controllers\DeveloperProjectController::class, 'index'])->name('index');
         Route::get('/all', [App\Http\Controllers\DeveloperProjectController::class, 'all'])->name('all');

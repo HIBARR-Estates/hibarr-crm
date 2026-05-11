@@ -1095,6 +1095,47 @@ p {
                     <a href="https://{{ $data['company']['website'] ?? '' }}">{{ $data['company']['website'] ?? '' }}</a>
                     <h2>{{ $data['company']['address'] ?? '' }}</h2>
                 </div>
+
+                @php
+                  $globalExposeConfig = $data['expose_global_config'] ?? [];
+                  $outroConfig = $globalExposeConfig['outro'] ?? [];
+                  $qrConfig = $globalExposeConfig['qr'] ?? [];
+                @endphp
+
+                @if(($outroConfig['enabled'] ?? false) || ($qrConfig['enabled'] ?? false))
+                  <div style="margin-top: 18px; background: rgba(255, 255, 255, 0.92); border-radius: 14px; padding: 14px; max-width: 560px; color: #053160;">
+                    @if($outroConfig['enabled'] ?? false)
+                      @if(!empty($outroConfig['title']))
+                        <h2 style="margin: 0 0 8px 0; font-size: 22px; line-height: 1.2; color: #053160;">{{ $outroConfig['title'] }}</h2>
+                      @endif
+
+                      @if(!empty($outroConfig['description']))
+                        <p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.45; color: #053160;">{{ $outroConfig['description'] }}</p>
+                      @endif
+
+                      @if(!empty($outroConfig['primary_image_url']) || !empty($outroConfig['secondary_image_url']))
+                        <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 10px;">
+                          @if(!empty($outroConfig['primary_image_url']))
+                            <img src="{{ $outroConfig['primary_image_url'] }}" alt="outro-primary" style="width: 58%; max-height: 110px; object-fit: cover; border-radius: 8px;" />
+                          @endif
+                          @if(!empty($outroConfig['secondary_image_url']))
+                            <img src="{{ $outroConfig['secondary_image_url'] }}" alt="outro-secondary" style="width: 42%; max-height: 110px; object-fit: cover; border-radius: 8px;" />
+                          @endif
+                        </div>
+                      @endif
+                    @endif
+
+                    @if(($qrConfig['enabled'] ?? false) && !empty($qrConfig['qr_code_data_uri']))
+                      <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
+                        <img src="{{ $qrConfig['qr_code_data_uri'] }}" alt="Expose QR Code" style="width: 84px; height: 84px;" />
+                        <div style="font-size: 12px; line-height: 1.3; color: #053160; max-width: 420px; word-break: break-all;">
+                          <strong>Scan for more details</strong><br>
+                          {{ $qrConfig['link'] ?? '' }}
+                        </div>
+                      </div>
+                    @endif
+                  </div>
+                @endif
             </div>
         </div>
     </div>

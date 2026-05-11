@@ -1,7 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, router } from "@inertiajs/react";
 import { Button, Input, Pagination as AntPagination, Select } from "antd";
-import { Plus, MapPin, Search, Building2, Users, X } from "lucide-react";
+import {
+    Plus,
+    MapPin,
+    Search,
+    Building2,
+    Users,
+    X,
+    FileText,
+} from "lucide-react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -390,6 +398,12 @@ const Index = ({
                                 <Link href={route("developers.index")}>
                                     <Button icon={<Users size={14} />}>
                                         Developers
+                                    </Button>
+                                </Link>
+
+                                <Link href={route("expose-configuration.show")}>
+                                    <Button icon={<FileText size={14} />}>
+                                        Expose Configuration
                                     </Button>
                                 </Link>
 

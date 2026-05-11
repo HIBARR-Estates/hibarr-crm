@@ -2,6 +2,7 @@
 
 namespace App\Services\PdfExpose\Configuration;
 
+use App\Models\CompanyExposeConfiguration;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\ProjectFacility;
@@ -22,6 +23,7 @@ class ExposeConfiguration implements Arrayable
     {
         $agent = $property->product->addedBy ?? auth()->user();
         $company = company();
+        $globalExposeConfig = self::resolveGlobalExposeConfiguration($property->company_id ?? $company?->id);
         
         // Group assets by tags
         $assetsByTag = [];
@@ -139,9 +141,12 @@ class ExposeConfiguration implements Arrayable
                     'name' => $clientData['client_name'] ?? null,
                     'email' => $clientData['client_email'] ?? null,
                 ],
+
+                // Global company expose configuration
+                'expose_global_config' => $globalExposeConfig,
             ],
             options: [
-                'include_qr_code' => true,
+                'include_qr_code' => $globalExposeConfig['qr']['enabled'],
                 'watermark' => false,
             ]
         );
@@ -154,6 +159,7 @@ class ExposeConfiguration implements Arrayable
         $agent = auth()->user();
         $company = company();
         $location = $project->location;
+        $globalExposeConfig = self::resolveGlobalExposeConfiguration($project->company_id ?? $company?->id);
 
         // Group project assets by tags, with the same tag list as property
         $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery', 'site-plan'];
@@ -376,11 +382,14 @@ class ExposeConfiguration implements Arrayable
                     'email' => $clientData['client_email'] ?? null,
                 ],
 
+                // Global company expose configuration
+                'expose_global_config' => $globalExposeConfig,
+
                 // Sale type for template compatibility
                 'sale_type' => 'For Sale',
             ],
             options: [
-                'include_qr_code' => true,
+                'include_qr_code' => $globalExposeConfig['qr']['enabled'],
                 'watermark' => false,
             ]
         );
@@ -401,6 +410,7 @@ class ExposeConfiguration implements Arrayable
         $location = $project?->location;
         $agent = auth()->user();
         $company = company();
+        $globalExposeConfig = self::resolveGlobalExposeConfiguration($project?->company_id ?? $company?->id);
 
         // Resolve asset URLs by tag with fallback chain:
         // 1. Unit type assets for that tag
@@ -629,9 +639,12 @@ class ExposeConfiguration implements Arrayable
                     'name' => $clientData['client_name'] ?? null,
                     'email' => $clientData['client_email'] ?? null,
                 ],
+
+                // Global company expose configuration
+                'expose_global_config' => $globalExposeConfig,
             ],
             options: [
-                'include_qr_code' => true,
+                'include_qr_code' => $globalExposeConfig['qr']['enabled'],
                 'watermark' => false,
             ]
         );
@@ -650,6 +663,7 @@ class ExposeConfiguration implements Arrayable
     public static function fromProjectWithProperties($project, $properties, array $lead, $generatedBy, string $layout = 'vertical_standard'): self
     {
         $company = company();
+        $globalExposeConfig = self::resolveGlobalExposeConfiguration($project->company_id ?? $company?->id);
         
         // Group property assets by tags
         $assetsByTag = [
@@ -756,13 +770,59 @@ class ExposeConfiguration implements Arrayable
                 ],
                 // Generation metadata
                 'generated_at' => now()->format('M d, Y H:i'),
+
+                // Global company expose configuration
+                'expose_global_config' => $globalExposeConfig,
             ],
             options: [
-                'include_qr_code' => true,
+                'include_qr_code' => $globalExposeConfig['qr']['enabled'],
                 'watermark' => false,
                 'include_footer' => true,
             ]
         );
+    }
+
+    private static function resolveGlobalExposeConfiguration(?int $companyId): array
+    {
+        $defaults = [
+            'outro' => [
+                'enabled' => false,
+                'title' => null,
+                'description' => null,
+                'primary_image_url' => null,
+                'secondary_image_url' => null,
+            ],
+            'qr' => [
+                'enabled' => false,
+                'link' => null,
+                'qr_code_data_uri' => null,
+            ],
+        ];
+
+        if (!$companyId) {
+            return $defaults;
+        }
+
+        $config = CompanyExposeConfiguration::where('company_id', $companyId)->first();
+
+        if (!$config) {
+            return $defaults;
+        }
+
+        return [
+            'outro' => [
+                'enabled' => (bool) $config->outro_enabled,
+                'title' => $config->outro_title,
+                'description' => $config->outro_description,
+                'primary_image_url' => $config->outro_primary_image_url,
+                'secondary_image_url' => $config->outro_secondary_image_url,
+            ],
+            'qr' => [
+                'enabled' => (bool) $config->qr_enabled,
+                'link' => $config->qr_code_link,
+                'qr_code_data_uri' => null,
+            ],
+        ];
     }
 
     public function toArray(): array
