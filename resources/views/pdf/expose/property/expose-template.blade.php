@@ -818,86 +818,52 @@ p {
           </div>
 
           <div class="items">
+            {{-- Location: project location name --}}
             <div class="item">
               <h3 class="item-header">Location</h3>
-              <div class="item-value">{{ $data['city'] ?? '—' }}{{ !empty($data['area']) ? ', ' . $data['area'] : '' }}</div>
+              <div class="item-value">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
             </div>
 
+            {{-- Unit Styles: Studio / 1+1 / 1+1 Loft / 2+1 Loft --}}
+            @if(!empty($unitStyleList))
             <div class="item">
-              <h3 class="item-header">Property Type</h3>
-              <div class="item-value">{{ ucfirst(str_replace('_', ' ', $data['property_type'] ?? '—')) }}</div>
-            </div>
-
-            @if(!empty($data['price']))
-            <div class="item">
-              <h3 class="item-header">Price</h3>
-              <div class="item-value">{{ $data['price'] }}</div>
+              <h3 class="item-header">Types</h3>
+              <div class="item-value">{{ implode(' / ', $unitStyleList) }}</div>
             </div>
             @endif
 
+            {{-- Completion Date --}}
             <div class="item">
-              <h3 class="item-header">Living Area</h3>
+              <h3 class="item-header">Completion Date</h3>
               <div class="item-value">
-                {{ $data['living_area_sqm'] ?? '—' }} m²
-                @if(!empty($data['gross_sqm']))
-                  <span style="color: #999; font-size: 14px;">({{ $data['gross_sqm'] }} m² gross)</span>
-                @endif
+                @php
+                  $completionRaw = $data['completion_date'] ?? null;
+                  if (!empty($completionRaw)) {
+                    try {
+                      $completionDt = \Carbon\Carbon::parse($completionRaw);
+                      $completionDisplay = $completionDt->isPast()
+                        ? 'Ready to move in'
+                        : $completionDt->format('d, M, Y');
+                    } catch (\Exception $e) {
+                      $completionDisplay = $completionRaw;
+                    }
+                  } else {
+                    $completionDisplay = 'N/A';
+                  }
+                @endphp
+                {{ $completionDisplay }}
               </div>
             </div>
 
-            @if(!empty($data['floor_number']) || !empty($data['floors_in_building']))
+            {{-- Facilities --}}
+            @if(!empty($facilityItems))
             <div class="item">
-              <h3 class="item-header">Floor</h3>
-              <div class="item-value">
-                @if(!empty($data['floor_number']) && !empty($data['floors_in_building']))
-                  {{ $data['floor_number'] }} / {{ $data['floors_in_building'] }}
-                @elseif(!empty($data['floor_number']))
-                  {{ $data['floor_number'] }}
-                @else
-                  {{ $data['floors_in_building'] }} floors
-                @endif
-              </div>
-            </div>
-            @endif
-
-            @if(!empty($data['building_age']) || !empty($data['completion_date']))
-            <div class="item">
-              <h3 class="item-header">{{ !empty($data['completion_date']) && ($data['construction_status'] ?? '') !== 'completed' ? 'Completion' : 'Building Age' }}</h3>
-              <div class="item-value">
-                @if(!empty($data['completion_date']) && ($data['construction_status'] ?? '') !== 'completed')
-                  {{ $data['completion_date'] }}
-                @else
-                  {{ $data['building_age'] ?? 'New' }} Years
-                @endif
-              </div>
-            </div>
-            @endif
-
-            <div class="item">
-              <h3 class="item-header">Rooms</h3>
+              <h3 class="item-header">Facilities</h3>
               <ul class="item-list">
-                <li>{{ $data['bedrooms'] ?? '—' }} Bedrooms</li>
-                <li>{{ $data['bathrooms'] ?? '—' }} Bathrooms</li>
-                @if(!empty($data['rooms']))
-                <li>{{ $data['rooms'] }} Total Rooms</li>
-                @endif
-                @if(!empty($data['living_room']))
-                <li>{{ $data['living_room'] }} Living Room{{ $data['living_room'] > 1 ? 's' : '' }}</li>
-                @endif
+                @foreach($facilityItems as $facility)
+                <li>{{ $facility['label'] }}</li>
+                @endforeach
               </ul>
-            </div>
-
-            @if(!empty($data['view_types']))
-            <div class="item">
-              <h3 class="item-header">Views</h3>
-              <div class="item-value">{{ is_array($data['view_types']) ? implode(', ', array_map(fn($v) => ucfirst(str_replace('_', ' ', $v)), $data['view_types'])) : $data['view_types'] }}</div>
-            </div>
-            @endif
-
-            @if(!empty($data['furniture_status']))
-            <div class="item">
-              <h3 class="item-header">Furniture</h3>
-              <div class="item-value">{{ $data['furniture_status'] }}</div>
             </div>
             @endif
           </div>
