@@ -242,6 +242,64 @@ class ExposeConfiguration implements Arrayable
             $facilityLabels[] = $facilityLabelMap[$facilityKey] ?? ucfirst(str_replace('_', ' ', $facilityKey));
         }
 
+        // Build deterministic facility image mapping via namespaced tags (facilities:<slug>).
+        // This avoids label/image drift when counts differ.
+        $facilityImagesBySlug = [];
+        foreach ($facilitySlugs as $facilityKey) {
+            $facilityImagesBySlug[$facilityKey] = [];
+        }
+
+        $genericFacilityImages = [];
+        $projectImageAssets = $project->assets()
+            ->where('asset_type', 'image')
+            ->orderBy('order')
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        foreach ($projectImageAssets as $asset) {
+            $url = $asset->url;
+            if (empty($url)) {
+                continue;
+            }
+
+            $tags = $asset->tags ?? [];
+            if (in_array('facilities', $tags, true)) {
+                $genericFacilityImages[] = $url;
+            }
+
+            foreach ($tags as $tag) {
+                if (!is_string($tag) || !str_starts_with($tag, 'facilities:')) {
+                    continue;
+                }
+
+                $slug = substr($tag, strlen('facilities:'));
+                if ($slug === '' || !array_key_exists($slug, $facilityImagesBySlug)) {
+                    continue;
+                }
+
+                $facilityImagesBySlug[$slug][] = $url;
+            }
+        }
+
+        // Build ordered facility gallery list by facility slug order.
+        $facilityGalleryImages = [];
+        foreach ($facilitySlugs as $facilityKey) {
+            if (!empty($facilityImagesBySlug[$facilityKey])) {
+                $facilityGalleryImages[] = $facilityImagesBySlug[$facilityKey][0];
+            }
+        }
+
+        // Backward-compatible fallback: fill remaining slots from generic facilities tag.
+        foreach ($genericFacilityImages as $url) {
+            if (!in_array($url, $facilityGalleryImages, true)) {
+                $facilityGalleryImages[] = $url;
+            }
+        }
+
+        if (!empty($facilityGalleryImages)) {
+            $assetsByTag['facilities'] = $facilityGalleryImages;
+        }
+
         return new self(
             entityType: 'property',
             entityId: $project->id,
@@ -281,6 +339,7 @@ class ExposeConfiguration implements Arrayable
                 // Facilities
                 'facilities' => $project->facilities ?? [],
                 'facility_labels' => $facilityLabels,
+                'facility_images_by_slug' => $facilityImagesBySlug,
                 'exterior_features' => $facilityLabels, // For template compatibility (facilities gallery uses exterior_features)
 
                 // Unit type summaries
