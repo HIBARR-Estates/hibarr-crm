@@ -178,9 +178,10 @@ return [
 
     'deals' => [
         'actions' => [
-            'add_task' => 'Aufgabe hinzufügen',
-            'add_note' => 'Notiz hinzufügen',
+            'add_task'    => 'Aufgabe hinzufügen',
+            'add_note'    => 'Notiz hinzufügen',
             'add_meeting' => 'Besprechung hinzufügen',
+            'upload_file' => 'Datei hochladen',
         ],
         'tabs' => [
             'header'          => 'Details',

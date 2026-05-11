@@ -178,9 +178,10 @@ return [
 
     'deals' => [
         'actions' => [
-            'add_task' => 'Görev Ekle',
-            'add_note' => 'Not Ekle',
+            'add_task'    => 'Görev Ekle',
+            'add_note'    => 'Not Ekle',
             'add_meeting' => 'Toplantı Ekle',
+            'upload_file' => 'Dosya Yükle',
         ],
         'tabs' => [
             'header'          => 'Detaylar',

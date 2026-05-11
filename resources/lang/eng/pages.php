@@ -186,9 +186,10 @@ return [
 
     'deals' => [
         'actions' => [
-            'add_task' => 'Add Task',
-            'add_note' => 'Add Note',
+            'add_task'    => 'Add Task',
+            'add_note'    => 'Add Note',
             'add_meeting' => 'Add Meeting',
+            'upload_file' => 'Upload File',
         ],
         'tabs' => [
             'header'          => 'Details',
