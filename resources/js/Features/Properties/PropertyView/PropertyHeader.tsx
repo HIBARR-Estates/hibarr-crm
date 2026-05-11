@@ -370,14 +370,14 @@ function PropertyHeader({
                             Share
                         </Button>
                     )} */}
-                    {onGenerateExpose && (
+                    {/* {onGenerateExpose && (
                         <Button
                             icon={<FilePdfOutlined />}
                             onClick={onGenerateExpose}
                         >
                             Generate Expose
                         </Button>
-                    )}
+                    )} */}
                     {permissions.canEdit && (
                         <Button
                             type="primary"
