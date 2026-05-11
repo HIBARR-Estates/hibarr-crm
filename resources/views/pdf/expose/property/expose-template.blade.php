@@ -1,6 +1,6 @@
 <style>
     @page {
-  size: 297mm 93.79mm;
+  size: 430mm 240mm;
   margin: 0;
 }
 body {
@@ -13,8 +13,8 @@ body {
 }
 
 .page {
-  width: 297mm;
-  height: 93.79mm;
+  width: 430mm;
+  height: 240mm;
   position: relative;
   page-break-after: always;
   overflow: hidden;
