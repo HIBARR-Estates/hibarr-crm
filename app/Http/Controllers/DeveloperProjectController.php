@@ -224,6 +224,7 @@ class DeveloperProjectController extends AccountBaseController
             ->get();
 
         $locations = \App\Models\ProjectLocation::where('company_id', user()->company_id)
+            ->whereHas('developerProjects')
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
