@@ -6,6 +6,7 @@ use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\Property;
 use App\Models\ProjectFacility;
+use App\Models\ProjectLocation;
 use App\Models\Lead;
 use App\Helper\Reply;
 use App\Services\PdfExpose\ExposeGeneratorService;
@@ -13,6 +14,7 @@ use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
 
 /**
@@ -34,6 +36,99 @@ class DeveloperProjectController extends AccountBaseController
         //     abort_403(!in_array('view_developer_projects', $this->user->permission->permissions));
         //     return $next($request);
         // });
+    }
+
+    /**
+     * Normalize location text for stable uniqueness checks.
+     */
+    private function normalizeLocationText(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $normalized = preg_replace('/\s+/', ' ', trim($value));
+
+        return $normalized === '' ? null : $normalized;
+    }
+
+    /**
+     * Build canonical location name as "Area, City".
+     */
+    private function formatLocationName(?string $city, ?string $area): ?string
+    {
+        $parts = array_filter([$area, $city], fn ($part) => $part !== null && $part !== '');
+        $name = implode(', ', $parts);
+
+        return $name !== '' ? $name : null;
+    }
+
+    /**
+     * Resolve or create a canonical project location for city+area.
+     */
+    private function resolveCanonicalProjectLocation(Request $request, ?ProjectLocation $currentLocation = null): ?ProjectLocation
+    {
+        $incomingCity = $request->has('city') ? $request->input('city') : ($currentLocation->city ?? null);
+        $incomingArea = $request->has('area') ? $request->input('area') : ($currentLocation->area ?? null);
+
+        $city = $this->normalizeLocationText(is_string($incomingCity) ? $incomingCity : null);
+        $area = $this->normalizeLocationText(is_string($incomingArea) ? $incomingArea : null);
+
+        // No canonical key available; keep existing behavior for explicit location selection.
+        if (!$city && !$area) {
+            return null;
+        }
+
+        $name = $this->formatLocationName($city, $area);
+
+        $address = $request->has('address') ? $request->input('address') : ($currentLocation->address ?? null);
+        if (is_string($address)) {
+            $address = ['street' => $address];
+        }
+
+        $payload = [
+            'company_id' => user()->company_id,
+            'city' => $city,
+            'area' => $area,
+            'name' => $name,
+        ];
+
+        if ($address !== null) {
+            $payload['address'] = $address;
+        }
+
+        foreach (['latitude', 'longitude', 'map_url'] as $field) {
+            if ($request->has($field)) {
+                $payload[$field] = $request->input($field);
+            } elseif ($currentLocation && array_key_exists($field, $currentLocation->getAttributes())) {
+                $payload[$field] = $currentLocation->{$field};
+            }
+        }
+
+        $normalizedCity = strtolower($city ?? '');
+        $normalizedArea = strtolower($area ?? '');
+
+        return DB::transaction(function () use ($normalizedCity, $normalizedArea, $payload) {
+            $location = ProjectLocation::withTrashed()
+                ->where('company_id', user()->company_id)
+                ->whereRaw('LOWER(TRIM(COALESCE(city, ""))) = ?', [$normalizedCity])
+                ->whereRaw('LOWER(TRIM(COALESCE(area, ""))) = ?', [$normalizedArea])
+                ->orderBy('id')
+                ->first();
+
+            if ($location) {
+                if ($location->trashed()) {
+                    $location->restore();
+                }
+
+                $location->fill($payload);
+                $location->save();
+
+                return $location;
+            }
+
+            return ProjectLocation::create($payload);
+        });
     }
 
     /**
@@ -129,6 +224,7 @@ class DeveloperProjectController extends AccountBaseController
             ->get();
 
         $locations = \App\Models\ProjectLocation::where('company_id', user()->company_id)
+            ->whereHas('developerProjects')
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
@@ -576,29 +672,11 @@ class DeveloperProjectController extends AccountBaseController
             }
         }
 
-        // Handle location — create or update ProjectLocation if location fields provided
+        // Handle location with canonical city+area uniqueness.
         $locationId = $request->project_location_id;
         if ($request->filled('city') || $request->filled('area') || $request->filled('address')) {
-            // The address column is JSON ({street?, state?, country?, postalCode?}).
-            // If a plain string is provided, wrap it in the expected structure.
-            $address = $request->address;
-
-            if (is_string($address)) {
-                $address = ['street' => $address];
-            }
-
-            $location = \App\Models\ProjectLocation::create([
-                'company_id' => user()->company_id,
-                // name is city, area
-                'name' => $request->city . ($request->area ? " - {$request->area}" : ''),
-                'city' => $request->city, 
-                'area' => $request->area,
-                'address' => $address,
-                'latitude' => $request->latitude,
-                'longitude' => $request->longitude,
-                'map_url' => $request->map_url,
-            ]);
-            $locationId = $location->id;
+            $location = $this->resolveCanonicalProjectLocation($request);
+            $locationId = $location?->id;
         }
 
         // If the project name is not in the developer's project_list, add it
@@ -719,34 +797,12 @@ class DeveloperProjectController extends AccountBaseController
             }
         }
 
-        // Handle location — update existing or create new
+        // Handle location with canonical city+area uniqueness.
         if ($request->hasAny(['city', 'area', 'address', 'latitude', 'longitude', 'map_url'])) {
-            // The address column is JSON ({street?, state?, country?, postalCode?}).
-            // If a plain string is provided, wrap it in the expected structure.
-            $locationData = [
-                'company_id' => user()->company_id,
-            ];
+            $currentLocation = $project->location;
+            $location = $this->resolveCanonicalProjectLocation($request, $currentLocation);
 
-            foreach (['city', 'area', 'latitude', 'longitude', 'map_url'] as $field) {
-                if ($request->has($field)) {
-                    $locationData[$field] = $request->input($field);
-                }
-            }
-
-            if ($request->has('address')) {
-                $address = $request->input('address');
-
-                if (is_string($address)) {
-                    $address = ['street' => $address];
-                }
-
-                $locationData['address'] = $address;
-            }
-
-            if ($project->project_location_id) {
-                $project->location()->update($locationData);
-            } else {
-                $location = \App\Models\ProjectLocation::create($locationData);
+            if ($location) {
                 $request->merge(['project_location_id' => $location->id]);
             }
         }

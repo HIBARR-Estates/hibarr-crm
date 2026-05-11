@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
@@ -9,6 +9,7 @@ import {
     Drawer,
     Form,
     Input,
+    Select,
     Dropdown,
     Popconfirm,
     Card,
@@ -62,6 +63,8 @@ import {
     LocationFormValues,
 } from "@/Hooks/useLocationFormUpload";
 import { useGenerateDescription } from "@/lib/ai";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import type { PropertyEnumValues } from "@/Types";
 
 const { Text, Title } = Typography;
 
@@ -179,6 +182,33 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const { modal } = App.useApp();
     const [activeTab, setActiveTab] = useState("basic");
     const isEditing = !!location;
+    const selectedCity = Form.useWatch("address_city", form);
+    const isInitialCity = useRef(true);
+
+    const { data: enumValues } = useApiQuery<PropertyEnumValues>({
+        path: route("properties.enum_values"),
+        options: { enabled: open },
+    });
+
+    const cityOptions = useMemo(() => {
+        const cities = enumValues?.cities || [];
+        return cities.map((c) => ({
+            value: c.name,
+            label: c.label,
+        }));
+    }, [enumValues?.cities]);
+
+    const areaOptions = useMemo(() => {
+        if (!selectedCity || !enumValues?.areas_by_city) {
+            return [];
+        }
+
+        const areas = enumValues.areas_by_city[selectedCity] || [];
+        return areas.map((a) => ({
+            value: a.name,
+            label: a.label,
+        }));
+    }, [selectedCity, enumValues?.areas_by_city]);
 
     const locationDescriptionValidator = useCallback(
         (formData: Record<string, any>) => {
@@ -327,6 +357,25 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         setActiveTab("basic");
     }, [open, location, form]);
 
+    useEffect(() => {
+        if (open) {
+            isInitialCity.current = true;
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        if (isInitialCity.current) {
+            isInitialCity.current = false;
+            return;
+        }
+
+        form.setFieldValue("address_state", undefined);
+    }, [selectedCity, form, open]);
+
     const tabItems = [
         {
             key: "basic",
@@ -410,12 +459,45 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                             <Input placeholder="123 Main Street" />
                         </Form.Item>
 
-                        <Form.Item name="address_city" label="City">
-                            <Input placeholder="City" />
+                        <Form.Item
+                            name="address_city"
+                            label="City"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Please select a city",
+                                },
+                            ]}
+                        >
+                            <Select
+                                options={cityOptions}
+                                placeholder="Select city"
+                                showSearch
+                                optionFilterProp="label"
+                            />
                         </Form.Item>
 
-                        <Form.Item name="address_state" label="State / Region">
-                            <Input placeholder="State or Region" />
+                        <Form.Item
+                            name="address_state"
+                            label="Area / District"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Please select an area",
+                                },
+                            ]}
+                        >
+                            <Select
+                                options={areaOptions}
+                                placeholder={
+                                    selectedCity
+                                        ? "Select area"
+                                        : "Select city first"
+                                }
+                                showSearch
+                                optionFilterProp="label"
+                                disabled={!selectedCity}
+                            />
                         </Form.Item>
 
                         <Form.Item name="address_country" label="Country">
