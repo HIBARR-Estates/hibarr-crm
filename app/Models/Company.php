@@ -265,6 +265,11 @@ class Company extends BaseModel
         return $this->belongsTo(Currency::class, 'currency_id');
     }
 
+    public function exposeConfiguration(): HasOne
+    {
+        return $this->hasOne(CompanyExposeConfiguration::class);
+    }
+
     public function getLogoUrlAttribute()
     {
         if (user()) {

@@ -518,6 +518,19 @@ const Index = ({
                                             </Button>
                                         </Link>
                                     ) : null}
+
+                                    <Link
+                                        href={route(
+                                            "expose-configuration.show",
+                                        )}
+                                    >
+                                        <Button
+                                            type="text"
+                                            icon={<FileTextOutlined />}
+                                        >
+                                            Expose Configuration
+                                        </Button>
+                                    </Link>
                                 </div>
 
                                 <div className="flex items-center gap-3">
@@ -614,13 +627,18 @@ const Index = ({
                                     }}
                                     paginationData={propertiesPaginationMeta}
                                     onPageChange={handlePropertiesPageChange}
-                                    onPageSizeChange={handlePropertiesPageSizeChange}
+                                    onPageSizeChange={
+                                        handlePropertiesPageSizeChange
+                                    }
                                     emptyState={{
                                         title: "No properties found",
                                         description:
                                             "Try adjusting your filters or add a new property.",
                                     }}
-                                    scroll={{ x: 1200, y: "calc(100vh - 320px)" }}
+                                    scroll={{
+                                        x: 1200,
+                                        y: "calc(100vh - 320px)",
+                                    }}
                                     size="small"
                                 />
                             ) : (

@@ -2,6 +2,8 @@
 
 namespace App\Services\PdfExpose\Builders;
 
+use Endroid\QrCode\Builder\Builder;
+use Endroid\QrCode\Writer\PngWriter;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -93,6 +95,26 @@ class TemplateRenderer
         //    Leave them as remote URLs. Puppeteer/Chrome fetches them directly.
         //    This is the key change that eliminates OOM errors.
 
+        // 1.1 Resolve global outro images (local app URLs -> base64), and build QR data URI.
+        if (!empty($data['expose_global_config']['outro']['primary_image_url'])) {
+            $data['expose_global_config']['outro']['primary_image_url'] = self::localUrlToBase64(
+                $data['expose_global_config']['outro']['primary_image_url']
+            );
+        }
+
+        if (!empty($data['expose_global_config']['outro']['secondary_image_url'])) {
+            $data['expose_global_config']['outro']['secondary_image_url'] = self::localUrlToBase64(
+                $data['expose_global_config']['outro']['secondary_image_url']
+            );
+        }
+
+        $qrEnabled = (bool) data_get($data, 'expose_global_config.qr.enabled', false);
+        $qrLink = trim((string) data_get($data, 'expose_global_config.qr.link', ''));
+
+        if ($qrEnabled && $qrLink !== '') {
+            $data['expose_global_config']['qr']['qr_code_data_uri'] = $this->generateQrDataUri($qrLink);
+        }
+
         // 2. Convert company logo only if it's a local app URL
         if (!empty($data['company']['logo'])) {
             $data['company']['logo'] = self::localUrlToBase64($data['company']['logo']);
@@ -107,6 +129,29 @@ class TemplateRenderer
         $data['branding'] = $this->getBrandingAssets();
 
         return $data;
+    }
+
+    /**
+     * Generate a base64 data URI PNG for a QR code.
+     */
+    private function generateQrDataUri(string $link): ?string
+    {
+        try {
+            $result = Builder::create()
+                ->writer(new PngWriter())
+                ->data($link)
+                ->size(220)
+                ->margin(10)
+                ->build();
+
+            return $result->getDataUri();
+        } catch (\Throwable $e) {
+            Log::warning('Expose PDF: failed to generate QR code', [
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
     }
 
     /**

@@ -11,6 +11,7 @@ use App\Helper\Reply;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
 
@@ -199,6 +200,9 @@ class DeveloperProjectController extends AccountBaseController
         // Get images by tag (exterior, interior, floor_plan/site_plan)
         $imagesByTag = $this->getImagesByTag($project);
 
+        // Get project-level facility images keyed by facility slug via "facilities:<slug>" tags
+        $facilityImagesBySlug = $this->getFacilityImagesBySlug($project, $facilities);
+
         // Get price list by property type
         $priceList = $this->getPriceListByType($project->properties);
 
@@ -238,6 +242,7 @@ class DeveloperProjectController extends AccountBaseController
             'unitTypesSummary' => $unitTypesSummary,
             'facilities' => $facilities,
             'imagesByTag' => $imagesByTag,
+            'facilityImagesBySlug' => $facilityImagesBySlug,
             'priceList' => $priceList,
             'unitTypePriceList' => $this->getUnitTypePriceList($project->unitTypes),
             'unitTypes' => $project->unitTypes->sortBy('order')->values(),
@@ -383,6 +388,53 @@ class DeveloperProjectController extends AccountBaseController
         }
 
         return $imagesByTag;
+    }
+
+    /**
+     * Get project-level facility images organized by facility slug.
+     *
+     * Uses tags with format: facilities:<facility-slug>
+     */
+    private function getFacilityImagesBySlug(DeveloperProject $project, array $facilities): array
+    {
+        $map = [];
+        $facilityNames = collect($facilities)
+            ->pluck('name')
+            ->filter()
+            ->values();
+
+        foreach ($facilityNames as $facilitySlug) {
+            $map[$facilitySlug] = [];
+        }
+
+        $projectAssets = $project->assets()
+            ->images()
+            ->ordered()
+            ->get();
+
+        foreach ($projectAssets as $asset) {
+            $tags = collect($asset->tags ?? []);
+
+            $facilityTags = $tags
+                ->filter(fn($tag) => is_string($tag) && Str::startsWith($tag, 'facilities:'))
+                ->values();
+
+            foreach ($facilityTags as $facilityTag) {
+                $slug = Str::after($facilityTag, 'facilities:');
+                if ($slug === '' || !array_key_exists($slug, $map)) {
+                    continue;
+                }
+
+                $map[$slug][] = [
+                    'id' => $asset->id,
+                    'url' => $asset->url,
+                    'name' => $asset->name,
+                    'source' => 'project',
+                ];
+            }
+        }
+
+        return $map;
     }
 
     /**

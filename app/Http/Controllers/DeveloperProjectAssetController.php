@@ -18,6 +18,34 @@ use Illuminate\Support\Facades\DB;
 class DeveloperProjectAssetController extends AccountBaseController
 {
     /**
+     * Static tags that are always allowed for project assets.
+     */
+    private const BASE_TAGS = [
+        'hero',
+        'facilities',
+        'features',
+        'area',
+        'exterior',
+        'interior',
+        'floor-plan',
+        'site-plan',
+        'footer',
+        'gallery',
+    ];
+
+    /**
+     * Allow built-in tags and namespaced facility tags: facilities:<slug>.
+     */
+    private function isValidAssetTag(string $tag): bool
+    {
+        if (in_array($tag, self::BASE_TAGS, true)) {
+            return true;
+        }
+
+        return (bool) preg_match('/^facilities:[a-z0-9_-]+$/i', $tag);
+    }
+
+    /**
      * List assets for a developer project.
      */
     public function index(Request $request, $projectId)
@@ -65,7 +93,14 @@ class DeveloperProjectAssetController extends AccountBaseController
             'assets.*.mime_type' => 'nullable|string|max:100',
             'assets.*.file_size' => 'nullable|integer',
             'tags' => 'nullable|array',
-            'tags.*' => 'string|in:hero,facilities,features,area,exterior,interior,floor-plan,site-plan,footer,gallery',
+            'tags.*' => [
+                'string',
+                function ($attribute, $value, $fail) {
+                    if (!$this->isValidAssetTag((string) $value)) {
+                        $fail('Invalid asset tag: ' . $value);
+                    }
+                },
+            ],
         ]);
 
         try {
@@ -120,7 +155,14 @@ class DeveloperProjectAssetController extends AccountBaseController
             'asset_ids' => 'required|array|min:1',
             'asset_ids.*' => 'integer|exists:developer_project_assets,id',
             'tags' => 'required|array',
-            'tags.*' => 'string|in:hero,facilities,features,area,exterior,interior,floor-plan,site-plan,footer,gallery',
+            'tags.*' => [
+                'string',
+                function ($attribute, $value, $fail) {
+                    if (!$this->isValidAssetTag((string) $value)) {
+                        $fail('Invalid asset tag: ' . $value);
+                    }
+                },
+            ],
             'action' => 'required|in:add,replace,remove',
         ]);
 
