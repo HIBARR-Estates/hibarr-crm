@@ -21,6 +21,7 @@ import { getFileUploadService } from "@/Services/FileUploadService";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { usePermission } from "@/lib/permissionUtils";
 
 const { Text } = Typography;
 
@@ -59,6 +60,8 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
     facilityImagesBySlug,
 }) => {
     const { message: messageApi } = App.useApp();
+    const { hasPermission } = usePermission();
+    const canEdit = hasPermission("edit_developer_projects");
     const [selectedFacility, setSelectedFacility] = useState<FacilityItem | null>(
         null,
     );
@@ -179,13 +182,16 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
     }, [assetsResponse, facilities, facilityImagesBySlug]);
 
     const openUploadModal = useCallback((facility: FacilityItem) => {
+        if (!canEdit) return;
+
         setSelectedFacility(facility);
         setUploadFileList([]);
         setUploadStatuses([]);
         setIsUploadModalOpen(true);
-    }, []);
+    }, [canEdit]);
 
     const handleUpload = useCallback(async () => {
+        if (!canEdit) return;
         if (!selectedFacility) return;
 
         const files: File[] = [];
@@ -287,6 +293,7 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
             setIsUploading(false);
         }
     }, [
+        canEdit,
         selectedFacility,
         uploadFileList,
         messageApi,
@@ -297,13 +304,15 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
 
     const handleDetachFromFacility = useCallback(
         (assetId: number, facilitySlug: string) => {
+            if (!canEdit) return;
+
             bulkUpdateTags({
                 asset_ids: [assetId],
                 tags: [`${FACILITY_TAG_PREFIX}${facilitySlug}`],
                 action: "remove",
             });
         },
-        [bulkUpdateTags],
+        [canEdit, bulkUpdateTags],
     );
 
     if (facilities.length === 0) {
@@ -326,8 +335,11 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
         <>
             <div className="mb-3">
                 <Text type="secondary">
-                    Attach one or many images to each facility. Images are mapped
-                    with tags in format: <strong>facilities:&lt;slug&gt;</strong>.
+                    {canEdit
+                        ? "Attach one or many images to each facility."
+                        : "View facility images mapped by tags."}{" "}
+                    Images are mapped with tags in format:{" "}
+                    <strong>facilities:&lt;slug&gt;</strong>.
                 </Text>
             </div>
 
@@ -357,13 +369,15 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                                     </div>
                                 </div>
 
-                                <Button
-                                    size="small"
-                                    icon={<PaperClipOutlined />}
-                                    onClick={() => openUploadModal(facility)}
-                                >
-                                    Attach image(s)
-                                </Button>
+                                {canEdit && (
+                                    <Button
+                                        size="small"
+                                        icon={<PaperClipOutlined />}
+                                        onClick={() => openUploadModal(facility)}
+                                    >
+                                        Attach image(s)
+                                    </Button>
+                                )}
                             </div>
 
                             {images.length === 0 ? (
@@ -385,21 +399,23 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                                                     height={84}
                                                     style={{ objectFit: "cover" }}
                                                 />
-                                                <button
-                                                    type="button"
-                                                    className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white"
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        e.stopPropagation();
-                                                        handleDetachFromFacility(
-                                                            img.id,
-                                                            facility.name,
-                                                        );
-                                                    }}
-                                                    disabled={isBulkUpdating}
-                                                >
-                                                    Detach
-                                                </button>
+                                                {canEdit && (
+                                                    <button
+                                                        type="button"
+                                                        className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5 rounded bg-red-600 text-white"
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            handleDetachFromFacility(
+                                                                img.id,
+                                                                facility.name,
+                                                            );
+                                                        }}
+                                                        disabled={isBulkUpdating}
+                                                    >
+                                                        Detach
+                                                    </button>
+                                                )}
                                             </div>
                                         ))}
                                         {images.length > 3 && (
@@ -415,112 +431,114 @@ const FacilitiesSection: React.FC<FacilitiesSectionProps> = ({
                 })}
             </div>
 
-            <Modal
-                title={
-                    selectedFacility
-                        ? `Attach Images - ${selectedFacility.label}`
-                        : "Attach Images"
-                }
-                open={isUploadModalOpen}
-                onCancel={() => {
-                    if (isUploading || isSavingToBackend) return;
-                    setIsUploadModalOpen(false);
-                    setUploadFileList([]);
-                    setUploadStatuses([]);
-                    setSelectedFacility(null);
-                }}
-                footer={[
-                    <Button
-                        key="cancel"
-                        onClick={() => {
-                            setIsUploadModalOpen(false);
-                            setUploadFileList([]);
-                            setUploadStatuses([]);
-                            setSelectedFacility(null);
-                        }}
-                        disabled={isUploading || isSavingToBackend}
-                    >
-                        Cancel
-                    </Button>,
-                    <Button
-                        key="upload"
-                        type="primary"
-                        icon={<UploadOutlined />}
-                        onClick={handleUpload}
-                        loading={isUploading || isSavingToBackend}
-                    >
-                        Upload
-                    </Button>,
-                ]}
-                maskClosable={!(isUploading || isSavingToBackend)}
-            >
-                <Upload
-                    listType="picture-card"
-                    fileList={uploadFileList}
-                    beforeUpload={() => false}
-                    multiple
-                    onChange={({ fileList }) => setUploadFileList(fileList)}
+            {canEdit && (
+                <Modal
+                    title={
+                        selectedFacility
+                            ? `Attach Images - ${selectedFacility.label}`
+                            : "Attach Images"
+                    }
+                    open={isUploadModalOpen}
+                    onCancel={() => {
+                        if (isUploading || isSavingToBackend) return;
+                        setIsUploadModalOpen(false);
+                        setUploadFileList([]);
+                        setUploadStatuses([]);
+                        setSelectedFacility(null);
+                    }}
+                    footer={[
+                        <Button
+                            key="cancel"
+                            onClick={() => {
+                                setIsUploadModalOpen(false);
+                                setUploadFileList([]);
+                                setUploadStatuses([]);
+                                setSelectedFacility(null);
+                            }}
+                            disabled={isUploading || isSavingToBackend}
+                        >
+                            Cancel
+                        </Button>,
+                        <Button
+                            key="upload"
+                            type="primary"
+                            icon={<UploadOutlined />}
+                            onClick={handleUpload}
+                            loading={isUploading || isSavingToBackend}
+                        >
+                            Upload
+                        </Button>,
+                    ]}
+                    maskClosable={!(isUploading || isSavingToBackend)}
                 >
-                    <div>
-                        <UploadOutlined />
-                        <div style={{ marginTop: 8 }}>Select Files</div>
-                    </div>
-                </Upload>
+                    <Upload
+                        listType="picture-card"
+                        fileList={uploadFileList}
+                        beforeUpload={() => false}
+                        multiple
+                        onChange={({ fileList }) => setUploadFileList(fileList)}
+                    >
+                        <div>
+                            <UploadOutlined />
+                            <div style={{ marginTop: 8 }}>Select Files</div>
+                        </div>
+                    </Upload>
 
-                {uploadStatuses.length > 0 && (
-                    <div className="mt-3 flex flex-col gap-2">
-                        {uploadStatuses.map((status) => (
-                            <div
-                                key={status.fileId}
-                                className="border border-gray-200 rounded-md p-2"
-                            >
-                                <div className="flex items-center justify-between gap-2">
-                                    <Text ellipsis className="max-w-[280px]">
-                                        {status.fileName}
-                                    </Text>
-                                    <Text
-                                        type={
+                    {uploadStatuses.length > 0 && (
+                        <div className="mt-3 flex flex-col gap-2">
+                            {uploadStatuses.map((status) => (
+                                <div
+                                    key={status.fileId}
+                                    className="border border-gray-200 rounded-md p-2"
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <Text ellipsis className="max-w-[280px]">
+                                            {status.fileName}
+                                        </Text>
+                                        <Text
+                                            type={
+                                                status.status === "error"
+                                                    ? "danger"
+                                                    : "secondary"
+                                            }
+                                        >
+                                            {status.status}
+                                        </Text>
+                                    </div>
+                                    <Progress
+                                        percent={status.progress}
+                                        size="small"
+                                        status={
                                             status.status === "error"
-                                                ? "danger"
-                                                : "secondary"
+                                                ? "exception"
+                                                : status.status === "success"
+                                                  ? "success"
+                                                  : "active"
                                         }
-                                    >
-                                        {status.status}
-                                    </Text>
+                                    />
+                                    {status.error && (
+                                        <Text type="danger" className="text-xs">
+                                            {status.error}
+                                        </Text>
+                                    )}
                                 </div>
-                                <Progress
-                                    percent={status.progress}
-                                    size="small"
-                                    status={
-                                        status.status === "error"
-                                            ? "exception"
-                                            : status.status === "success"
-                                              ? "success"
-                                              : "active"
-                                    }
-                                />
-                                {status.error && (
-                                    <Text type="danger" className="text-xs">
-                                        {status.error}
-                                    </Text>
-                                )}
-                            </div>
-                        ))}
-                    </div>
-                )}
+                            ))}
+                        </div>
+                    )}
 
-                <div className="mt-3">
-                    <Space size={6} wrap>
-                        <Tag color="blue">facilities</Tag>
-                        {selectedFacility && (
-                            <Tag color="geekblue">
-                                {FACILITY_TAG_PREFIX}
-                                {selectedFacility.name}
-                            </Tag>
-                        )}
-                    </Space>
-                </div>
-            </Modal>
+                    <div className="mt-3">
+                        <Space size={6} wrap>
+                            <Tag color="blue">facilities</Tag>
+                            {selectedFacility && (
+                                <Tag color="geekblue">
+                                    {FACILITY_TAG_PREFIX}
+                                    {selectedFacility.name}
+                                </Tag>
+                            )}
+                        </Space>
+                    </div>
+                </Modal>
+            )}
         </>
     );
 };
