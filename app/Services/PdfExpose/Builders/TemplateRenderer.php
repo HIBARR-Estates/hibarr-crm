@@ -125,6 +125,11 @@ class TemplateRenderer
             $data['agent']['image'] = self::localUrlToBase64($data['agent']['image']);
         }
 
+        // 3.1 Convert location image only if it's a local app URL
+        if (!empty($data['location_payload']['image_url'])) {
+            $data['location_payload']['image_url'] = self::localUrlToBase64($data['location_payload']['image_url']);
+        }
+
         // 4. Add branding images as base64 (cached for 24 hours)
         $data['branding'] = $this->getBrandingAssets();
 
