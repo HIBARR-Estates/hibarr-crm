@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\FileStorageService;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -43,6 +44,10 @@ class CompanyExposeConfiguration extends BaseModel
             return null;
         }
 
+        if (FileStorageService::isExternalUrl($this->outro_primary_image)) {
+            return $this->outro_primary_image;
+        }
+
         return asset_url(self::FILE_PATH . '/' . $this->outro_primary_image);
     }
 
@@ -50,6 +55,10 @@ class CompanyExposeConfiguration extends BaseModel
     {
         if (empty($this->outro_secondary_image)) {
             return null;
+        }
+
+        if (FileStorageService::isExternalUrl($this->outro_secondary_image)) {
+            return $this->outro_secondary_image;
         }
 
         return asset_url(self::FILE_PATH . '/' . $this->outro_secondary_image);

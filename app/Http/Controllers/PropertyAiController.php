@@ -18,7 +18,10 @@ class PropertyAiController extends AccountBaseController
     {
         $validated = $request->validated();
 
-        $description = $this->propertyDescription->generate($validated['form_data']);
+        $description = $this->propertyDescription->generate(
+            $validated['form_data'],
+            $validated['feature_context'] ?? null,
+        );
 
         return response()->json([
             'description' => $description,

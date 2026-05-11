@@ -5,7 +5,9 @@ namespace App\Http\Controllers;
 use App\Helper\Files;
 use App\Helper\Reply;
 use App\Models\CompanyExposeConfiguration;
+use App\Services\FileStorageService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -72,12 +74,12 @@ class CompanyExposeConfigurationController extends AccountBaseController
         );
 
         if ($request->boolean('remove_outro_primary_image') && !empty($config->outro_primary_image)) {
-            Files::deleteFile($config->outro_primary_image, CompanyExposeConfiguration::FILE_PATH);
+            $this->deleteStoredImage($config->outro_primary_image);
             $config->outro_primary_image = null;
         }
 
         if ($request->boolean('remove_outro_secondary_image') && !empty($config->outro_secondary_image)) {
-            Files::deleteFile($config->outro_secondary_image, CompanyExposeConfiguration::FILE_PATH);
+            $this->deleteStoredImage($config->outro_secondary_image);
             $config->outro_secondary_image = null;
         }
 
@@ -97,7 +99,10 @@ class CompanyExposeConfigurationController extends AccountBaseController
     {
         $validator = Validator::make($request->all(), [
             'field' => ['required', Rule::in(['outro_primary_image', 'outro_secondary_image'])],
-            'file' => ['required', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'file' => ['required_without:url', 'file', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'url' => ['required_without:file', 'nullable', 'url', 'max:2048'],
+            'filename' => ['nullable', 'string', 'max:255'],
+            'object_path' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($validator->fails()) {
@@ -115,27 +120,72 @@ class CompanyExposeConfigurationController extends AccountBaseController
         $field = $request->input('field');
 
         if (!empty($config->{$field})) {
-            Files::deleteFile($config->{$field}, CompanyExposeConfiguration::FILE_PATH);
+            $this->deleteStoredImage($config->{$field});
         }
 
-        $filename = Files::uploadLocalOrS3(
-            $request->file('file'),
-            CompanyExposeConfiguration::FILE_PATH
-        );
+        if ($request->hasFile('file')) {
+            $filename = Files::uploadLocalOrS3(
+                $request->file('file'),
+                CompanyExposeConfiguration::FILE_PATH
+            );
 
-        $config->{$field} = $filename;
+            $config->{$field} = $filename;
+            $config->save();
+
+            $url = $field === 'outro_primary_image'
+                ? $config->outro_primary_image_url
+                : $config->outro_secondary_image_url;
+
+            return Reply::successWithData('Image uploaded successfully', [
+                'data' => [
+                    'field' => $field,
+                    'filename' => $filename,
+                    'url' => $url,
+                    'object_path' => null,
+                ],
+            ]);
+        }
+
+        $downloadUrl = $request->input('url');
+        $objectPath = $request->input('object_path') ?: FileStorageService::extractObjectPathFromUrl($downloadUrl);
+        $filename = $request->input('filename') ?: basename(parse_url($downloadUrl, PHP_URL_PATH) ?: $downloadUrl);
+
+        $config->{$field} = $downloadUrl;
         $config->save();
-
-        $url = $field === 'outro_primary_image'
-            ? $config->outro_primary_image_url
-            : $config->outro_secondary_image_url;
 
         return Reply::successWithData('Image uploaded successfully', [
             'data' => [
                 'field' => $field,
                 'filename' => $filename,
-                'url' => $url,
+                'url' => $downloadUrl,
+                'object_path' => $objectPath,
             ],
         ]);
+    }
+
+    private function deleteStoredImage(?string $storedValue): void
+    {
+        if (empty($storedValue)) {
+            return;
+        }
+
+        if (FileStorageService::isExternalUrl($storedValue)) {
+            $objectPath = FileStorageService::extractObjectPathFromUrl($storedValue);
+
+            if (!empty($objectPath)) {
+                try {
+                    app(FileStorageService::class)->delete($objectPath);
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to delete expose configuration image from external storage', [
+                        'object_path' => $objectPath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+
+            return;
+        }
+
+        Files::deleteFile($storedValue, CompanyExposeConfiguration::FILE_PATH);
     }
 }
