@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { router } from "@inertiajs/react";
 import {
+    App,
     Alert,
     Button,
     Card,
@@ -16,7 +17,7 @@ import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import type { PageProps } from "../../Components/DashboardLayout";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { useFormDataMutate } from "@/lib/api/client/useFormDataMutate";
+import { getFileUploadService } from "@/Services/FileUploadService";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 
 interface CompanyExposeConfiguration {
@@ -42,6 +43,8 @@ const ExposeConfigurationIndex = ({
     pageTitle,
     config,
 }: ExposeConfigurationIndexProps) => {
+    const { message: messageApi } = App.useApp();
+
     const [outroEnabled, setOutroEnabled] = useState<boolean>(
         Boolean(config?.outro_enabled),
     );
@@ -67,6 +70,17 @@ const ExposeConfigurationIndex = ({
 
     const [removePrimaryImage, setRemovePrimaryImage] = useState(false);
     const [removeSecondaryImage, setRemoveSecondaryImage] = useState(false);
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+    const uploadService = useMemo(
+        () =>
+            getFileUploadService({
+                defaultTargetFolder: `expose-configuration/${config.company_id}`,
+                allowedTypes: ["image/jpeg", "image/png", "image/webp"],
+                maxFileSize: 5 * 1024 * 1024,
+            }),
+        [config.company_id],
+    );
 
     const { mutate: saveConfig, isPending: isSaving } = useApiMutate<
         {
@@ -84,34 +98,51 @@ const ExposeConfigurationIndex = ({
         router.reload({ only: ["config"] });
     });
 
-    const { mutateAsync: uploadImage, isPending: isUploading } =
-        useFormDataMutate<
+    const { mutateAsync: saveUploadedImage, isPending: isPersistingUpload } =
+        useApiMutate<
             {
                 field: "outro_primary_image" | "outro_secondary_image";
                 filename: string;
                 url: string;
+                object_path?: string;
+            },
+            {
+                field: "outro_primary_image" | "outro_secondary_image";
+                filename: string;
+                url: string;
+                object_path?: string;
             },
             ApiSuccessResponse<{
                 field: "outro_primary_image" | "outro_secondary_image";
                 filename: string;
                 url: string;
+                object_path?: string;
             }>
-        >(route("expose-configuration.upload-image"), "POST", () => {
-            router.reload({ only: ["config"] });
-        });
+        >(route("expose-configuration.upload-image"), "POST");
 
     const onUpload = async (
         field: "outro_primary_image" | "outro_secondary_image",
         file: File,
     ) => {
-        const formData = new FormData();
-        formData.append("field", field);
-        formData.append("file", file);
+        setIsUploadingImage(true);
 
-        const response = await uploadImage(formData);
-        const uploadedUrl = response?.data?.url;
+        try {
+            uploadService.validateFile(file);
 
-        if (uploadedUrl) {
+            const uploadResult = await uploadService.uploadSingle(
+                file,
+                `expose-configuration/${config.company_id}`,
+            );
+
+            const response = await saveUploadedImage({
+                field,
+                filename: uploadResult.originalName,
+                url: uploadResult.downloadUrl,
+                object_path: uploadResult.objectPath,
+            });
+
+            const uploadedUrl = response?.data?.url ?? uploadResult.downloadUrl;
+
             if (field === "outro_primary_image") {
                 setPrimaryImageUrl(uploadedUrl);
                 setRemovePrimaryImage(false);
@@ -119,6 +150,14 @@ const ExposeConfigurationIndex = ({
                 setSecondaryImageUrl(uploadedUrl);
                 setRemoveSecondaryImage(false);
             }
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error
+                    ? error.message
+                    : "Failed to upload image";
+            messageApi.error(errorMessage);
+        } finally {
+            setIsUploadingImage(false);
         }
     };
 
@@ -135,6 +174,8 @@ const ExposeConfigurationIndex = ({
         };
         input.click();
     };
+
+    const isImageActionPending = isUploadingImage || isPersistingUpload;
 
     const canSave = useMemo(() => {
         if (outroEnabled) {
@@ -189,7 +230,7 @@ const ExposeConfigurationIndex = ({
                 { name: "Expose Configuration" },
             ]}
         >
-            <div className="max-w-5xl mx-auto space-y-6">
+            <div className="max-w-5xl mx-auto flex flex-col gap-y-6">
                 <Alert
                     type="info"
                     showIcon
@@ -198,7 +239,7 @@ const ExposeConfigurationIndex = ({
                 />
 
                 <Card title="Outro">
-                    <div className="space-y-4">
+                    <div className="flex flex-col gap-y-4">
                         <Space align="center">
                             <Switch
                                 checked={outroEnabled}
@@ -233,7 +274,7 @@ const ExposeConfigurationIndex = ({
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                                     <Card size="small" title="Primary Image">
-                                        <div className="space-y-3">
+                                        <div className="flex flex-col gap-y-3">
                                             {primaryImageUrl ? (
                                                 <Image
                                                     src={primaryImageUrl}
@@ -254,7 +295,7 @@ const ExposeConfigurationIndex = ({
                                                             "outro_primary_image",
                                                         )
                                                     }
-                                                    loading={isUploading}
+                                                    loading={isImageActionPending}
                                                 >
                                                     Upload
                                                 </Button>
@@ -279,7 +320,7 @@ const ExposeConfigurationIndex = ({
                                         size="small"
                                         title="Secondary Image (Optional)"
                                     >
-                                        <div className="space-y-3">
+                                        <div className="flex flex-col gap-y-3">
                                             {secondaryImageUrl ? (
                                                 <Image
                                                     src={secondaryImageUrl}
@@ -300,7 +341,7 @@ const ExposeConfigurationIndex = ({
                                                             "outro_secondary_image",
                                                         )
                                                     }
-                                                    loading={isUploading}
+                                                    loading={isImageActionPending}
                                                 >
                                                     Upload
                                                 </Button>
@@ -327,7 +368,7 @@ const ExposeConfigurationIndex = ({
                 </Card>
 
                 <Card title="QR Code">
-                    <div className="space-y-4">
+                    <div className="flex flex-col gap-y-4">
                         <Space align="center">
                             <Switch
                                 checked={qrEnabled}
@@ -354,7 +395,7 @@ const ExposeConfigurationIndex = ({
                         type="primary"
                         loading={isSaving}
                         onClick={handleSave}
-                        disabled={!canSave || isUploading}
+                        disabled={!canSave || isImageActionPending}
                     >
                         Save Configuration
                     </Button>
