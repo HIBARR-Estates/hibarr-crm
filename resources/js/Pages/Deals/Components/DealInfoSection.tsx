@@ -617,6 +617,13 @@ export default function DealInfoSection({
             label: <span>{t("pages.deals.actions.add_task")}</span>,
             onClick: () => handleAction("add_task"),
         },
+        {
+            key: "toggle_sections",
+            tooltip: allSectionsOpen ? t("app.common.actions.collapse_all") : t("app.common.actions.expand_all"),
+            type: "text" as const,
+            icon: allSectionsOpen ? <MinusSquareOutlined /> : <PlusSquareOutlined />,
+            onClick: handleToggleAll,
+        },
         // Toggle edit mode button - only show if user can edit
         ...(canEdit && !isEditMode
             ? [
@@ -1494,26 +1501,6 @@ export default function DealInfoSection({
                         onChange={handleNavClick}
                     />
                     <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto">
-                        {/* Toggle all */}
-                        <div className="flex items-center justify-end px-4 py-2 border-b border-gray-100 bg-white sticky top-0 z-10">
-                            <Button
-                                type="link"
-                                size="small"
-                                icon={
-                                    allSectionsOpen ? (
-                                        <MinusSquareOutlined />
-                                    ) : (
-                                        <PlusSquareOutlined />
-                                    )
-                                }
-                                onClick={handleToggleAll}
-                                className="text-gray-500 hover:text-gray-700 text-xs"
-                            >
-                                {allSectionsOpen
-                                    ? t("app.common.actions.collapse_all")
-                                    : t("app.common.actions.expand_all")}
-                            </Button>
-                        </div>
                         {sectionGroups.map((item) => (
                             <div
                                 key={item.key}
