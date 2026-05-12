@@ -51,7 +51,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
         {
             key: "unit_types",
             icon: <Layers size={16} />,
-            label: `Unit Types (${unitTypesCount})`,
+            label: `Units (${unitTypesCount})`,
         },
         { key: "photos", icon: <Image size={16} />, label: "Photos" },
         { key: "facilities", icon: <Home size={16} />, label: "Facilities" },

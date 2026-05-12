@@ -1,14 +1,15 @@
-import { useState, useCallback, useEffect, useMemo } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import {
-    Table,
     Button,
+    App,
     Drawer,
     Form,
     Input,
+    Select,
     Dropdown,
     Popconfirm,
     Card,
@@ -26,6 +27,8 @@ import {
     Tabs,
     Alert,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import type {
     MenuProps,
     TableColumnsType,
@@ -47,6 +50,7 @@ import {
     InfoCircleOutlined,
     CheckCircleOutlined,
     PictureOutlined,
+    ThunderboltOutlined,
 } from "@ant-design/icons";
 import type {
     ProjectLocation,
@@ -58,6 +62,9 @@ import {
     useLocationFormUpload,
     LocationFormValues,
 } from "@/Hooks/useLocationFormUpload";
+import { useGenerateDescription } from "@/lib/ai";
+import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import type { PropertyEnumValues } from "@/Types";
 
 const { Text, Title } = Typography;
 
@@ -172,8 +179,75 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     onSuccess,
 }) => {
     const [form] = Form.useForm<LocationFormValues>();
+    const { modal } = App.useApp();
     const [activeTab, setActiveTab] = useState("basic");
     const isEditing = !!location;
+    const selectedCity = Form.useWatch("address_city", form);
+    const isInitialCity = useRef(true);
+
+    const { data: enumValues } = useApiQuery<PropertyEnumValues>({
+        path: route("properties.enum_values"),
+        options: { enabled: open },
+    });
+
+    const cityOptions = useMemo(() => {
+        const cities = enumValues?.cities || [];
+        return cities.map((c) => ({
+            value: c.name,
+            label: c.label,
+        }));
+    }, [enumValues?.cities]);
+
+    const areaOptions = useMemo(() => {
+        if (!selectedCity || !enumValues?.areas_by_city) {
+            return [];
+        }
+
+        const areas = enumValues.areas_by_city[selectedCity] || [];
+        return areas.map((a) => ({
+            value: a.name,
+            label: a.label,
+        }));
+    }, [selectedCity, enumValues?.areas_by_city]);
+
+    const locationDescriptionValidator = useCallback(
+        (formData: Record<string, any>) => {
+            const missing: string[] = [];
+            const name = String(formData.name ?? "").trim();
+            const hasContext =
+                String(formData.description ?? "").trim() !== "" ||
+                String(formData.address_street ?? "").trim() !== "" ||
+                String(formData.address_city ?? "").trim() !== "" ||
+                String(formData.address_state ?? "").trim() !== "" ||
+                String(formData.address_country ?? "").trim() !== "" ||
+                (formData.attractions?.length || 0) > 0 ||
+                (formData.infrastructure?.length || 0) > 0 ||
+                (formData.airports?.length || 0) > 0;
+
+            if (!name) {
+                missing.push("Location Name");
+            }
+
+            if (!hasContext) {
+                missing.push("Description or address details");
+            }
+
+            return { sufficient: missing.length === 0, missing };
+        },
+        [],
+    );
+
+    const {
+        isEnabled: aiEnabled,
+        isGenerating: isGeneratingDescription,
+        error: descriptionError,
+        insufficientMessage,
+        generate: generateDescription,
+    } = useGenerateDescription({
+        endpoint: route("properties.ai-description"),
+        featureContext: "location_description",
+        validateFormData: locationDescriptionValidator,
+    });
 
     // File upload hook
     const { isUploading, uploadProgress, processAndSubmit } =
@@ -225,6 +299,31 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         }
     };
 
+    const handleGenerateDescription = useCallback(async () => {
+        const values = form.getFieldsValue(true);
+        const existingDescription = values.description;
+
+        const doGenerate = async () => {
+            const description = await generateDescription(values);
+            if (description) {
+                form.setFieldValue("description", description);
+            }
+        };
+
+        if (existingDescription?.trim()) {
+            modal.confirm({
+                title: "Replace existing description?",
+                content:
+                    "This will replace the current location description with an AI-generated version.",
+                okText: "Replace",
+                cancelText: "Cancel",
+                onOk: doGenerate,
+            });
+        } else {
+            await doGenerate();
+        }
+    }, [form, generateDescription, modal]);
+
     // Reset form when drawer opens/closes or location changes
     useEffect(() => {
         if (open && location) {
@@ -258,6 +357,25 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         setActiveTab("basic");
     }, [open, location, form]);
 
+    useEffect(() => {
+        if (open) {
+            isInitialCity.current = true;
+        }
+    }, [open]);
+
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        if (isInitialCity.current) {
+            isInitialCity.current = false;
+            return;
+        }
+
+        form.setFieldValue("address_state", undefined);
+    }, [selectedCity, form, open]);
+
     const tabItems = [
         {
             key: "basic",
@@ -282,14 +400,48 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         <Input placeholder="e.g., Kyrenia Waterfront" />
                     </Form.Item>
 
-                    <Form.Item name="description" label="Description">
+                    <div className="flex items-center justify-between gap-3">
+                        <label className="ant-form-item-label">
+                            <span>Description</span>
+                        </label>
+                        {aiEnabled && (
+                            <Button
+                                size="small"
+                                icon={<ThunderboltOutlined />}
+                                onClick={handleGenerateDescription}
+                                loading={isGeneratingDescription}
+                            >
+                                {isGeneratingDescription
+                                    ? "Generating..."
+                                    : "Generate with AI"}
+                            </Button>
+                        )}
+                    </div>
+                    <Form.Item name="description" noStyle>
                         <Input.TextArea
                             placeholder="Describe this location and its key features..."
                             rows={3}
                             showCount
                             maxLength={500}
+                            disabled={isGeneratingDescription}
                         />
                     </Form.Item>
+                    {insufficientMessage && (
+                        <Alert
+                            message={insufficientMessage}
+                            type="info"
+                            showIcon
+                            closable
+                        />
+                    )}
+                    {descriptionError && (
+                        <Alert
+                            message={descriptionError}
+                            type="error"
+                            showIcon
+                            closable
+                        />
+                    )}
 
                     <Divider orientation="left" plain>
                         <Text type="secondary">
@@ -307,12 +459,45 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                             <Input placeholder="123 Main Street" />
                         </Form.Item>
 
-                        <Form.Item name="address_city" label="City">
-                            <Input placeholder="City" />
+                        <Form.Item
+                            name="address_city"
+                            label="City"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Please select a city",
+                                },
+                            ]}
+                        >
+                            <Select
+                                options={cityOptions}
+                                placeholder="Select city"
+                                showSearch
+                                optionFilterProp="label"
+                            />
                         </Form.Item>
 
-                        <Form.Item name="address_state" label="State / Region">
-                            <Input placeholder="State or Region" />
+                        <Form.Item
+                            name="address_state"
+                            label="Area / District"
+                            rules={[
+                                {
+                                    required: true,
+                                    message: "Please select an area",
+                                },
+                            ]}
+                        >
+                            <Select
+                                options={areaOptions}
+                                placeholder={
+                                    selectedCity
+                                        ? "Select area"
+                                        : "Select city first"
+                                }
+                                showSearch
+                                optionFilterProp="label"
+                                disabled={!selectedCity}
+                            />
                         </Form.Item>
 
                         <Form.Item name="address_country" label="Country">
@@ -1180,30 +1365,30 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                 </Button>
                             </Empty>
                         ) : (
-                            <Table
+                            <DataTable
                                 columns={columns}
                                 dataSource={locations.data}
                                 rowKey="id"
-                                pagination={{
-                                    current: locations.current_page,
+                                paginationData={{
+                                    current_page: locations.current_page,
+                                    last_page: locations.last_page,
+                                    per_page: locations.per_page,
                                     total: locations.total,
-                                    pageSize: locations.per_page,
-                                    showSizeChanger: false,
-                                    showTotal: (total, range) =>
-                                        `${range[0]}-${range[1]} of ${total} locations`,
-                                    onChange: (page) => {
-                                        router.get(
-                                            route("project-locations.index"),
-                                            { ...filters, page },
-                                            {
-                                                preserveState: true,
-                                                preserveScroll: true,
-                                            },
-                                        );
-                                    },
+                                    from: null,
+                                    to: null,
+                                }}
+                                onPageChange={(page) => {
+                                    router.get(
+                                        route("project-locations.index"),
+                                        { ...filters, page },
+                                        {
+                                            preserveState: true,
+                                            preserveScroll: true,
+                                        },
+                                    );
                                 }}
                                 size="middle"
-                                className="location-table"
+                                scroll={{ x: 800, y: "calc(100vh - 320px)" }}
                             />
                         )}
                     </Card>
@@ -1226,9 +1411,6 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 .location-uploader .ant-upload.ant-upload-select {
                     width: 120px !important;
                     height: 80px !important;
-                }
-                .location-table .ant-table-row:hover {
-                    cursor: pointer;
                 }
                 .location-form .ant-tabs-nav {
                     margin-bottom: 24px;

@@ -1,5 +1,10 @@
 import axios from "axios";
 
+export interface GenerateDescriptionOptions {
+    endpoint?: string;
+    featureContext?: string;
+}
+
 /**
  * Check whether AI description generation is enabled.
  * Enabled by default and can be toggled off via AI_API_KEY.
@@ -12,7 +17,7 @@ export function isAiEnabled(): boolean {
 // Field validation
 // ---------------------------------------------------------------------------
 
-interface FieldCheck {
+export interface FieldCheck {
     /** Whether there is enough data to generate a description */
     sufficient: boolean;
     /** Human-readable names of fields the user should fill in first */
@@ -167,11 +172,13 @@ export function toUserFriendlyError(err: unknown): string {
  */
 export async function generatePropertyDescription(
     formData: Record<string, any>,
+    options: GenerateDescriptionOptions = {},
 ): Promise<string> {
     const response = await axios.post<{ description: string }>(
-        "/account/properties/ai-description",
+        options.endpoint ?? "/account/properties/ai-description",
         {
             form_data: formData,
+            feature_context: options.featureContext,
         },
         {
             timeout: 30000,

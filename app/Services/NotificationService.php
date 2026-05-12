@@ -312,6 +312,7 @@ class NotificationService
 
             // Deals / Leads
             'new_lead_created' => 'deals.show',
+            'lead_owner_assigned' => 'lead-contact.show',
             'lead_agent_assigned' => 'deals.show',
             'deal_stage_updated' => 'deals.show',
             'deal_activity_notification' => 'deals.show',
@@ -461,6 +462,7 @@ class NotificationService
 
             // Deals / Leads
             'new_lead_created' => 'lead',
+            'lead_owner_assigned' => 'lead',
             'lead_agent_assigned' => 'lead',
             'deal_stage_updated' => 'deal',
             'deal_activity_notification' => 'deal',

@@ -8,7 +8,6 @@ import {
     Switch,
     Space,
     Typography,
-    Table,
     Popconfirm,
     App,
     Tooltip,
@@ -16,6 +15,7 @@ import {
     Divider,
     Skeleton,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     PlusOutlined,
     DeleteOutlined,
@@ -376,14 +376,14 @@ export default function ReminderPreferences() {
                                     />
                                 )}
 
-                                <Table
+                                <DataTable
                                     dataSource={meetingReminders.map(
                                         (r, i) => ({ ...r, key: i }),
                                     )}
                                     columns={columns}
-                                    pagination={false}
                                     size="middle"
-                                    className="mb-4"
+                                    scroll={{ x: "max-content" }}
+                                    containerClassName="mb-4"
                                 />
 
                                 <Button

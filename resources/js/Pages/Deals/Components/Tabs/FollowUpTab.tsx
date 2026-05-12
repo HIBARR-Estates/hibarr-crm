@@ -1,6 +1,5 @@
 import { Deal } from "@/Types/api/deals";
 import {
-    Table,
     Button,
     Dropdown,
     MenuProps,
@@ -9,6 +8,7 @@ import {
     Tooltip,
     Empty,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     MoreOutlined,
     EditOutlined,
@@ -20,7 +20,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { DealFollowup } from "@/Types/api/deal-followup";
-import { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
 import { usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { ContentRenderer } from "@/Components/ContentRenderer";
@@ -144,7 +144,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             }
     }
 
-    const columns: ColumnsType<DealFollowup> = [
+    const columns: TableColumnsType<DealFollowup> = [
         {
             title: "Meeting Date",
             dataIndex: "next_follow_up_date",
@@ -337,20 +337,14 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                         )}
                     </div>
                     <div className="overflow-x-auto">
-                        <Table
+                        <DataTable
                             columns={columns}
                             dataSource={followUps}
                             rowKey="id"
-                            pagination={{
-                                pageSize: 10,
-                                showSizeChanger: true,
-                                showQuickJumper: true,
-                                showTotal: (total) => `Total ${total} follow-ups`,
-                            }}
                             className="follow-ups-table"
                             size="small"
                             rowSelection={rowSelection}
-                            scroll={{ x: 900 }}
+                            scroll={{ x: "max-content" }}
                         />
                     </div>
                 </div>

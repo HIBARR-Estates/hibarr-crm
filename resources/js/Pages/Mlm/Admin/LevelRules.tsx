@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import {
     Card,
-    Table,
     Button,
     Modal,
     Form,
@@ -16,6 +15,7 @@ import {
     Divider,
     Alert,
 } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
 import { Plus, Pencil, Trash2, ArrowLeft, AlertTriangle } from "lucide-react";
 import { router } from "@inertiajs/react";
@@ -397,13 +397,13 @@ const MlmLevelRules: React.FC<Props> = ({
                                                         </span>
                                                     }
                                                 >
-                                                    <Table
+                                                    <DataTable
                                                         columns={columns}
                                                         dataSource={items}
                                                         rowKey="id"
-                                                        pagination={false}
                                                         size="small"
                                                         showHeader={idx === 0}
+                                                        scroll={{ x: "max-content" }}
                                                     />
                                                 </Card>
                                             </React.Fragment>

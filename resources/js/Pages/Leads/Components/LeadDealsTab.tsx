@@ -1,10 +1,9 @@
-import React from "react";
+import React, { useState, useMemo } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { Lead } from "@/Types/api/leads";
 import { Deal, PaginatedDealResponse } from "@/Types/api/deals";
 import { Link, usePage } from "@inertiajs/react";
 import {
-    Table,
     Button,
     Dropdown,
     MenuProps,
@@ -13,6 +12,7 @@ import {
     Tooltip,
     Empty,
 } from "antd";
+import type { TableColumnsType } from "antd";
 import {
     MoreOutlined,
     UserOutlined,
@@ -20,10 +20,9 @@ import {
     EditOutlined,
     DeleteOutlined,
     PlusOutlined,
-    MailOutlined,
-    PhoneOutlined,
 } from "@ant-design/icons";
-import { ColumnsType } from "antd/es/table";
+import { DataTable } from "@/Components/DataTable";
+import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -35,10 +34,28 @@ interface Props {
     permissions: Record<string, string>;
 }
 
+const DEALS_PAGE_SIZE = 10;
+
 export default function LeadDealsTab({ lead, deals, permissions }: Props) {
     const { t } = useTranslation();
     const { props } = usePage();
     const user = props.auth.user;
+    const [dealsPage, setDealsPage] = useState(1);
+
+    const pagedDeals = useMemo(
+        () => deals.slice((dealsPage - 1) * DEALS_PAGE_SIZE, dealsPage * DEALS_PAGE_SIZE),
+        [deals, dealsPage],
+    );
+
+    const dealsPaginationMeta: LaravelPaginationMeta | null = deals.length > DEALS_PAGE_SIZE ? {
+        current_page: dealsPage,
+        last_page: Math.ceil(deals.length / DEALS_PAGE_SIZE),
+        per_page: DEALS_PAGE_SIZE,
+        total: deals.length,
+        from: (dealsPage - 1) * DEALS_PAGE_SIZE + 1,
+        to: Math.min(dealsPage * DEALS_PAGE_SIZE, deals.length),
+    } : null;
+
     const {
         action,
         handleAction,
@@ -46,7 +63,7 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
         selected: deal,
     } = useGenericEntityAction<Deal>();
 
-    const columns: ColumnsType<Deal> = [
+    const columns: TableColumnsType<Deal> = [
         {
             title: t("pages.leads.deals.column_name"),
             dataIndex: "name",
@@ -302,18 +319,13 @@ export default function LeadDealsTab({ lead, deals, permissions }: Props) {
                         )}
                     </div>
 
-                    <Table
+                    <DataTable
                         columns={columns}
-                        dataSource={deals}
+                        dataSource={pagedDeals}
                         rowKey="id"
-                        pagination={{
-                            pageSize: 10,
-                            showSizeChanger: true,
-                            showQuickJumper: true,
-                            showTotal: (total) => `${t("pages.leads.deals.total")} ${total} ${t("pages.leads.deals.items")}`,
-                        }}
-                        className="deals-table"
                         scroll={{ x: 800 }}
+                        paginationData={dealsPaginationMeta}
+                        onPageChange={setDealsPage}
                     />
                 </div>
             )}

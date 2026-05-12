@@ -16,11 +16,11 @@ import {
     Typography,
     Space,
     Skeleton,
-    Table,
     message,
     Segmented,
 } from "antd";
-import type { ColumnsType } from "antd/es/table";
+import type { TableColumnsType } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import {
     ReloadOutlined,
     HomeOutlined,
@@ -35,7 +35,8 @@ import {
     UnorderedListOutlined,
     PlusOutlined,
 } from "@ant-design/icons";
-import { useState, useMemo } from "react";
+import { Component, useState, useMemo } from "react";
+import type { ErrorInfo, ReactNode } from "react";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import axios from "axios";
 import { useQueryClient } from "@tanstack/react-query";
@@ -50,11 +51,70 @@ interface Props {
     permissions: Record<string, string>;
 }
 
+interface RecommendationsTabErrorBoundaryState {
+    hasError: boolean;
+}
+
+class RecommendationsTabErrorBoundary extends Component<
+    { children: ReactNode },
+    RecommendationsTabErrorBoundaryState
+> {
+    state: RecommendationsTabErrorBoundaryState = {
+        hasError: false,
+    };
+
+    static getDerivedStateFromError(): RecommendationsTabErrorBoundaryState {
+        return { hasError: true };
+    }
+
+    componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+        console.error("RecommendationsTab failed to render", {
+            error,
+            errorInfo,
+        });
+    }
+
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-6">
+                    <Alert
+                        message="Recommendations are temporarily unavailable"
+                        description="The recommendations panel hit an unexpected error. You can continue using the rest of this page and try refreshing recommendations again."
+                        type="error"
+                        showIcon
+                        action={
+                            <Button
+                                size="small"
+                                type="primary"
+                                icon={<ReloadOutlined />}
+                                onClick={() => window.location.reload()}
+                            >
+                                Reload Page
+                            </Button>
+                        }
+                    />
+                </div>
+            );
+        }
+
+        return this.props.children;
+    }
+}
+
+export default function RecommendationsTab(props: Props) {
+    return (
+        <RecommendationsTabErrorBoundary>
+            <RecommendationsTabContent {...props} />
+        </RecommendationsTabErrorBoundary>
+    );
+}
+
 /**
  * Property Recommendations Tab
  * Displays AI-powered property recommendations based on customer preferences
  */
-export default function RecommendationsTab({ deal, permissions }: Props) {
+function RecommendationsTabContent({ deal, permissions }: Props) {
     const queryClient = useQueryClient();
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [viewMode, setViewMode] = useState<ViewMode>("cards");
@@ -159,6 +219,30 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
         return existingProductIds.includes(propertyId);
     };
 
+    // Build property show URL safely to avoid hard crashes from route param mismatches.
+    const getPropertyShowHref = (propertyId: number | null | undefined) => {
+        if (!propertyId) return null;
+
+        try {
+            return route("properties.show", { property: propertyId });
+        } catch (primaryError) {
+            // Keep a defensive fallback in case environments have inconsistent Ziggy parameter names.
+            try {
+                return route("properties.show", { id: propertyId });
+            } catch (fallbackError) {
+                console.error(
+                    "Failed to build properties.show URL for recommendation",
+                    {
+                        propertyId,
+                        primaryError,
+                        fallbackError,
+                    },
+                );
+                return null;
+            }
+        }
+    };
+
     // Format price for display
     const formatPrice = (price: number | null | undefined): string => {
         if (!price) return "N/A";
@@ -213,7 +297,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
     };
 
     // Table columns definition
-    const tableColumns: ColumnsType<PropertyRecommendation> = [
+    const tableColumns: TableColumnsType<PropertyRecommendation> = [
         {
             title: "Rank",
             dataIndex: "rank",
@@ -227,38 +311,51 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
             title: "Property",
             key: "property",
             width: 250,
-            render: (_, record) => (
-                <div className="flex items-center gap-3">
-                    {record.property?.primary_photo ? (
-                        <img
-                            src={record.property.primary_photo}
-                            alt={record.property?.title}
-                            className="w-16 h-12 object-cover rounded"
-                        />
-                    ) : (
-                        <div className="w-16 h-12 bg-gray-100 rounded flex items-center justify-center">
-                            <HomeOutlined className="text-gray-400" />
-                        </div>
-                    )}
-                    <div>
-                        <Link
-                            href={route("properties.show", {
-                                id: record.property?.id,
-                            })}
-                            target="_blank"
-                        >
-                            <Text strong ellipsis style={{ maxWidth: 150 }}>
-                                {record.property?.title ||
-                                    `Property #${record.rank}`}
-                            </Text>
-                        </Link>
-                        <div className="text-xs text-gray-500 capitalize">
-                            {record.property?.property_type?.replace("_", " ")}{" "}
-                            for {record.property?.sale_type}
+            render: (_, record) => {
+                const propertyHref = getPropertyShowHref(record.property?.id);
+
+                return (
+                    <div className="flex items-center gap-3">
+                        {record.property?.primary_photo ? (
+                            <img
+                                src={record.property.primary_photo}
+                                alt={record.property?.title}
+                                className="w-16 h-12 object-cover rounded"
+                            />
+                        ) : (
+                            <div className="w-16 h-12 bg-gray-100 rounded flex items-center justify-center">
+                                <HomeOutlined className="text-gray-400" />
+                            </div>
+                        )}
+                        <div>
+                            {propertyHref ? (
+                                <Link href={propertyHref} target="_blank">
+                                    <Text
+                                        strong
+                                        ellipsis
+                                        style={{ maxWidth: 150 }}
+                                    >
+                                        {record.property?.title ||
+                                            `Property #${record.rank}`}
+                                    </Text>
+                                </Link>
+                            ) : (
+                                <Text strong ellipsis style={{ maxWidth: 150 }}>
+                                    {record.property?.title ||
+                                        `Property #${record.rank}`}
+                                </Text>
+                            )}
+                            <div className="text-xs text-gray-500 capitalize">
+                                {record.property?.property_type?.replace(
+                                    "_",
+                                    " ",
+                                )}{" "}
+                                for {record.property?.sale_type}
+                            </div>
                         </div>
                     </div>
-                </div>
-            ),
+                );
+            },
         },
         {
             title: "Match",
@@ -574,13 +671,12 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
 
             {/* Table View */}
             {viewMode === "table" && (
-                <Table
+                <DataTable
                     rowSelection={rowSelection}
                     columns={tableColumns}
                     dataSource={recommendations}
                     rowKey="rank"
-                    pagination={false}
-                    scroll={{ x: 1200 }}
+                    scroll={{ x: "max-content" }}
                     size="middle"
                 />
             )}
@@ -592,6 +688,9 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
                         <Col xs={24} sm={24} lg={24} xl={24} key={rec.rank}>
                             <RecommendationCard
                                 recommendation={rec}
+                                propertyHref={getPropertyShowHref(
+                                    rec.property?.id || null,
+                                )}
                                 formatPrice={formatPrice}
                                 getMatchColor={getMatchColor}
                                 getStatusColor={getStatusColor}
@@ -621,6 +720,7 @@ export default function RecommendationsTab({ deal, permissions }: Props) {
  */
 interface RecommendationCardProps {
     recommendation: PropertyRecommendation;
+    propertyHref: string | null;
     formatPrice: (price: number | null | undefined) => string;
     getMatchColor: (percentage: number | null) => string;
     getStatusColor: (status: string) => string;
@@ -633,6 +733,7 @@ interface RecommendationCardProps {
 
 function RecommendationCard({
     recommendation,
+    propertyHref,
     formatPrice,
     getMatchColor,
     getStatusColor,
@@ -706,12 +807,18 @@ function RecommendationCard({
             <Card.Meta
                 title={
                     <div className="flex items-center justify-between">
-                        <Link
-                            href={route("properties.show", {
-                                id: property?.id,
-                            })}
-                            target="_blank"
-                        >
+                        {propertyHref ? (
+                            <Link href={propertyHref} target="_blank">
+                                <Text
+                                    strong
+                                    ellipsis
+                                    style={{ maxWidth: "70%" }}
+                                    title={property?.title}
+                                >
+                                    {property?.title || `Property #${rank}`}
+                                </Text>
+                            </Link>
+                        ) : (
                             <Text
                                 strong
                                 ellipsis
@@ -720,7 +827,7 @@ function RecommendationCard({
                             >
                                 {property?.title || `Property #${rank}`}
                             </Text>
-                        </Link>
+                        )}
                         {property?.status && (
                             <Tag
                                 color={getStatusColor(property.status)}

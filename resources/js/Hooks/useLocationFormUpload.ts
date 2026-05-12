@@ -178,6 +178,7 @@ export const transformFormToPayload = async (
     values: LocationFormValues,
     existingLocation?: {
         map_url?: string | null;
+        image_url?: string | null;
         attractions?: any[];
         infrastructure?: any[];
         airports?: any[];
@@ -195,6 +196,7 @@ export const transformFormToPayload = async (
             postalCode: values.address_postalCode,
         },
         map_url: existingLocation?.map_url || undefined,
+        image_url: existingLocation?.image_url || undefined,
         attractions: (values.attractions || []).map((a, index) => ({
             name: a.name,
             content: Array.isArray(a.content) ? a.content : [a.content || ""],

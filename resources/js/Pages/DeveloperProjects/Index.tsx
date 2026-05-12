@@ -1,7 +1,15 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Link, router } from "@inertiajs/react";
 import { Button, Input, Pagination as AntPagination, Select } from "antd";
-import { Plus, MapPin, Search, Building2, Users, X } from "lucide-react";
+import {
+    Plus,
+    MapPin,
+    Search,
+    Building2,
+    Users,
+    X,
+    FileText,
+} from "lucide-react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -17,6 +25,7 @@ import ProjectCard from "./components/ProjectCard";
 import ProjectFormModal from "./components/ProjectFormModal";
 import SortDropdown from "./components/SortDropdown";
 import { usePermission } from "@/lib/permissionUtils";
+import { PROJECT_CONSTRUCTION_STATUSES } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
 
 // ============================================
 // Types
@@ -393,6 +402,12 @@ const Index = ({
                                     </Button>
                                 </Link>
 
+                                <Link href={route("expose-configuration.show")}>
+                                    <Button icon={<FileText size={14} />}>
+                                        Expose Configuration
+                                    </Button>
+                                </Link>
+
                                 <div className="ml-auto">
                                     <SortDropdown
                                         value={sortValue}
@@ -452,10 +467,13 @@ const Index = ({
                                     }
                                     placeholder="Any Status"
                                     allowClear
-                                    options={constructionStatuses.map((s) => ({
-                                        value: s.name,
-                                        label: s.label,
-                                    }))}
+                                    // options={constructionStatuses.map((s) => ({
+                                    options={PROJECT_CONSTRUCTION_STATUSES.map(
+                                        (s) => ({
+                                            value: s.value,
+                                            label: s.label,
+                                        }),
+                                    )}
                                     style={{ width: 180 }}
                                     size="small"
                                 />

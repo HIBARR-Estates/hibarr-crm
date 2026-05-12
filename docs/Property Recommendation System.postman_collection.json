@@ -1,0 +1,503 @@
+{
+    "info": {
+        "_postman_id": "3f0f4b2a-bc29-4e0d-bcff-8fe79c0fbe0c",
+        "name": "Property Recommendation System",
+        "description": "API for property recommendations, compatibility checks, and listing customers/properties.",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "16207829",
+        "_collection_link": "https://lunar-astronaut-472352.postman.co/workspace/Testing~dfaafef7-8ef6-4a42-91c4-354e016119a7/collection/16207829-3f0f4b2a-bc29-4e0d-bcff-8fe79c0fbe0c?action=share&source=collection_link&creator=16207829"
+    },
+    "item": [
+        {
+            "name": "health",
+            "item": [
+                {
+                    "name": "Health Check",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/health?verbose=true",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["health"],
+                            "query": [
+                                {
+                                    "key": "verbose",
+                                    "value": "true"
+                                }
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "Successful response",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{baseUrl}}/health?verbose=true",
+                                    "host": ["{{baseUrl}}"],
+                                    "path": ["health"],
+                                    "query": [
+                                        {
+                                            "key": "verbose",
+                                            "value": "true"
+                                        }
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "text",
+                            "header": [],
+                            "cookie": [],
+                            "body": null
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "recommendations",
+            "item": [
+                {
+                    "name": "{customer_id}",
+                    "item": [
+                        {
+                            "name": "Get Recommendations",
+                            "request": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{baseUrl}}/recommendations/:customer_id?top_n=10",
+                                    "host": ["{{baseUrl}}"],
+                                    "path": ["recommendations", ":customer_id"],
+                                    "query": [
+                                        {
+                                            "key": "top_n",
+                                            "value": "10"
+                                        }
+                                    ],
+                                    "variable": [
+                                        {
+                                            "key": "customer_id",
+                                            "value": "105"
+                                        }
+                                    ]
+                                }
+                            },
+                            "response": [
+                                {
+                                    "name": "Get Recommendations",
+                                    "originalRequest": {
+                                        "method": "GET",
+                                        "header": [],
+                                        "url": {
+                                            "raw": "{{baseUrl}}/recommendations/:customer_id?top_n=10",
+                                            "host": ["{{baseUrl}}"],
+                                            "path": [
+                                                "recommendations",
+                                                ":customer_id"
+                                            ],
+                                            "query": [
+                                                {
+                                                    "key": "top_n",
+                                                    "value": "10"
+                                                }
+                                            ],
+                                            "variable": [
+                                                {
+                                                    "key": "customer_id",
+                                                    "value": "105"
+                                                }
+                                            ]
+                                        }
+                                    },
+                                    "status": "OK",
+                                    "code": 200,
+                                    "_postman_previewlanguage": "",
+                                    "header": [
+                                        {
+                                            "key": "Date",
+                                            "value": "Sat, 17 Jan 2026 03:36:48 GMT"
+                                        },
+                                        {
+                                            "key": "Content-Type",
+                                            "value": "application/json"
+                                        },
+                                        {
+                                            "key": "Transfer-Encoding",
+                                            "value": "chunked"
+                                        },
+                                        {
+                                            "key": "Connection",
+                                            "value": "keep-alive"
+                                        },
+                                        {
+                                            "key": "alt-svc",
+                                            "value": "h3=\":443\"; ma=86400"
+                                        },
+                                        {
+                                            "key": "Server",
+                                            "value": "cloudflare"
+                                        },
+                                        {
+                                            "key": "vary",
+                                            "value": "Accept-Encoding"
+                                        },
+                                        {
+                                            "key": "cf-cache-status",
+                                            "value": "DYNAMIC"
+                                        },
+                                        {
+                                            "key": "Nel",
+                                            "value": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}"
+                                        },
+                                        {
+                                            "key": "Report-To",
+                                            "value": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=oD40gvNsbBA1bzqhQDCGSodOz8SByTUzhdF1VO1zcE4xEC5Ii5VIwhbdEQcp4JTWJITe9DcONQj9tgJjXbfST6dxSUAUw7R3%2Ba0RBQ%3D%3D\"}]}"
+                                        },
+                                        {
+                                            "key": "Content-Encoding",
+                                            "value": "br"
+                                        },
+                                        {
+                                            "key": "CF-RAY",
+                                            "value": "9bf2cf793fc248bc-LHR"
+                                        }
+                                    ],
+                                    "cookie": [],
+                                    "body": "{\n    \"customer_id\": 105,\n    \"count\": 10,\n    \"recommendations\": [\n        {\n            \"property_id\": 2,\n            \"suitability_score\": 99.9999999999999\n        },\n        {\n            \"property_id\": 4,\n            \"suitability_score\": 99.9999999999999\n        },\n        {\n            \"property_id\": 20,\n            \"suitability_score\": 99.9999999999999\n        },\n        {\n            \"property_id\": 3,\n            \"suitability_score\": 66.66666572292648\n        },\n        {\n            \"property_id\": 5,\n            \"suitability_score\": 66.66666572292648\n        },\n        {\n            \"property_id\": 19,\n            \"suitability_score\": 33.33333333333333\n        },\n        {\n            \"property_id\": 6,\n            \"suitability_score\": 25.000001390775108\n        },\n        {\n            \"property_id\": 10,\n            \"suitability_score\": 25.000001390775108\n        },\n        {\n            \"property_id\": 17,\n            \"suitability_score\": 25.000001390775108\n        },\n        {\n            \"property_id\": 11,\n            \"suitability_score\": 2.5431665245428923e-15\n        }\n    ],\n    \"processing_time_ms\": 0.06\n}"
+                                }
+                            ]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "compatibility",
+            "item": [
+                {
+                    "name": "Get Compatibility",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/compatibility?customer_id=105&property_id=2",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["compatibility"],
+                            "query": [
+                                {
+                                    "key": "customer_id",
+                                    "value": "105"
+                                },
+                                {
+                                    "key": "property_id",
+                                    "value": "2"
+                                }
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "Get Compatibility",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{baseUrl}}/compatibility?customer_id=105&property_id=2",
+                                    "host": ["{{baseUrl}}"],
+                                    "path": ["compatibility"],
+                                    "query": [
+                                        {
+                                            "key": "customer_id",
+                                            "value": "105"
+                                        },
+                                        {
+                                            "key": "property_id",
+                                            "value": "2"
+                                        }
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "",
+                            "header": [
+                                {
+                                    "key": "Date",
+                                    "value": "Sat, 17 Jan 2026 03:39:41 GMT"
+                                },
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                },
+                                {
+                                    "key": "Transfer-Encoding",
+                                    "value": "chunked"
+                                },
+                                {
+                                    "key": "Connection",
+                                    "value": "keep-alive"
+                                },
+                                {
+                                    "key": "alt-svc",
+                                    "value": "h3=\":443\"; ma=86400"
+                                },
+                                {
+                                    "key": "Server",
+                                    "value": "cloudflare"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Accept-Encoding"
+                                },
+                                {
+                                    "key": "cf-cache-status",
+                                    "value": "DYNAMIC"
+                                },
+                                {
+                                    "key": "Nel",
+                                    "value": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}"
+                                },
+                                {
+                                    "key": "Report-To",
+                                    "value": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=nrMhBr1c7cN2qI7SOtoBEtUr1xrIe%2B2mEKZSA5BrRIsLw1bJ5KQo%2FHW%2FbmtEDNq5b7K1l7OH9B04ubO4pW7yStbc929n83f9evHiiIV0\"}]}"
+                                },
+                                {
+                                    "key": "Content-Encoding",
+                                    "value": "br"
+                                },
+                                {
+                                    "key": "CF-RAY",
+                                    "value": "9bf2d3aacd659df1-LHR"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"customer_id\": 105,\n    \"property_id\": 2,\n    \"overall_score\": 0.999999999999999,\n    \"factors\": [\n        {\n            \"name\": \"budget\",\n            \"score\": 100,\n            \"status\": \"Excellent\",\n            \"detail\": \"Well within budget\"\n        },\n        {\n            \"name\": \"bedrooms\",\n            \"score\": 100,\n            \"status\": \"Excellent\",\n            \"detail\": \"Matches requirements (2.0 beds)\"\n        },\n        {\n            \"name\": \"type\",\n            \"score\": 100,\n            \"status\": \"Excellent\",\n            \"detail\": \"Matches type (Apartment)\"\n        },\n        {\n            \"name\": \"features\",\n            \"score\": 10,\n            \"status\": \"Standard\",\n            \"detail\": \"Standard features\"\n        }\n    ],\n    \"reasoning\": null,\n    \"processing_time_ms\": 702.58\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "customers",
+            "item": [
+                {
+                    "name": "List Customers",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/customers?limit=100&offset=0",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["customers"],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "100"
+                                },
+                                {
+                                    "key": "offset",
+                                    "value": "0"
+                                }
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "List Customers",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{baseUrl}}/customers?limit=100&offset=0",
+                                    "host": ["{{baseUrl}}"],
+                                    "path": ["customers"],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "100"
+                                        },
+                                        {
+                                            "key": "offset",
+                                            "value": "0"
+                                        }
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "",
+                            "header": [
+                                {
+                                    "key": "Date",
+                                    "value": "Sat, 17 Jan 2026 04:04:22 GMT"
+                                },
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                },
+                                {
+                                    "key": "Transfer-Encoding",
+                                    "value": "chunked"
+                                },
+                                {
+                                    "key": "Connection",
+                                    "value": "keep-alive"
+                                },
+                                {
+                                    "key": "alt-svc",
+                                    "value": "h3=\":443\"; ma=86400"
+                                },
+                                {
+                                    "key": "Server",
+                                    "value": "cloudflare"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Accept-Encoding"
+                                },
+                                {
+                                    "key": "cf-cache-status",
+                                    "value": "DYNAMIC"
+                                },
+                                {
+                                    "key": "Nel",
+                                    "value": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}"
+                                },
+                                {
+                                    "key": "Report-To",
+                                    "value": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=2yrmwO3yEO2O%2FIbb5fsZV78cFkuCj0AJw92rY7X%2B1ghFtYXuf2ISnOvzDdTopk49vts2tmsu08kRCd5AAjGsKuE89xeBa8gjkeZVcu7K\"}]}"
+                                },
+                                {
+                                    "key": "Content-Encoding",
+                                    "value": "br"
+                                },
+                                {
+                                    "key": "CF-RAY",
+                                    "value": "9bf2f7d63e98001a-LHR"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"total\": 237,\n    \"count\": 100,\n    \"offset\": 0,\n    \"limit\": 100,\n    \"ids\": [\n        6,\n        11,\n        15,\n        16,\n        17,\n        18,\n        19,\n        20,\n        21,\n        22,\n        23,\n        24,\n        25,\n        26,\n        27,\n        28,\n        29,\n        30,\n        31,\n        32,\n        33,\n        34,\n        35,\n        36,\n        37,\n        38,\n        39,\n        40,\n        41,\n        42,\n        43,\n        44,\n        45,\n        46,\n        47,\n        50,\n        51,\n        52,\n        53,\n        54,\n        55,\n        56,\n        57,\n        58,\n        59,\n        60,\n        61,\n        62,\n        63,\n        64,\n        65,\n        66,\n        67,\n        68,\n        69,\n        70,\n        71,\n        72,\n        73,\n        74,\n        75,\n        76,\n        77,\n        78,\n        79,\n        80,\n        81,\n        82,\n        83,\n        84,\n        85,\n        86,\n        87,\n        88,\n        89,\n        90,\n        92,\n        93,\n        94,\n        95,\n        96,\n        97,\n        98,\n        99,\n        100,\n        101,\n        102,\n        103,\n        104,\n        105,\n        106,\n        107,\n        108,\n        109,\n        110,\n        111,\n        112,\n        113,\n        114,\n        115\n    ]\n}"
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            "name": "properties",
+            "item": [
+                {
+                    "name": "List Properties",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/properties?limit=100&offset=0",
+                            "host": ["{{baseUrl}}"],
+                            "path": ["properties"],
+                            "query": [
+                                {
+                                    "key": "limit",
+                                    "value": "100"
+                                },
+                                {
+                                    "key": "offset",
+                                    "value": "0"
+                                }
+                            ]
+                        }
+                    },
+                    "response": [
+                        {
+                            "name": "List Properties",
+                            "originalRequest": {
+                                "method": "GET",
+                                "header": [],
+                                "url": {
+                                    "raw": "{{baseUrl}}/properties?limit=100&offset=0",
+                                    "host": ["{{baseUrl}}"],
+                                    "path": ["properties"],
+                                    "query": [
+                                        {
+                                            "key": "limit",
+                                            "value": "100"
+                                        },
+                                        {
+                                            "key": "offset",
+                                            "value": "0"
+                                        }
+                                    ]
+                                }
+                            },
+                            "status": "OK",
+                            "code": 200,
+                            "_postman_previewlanguage": "",
+                            "header": [
+                                {
+                                    "key": "Date",
+                                    "value": "Sat, 17 Jan 2026 03:40:25 GMT"
+                                },
+                                {
+                                    "key": "Content-Type",
+                                    "value": "application/json"
+                                },
+                                {
+                                    "key": "Transfer-Encoding",
+                                    "value": "chunked"
+                                },
+                                {
+                                    "key": "Connection",
+                                    "value": "keep-alive"
+                                },
+                                {
+                                    "key": "alt-svc",
+                                    "value": "h3=\":443\"; ma=86400"
+                                },
+                                {
+                                    "key": "Server",
+                                    "value": "cloudflare"
+                                },
+                                {
+                                    "key": "vary",
+                                    "value": "Accept-Encoding"
+                                },
+                                {
+                                    "key": "cf-cache-status",
+                                    "value": "DYNAMIC"
+                                },
+                                {
+                                    "key": "Nel",
+                                    "value": "{\"report_to\":\"cf-nel\",\"success_fraction\":0.0,\"max_age\":604800}"
+                                },
+                                {
+                                    "key": "Report-To",
+                                    "value": "{\"group\":\"cf-nel\",\"max_age\":604800,\"endpoints\":[{\"url\":\"https://a.nel.cloudflare.com/report/v4?s=tZgXM8gr8gFx0dpbl%2BgZ28D5wLvdREtjUaSSV73vPDm8eMIh3ygNE%2BsJRlhdQy3DJOmep2lLABtHW6CZN30jlCJRpUdBpFO1tgilD2q5\"}]}"
+                                },
+                                {
+                                    "key": "Content-Encoding",
+                                    "value": "br"
+                                },
+                                {
+                                    "key": "CF-RAY",
+                                    "value": "9bf2d4c44e049df1-LHR"
+                                }
+                            ],
+                            "cookie": [],
+                            "body": "{\n    \"total\": 22,\n    \"count\": 22,\n    \"offset\": 0,\n    \"limit\": 100,\n    \"ids\": [\n        1,\n        2,\n        3,\n        4,\n        5,\n        6,\n        7,\n        8,\n        9,\n        10,\n        11,\n        12,\n        13,\n        14,\n        15,\n        16,\n        17,\n        18,\n        19,\n        20,\n        21,\n        22\n    ]\n}"
+                        }
+                    ]
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "https://pre.hibarr.org"
+        }
+    ]
+}

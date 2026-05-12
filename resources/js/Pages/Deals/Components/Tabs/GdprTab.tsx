@@ -1,5 +1,6 @@
 import { Deal } from "@/Types/api/deals";
-import { Table, Tag, Empty } from "antd";
+import { Tag, Empty } from "antd";
+import { DataTable } from "@/Components/DataTable";
 import dayjs from "dayjs";
 
 interface Props {
@@ -89,12 +90,11 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
                 </p>
             </div>
 
-            <Table
+            <DataTable
                 columns={columns}
                 dataSource={consents}
                 rowKey="id"
-                pagination={false}
-                className="gdpr-table"
+                scroll={{ x: "max-content" }}
             />
         </div>
     );

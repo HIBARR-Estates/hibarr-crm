@@ -24,10 +24,13 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
     priceList,
 }) => {
     const [projectExposeModalOpen, setProjectExposeModalOpen] = useState(false);
-    const [unitTypeExposeModalOpen, setUnitTypeExposeModalOpen] = useState(false);
-    const [selectedUnitType, setSelectedUnitType] = useState<DeveloperProjectUnitType | null>(null);
+    const [unitTypeExposeModalOpen, setUnitTypeExposeModalOpen] =
+        useState(false);
+    const [selectedUnitType, setSelectedUnitType] =
+        useState<DeveloperProjectUnitType | null>(null);
     const [legacyModalOpen, setLegacyModalOpen] = useState(false);
-    const [selectedPriceListItem, setSelectedPriceListItem] = useState<PriceListItem | null>(null);
+    const [selectedPriceListItem, setSelectedPriceListItem] =
+        useState<PriceListItem | null>(null);
 
     const handleGenerateUnitTypeExpose = (ut: DeveloperProjectUnitType) => {
         setSelectedUnitType(ut);
@@ -43,7 +46,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
         <>
             <div className="flex flex-col gap-6">
                 {/* Project-level brochure */}
-                <Card
+                {/* <Card
                     title="Project Brochure"
                     extra={
                         <Button
@@ -59,17 +62,18 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                         Generate a full project brochure PDF including project overview, unit type
                         summaries, facilities, payment plan and infrastructure distances.
                     </Paragraph>
-                </Card>
+                </Card> */}
 
                 {/* Unit type exposes */}
-                <Card title="Unit Type Expose PDFs">
+                <Card title="Unit Expose PDFs">
                     {unitTypes.length === 0 ? (
                         <Empty description="No unit types defined. Add unit types to generate individual expose PDFs." />
                     ) : (
                         <>
                             <Paragraph className="mb-4 text-gray-600">
-                                Generate an expose PDF for each unit type. Each PDF uses the property
-                                expose template, inheriting project-level data where needed.
+                                Generate an expose PDF for each unit type. Each
+                                PDF uses the property expose template,
+                                inheriting project-level data where needed.
                             </Paragraph>
                             <List
                                 dataSource={unitTypes}
@@ -80,19 +84,35 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                                                 key="generate"
                                                 size="small"
                                                 icon={<FilePdfOutlined />}
-                                                onClick={() => handleGenerateUnitTypeExpose(ut)}
+                                                onClick={() =>
+                                                    handleGenerateUnitTypeExpose(
+                                                        ut,
+                                                    )
+                                                }
                                             >
                                                 Generate Expose
                                             </Button>,
                                         ]}
                                     >
                                         <List.Item.Meta
-                                            title={ut.display_label ?? snakeToReadable(ut.property_type) ?? "Unit Type"}
+                                            title={
+                                                ut.display_label ??
+                                                snakeToReadable(
+                                                    ut.property_type,
+                                                ) ??
+                                                "Unit Type"
+                                            }
                                             description={[
                                                 ut.formatted_price,
-                                                ut.bedrooms ? `${ut.bedrooms} bed` : null,
-                                                ut.bathrooms ? `${ut.bathrooms} bath` : null,
-                                                ut.living_area_sqm ? `${ut.living_area_sqm} sqm` : null,
+                                                ut.bedrooms
+                                                    ? `${ut.bedrooms} bed`
+                                                    : null,
+                                                ut.bathrooms
+                                                    ? `${ut.bathrooms} bath`
+                                                    : null,
+                                                ut.living_area_sqm
+                                                    ? `${ut.living_area_sqm} sqm`
+                                                    : null,
                                             ]
                                                 .filter(Boolean)
                                                 .join(" · ")}
@@ -105,7 +125,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                 </Card>
 
                 {/* Legacy property-based expose */}
-                {priceList.length > 0 && (
+                {/* {priceList.length > 0 && (
                     <Card
                         title="Property-based Expose (Legacy)"
                         className="border-dashed border-gray-300"
@@ -138,7 +158,7 @@ const PdfFilesSection: React.FC<PdfFilesSectionProps> = ({
                             )}
                         />
                     </Card>
-                )}
+                )} */}
             </div>
 
             <GenerateProjectExposeModal

@@ -49,6 +49,7 @@ import {
     FLOOR_OPTIONS,
 } from "./unitTypeConfig";
 import { generatePropertySubtitle, snakeToReadable } from "@/lib/utils";
+import { usePermission } from "@/lib/permissionUtils";
 import dayjs from "dayjs";
 
 const { Text, Paragraph } = Typography;
@@ -152,6 +153,7 @@ const FeatureTags: React.FC<{
 interface UnitTypeCardProps {
     unitType: DeveloperProjectUnitType;
     expanded: boolean;
+    canEdit: boolean;
     onToggle: () => void;
     onEdit: (ut: DeveloperProjectUnitType) => void;
     onDuplicate: (ut: DeveloperProjectUnitType) => void;
@@ -162,6 +164,7 @@ interface UnitTypeCardProps {
 const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     unitType: ut,
     expanded,
+    canEdit,
     onToggle,
     onEdit,
     onDuplicate,
@@ -353,35 +356,37 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         </Button>
                     </div>
 
-                    <div className="flex items-center gap-1">
-                        <Button
-                            type="text"
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => onEdit(ut)}
-                        />
-                        <Button
-                            type="text"
-                            size="small"
-                            icon={<CopyOutlined />}
-                            onClick={() => onDuplicate(ut)}
-                            title="Duplicate"
-                        />
-                        <Popconfirm
-                            title="Delete this unit type?"
-                            description="This action cannot be undone."
-                            onConfirm={() => onDelete(ut)}
-                            okText="Delete"
-                            okType="danger"
-                        >
+                    {canEdit && (
+                        <div className="flex items-center gap-1">
                             <Button
                                 type="text"
                                 size="small"
-                                danger
-                                icon={<DeleteOutlined />}
+                                icon={<EditOutlined />}
+                                onClick={() => onEdit(ut)}
                             />
-                        </Popconfirm>
-                    </div>
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<CopyOutlined />}
+                                onClick={() => onDuplicate(ut)}
+                                title="Duplicate"
+                            />
+                            <Popconfirm
+                                title="Delete this unit type?"
+                                description="This action cannot be undone."
+                                onConfirm={() => onDelete(ut)}
+                                okText="Delete"
+                                okType="danger"
+                            >
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    danger
+                                    icon={<DeleteOutlined />}
+                                />
+                            </Popconfirm>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -536,9 +541,11 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     <SpecRow
                                         label="Completion"
                                         value={
-                                            dayjs(ut.completion_date).format(
-                                                "D MMMM YYYY",
-                                            ) || "-"
+                                            ut.completion_date
+                                                ? dayjs(
+                                                      ut.completion_date,
+                                                  ).format("D MMMM YYYY")
+                                                : "-"
                                         }
                                     />
                                     <SpecRow
@@ -669,7 +676,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                 title={
                                     <span className="flex items-center gap-2">
                                         <GiftOutlined />
-                                        Offer actions
+                                        {canEdit ? "Offer actions" : "Offers"}
                                     </span>
                                 }
                                 className="!rounded-2xl"
@@ -691,12 +698,14 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         ))}
                                     </div>
                                 )}
-                                <OfferAttachSection
-                                    offers={ut.offers ?? []}
-                                    offerableType="unit_type"
-                                    offerableId={ut.id}
-                                    onRefresh={onRefresh}
-                                />
+                                {canEdit && (
+                                    <OfferAttachSection
+                                        offers={ut.offers ?? []}
+                                        offerableType="unit_type"
+                                        offerableId={ut.id}
+                                        onRefresh={onRefresh}
+                                    />
+                                )}
                             </Card>
                         </div>
                     </div>
@@ -715,6 +724,8 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     unitTypes,
     onRefresh,
 }) => {
+    const { hasPermission } = usePermission();
+    const canEdit = hasPermission("edit_developer_projects");
     const [modalOpen, setModalOpen] = useState(false);
     const [editingItem, setEditingItem] =
         useState<DeveloperProjectUnitType | null>(null);
@@ -722,6 +733,8 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     const [expandedId, setExpandedId] = useState<number | null>(null);
 
     const handleDelete = (unitType: DeveloperProjectUnitType) => {
+        if (!canEdit) return;
+
         const url = route("developer-projects.unit-types.destroy", {
             projectId,
             unitTypeId: unitType.id,
@@ -747,18 +760,24 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     };
 
     const handleEdit = (unitType: DeveloperProjectUnitType) => {
+        if (!canEdit) return;
+
         setEditingItem(unitType);
         setIsDuplicating(false);
         setModalOpen(true);
     };
 
     const handleDuplicate = (unitType: DeveloperProjectUnitType) => {
+        if (!canEdit) return;
+
         setEditingItem(unitType);
         setIsDuplicating(true);
         setModalOpen(true);
     };
 
     const handleAdd = () => {
+        if (!canEdit) return;
+
         setEditingItem(null);
         setIsDuplicating(false);
         setModalOpen(true);
@@ -793,13 +812,15 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                     </Space>
                 }
                 extra={
-                    <Button
-                        type="primary"
-                        icon={<PlusOutlined />}
-                        onClick={handleAdd}
-                    >
-                        Add Unit Type
-                    </Button>
+                    canEdit ? (
+                        <Button
+                            type="primary"
+                            icon={<PlusOutlined />}
+                            onClick={handleAdd}
+                        >
+                            Add Unit Type
+                        </Button>
+                    ) : null
                 }
             >
                 {unitTypes.length === 0 ? (
@@ -807,9 +828,11 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                         description="No unit types added yet"
                         image={Empty.PRESENTED_IMAGE_SIMPLE}
                     >
-                        <Button type="primary" onClick={handleAdd}>
-                            Add First Unit Type
-                        </Button>
+                        {canEdit && (
+                            <Button type="primary" onClick={handleAdd}>
+                                Add First Unit Type
+                            </Button>
+                        )}
                     </Empty>
                 ) : (
                     <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 3xl:grid-cols-4 gap-4">
@@ -818,6 +841,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
                                 key={ut.id}
                                 unitType={ut}
                                 expanded={expandedId === ut.id}
+                                canEdit={canEdit}
                                 onToggle={() =>
                                     setExpandedId((prev) =>
                                         prev === ut.id ? null : ut.id,
@@ -834,7 +858,7 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
             </Card>
 
             <UnitTypeFormModal
-                open={modalOpen}
+                open={canEdit && modalOpen}
                 onClose={handleModalClose}
                 projectId={projectId}
                 editingItem={editingItem}
