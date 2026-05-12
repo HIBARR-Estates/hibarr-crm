@@ -10,11 +10,13 @@ interface Props {
     deal: Deal;
     onUpdate?: (field: string, value: any) => Promise<void>;
     editable?: boolean;
-    loading?: boolean; // Deprecated: use loadingField instead
-    loadingField?: string | null; // The specific field currently being updated
-    onChange?: (fieldName: string, value: any) => void; // For tracking changes in edit mode
-    globalLoading?: boolean; // When true, all fields are disabled (e.g., during save all)
-    disabled?: boolean; // When true, fields cannot be edited (for permission control)
+    loading?: boolean;
+    loadingField?: string | null;
+    onChange?: (fieldName: string, value: any) => void;
+    globalLoading?: boolean;
+    disabled?: boolean;
+    openSections?: Record<string, boolean>;
+    onToggleSection?: (id: string) => void;
 }
 
 const DealDetailsTab: React.FC<Props> = ({
@@ -26,6 +28,8 @@ const DealDetailsTab: React.FC<Props> = ({
     onChange,
     globalLoading = false,
     disabled = false,
+    openSections = {},
+    onToggleSection,
 }) => {
     // Cast to Partial to allow working with potentially undefined properties
     // when hibarr_fields is null/undefined (e.g. for new deals or data gaps)
@@ -57,7 +61,13 @@ const DealDetailsTab: React.FC<Props> = ({
 
     return (
         <div className="p-4 space-y-4">
-            <DetailSection title="Interest & Budget">
+            <DetailSection
+                title="Interest & Budget"
+                accordion
+                sectionId="deal-interest-budget"
+                isOpen={openSections["deal-interest-budget"] ?? false}
+                onToggle={() => onToggleSection?.("deal-interest-budget")}
+            >
                 <DetailField label="Interested In">
                     <EditableField
                         value={fields.interested_in}
@@ -100,7 +110,13 @@ const DealDetailsTab: React.FC<Props> = ({
                 </DetailField>
             </DetailSection>
 
-            <DetailSection title="Progress">
+            <DetailSection
+                title="Progress"
+                accordion
+                sectionId="deal-progress"
+                isOpen={openSections["deal-progress"] ?? false}
+                onToggle={() => onToggleSection?.("deal-progress")}
+            >
                 <DetailField label="Strategy Meeting Booked">
                     <EditableField
                         value={fields.strategy_meeting_booked ? 1 : 0}
@@ -169,7 +185,13 @@ const DealDetailsTab: React.FC<Props> = ({
                 </DetailField>
             </DetailSection>
 
-            <DetailSection title="Documentation">
+            <DetailSection
+                title="Documentation"
+                accordion
+                sectionId="deal-documentation"
+                isOpen={openSections["deal-documentation"] ?? false}
+                onToggle={() => onToggleSection?.("deal-documentation")}
+            >
                 <DetailField label="Reservation Agreement">
                     <EditableField
                         value={fields.reservation_agreement}
@@ -199,7 +221,14 @@ const DealDetailsTab: React.FC<Props> = ({
                 </DetailField>
             </DetailSection>
 
-            <DetailSection title="Notes" gridClassName="grid grid-cols-1">
+            <DetailSection
+                title="Notes"
+                gridClassName="grid grid-cols-1"
+                accordion
+                sectionId="deal-notes"
+                isOpen={openSections["deal-notes"] ?? false}
+                onToggle={() => onToggleSection?.("deal-notes")}
+            >
                 <DetailField label="Message" span={2}>
                     <EditableField
                         value={fields.message}
