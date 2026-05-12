@@ -1,15 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { Link, router, usePage } from "@inertiajs/react";
-import {
-    Tag,
-    Avatar,
-    Tooltip,
-    Tabs,
-    Button,
-    Space,
-    message,
-    Typography,
-} from "antd";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { Tag, Tooltip, Button, Space, message } from "antd";
 import {
     MailOutlined,
     PhoneOutlined,
@@ -20,11 +12,13 @@ import {
     SaveOutlined,
     LockOutlined,
     GiftOutlined,
+    PlusSquareOutlined,
+    MinusSquareOutlined,
     InfoCircleOutlined,
     ReloadOutlined,
 } from "@ant-design/icons";
+import SideNavTabs from "@/Components/SideNavTabs";
 import dayjs from "dayjs";
-import { useState, useEffect, useMemo } from "react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -80,8 +74,87 @@ export default function DealInfoSection({
     const user = props.auth.user;
     const currencies = props.currencies || [];
     const defaultCurrencyCode = props.default_currency_code || "TRY";
-    const [activeTab, setActiveTab] = useState("overview");
+    const [activeSection, setActiveSection] = useState("overview");
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
     const { action, handleAction, handleClose } = useGenericEntityAction();
+
+    const ALL_SECTIONS = useMemo(() => [
+        "deal-overview",
+        "deal-contact-info",
+        "deal-team",
+        "deal-interest-budget",
+        "deal-progress",
+        "deal-documentation",
+        "deal-notes",
+        ...(customFieldCategories || []).map((cat: any) => `deal-category-${cat.id}`),
+    ], [customFieldCategories]);
+
+    const toggleSection = (id: string) => {
+        setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const allSectionsOpen =
+        ALL_SECTIONS.length > 0 &&
+        ALL_SECTIONS.every((id) => openSections[id] ?? false);
+
+    const handleToggleAll = () => {
+        const next = !allSectionsOpen;
+        setOpenSections((prev) => {
+            const updated = { ...prev };
+            ALL_SECTIONS.forEach((id) => {
+                updated[id] = next;
+            });
+            return updated;
+        });
+    };
+
+    const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+    const getSectionsForKey = useCallback((key: string): string[] => {
+        if (key === "overview") return ["deal-overview", "deal-contact-info", "deal-team"];
+        if (key === "details") return ["deal-interest-budget", "deal-progress", "deal-documentation", "deal-notes"];
+        if (key.startsWith("category-")) return [`deal-category-${key.replace("category-", "")}`];
+        return [];
+    }, []);
+
+    const handleNavClick = useCallback((key: string) => {
+        const el = sectionRefs.current[key];
+        const container = scrollContainerRef.current;
+        if (el && container) {
+            container.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" });
+        }
+        const sectionsToExpand = getSectionsForKey(key);
+        if (sectionsToExpand.length > 0) {
+            setOpenSections((prev) => {
+                const updated = { ...prev };
+                sectionsToExpand.forEach((id) => { updated[id] = true; });
+                return updated;
+            });
+        }
+        setActiveSection(key);
+    }, [getSectionsForKey]);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        const key = entry.target.getAttribute("data-section-key");
+                        if (key) setActiveSection(key);
+                    }
+                }
+            },
+            { root: container, threshold: 0.2, rootMargin: "0px 0px -60% 0px" },
+        );
+        const refs = sectionRefs.current;
+        Object.values(refs).forEach((el) => {
+            if (el) observer.observe(el);
+        });
+        return () => observer.disconnect();
+    }, [customFieldCategories?.length]);
     const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
@@ -544,6 +617,13 @@ export default function DealInfoSection({
             label: <span>{t("pages.deals.actions.add_task")}</span>,
             onClick: () => handleAction("add_task"),
         },
+        {
+            key: "toggle_sections",
+            tooltip: allSectionsOpen ? t("app.common.actions.collapse_all") : t("app.common.actions.expand_all"),
+            type: "text" as const,
+            icon: allSectionsOpen ? <MinusSquareOutlined /> : <PlusSquareOutlined />,
+            onClick: handleToggleAll,
+        },
         // Toggle edit mode button - only show if user can edit
         ...(canEdit && !isEditMode
             ? [
@@ -601,16 +681,18 @@ export default function DealInfoSection({
             : []),
     ];
 
-    // Tab items for custom field categories
-    const tabItems = [
+    // Section groups for scroll nav
+    const sectionGroups = [
         {
             key: "overview",
-            label: t("pages.deals.info.tab_overview"),
             children: (
                 <div className="p-4 space-y-4">
-                    {/* Deal Overview */}
                     <DetailSection
                         title={t("pages.deals.info.sections.overview")}
+                        accordion
+                        sectionId="deal-overview"
+                        isOpen={openSections["deal-overview"] ?? false}
+                        onToggle={() => toggleSection("deal-overview")}
                     >
                         <DetailField
                             label={t("pages.deals.info.fields.deal_name")}
@@ -1039,9 +1121,12 @@ export default function DealInfoSection({
                         )}
                     </DetailSection>
 
-                    {/* Contact Info */}
                     <DetailSection
                         title={t("pages.deals.info.sections.contact_info")}
+                        accordion
+                        sectionId="deal-contact-info"
+                        isOpen={openSections["deal-contact-info"] ?? false}
+                        onToggle={() => toggleSection("deal-contact-info")}
                     >
                         <DetailField
                             label={t("pages.deals.info.fields.email")}
@@ -1131,8 +1216,13 @@ export default function DealInfoSection({
                         </DetailField>
                     </DetailSection>
 
-                    {/* Team */}
-                    <DetailSection title={t("pages.deals.info.sections.team")}>
+                    <DetailSection
+                        title={t("pages.deals.info.sections.team")}
+                        accordion
+                        sectionId="deal-team"
+                        isOpen={openSections["deal-team"] ?? false}
+                        onToggle={() => toggleSection("deal-team")}
+                    >
                         <DetailField
                             label={t("pages.deals.info.fields.deal_agent")}
                         >
@@ -1269,7 +1359,6 @@ export default function DealInfoSection({
         },
         {
             key: "details",
-            label: t("pages.deals.info.tab_details"),
             children: (
                 <DealDetailsTab
                     deal={currentDeal}
@@ -1281,13 +1370,14 @@ export default function DealInfoSection({
                     onChange={handleFieldChange}
                     globalLoading={isSavingAll}
                     disabled={!canEdit}
+                    openSections={openSections}
+                    onToggleSection={toggleSection}
                 />
             ),
         },
-        // Custom field categories as tabs
+        // Custom field categories as scroll sections
         ...(customFieldCategories || []).map((category) => ({
             key: `category-${category.id}`,
-            label: category.name,
             children: (
                 <div className="p-4">
                     <CustomFieldDisplay
@@ -1304,9 +1394,27 @@ export default function DealInfoSection({
                         onChange={handleFieldChange}
                         globalLoading={isSavingAll}
                         disabled={!canEdit}
+                        accordion
+                        sectionId={`deal-category-${category.id}`}
+                        isOpen={
+                            openSections[`deal-category-${category.id}`] ??
+                            false
+                        }
+                        onToggle={() =>
+                            toggleSection(`deal-category-${category.id}`)
+                        }
                     />
                 </div>
             ),
+        })),
+    ];
+
+    const sideNavItems = [
+        { key: "overview", label: t("pages.deals.info.tab_overview") },
+        { key: "details", label: t("pages.deals.info.tab_details") },
+        ...(customFieldCategories || []).map((cat) => ({
+            key: `category-${cat.id}`,
+            label: cat.name,
         })),
     ];
 
@@ -1385,23 +1493,25 @@ export default function DealInfoSection({
                     </Space>
                 </div>
 
-                {/* Content */}
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                    items={tabItems}
-                    className="deal-info-tabs"
-                    tabBarStyle={{
-                        paddingLeft: 24,
-                        paddingRight: 24,
-                        marginBottom: 0,
-                        backgroundColor: "#fafafa",
-                        borderBottom: "1px solid #f0f0f0",
-                    }}
-                    tabBarExtraContent={{
-                        right: <div style={{ width: 48 }} />,
-                    }}
-                />
+                {/* Sidebar + Content */}
+                <div className="flex overflow-hidden max-h-[calc(100vh-14rem)]">
+                    <SideNavTabs
+                        items={sideNavItems}
+                        activeKey={activeSection}
+                        onChange={handleNavClick}
+                    />
+                    <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto">
+                        {sectionGroups.map((item) => (
+                            <div
+                                key={item.key}
+                                ref={(el) => { sectionRefs.current[item.key] = el; }}
+                                data-section-key={item.key}
+                            >
+                                {item.children}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </>
     );

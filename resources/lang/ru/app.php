@@ -208,8 +208,10 @@ return [
             'overview' => 'Обзор',
         ],
         'actions' => [
-            'refresh' => 'Обновить',
-            'download' => 'Скачать',
+            'refresh'      => 'Обновить',
+            'download'     => 'Скачать',
+            'expand_all'   => 'Развернуть все',
+            'collapse_all' => 'Свернуть все',
         ],
         'filters' => [
             'all' => 'Все',

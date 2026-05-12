@@ -208,8 +208,10 @@ return [
             'overview' => 'Übersicht',
         ],
         'actions' => [
-            'refresh' => 'Aktualisieren',
-            'download' => 'Herunterladen',
+            'refresh'      => 'Aktualisieren',
+            'download'     => 'Herunterladen',
+            'expand_all'   => 'Alle ausklappen',
+            'collapse_all' => 'Alle einklappen',
         ],
         'filters' => [
             'all' => 'Alle',

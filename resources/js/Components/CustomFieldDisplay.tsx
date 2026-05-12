@@ -487,15 +487,19 @@ interface Props {
     customFieldsData?: Record<string, any>;
     categoryId?: string | number;
     column?: number;
-    title?: string; // Optional title shown in the section header
+    title?: string;
     onUpdate?: (field: string, value: any) => Promise<void>;
     editable?: boolean;
-    alwaysEditing?: boolean; // When true, fields are always in edit mode (for bulk editing)
-    loading?: boolean; // Deprecated: use loadingField instead
-    loadingField?: string | null; // The specific field currently being updated
-    onChange?: (fieldName: string, value: any) => void; // For tracking changes in edit mode
-    globalLoading?: boolean; // When true, all fields are disabled (e.g., during save all)
-    disabled?: boolean; // When true, fields cannot be edited (for permission control)
+    alwaysEditing?: boolean;
+    loading?: boolean;
+    loadingField?: string | null;
+    onChange?: (fieldName: string, value: any) => void;
+    globalLoading?: boolean;
+    disabled?: boolean;
+    accordion?: boolean;
+    sectionId?: string;
+    isOpen?: boolean;
+    onToggle?: () => void;
 }
 
 export default function CustomFieldDisplay({
@@ -512,6 +516,10 @@ export default function CustomFieldDisplay({
     onChange,
     globalLoading = false,
     disabled = false,
+    accordion = false,
+    sectionId,
+    isOpen = false,
+    onToggle,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies = [], default_currency_code } = props;
@@ -1482,7 +1490,14 @@ export default function CustomFieldDisplay({
     }
 
     return (
-        <DetailSection title={title} gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+        <DetailSection
+            title={title}
+            gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5"
+            accordion={accordion}
+            sectionId={sectionId}
+            isOpen={isOpen}
+            onToggle={onToggle}
+        >
             {filteredFields.map((field) => {
                 const fieldKey = `field_${field.id}`;
                 const value =

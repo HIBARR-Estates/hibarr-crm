@@ -1,16 +1,20 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { Lead } from "@/Types/api/leads";
 import { router, usePage } from "@inertiajs/react";
 import {
     Avatar,
-    Tabs,
     Button,
     Tag,
     Space,
     Tooltip,
     message,
 } from "antd";
+import {
+    PlusSquareOutlined,
+    MinusSquareOutlined,
+} from "@ant-design/icons";
+import SideNavTabs from "@/Components/SideNavTabs";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import {
     EditOutlined,
@@ -69,7 +73,86 @@ export default function LeadInfoSection({
     const { props } = usePage();
     const user = props.auth.user;
     const { t } = useTranslation();
-    const [activeTab, setActiveTab] = useState("overview");
+    const [activeSection, setActiveSection] = useState("overview");
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+        {},
+    );
+
+    const ALL_SECTIONS = useMemo(() => [
+        "lead-contact",
+        "lead-personal",
+        "lead-classification",
+        "lead-address",
+        "lead-notes",
+        ...(customFieldCategories || []).map((cat: any) => `lead-category-${cat.id}`),
+    ], [customFieldCategories]);
+
+    const toggleSection = (id: string) => {
+        setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
+    };
+
+    const allSectionsOpen =
+        ALL_SECTIONS.length > 0 &&
+        ALL_SECTIONS.every((id) => openSections[id] ?? false);
+
+    const handleToggleAll = () => {
+        const next = !allSectionsOpen;
+        setOpenSections((prev) => {
+            const updated = { ...prev };
+            ALL_SECTIONS.forEach((id) => {
+                updated[id] = next;
+            });
+            return updated;
+        });
+    };
+
+    const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+
+    const getSectionsForKey = useCallback((key: string): string[] => {
+        if (key === "overview") return ["lead-contact", "lead-personal", "lead-classification", "lead-address", "lead-notes"];
+        if (key.startsWith("category-")) return [`lead-category-${key.replace("category-", "")}`];
+        return [];
+    }, []);
+
+    const handleNavClick = useCallback((key: string) => {
+        const el = sectionRefs.current[key];
+        const container = scrollContainerRef.current;
+        if (el && container) {
+            container.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" });
+        }
+        const sectionsToExpand = getSectionsForKey(key);
+        if (sectionsToExpand.length > 0) {
+            setOpenSections((prev) => {
+                const updated = { ...prev };
+                sectionsToExpand.forEach((id) => { updated[id] = true; });
+                return updated;
+            });
+        }
+        setActiveSection(key);
+    }, [getSectionsForKey]);
+
+    useEffect(() => {
+        const container = scrollContainerRef.current;
+        if (!container) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                for (const entry of entries) {
+                    if (entry.isIntersecting) {
+                        const key = entry.target.getAttribute("data-section-key");
+                        if (key) setActiveSection(key);
+                    }
+                }
+            },
+            { root: container, threshold: 0.2, rootMargin: "0px 0px -60% 0px" },
+        );
+        const refs = sectionRefs.current;
+        Object.values(refs).forEach((el) => {
+            if (el) observer.observe(el);
+        });
+        return () => observer.disconnect();
+    }, [customFieldCategories?.length]);
+
     const {
         action,
         handleAction,
@@ -414,6 +497,13 @@ export default function LeadInfoSection({
             label: <span>{t("pages.leads.info.actions.add_task")}</span>,
             onClick: () => setIsTaskModalOpen(true),
         },
+        {
+            key: "toggle_sections",
+            tooltip: allSectionsOpen ? t("app.common.actions.collapse_all") : t("app.common.actions.expand_all"),
+            type: "text" as const,
+            icon: allSectionsOpen ? <MinusSquareOutlined /> : <PlusSquareOutlined />,
+            onClick: handleToggleAll,
+        },
         // ...(canEdit  //deprecated
         //     ? [
         //           {
@@ -449,15 +539,20 @@ export default function LeadInfoSection({
             : []),
     ];
 
-    // Tab items for overview and custom field categories
-    const tabItems = [
+    // Section groups for scroll nav
+    const sectionGroups = [
         {
             key: "overview",
-            label: t("pages.leads.info.tab_overview"),
             children: (
                 <div className="p-4 space-y-4">
                     {/* Contact Information */}
-                    <DetailSection title={t("pages.leads.info.sections.contact")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.contact")}
+                        accordion
+                        sectionId="lead-contact"
+                        isOpen={openSections["lead-contact"] ?? false}
+                        onToggle={() => toggleSection("lead-contact")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.name")}>
                             <EditableField
                                 value={
@@ -542,7 +637,13 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Personal Details */}
-                    <DetailSection title={t("pages.leads.info.sections.personal")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.personal")}
+                        accordion
+                        sectionId="lead-personal"
+                        isOpen={openSections["lead-personal"] ?? false}
+                        onToggle={() => toggleSection("lead-personal")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.gender")}>
                             <EditableField
                                 value={currentLeadState.gender || ""}
@@ -669,7 +770,13 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Classification */}
-                    <DetailSection title={t("pages.leads.info.sections.classification")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.classification")}
+                        accordion
+                        sectionId="lead-classification"
+                        isOpen={openSections["lead-classification"] ?? false}
+                        onToggle={() => toggleSection("lead-classification")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.lead_source")}>
                             <EditableField
                                 value={currentLeadState.source_id || null}
@@ -755,7 +862,13 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Address */}
-                    <DetailSection title={t("pages.leads.info.sections.address")}>
+                    <DetailSection
+                        title={t("pages.leads.info.sections.address")}
+                        accordion
+                        sectionId="lead-address"
+                        isOpen={openSections["lead-address"] ?? false}
+                        onToggle={() => toggleSection("lead-address")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.country")}>
                             <EditableField
                                 value={currentLeadState.country || ""}
@@ -841,7 +954,14 @@ export default function LeadInfoSection({
                     </DetailSection>
 
                     {/* Notes */}
-                    <DetailSection title={t("pages.leads.info.sections.notes")} gridClassName="grid grid-cols-1">
+                    <DetailSection
+                        title={t("pages.leads.info.sections.notes")}
+                        gridClassName="grid grid-cols-1"
+                        accordion
+                        sectionId="lead-notes"
+                        isOpen={openSections["lead-notes"] ?? false}
+                        onToggle={() => toggleSection("lead-notes")}
+                    >
                         <DetailField label={t("pages.leads.info.fields.notes")} span={2}>
                             <EditableField
                                 value={currentLeadState.note || ""}
@@ -860,10 +980,9 @@ export default function LeadInfoSection({
                 </div>
             ),
         },
-        // Custom field categories as tabs
+        // Custom field categories as scroll sections
         ...(customFieldCategories || []).map((category) => ({
             key: `category-${category.id}`,
-            label: category.name,
             children: (
                 <div className="p-4">
                     <CustomFieldDisplay
@@ -881,9 +1000,26 @@ export default function LeadInfoSection({
                         editable={isFieldEditable}
                         loadingField={updatingField}
                         globalLoading={isSavingAll}
+                        accordion
+                        sectionId={`lead-category-${category.id}`}
+                        isOpen={
+                            openSections[`lead-category-${category.id}`] ??
+                            false
+                        }
+                        onToggle={() =>
+                            toggleSection(`lead-category-${category.id}`)
+                        }
                     />
                 </div>
             ),
+        })),
+    ];
+
+    const sideNavItems = [
+        { key: "overview", label: t("pages.leads.info.tab_overview") },
+        ...(customFieldCategories || []).map((cat) => ({
+            key: `category-${cat.id}`,
+            label: cat.name,
         })),
     ];
 
@@ -960,20 +1096,25 @@ export default function LeadInfoSection({
                     </Space>
                 </div>
 
-                {/* Content */}
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                    items={tabItems}
-                    className="lead-info-tabs"
-                    tabBarStyle={{
-                        paddingLeft: 24,
-                        paddingRight: 24,
-                        marginBottom: 0,
-                        backgroundColor: "#fafafa",
-                        borderBottom: "1px solid #f0f0f0",
-                    }}
-                />
+                {/* Sidebar + Content */}
+                <div className="flex overflow-hidden max-h-[calc(100vh-14rem)]">
+                    <SideNavTabs
+                        items={sideNavItems}
+                        activeKey={activeSection}
+                        onChange={handleNavClick}
+                    />
+                    <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto">
+                        {sectionGroups.map((item) => (
+                            <div
+                                key={item.key}
+                                ref={(el) => { sectionRefs.current[item.key] = el; }}
+                                data-section-key={item.key}
+                            >
+                                {item.children}
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
         </>
     );
