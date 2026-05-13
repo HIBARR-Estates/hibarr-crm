@@ -6,6 +6,9 @@ use Illuminate\Auth\Passwords\PasswordBrokerManager;
 
 class CustomPasswordBrokerManager extends PasswordBrokerManager
 {
+    /**
+     * `$config['expire']` is in minutes per `config/auth.php`; the repository multiplies by 60 in its constructor.
+     */
     protected function createTokenRepository(array $config)
     {
         $key = $this->app['config']['app.key'];

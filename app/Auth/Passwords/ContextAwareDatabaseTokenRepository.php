@@ -6,6 +6,11 @@ use Illuminate\Auth\Passwords\DatabaseTokenRepository;
 use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
 use Illuminate\Support\Carbon;
 
+/**
+ * Extends Laravel's repository without overriding {@see DatabaseTokenRepository::__construct}:
+ * the parent converts `config('auth.passwords.*.expire')` from minutes to seconds
+ * (`$this->expires = $expires * 60`), so standard-token checks use the correct hour-scale TTL.
+ */
 class ContextAwareDatabaseTokenRepository extends DatabaseTokenRepository
 {
     public const TYPE_STANDARD = 'standard';
@@ -28,7 +33,7 @@ class ContextAwareDatabaseTokenRepository extends DatabaseTokenRepository
 
     public function deleteExpired()
     {
-        $standardCutoff = Carbon::now()->subSeconds((int) $this->expires);
+        $standardCutoff = Carbon::now()->subSeconds($this->standardForgotPasswordTtlSeconds());
         $inviteCutoff = Carbon::now()->subSeconds(self::EMPLOYEE_INVITE_TTL_SECONDS);
 
         $this->getTable()->where(function ($query) use ($standardCutoff, $inviteCutoff) {
@@ -69,6 +74,14 @@ class ContextAwareDatabaseTokenRepository extends DatabaseTokenRepository
             return self::EMPLOYEE_INVITE_TTL_SECONDS;
         }
 
+        return $this->standardForgotPasswordTtlSeconds();
+    }
+
+    /**
+     * TTL for standard / forgot-password rows, in seconds (parent already converted from config minutes).
+     */
+    private function standardForgotPasswordTtlSeconds(): int
+    {
         return (int) $this->expires;
     }
 }
