@@ -77,7 +77,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
             externalUrl: availabilityLink ?? undefined,
             disabled: !availabilityLink,
         },
-        { key: "pdf", icon: <FileText size={16} />, label: "PDF Files" },
+        // { key: "pdf", icon: <FileText size={16} />, label: "PDF Files" },
         // { key: "offers", icon: <Gift size={16} />, label: "Offers" },
     ];
 
