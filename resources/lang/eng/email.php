@@ -536,7 +536,7 @@ return array(
         'subject' => 'Set Your Password',
         'content' => 'An account has been created for you. Use the button below to choose your password and sign in.',
         'actionButton' => 'Set Password',
-        'expire' => 'This link will expire in 60 minutes.',
+        'expire' => 'This link will expire in 7 days.',
         'contentPassword' => 'If you were not expecting this message, you can ignore this email.',
      ),
      'projectRating' => [

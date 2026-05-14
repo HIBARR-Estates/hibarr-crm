@@ -7,10 +7,13 @@ use App\Helper\Reply;
 use App\Http\Requests\User\UpdateProfile;
 use App\Models\ClientContact;
 use App\Models\EmployeeDetails;
+use App\Models\LanguageSetting;
 use App\Models\User;
 use App\Scopes\ActiveScope;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rule;
 
 class ProfileController extends AccountBaseController
 {
@@ -147,6 +150,42 @@ class ProfileController extends AccountBaseController
         $user->onesignal_player_id = $request->userId;
         $user->save();
         session()->forget('user');
+    }
+
+    /**
+     * Update authenticated user's language preference.
+     */
+    public function changeLanguage(Request $request)
+    {
+        $validated = $request->validate([
+            'locale' => [
+                'required',
+                'string',
+                'max:10',
+                Rule::exists('language_settings', 'language_code')->where(function ($query) {
+                    $query->where('status', 'enabled');
+                }),
+            ],
+        ]);
+
+        $locale = $validated['locale'];
+        $language = LanguageSetting::where('language_code', $locale)
+            ->where('status', 'enabled')
+            ->first();
+
+        $user = user();
+        $user->locale = $locale;
+        $user->rtl = (int) (($language?->is_rtl) ? 1 : 0);
+        $user->save();
+
+        session(['locale' => $locale]);
+        session()->forget('user');
+        session()->forget('isRtl');
+
+        app()->setLocale($locale);
+        Cache::forget("translations_{$locale}");
+
+        return back();
     }
 
 }

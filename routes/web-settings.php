@@ -65,6 +65,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function () {
 
+    Route::post('profile/change-language', [ProfileController::class, 'changeLanguage'])->name('profile.change_language');
+
     Route::post('app-settings/deleteSessions', [AppSettingController::class, 'deleteSessions'])->name('app-settings.delete_sessions');
     Route::resource('app-settings', AppSettingController::class);
     Route::resource('profile-settings', ProfileSettingController::class);
