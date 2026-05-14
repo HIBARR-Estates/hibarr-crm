@@ -49,6 +49,10 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot()
     {
+        $this->app->extend('auth.password', function ($ignored, $app) {
+            return new \App\Auth\Passwords\CustomPasswordBrokerManager($app);
+        });
+
         Cashier::useCustomerModel(Company::class);
 
         if (config('app.redirect_https')) {
