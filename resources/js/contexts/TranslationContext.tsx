@@ -6,7 +6,7 @@ import React, {
     useCallback,
     useMemo,
 } from "react";
-import { usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { useTranslation as useI18nTranslation } from "react-i18next";
 import {
     default as i18n,
@@ -80,9 +80,15 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Change language by redirecting to the language change route
     const changeLanguage = useCallback((newLocale: SupportedLocale) => {
-        // Use Inertia router or window.location to change language
-        // This calls the Laravel route that updates user.locale and session
-        window.location.href = `/account/settings/change-language?locale=${newLocale}`;
+        router.post(
+            "/account/settings/profile/change-language",
+            { locale: newLocale },
+            {
+                preserveScroll: true,
+                preserveState: false,
+                replace: true,
+            },
+        );
     }, []);
 
     const value = useMemo<TranslationContextValue>(
