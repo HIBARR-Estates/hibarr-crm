@@ -75,19 +75,26 @@ export default function DealInfoSection({
     const currencies = props.currencies || [];
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [activeSection, setActiveSection] = useState("overview");
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>(
+        {},
+    );
     const { action, handleAction, handleClose } = useGenericEntityAction();
 
-    const ALL_SECTIONS = useMemo(() => [
-        "deal-overview",
-        "deal-contact-info",
-        "deal-team",
-        "deal-interest-budget",
-        "deal-progress",
-        "deal-documentation",
-        "deal-notes",
-        ...(customFieldCategories || []).map((cat: any) => `deal-category-${cat.id}`),
-    ], [customFieldCategories]);
+    const ALL_SECTIONS = useMemo(
+        () => [
+            "deal-overview",
+            "deal-contact-info",
+            "deal-team",
+            "deal-interest-budget",
+            "deal-progress",
+            "deal-documentation",
+            "deal-notes",
+            ...(customFieldCategories || []).map(
+                (cat: any) => `deal-category-${cat.id}`,
+            ),
+        ],
+        [customFieldCategories],
+    );
 
     const toggleSection = (id: string) => {
         setOpenSections((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -112,28 +119,44 @@ export default function DealInfoSection({
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
     const getSectionsForKey = useCallback((key: string): string[] => {
-        if (key === "overview") return ["deal-overview", "deal-contact-info", "deal-team"];
-        if (key === "details") return ["deal-interest-budget", "deal-progress", "deal-documentation", "deal-notes"];
-        if (key.startsWith("category-")) return [`deal-category-${key.replace("category-", "")}`];
+        if (key === "overview")
+            return ["deal-overview", "deal-contact-info", "deal-team"];
+        if (key === "details")
+            return [
+                "deal-interest-budget",
+                "deal-progress",
+                "deal-documentation",
+                "deal-notes",
+            ];
+        if (key.startsWith("category-"))
+            return [`deal-category-${key.replace("category-", "")}`];
         return [];
     }, []);
 
-    const handleNavClick = useCallback((key: string) => {
-        const el = sectionRefs.current[key];
-        const container = scrollContainerRef.current;
-        if (el && container) {
-            container.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" });
-        }
-        const sectionsToExpand = getSectionsForKey(key);
-        if (sectionsToExpand.length > 0) {
-            setOpenSections((prev) => {
-                const updated = { ...prev };
-                sectionsToExpand.forEach((id) => { updated[id] = true; });
-                return updated;
-            });
-        }
-        setActiveSection(key);
-    }, [getSectionsForKey]);
+    const handleNavClick = useCallback(
+        (key: string) => {
+            const el = sectionRefs.current[key];
+            const container = scrollContainerRef.current;
+            if (el && container) {
+                container.scrollTo({
+                    top: el.offsetTop - 8,
+                    behavior: "smooth",
+                });
+            }
+            const sectionsToExpand = getSectionsForKey(key);
+            if (sectionsToExpand.length > 0) {
+                setOpenSections((prev) => {
+                    const updated = { ...prev };
+                    sectionsToExpand.forEach((id) => {
+                        updated[id] = true;
+                    });
+                    return updated;
+                });
+            }
+            setActiveSection(key);
+        },
+        [getSectionsForKey],
+    );
 
     useEffect(() => {
         const container = scrollContainerRef.current;
@@ -142,7 +165,8 @@ export default function DealInfoSection({
             (entries) => {
                 for (const entry of entries) {
                     if (entry.isIntersecting) {
-                        const key = entry.target.getAttribute("data-section-key");
+                        const key =
+                            entry.target.getAttribute("data-section-key");
                         if (key) setActiveSection(key);
                     }
                 }
@@ -619,9 +643,15 @@ export default function DealInfoSection({
         },
         {
             key: "toggle_sections",
-            tooltip: allSectionsOpen ? t("app.common.actions.collapse_all") : t("app.common.actions.expand_all"),
+            tooltip: allSectionsOpen
+                ? t("app.common.actions.collapse_all")
+                : t("app.common.actions.expand_all"),
             type: "text" as const,
-            icon: allSectionsOpen ? <MinusSquareOutlined /> : <PlusSquareOutlined />,
+            icon: allSectionsOpen ? (
+                <MinusSquareOutlined />
+            ) : (
+                <PlusSquareOutlined />
+            ),
             onClick: handleToggleAll,
         },
         // Toggle edit mode button - only show if user can edit
@@ -1494,17 +1524,22 @@ export default function DealInfoSection({
                 </div>
 
                 {/* Sidebar + Content */}
-                <div className="flex overflow-hidden max-h-[calc(100vh-14rem)]">
+                <div className="flex overflow-hidden max-h-[calc(100vh-70vh)]">
                     <SideNavTabs
                         items={sideNavItems}
                         activeKey={activeSection}
                         onChange={handleNavClick}
                     />
-                    <div ref={scrollContainerRef} className="flex-1 min-w-0 overflow-y-auto">
+                    <div
+                        ref={scrollContainerRef}
+                        className="flex-1 min-w-0 overflow-y-auto"
+                    >
                         {sectionGroups.map((item) => (
                             <div
                                 key={item.key}
-                                ref={(el) => { sectionRefs.current[item.key] = el; }}
+                                ref={(el) => {
+                                    sectionRefs.current[item.key] = el;
+                                }}
                                 data-section-key={item.key}
                             >
                                 {item.children}
