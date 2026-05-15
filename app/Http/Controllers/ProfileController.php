@@ -170,10 +170,11 @@ class ProfileController extends AccountBaseController
         $locale = $validated['locale'];
         $language = LanguageSetting::where('language_code', $locale)->first();
 
-        $user = user();
-        $user->locale = $locale;
-        $user->rtl = (int) (($language?->is_rtl) ? 1 : 0);
-        $user->save();
+        $rtl = (int) (($language?->is_rtl) ? 1 : 0);
+
+        \DB::table('users')
+            ->where('id', user()->id)
+            ->update(['locale' => $locale, 'rtl' => $rtl]);
 
         session(['locale' => $locale]);
         session()->forget('user');
