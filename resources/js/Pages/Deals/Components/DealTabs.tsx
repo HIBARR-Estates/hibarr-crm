@@ -1,5 +1,6 @@
 import { Deal } from "@/Types/api/deals";
-import { Tabs, Button, Alert, Drawer } from "antd";
+import { Button, Alert, Drawer } from "antd";
+import SideNavTabs, { SideNavItem } from "@/Components/SideNavTabs";
 import { useState } from "react";
 import { PlusOutlined, GiftOutlined } from "@ant-design/icons";
 import NotesTab from "./Tabs/NotesTab";
@@ -309,6 +310,18 @@ export default function DealTabs({
         return null;
     };
 
+    const tabItems = buildTabItems();
+    const sideNavItems: SideNavItem[] = tabItems.map((item) => ({
+        key: item.key,
+        label:
+            typeof item.label === "string"
+                ? item.label
+                : t(`pages.deals.tabs.${item.key}`),
+    }));
+    const dealTabActiveContent = tabItems.find(
+        (item) => item.key === activeTab,
+    )?.children;
+
     return (
         <>
             <AddNote
@@ -360,20 +373,17 @@ export default function DealTabs({
                     <div className="tab-action">{getTabAction()}</div>
                 </div>
 
-                {/* Tabs */}
-                <Tabs
-                    activeKey={activeTab}
-                    onChange={setActiveTab}
-                    items={buildTabItems()}
-                    className="deal-detail-tabs"
-                    tabBarStyle={{
-                        paddingLeft: 24,
-                        paddingRight: 24,
-                        marginBottom: 0,
-                        backgroundColor: "#fafafa",
-                        borderBottom: "1px solid #f0f0f0",
-                    }}
-                />
+                {/* Sidebar + Content */}
+                <div className="flex min-h-0">
+                    <SideNavTabs
+                        items={sideNavItems}
+                        activeKey={activeTab}
+                        onChange={setActiveTab}
+                    />
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                        {dealTabActiveContent}
+                    </div>
+                </div>
             </div>
         </>
     );

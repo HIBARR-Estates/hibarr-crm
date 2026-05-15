@@ -24,6 +24,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\DB;
 use App\Notifications\EmployeePasswordResetNotification;
+use App\Auth\Passwords\ContextAwareDatabaseTokenRepository;
 
 class EmployeeV2ApiController extends Controller
 {
@@ -804,13 +805,16 @@ class EmployeeV2ApiController extends Controller
     private function sendPasswordSetupEmail(User $user): void
     {
         // We manually create the token in `password_resets` and then send a reset email
-        // using our custom notification/template.
+        // using our custom notification/template. Row `type` is used by
+        // ContextAwareDatabaseTokenRepository so this link stays valid for 7 days while
+        // standard forgot-password rows remain limited by config('auth.passwords.users.expire').
         $token = Str::random(60);
         DB::table('password_resets')->updateOrInsert(
             ['email' => $user->email],
             [
                 'token' => Hash::make($token),
                 'created_at' => now(),
+                'type' => ContextAwareDatabaseTokenRepository::TYPE_EMPLOYEE_INVITE,
             ]
         );
 

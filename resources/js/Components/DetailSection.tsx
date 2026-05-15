@@ -1,5 +1,10 @@
 import React, { createContext, useState, useCallback, useMemo } from "react";
-import { EditOutlined, CopyOutlined, CheckOutlined } from "@ant-design/icons";
+import {
+    EditOutlined,
+    CopyOutlined,
+    CheckOutlined,
+    RightOutlined,
+} from "@ant-design/icons";
 import { Tooltip } from "antd";
 
 // ─── DetailFieldEditContext ────────────────────────────────────────────────────
@@ -24,6 +29,14 @@ interface DetailSectionProps {
     className?: string;
     /** Allow callers to override the inner grid class (e.g. for 1-col layouts) */
     gridClassName?: string;
+    /** Enables collapsible accordion behaviour */
+    accordion?: boolean;
+    /** Controlled open state — required when accordion=true */
+    isOpen?: boolean;
+    /** Called when header is clicked — required when accordion=true */
+    onToggle?: () => void;
+    /** Sets id attribute for anchor scroll targeting */
+    sectionId?: string;
 }
 
 export function DetailSection({
@@ -31,19 +44,45 @@ export function DetailSection({
     children,
     className = "",
     gridClassName = "grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5",
+    accordion = false,
+    isOpen = false,
+    onToggle,
+    sectionId,
 }: DetailSectionProps) {
+    const showBody = !accordion || isOpen;
+
     return (
         <div
+            id={sectionId}
             className={`bg-white border border-gray-100 rounded-xl overflow-hidden mb-4 last:mb-0 ${className}`}
         >
-            {title && (
-                <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/80">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-                        {title}
-                    </h3>
-                </div>
+            {title &&
+                (accordion ? (
+                    <button
+                        type="button"
+                        onClick={onToggle}
+                        className="w-full flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80 hover:bg-gray-100 transition-colors duration-150 text-left"
+                        aria-expanded={isOpen}
+                    >
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            {title}
+                        </h3>
+                        <RightOutlined
+                            className={`text-gray-400 text-[10px] transition-transform duration-200 ${
+                                isOpen ? "rotate-90" : ""
+                            }`}
+                        />
+                    </button>
+                ) : (
+                    <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/80">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                            {title}
+                        </h3>
+                    </div>
+                ))}
+            {showBody && (
+                <div className={`px-4 py-3 ${gridClassName}`}>{children}</div>
             )}
-            <div className={`px-4 py-3 ${gridClassName}`}>{children}</div>
         </div>
     );
 }

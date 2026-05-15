@@ -208,8 +208,10 @@ return [
             'overview' => 'Genel Bakış',
         ],
         'actions' => [
-            'refresh' => 'Yenile',
-            'download' => 'İndir',
+            'refresh'      => 'Yenile',
+            'download'     => 'İndir',
+            'expand_all'   => 'Tümünü genişlet',
+            'collapse_all' => 'Tümünü daralt',
         ],
         'filters' => [
             'all' => 'Tümü',
