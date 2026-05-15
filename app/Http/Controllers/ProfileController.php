@@ -13,7 +13,6 @@ use App\Scopes\ActiveScope;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rule;
 
 class ProfileController extends AccountBaseController
 {
@@ -157,21 +156,19 @@ class ProfileController extends AccountBaseController
      */
     public function changeLanguage(Request $request)
     {
+        $supportedLocales = ['en', 'de', 'ru', 'tr'];
+
         $validated = $request->validate([
             'locale' => [
                 'required',
                 'string',
                 'max:10',
-                Rule::exists('language_settings', 'language_code')->where(function ($query) {
-                    $query->where('status', 'enabled');
-                }),
+                'in:' . implode(',', $supportedLocales),
             ],
         ]);
 
         $locale = $validated['locale'];
-        $language = LanguageSetting::where('language_code', $locale)
-            ->where('status', 'enabled')
-            ->first();
+        $language = LanguageSetting::where('language_code', $locale)->first();
 
         $user = user();
         $user->locale = $locale;
