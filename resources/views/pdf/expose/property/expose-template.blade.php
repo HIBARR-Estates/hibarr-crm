@@ -1,6 +1,6 @@
 <style>
     @page {
-  size: 430mm 240mm;
+  size: 373.33mm 210mm;
   margin: 0;
 }
 body {
@@ -13,8 +13,8 @@ body {
 }
 
 .page {
-  width: 430mm;
-  height: 240mm;
+  width: 373.33mm;
+  height: 210mm;
   position: relative;
   page-break-after: always;
   overflow: hidden;
@@ -42,6 +42,33 @@ body {
   right: 45mm;
   width: 100px;
   opacity: 0.8;
+}
+
+.panther-bg {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.panther-dual-left,
+.panther-dual-right {
+  position: absolute;
+  bottom: 0;
+  height: 85%;
+  width: auto;
+  z-index: 0;
+  pointer-events: none;
+}
+.panther-dual-right {
+  right: 0;
+  transform: scaleX(-1);
+}
+.panther-dual-left {
+  left: 0;
 }
 
 .logo-placeholder {
@@ -92,7 +119,7 @@ body {
 
 .block-title {
   position: relative;
-  width: 456px;
+  width: 100%;
 }
 .block-title img {
   position: relative;
@@ -101,15 +128,108 @@ body {
 }
 .block-title .text {
   display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  text-align: center;
+  position: absolute;
+  top: 64%;
+  left: 8%;
+  width: 84%;
+  height: 30%;
+  z-index: 2;
+  padding: 0.25rem 0.5rem;
+}
+
+.airport-grid {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  gap: 1rem;
+  padding: 1rem 0;
+  box-sizing: border-box;
+  overflow: visible;
+}
+.airport-row {
+  display: flex;
+  flex: 1;
+  gap: 1rem;
+  align-items: baseline;
+}
+.airport-map {
+  flex: 1;
+  overflow: visible;
+  border-radius: 0.5rem;
+  position: relative;
+  z-index: 2;
+}
+.airport-map > img {
+  width: 100%;
+  height: calc(100% + 30px);
+  object-fit: cover;
+  border-radius: 0.5rem;
+  display: block;
+}
+.map-pin {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  transform: translateX(-50%);
+}
+.map-pin-label {
+  background: #f12200;
+  color: white;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 0.15rem 0.35rem;
+  border-radius: 0.2rem;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.3;
+}
+.map-pin img {
+  width: 14px;
+  height: auto;
+  display: block;
+}
+.airport-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  flex: 1;
+}
+.airport-item img {
+  width: 100%;
+  height: 183px;
+  object-fit: cover;
+}
+.airport-item span {
+  background: #053160;
+  color: white;
+  padding: 0.125rem 0.5rem;
+  text-align: center;
+  border-radius: 0.5rem;
+  font-size: 13px;
+  font-weight: 600;
+}
+.airport-item p {
+  font-size: 14px;
+  font-weight: 600;
+  color: #053160;
+  margin: 0;
+}
+.airport-logo {
+  display: flex;
   align-items: center;
   justify-content: center;
-  position: absolute;
-  top: 20%;
-  left: 10%;
+  flex: 0 0 auto;
+}
+.airport-logo img {
   width: 80%;
-  height: 100%;
-  z-index: 2;
-  padding: 1rem;
+  height: auto;
 }
 
 .items {
@@ -142,7 +262,7 @@ body {
 .featured-grid {
   display: grid;
   grid-template-columns: 58.33% 41.67%;
-  grid-template-rows: 1.5fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 10px;
   height: 100%;
   box-sizing: border-box;
@@ -161,7 +281,7 @@ body {
 .quad-grid {
   display: grid;
   grid-template-columns: 50% 50%;
-  grid-template-rows: 1.5fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: 10px;
   height: 100%;
   box-sizing: border-box;
@@ -237,6 +357,7 @@ body {
   background-repeat: no-repeat;
 }
 .split-page .split-bottom {
+  position: relative;
   height: 45%;
   display: flex;
   align-items: center;
@@ -252,25 +373,32 @@ body {
   text-align: justify;
   margin: 0;
 }
-.split-page .rock-shape {
+.split-page .rock {
+  width: 450px;
+  height: 402px;
   position: absolute;
   right: 2%;
-  bottom: 33%;
-  width: 264px;
-  height: 319px;
-  border: 4px solid white;
+  bottom: 15%;
   overflow: hidden;
-  border-radius: 84% 31% 73% 41%/49% 32% 37% 47%;
-  transform: translateY(40%);
+  border-radius: 53% 47% 58% 42% / 38% 52% 48% 62%;
+  border: 8px solid white;
+  transform: rotate(-4deg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .12);
   z-index: 5;
 }
-.split-page .rock-shape img {
+.split-page .rock img {
   width: 100%;
   height: 100%;
   -o-object-fit: cover;
      object-fit: cover;
-  -o-object-position: center;
-     object-position: center;
+  transform: scale(1.05) rotate(4deg);
+}
+.split-page .rock::before,
+.split-page .rock::after {
+  content: "";
+  position: absolute;
+  background: white;
+  z-index: 3;
 }
 
 .gallery-grid {
@@ -286,8 +414,14 @@ body {
   height: 100%;
   background: #f5f5f5;
   overflow: hidden;
-  border: 0.0625rem solid;
+  border: 0.0625rem solid #ccc;
   position: relative;
+}
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 .gallery-item .title {
   position: absolute;
@@ -350,6 +484,7 @@ body {
 
 .row {
   display: flex;
+  gap: 2rem;
   height: 100%;
   width: 100%;
 }
@@ -414,7 +549,11 @@ body {
 }
 .overview-layout .content p,
 .overview-layout .content h1 {
-  padding-left: 3%;
+  padding-left: 12.5%;
+}
+
+.rounded-text {
+  padding-left: 0 !important;
 }
 
 .container {
@@ -593,23 +732,19 @@ p {
   font-weight: 500;
 }
 
-.featured-grid {
-  display: grid;
-  grid-template-columns: 58.33% 41.67%;
-  grid-template-rows: 1.5fr 1fr;
-  gap: 10px;
-  height: 100%;
-  box-sizing: border-box;
-}
-.featured-grid .left-column {
-  background-color: #3498db;
-  grid-row: 1/3;
-}
 .featured-grid .right-top {
-  background-color: #e74c3c;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow: hidden;
 }
 .featured-grid .right-bottom {
-  background-color: #2ecc71;
+  background-image: var(--bg-image);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  overflow: hidden;
 }
 
 .closure {
@@ -769,7 +904,7 @@ p {
   @endphp
 
   <!-- PAGE 1: HERO -->
-  <div class="page bg" style="--bg-image: url('{{ $heroImages[0] ?? 'property/icons/test.png' }}')">
+  <div class="page bg" style="--bg-image: url('{{ $heroImages[0] ?? 'property/images/test.png' }}')">
     <div class="container">
       <div class="logo">
         <img src="{{ $data['branding']['logo_expose'] }}" alt="hibarr-expose-logo" />
@@ -787,10 +922,18 @@ p {
     </div>
 
     @if(!empty($data['client']['name']))
-    <div class="customer-name" style="position: absolute; bottom: 20mm; left: 15mm; color: white; font-size: 20px; font-weight: 500; text-shadow: 2px 2px 4px rgba(0,0,0,0.5);">
-      Prepared for: {{ $data['client']['name'] }}
+    <div style="position: absolute; bottom: 20mm; left: 0;">
+      <div style="position: relative; display: inline-block; line-height: 0;">
+        <img src="{{ $data['branding']['expose_name_client'] }}" alt="client-name-banner"
+          style="height: 90px; width: 340px; display: block;" />
+        <div style="position: absolute; top: 50%; left: 46%; transform: translateY(-50%); white-space: nowrap; line-height: 1.3;">
+          <div style="font-size: 11px; font-weight: 400; color: #053160; letter-spacing: 1px; text-transform: uppercase;">Prepared for</div>
+          <div style="font-size: 15px; font-weight: 700; color: #053160;">{{ $data['client']['name'] }}</div>
+        </div>
+      </div>
     </div>
     @endif
+
     <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
   </div>
 
@@ -806,97 +949,146 @@ p {
 
   <!-- PAGE 2: PROPERTY OVERVIEW -->
   <div class="page">
-    <div class="container">
-      <div class="row">
-        <div class="col-half">
-          <div class="expose-title">
-            <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
+    {{-- Right: full-height image fading to transparent on the left --}}
+    <div style="position: absolute; right: 0; top: 0; width: 55%; height: 100%; overflow: hidden; z-index: 0;">
+      <img src="{{ $heroImages[0] ?? ($data['assets']['area'][0] ?? '') }}" alt="Property illustration"
+        style="width: 100%; height: 100%; object-fit: cover; -webkit-mask-image: linear-gradient(to right, transparent 0%, black 38%); mask-image: linear-gradient(to right, transparent 0%, black 38%);" />
+    </div>
 
-            <div class="text">
-              <h1 style="margin-bottom: 0">PROPERTY OVERVIEW</h1>
-            </div>
-          </div>
+    {{-- Left: content column --}}
+    <div class="container" style="width: 50%; box-sizing: border-box; position: relative; z-index: 1;">
+      <div class="expose-title">
+        <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
+        <div class="text">
+          <h1 style="margin-bottom: 0">PROPERTY OVERVIEW</h1>
+        </div>
+      </div>
 
-          <div class="items">
-            {{-- Location: project location name --}}
-            <div class="item">
-              <h3 class="item-header">Location</h3>
-              <div class="item-value">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
-            </div>
+      <div class="items">
+        {{-- Location --}}
+        <div class="item">
+          <h3 class="item-header">Location</h3>
+          <div class="item-value">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
+        </div>
 
-            {{-- Unit Styles: Studio / 1+1 / 1+1 Loft / 2+1 Loft --}}
-            @if(!empty($unitStyleList))
-            <div class="item">
-              <h3 class="item-header">Types</h3>
-              <div class="item-value">{{ implode(' / ', $unitStyleList) }}</div>
-            </div>
-            @endif
+        {{-- Property Type --}}
+        @if(!empty($data['property_type_label']) || !empty($data['property_type']))
+        <div class="item">
+          <h3 class="item-header">Property Type</h3>
+          <div class="item-value">{{ $data['property_type_label'] ?? ucfirst(str_replace('_', ' ', $data['property_type'])) }}</div>
+        </div>
+        @endif
 
-            {{-- Completion Date --}}
-            <div class="item">
-              <h3 class="item-header">Completion Date</h3>
-              <div class="item-value">
-                @php
-                  $completionRaw = $data['completion_date'] ?? null;
-                  if (!empty($completionRaw)) {
-                    try {
-                      $completionDt = \Carbon\Carbon::parse($completionRaw);
-                      $completionDisplay = $completionDt->isPast()
-                        ? 'Ready to move in'
-                        : $completionDt->format('d, M, Y');
-                    } catch (\Exception $e) {
-                      $completionDisplay = $completionRaw;
-                    }
-                  } else {
-                    $completionDisplay = 'N/A';
-                  }
-                @endphp
-                {{ $completionDisplay }}
-              </div>
-            </div>
+        {{-- Price --}}
+        @if(!empty($data['price']))
+        <div class="item">
+          <h3 class="item-header">Price</h3>
+          <div class="item-value">{{ $data['price'] }}</div>
+        </div>
+        @endif
 
-            {{-- Facilities --}}
-            @if(!empty($facilityItems))
-            <div class="item">
-              <h3 class="item-header">Facilities</h3>
-              <ul class="item-list">
-                @foreach($facilityItems as $facility)
-                <li>{{ $facility['label'] }}</li>
-                @endforeach
-              </ul>
-            </div>
+        {{-- Living Area --}}
+        @if(!empty($data['living_area_sqm']) || !empty($data['gross_sqm']))
+        <div class="item">
+          <h3 class="item-header">Living Area</h3>
+          <div class="item-value">
+            {{ $data['living_area_sqm'] ?? '—' }} m²
+            @if(!empty($data['gross_sqm']))
+              <span style="color:#999; font-size:14px;">({{ $data['gross_sqm'] }} m² gross)</span>
             @endif
           </div>
         </div>
+        @endif
 
-        <div class="col-half" style="display: flex; justify-content: center; align-items: center">
-          <div class="overflow-illustration">
-            <img src="{{ $data['assets']['area'][0] ?? $heroImages[0] ?? 'property/images/test.png' }}" alt="Property illustration" />
-          </div>
+        {{-- Floor --}}
+        @if(!empty($data['floor']))
+        <div class="item">
+          <h3 class="item-header">Floor</h3>
+          <div class="item-value">{{ $data['floor'] }}</div>
         </div>
+        @endif
+
+        {{-- Rooms --}}
+        @php
+          $roomLines = [];
+          if (!empty($data['bedrooms']))    $roomLines[] = $data['bedrooms'] . ' Bedroom' . ($data['bedrooms'] != 1 ? 's' : '');
+          if (!empty($data['bathrooms']))   $roomLines[] = $data['bathrooms'] . ' Bathroom' . ($data['bathrooms'] != 1 ? 's' : '');
+          if (!empty($data['total_rooms'])) $roomLines[] = $data['total_rooms'] . ' Total Rooms';
+          if (!empty($data['living_room'])) $roomLines[] = $data['living_room'] . ' Living Room' . ($data['living_room'] != 1 ? 's' : '');
+        @endphp
+        @if(!empty($roomLines))
+        <div class="item">
+          <h3 class="item-header">Rooms</h3>
+          <ul class="item-list">
+            @foreach($roomLines as $line)
+            <li>{{ $line }}</li>
+            @endforeach
+          </ul>
+        </div>
+        @endif
+
+        {{-- Views --}}
+        @php
+          $viewDisplay = null;
+          if (!empty($data['view_type_labels']) && is_array($data['view_type_labels'])) {
+            $viewDisplay = implode(', ', $data['view_type_labels']);
+          } elseif (!empty($data['view_types']) && is_array($data['view_types'])) {
+            $viewDisplay = implode(', ', array_map(fn($v) => ucfirst(str_replace('_', ' ', $v)), $data['view_types']));
+          }
+        @endphp
+        @if(!empty($viewDisplay))
+        <div class="item">
+          <h3 class="item-header">Views</h3>
+          <div class="item-value">{{ $viewDisplay }}</div>
+        </div>
+        @endif
+
+        {{-- Furniture --}}
+        @if(!empty($data['furniture_label']) || !empty($data['furniture_status']))
+        <div class="item">
+          <h3 class="item-header">Furniture</h3>
+          <div class="item-value">{{ $data['furniture_label'] ?? ucfirst(str_replace('_', ' ', $data['furniture_status'])) }}</div>
+        </div>
+        @endif
       </div>
     </div>
 
     <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
   </div>
 
-  <!-- PAGE — First exterior image full page -->
-  @if(!empty($exteriorImages[0]))
-  <div class="page bg" style="--bg-image: url('{{ $exteriorImages[0] }}')">
+  <!-- PAGE 3: FEATURED IMAGES GRID (exterior[0–2] as featured-grid with section label) -->
+  <div class="page">
+    <div class="container">
+      <div class="featured-grid">
+        {{-- Left column: first exterior image with sharp_page_header label overlay --}}
+        <div class="left-column" style="--bg-image: url('{{ $exteriorImages[0] ?? ($heroImages[0] ?? '') }}'); position: relative;">
+          <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
+            <div style="position: relative; display: inline-block; line-height: 0;">
+              <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
+                style="height: 72px; width: auto; display: block;" />
+              <span style="position: absolute; top: 50%; left: 42%; transform: translateY(-50%); color: #053160; font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">Exterior</span>
+            </div>
+          </div>
+        </div>
+        {{-- Right top --}}
+        <div class="right-top" style="--bg-image: url('{{ $exteriorImages[1] ?? ($heroImages[0] ?? '') }}')"></div>
+        {{-- Right bottom --}}
+        <div class="right-bottom" style="--bg-image: url('{{ $exteriorImages[2] ?? ($heroImages[0] ?? '') }}')"></div>
+      </div>
+    </div>
     <div class="logo-watermark">
       <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
     <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
   </div>
-  @endif
 
   @php
-    $remainingExterior = array_slice($exteriorImages, 1);
+    $remainingExterior = array_slice($exteriorImages, 3);
     $exteriorGridImages = array_slice($remainingExterior, 0, 4);
     $exteriorExtraImage = $remainingExterior[4] ?? null;
   @endphp
 
-  <!-- PAGE — Exterior remainder page (grid/full depending on count) -->
+  <!-- PAGE — Exterior remainder page (grid/full depending on count, exterior[3+]) -->
   @if(!empty($remainingExterior))
   <div class="page">
     <div class="container">
@@ -915,10 +1107,10 @@ p {
         </div>
       @else
         <div class="quad-grid">
-          <div class="left-top" style="--bg-image: url('{{ $exteriorGridImages[0] ?? 'property/images/test.png' }}')"></div>
-          <div class="left-bottom" style="--bg-image: url('{{ $exteriorGridImages[1] ?? 'property/images/test.png' }}')"></div>
-          <div class="right-top" style="--bg-image: url('{{ $exteriorGridImages[2] ?? 'property/images/test.png' }}')"></div>
-          <div class="right-bottom" style="--bg-image: url('{{ $exteriorGridImages[3] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $exteriorGridImages[0] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $exteriorGridImages[1] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $exteriorGridImages[2] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $exteriorGridImages[3] ?? 'property/images/test.png' }}')"></div>
         </div>
       @endif
 
@@ -930,20 +1122,20 @@ p {
   </div>
   @endif
 
-  <!-- PAGE — Sixth exterior full screen fallback -->
+  <!-- PAGE 4: FULL BACKGROUND (exterior overflow full page) -->
   @if(!empty($exteriorExtraImage))
   <div class="page bg" style="--bg-image: url('{{ $exteriorExtraImage }}')">
     <div class="logo-watermark">
-      <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
+      <img src="{{ $data['branding']['logo_blue'] }}" alt="hibarr-logo" />
     </div>
     <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
   </div>
   @endif
 
-  <!-- PAGE — FACILITIES / AMENITIES GALLERY -->
+  <!-- PAGE 5: FACILITIES GALLERY -->
   @if(!empty($facilityItems))
   <div class="page">
-    <div class="container">
+    <div class="container" style="position: relative; z-index: 1;">
       <div class="header">
         <span class="title">FACILITIES</span>
         <img style="width: 12%" src="{{ $data['company']['logo'] ?? $data['branding']['logo_full'] }}" alt="hibarr-logo" />
@@ -952,13 +1144,9 @@ p {
       <div class="gallery-grid">
         @foreach(array_slice($facilityItems, 0, 6) as $index => $facility)
           <div class="gallery-item">
-            <div class="placeholder-img">
-              @if(!empty($facility['image']))
-                <img src="{{ $facility['image'] }}" alt="facility {{ $index + 1 }}" style="width:100%;height:100%;object-fit:cover;" />
-              @else
-                Facility {{ $index + 1 }}
-              @endif
-            </div>
+            @if(!empty($facility['image']))
+              <img src="{{ $facility['image'] }}" alt="{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}" />
+            @endif
             <div class="title">
               <span>{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}</span>
             </div>
@@ -984,7 +1172,7 @@ p {
   </div>
   @endif
 
-  <!-- PAGE(S) — Unit style pages with gallery-only images -->
+  <!-- PAGE(S) 6: UNIT DESCRIPTION — one page per unit style -->
   @foreach($unitStyleList as $styleLabel)
   @php
     $styleImage = $galleryImages[$galleryCursor] ?? null;
@@ -993,14 +1181,15 @@ p {
     }
   @endphp
   <div class="page">
-    <div class="container" style="padding: 5mm">
-      <div class="row overview-layout">
-        <div class="col-5">
+    <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-bg" alt="" />
+    <div class="container" style="padding: 5mm; position: relative; z-index: 1;">
+      <div class="row overview-layout" style="align-items: stretch;">
+        <div class="col-5" style="display: flex; flex-direction: column; justify-content: center;">
           <div class="content">
             <div class="expose-title">
               <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
               <div class="text blue">
-                <h1 class="fw-500">{{ strtoupper((string) $styleLabel) }}</h1>
+                <h1 class="fw-500 rounded-text">{{ strtoupper((string) $styleLabel) }}</h1>
               </div>
             </div>
 
@@ -1012,18 +1201,16 @@ p {
           </div>
         </div>
 
-        <div class="col-7">
-          <div class="illustration">
+        <div class="col-7" style="display: flex; align-items: center; padding: 10mm 0 10mm 5mm;">
+          <div class="illustration" style="height: 80%; width: 100%; border-radius: 0.5rem; overflow: hidden;">
             @if(!empty($styleImage))
-            <img src="{{ $styleImage }}" alt="{{ $styleLabel }}" />
-            @else
-            <div class="placeholder-img">Gallery Image</div>
+            <img src="{{ $styleImage }}" alt="{{ $styleLabel }}" style="width: 100%; height: 100%; object-fit: cover;" />
             @endif
           </div>
         </div>
       </div>
     </div>
-
+    <div class="footer-brand">{{ $data['company']['name'] ?? 'Premium Real Estate' }}</div>
     <div class="logo-watermark">
       <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
@@ -1068,10 +1255,10 @@ p {
         </div>
       @else
         <div class="quad-grid">
-          <div class="left-top" style="--bg-image: url('{{ $galleryGridImages[0] ?? 'property/images/test.png' }}')"></div>
-          <div class="left-bottom" style="--bg-image: url('{{ $galleryGridImages[1] ?? 'property/images/test.png' }}')"></div>
-          <div class="right-top" style="--bg-image: url('{{ $galleryGridImages[2] ?? 'property/images/test.png' }}')"></div>
-          <div class="right-bottom" style="--bg-image: url('{{ $galleryGridImages[3] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[0] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[1] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[2] ?? 'property/images/test.png' }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[3] ?? 'property/images/test.png' }}')"></div>
         </div>
       @endif
 
@@ -1083,74 +1270,63 @@ p {
   </div>
   @endif
 
-  <!-- PAGE: Unit Layout -->
+  <!-- PAGE 8: UNIT LAYOUT / FLOOR PLAN -->
   <div class="page">
-    <div class="container">
-    <div class="row">
-      <div class="col-4">
-      <div class="">
-        <div class="block-title">
-        <img
-          style="width: 80%"
-          src="{{ $data['branding']['block_title'] }}"
-          alt="rounded"
-        />
-
-        <div class="text">
-          <h1>{{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }} {{ strtoupper(is_array($data['unit_style'] ?? null) ? implode(' / ', $data['unit_style']) : ($data['unit_style'] ?? 'UNIT')) }} <span class="more">{{ !empty($data['block_name']) ? '(' . strtoupper($data['block_name']) . ')' : '' }}</span></h1>
+    <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-bg" alt="" />
+    <div class="container" style="position:relative; z-index:1;">
+      {{-- Top row: block-title card + floor plan image, centred together --}}
+      <div style="display:flex; align-items:center; justify-content:center; gap:2rem; flex:1; min-height:0;">
+        {{-- Block title card --}}
+        <div class="block-title" style="width:auto; flex-shrink:0; max-height:306px; position:relative;">
+          <img src="{{ $data['branding']['block_title'] }}" alt="block-title"
+               style="height:306px; width:auto; display:block;" />
+          <div class="text">
+            <h1 style="font-size:17px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
+              {{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }}
+              <br><span class="more" style="font-weight:400;">{{ strtoupper(is_array($data['unit_style'] ?? null) ? implode(' / ', $data['unit_style']) : ($data['unit_style'] ?? 'UNIT')) }}{{ !empty($data['block_name']) ? ' (' . strtoupper($data['block_name']) . ')' : '' }}</span>
+            </h1>
+          </div>
         </div>
+        {{-- Floor plan image --}}
+        <div style="max-height:306px; display:flex; align-items:center;">
+          @if(!empty($data['assets']['floor-plan'][0]))
+            <img src="{{ $data['assets']['floor-plan'][0] }}" alt="Floor plan"
+                 style="max-height:306px; max-width:100%; object-fit:contain;" />
+          @elseif(!empty($data['assets']['interior'][0]))
+            <img src="{{ $data['assets']['interior'][0] }}" alt="Interior"
+                 style="max-height:306px; max-width:100%; object-fit:contain;" />
+          @endif
         </div>
-
+      </div>
+      {{-- Bottom row: unit details centred --}}
+      @if(!empty($data['unit_number']) || !empty($data['living_area_sqm']) || !empty($data['gross_sqm']) || !empty($data['balcony_count']))
+      <div style="display:flex; justify-content:center; gap:3rem; margin-top:1.5rem;">
         @if(!empty($data['unit_number']))
-        <div style="margin-top: 1rem; padding-left: 10px;">
-          <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Unit Number</h3>
-          <p style="color: #053160; font-size: 18px; font-weight: 600;">{{ $data['unit_number'] }}</p>
+        <div style="text-align:center;">
+          <h3 style="color:#888; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin:0 0 4px;">Unit Number</h3>
+          <p style="color:#053160; font-size:16px; font-weight:600; margin:0;">{{ $data['unit_number'] }}</p>
         </div>
         @endif
-
         @if(!empty($data['living_area_sqm']) || !empty($data['gross_sqm']))
-        <div style="margin-top: 1rem; padding-left: 10px;">
-          <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Area</h3>
-          <p style="color: #053160; font-size: 18px; font-weight: 600;">
+        <div style="text-align:center;">
+          <h3 style="color:#888; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin:0 0 4px;">Area</h3>
+          <p style="color:#053160; font-size:16px; font-weight:600; margin:0;">
             {{ $data['living_area_sqm'] ?? '—' }} m²
             @if(!empty($data['gross_sqm']))
-              <span style="font-weight: 400; font-size: 14px; color: #888;">({{ $data['gross_sqm'] }} m² gross)</span>
+              <span style="font-weight:400; font-size:13px; color:#888;">({{ $data['gross_sqm'] }} m² gross)</span>
             @endif
           </p>
         </div>
         @endif
-
         @if(!empty($data['balcony_count']))
-        <div style="margin-top: 1rem; padding-left: 10px;">
-          <h3 style="color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: 1px;">Balcony</h3>
-          <p style="color: #053160; font-size: 18px; font-weight: 600;">
-            {{ $data['balcony_count'] }}{{ !empty($data['balcony_net_sqm']) ? ' (' . $data['balcony_net_sqm'] . ' m²)' : '' }}
-          </p>
+        <div style="text-align:center;">
+          <h3 style="color:#888; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin:0 0 4px;">Balcony</h3>
+          <p style="color:#053160; font-size:16px; font-weight:600; margin:0;">{{ $data['balcony_count'] }}{{ !empty($data['balcony_net_sqm']) ? ' (' . $data['balcony_net_sqm'] . ' m²)' : '' }}</p>
         </div>
         @endif
       </div>
-      </div>
-
-      <div class="col-8">
-      <div class="content flex-center">
-        @if(!empty($data['assets']['floor-plan'][0]))
-          <div class="illustration" style="width: 90%; height: 100%; display: flex; align-items: center; justify-content: center;">
-            <img src="{{ $data['assets']['floor-plan'][0] }}" alt="Floor plan" style="max-height: 100%; max-width: 100%; object-fit: contain;" />
-          </div>
-        @elseif(!empty($data['assets']['interior'][0]))
-          <div class="illustration" style="width: 90%; height: 100%;">
-            <img src="{{ $data['assets']['interior'][0] }}" alt="Interior" />
-          </div>
-        @else
-          <div class="placeholder-img" style="width: 90%; height: 200px">
-            Floor Plan
-          </div>
-        @endif
-      </div>
-      </div>
+      @endif
     </div>
-    </div>
-
     <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
   </div>
 
@@ -1298,49 +1474,49 @@ p {
 </div>
 --}}
 
-<!-- PAGE — Split layout with quote -->
+<!-- PAGE 9: SPLIT LAYOUT WITH QUOTE -->
 <div class="page">
-    <div class="split-page">
-    <div class="split-top" style="--bg-image: url('{{ $outroPrimaryImage }}')"></div>
+    <div class="split-page" style="position:relative; z-index:1;">
+        <div class="split-top" style="--bg-image: url('{{ $outroPrimaryImage }}')"></div>
         <div class="split-bottom">
+            <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
+            <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
             <div class="container">
-                <p>
-          {{ $outroDescription }}
-                </p>
+                <p>{{ $outroDescription }}</p>
             </div>
         </div>
         <div class="expose-title blue absolute">
-            <img style="width: 80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
+            <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
             <div class="text blue">
-        <h1 class="fw-500">{{ strtoupper($outroTitle) }}</h1>
+                <h1 class="fw-500">{{ strtoupper($outroTitle) }}</h1>
             </div>
         </div>
-        <div class="rock-shape">
-      <img src="{{ $outroSecondaryImage }}" alt="rock" />
+        <div class="rock">
+            <img src="{{ $outroSecondaryImage }}" alt="rock" />
         </div>
     </div>
-  <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
 </div>
 
 <!-- PAGE — Project location spotlight -->
 @if(!empty($locationTitle) || !empty($locationDescription) || !empty($locationImage))
 <div class="page">
-  <div class="split-page">
+  <div class="split-page" style="position:relative; z-index:1;">
     <div class="split-top" style="--bg-image: url('{{ $locationImage ?? $outroPrimaryImage }}')"></div>
     <div class="split-bottom">
+      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
+      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
       <div class="container">
-        <p>
-          {{ !empty($locationDescription) ? Str::limit(strip_tags($locationDescription), 320) : 'Explore the surrounding neighborhood and its unique lifestyle advantages.' }}
-        </p>
+        <p>{{ !empty($locationDescription) ? Str::limit(strip_tags($locationDescription), 320) : 'Explore the surrounding neighborhood and its unique lifestyle advantages.' }}</p>
       </div>
     </div>
     <div class="expose-title blue absolute">
-      <img style="width: 80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
+      <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
       <div class="text blue">
         <h1 class="fw-500">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
       </div>
     </div>
-    <div class="rock-shape">
+    <div class="rock">
       <img src="{{ $locationImage ?? $outroSecondaryImage }}" alt="location" />
     </div>
   </div>
@@ -1348,35 +1524,84 @@ p {
 </div>
 @endif
 
-<!-- PAGE — Infrastructure / Distances -->
+<!-- PAGE 10: INFRASTRUCTURE / DISTANCES -->
 @if(!empty($data['distances']))
+@php
+  $distanceList  = array_values($data['distances']);
+  $leftDistances = array_slice($distanceList, 0, 4);
+  // Airport rows: first 3 non-left items, or fallback to all distances
+  $airportItems  = array_slice($distanceList, 0, 3);
+  $airportPin    = $data['location_pin'] ?? ['label' => 'LOCATION', 'left' => '48%', 'top' => '40%'];
+@endphp
 <div class="page">
-    <div class="infrastructure">
-        <div class="header">
-            <span class="title">INFRASTRUCTURE</span>
-            <span class="title end">DISTANCES</span>
-        </div>
-
-        <div class="container">
-            <div class="row">
-                <div class="col-5">
-                    <div class="infrastructure-grid">
-                        @foreach($data['distances'] as $key => $distance)
-                            @if($loop->index < 6)
-                            <div class="grid-item">
-                                <img src="{{ $data['assets']['exterior'][$loop->index] ?? 'property/images/test.png' }}" alt="{{ $distance['name'] ?? $key }}">
-                                <span>{{ $distance['name'] ?? ucwords(str_replace('_', ' ', $key)) }}</span>
-                                <p>{{ $distance['time'] ?? $distance['distance'] ?? $distance }} {{ is_numeric($distance['time'] ?? $distance['distance'] ?? $distance) ? 'min' : '' }}</p>
-                            </div>
-                            @endif
-                        @endforeach
-                    </div>
-                </div>
-                <div class="col-7"></div>
-            </div>
-        </div>
+  <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
+  <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
+  <div class="infrastructure">
+    <div class="header">
+      <span class="title">INFRASTRUCTURE</span>
+      <span class="title end">DISTANCES</span>
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    <div class="container">
+      <div class="row">
+        {{-- Left: grid of up to 4 distance items --}}
+        <div class="col-half">
+          <div class="infrastructure-grid">
+            @foreach($leftDistances as $i => $distance)
+            <div class="grid-item">
+              <img src="{{ $data['assets']['exterior'][$i] ?? ($data['assets']['interior'][$i] ?? 'property/images/test.png') }}" alt="{{ $distance['name'] ?? '' }}" />
+              <span>{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$i] ?? '')) }}</span>
+              <p>{{ $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }} {{ is_numeric($distance['time'] ?? $distance['distance'] ?? null) ? 'min' : '' }}</p>
+            </div>
+            @endforeach
+          </div>
+        </div>
+        {{-- Right: airport-grid with map + airport items --}}
+        <div class="col-half">
+          <div class="airport-grid">
+            <div class="airport-row">
+              <div class="airport-map">
+                <img src="{{ $data['branding']['map'] }}" alt="Map" />
+                <div class="map-pin" style="left:{{ $airportPin['left'] ?? '48%' }}; top:{{ $airportPin['top'] ?? '40%' }};">
+                  <div class="map-pin-label">{{ strtoupper($airportPin['label'] ?? ($airportItems[0]['name'] ?? 'LOCATION')) }}</div>
+                  <img src="{{ $data['branding']['pin'] }}" alt="pin" />
+                </div>
+              </div>
+              @if(!empty($airportItems[0]))
+              @php $a = $airportItems[0]; @endphp
+              <div class="airport-item">
+                <img src="{{ $data['assets']['exterior'][0] ?? 'property/images/test.png' }}" alt="{{ $a['name'] ?? '' }}" />
+                <span>{{ strtoupper($a['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[0] ?? ''))) }}</span>
+                <p>{{ $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }}</p>
+              </div>
+              @endif
+            </div>
+            <div class="airport-row">
+              @if(!empty($airportItems[1]))
+              @php $b = $airportItems[1]; @endphp
+              <div class="airport-item">
+                <img src="{{ $data['assets']['exterior'][1] ?? 'property/images/test.png' }}" alt="{{ $b['name'] ?? '' }}" />
+                <span>{{ strtoupper($b['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[1] ?? ''))) }}</span>
+                <p>{{ $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }}</p>
+              </div>
+              @endif
+              @if(!empty($airportItems[2]))
+              @php $c = $airportItems[2]; @endphp
+              <div class="airport-item">
+                <img src="{{ $data['assets']['exterior'][2] ?? 'property/images/test.png' }}" alt="{{ $c['name'] ?? '' }}" />
+                <span>{{ strtoupper($c['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[2] ?? ''))) }}</span>
+                <p>{{ $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }}</p>
+              </div>
+              @endif
+              <div class="airport-logo">
+                <img src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
 </div>
 @endif
 
@@ -1392,64 +1617,34 @@ p {
 </div>
 @endif
 
-<!-- PAGE — Closure / Contact -->
+<!-- PAGE 12: CLOSURE / CONTACT -->
 <div class="page">
-    <div class="bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/images/test.png' }}'); display: flex; justify-content: flex-end; height: 100%;">
+    <div class="bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/images/test.png' }}'); display:flex; justify-content:flex-end; height:100%;">
         <div class="container">
-            <div class="closure">
-                <img style="width: 65%" src="{{ $data['company']['logo'] }}" alt="Hibarr Logo" />
-
-                <div>
-                    <h1>{{ $data['agent']['name'] ?? 'Rabih Rabea' }}</h1>
-                    <p>{{ $data['agent']['position'] ?? 'Real Estate Consultant' }}</p>
+            <div class="closure" style="position:relative; overflow:hidden; z-index:0;">
+                <img src="{{ $data['branding']['panther_watermark'] }}" alt=""
+                    style="position:absolute; bottom:0; right:-10%; height:85%; width:auto; opacity:0.07; z-index:-1; pointer-events:none;" />
+                <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:2rem; width:100%;">
+                    <img style="width:65%;" src="{{ $data['company']['logo'] }}" alt="Hibarr Logo" />
+                    <div>
+                        <h1>{{ $data['agent']['name'] ?? 'Rabih Rabea' }}</h1>
+                        <p>{{ $data['agent']['position'] ?? 'Real Estate Consultant' }}</p>
+                    </div>
+                    <div>
+                        <a href="mailto:{{ $data['agent']['email'] ?? 'info@hibarr.de' }}">
+                            <h2>{{ $data['agent']['email'] ?? 'info@hibarr.de' }}</h2>
+                        </a>
+                        <a href="tel:{{ str_replace([' ', '+'], '', $data['agent']['phone'] ?? '+491731009900') }}">
+                            <h2>{{ $data['agent']['phone'] ?? '+49 173 100 99 00' }}</h2>
+                        </a>
+                    </div>
+                    <div>
+                        <a href="https://{{ $data['company']['website'] ?? 'www.hibarr.de' }}">{{ $data['company']['website'] ?? 'www.hibarr.de' }}</a>
+                        <h2>{{ $data['company']['address'] ?? 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus' }}</h2>
+                    </div>
                 </div>
-
-                <div>
-                    <a href="mailto:{{ $data['agent']['email'] ?? 'info@hibarr.de' }}"><h2>{{ $data['agent']['email'] ?? 'info@hibarr.de' }}</h2></a>
-                    <a href="tel:{{ str_replace([' ','+'], '', $data['agent']['phone'] ?? '+491731009900') }}"><h2>{{ $data['agent']['phone'] ?? '+49 173 100 99 00' }}</h2></a>
-                </div>
-
-                <div>
-                    <a href="https://{{ $data['company']['website'] ?? 'www.hibarr.de' }}">{{ $data['company']['website'] ?? 'www.hibarr.de' }}</a>
-                    <h2>{{ $data['company']['address'] ?? 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus' }}</h2>
-                </div>
-{{-- 
-                @if(($outroConfig['enabled'] ?? false) || ($qrConfig['enabled'] ?? false))
-                  <div style="margin-top: 18px; background: rgba(255, 255, 255, 0.92); border-radius: 14px; padding: 14px; max-width: 560px; color: #053160;">
-                    @if($outroConfig['enabled'] ?? false)
-                      @if(!empty($outroConfig['title']))
-                        <h2 style="margin: 0 0 8px 0; font-size: 22px; line-height: 1.2; color: #053160;">{{ $outroConfig['title'] }}</h2>
-                      @endif
-
-                      @if(!empty($outroConfig['description']))
-                        <p style="margin: 0 0 10px 0; font-size: 14px; line-height: 1.45; color: #053160;">{{ $outroConfig['description'] }}</p>
-                      @endif
-
-                      @if(!empty($outroConfig['primary_image_url']) || !empty($outroConfig['secondary_image_url']))
-                        <div style="display: flex; gap: 8px; align-items: flex-start; margin-top: 10px;">
-                          @if(!empty($outroConfig['primary_image_url']))
-                            <img src="{{ $outroConfig['primary_image_url'] }}" alt="outro-primary" style="width: 58%; max-height: 110px; object-fit: cover; border-radius: 8px;" />
-                          @endif
-                          @if(!empty($outroConfig['secondary_image_url']))
-                            <img src="{{ $outroConfig['secondary_image_url'] }}" alt="outro-secondary" style="width: 42%; max-height: 110px; object-fit: cover; border-radius: 8px;" />
-                          @endif
-                        </div>
-                      @endif
-                    @endif
-
-                    @if(($qrConfig['enabled'] ?? false) && !empty($qrConfig['qr_code_data_uri']))
-                      <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px;">
-                        <img src="{{ $qrConfig['qr_code_data_uri'] }}" alt="Expose QR Code" style="width: 84px; height: 84px;" />
-                        <div style="font-size: 12px; line-height: 1.3; color: #053160; max-width: 420px; word-break: break-all;">
-                          <strong>Scan for more details</strong><br>
-                          {{ $qrConfig['link'] ?? '' }}
-                        </div>
-                      </div>
-                    @endif
-                  </div>
-                @endif --}}
             </div>
         </div>
     </div>
-        <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
 </div>
