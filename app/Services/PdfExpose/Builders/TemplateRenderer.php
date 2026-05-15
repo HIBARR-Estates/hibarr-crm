@@ -12,23 +12,41 @@ use Illuminate\Support\Facades\View;
 class TemplateRenderer
 {
     /**
-     * Hardcoded branding URLs used across expose templates.
-     * These are converted to base64 data URIs so the PDF HTML is fully self-contained
-     * and doesn't depend on Puppeteer being able to reach minio over the network.
+     * Return branding asset URLs used across expose templates.
+     *
+     * Minio-hosted images are fetched over HTTPS and cached as base64.
+     * Local app images (served from public/) are resolved to disk files by
+     * tryReadLocal() and converted without any HTTP request.
+     *
+     * Using a static method (rather than a const) allows calling url() at
+     * runtime so local asset paths resolve correctly in all environments.
      */
-    private const BRANDING_URLS = [
-        'logo_expose'          => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719874403-1303eff6-hibarr-expose.png',
-        'logo_rounded'         => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
-        'logo_white'           => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
-        'block_title'          => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
-        'logo_full'            => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
-        'name_space'           => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778193858830-ad66988e-name-space.png',
-        'hibarr_expose_text'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778194049167-64036beb-hibarr-expose-text.png',
-        'project_overview'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778220690459-2ef518d6-project-overview-space-for-img.png',
-        // examples to match
-        'cover_image_project'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778197940203-011a688d-cover-image-project.png',
-        'project_overview_example'   => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778204830425-e578b585-project-overview.png',
-    ];
+    private static function getBrandingUrls(): array
+    {
+        return [
+            // — Minio-hosted branding images —
+            'logo_expose'             => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719874403-1303eff6-hibarr-expose.png',
+            'logo_rounded'            => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
+            'logo_white'              => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
+            'block_title'             => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
+            'logo_full'               => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
+            'name_space'              => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778193858830-ad66988e-name-space.png',
+            'hibarr_expose_text'      => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778194049167-64036beb-hibarr-expose-text.png',
+            'project_overview'        => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778220690459-2ef518d6-project-overview-space-for-img.png',
+            'cover_image_project'     => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778197940203-011a688d-cover-image-project.png',
+            'project_overview_example'=> 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778204830425-e578b585-project-overview.png',
+
+            // — Local app assets (public/property/assets/) —
+            // tryReadLocal() detects the APP_URL prefix and reads from disk,
+            // so these are base64-encoded without any outbound HTTP request.
+            'panther_watermark'       => url('/property/assets/panther_watermark.svg'),
+            'logo_blue'               => url('/property/assets/logo_blue.svg'),
+            'expose_name_client'      => url('/property/assets/expose_name_client.svg'),
+            'sharp_page_header'       => url('/property/assets/sharp_page_header.svg'),
+            'map'                     => url('/property/assets/map.svg'),
+            'pin'                     => url('/property/assets/pin.svg'),
+        ];
+    }
 
     /**
      * Render HTML from Blade template.
@@ -168,7 +186,7 @@ class TemplateRenderer
         return Cache::remember('expose_branding_base64', 86400, function () {
             $branding = [];
 
-            foreach (self::BRANDING_URLS as $key => $url) {
+            foreach (static::getBrandingUrls() as $key => $url) {
                 $branding[$key] = self::urlToBase64($url);
             }
 
