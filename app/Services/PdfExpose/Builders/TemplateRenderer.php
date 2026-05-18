@@ -25,10 +25,10 @@ class TemplateRenderer
     {
         return [
             // — Minio-hosted branding images —
-            'logo_expose'             => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719874403-1303eff6-hibarr-expose.png',
-            'logo_rounded'            => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
-            'logo_white'              => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
-            'block_title'             => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
+            // 'logo_expose'             => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719874403-1303eff6-hibarr-expose.png',
+            // 'logo_rounded'            => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
+            // 'logo_white'              => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
+            // 'block_title'             => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
             'logo_full'               => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
             'name_space'              => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778193858830-ad66988e-name-space.png',
             'hibarr_expose_text'      => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778194049167-64036beb-hibarr-expose-text.png',
@@ -45,6 +45,11 @@ class TemplateRenderer
             'sharp_page_header'       => url('/property/assets/sharp_page_header.svg'),
             'map'                     => url('/property/assets/map.svg'),
             'pin'                     => url('/property/assets/pin.svg'),
+            'hibarr_expose_logo'         => url('/property/icons/hibarr-expose.png'),
+            'logo_white'              => url('/property/icons/logo-white.png'),
+            'logo_rounded'              => url('/property/icons/hibarr-rounded.png'),
+            'block_title'              => url('/property/icons/block-title.svg'),
+            'arrow'                    => url('/property/assets/arrow.svg'),
         ];
     }
 
