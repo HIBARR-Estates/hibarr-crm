@@ -50,7 +50,7 @@ export const NotesList: React.FC<NotesListProps> = ({
     const filteredNotes = notes.filter(
         (note) =>
             note.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            note.details?.toLowerCase().includes(searchTerm.toLowerCase())
+            note.details?.toLowerCase().includes(searchTerm.toLowerCase()),
     );
 
     const renderAddNoteCard = () => {
@@ -121,7 +121,9 @@ export const NotesList: React.FC<NotesListProps> = ({
             {/* Notes Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
                 {/* Add Note Card - Show only when not searching */}
-                {!searchTerm && renderAddNoteCard()}
+                {!searchTerm && (
+                    <div className="col-span-2">{renderAddNoteCard()}</div>
+                )}
 
                 {/* Notes or Empty State */}
                 {filteredNotes.length === 0 &&

@@ -1,839 +1,874 @@
-<style>
-    @page {
-  size: 373.33mm 210mm;
-  margin: 0;
-}
-body {
-  margin: 0;
-  padding: 0;
-  font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
-  color: #333333;
-  background: #ffffff;
-  -webkit-print-color-adjust: exact;
-}
+  <style>
+        @page {
+            /* size: A4 landscape; */
+            size: 373.33mm 210mm;
+            margin: 0;
+        }
 
-.page {
-  width: 373.33mm;
-  height: 210mm;
-  position: relative;
-  page-break-after: always;
-  overflow: hidden;
-  background: white;
-}
-.page:last-child {
-  page-break-after: auto;
-}
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+            color: #333333;
+            background: #ffffff;
+            -webkit-print-color-adjust: exact;
+        }
 
-.bg {
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  min-height: 100%;
-}
+        .page {
+            /* height: 210mm; */
+            width: 373.33mm;
+            height: 210mm;
+            position: relative;
+            page-break-after: always;
+            overflow: hidden;
+            background: white;
+        }
 
-.logo img {
-  width: 30%;
-}
+        .page:last-child {
+            page-break-after: auto;
+        }
 
-.logo-watermark {
-  position: absolute;
-  bottom: 20mm;
-  right: 45mm;
-  width: 100px;
-  opacity: 0.8;
-}
+        .bg {
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            min-height: 100%;
+        }
 
-.panther-bg {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  height: 100%;
-  width: 100%;
-  z-index: 0;
-  pointer-events: none;
-}
+        .logo img {
+            width: 30%;
+        }
 
-.panther-dual-left,
-.panther-dual-right {
-  position: absolute;
-  bottom: 0;
-  height: 85%;
-  width: auto;
-  z-index: 0;
-  pointer-events: none;
-}
-.panther-dual-right {
-  right: 0;
-  transform: scaleX(-1);
-}
-.panther-dual-left {
-  left: 0;
-}
+        .logo-watermark-top,
+        .logo-watermark-bottom {
+            position: absolute;
+            display: flex;
+            justify-content: flex-end;
+        }
 
-.logo-placeholder {
-  width: 120px;
-  height: 40px;
-  background: #053160;
-  margin-bottom: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 10px;
-  letter-spacing: 2px;
-}
+        .logo-watermark-top {
+            top: 5mm;
+            right: 5mm;
+        }
 
-.expose-title {
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-.expose-title img {
-  position: relative;
-  z-index: 2;
-}
-.expose-title .text {
-  height: 3rem;
-  border-right: 0.375rem solid #053160;
-  border-bottom: 0.375rem solid #053160;
-  border-radius: 0 4rem 4rem 0;
-  padding: 12px 2rem;
-  display: flex;
-  align-items: center;
-  position: absolute;
-  left: 20%;
-  z-index: 1;
-  padding-left: 2rem;
-  white-space: nowrap;
-}
-.expose-title .text h1 {
-  color: #053160;
-}
-.expose-title .text.blue {
-  background-color: #053160;
-}
-.expose-title .text.blue h1 {
-  color: white;
-}
+        .logo-watermark-bottom {
+            bottom: 10mm;
+            right: 10mm;
+        }
 
-.block-title {
-  position: relative;
-  width: 100%;
-}
-.block-title img {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-}
-.block-title .text {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  text-align: center;
-  position: absolute;
-  top: 64%;
-  left: 8%;
-  width: 84%;
-  height: 30%;
-  z-index: 2;
-  padding: 0.25rem 0.5rem;
-}
+        .logo-watermark-top img,
+        .logo-watermark-bottom img {
+            width: 80%;
+            height: auto;
+        }
 
-.airport-grid {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  gap: 1rem;
-  padding: 1rem 0;
-  box-sizing: border-box;
-  overflow: visible;
-}
-.airport-row {
-  display: flex;
-  flex: 1;
-  gap: 1rem;
-  align-items: baseline;
-}
-.airport-map {
-  flex: 1;
-  overflow: visible;
-  border-radius: 0.5rem;
-  position: relative;
-  z-index: 2;
-}
-.airport-map > img {
-  width: 100%;
-  height: calc(100% + 30px);
-  object-fit: cover;
-  border-radius: 0.5rem;
-  display: block;
-}
-.map-pin {
-  position: absolute;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-  transform: translateX(-50%);
-}
-.map-pin-label {
-  background: #f12200;
-  color: white;
-  font-size: 8px;
-  font-weight: 700;
-  padding: 0.15rem 0.35rem;
-  border-radius: 0.2rem;
-  white-space: nowrap;
-  text-align: center;
-  line-height: 1.3;
-}
-.map-pin img {
-  width: 14px;
-  height: auto;
-  display: block;
-}
-.airport-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.4rem;
-  flex: 1;
-}
-.airport-item img {
-  width: 100%;
-  height: 183px;
-  object-fit: cover;
-}
-.airport-item span {
-  background: #053160;
-  color: white;
-  padding: 0.125rem 0.5rem;
-  text-align: center;
-  border-radius: 0.5rem;
-  font-size: 13px;
-  font-weight: 600;
-}
-.airport-item p {
-  font-size: 14px;
-  font-weight: 600;
-  color: #053160;
-  margin: 0;
-}
-.airport-logo {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-}
-.airport-logo img {
-  width: 80%;
-  height: auto;
-}
+        .expose-title {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
 
-.items {
-  padding-left: 60px;
-}
+        .expose-title img {
+            position: relative;
+            z-index: 2;
+        }
 
-.item {
-  margin-bottom: 1.5rem;
-}
-.item-header {
-  font-size: 16px;
-  font-weight: 700;
-  color: #053160;
-  margin-bottom: 5px;
-}
-.item-value {
-  font-size: 16px;
-  color: #053160;
-  font-weight: 400;
-}
-.item-list {
-  list-style-type: disc;
-  padding-left: 20px;
-  margin: 0;
-  color: #053160;
-  font-size: 16px;
-  line-height: 1.6;
-}
+        .expose-title .text {
+            height: 3rem;
+            border-right: 0.375rem solid #053160;
+            border-bottom: 0.375rem solid #053160;
+            border-radius: 0 4rem 4rem 0;
+            padding: 12px 2rem;
+            display: flex;
+            align-items: center;
+            position: absolute;
+            left: 20%;
+            z-index: 1;
+            padding-left: 2rem;
+            white-space: nowrap;
+        }
 
-.featured-grid {
-  display: grid;
-  grid-template-columns: 58.33% 41.67%;
-  grid-template-rows: 1fr 1fr;
-  gap: 10px;
-  height: 100%;
-  box-sizing: border-box;
-}
-.featured-grid > * {
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-}
-.featured-grid .left-column {
-  grid-row: 1/3;
-}
+        .expose-title .text h1 {
+            color: #053160;
+        }
 
-.quad-grid {
-  display: grid;
-  grid-template-columns: 50% 50%;
-  grid-template-rows: 1fr 1fr;
-  gap: 10px;
-  height: 100%;
-  box-sizing: border-box;
-}
-.quad-grid > * {
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-}
+        .expose-title .text.blue {
+            background-color: #053160;
+        }
 
-.tri-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-  gap: 10px;
-  height: 100%;
-  box-sizing: border-box;
-}
-.tri-grid > * {
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-}
-.tri-grid .bottom-wide {
-  grid-column: 1/3;
-}
+        .expose-title .text.blue h1 {
+            color: white;
+        }
 
-.duo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  height: 100%;
-  box-sizing: border-box;
-}
-.duo-grid > * {
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-}
+        .block-title {
+            position: relative;
+            width: 100%;
+        }
 
-.split-page {
-  height: 100%;
-  position: relative;
-  display: flex;
-  flex-direction: column;
-}
-.split-page .expose-title.absolute {
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  z-index: 10;
-}
-.split-page .expose-title .text {
-  padding: 0.5rem 2rem 0.5rem 8rem;
-}
-.split-page .expose-title .text h1 {
-  font-size: 32px;
-}
-.split-page .split-top {
-  height: 55%;
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-}
-.split-page .split-bottom {
-  position: relative;
-  height: 45%;
-  display: flex;
-  align-items: center;
-  padding: 2rem;
-}
-.split-page .split-bottom .container {
-  max-width: 80%;
-}
-.split-page .split-bottom p {
-  font-size: 16px;
-  line-height: 1.8;
-  color: #555555;
-  text-align: justify;
-  margin: 0;
-}
-.split-page .rock {
-  width: 450px;
-  height: 402px;
-  position: absolute;
-  right: 2%;
-  bottom: 15%;
-  overflow: hidden;
-  border-radius: 53% 47% 58% 42% / 38% 52% 48% 62%;
-  border: 8px solid white;
-  transform: rotate(-4deg);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, .12);
-  z-index: 5;
-}
-.split-page .rock img {
-  width: 100%;
-  height: 100%;
-  -o-object-fit: cover;
-     object-fit: cover;
-  transform: scale(1.05) rotate(4deg);
-}
-.split-page .rock::before,
-.split-page .rock::after {
-  content: "";
-  position: absolute;
-  background: white;
-  z-index: 3;
-}
+        .block-title img {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+        }
 
-.gallery-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-  height: 100%;
-  gap: 22px;
-}
+        .block-title .text {
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            text-align: center;
+            position: absolute;
+            top: 65%;
+            left: 8%;
+            width: 84%;
+            height: 30%;
+            z-index: 2;
+            padding: 0.25rem 0.5rem;
+        }
 
-.gallery-item {
-  width: 100%;
-  height: 100%;
-  background: #f5f5f5;
-  overflow: hidden;
-  border: 0.0625rem solid #ccc;
-  position: relative;
-}
-.gallery-item img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-.gallery-item .title {
-  position: absolute;
-  left: 0;
-  bottom: 1.75rem;
-  padding: 0.75rem 1.25rem;
-  font-size: 16px;
-  background: linear-gradient(to right, white 80%, transparent 100%);
-}
+        .panther-bg {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            height: 100%;
+            width: 100%;
+            z-index: 0;
+            pointer-events: none;
+        }
 
-.header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-.header .title {
-  background: #053160;
-  color: white;
-  padding: 0.25rem 2rem;
-  border-radius: 0 2rem 2rem 0;
-  min-width: 150px;
-  font-weight: 500;
-  font-size: 32px;
-}
-.header .title.end {
-  border-radius: 2rem 0 0 2rem;
-}
+        .panther-dual-left,
+        .panther-dual-right {
+            position: absolute;
+            bottom: 0;
+            height: 85%;
+            width: auto;
+            z-index: 0;
+            pointer-events: none;
+        }
 
-.overflow-illustration {
-  border-radius: 1rem;
-  display: flex;
-  transition: 0.3s all ease-in-out;
-  height: 100%;
-  width: 500px;
-  height: 500px;
-  transform: rotate(-45deg);
-}
-.overflow-illustration img {
-  margin: auto;
-  width: 100%;
-  height: 100%;
-  -o-object-fit: cover;
-     object-fit: cover;
-  border-radius: 2rem;
-}
+        .panther-dual-right {
+            right: 0;
+            transform: scaleX(-1);
+        }
 
-.illustration {
-  overflow: hidden;
-  transition: 0.3s all ease-in-out;
-  height: 100%;
-}
-.illustration img {
-  width: 100%;
-  height: 100%;
-  -o-object-fit: cover;
-     object-fit: cover;
-}
+        .panther-dual-left {
+            left: 0;
 
-.row {
-  display: flex;
-  gap: 2rem;
-  height: 100%;
-  width: 100%;
-}
+        }
 
-.col-left {
-  width: 60%;
-  height: 100%;
-  position: relative;
-}
+        .airport-grid {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            gap: 1rem;
+            padding: 1rem 0;
+            box-sizing: border-box;
+            overflow: visible;
+        }
 
-.col-right {
-  width: 40%;
-  height: 100%;
-  padding: 15mm;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  box-sizing: border-box;
-}
+        .airport-row {
+            display: flex;
+            flex: 1;
+            gap: 1rem;
+        }
 
-.col-half {
-  width: 50%;
-  box-sizing: border-box;
-}
+        .airport-map {
+            flex: 1;
+            overflow: visible;
+            border-radius: 0.5rem;
+            position: relative;
+            z-index: 2;
+        }
 
-.col-4 {
-  width: 33.333333%;
-  box-sizing: border-box;
-}
+        .airport-map>img {
+            width: 100%;
+            height: calc(100% + 30px);
+            object-fit: cover;
+            border-radius: 0.5rem;
+            display: block;
+        }
 
-.col-5 {
-  width: 45.833333%;
-  box-sizing: border-box;
-}
+        .map-pin {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            transform: translateX(-50%);
+        }
 
-.col-7 {
-  width: 54.166667%;
-  box-sizing: border-box;
-}
+        .map-pin-label {
+            background: #f12200;
+            color: white;
+            font-size: 8px;
+            font-weight: 700;
+            padding: 0.15rem 0.35rem;
+            border-radius: 0.2rem;
+            white-space: nowrap;
+            text-align: center;
+            line-height: 1.3;
+        }
 
-.col-8 {
-  width: 66.666667%;
-  box-sizing: border-box;
-}
+        .map-pin img {
+            width: 14px;
+            height: auto;
+            display: block;
+        }
 
-.flex-center {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
+        .airport-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 0;
+            flex: 1;
+        }
 
-.overview-layout {
-  gap: 2rem;
-}
-.overview-layout .content {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 1rem;
-  padding: 2rem 0;
-}
-.overview-layout .content p,
-.overview-layout .content h1 {
-  padding-left: 12.5%;
-}
+        .airport-item img {
+            width: 100%;
+            height: 212px;
+            object-fit: cover;
+            margin-bottom: 0.4rem;
+        }
 
-.rounded-text {
-  padding-left: 0 !important;
-}
+        .airport-item span {
+            background: #053160;
+            color: white;
+            padding: 0.125rem 0.5rem;
+            text-align: center;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            font-size: 15.3px;
+        }
 
-.container {
-  padding: 15mm;
-  height: 100%;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-}
+        .airport-item p {
+            font-weight: 600;
+            color: #053160;
+            margin: 0;
+            font-size: 14px;
+        }
 
-h1 {
-  font-size: 40px;
-  font-weight: 700;
-  color: #053160;
-  margin: 0;
-  line-height: 1.2;
-}
-h1 .more {
-  font-weight: 400;
-}
+        .airport-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+        }
 
-h2 {
-  font-size: 20px;
-  font-weight: 400;
-  text-transform: uppercase;
-  letter-spacing: 2px;
-  color: #053160;
-  margin: 0 0 25px 0;
-  padding-bottom: 15px;
-}
+        .airport-logo img {
+            width: 80%;
+            height: auto;
+        }
 
-h3 {
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #888888;
-  margin: 0 0 5px 0;
-}
+        .items {
+            padding-left: 60px;
+        }
 
-p {
-  font-size: 20px;
-  line-height: 1.6;
-  color: #555555;
-  margin: 0;
-}
+        .item {
+            margin-bottom: 1.5rem;
+        }
 
-.text-muted {
-  color: #999999;
-}
+        .item-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: #053160;
+            margin-bottom: 5px;
+        }
 
-.text-large {
-  font-size: 14px;
-}
+        .item-value {
+            font-size: 16px;
+            color: #053160;
+            font-weight: 400;
+        }
 
-.img-cover {
-  width: 100%;
-  height: 100%;
-  -o-object-fit: cover;
-     object-fit: cover;
-  display: block;
-}
+        .item-list {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin: 0;
+            color: #053160;
+            font-size: 16px;
+            line-height: 1.6;
+        }
 
-.img-contain {
-  width: 100%;
-  height: 100%;
-  -o-object-fit: contain;
-     object-fit: contain;
-  display: block;
-}
+        .featured-grid {
+            display: grid;
+            grid-template-columns: 58.33% 41.67%;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            height: 100%;
+            box-sizing: border-box;
+        }
 
-.placeholder-img {
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-size: 14px;
-}
+        .featured-grid>* {
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden;
+        }
 
-.sheet {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  max-width: 1200px;
-  margin: auto;
-  background: #fff;
-  padding: 24px;
-  border: 1px solid #555555;
-}
-.sheet h2 {
-  margin: 0;
-  text-align: center;
-  color: #053160;
-  letter-spacing: 1px;
-  border: none;
-  font-weight: 700;
-}
-.sheet table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 12px;
-  font-size: 14px;
-}
-.sheet table th,
-.sheet table td {
-  border: 1px solid #555555;
-  padding: 8px;
-  text-align: left;
-}
-.sheet table th {
-  background: #053160;
-  color: #fff;
-  font-weight: 600;
-}
-.sheet .sub-header {
-  background: #f5f5f5;
-  font-weight: 600;
-}
-.sheet .right {
-  text-align: right;
-}
-.sheet .center {
-  text-align: center;
-}
-.sheet .total {
-  font-weight: 700;
-}
-.sheet .box {
-  border: 1px solid #555555;
-  padding: 12px;
-  margin-top: 16px;
-}
-.sheet .payment {
-  margin-top: 24px;
-}
-.sheet .payment-summary {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  margin-top: 12px;
-}
-.sheet .highlight {
-  background: #053160;
-  color: #fff;
-  padding: 16px;
-  font-size: 20px;
-  font-weight: 700;
-  text-align: center;
-}
+        .featured-grid .left-column {
+            grid-row: 1/3;
+        }
 
-.price-tag {
-  font-size: 24px;
-  font-weight: 400;
-  color: #053160;
-  margin-top: 20px;
-  padding-top: 20px;
-  border-top: 1px solid #eee;
-}
+        .quad-grid {
+            display: grid;
+            grid-template-columns: 50% 50%;
+            grid-template-rows: 1fr 1fr;
+            gap: 10px;
+            height: 100%;
+            box-sizing: border-box;
+        }
 
-.meta-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-top: 30px;
-}
+        .quad-grid>* {
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden;
+        }
 
-.meta-item {
-  margin-bottom: 10px;
-}
+        .tri-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          grid-template-rows: 1fr 1fr;
+          gap: 10px;
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .tri-grid > * {
+          background-image: var(--bg-image);
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          overflow: hidden;
+        }
+        .tri-grid .bottom-wide {
+          grid-column: 1/3;
+        }
 
-.meta-value {
-  font-size: 16px;
-  color: #053160;
-  font-weight: 500;
-}
+        .duo-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+          height: 100%;
+          box-sizing: border-box;
+        }
+        .duo-grid > * {
+          background-image: var(--bg-image);
+          background-size: cover;
+          background-position: center;
+          background-repeat: no-repeat;
+          overflow: hidden;
+        }
 
-.featured-grid .right-top {
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-}
-.featured-grid .right-bottom {
-  background-image: var(--bg-image);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  overflow: hidden;
-}
+        .split-page {
+            height: 100%;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
 
-.closure {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2rem;
-  background: rgba(255, 255, 255, 0.8);
-  padding: 20px;
-  border-radius: 2rem;
-  height: 100%;
-  width: 130mm;
-  text-align: center;
-}
-.closure a {
-  text-decoration: none;
-  font-size: 20px;
-  font-weight: 700;
-  color: #053160;
-}
-.closure h2 {
-  margin-bottom: 0;
-  padding: 0;
-}
+        .split-page .expose-title.absolute {
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            align-items: center;
+            z-index: 10;
+        }
 
-.footer-brand {
-  position: absolute;
-  bottom: 15mm;
-  left: 15mm;
-  font-size: 10px;
-  color: #ccc;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
+        .split-page .expose-title .text {
+            padding: 0.5rem 2rem 0.5rem 8rem;
+        }
 
-.page-num {
-  position: absolute;
-  bottom: 15mm;
-  right: 15mm;
-  font-size: 10px;
-  color: #ccc;
-}
+        .split-page .expose-title .text h1 {
+            font-size: 32px;
+        }
 
-.fw-500 {
-  font-weight: 500;
-}
+        .split-page .split-top {
+            height: 55%;
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+        }
 
-.fw-bold {
-  font-weight: 700;
-}
+        .split-page .split-bottom {
+            position: relative;
+            height: 45%;
+            display: flex;
+            align-items: center;
+            padding: 2rem;
+        }
 
-.infrastructure .infrastructure-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 1rem;
-}
-.infrastructure .grid-item {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  align-items: center;
-}
-.infrastructure .grid-item img {
-  width: 100%;
-  height: auto;
-  -o-object-fit: cover;
-     object-fit: cover;
-}
-.infrastructure .grid-item span {
-  background: #053160;
-  color: white;
-  padding: 0.125rem 0.5rem;
-  text-align: center;
-  border-radius: 0.5rem;
-  font-size: 14px;
-  font-weight: 600;
-}
-.infrastructure .grid-item p {
-  font-size: 14px;
-  font-weight: 600;
-  color: #053160;
-}
-.infrastructure .grid-item:last-child:nth-child(odd) {
-  grid-column: 1/-1;
-  max-width: 50%;
-  margin: 0 auto;
-}/*# sourceMappingURL=style.css.map */
-</style>
+        .split-page .split-bottom .container {
+            max-width: 80%;
+        }
+
+        .split-page .split-bottom p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #555555;
+            text-align: justify;
+            margin: 0;
+        }
+
+        .split-page .rock {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            width: 450px;
+            height: 402px;
+            position: absolute;
+            right: 2%;
+            bottom: 15%;
+
+            /*
+      Organic rock border radius
+    */
+            border-radius:
+                53% 47% 58% 42% / 38% 52% 48% 62%;
+
+            border: 8px solid white;
+
+            transform: rotate(-4deg);
+
+            box-shadow:
+                0 20px 50px rgba(0, 0, 0, .12);
+        }
+
+        .split-page .rock img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+
+            /*
+      Counter rotate image slightly
+      so it feels natural
+    */
+            transform: scale(1.05) rotate(4deg);
+        }
+
+        /*
+    EXTRA ROCK BUMPS
+  */
+        .split-page .rock::before,
+        .rock::after {
+            content: "";
+            position: absolute;
+            background: white;
+            z-index: 3;
+        }
+
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100%;
+            gap: 22px;
+        }
+
+        .gallery-item {
+            width: 100%;
+            height: 100%;
+            background: #f5f5f5;
+            overflow: hidden;
+            border: 0.0625rem solid #ccc;
+            position: relative;
+        }
+
+        .gallery-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .gallery-item .title {
+            position: absolute;
+            left: 0;
+            bottom: 1.75rem;
+            padding: 0.75rem 1.25rem;
+            font-size: 16px;
+            background: linear-gradient(to right, white 80%, transparent 100%);
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .header .title {
+            background: #053160;
+            color: white;
+            padding: 0.25rem 2rem;
+            border-radius: 0 2rem 2rem 0;
+            min-width: 150px;
+            font-weight: 500;
+            font-size: 32px;
+        }
+
+        .header .title.end {
+            border-radius: 2rem 0 0 2rem;
+        }
+
+        .overflow-illustration {
+            border-radius: 1rem;
+            display: flex;
+            width: 500px;
+            height: 500px;
+            transform: rotate(-45deg);
+        }
+
+        .overflow-illustration img {
+            margin: auto;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 2rem;
+        }
+
+        .illustration {
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .illustration img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .row {
+            display: flex;
+            gap: 2rem;
+            height: 100%;
+            width: 100%;
+        }
+
+        .col-half {
+            width: 50%;
+            box-sizing: border-box;
+        }
+
+        .col-4 {
+            width: 33.333333%;
+            box-sizing: border-box;
+        }
+
+        .col-5 {
+            width: 45.833333%;
+            box-sizing: border-box;
+        }
+
+        .col-7 {
+            width: 54.166667%;
+            box-sizing: border-box;
+        }
+
+        .col-8 {
+            width: 66.666667%;
+            box-sizing: border-box;
+        }
+
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+        }
+
+        .overview-layout {
+            gap: 2rem;
+        }
+
+        .overview-layout .content {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 1rem;
+            padding: 2rem 0;
+        }
+
+        .overview-layout .content p,
+        .overview-layout .content h1 {
+            padding-left: 12.5%;
+        }
+
+        .rounded-text {
+            padding-left: 0 !important;
+        }
+
+        .container {
+            padding: 15mm;
+            height: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        h1 {
+            font-size: 40px;
+            font-weight: 700;
+            color: #053160;
+            margin: 0;
+            line-height: 1.2;
+        }
+
+        h1 .more {
+            font-weight: 400;
+        }
+
+        h2 {
+            font-size: 20px;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #053160;
+            margin: 0 0 25px 0;
+            padding-bottom: 15px;
+        }
+
+        h3 {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888888;
+            margin: 0 0 5px 0;
+        }
+
+        p {
+            font-size: 20px;
+            line-height: 1.6;
+            color: #555555;
+            margin: 0;
+        }
+
+        .closure {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 2rem;
+            background: white;
+            padding: 20px;
+            border-radius: 2rem;
+            height: 100%;
+            width: 130mm;
+            text-align: center;
+        }
+
+        .closure a {
+            text-decoration: none;
+            font-size: 20px;
+            font-weight: 700;
+            color: #053160;
+        }
+
+        .closure h2 {
+            margin-bottom: 0;
+            padding: 0;
+        }
+
+        .footer-brand {
+            position: absolute;
+            bottom: 15mm;
+            left: 15mm;
+            font-size: 10px;
+            color: #ccc;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .page-num {
+            position: absolute;
+            bottom: 15mm;
+            right: 15mm;
+            font-size: 10px;
+            color: #ccc;
+        }
+
+        .fw-500 {
+            font-weight: 500;
+        }
+
+        .infrastructure .infrastructure-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+
+        .infrastructure .grid-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            align-items: center;
+        }
+
+        .infrastructure .grid-item img {
+            width: 100%;
+            height: 175px;
+            object-fit: cover;
+            margin-bottom: 0.5rem;
+        }
+
+        .infra-span {
+            font-size: 16px;
+        }
+
+        .infra-p {
+            font-size: 18.5px;
+        }
+
+        .infrastructure .grid-item span {
+            background: #053160;
+            color: white;
+            padding: 0.125rem 0.5rem;
+            text-align: center;
+            border-radius: 0.5rem;
+            font-weight: 600;
+        }
+
+        .infrastructure .grid-item p {
+            font-weight: 600;
+            color: #053160;
+        }
+
+        .infrastructure .grid-item:last-child:nth-child(odd) {
+            grid-column: 1/-1;
+            max-width: 50%;
+            margin: 0 auto;
+        }
+
+        .unit-grid {
+            display: grid;
+            grid-template-columns: 30% 1fr;
+            align-items: center;
+            gap: 4rem;
+            height: 100%;
+        }
+
+        .qr-cta {
+            position: absolute;
+            left: 96px;
+            bottom: 120px;
+            z-index: 10;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .qr-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .qr-column .qr-label {
+            color: white;
+            font-size: 16px;
+            max-width: 185px;
+            text-align: center;
+            line-height: 1.4;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .qr-column .qr-box {
+            width: 185px;
+            height: 185px;
+            background: white;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+
+        .qr-column .qr-box img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .qr-column .qr-scan {
+            color: white;
+            font-size: 24px;
+            max-width: 185px;
+            text-align: center;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .gallery-grid-2 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: 1fr;
+            height: 100%;
+            gap: 22px;
+        }
+
+        .gallery-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100%;
+            gap: 22px;
+        }
+
+        .gallery-grid-8 {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            height: 100%;
+            gap: 14px;
+        }
+
+        .gallery-grid-8 .gallery-item .title {
+            font-size: 13px;
+        }
+
+        .quad-grid-2 {
+            display: grid;
+            grid-template-columns: 50% 50%;
+            grid-template-rows: 1fr;
+            gap: 10px;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .quad-grid-2>* {
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden;
+        }
+
+        .quad-grid-6 {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(2, 1fr);
+            gap: 10px;
+            height: 100%;
+            box-sizing: border-box;
+        }
+
+        .quad-grid-6>* {
+            background-image: var(--bg-image);
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            overflow: hidden;
+        }
+  </style>
 
   @php
     $pageNumber = 1;
@@ -907,43 +942,38 @@ p {
   <div class="page bg" style="--bg-image: url('{{ $heroImages[0] ?? 'property/images/test.png' }}')">
     <div class="container">
       <div class="logo">
-        <img src="{{ $data['branding']['logo_expose'] }}" alt="hibarr-expose-logo" />
+        <img src="{{ $data['branding']['hibarr_expose_logo'] }}" alt="hibarr-expose-logo" />
       </div>
     </div>
 
-    <div style="position: absolute; bottom: 60mm; left: 15mm; color: white; text-shadow: 2px 2px 8px rgba(0,0,0,0.6);">
-      <h1 style="color: white; font-size: 36px; margin-bottom: 8px;">{{ $data['title'] ?? $data['reference_code'] ?? '' }}</h1>
-      @if(!empty($data['price']))
-      <p style="color: white; font-size: 24px; font-weight: 500;">{{ $data['price'] }}</p>
-      @endif
-      @if(!empty($data['sale_type']))
-      <p style="color: rgba(255,255,255,0.85); font-size: 16px; margin-top: 4px;">{{ ucfirst(str_replace('_', ' ', $data['sale_type'])) }}</p>
-      @endif
-    </div>
 
     @if(!empty($data['client']['name']))
-    <div style="position: absolute; bottom: 20mm; left: 0;">
+    <div style="position: absolute; bottom: 20mm; left: -10px;">
       <div style="position: relative; display: inline-block; line-height: 0;">
-        <img src="{{ $data['branding']['expose_name_client'] }}" alt="client-name-banner"
-          style="height: 90px; width: 340px; display: block;" />
-        <div style="position: absolute; top: 50%; left: 46%; transform: translateY(-50%); white-space: nowrap; line-height: 1.3;">
-          <div style="font-size: 11px; font-weight: 400; color: #053160; letter-spacing: 1px; text-transform: uppercase;">Prepared for</div>
-          <div style="font-size: 15px; font-weight: 700; color: #053160;">{{ $data['client']['name'] }}</div>
+
+
+        <object data="{{ $data['branding']['expose_name_client'] }}" type="image/svg+xml"
+                    style="height: 90px; width: 340px; display: block;"></object>
+
+        <div style="position: absolute; top: 45%; left: 25%; transform: translateY(-50%); white-space: nowrap; line-height: 1.3;">
+          <div style="font-size: 12px; font-weight: 400; color: #053160; letter-spacing: 1px; text-transform: uppercase;">Prepared for</div>
+          <div style="font-size: 18px; font-weight: 700; color: #053160;">{{ $data['client']['name'] }}</div>
         </div>
+
       </div>
     </div>
     @endif
 
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    
   </div>
 
   <!-- PAGE — Cover image (before property overview) -->
   @if(!empty($coverImages[0]))
   <div class="page bg" style="--bg-image: url('{{ $coverImages[0] }}')">
-    <div class="logo-watermark">
+    <div class="logo-watermark-bottom">
       <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+   
   </div>
   @endif
 
@@ -964,101 +994,65 @@ p {
         </div>
       </div>
 
-      <div class="items">
+      <div class="items" style="margin-top: 20px;">
         {{-- Location --}}
         <div class="item">
-          <h3 class="item-header">Location</h3>
+          <h3 class="item-header">CITY</h3>
           <div class="item-value">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
         </div>
 
-        {{-- Property Type --}}
-        @if(!empty($data['property_type_label']) || !empty($data['property_type']))
-        <div class="item">
-          <h3 class="item-header">Property Type</h3>
-          <div class="item-value">{{ $data['property_type_label'] ?? ucfirst(str_replace('_', ' ', $data['property_type'])) }}</div>
-        </div>
+       
+         {{-- Unit Styles: Studio / 1+1 / 1+1 Loft / 2+1 Loft --}}
+        @if(!empty($unitStyleList))
+            <div class="item">
+              <h3 class="item-header">TYPES</h3>
+              <div class="item-value">{{ implode(' / ', $unitStyleList) }}</div>
+            </div>
         @endif
 
-        {{-- Price --}}
-        @if(!empty($data['price']))
+        {{-- Completion Date --}}
         <div class="item">
-          <h3 class="item-header">Price</h3>
-          <div class="item-value">{{ $data['price'] }}</div>
-        </div>
-        @endif
-
-        {{-- Living Area --}}
-        @if(!empty($data['living_area_sqm']) || !empty($data['gross_sqm']))
-        <div class="item">
-          <h3 class="item-header">Living Area</h3>
+          <h3 class="item-header">Completion Date</h3>
           <div class="item-value">
-            {{ $data['living_area_sqm'] ?? '—' }} m²
-            @if(!empty($data['gross_sqm']))
-              <span style="color:#999; font-size:14px;">({{ $data['gross_sqm'] }} m² gross)</span>
-            @endif
+            @php
+              $completionRaw = $data['completion_date'] ?? null;
+              if (!empty($completionRaw)) {
+                try {
+                  $completionDt = \Carbon\Carbon::parse($completionRaw);
+                  $completionDisplay = $completionDt->isPast()
+                    ? 'Ready to move in'
+                    : $completionDt->format('d, M, Y');
+                } catch (\Exception $e) {
+                  $completionDisplay = $completionRaw;
+                }
+              } else {
+                $completionDisplay = 'N/A';
+              }
+            @endphp
+            {{ $completionDisplay }}
           </div>
         </div>
-        @endif
 
-        {{-- Floor --}}
-        @if(!empty($data['floor']))
+        {{-- Facilities --}}
+        @if(!empty($facilityItems))
         <div class="item">
-          <h3 class="item-header">Floor</h3>
-          <div class="item-value">{{ $data['floor'] }}</div>
-        </div>
-        @endif
-
-        {{-- Rooms --}}
-        @php
-          $roomLines = [];
-          if (!empty($data['bedrooms']))    $roomLines[] = $data['bedrooms'] . ' Bedroom' . ($data['bedrooms'] != 1 ? 's' : '');
-          if (!empty($data['bathrooms']))   $roomLines[] = $data['bathrooms'] . ' Bathroom' . ($data['bathrooms'] != 1 ? 's' : '');
-          if (!empty($data['total_rooms'])) $roomLines[] = $data['total_rooms'] . ' Total Rooms';
-          if (!empty($data['living_room'])) $roomLines[] = $data['living_room'] . ' Living Room' . ($data['living_room'] != 1 ? 's' : '');
-        @endphp
-        @if(!empty($roomLines))
-        <div class="item">
-          <h3 class="item-header">Rooms</h3>
+          <h3 class="item-header">FACILITIES</h3>
           <ul class="item-list">
-            @foreach($roomLines as $line)
-            <li>{{ $line }}</li>
+            @foreach($facilityItems as $facility)
+            <li>{{ $facility['label'] }}</li>
             @endforeach
           </ul>
         </div>
         @endif
 
-        {{-- Views --}}
-        @php
-          $viewDisplay = null;
-          if (!empty($data['view_type_labels']) && is_array($data['view_type_labels'])) {
-            $viewDisplay = implode(', ', $data['view_type_labels']);
-          } elseif (!empty($data['view_types']) && is_array($data['view_types'])) {
-            $viewDisplay = implode(', ', array_map(fn($v) => ucfirst(str_replace('_', ' ', $v)), $data['view_types']));
-          }
-        @endphp
-        @if(!empty($viewDisplay))
-        <div class="item">
-          <h3 class="item-header">Views</h3>
-          <div class="item-value">{{ $viewDisplay }}</div>
-        </div>
-        @endif
 
-        {{-- Furniture --}}
-        @if(!empty($data['furniture_label']) || !empty($data['furniture_status']))
-        <div class="item">
-          <h3 class="item-header">Furniture</h3>
-          <div class="item-value">{{ $data['furniture_label'] ?? ucfirst(str_replace('_', ' ', $data['furniture_status'])) }}</div>
-        </div>
-        @endif
       </div>
     </div>
-
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
   </div>
 
-  <!-- PAGE 3: FEATURED IMAGES GRID (exterior[0–2] as featured-grid with section label) -->
+  <!-- PAGE 3: FEATURED IMAGES GRID -->
   <div class="page">
-    <div class="container">
+    <div class="container" style="padding: 3.70mm !important;">
       <div class="featured-grid">
         {{-- Left column: first exterior image with sharp_page_header label overlay --}}
         <div class="left-column" style="--bg-image: url('{{ $exteriorImages[0] ?? ($heroImages[0] ?? '') }}'); position: relative;">
@@ -1066,7 +1060,8 @@ p {
             <div style="position: relative; display: inline-block; line-height: 0;">
               <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
                 style="height: 72px; width: auto; display: block;" />
-              <span style="position: absolute; top: 50%; left: 42%; transform: translateY(-50%); color: #053160; font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">Exterior</span>
+              <span
+                style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">Exterior</span>
             </div>
           </div>
         </div>
@@ -1076,10 +1071,10 @@ p {
         <div class="right-bottom" style="--bg-image: url('{{ $exteriorImages[2] ?? ($heroImages[0] ?? '') }}')"></div>
       </div>
     </div>
-    <div class="logo-watermark">
+    <div class="logo-watermark-bottom">
       <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+   
   </div>
 
   @php
@@ -1090,45 +1085,66 @@ p {
 
   <!-- PAGE — Exterior remainder page (grid/full depending on count, exterior[3+]) -->
   @if(!empty($remainingExterior))
-  <div class="page">
-    <div class="container">
       @if(count($exteriorGridImages) === 1)
-        <div class="bg" style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
+        <div class="page bg" style="--bg-image: url('{{ $exteriorGridImages[0] }}')">
+          <div class="logo-watermark-bottom">
+            <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
+          </div>
+        </div>
       @elseif(count($exteriorGridImages) === 2)
-        <div class="duo-grid">
-          <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
-          <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
-        </div>
+        <div class="page">
+          <div class="container" style="padding: 3.70mm !important;">
+            <div class="duo-grid">
+              <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
+              <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
+            </div>
+          </div>
+
+           <div class="logo-watermark-bottom">
+              <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
+            </div>
+      </div>
       @elseif(count($exteriorGridImages) === 3)
-        <div class="tri-grid">
-          <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
-          <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
-          <div class="bottom-wide" style="--bg-image: url('{{ $exteriorGridImages[2] }}')"></div>
-        </div>
+      <div class="page">
+          <div class="container" style="padding: 3.70mm !important;">
+            <div class="tri-grid">
+              <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
+              <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
+              <div class="bottom-wide" style="--bg-image: url('{{ $exteriorGridImages[2] }}')"></div>
+            </div>
+          </div>
+           <div class="logo-watermark-bottom">
+              <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
+            </div>
+      </div>
       @else
-        <div class="quad-grid">
-          <div style="--bg-image: url('{{ $exteriorGridImages[0] ?? 'property/images/test.png' }}')"></div>
-          <div style="--bg-image: url('{{ $exteriorGridImages[1] ?? 'property/images/test.png' }}')"></div>
-          <div style="--bg-image: url('{{ $exteriorGridImages[2] ?? 'property/images/test.png' }}')"></div>
-          <div style="--bg-image: url('{{ $exteriorGridImages[3] ?? 'property/images/test.png' }}')"></div>
-        </div>
+      <div class="page">
+          <div class="container" style="padding: 3.70mm !important;">
+            <div class="quad-grid">
+              <div style="--bg-image: url('{{ $exteriorGridImages[0] ?? 'property/images/test.png' }}')"></div>
+              <div style="--bg-image: url('{{ $exteriorGridImages[1] ?? 'property/images/test.png' }}')"></div>
+              <div style="--bg-image: url('{{ $exteriorGridImages[2] ?? 'property/images/test.png' }}')"></div>
+              <div style="--bg-image: url('{{ $exteriorGridImages[3] ?? 'property/images/test.png' }}')"></div>
+            </div>
+
+           </div>
+           <div class="logo-watermark-bottom">
+              <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
+            </div>
+      </div>
       @endif
 
-      <div class="logo-watermark">
-        <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
-      </div>
-    </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
-  </div>
+      
+
   @endif
 
   <!-- PAGE 4: FULL BACKGROUND (exterior overflow full page) -->
   @if(!empty($exteriorExtraImage))
   <div class="page bg" style="--bg-image: url('{{ $exteriorExtraImage }}')">
-    <div class="logo-watermark">
-      <img src="{{ $data['branding']['logo_blue'] }}" alt="hibarr-logo" />
+    <div class="logo-watermark-bottom">
+      <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    
   </div>
   @endif
 
@@ -1154,7 +1170,7 @@ p {
         @endforeach
       </div>
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    
   </div>
   @endif
 
@@ -1165,15 +1181,23 @@ p {
     $galleryCursor++;
   @endphp
   <div class="page bg" style="--bg-image: url('{{ $firstGalleryImage }}')">
-    <div class="logo-watermark">
+    <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
+        <div style="position: relative; display: inline-block; line-height: 0;">
+            <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
+                style="height: 72px; width: auto; display: block;" />
+            <span
+                style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">Restaurant</span>
+        </div>
+    </div>
+    <div class="logo-watermark-bottom">
       <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    
   </div>
   @endif
 
   <!-- PAGE(S) 6: UNIT DESCRIPTION — one page per unit style -->
-  @foreach($unitStyleList as $styleLabel)
+  @foreach(array_slice($unitStyleList, 0, 1) as $styleLabel)
   @php
     $styleImage = $galleryImages[$galleryCursor] ?? null;
     if (!empty($styleImage)) {
@@ -1181,7 +1205,7 @@ p {
     }
   @endphp
   <div class="page">
-    <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-bg" alt="" />
+    <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
     <div class="container" style="padding: 5mm; position: relative; z-index: 1;">
       <div class="row overview-layout" style="align-items: stretch;">
         <div class="col-5" style="display: flex; flex-direction: column; justify-content: center;">
@@ -1193,7 +1217,7 @@ p {
               </div>
             </div>
 
-            <h1>{{ strtoupper((string) $styleLabel) }}</h1>
+            {{-- <h1>{{ strtoupper((string) $styleLabel) }}</h1> --}}
 
             <p>
               {{ !empty($data['description']) ? Str::limit(strip_tags($data['description']), 300) : 'Modern property with smart layout and natural light.' }}
@@ -1210,11 +1234,11 @@ p {
         </div>
       </div>
     </div>
-    <div class="footer-brand">{{ $data['company']['name'] ?? 'Premium Real Estate' }}</div>
-    <div class="logo-watermark">
+    
+    <div class="logo-watermark-bottom">
       <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+   
   </div>
   @endforeach
 
@@ -1225,10 +1249,10 @@ p {
     $galleryCursor++;
   @endphp
   <div class="page bg" style="--bg-image: url('{{ $nextGalleryFull }}')">
-    <div class="logo-watermark">
+    <div class="logo-watermark-bottom">
       <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    
   </div>
   @endif
 
@@ -1239,11 +1263,9 @@ p {
   @endphp
   @if(!empty($remainingGallery))
   <div class="page">
-    <div class="container">
-      @if(count($galleryGridImages) === 1)
-        <div class="bg" style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
-      @elseif(count($galleryGridImages) === 2)
-        <div class="duo-grid">
+    <div class="container" style="padding: 3.70mm !important;">
+      @if(count($galleryGridImages) === 2)
+        <div class="quad-grid-2">
           <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
           <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
         </div>
@@ -1252,6 +1274,15 @@ p {
           <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
           <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
           <div class="bottom-wide" style="--bg-image: url('{{ $galleryGridImages[2] }}')"></div>
+        </div>
+      @elseif(count($galleryGridImages) === 6)
+        <div class="quad-grid-6">
+          <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[2] }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[3] }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[4] }}')"></div>
+          <div style="--bg-image: url('{{ $galleryGridImages[5] }}')"></div>
         </div>
       @else
         <div class="quad-grid">
@@ -1262,72 +1293,43 @@ p {
         </div>
       @endif
 
-      <div class="logo-watermark">
+      <div class="logo-watermark-bottom">
         <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
       </div>
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    
   </div>
   @endif
 
   <!-- PAGE 8: UNIT LAYOUT / FLOOR PLAN -->
   <div class="page">
-    <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-bg" alt="" />
+    <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
+    <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
     <div class="container" style="position:relative; z-index:1;">
-      {{-- Top row: block-title card + floor plan image, centred together --}}
-      <div style="display:flex; align-items:center; justify-content:center; gap:2rem; flex:1; min-height:0;">
-        {{-- Block title card --}}
-        <div class="block-title" style="width:auto; flex-shrink:0; max-height:306px; position:relative;">
-          <img src="{{ $data['branding']['block_title'] }}" alt="block-title"
-               style="height:306px; width:auto; display:block;" />
-          <div class="text">
-            <h1 style="font-size:17px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
-              {{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }}
-              <br><span class="more" style="font-weight:400;">{{ strtoupper(is_array($data['unit_style'] ?? null) ? implode(' / ', $data['unit_style']) : ($data['unit_style'] ?? 'UNIT')) }}{{ !empty($data['block_name']) ? ' (' . strtoupper($data['block_name']) . ')' : '' }}</span>
-            </h1>
-          </div>
-        </div>
-        {{-- Floor plan image --}}
-        <div style="max-height:306px; display:flex; align-items:center;">
-          @if(!empty($data['assets']['floor-plan'][0]))
+       <!-- Top row: block-title card + floor plan image -->
+        <div class="unit-grid">
+            <!-- Block title card — left column, full grid-row height -->
+            <div class="block-title" style="position:relative;">
+                <img src="{{ $data['branding']['block_title'] }}" alt="block-title"
+                    style="width:100%; display:block;" />
+
+                <div class="text">
+                    <h1
+                        style="font-size:42px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
+                        {{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }}<br><span class="more" style="font-weight:400; font-size: 32px;">{{ !empty($data['block_name']) ? ' (' . strtoupper($data['block_name']) . ')' : '' }}</span>
+                    </h1>
+                </div>
+            </div>
+            <!-- Floor plan image — right column -->
+              @if(!empty($data['assets']['floor-plan'][0]))
             <img src="{{ $data['assets']['floor-plan'][0] }}" alt="Floor plan"
-                 style="max-height:306px; max-width:100%; object-fit:contain;" />
-          @elseif(!empty($data['assets']['interior'][0]))
-            <img src="{{ $data['assets']['interior'][0] }}" alt="Interior"
-                 style="max-height:306px; max-width:100%; object-fit:contain;" />
-          @endif
-        </div>
-      </div>
-      {{-- Bottom row: unit details centred --}}
-      @if(!empty($data['unit_number']) || !empty($data['living_area_sqm']) || !empty($data['gross_sqm']) || !empty($data['balcony_count']))
-      <div style="display:flex; justify-content:center; gap:3rem; margin-top:1.5rem;">
-        @if(!empty($data['unit_number']))
-        <div style="text-align:center;">
-          <h3 style="color:#888; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin:0 0 4px;">Unit Number</h3>
-          <p style="color:#053160; font-size:16px; font-weight:600; margin:0;">{{ $data['unit_number'] }}</p>
-        </div>
-        @endif
-        @if(!empty($data['living_area_sqm']) || !empty($data['gross_sqm']))
-        <div style="text-align:center;">
-          <h3 style="color:#888; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin:0 0 4px;">Area</h3>
-          <p style="color:#053160; font-size:16px; font-weight:600; margin:0;">
-            {{ $data['living_area_sqm'] ?? '—' }} m²
-            @if(!empty($data['gross_sqm']))
-              <span style="font-weight:400; font-size:13px; color:#888;">({{ $data['gross_sqm'] }} m² gross)</span>
+                style="width:100%; height:306px; object-fit:cover; display:block;" />
             @endif
-          </p>
         </div>
-        @endif
-        @if(!empty($data['balcony_count']))
-        <div style="text-align:center;">
-          <h3 style="color:#888; font-size:11px; text-transform:uppercase; letter-spacing:1px; margin:0 0 4px;">Balcony</h3>
-          <p style="color:#053160; font-size:16px; font-weight:600; margin:0;">{{ $data['balcony_count'] }}{{ !empty($data['balcony_net_sqm']) ? ' (' . $data['balcony_net_sqm'] . ' m²)' : '' }}</p>
-        </div>
-        @endif
-      </div>
-      @endif
+        <!-- Bottom row: unit details centred -->
+        
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+   
   </div>
 
 {{-- PAGE — Cost / Investment breakdown (DEFERRED: Requires financial_info data structure)
@@ -1482,7 +1484,7 @@ p {
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
             <div class="container">
-                <p>{{ $outroDescription }}</p>
+                <p style="max-width:80%;">{{ $outroDescription }}</p>
             </div>
         </div>
         <div class="expose-title blue absolute">
@@ -1495,7 +1497,7 @@ p {
             <img src="{{ $outroSecondaryImage }}" alt="rock" />
         </div>
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    
 </div>
 
 <!-- PAGE — Project location spotlight -->
@@ -1507,7 +1509,7 @@ p {
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
       <div class="container">
-        <p>{{ !empty($locationDescription) ? Str::limit(strip_tags($locationDescription), 320) : 'Explore the surrounding neighborhood and its unique lifestyle advantages.' }}</p>
+        <p style="max-width:80%;">{{ !empty($locationDescription) ? Str::limit(strip_tags($locationDescription), 320) : 'Explore the surrounding neighborhood and its unique lifestyle advantages.' }}</p>
       </div>
     </div>
     <div class="expose-title blue absolute">
@@ -1520,7 +1522,7 @@ p {
       <img src="{{ $locationImage ?? $outroSecondaryImage }}" alt="location" />
     </div>
   </div>
-  <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+ 
 </div>
 @endif
 
@@ -1528,10 +1530,8 @@ p {
 @if(!empty($data['distances']))
 @php
   $distanceList  = array_values($data['distances']);
-  $leftDistances = array_slice($distanceList, 0, 4);
-  // Airport rows: first 3 non-left items, or fallback to all distances
-  $airportItems  = array_slice($distanceList, 0, 3);
-  $airportPin    = $data['location_pin'] ?? ['label' => 'LOCATION', 'left' => '48%', 'top' => '40%'];
+  $infraItems    = array_slice($distanceList, 0, 4); // up to 4 infra items (2 top-left, 2 bottom-left)
+  $airportItems  = array_slice($distanceList, 0, 3); // up to 3 airport items
 @endphp
 <div class="page">
   <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
@@ -1539,108 +1539,138 @@ p {
   <div class="infrastructure">
     <div class="header">
       <span class="title">INFRASTRUCTURE</span>
-      <span class="title end">DISTANCES</span>
+      <span class="title end">AIRPORT</span>
     </div>
-    <div class="container">
-      <div class="row">
-        {{-- Left: grid of up to 4 distance items --}}
-        <div class="col-half">
-          <div class="infrastructure-grid">
-            @foreach($leftDistances as $i => $distance)
-            <div class="grid-item">
-              <img src="{{ $data['assets']['exterior'][$i] ?? ($data['assets']['interior'][$i] ?? 'property/images/test.png') }}" alt="{{ $distance['name'] ?? '' }}" />
-              <span>{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$i] ?? '')) }}</span>
-              <p>{{ $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }} {{ is_numeric($distance['time'] ?? $distance['distance'] ?? null) ? 'min' : '' }}</p>
-            </div>
-            @endforeach
+    <div class="container" style="gap: 1rem;">
+
+      {{-- TOP ROW: first 2 infra items (left) + map & first airport item (right) --}}
+      <div style="display:flex; flex:1; gap:2rem; align-items:center;">
+        {{-- First half: first 2 infrastructure items --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:center;">
+          @foreach(array_slice($infraItems, 0, 2) as $i => $distance)
+          @php $imgKey = $i; @endphp
+          <div class="grid-item" style="flex:1;">
+            <img src="{{ $data['assets']['exterior'][$imgKey] ?? ($data['assets']['interior'][$imgKey] ?? 'property/images/test.png') }}" alt="{{ $distance['name'] ?? '' }}" />
+            <span class="infra-span">{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$imgKey] ?? '')) }}</span>
+            <p class="infra-p">{{ $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }}{{ is_numeric($distance['time'] ?? $distance['distance'] ?? null) ? ' min' : '' }}</p>
           </div>
+          @endforeach
         </div>
-        {{-- Right: airport-grid with map + airport items --}}
-        <div class="col-half">
-          <div class="airport-grid">
-            <div class="airport-row">
-              <div class="airport-map">
-                <img src="{{ $data['branding']['map'] }}" alt="Map" />
-                <div class="map-pin" style="left:{{ $airportPin['left'] ?? '48%' }}; top:{{ $airportPin['top'] ?? '40%' }};">
-                  <div class="map-pin-label">{{ strtoupper($airportPin['label'] ?? ($airportItems[0]['name'] ?? 'LOCATION')) }}</div>
-                  <img src="{{ $data['branding']['pin'] }}" alt="pin" />
-                </div>
-              </div>
-              @if(!empty($airportItems[0]))
-              @php $a = $airportItems[0]; @endphp
-              <div class="airport-item">
-                <img src="{{ $data['assets']['exterior'][0] ?? 'property/images/test.png' }}" alt="{{ $a['name'] ?? '' }}" />
-                <span>{{ strtoupper($a['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[0] ?? ''))) }}</span>
-                <p>{{ $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }}</p>
-              </div>
-              @endif
-            </div>
-            <div class="airport-row">
-              @if(!empty($airportItems[1]))
-              @php $b = $airportItems[1]; @endphp
-              <div class="airport-item">
-                <img src="{{ $data['assets']['exterior'][1] ?? 'property/images/test.png' }}" alt="{{ $b['name'] ?? '' }}" />
-                <span>{{ strtoupper($b['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[1] ?? ''))) }}</span>
-                <p>{{ $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }}</p>
-              </div>
-              @endif
-              @if(!empty($airportItems[2]))
-              @php $c = $airportItems[2]; @endphp
-              <div class="airport-item">
-                <img src="{{ $data['assets']['exterior'][2] ?? 'property/images/test.png' }}" alt="{{ $c['name'] ?? '' }}" />
-                <span>{{ strtoupper($c['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[2] ?? ''))) }}</span>
-                <p>{{ $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }}</p>
-              </div>
-              @endif
-              <div class="airport-logo">
-                <img src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr" />
-              </div>
-            </div>
+        {{-- Second half: map + first airport item --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:center; overflow:visible;">
+          <div class="airport-map" style="flex:2; align-self:stretch; margin-right:-40px;">
+            <img src="{{ $data['branding']['map'] }}" alt="Map" />
+          </div>
+          @if(!empty($airportItems[0]))
+          @php $a = $airportItems[0]; @endphp
+          <div class="airport-item" style="position:relative; z-index:1;">
+            <img src="{{ $data['assets']['exterior'][0] ?? 'property/images/test.png' }}" alt="{{ $a['name'] ?? '' }}" />
+            <p>{{ strtoupper($a['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[0] ?? ''))) }}</p>
+            <span>{{ $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }}</span>
+          </div>
+          @endif
+        </div>
+      </div>
+
+      {{-- BOTTOM ROW: next 2 infra items (left) + remaining airport items & logo (right) --}}
+      <div style="display:flex; flex:1; gap:2rem; align-items:stretch;">
+        {{-- First half: next 2 infrastructure items --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:flex-start;">
+          @foreach(array_slice($infraItems, 2, 2) as $j => $distance)
+          @php $imgKey = $j + 2; @endphp
+          <div class="grid-item" style="flex:1;">
+            <img src="{{ $data['assets']['exterior'][$imgKey] ?? ($data['assets']['interior'][$imgKey] ?? 'property/images/test.png') }}" alt="{{ $distance['name'] ?? '' }}" />
+            <span class="infra-span">{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$imgKey] ?? '')) }}</span>
+            <p class="infra-p">{{ $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }}{{ is_numeric($distance['time'] ?? $distance['distance'] ?? null) ? ' min' : '' }}</p>
+          </div>
+          @endforeach
+        </div>
+        {{-- Second half: airport items [1] & [2] + logo --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:flex-start;">
+          @if(!empty($airportItems[1]))
+          @php $b = $airportItems[1]; @endphp
+          <div class="airport-item">
+            <img src="{{ $data['assets']['exterior'][1] ?? 'property/images/test.png' }}" alt="{{ $b['name'] ?? '' }}" />
+            <p>{{ strtoupper($b['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[1] ?? ''))) }}</p>
+            <span>{{ $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }}</span>
+          </div>
+          @endif
+          @if(!empty($airportItems[2]))
+          @php $c = $airportItems[2]; @endphp
+          <div class="airport-item">
+            <img src="{{ $data['assets']['exterior'][2] ?? 'property/images/test.png' }}" alt="{{ $c['name'] ?? '' }}" />
+            <p>{{ strtoupper($c['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[2] ?? ''))) }}</p>
+            <span>{{ $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }}</span>
+          </div>
+          @endif
+          <div class="airport-logo" style="align-self:flex-end;">
+            <img src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr" />
           </div>
         </div>
       </div>
+
     </div>
   </div>
-  <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
 </div>
 @endif
 
 <!-- PAGE — Floor Plan -->
 @if(!empty($data['assets']['floor-plan']))
 <div class="page">
-    <div class="container">
-        <div style="flex-grow: 1; display: flex; align-items: center; justify-content: center; padding: 20px;">
-            <img src="{{ $data['assets']['floor-plan'][0] }}" style="max-height: 150mm; width: auto;" alt="Floor plan" />
-        </div>
+    <div class="container" style="justify-content:center;">
+        <img src="{{ $data['assets']['floor-plan'][0] }}"  style="width:100%;height:auto;" alt="Floor plan" />
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+   
 </div>
 @endif
 
 <!-- PAGE 12: CLOSURE / CONTACT -->
 <div class="page">
     <div class="bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/images/test.png' }}'); display:flex; justify-content:flex-end; height:100%;">
+
+        {{-- QR / CTA column bottom-left --}}
+        @php
+            $qrEnabled = (bool) data_get($data, 'expose_global_config.qr.enabled', false);
+            $qrDataUri = data_get($data, 'expose_global_config.qr.qr_code_data_uri');
+            $qrLabel   = data_get($data, 'expose_global_config.qr.label', "What Our Clients Say About Their Journey With Us!");
+        @endphp
+        @if($qrEnabled && !empty($qrDataUri))
+        <div class="qr-cta">
+            <div class="qr-column">
+                <p class="qr-label">{{ $qrLabel }}</p>
+                <div class="qr-box">
+                    <img src="{{ $qrDataUri }}" alt="QR Code" />
+                </div>
+                <p class="qr-scan">SCAN HERE</p>
+            </div>
+            <img src="{{ $data['branding']['arrow'] ?? '' }}" alt="" style="height:151px; width:auto; display:block;" />
+        </div>
+        @endif
+
         <div class="container">
-            <div class="closure" style="position:relative; overflow:hidden; z-index:0;">
-                <img src="{{ $data['branding']['panther_watermark'] }}" alt=""
-                    style="position:absolute; bottom:0; right:-10%; height:85%; width:auto; opacity:0.07; z-index:-1; pointer-events:none;" />
+            <div class="closure" style="position:relative; overflow:hidden; z-index:0; background:rgba(255,255,255,0.82);">
+                <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt=""
+                    style="height:70%; z-index:0;" />
                 <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:2rem; width:100%;">
-                    <img style="width:65%;" src="{{ $data['company']['logo'] }}" alt="Hibarr Logo" />
+                    <div style="display:flex; flex-direction:column; align-items:center; width:100%;">
+                        <img style="width:65%;" src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr Logo" />
+                        <div style="margin-top:16px; width:68%; height:3px; background:#053160; border-radius:1px;"></div>
+                    </div>
                     <div>
                         <h1>{{ $data['agent']['name'] ?? 'Rabih Rabea' }}</h1>
                         <p>{{ $data['agent']['position'] ?? 'Real Estate Consultant' }}</p>
                     </div>
                     <div>
                         <a href="mailto:{{ $data['agent']['email'] ?? 'info@hibarr.de' }}">
-                            <h2>{{ $data['agent']['email'] ?? 'info@hibarr.de' }}</h2>
+                            <h2 style="text-transform:none;">{{ $data['agent']['email'] ?? 'info@hibarr.de' }}</h2>
                         </a>
                         <a href="tel:{{ str_replace([' ', '+'], '', $data['agent']['phone'] ?? '+491731009900') }}">
-                            <h2>{{ $data['agent']['phone'] ?? '+49 173 100 99 00' }}</h2>
+                            <h2 style="text-transform:none;">{{ $data['agent']['phone'] ?? '+49 173 100 99 00' }}</h2>
                         </a>
                     </div>
                     <div>
                         <a href="https://{{ $data['company']['website'] ?? 'www.hibarr.de' }}">{{ $data['company']['website'] ?? 'www.hibarr.de' }}</a>
-                        <h2>{{ $data['company']['address'] ?? 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus' }}</h2>
+                        <h2 style="text-transform:none;">{{ $data['company']['address'] ?? 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus' }}</h2>
                     </div>
                 </div>
             </div>
