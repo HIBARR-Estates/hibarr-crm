@@ -462,4 +462,41 @@ return [
         'pagination_total'    => '{{start}}-{{end}} / {{total}} öğe',
     ],
 
+    'expose_configuration' => [
+        'title' => 'Expose Yapılandırması',
+        'alert' => [
+            'global_company_configuration' => 'Genel Şirket Yapılandırması',
+            'global_company_description'   => 'Bu ayarlar, oluşturulan tüm expose belgeleri için kullanılır (proje broşürü ve birim/mülk expose belgeleri).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Outro',
+            'qr_code_title' => 'QR Kodu',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Outro Bölümünü Etkinleştir',
+            'images'                     => 'Görseller',
+            'primary_image'              => 'Birincil Görsel',
+            'secondary_image_optional'   => 'İkincil Görsel (Opsiyonel)',
+            'enable_qr_code_on_exposes' => 'Expose Belgelerinde QR Kodunu Etkinleştir',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Outro başlığı',
+            'outro_description' => 'Outro açıklaması',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Birincil outro',
+            'outro_secondary_alt' => 'İkincil outro',
+            'no_image_uploaded'   => 'Görsel yüklenmedi',
+        ],
+        'actions' => [
+            'upload'             => 'Yükle',
+            'remove'             => 'Kaldır',
+            'save_configuration' => 'Yapılandırmayı Kaydet',
+        ],
+        'messages' => [
+            'upload_failed' => 'Görsel yüklenemedi',
+        ],
+    ],
+
 ];

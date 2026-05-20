@@ -462,4 +462,41 @@ return [
         'pagination_total'    => '{{start}}-{{end}} из {{total}} записей',
     ],
 
+    'expose_configuration' => [
+        'title' => 'Конфигурация экспозе',
+        'alert' => [
+            'global_company_configuration' => 'Глобальная конфигурация компании',
+            'global_company_description'   => 'Эти настройки используются для всех генерируемых экспозе (брошюра проекта и экспозе юнитов/объектов).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Аутро',
+            'qr_code_title' => 'QR-код',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Включить раздел аутро',
+            'images'                     => 'Изображения',
+            'primary_image'              => 'Основное изображение',
+            'secondary_image_optional'   => 'Дополнительное изображение (необязательно)',
+            'enable_qr_code_on_exposes' => 'Включить QR-код в экспозе',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Заголовок аутро',
+            'outro_description' => 'Описание аутро',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Основное аутро',
+            'outro_secondary_alt' => 'Дополнительное аутро',
+            'no_image_uploaded'   => 'Изображение не загружено',
+        ],
+        'actions' => [
+            'upload'             => 'Загрузить',
+            'remove'             => 'Удалить',
+            'save_configuration' => 'Сохранить конфигурацию',
+        ],
+        'messages' => [
+            'upload_failed' => 'Не удалось загрузить изображение',
+        ],
+    ],
+
 ];

@@ -530,4 +530,41 @@ return [
         'pagination_total'    => '{{start}}-{{end}} of {{total}} items',
     ],
 
+    'expose_configuration' => [
+        'title' => 'Expose Configuration',
+        'alert' => [
+            'global_company_configuration' => 'Global Company Configuration',
+            'global_company_description'   => 'These settings are used for all generated exposes (project brochure and unit/property exposes).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Outro',
+            'qr_code_title' => 'QR Code',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Enable Outro Section',
+            'images'                     => 'Images',
+            'primary_image'              => 'Primary Image',
+            'secondary_image_optional'   => 'Secondary Image (Optional)',
+            'enable_qr_code_on_exposes' => 'Enable QR Code on Exposes',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Outro title',
+            'outro_description' => 'Outro description',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Outro primary',
+            'outro_secondary_alt' => 'Outro secondary',
+            'no_image_uploaded'   => 'No image uploaded',
+        ],
+        'actions' => [
+            'upload'             => 'Upload',
+            'remove'             => 'Remove',
+            'save_configuration' => 'Save Configuration',
+        ],
+        'messages' => [
+            'upload_failed' => 'Failed to upload image',
+        ],
+    ],
+
 ];
