@@ -1157,7 +1157,7 @@
     <div class="container" style="position: relative; z-index: 1;">
       <div class="header">
         <span class="title">FACILITIES</span>
-        <img style="width: 12%" src="{{ $data['branding']['logo_full'] ?? $data['company']['logo'] }}" alt="hibarr-logo" />
+        <img style="width: 12%" src="{{ $data['branding']['logo_full'] }}" alt="hibarr-logo" />
       </div>
 
       <div class="gallery-grid">

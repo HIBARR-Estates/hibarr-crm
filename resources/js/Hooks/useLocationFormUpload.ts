@@ -178,6 +178,15 @@ const setAtPath = (obj: any, path: string, value: any): void => {
 export const transformFormToPayload = async (
     values: LocationFormValues,
     existingLocation?: {
+        name?: string | null;
+        description?: string | null;
+        address?: {
+            street?: string | null;
+            city?: string | null;
+            state?: string | null;
+            country?: string | null;
+            postalCode?: string | null;
+        } | null;
         map_url?: string | null;
         image_url?: string | null;
         attractions?: any[];
@@ -185,41 +194,68 @@ export const transformFormToPayload = async (
         airports?: any[];
     } | null,
 ): Promise<CreateProjectLocationInput> => {
+    const hasAttractions = Array.isArray(values.attractions);
+    const hasInfrastructure = Array.isArray(values.infrastructure);
+    const hasAirports = Array.isArray(values.airports);
+
     // Start building the payload with existing base data
     const payload: CreateProjectLocationInput = {
-        name: values.name,
-        description: values.description,
+        name: values.name ?? existingLocation?.name ?? "",
+        description: values.description ?? existingLocation?.description ?? "",
         address: {
-            street: values.address_street,
-            city: values.address_city,
-            state: values.address_state,
-            country: values.address_country,
-            postalCode: values.address_postalCode,
+            street:
+                values.address_street ??
+                existingLocation?.address?.street ??
+                undefined,
+            city:
+                values.address_city ??
+                existingLocation?.address?.city ??
+                undefined,
+            state:
+                values.address_state ??
+                existingLocation?.address?.state ??
+                undefined,
+            country:
+                values.address_country ??
+                existingLocation?.address?.country ??
+                undefined,
+            postalCode:
+                values.address_postalCode ??
+                existingLocation?.address?.postalCode ??
+                undefined,
         },
         map_url: existingLocation?.map_url || undefined,
         image_url: existingLocation?.image_url || undefined,
-        attractions: (values.attractions || []).map((a, index) => ({
-            name: a.name,
-            content: Array.isArray(a.content) ? a.content : [a.content || ""],
-            images: {
-                primary:
-                    existingLocation?.attractions?.[index]?.images?.primary ||
-                    "",
-                secondary:
-                    existingLocation?.attractions?.[index]?.images?.secondary ||
-                    "",
-            },
-        })),
-        infrastructure: (values.infrastructure || []).map((i, index) => ({
-            name: i.name,
-            travelTimeInMin: i.travelTimeInMin || 0,
-            image: existingLocation?.infrastructure?.[index]?.image || "",
-        })),
-        airports: (values.airports || []).map((a, index) => ({
-            name: a.name,
-            travelTimeInMin: a.travelTimeInMin || 0,
-            image: existingLocation?.airports?.[index]?.image || "",
-        })),
+        attractions: hasAttractions
+            ? values.attractions!.map((a, index) => ({
+                  name: a.name,
+                  content: Array.isArray(a.content)
+                      ? a.content
+                      : [a.content || ""],
+                  images: {
+                      primary:
+                          existingLocation?.attractions?.[index]?.images
+                              ?.primary || "",
+                      secondary:
+                          existingLocation?.attractions?.[index]?.images
+                              ?.secondary || "",
+                  },
+              }))
+            : existingLocation?.attractions || [],
+        infrastructure: hasInfrastructure
+            ? values.infrastructure!.map((i, index) => ({
+                  name: i.name,
+                  travelTimeInMin: i.travelTimeInMin || 0,
+                  image: existingLocation?.infrastructure?.[index]?.image || "",
+              }))
+            : existingLocation?.infrastructure || [],
+        airports: hasAirports
+            ? values.airports!.map((a, index) => ({
+                  name: a.name,
+                  travelTimeInMin: a.travelTimeInMin || 0,
+                  image: existingLocation?.airports?.[index]?.image || "",
+              }))
+            : existingLocation?.airports || [],
     };
 
     // Extract files to upload
