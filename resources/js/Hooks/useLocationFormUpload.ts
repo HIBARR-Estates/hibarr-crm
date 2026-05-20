@@ -1,30 +1,21 @@
 /**
  * Custom hook for handling file uploads in location forms
  *
- * This hook processes form data with file uploads using MockFileService,
- * transforms the data to match LocationConfig interface, and submits
- * via useApiMutate.
+ * This hook processes form data with file uploads using the real FileUploadService,
+ * uploads files to external storage (Minio/S3), transforms data to match
+ * LocationConfig interface, and submits the payload via useApiMutate.
  *
- * @note This hook currently uses MockFileService for development purposes.
- * For production file uploads, consider using the `useFileUpload` hook
- * from `@/Hooks/useFileUpload` which connects to the real upload API.
- *
- * @example
- * ```typescript
- * // Using with real file uploads:
- * import { useFileUpload } from '@/Hooks/useFileUpload';
- * const { uploadSingle } = useFileUpload();
- * // Replace mockUploadFile calls with uploadSingle
- * ```
+ * Features:
+ * - Real file uploads with progress tracking
+ * - Parallel upload processing
+ * - Proper error handling
+ * - URLs are stored in database and available for PDF generation
  */
 
 import { useState, useCallback } from "react";
 import { UploadFile } from "antd";
-import {
-    mockUploadFile,
-    mockUploadFiles,
-    PlaceholderCategory,
-} from "@/Services/MockFileService";
+import { getFileUploadService } from "@/Services/FileUploadService";
+import type { IUploadResponseItem } from "@/Types/uploads";
 import type {
     LocationAttraction,
     LocationInfrastructure,
@@ -69,8 +60,8 @@ interface AirportFormValue {
 // Result of file extraction
 interface ExtractedFile {
     file: File;
-    category: PlaceholderCategory;
     path: string; // dot notation path to set the URL
+    targetFolder: string; // target folder for upload
 }
 
 /**
@@ -93,7 +84,11 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
     if (values.map_image?.[0]) {
         const file = getFileFromUpload(values.map_image[0]);
         if (file) {
-            files.push({ file, category: "map", path: "map_url" });
+            files.push({
+                file,
+                path: "map_url",
+                targetFolder: "project-locations/map-images",
+            });
         }
     }
 
@@ -104,8 +99,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "attraction",
                     path: `attractions.${index}.images.primary`,
+                    targetFolder: "project-locations/attractions",
                 });
             }
         }
@@ -114,8 +109,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "attraction",
                     path: `attractions.${index}.images.secondary`,
+                    targetFolder: "project-locations/attractions",
                 });
             }
         }
@@ -128,8 +123,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "infrastructure",
                     path: `infrastructure.${index}.image`,
+                    targetFolder: "project-locations/infrastructure",
                 });
             }
         }
@@ -142,8 +137,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "airport",
                     path: `airports.${index}.image`,
+                    targetFolder: "project-locations/airports",
                 });
             }
         }
@@ -173,6 +168,12 @@ const setAtPath = (obj: any, path: string, value: any): void => {
 
 /**
  * Transform form values to API payload
+ *
+ * Handles the complete upload pipeline:
+ * 1. Extracts files from form values
+ * 2. Uploads files to external storage service
+ * 3. Gets real download URLs (not mock URLs)
+ * 4. Injects URLs into the payload for database storage
  */
 export const transformFormToPayload = async (
     values: LocationFormValues,
@@ -184,7 +185,7 @@ export const transformFormToPayload = async (
         airports?: any[];
     } | null,
 ): Promise<CreateProjectLocationInput> => {
-    // Start building the payload
+    // Start building the payload with existing base data
     const payload: CreateProjectLocationInput = {
         name: values.name,
         description: values.description,
@@ -221,21 +222,29 @@ export const transformFormToPayload = async (
         })),
     };
 
-    // Extract and upload files
+    // Extract files to upload
     const extractedFiles = extractFilesFromForm(values);
 
-    // Upload all files in parallel
-    const uploadResults = await Promise.all(
-        extractedFiles.map(async ({ file, category, path }) => {
-            const url = await mockUploadFile(file, category);
-            return { path, url };
-        }),
-    );
+    // Upload all files in parallel using real FileUploadService
+    if (extractedFiles.length > 0) {
+        const uploadService = getFileUploadService();
 
-    // Set uploaded URLs in payload
-    uploadResults.forEach(({ path, url }) => {
-        setAtPath(payload, path, url);
-    });
+        const uploadResults = await Promise.all(
+            extractedFiles.map(async ({ file, path, targetFolder }) => {
+                const response = await uploadService.uploadSingle(
+                    file,
+                    targetFolder,
+                );
+                // Return real download URL
+                return { path, url: response.downloadUrl };
+            }),
+        );
+
+        // Inject uploaded URLs into payload
+        uploadResults.forEach(({ path, url }) => {
+            setAtPath(payload, path, url);
+        });
+    }
 
     return payload;
 };

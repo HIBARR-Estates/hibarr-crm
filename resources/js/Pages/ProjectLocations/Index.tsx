@@ -559,7 +559,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         </Text>
                     </Divider>
 
-                    <Form.Item
+                    {/* <Form.Item
                         name="map_image"
                         label="Location Map"
                         valuePropName="value"
@@ -572,7 +572,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                             existingUrl={location?.map_url || undefined}
                             placeholder="Upload Map Image"
                         />
-                    </Form.Item>
+                    </Form.Item> */}
                 </div>
             ),
         },
@@ -952,7 +952,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                         <InputNumber
                                             min={0}
                                             max={999}
-                                            addonAfter="min"
+                                            addonAfter="Km"
                                             placeholder="0"
                                             className="w-full"
                                         />
