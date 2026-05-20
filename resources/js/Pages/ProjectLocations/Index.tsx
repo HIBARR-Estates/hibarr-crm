@@ -952,7 +952,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                         <InputNumber
                                             min={0}
                                             max={999}
-                                            addonAfter="min"
+                                            addonAfter="Km"
                                             placeholder="0"
                                             className="w-full"
                                         />
