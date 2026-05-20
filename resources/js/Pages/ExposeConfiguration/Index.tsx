@@ -16,6 +16,7 @@ import { UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import type { PageProps } from "../../Components/DashboardLayout";
+import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import type { ApiSuccessResponse } from "@/lib/api/types";
@@ -43,6 +44,7 @@ const ExposeConfigurationIndex = ({
     pageTitle,
     config,
 }: ExposeConfigurationIndexProps) => {
+    const { t } = useTranslation();
     const { message: messageApi } = App.useApp();
 
     const [outroEnabled, setOutroEnabled] = useState<boolean>(
@@ -154,7 +156,7 @@ const ExposeConfigurationIndex = ({
             const errorMessage =
                 error instanceof Error
                     ? error.message
-                    : "Failed to upload image";
+                    : t("pages.expose_configuration.messages.upload_failed");
             messageApi.error(errorMessage);
         } finally {
             setIsUploadingImage(false);
@@ -226,19 +228,28 @@ const ExposeConfigurationIndex = ({
         <PageLayout
             title={pageTitle}
             breadcrumbs={[
-                { name: "Properties", url: route("properties.index") },
-                { name: "Expose Configuration" },
+                {
+                    name: t("app.menu.properties"),
+                    url: route("properties.index"),
+                },
+                { name: t("pages.expose_configuration.title") },
             ]}
         >
             <div className="max-w-5xl mx-auto flex flex-col gap-y-6">
                 <Alert
                     type="info"
                     showIcon
-                    message="Global Company Configuration"
-                    description="These settings are used for all generated exposes (project brochure and unit/property exposes)."
+                    message={t(
+                        "pages.expose_configuration.alert.global_company_configuration",
+                    )}
+                    description={t(
+                        "pages.expose_configuration.alert.global_company_description",
+                    )}
                 />
 
-                <Card title="Outro">
+                <Card
+                    title={t("pages.expose_configuration.sections.outro_title")}
+                >
                     <div className="flex flex-col gap-y-4">
                         <Space align="center">
                             <Switch
@@ -246,7 +257,9 @@ const ExposeConfigurationIndex = ({
                                 onChange={setOutroEnabled}
                             />
                             <Typography.Text strong>
-                                Enable Outro Section
+                                {t(
+                                    "pages.expose_configuration.labels.enable_outro_section",
+                                )}
                             </Typography.Text>
                         </Space>
 
@@ -257,7 +270,9 @@ const ExposeConfigurationIndex = ({
                                     onChange={(e) =>
                                         setOutroTitle(e.target.value)
                                     }
-                                    placeholder="Outro title"
+                                    placeholder={t(
+                                        "pages.expose_configuration.placeholders.outro_title",
+                                    )}
                                     maxLength={255}
                                 />
 
@@ -266,25 +281,40 @@ const ExposeConfigurationIndex = ({
                                     onChange={(e) =>
                                         setOutroDescription(e.target.value)
                                     }
-                                    placeholder="Outro description"
+                                    placeholder={t(
+                                        "pages.expose_configuration.placeholders.outro_description",
+                                    )}
                                     rows={5}
                                 />
 
-                                <Divider orientation="left">Images</Divider>
+                                <Divider orientation="left">
+                                    {t(
+                                        "pages.expose_configuration.labels.images",
+                                    )}
+                                </Divider>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                                    <Card size="small" title="Primary Image">
+                                    <Card
+                                        size="small"
+                                        title={t(
+                                            "pages.expose_configuration.labels.primary_image",
+                                        )}
+                                    >
                                         <div className="flex flex-col gap-y-3">
                                             {primaryImageUrl ? (
                                                 <Image
                                                     src={primaryImageUrl}
-                                                    alt="Outro primary"
+                                                    alt={t(
+                                                        "pages.expose_configuration.image.outro_primary_alt",
+                                                    )}
                                                     width="100%"
                                                     className="rounded"
                                                 />
                                             ) : (
                                                 <div className="h-40 border border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm">
-                                                    No image uploaded
+                                                    {t(
+                                                        "pages.expose_configuration.image.no_image_uploaded",
+                                                    )}
                                                 </div>
                                             )}
                                             <Space>
@@ -295,9 +325,13 @@ const ExposeConfigurationIndex = ({
                                                             "outro_primary_image",
                                                         )
                                                     }
-                                                    loading={isImageActionPending}
+                                                    loading={
+                                                        isImageActionPending
+                                                    }
                                                 >
-                                                    Upload
+                                                    {t(
+                                                        "pages.expose_configuration.actions.upload",
+                                                    )}
                                                 </Button>
                                                 {primaryImageUrl && (
                                                     <Button
@@ -309,7 +343,9 @@ const ExposeConfigurationIndex = ({
                                                             clearPrimaryImage
                                                         }
                                                     >
-                                                        Remove
+                                                        {t(
+                                                            "pages.expose_configuration.actions.remove",
+                                                        )}
                                                     </Button>
                                                 )}
                                             </Space>
@@ -318,19 +354,25 @@ const ExposeConfigurationIndex = ({
 
                                     <Card
                                         size="small"
-                                        title="Secondary Image (Optional)"
+                                        title={t(
+                                            "pages.expose_configuration.labels.secondary_image_optional",
+                                        )}
                                     >
                                         <div className="flex flex-col gap-y-3">
                                             {secondaryImageUrl ? (
                                                 <Image
                                                     src={secondaryImageUrl}
-                                                    alt="Outro secondary"
+                                                    alt={t(
+                                                        "pages.expose_configuration.image.outro_secondary_alt",
+                                                    )}
                                                     width="100%"
                                                     className="rounded"
                                                 />
                                             ) : (
                                                 <div className="h-40 border border-dashed border-gray-300 rounded flex items-center justify-center text-gray-400 text-sm">
-                                                    No image uploaded
+                                                    {t(
+                                                        "pages.expose_configuration.image.no_image_uploaded",
+                                                    )}
                                                 </div>
                                             )}
                                             <Space>
@@ -341,9 +383,13 @@ const ExposeConfigurationIndex = ({
                                                             "outro_secondary_image",
                                                         )
                                                     }
-                                                    loading={isImageActionPending}
+                                                    loading={
+                                                        isImageActionPending
+                                                    }
                                                 >
-                                                    Upload
+                                                    {t(
+                                                        "pages.expose_configuration.actions.upload",
+                                                    )}
                                                 </Button>
                                                 {secondaryImageUrl && (
                                                     <Button
@@ -355,7 +401,9 @@ const ExposeConfigurationIndex = ({
                                                             clearSecondaryImage
                                                         }
                                                     >
-                                                        Remove
+                                                        {t(
+                                                            "pages.expose_configuration.actions.remove",
+                                                        )}
                                                     </Button>
                                                 )}
                                             </Space>
@@ -367,7 +415,11 @@ const ExposeConfigurationIndex = ({
                     </div>
                 </Card>
 
-                <Card title="QR Code">
+                <Card
+                    title={t(
+                        "pages.expose_configuration.sections.qr_code_title",
+                    )}
+                >
                     <div className="flex flex-col gap-y-4">
                         <Space align="center">
                             <Switch
@@ -375,7 +427,9 @@ const ExposeConfigurationIndex = ({
                                 onChange={setQrEnabled}
                             />
                             <Typography.Text strong>
-                                Enable QR Code on Exposes
+                                {t(
+                                    "pages.expose_configuration.labels.enable_qr_code_on_exposes",
+                                )}
                             </Typography.Text>
                         </Space>
 
@@ -383,7 +437,9 @@ const ExposeConfigurationIndex = ({
                             <Input
                                 value={qrCodeLink}
                                 onChange={(e) => setQrCodeLink(e.target.value)}
-                                placeholder="https://example.com/landing-page"
+                                placeholder={t(
+                                    "pages.expose_configuration.placeholders.qr_code_link",
+                                )}
                                 maxLength={2048}
                             />
                         )}
@@ -397,7 +453,9 @@ const ExposeConfigurationIndex = ({
                         onClick={handleSave}
                         disabled={!canSave || isImageActionPending}
                     >
-                        Save Configuration
+                        {t(
+                            "pages.expose_configuration.actions.save_configuration",
+                        )}
                     </Button>
                 </div>
             </div>
