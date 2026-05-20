@@ -1694,5 +1694,5 @@
             </div>
         </div>
     </div>
-    <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div>
+    {{-- <div class="page-num">{{ str_pad($pageNumber++, 2, '0', STR_PAD_LEFT) }}</div> --}}
 </div>

@@ -68,6 +68,12 @@ import type { PropertyEnumValues } from "@/Types";
 
 const { Text, Title } = Typography;
 
+const FIXED_AIRPORT_NAMES = [
+    "ERCAN INTERNATIONAL",
+    "PAPHOS INTERNATIONAL",
+    "LARNACA INTERNATIONAL",
+];
+
 // ============================================
 // Types
 // ============================================
@@ -184,6 +190,43 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const isEditing = !!location;
     const selectedCity = Form.useWatch("address_city", form);
     const isInitialCity = useRef(true);
+
+    const buildFixedAirports = useCallback(
+        (existingAirports?: ProjectLocation["airports"]) => {
+            const source = existingAirports || [];
+
+            return FIXED_AIRPORT_NAMES.map((airportName, index) => {
+                const byName = source.find(
+                    (airport) =>
+                        airport?.name?.trim().toUpperCase() ===
+                        airportName.toUpperCase(),
+                );
+                const fallback = source[index];
+                const current = byName || fallback;
+
+                return {
+                    name: airportName,
+                    travelTimeInMin: current?.travelTimeInMin ?? 0,
+                };
+            });
+        },
+        [],
+    );
+
+    const fixedAirportExistingUrls = useMemo(
+        () =>
+            FIXED_AIRPORT_NAMES.map((airportName, index) => {
+                const source = location?.airports || [];
+                const byName = source.find(
+                    (airport) =>
+                        airport?.name?.trim().toUpperCase() ===
+                        airportName.toUpperCase(),
+                );
+                const fallback = source[index];
+                return (byName || fallback)?.image;
+            }),
+        [location?.airports],
+    );
 
     const { data: enumValues } = useApiQuery<PropertyEnumValues>({
         path: route("properties.enum_values"),
@@ -345,17 +388,14 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         name: i.name,
                         travelTimeInMin: i.travelTimeInMin,
                     })) || [],
-                airports:
-                    location.airports?.map((a) => ({
-                        name: a.name,
-                        travelTimeInMin: a.travelTimeInMin,
-                    })) || [],
+                airports: buildFixedAirports(location.airports),
             });
         } else if (open) {
             form.resetFields();
+            form.setFieldValue("airports", buildFixedAirports());
         }
         setActiveTab("basic");
-    }, [open, location, form]);
+    }, [open, location, form, buildFixedAirports]);
 
     useEffect(() => {
         if (open) {
@@ -451,13 +491,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     </Divider>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Form.Item
+                        {/* <Form.Item
                             name="address_street"
                             label="Street Address"
                             className="md:col-span-2"
                         >
                             <Input placeholder="123 Main Street" />
-                        </Form.Item>
+                        </Form.Item> */}
 
                         <Form.Item
                             name="address_city"
@@ -873,142 +913,70 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 <div>
                     <Alert
                         message="Nearby Airports"
-                        description="Add airports with their distance/travel time from this location."
+                        description="Travel times for the three supported airports."
                         type="info"
                         showIcon
                         className="mb-4"
                     />
 
-                    <Form.List name="airports">
-                        {(fields, { add, remove }) => (
-                            <div className="flex flex-col gap-y-4">
-                                {fields.length === 0 ? (
-                                    <Empty
-                                        image={Empty.PRESENTED_IMAGE_SIMPLE}
-                                        description="No airports added yet"
+                    <div className="flex flex-col gap-y-4">
+                        {FIXED_AIRPORT_NAMES.map((airportName, index) => (
+                            <Card
+                                key={airportName}
+                                size="small"
+                                className="border-l-4 border-l-orange-500"
+                                title={
+                                    <span className="text-sm">
+                                        Airport {index + 1}
+                                    </span>
+                                }
+                            >
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <Form.Item
+                                        name={["airports", index, "name"]}
+                                        label="Airport Name"
+                                        className="md:col-span-2"
+                                        initialValue={airportName}
                                     >
-                                        <Button
-                                            type="primary"
-                                            icon={<PlusOutlined />}
-                                            onClick={() =>
-                                                add({
-                                                    name: "",
-                                                    travelTimeInMin: 0,
-                                                })
-                                            }
-                                        >
-                                            Add First Airport
-                                        </Button>
-                                    </Empty>
-                                ) : (
-                                    <>
-                                        {fields.map(
-                                            ({ key, name, ...restField }) => (
-                                                <Card
-                                                    key={key}
-                                                    size="small"
-                                                    className="border-l-4 border-l-orange-500"
-                                                    title={
-                                                        <span className="text-sm">
-                                                            Airport {name + 1}
-                                                        </span>
-                                                    }
-                                                    extra={
-                                                        <Button
-                                                            type="text"
-                                                            danger
-                                                            icon={
-                                                                <CloseOutlined />
-                                                            }
-                                                            onClick={() =>
-                                                                remove(name)
-                                                            }
-                                                        />
-                                                    }
-                                                >
-                                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                        <Form.Item
-                                                            {...restField}
-                                                            name={[
-                                                                name,
-                                                                "name",
-                                                            ]}
-                                                            label="Airport Name"
-                                                            rules={[
-                                                                {
-                                                                    required: true,
-                                                                    message:
-                                                                        "Required",
-                                                                },
-                                                            ]}
-                                                            className="md:col-span-2"
-                                                        >
-                                                            <Input placeholder="e.g., International Airport" />
-                                                        </Form.Item>
+                                        <Input disabled />
+                                    </Form.Item>
 
-                                                        <Form.Item
-                                                            {...restField}
-                                                            name={[
-                                                                name,
-                                                                "travelTimeInMin",
-                                                            ]}
-                                                            label="Travel Time"
-                                                        >
-                                                            <InputNumber
-                                                                min={0}
-                                                                max={999}
-                                                                addonAfter="min"
-                                                                placeholder="0"
-                                                                className="w-full"
-                                                            />
-                                                        </Form.Item>
-                                                    </div>
+                                    <Form.Item
+                                        name={[
+                                            "airports",
+                                            index,
+                                            "travelTimeInMin",
+                                        ]}
+                                        label="Travel Time"
+                                    >
+                                        <InputNumber
+                                            min={0}
+                                            max={999}
+                                            addonAfter="min"
+                                            placeholder="0"
+                                            className="w-full"
+                                        />
+                                    </Form.Item>
+                                </div>
 
-                                                    <Form.Item
-                                                        {...restField}
-                                                        name={[name, "image"]}
-                                                        label="Image"
-                                                        valuePropName="value"
-                                                        getValueFromEvent={(
-                                                            e,
-                                                        ) =>
-                                                            Array.isArray(e)
-                                                                ? e
-                                                                : e?.fileList
-                                                        }
-                                                    >
-                                                        <ImageUploader
-                                                            existingUrl={
-                                                                location
-                                                                    ?.airports?.[
-                                                                    name
-                                                                ]?.image
-                                                            }
-                                                            placeholder="Upload Image"
-                                                        />
-                                                    </Form.Item>
-                                                </Card>
-                                            ),
-                                        )}
-
-                                        <Button
-                                            type="dashed"
-                                            onClick={() =>
-                                                add({
-                                                    name: "",
-                                                    travelTimeInMin: 0,
-                                                })
-                                            }
-                                            block
-                                            icon={<PlusOutlined />}
-                                        >
-                                            Add Another Airport
-                                        </Button>
-                                    </>
-                                )}
-                            </div>
-                        )}
-                    </Form.List>
+                                <Form.Item
+                                    name={["airports", index, "image"]}
+                                    label="Image"
+                                    valuePropName="value"
+                                    getValueFromEvent={(e) =>
+                                        Array.isArray(e) ? e : e?.fileList
+                                    }
+                                >
+                                    <ImageUploader
+                                        existingUrl={
+                                            fixedAirportExistingUrls[index]
+                                        }
+                                        placeholder="Upload Image"
+                                    />
+                                </Form.Item>
+                            </Card>
+                        ))}
+                    </div>
                 </div>
             ),
         },
