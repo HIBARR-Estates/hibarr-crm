@@ -637,6 +637,7 @@ class ExposeConfiguration implements Arrayable
             data: [
                 // Basic info — mapped from unit type + project
                 'title' => $unitType->display_label . ($project ? ' — ' . $project->name : ''),
+                'display_label' => $unitType->display_label,
                 'reference_code' => $unitType->reference_code,
                 'price' => $formattedPrice,
                 'raw_price' => $unitType->starting_price,

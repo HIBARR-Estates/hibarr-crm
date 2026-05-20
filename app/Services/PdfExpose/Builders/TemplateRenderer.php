@@ -29,7 +29,7 @@ class TemplateRenderer
             // 'logo_rounded'            => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719912107-6b8eafb3-hibarr-rounded.png',
             // 'logo_white'              => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719985906-ae8b2c90-logo-white.png',
             // 'block_title'             => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719787183-e155489e-block-title.svg',
-            'logo_full'               => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
+            // 'logo_full'               => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1770719947639-23a7e25b-logo.png',
             'name_space'              => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778193858830-ad66988e-name-space.png',
             'hibarr_expose_text'      => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778194049167-64036beb-hibarr-expose-text.png',
             'project_overview'        => 'https://minio.hibarr.org/backend-uploads/backend-uploads/1778220690459-2ef518d6-project-overview-space-for-img.png',
@@ -50,6 +50,8 @@ class TemplateRenderer
             'logo_rounded'              => url('/property/icons/hibarr-rounded.png'),
             'block_title'              => url('/property/icons/block-title.svg'),
             'arrow'                    => url('/property/assets/arrow.svg'),
+            'logo_full'                    => url('/property/icons/logo.png'),
+            
         ];
     }
 
@@ -140,7 +142,7 @@ class TemplateRenderer
 
         // 2. Convert company logo only if it's a local app URL
         if (!empty($data['company']['logo'])) {
-            $data['company']['logo'] = self::localUrlToBase64($data['company']['logo']);
+            $data['company']['logo'] = url('/property/icons/logo.png');
         }
 
         // 3. Convert agent image only if it's a local app URL
