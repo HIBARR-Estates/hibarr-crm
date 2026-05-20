@@ -1613,7 +1613,7 @@
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
             <div class="container">
-                <p style="max-width:80%;">{{ $outroDescription }}</p>
+            <div style="max-width:80%;">{!! $outroDescription !!}</div>
             </div>
         </div>
         <div class="expose-title blue absolute">
