@@ -10,7 +10,11 @@ import {
     Divider,
 } from "antd";
 import type { FormInstance } from "antd/lib/form";
-import type { CityLookupValue, PrimaryCategory, PropertyEnumValues } from "@/Types";
+import type {
+    CityLookupValue,
+    PrimaryCategory,
+    PropertyEnumValues,
+} from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
 
@@ -107,7 +111,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                 }
             }
         });
-    }, [selectedCity]);
+    }, [selectedCity, enumValues?.cities, form]);
 
     return (
         <Row gutter={[16, 0]}>

@@ -6,6 +6,7 @@ use App\Models\CompanyExposeConfiguration;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\ProjectFacility;
+use App\Models\PropertyCity;
 use Illuminate\Contracts\Support\Arrayable;
 
 class ExposeConfiguration implements Arrayable
@@ -114,12 +115,20 @@ class ExposeConfiguration implements Arrayable
                 // Distances (for infrastructure page)
                 'distances' => $property->distances ?? [],
 
-                // Location page payload (property exposes usually don't have project location image)
-                'location_payload' => [
-                    'name' => $property->area ?? $property->city ?? null,
-                    'description' => null,
-                    'image_url' => null,
-                ],
+                // Location page payload — fetch PropertyCity data if available
+                'location_payload' => (function() use ($property, $company) {
+                    $propertyCity = null;
+                    if (!empty($property->city)) {
+                        $propertyCity = PropertyCity::where('company_id', $property->company_id ?? $company?->id)
+                            ->where('name', $property->city)
+                            ->first();
+                    }
+                    return [
+                        'name' => $property->area ?? $property->city ?? null,
+                        'description' => $propertyCity?->description ?? null,
+                        'image_url' => $propertyCity?->image_url ?? null,
+                    ];
+                })()
                 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,

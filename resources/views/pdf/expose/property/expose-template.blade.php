@@ -875,7 +875,8 @@
     $heroImages = array_values($data['assets']['hero'] ?? []);
     $coverImages = array_values($data['assets']['cover'] ?? []);
     $exteriorImages = array_values($data['assets']['exterior'] ?? []);
-    $galleryImages = array_values($data['assets']['gallery'] ?? []);
+    // $galleryImages = array_values($data['assets']['gallery'] ?? []);
+    $galleryImages = array_values($data['assets']['interior'] ?? []);
 
     $globalExposeConfig = $data['expose_global_config'] ?? [];
     $outroConfig = $globalExposeConfig['outro'] ?? [];
@@ -1316,7 +1317,7 @@
                 <div class="text">
                     <h1
                         style="font-size:42px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
-                        {{ $data['bedrooms'] ?? '' }}{{ $data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '' }}<br><span class="more" style="font-weight:400; font-size: 32px;">{{ !empty($data['block_name']) ? ' (' . strtoupper($data['block_name']) . ')' : '' }}</span>
+                        {{ !empty($data['display_label']) ? $data['display_label'] : ($data['bedrooms'] ?? '') . ($data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '') }}<br><span class="more" style="font-weight:400; font-size: 32px;">{{ !empty($data['block_name']) ? ' (' . strtoupper($data['block_name']) . ')' : '' }}</span>
                     </h1>
                 </div>
             </div>
@@ -1476,6 +1477,33 @@
 </div>
 --}}
 
+
+<!-- PAGE — Project location spotlight -->
+@if(!empty($locationTitle) || !empty($locationDescription) || !empty($locationImage))
+<div class="page">
+  <div class="split-page" style="position:relative; z-index:1;">
+    <div class="split-top" style="--bg-image: url('{{ $locationImage ?? $outroPrimaryImage }}')"></div>
+    <div class="split-bottom">
+      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
+      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
+      <div class="container">
+        <p style="max-width:80%;">{!! !empty($locationDescription) ? Str::limit($locationDescription, 320) : 'Explore the surrounding neighborhood and its unique lifestyle advantages.' !!}</p>
+      </div>
+    </div>
+    <div class="expose-title blue absolute">
+      <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
+      <div class="text blue">
+        <h1 class="fw-500">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
+      </div>
+    </div>
+    {{-- <div class="rock">
+      <img src="{{ $locationImage ?? $outroSecondaryImage }}" alt="location" />
+    </div> --}}
+  </div>
+ 
+</div>
+@endif
+
 <!-- PAGE 9: SPLIT LAYOUT WITH QUOTE -->
 <div class="page">
     <div class="split-page" style="position:relative; z-index:1;">
@@ -1500,31 +1528,7 @@
     
 </div>
 
-<!-- PAGE — Project location spotlight -->
-@if(!empty($locationTitle) || !empty($locationDescription) || !empty($locationImage))
-<div class="page">
-  <div class="split-page" style="position:relative; z-index:1;">
-    <div class="split-top" style="--bg-image: url('{{ $locationImage ?? $outroPrimaryImage }}')"></div>
-    <div class="split-bottom">
-      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
-      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
-      <div class="container">
-        <p style="max-width:80%;">{{ !empty($locationDescription) ? Str::limit(strip_tags($locationDescription), 320) : 'Explore the surrounding neighborhood and its unique lifestyle advantages.' }}</p>
-      </div>
-    </div>
-    <div class="expose-title blue absolute">
-      <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
-      <div class="text blue">
-        <h1 class="fw-500">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
-      </div>
-    </div>
-    <div class="rock">
-      <img src="{{ $locationImage ?? $outroSecondaryImage }}" alt="location" />
-    </div>
-  </div>
- 
-</div>
-@endif
+
 
 <!-- PAGE 10: INFRASTRUCTURE / DISTANCES -->
 @if(!empty($data['distances']))
