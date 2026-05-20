@@ -80,7 +80,7 @@ export interface LocationAttraction {
 }
 
 export interface LocationInfrastructure {
-    infrastructure_id: number;
+    infrastructure_id?: number;
     travelTimeInMin: number;
     // Expanded fields (from API)
     name?: string;
@@ -89,7 +89,7 @@ export interface LocationInfrastructure {
 }
 
 export interface LocationAirport {
-    airport_id: number;
+    airport_id?: number;
     travelTimeInMin: number;
     // Expanded fields (from API)
     name?: string;

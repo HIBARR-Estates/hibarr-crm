@@ -155,6 +155,25 @@ class TemplateRenderer
             $data['location_payload']['image_url'] = self::localUrlToBase64($data['location_payload']['image_url']);
         }
 
+        // 3.2 Convert location infrastructure/airport images only if local app URLs
+        if (!empty($data['location_infrastructure']) && is_array($data['location_infrastructure'])) {
+            foreach ($data['location_infrastructure'] as &$item) {
+                if (!empty($item['image'])) {
+                    $item['image'] = self::localUrlToBase64($item['image']);
+                }
+            }
+            unset($item);
+        }
+
+        if (!empty($data['location_airports']) && is_array($data['location_airports'])) {
+            foreach ($data['location_airports'] as &$item) {
+                if (!empty($item['image'])) {
+                    $item['image'] = self::localUrlToBase64($item['image']);
+                }
+            }
+            unset($item);
+        }
+
         // 4. Add branding images as base64 (cached for 24 hours)
         $data['branding'] = $this->getBrandingAssets();
 

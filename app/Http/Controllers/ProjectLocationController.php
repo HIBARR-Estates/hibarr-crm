@@ -156,11 +156,15 @@ class ProjectLocationController extends AccountBaseController
             'attractions.*.content' => 'nullable|array',
             'attractions.*.images' => 'nullable|array',
             'infrastructure' => 'nullable|array',
-            'infrastructure.*.infrastructure_id' => 'required_with:infrastructure|exists:infrastructures,id',
+            'infrastructure.*.infrastructure_id' => 'nullable|exists:infrastructures,id',
+            'infrastructure.*.name' => 'required_without:infrastructure.*.infrastructure_id|string|max:255',
             'infrastructure.*.travelTimeInMin' => 'nullable|numeric',
+            'infrastructure.*.image' => 'nullable|url|max:500',
             'airports' => 'nullable|array',
-            'airports.*.airport_id' => 'required_with:airports|exists:airports,id',
+            'airports.*.airport_id' => 'nullable|exists:airports,id',
+            'airports.*.name' => 'required_without:airports.*.airport_id|string|max:255',
             'airports.*.travelTimeInMin' => 'nullable|numeric',
+            'airports.*.image' => 'nullable|url|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -204,11 +208,15 @@ class ProjectLocationController extends AccountBaseController
             'image_url' => 'nullable|url|max:500',
             'attractions' => 'nullable|array',
             'infrastructure' => 'nullable|array',
-            'infrastructure.*.infrastructure_id' => 'required_with:infrastructure|exists:infrastructures,id',
+            'infrastructure.*.infrastructure_id' => 'nullable|exists:infrastructures,id',
+            'infrastructure.*.name' => 'required_without:infrastructure.*.infrastructure_id|string|max:255',
             'infrastructure.*.travelTimeInMin' => 'nullable|numeric',
+            'infrastructure.*.image' => 'nullable|url|max:500',
             'airports' => 'nullable|array',
-            'airports.*.airport_id' => 'required_with:airports|exists:airports,id',
+            'airports.*.airport_id' => 'nullable|exists:airports,id',
+            'airports.*.name' => 'required_without:airports.*.airport_id|string|max:255',
             'airports.*.travelTimeInMin' => 'nullable|numeric',
+            'airports.*.image' => 'nullable|url|max:500',
         ]);
 
         if ($validator->fails()) {

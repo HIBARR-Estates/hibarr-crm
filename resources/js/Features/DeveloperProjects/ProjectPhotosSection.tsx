@@ -54,6 +54,7 @@ const ASSET_TAGS: Record<AssetTag, string> = {
     "site-plan": "Site Plan",
     footer: "Footer",
     gallery: "Gallery",
+    cover: "Cover",
 };
 
 const TAG_OPTIONS = Object.entries(ASSET_TAGS).map(([value, label]) => ({
@@ -72,6 +73,7 @@ const TAG_COLORS: Record<AssetTag, string> = {
     "site-plan": "volcano",
     footer: "geekblue",
     gallery: "lime",
+    cover: "red",
 };
 
 /**
@@ -94,7 +96,9 @@ async function assertDeveloperProjectAssetDestroyOk(
         } catch {
             if (!res.ok) {
                 throw new Error(
-                    trimmed.length > 200 ? `${trimmed.slice(0, 200)}…` : trimmed,
+                    trimmed.length > 200
+                        ? `${trimmed.slice(0, 200)}…`
+                        : trimmed,
                 );
             }
             return;
@@ -645,15 +649,17 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
         return (
             <Card
                 title="Project Photos"
-                extra={canEdit ? (
-                    <Button
-                        type="primary"
-                        icon={<UploadOutlined />}
-                        onClick={() => setIsUploadModalOpen(true)}
-                    >
-                        Upload Photos
-                    </Button>
-                ) : null}
+                extra={
+                    canEdit ? (
+                        <Button
+                            type="primary"
+                            icon={<UploadOutlined />}
+                            onClick={() => setIsUploadModalOpen(true)}
+                        >
+                            Upload Photos
+                        </Button>
+                    ) : null
+                }
             >
                 {deleteContextHolder}
                 <Empty
@@ -931,7 +937,10 @@ const ProjectPhotosSection: React.FC<ProjectPhotosSectionProps> = ({
                                 >
                                     Delete ({selectedAssetIds.size})
                                 </Button>
-                                <Button size="small" onClick={exitSelectionMode}>
+                                <Button
+                                    size="small"
+                                    onClick={exitSelectionMode}
+                                >
                                     Cancel
                                 </Button>
                             </>

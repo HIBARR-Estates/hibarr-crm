@@ -718,13 +718,14 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             ),
             children: (
                 <div>
-                    <Alert
-                        message="Nearby Infrastructure"
-                        description="Add hospitals, shopping centers, schools, and other key infrastructure with travel times."
-                        type="info"
-                        showIcon
-                        className="mb-4"
-                    />
+                    <div className="mb-4">
+                        <Alert
+                            message="Nearby Infrastructure"
+                            description="Add hospitals, shopping centers, schools, and other key infrastructure with travel times."
+                            type="info"
+                            showIcon
+                        />
+                    </div>
 
                     <Form.List name="infrastructure">
                         {(fields, { add, remove }) => (
