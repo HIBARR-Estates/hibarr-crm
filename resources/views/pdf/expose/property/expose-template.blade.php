@@ -891,6 +891,8 @@
     $locationTitle = $locationPayload['name'] ?? null;
     $locationDescription = $locationPayload['description'] ?? null;
     $locationImage = $locationPayload['image_url'] ?? null;
+    $locationInfrastructure = array_values($data['location_infrastructure'] ?? []);
+    $locationAirports = array_values($data['location_airports'] ?? []);
 
     $facilitySlugs = $data['facilities'] ?? [];
     $facilityLabels = $data['facility_labels'] ?? [];
@@ -1504,6 +1506,105 @@
 </div>
 @endif
 
+
+<!-- PAGE 10: INFRASTRUCTURE / DISTANCES -->
+@if(!empty($data['distances']) || !empty($locationInfrastructure) || !empty($locationAirports))
+@php
+  $distanceList = array_values($data['distances'] ?? []);
+
+  // Prefer explicitly linked ProjectLocation arrays; fall back to legacy distance rows.
+  $legacyInfraItems = array_values(array_filter($distanceList, fn ($item) => ($item['type'] ?? null) === 'infrastructure'));
+  $legacyAirportItems = array_values(array_filter($distanceList, fn ($item) => ($item['type'] ?? null) === 'airport'));
+
+  $infraItems = !empty($locationInfrastructure)
+    ? array_slice($locationInfrastructure, 0, 4)
+    : array_slice($legacyInfraItems, 0, 4);
+
+  $airportItems = !empty($locationAirports)
+    ? array_slice($locationAirports, 0, 3)
+    : array_slice($legacyAirportItems, 0, 3);
+@endphp
+<div class="page">
+  <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
+  <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
+  <div class="infrastructure">
+    <div class="header">
+      <span class="title">INFRASTRUCTURE</span>
+      <span class="title end">AIRPORT</span>
+    </div>
+    <div class="container" style="gap: 1rem;">
+
+      {{-- TOP ROW: first 2 infra items (left) + map & first airport item (right) --}}
+      <div style="display:flex; flex:1; gap:2rem; align-items:center;">
+        {{-- First half: first 2 infrastructure items --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:center;">
+          @foreach(array_slice($infraItems, 0, 2) as $i => $distance)
+          @php $imgKey = $i; @endphp
+          <div class="grid-item" style="flex:1;">
+            <img src="{{ $distance['image'] ?? ($data['assets']['exterior'][$imgKey] ?? ($data['assets']['interior'][$imgKey] ?? 'property/images/test.png')) }}" alt="{{ $distance['name'] ?? '' }}" />
+            <span class="infra-span">{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$imgKey] ?? '')) }}</span>
+            <p class="infra-p">{{ $distance['travelTimeInMin'] ?? $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }}{{ is_numeric($distance['travelTimeInMin'] ?? $distance['time'] ?? $distance['distance'] ?? null) ? ' min' : '' }}</p>
+          </div>
+          @endforeach
+        </div>
+        {{-- Second half: map + first airport item --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:center; overflow:visible;">
+          <div class="airport-map" style="flex:2; align-self:stretch; margin-right:-40px;">
+            <img src="{{ $data['branding']['map'] }}" alt="Map" />
+          </div>
+          @if(!empty($airportItems[0]))
+          @php $a = $airportItems[0]; @endphp
+          <div class="airport-item" style="position:relative; z-index:1;">
+            <img src="{{ $a['image'] ?? ($data['assets']['exterior'][0] ?? 'property/images/test.png') }}" alt="{{ $a['name'] ?? '' }}" />
+            <p>{{ strtoupper($a['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[0] ?? ''))) }}</p>
+            <span>{{ $a['travelTimeInMin'] ?? $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }}</span>
+          </div>
+          @endif
+        </div>
+      </div>
+
+      {{-- BOTTOM ROW: next 2 infra items (left) + remaining airport items & logo (right) --}}
+      <div style="display:flex; flex:1; gap:2rem; align-items:stretch;">
+        {{-- First half: next 2 infrastructure items --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:flex-start;">
+          @foreach(array_slice($infraItems, 2, 2) as $j => $distance)
+          @php $imgKey = $j + 2; @endphp
+          <div class="grid-item" style="flex:1;">
+            <img src="{{ $distance['image'] ?? ($data['assets']['exterior'][$imgKey] ?? ($data['assets']['interior'][$imgKey] ?? 'property/images/test.png')) }}" alt="{{ $distance['name'] ?? '' }}" />
+            <span class="infra-span">{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$imgKey] ?? '')) }}</span>
+            <p class="infra-p">{{ $distance['travelTimeInMin'] ?? $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }}{{ is_numeric($distance['travelTimeInMin'] ?? $distance['time'] ?? $distance['distance'] ?? null) ? ' min' : '' }}</p>
+          </div>
+          @endforeach
+        </div>
+        {{-- Second half: airport items [1] & [2] + logo --}}
+        <div style="display:flex; flex:1; gap:1rem; align-items:flex-start;">
+          @if(!empty($airportItems[1]))
+          @php $b = $airportItems[1]; @endphp
+          <div class="airport-item">
+            <img src="{{ $b['image'] ?? ($data['assets']['exterior'][1] ?? 'property/images/test.png') }}" alt="{{ $b['name'] ?? '' }}" />
+            <p>{{ strtoupper($b['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[1] ?? ''))) }}</p>
+            <span>{{ $b['travelTimeInMin'] ?? $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }}</span>
+          </div>
+          @endif
+          @if(!empty($airportItems[2]))
+          @php $c = $airportItems[2]; @endphp
+          <div class="airport-item">
+            <img src="{{ $c['image'] ?? ($data['assets']['exterior'][2] ?? 'property/images/test.png') }}" alt="{{ $c['name'] ?? '' }}" />
+            <p>{{ strtoupper($c['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[2] ?? ''))) }}</p>
+            <span>{{ $c['travelTimeInMin'] ?? $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }}</span>
+          </div>
+          @endif
+          <div class="airport-logo" style="align-self:flex-end;">
+            <img src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr" />
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+@endif
+
 <!-- PAGE 9: SPLIT LAYOUT WITH QUOTE -->
 <div class="page">
     <div class="split-page" style="position:relative; z-index:1;">
@@ -1530,93 +1631,6 @@
 
 
 
-<!-- PAGE 10: INFRASTRUCTURE / DISTANCES -->
-@if(!empty($data['distances']))
-@php
-  $distanceList  = array_values($data['distances']);
-  $infraItems    = array_slice($distanceList, 0, 4); // up to 4 infra items (2 top-left, 2 bottom-left)
-  $airportItems  = array_slice($distanceList, 0, 3); // up to 3 airport items
-@endphp
-<div class="page">
-  <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
-  <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
-  <div class="infrastructure">
-    <div class="header">
-      <span class="title">INFRASTRUCTURE</span>
-      <span class="title end">AIRPORT</span>
-    </div>
-    <div class="container" style="gap: 1rem;">
-
-      {{-- TOP ROW: first 2 infra items (left) + map & first airport item (right) --}}
-      <div style="display:flex; flex:1; gap:2rem; align-items:center;">
-        {{-- First half: first 2 infrastructure items --}}
-        <div style="display:flex; flex:1; gap:1rem; align-items:center;">
-          @foreach(array_slice($infraItems, 0, 2) as $i => $distance)
-          @php $imgKey = $i; @endphp
-          <div class="grid-item" style="flex:1;">
-            <img src="{{ $data['assets']['exterior'][$imgKey] ?? ($data['assets']['interior'][$imgKey] ?? 'property/images/test.png') }}" alt="{{ $distance['name'] ?? '' }}" />
-            <span class="infra-span">{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$imgKey] ?? '')) }}</span>
-            <p class="infra-p">{{ $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }}{{ is_numeric($distance['time'] ?? $distance['distance'] ?? null) ? ' min' : '' }}</p>
-          </div>
-          @endforeach
-        </div>
-        {{-- Second half: map + first airport item --}}
-        <div style="display:flex; flex:1; gap:1rem; align-items:center; overflow:visible;">
-          <div class="airport-map" style="flex:2; align-self:stretch; margin-right:-40px;">
-            <img src="{{ $data['branding']['map'] }}" alt="Map" />
-          </div>
-          @if(!empty($airportItems[0]))
-          @php $a = $airportItems[0]; @endphp
-          <div class="airport-item" style="position:relative; z-index:1;">
-            <img src="{{ $data['assets']['exterior'][0] ?? 'property/images/test.png' }}" alt="{{ $a['name'] ?? '' }}" />
-            <p>{{ strtoupper($a['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[0] ?? ''))) }}</p>
-            <span>{{ $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }}</span>
-          </div>
-          @endif
-        </div>
-      </div>
-
-      {{-- BOTTOM ROW: next 2 infra items (left) + remaining airport items & logo (right) --}}
-      <div style="display:flex; flex:1; gap:2rem; align-items:stretch;">
-        {{-- First half: next 2 infrastructure items --}}
-        <div style="display:flex; flex:1; gap:1rem; align-items:flex-start;">
-          @foreach(array_slice($infraItems, 2, 2) as $j => $distance)
-          @php $imgKey = $j + 2; @endphp
-          <div class="grid-item" style="flex:1;">
-            <img src="{{ $data['assets']['exterior'][$imgKey] ?? ($data['assets']['interior'][$imgKey] ?? 'property/images/test.png') }}" alt="{{ $distance['name'] ?? '' }}" />
-            <span class="infra-span">{{ $distance['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[$imgKey] ?? '')) }}</span>
-            <p class="infra-p">{{ $distance['time'] ?? $distance['distance'] ?? (is_scalar($distance) ? $distance : '') }}{{ is_numeric($distance['time'] ?? $distance['distance'] ?? null) ? ' min' : '' }}</p>
-          </div>
-          @endforeach
-        </div>
-        {{-- Second half: airport items [1] & [2] + logo --}}
-        <div style="display:flex; flex:1; gap:1rem; align-items:flex-start;">
-          @if(!empty($airportItems[1]))
-          @php $b = $airportItems[1]; @endphp
-          <div class="airport-item">
-            <img src="{{ $data['assets']['exterior'][1] ?? 'property/images/test.png' }}" alt="{{ $b['name'] ?? '' }}" />
-            <p>{{ strtoupper($b['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[1] ?? ''))) }}</p>
-            <span>{{ $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }}</span>
-          </div>
-          @endif
-          @if(!empty($airportItems[2]))
-          @php $c = $airportItems[2]; @endphp
-          <div class="airport-item">
-            <img src="{{ $data['assets']['exterior'][2] ?? 'property/images/test.png' }}" alt="{{ $c['name'] ?? '' }}" />
-            <p>{{ strtoupper($c['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[2] ?? ''))) }}</p>
-            <span>{{ $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }}</span>
-          </div>
-          @endif
-          <div class="airport-logo" style="align-self:flex-end;">
-            <img src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr" />
-          </div>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
-@endif
 
 <!-- PAGE — Floor Plan -->
 @if(!empty($data['assets']['floor-plan']))
