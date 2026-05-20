@@ -462,4 +462,41 @@ return [
         'pagination_total'    => '{{start}}-{{end}} von {{total}} Einträgen',
     ],
 
+    'expose_configuration' => [
+        'title' => 'Expose-Konfiguration',
+        'alert' => [
+            'global_company_configuration' => 'Globale Unternehmenseinstellungen',
+            'global_company_description'   => 'Diese Einstellungen werden für alle generierten Exposes verwendet (Projektbroschüre sowie Einheiten-/Objektexposes).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Outro',
+            'qr_code_title' => 'QR-Code',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Outro-Bereich aktivieren',
+            'images'                     => 'Bilder',
+            'primary_image'              => 'Primärbild',
+            'secondary_image_optional'   => 'Sekundärbild (optional)',
+            'enable_qr_code_on_exposes' => 'QR-Code auf Exposes aktivieren',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Outro-Titel',
+            'outro_description' => 'Outro-Beschreibung',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Outro primär',
+            'outro_secondary_alt' => 'Outro sekundär',
+            'no_image_uploaded'   => 'Kein Bild hochgeladen',
+        ],
+        'actions' => [
+            'upload'             => 'Hochladen',
+            'remove'             => 'Entfernen',
+            'save_configuration' => 'Konfiguration speichern',
+        ],
+        'messages' => [
+            'upload_failed' => 'Bild konnte nicht hochgeladen werden',
+        ],
+    ],
+
 ];
