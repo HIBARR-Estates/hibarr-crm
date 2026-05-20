@@ -15,11 +15,19 @@ import {
 import { UploadOutlined, DeleteOutlined } from "@ant-design/icons";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
+import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
 import type { PageProps } from "../../Components/DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+
+const stripHtml = (value: string): string =>
+    value
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/\u00a0/g, " ")
+        .trim();
 
 interface CompanyExposeConfiguration {
     id: number;
@@ -182,7 +190,7 @@ const ExposeConfigurationIndex = ({
     const canSave = useMemo(() => {
         if (outroEnabled) {
             if (!outroTitle.trim()) return false;
-            if (!outroDescription.trim()) return false;
+            if (!stripHtml(outroDescription)) return false;
             if (!primaryImageUrl && !removePrimaryImage) return false;
             if (!primaryImageUrl && removePrimaryImage) return false;
         }
@@ -276,15 +284,13 @@ const ExposeConfigurationIndex = ({
                                     maxLength={255}
                                 />
 
-                                <Input.TextArea
+                                <HtmlEditor
                                     value={outroDescription}
-                                    onChange={(e) =>
-                                        setOutroDescription(e.target.value)
-                                    }
+                                    onChange={setOutroDescription}
                                     placeholder={t(
                                         "pages.expose_configuration.placeholders.outro_description",
                                     )}
-                                    rows={5}
+                                    height={240}
                                 />
 
                                 <Divider orientation="left">

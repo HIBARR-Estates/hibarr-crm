@@ -1001,7 +1001,7 @@
         {{-- Location --}}
         <div class="item">
           <h3 class="item-header">CITY</h3>
-          <div class="item-value">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
+          <div class="item-value" style="text-transform: capitalize;">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
         </div>
 
        
@@ -1157,7 +1157,7 @@
     <div class="container" style="position: relative; z-index: 1;">
       <div class="header">
         <span class="title">FACILITIES</span>
-        <img style="width: 12%" src="{{ $data['company']['logo'] ?? $data['branding']['logo_full'] }}" alt="hibarr-logo" />
+        <img style="width: 12%" src="{{ $data['branding']['logo_full'] ?? $data['company']['logo'] }}" alt="hibarr-logo" />
       </div>
 
       <div class="gallery-grid">
@@ -1318,7 +1318,7 @@
 
                 <div class="text">
                     <h1
-                        style="font-size:42px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
+                        style="font-size:34px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
                         {{ !empty($data['display_label']) ? $data['display_label'] : ($data['bedrooms'] ?? '') . ($data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '') }}<br><span class="more" style="font-weight:400; font-size: 32px;">{{ !empty($data['block_name']) ? ' (' . strtoupper($data['block_name']) . ')' : '' }}</span>
                     </h1>
                 </div>
@@ -1613,7 +1613,7 @@
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
             <div class="container">
-                <p style="max-width:80%;">{{ $outroDescription }}</p>
+            <div style="max-width:80%;">{!! $outroDescription !!}</div>
             </div>
         </div>
         <div class="expose-title blue absolute">
