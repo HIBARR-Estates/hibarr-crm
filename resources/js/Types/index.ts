@@ -522,7 +522,8 @@ export type AssetTag =
     | "floor-plan"
     | "site-plan"
     | "footer"
-    | "gallery";
+    | "gallery"
+    | "cover";
 
 export interface AssetTagOption {
     value: AssetTag;
