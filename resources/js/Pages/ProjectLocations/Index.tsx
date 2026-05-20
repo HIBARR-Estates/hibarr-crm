@@ -191,26 +191,27 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const selectedCity = Form.useWatch("address_city", form);
     const isInitialCity = useRef(true);
 
-    const buildFixedAirports = useCallback((
-        existingAirports?: ProjectLocation["airports"],
-    ) => {
-        const source = existingAirports || [];
+    const buildFixedAirports = useCallback(
+        (existingAirports?: ProjectLocation["airports"]) => {
+            const source = existingAirports || [];
 
-        return FIXED_AIRPORT_NAMES.map((airportName, index) => {
-            const byName = source.find(
-                (airport) =>
-                    airport?.name?.trim().toUpperCase() ===
-                    airportName.toUpperCase(),
-            );
-            const fallback = source[index];
-            const current = byName || fallback;
+            return FIXED_AIRPORT_NAMES.map((airportName, index) => {
+                const byName = source.find(
+                    (airport) =>
+                        airport?.name?.trim().toUpperCase() ===
+                        airportName.toUpperCase(),
+                );
+                const fallback = source[index];
+                const current = byName || fallback;
 
-            return {
-                name: airportName,
-                travelTimeInMin: current?.travelTimeInMin ?? 0,
-            };
-        });
-    }, []);
+                return {
+                    name: airportName,
+                    travelTimeInMin: current?.travelTimeInMin ?? 0,
+                };
+            });
+        },
+        [],
+    );
 
     const fixedAirportExistingUrls = useMemo(
         () =>
@@ -387,8 +388,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         name: i.name,
                         travelTimeInMin: i.travelTimeInMin,
                     })) || [],
-                airports:
-                    buildFixedAirports(location.airports),
+                airports: buildFixedAirports(location.airports),
             });
         } else if (open) {
             form.resetFields();
@@ -491,13 +491,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     </Divider>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Form.Item
+                        {/* <Form.Item
                             name="address_street"
                             label="Street Address"
                             className="md:col-span-2"
                         >
                             <Input placeholder="123 Main Street" />
-                        </Form.Item>
+                        </Form.Item> */}
 
                         <Form.Item
                             name="address_city"
@@ -925,7 +925,11 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                 key={airportName}
                                 size="small"
                                 className="border-l-4 border-l-orange-500"
-                                title={<span className="text-sm">Airport {index + 1}</span>}
+                                title={
+                                    <span className="text-sm">
+                                        Airport {index + 1}
+                                    </span>
+                                }
                             >
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <Form.Item
@@ -938,7 +942,11 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                     </Form.Item>
 
                                     <Form.Item
-                                        name={["airports", index, "travelTimeInMin"]}
+                                        name={[
+                                            "airports",
+                                            index,
+                                            "travelTimeInMin",
+                                        ]}
                                         label="Travel Time"
                                     >
                                         <InputNumber
@@ -960,7 +968,9 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                     }
                                 >
                                     <ImageUploader
-                                        existingUrl={fixedAirportExistingUrls[index]}
+                                        existingUrl={
+                                            fixedAirportExistingUrls[index]
+                                        }
                                         placeholder="Upload Image"
                                     />
                                 </Form.Item>
