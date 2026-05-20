@@ -22,8 +22,13 @@ class ExposeConfiguration implements Arrayable
 
     public static function fromProperty($property, string $layout, array $clientData = [], array $sections = []): self
     {
+        $property->loadMissing(['projectLocation', 'developerProject.location']);
+
         $agent = $property->product->addedBy ?? auth()->user();
         $company = company();
+        $projectLocation = $property->projectLocation ?? $property->developerProject?->location;
+        $locationInfrastructure = $projectLocation?->getExpandedInfrastructure() ?? [];
+        $locationAirports = $projectLocation?->getExpandedAirports() ?? [];
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($property->company_id ?? $company?->id);
         
         // Group assets by tags
@@ -115,6 +120,10 @@ class ExposeConfiguration implements Arrayable
                 // Distances (for infrastructure page)
                 'distances' => $property->distances ?? [],
 
+                // Structured location infrastructure for PDF sections
+                'location_infrastructure' => $locationInfrastructure,
+                'location_airports' => $locationAirports,
+
                 // Location page payload — fetch PropertyCity data if available
                 'location_payload' => (function() use ($property, $company) {
                     $propertyCity = null;
@@ -128,7 +137,7 @@ class ExposeConfiguration implements Arrayable
                         'description' => $propertyCity?->description ?? null,
                         'image_url' => $propertyCity?->image_url ?? null,
                     ];
-                })()
+                })(),
                 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
@@ -228,6 +237,8 @@ class ExposeConfiguration implements Arrayable
 
         // Build distances from project distances field
         $distances = $project->distances ?? [];
+        $expandedInfra = [];
+        $expandedAirports = [];
 
         // Enrich with location infrastructure/airports if available
         if ($location) {
@@ -237,6 +248,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $infra['name'],
                     'time' => $infra['travelTimeInMin'],
                     'type' => 'infrastructure',
+                    'image' => $infra['image'] ?? null,
                 ];
             }
             $expandedAirports = $location->getExpandedAirports();
@@ -245,6 +257,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $airport['name'] . ($airport['code'] ? ' (' . $airport['code'] . ')' : ''),
                     'time' => $airport['travelTimeInMin'],
                     'type' => 'airport',
+                    'image' => $airport['image'] ?? null,
                 ];
             }
         }
@@ -369,6 +382,10 @@ class ExposeConfiguration implements Arrayable
 
                 // Distances
                 'distances' => $distances,
+
+                // Structured location infrastructure for PDF sections
+                'location_infrastructure' => $expandedInfra ?? [],
+                'location_airports' => $expandedAirports ?? [],
 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
@@ -566,6 +583,8 @@ class ExposeConfiguration implements Arrayable
 
         // Build distances from project + location infrastructure/airports
         $distances = $project?->distances ?? [];
+        $expandedInfra = [];
+        $expandedAirports = [];
         if ($location) {
             $expandedInfra = $location->getExpandedInfrastructure();
             foreach ($expandedInfra as $infra) {
@@ -573,6 +592,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $infra['name'],
                     'time' => $infra['travelTimeInMin'],
                     'type' => 'infrastructure',
+                    'image' => $infra['image'] ?? null,
                 ];
             }
             $expandedAirports = $location->getExpandedAirports();
@@ -581,6 +601,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $airport['name'] . ($airport['code'] ? ' (' . $airport['code'] . ')' : ''),
                     'time' => $airport['travelTimeInMin'],
                     'type' => 'airport',
+                    'image' => $airport['image'] ?? null,
                 ];
             }
         }
@@ -717,6 +738,10 @@ class ExposeConfiguration implements Arrayable
 
                 // Distances (from project + location)
                 'distances' => $distances,
+
+                // Structured location infrastructure for PDF sections
+                'location_infrastructure' => $expandedInfra ?? [],
+                'location_airports' => $expandedAirports ?? [],
 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
