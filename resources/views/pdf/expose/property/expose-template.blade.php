@@ -1318,7 +1318,7 @@
 
                 <div class="text">
                     <h1
-                        style="font-size:42px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
+                        style="font-size:34px; line-height:1.35; color:#053160; font-weight:700; text-align:center;">
                         {{ !empty($data['display_label']) ? $data['display_label'] : ($data['bedrooms'] ?? '') . ($data['bedrooms'] ? ' + ' . ($data['living_room'] ?? '1') : '') }}<br><span class="more" style="font-weight:400; font-size: 32px;">{{ !empty($data['block_name']) ? ' (' . strtoupper($data['block_name']) . ')' : '' }}</span>
                     </h1>
                 </div>
