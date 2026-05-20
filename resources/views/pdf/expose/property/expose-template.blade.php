@@ -1001,7 +1001,7 @@
         {{-- Location --}}
         <div class="item">
           <h3 class="item-header">CITY</h3>
-          <div class="item-value">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
+          <div class="item-value" style="text-transform: capitalize;">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
         </div>
 
        
@@ -1157,7 +1157,7 @@
     <div class="container" style="position: relative; z-index: 1;">
       <div class="header">
         <span class="title">FACILITIES</span>
-        <img style="width: 12%" src="{{ $data['company']['logo'] ?? $data['branding']['logo_full'] }}" alt="hibarr-logo" />
+        <img style="width: 12%" src="{{ $data['branding']['logo_full'] ?? $data['company']['logo'] }}" alt="hibarr-logo" />
       </div>
 
       <div class="gallery-grid">
