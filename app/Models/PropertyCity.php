@@ -26,6 +26,7 @@ class PropertyCity extends BaseModel
         'label',
         'description',
         'default_distances',
+        'image_url',
     ];
 
     protected $casts = [

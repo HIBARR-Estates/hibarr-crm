@@ -106,14 +106,14 @@ class PropertyConfigController extends AccountBaseController
                 'max:255',
             ],
             'label'       => 'required|string|max:255',
-            'description' => 'nullable|string|max:1000',
+            'description' => $type === 'cities' ? 'nullable|string' : 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
             'icon'        => 'nullable|string|max:100',
         ];
 
-        // Cities support default distance values
+        // Cities support default distance values and image URL
         if ($type === 'cities') {
             $rules['default_distances']              = 'nullable|array';
             $rules['default_distances.market_km']    = 'nullable|numeric|min:0';
@@ -122,6 +122,7 @@ class PropertyConfigController extends AccountBaseController
             $rules['default_distances.school_km']    = 'nullable|numeric|min:0';
             $rules['default_distances.beach_km']     = 'nullable|numeric|min:0';
             $rules['default_distances.sea_km']       = 'nullable|numeric|min:0';
+            $rules['image_url']                      = 'nullable|url|max:2048';
         }
 
         $validated = $request->validate($rules);
@@ -170,6 +171,11 @@ class PropertyConfigController extends AccountBaseController
             $fillable['default_distances'] = $validated['default_distances'];
         }
 
+        // Only PropertyCity has image_url
+        if ($type === 'cities' && isset($validated['image_url'])) {
+            $fillable['image_url'] = $validated['image_url'];
+        }
+
         // Only ProjectFacility has icon
         if ($type === 'project-facilities' && isset($validated['icon'])) {
             $fillable['icon'] = $validated['icon'];
@@ -201,14 +207,14 @@ class PropertyConfigController extends AccountBaseController
 
         $rules = [
             'label'       => 'sometimes|string|max:255',
-            'description' => 'nullable|string|max:1000',
+            'description' => $type === 'cities' ? 'nullable|string' : 'nullable|string|max:1000',
             'parent_type' => 'nullable|string|max:255',
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
             'icon'        => 'nullable|string|max:100',
         ];
 
-        // Cities support default distance values
+        // Cities support default distance values and image URL
         if ($type === 'cities') {
             $rules['default_distances']              = 'nullable|array';
             $rules['default_distances.market_km']    = 'nullable|numeric|min:0';
@@ -217,6 +223,7 @@ class PropertyConfigController extends AccountBaseController
             $rules['default_distances.school_km']    = 'nullable|numeric|min:0';
             $rules['default_distances.beach_km']     = 'nullable|numeric|min:0';
             $rules['default_distances.sea_km']       = 'nullable|numeric|min:0';
+            $rules['image_url']                      = 'nullable|url|max:2048';
         }
 
         $validated = $request->validate($rules);
@@ -235,6 +242,9 @@ class PropertyConfigController extends AccountBaseController
         }
         if ($type !== 'cities') {
             unset($updateData['default_distances']);
+        }
+        if ($type !== 'cities') {
+            unset($updateData['image_url']);
         }
         if ($type !== 'project-facilities') {
             unset($updateData['icon']);

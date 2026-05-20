@@ -19,6 +19,8 @@ export interface PropertyConfigItem {
     category?: string;
     /** Only present for project-facilities — Lucide icon identifier */
     icon?: string | null;
+    /** Only present for cities — image URL */
+    image_url?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -34,6 +36,7 @@ export interface PropertyConfigPayload {
     category?: string;
     default_distances?: DefaultDistances;
     icon?: string | null;
+    image_url?: string | null;
 }
 
 /** Summary returned by GET /property-config/types */

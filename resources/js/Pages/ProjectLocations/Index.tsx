@@ -1156,11 +1156,11 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             <EnvironmentOutlined className="text-white text-lg" />
                         </div>
                         <div>
-                            <div className="font-medium text-gray-900">
+                            <div className="font-medium text-gray-900 capitalize">
                                 {name}
                             </div>
                             {record.description && (
-                                <div className="text-sm text-gray-500 truncate max-w-xs">
+                                <div className="text-sm text-gray-500 truncate max-w-xs capitalize">
                                     {record.description}
                                 </div>
                             )}

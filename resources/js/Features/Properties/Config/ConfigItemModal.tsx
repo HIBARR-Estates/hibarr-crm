@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
     Modal,
     Form,
@@ -10,7 +10,10 @@ import {
     Divider,
     Row,
     Col,
+    Upload,
+    message,
 } from "antd";
+import { InboxOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import type {
@@ -24,6 +27,9 @@ import {
     FACILITY_ICON_OPTIONS,
     getFacilityIconComponent,
 } from "@/lib/facilityIcons";
+import HtmlEditor from "@/Components/HtmlEditor";
+import { getFileUploadService } from "@/Services/FileUploadService";
+import type { RcFile } from "antd/lib/upload";
 
 const { Text } = Typography;
 
@@ -63,6 +69,11 @@ const ConfigItemModal = ({
     primaryCategories,
 }: ConfigItemModalProps) => {
     const [form] = Form.useForm<PropertyConfigPayload>();
+    const [imageFile, setImageFile] = useState<RcFile | null>(null);
+    const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(
+        null,
+    );
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
     const isEditing = !!editingItem;
 
     // Create mutation
@@ -118,6 +129,11 @@ const ConfigItemModal = ({
                 icon: editingItem.icon ?? undefined,
             });
 
+            // Set the existing image URL for cities
+            if (activeType === "cities" && (editingItem as any).image_url) {
+                setUploadedImageUrl((editingItem as any).image_url);
+            }
+
             // Populate default distances for cities
             if (
                 activeType === "cities" &&
@@ -135,50 +151,84 @@ const ConfigItemModal = ({
             }
         } else if (open) {
             form.resetFields();
+            setImageFile(null);
+            setUploadedImageUrl(null);
         }
     }, [open, editingItem, form, activeType]);
 
-    const handleSubmit = () => {
-        form.validateFields().then((values) => {
-            const payload: PropertyConfigPayload = {
-                label: values.label.trim(),
-                description: values.description?.trim() || null,
-            };
+    const handleSubmit = async () => {
+        const values = await form.validateFields();
 
-            // Only send name on create (server auto-generates if empty, locked on edit)
-            if (!isEditing) {
-                payload.name = values.name?.trim() || toSnakeCase(values.label);
-            }
+        let imageUrl = uploadedImageUrl;
 
-            if (activeType === "sub-types" && values.parent_type) {
-                payload.parent_type = values.parent_type.trim();
+        // Upload image if a new file was selected
+        if (imageFile && activeType === "cities") {
+            try {
+                setIsUploadingImage(true);
+                const uploadService = getFileUploadService();
+                const uploadResult = await uploadService.uploadSingle(
+                    imageFile,
+                    "property-cities",
+                );
+                imageUrl = uploadResult.downloadUrl;
+                message.success("Image uploaded successfully");
+            } catch (error) {
+                const errorMsg =
+                    error instanceof Error
+                        ? error.message
+                        : "Failed to upload image";
+                message.error(errorMsg);
+                setIsUploadingImage(false);
+                return;
+            } finally {
+                setIsUploadingImage(false);
             }
+        }
 
-            if (activeType === "areas" && values.city_id) {
-                payload.city_id = values.city_id;
-            }
+        const payload: PropertyConfigPayload = {
+            label: values.label.trim(),
+            description:
+                activeType === "cities"
+                    ? values.description || null
+                    : values.description?.trim() || null,
+        };
 
-            if (activeType === "property-types" && values.category) {
-                payload.category = values.category;
-            }
+        // Only send name on create (server auto-generates if empty, locked on edit)
+        if (!isEditing) {
+            payload.name = values.name?.trim() || toSnakeCase(values.label);
+        }
 
-            if (activeType === "cities") {
-                const distances = (values as any).default_distances;
-                if (distances) {
-                    (payload as any).default_distances = distances;
-                }
-            }
+        if (activeType === "sub-types" && values.parent_type) {
+            payload.parent_type = values.parent_type.trim();
+        }
 
-            if (activeType === "project-facilities") {
-                payload.icon = values.icon || null;
-            }
+        if (activeType === "areas" && values.city_id) {
+            payload.city_id = values.city_id;
+        }
 
-            if (isEditing) {
-                updateMutation.mutate(payload);
-            } else {
-                createMutation.mutate(payload);
+        if (activeType === "property-types" && values.category) {
+            payload.category = values.category;
+        }
+
+        if (activeType === "cities") {
+            const distances = (values as any).default_distances;
+            if (distances) {
+                (payload as any).default_distances = distances;
             }
-        });
+            if (imageUrl) {
+                (payload as any).image_url = imageUrl;
+            }
+        }
+
+        if (activeType === "project-facilities") {
+            payload.icon = values.icon || null;
+        }
+
+        if (isEditing) {
+            updateMutation.mutate(payload);
+        } else {
+            createMutation.mutate(payload);
+        }
     };
 
     const title = isEditing
@@ -192,15 +242,27 @@ const ConfigItemModal = ({
             onOk={handleSubmit}
             onCancel={() => {
                 form.resetFields();
+                setImageFile(null);
+                setUploadedImageUrl(null);
                 onClose();
             }}
             okText={isEditing ? "Update" : "Create"}
-            okButtonProps={{ loading: isLoading }}
-            cancelButtonProps={{ disabled: isLoading }}
+            okButtonProps={{
+                loading:
+                    createMutation.isPending ||
+                    updateMutation.isPending ||
+                    isUploadingImage,
+            }}
+            cancelButtonProps={{
+                disabled:
+                    createMutation.isPending ||
+                    updateMutation.isPending ||
+                    isUploadingImage,
+            }}
             destroyOnClose
             width={
                 activeType === "cities"
-                    ? 640
+                    ? 700
                     : activeType === "project-facilities"
                       ? 560
                       : 520
@@ -296,16 +358,27 @@ const ConfigItemModal = ({
                         </Form.Item>
                     )}
 
-                    <Form.Item
-                        name="description"
-                        label="Description"
-                        rules={[{ max: 1000, message: "Max 1000 characters" }]}
-                    >
-                        <Input.TextArea
-                            rows={3}
-                            placeholder="Optional description..."
-                        />
-                    </Form.Item>
+                    {activeType === "cities" ? (
+                        <Form.Item name="description" label="Description">
+                            <HtmlEditor
+                                height={200}
+                                placeholder="Optional description..."
+                            />
+                        </Form.Item>
+                    ) : (
+                        <Form.Item
+                            name="description"
+                            label="Description"
+                            rules={[
+                                { max: 1000, message: "Max 1000 characters" },
+                            ]}
+                        >
+                            <Input.TextArea
+                                rows={3}
+                                placeholder="Optional description..."
+                            />
+                        </Form.Item>
+                    )}
 
                     {activeType === "cities" && (
                         <>
@@ -334,6 +407,80 @@ const ConfigItemModal = ({
                                     </Col>
                                 ))}
                             </Row>
+                            <Form.Item
+                                label="City Image"
+                                tooltip="Upload an image to represent this city"
+                            >
+                                <Upload.Dragger
+                                    accept="image/*"
+                                    maxCount={1}
+                                    beforeUpload={(file: RcFile) => {
+                                        // Validate file type
+                                        const isImage =
+                                            file.type.startsWith("image/");
+                                        if (!isImage) {
+                                            message.error(
+                                                "Only image files are allowed",
+                                            );
+                                            return false;
+                                        }
+
+                                        // Validate file size (max 10MB)
+                                        const isLt10M =
+                                            file.size / 1024 / 1024 < 10;
+                                        if (!isLt10M) {
+                                            message.error(
+                                                "Image must be smaller than 10MB",
+                                            );
+                                            return false;
+                                        }
+
+                                        setImageFile(file);
+                                        return false; // Prevent default upload
+                                    }}
+                                    onRemove={() => {
+                                        setImageFile(null);
+                                        setUploadedImageUrl(null);
+                                    }}
+                                >
+                                    {uploadedImageUrl || imageFile ? (
+                                        <div className="text-center py-4">
+                                            <img
+                                                src={
+                                                    imageFile
+                                                        ? URL.createObjectURL(
+                                                              imageFile,
+                                                          )
+                                                        : uploadedImageUrl!
+                                                }
+                                                alt="City"
+                                                style={{
+                                                    maxHeight: "200px",
+                                                    maxWidth: "100%",
+                                                }}
+                                            />
+                                            <p className="mt-2 text-sm text-gray-600">
+                                                {imageFile
+                                                    ? `Selected: ${imageFile.name}`
+                                                    : "Existing image"}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <p className="ant-upload-drag-icon">
+                                                <InboxOutlined />
+                                            </p>
+                                            <p className="ant-upload-text">
+                                                Click or drag image here
+                                            </p>
+                                            <p className="ant-upload-hint">
+                                                Supported: JPG, PNG, GIF (Max
+                                                10MB)
+                                            </p>
+                                        </div>
+                                    )}
+                                </Upload.Dragger>
+                            </Form.Item>
                         </>
                     )}
 

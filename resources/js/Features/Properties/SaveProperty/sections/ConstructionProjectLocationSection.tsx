@@ -77,7 +77,7 @@ const ConstructionProjectLocationSection: React.FC<
                 }
             }
         });
-    }, [selectedCity]);
+    }, [selectedCity, enumValues?.cities, project?.location?.area, form]);
 
     return (
         <Row gutter={[16, 0]}>
