@@ -382,6 +382,8 @@ return [
                 'location-features' => ['label' => 'Lagemerkmale', 'description' => 'Umgebungsmerkmale (nahe Strand, nahe Schule usw.)'],
                 'add-ons' => ['label' => 'Zusatzoptionen', 'description' => 'Optionale Extras (Möbelpaket, Mietgarantie usw.)'],
                 'project-facilities' => ['label' => 'Projektanlagen', 'description' => 'Einrichtungen in Bauträgerprojekten (Fitnessstudio, Pool usw.)'],
+                'airports' => ['label' => 'Flughäfen', 'description' => 'Nahegelegene Flughäfen und Erreichbarkeit der Flughäfen'],
+                'infrastructures' => ['label' => 'Infrastrukturen', 'description' => 'Infrastrukturoptionen (Straßen, Versorgungsnetze, öffentliche Dienste usw.)'],
             ],
         ],
         'manage_assets' => [

@@ -382,6 +382,8 @@ return [
                 'location-features' => ['label' => 'Konum Özellikleri', 'description' => 'Yakınlık özellikleri (plaja yakın, okula yakın vb.)'],
                 'add-ons' => ['label' => 'Ek Hizmetler', 'description' => 'Opsiyonel ekstralar (mobilya paketi, kira garantisi vb.)'],
                 'project-facilities' => ['label' => 'Proje Olanakları', 'description' => 'Geliştirici projelerindeki olanaklar (spor salonu, havuz vb.)'],
+                'airports' => ['label' => 'Havalimanları', 'description' => 'Yakındaki havalimanları ve havalimanına erişilebilirlik'],
+                'infrastructures' => ['label' => 'Altyapılar', 'description' => 'Altyapı seçenekleri (yollar, altyapı hatları, kamu hizmetleri vb.)'],
             ],
         ],
         'manage_assets' => [

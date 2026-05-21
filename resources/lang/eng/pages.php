@@ -450,6 +450,14 @@ return [
                     'label'       => 'Project Facilities',
                     'description' => 'Facilities available in developer projects (Gym, Pool, etc.)',
                 ],
+                    'airports' => [
+                        'label'       => 'Airports',
+                        'description' => 'Nearby airports and airport accessibility',
+                    ],
+                    'infrastructures' => [
+                        'label'       => 'Infrastructures',
+                        'description' => 'Infrastructure options (roads, utilities, public services, etc.)',
+                    ],
             ],
         ],
         'manage_assets' => [
