@@ -817,7 +817,15 @@ class DeveloperProjectController extends AccountBaseController
             'facilities', 'distances',
         ];
 
-        $project->update($request->only($updateFields));
+        $updatePayload = $request->only($updateFields);
+
+        // Protect existing facilities from being cleared when the field is
+        // omitted by a collapsed form section on the frontend.
+        if (!$request->has('facilities')) {
+            unset($updatePayload['facilities']);
+        }
+
+        $project->update($updatePayload);
 
         return Reply::successWithData('Construction project updated successfully', [
             'data' => $project->fresh(['location', 'exposeConfig', 'developer']),
