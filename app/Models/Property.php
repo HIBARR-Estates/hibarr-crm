@@ -1499,12 +1499,13 @@ class Property extends BaseModel
     private static function getCityLookupValues(): array
     {
         try {
-            $values = PropertyCity::select('name', 'label', 'default_distances')
+            $values = PropertyCity::select('name', 'label', 'description', 'default_distances')
                 ->orderBy('label')
                 ->get()
                 ->map(fn($city) => [
                     'name'              => $city->name,
                     'label'             => $city->label,
+                    'description'       => $city->description,
                     'default_distances' => $city->default_distances,
                 ])
                 ->toArray();
@@ -1516,7 +1517,7 @@ class Property extends BaseModel
             // fall through
         }
 
-        $items = array_map(fn($name) => ['name' => $name, 'label' => $name, 'default_distances' => null], self::CITIES);
+        $items = array_map(fn($name) => ['name' => $name, 'label' => $name, 'description' => null, 'default_distances' => null], self::CITIES);
         usort($items, fn($a, $b) => strcasecmp($a['label'], $b['label']));
         return $items;
     }

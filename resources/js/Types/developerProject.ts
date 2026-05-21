@@ -445,13 +445,15 @@ export interface ExposeProjectConfigData {
 
 // Input types for form submission (uses name-based structure for simplicity)
 export interface LocationInfrastructureInput {
-    name: string;
+    infrastructure_id?: number;
+    name?: string;
     travelTimeInMin: number;
     image?: string;
 }
 
 export interface LocationAirportInput {
-    name: string;
+    airport_id?: number;
+    name?: string;
     travelTimeInMin: number;
     image?: string;
 }

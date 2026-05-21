@@ -46,13 +46,15 @@ interface AttractionFormValue {
 }
 
 interface InfrastructureFormValue {
-    name: string;
+    infrastructure_id?: number;
+    name?: string;
     travelTimeInMin?: number;
     image?: UploadFile[];
 }
 
 interface AirportFormValue {
-    name: string;
+    airport_id?: number;
+    name?: string;
     travelTimeInMin?: number;
     image?: UploadFile[];
 }
@@ -244,6 +246,7 @@ export const transformFormToPayload = async (
             : existingLocation?.attractions || [],
         infrastructure: hasInfrastructure
             ? values.infrastructure!.map((i, index) => ({
+                  infrastructure_id: i.infrastructure_id,
                   name: i.name,
                   travelTimeInMin: i.travelTimeInMin || 0,
                   image: existingLocation?.infrastructure?.[index]?.image || "",
@@ -251,6 +254,7 @@ export const transformFormToPayload = async (
             : existingLocation?.infrastructure || [],
         airports: hasAirports
             ? values.airports!.map((a, index) => ({
+                  airport_id: a.airport_id,
                   name: a.name,
                   travelTimeInMin: a.travelTimeInMin || 0,
                   image: existingLocation?.airports?.[index]?.image || "",
