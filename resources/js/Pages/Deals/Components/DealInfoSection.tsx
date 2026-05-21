@@ -1524,7 +1524,7 @@ export default function DealInfoSection({
                 </div>
 
                 {/* Sidebar + Content */}
-                <div className="flex overflow-hidden max-h-[calc(100vh-70vh)]">
+                <div className="flex overflow-hidden max-h-[70vh]">
                     <SideNavTabs
                         items={sideNavItems}
                         activeKey={activeSection}
