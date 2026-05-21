@@ -31,6 +31,7 @@ class DeveloperProjectAssetController extends AccountBaseController
         'site-plan',
         'footer',
         'gallery',
+        'cover',
     ];
 
     /**
