@@ -382,6 +382,8 @@ return [
                 'location-features' => ['label' => 'Konum Özellikleri', 'description' => 'Yakınlık özellikleri (plaja yakın, okula yakın vb.)'],
                 'add-ons' => ['label' => 'Ek Hizmetler', 'description' => 'Opsiyonel ekstralar (mobilya paketi, kira garantisi vb.)'],
                 'project-facilities' => ['label' => 'Proje Olanakları', 'description' => 'Geliştirici projelerindeki olanaklar (spor salonu, havuz vb.)'],
+                'airports' => ['label' => 'Havalimanları', 'description' => 'Yakındaki havalimanları ve havalimanına erişilebilirlik'],
+                'infrastructures' => ['label' => 'Altyapılar', 'description' => 'Altyapı seçenekleri (yollar, altyapı hatları, kamu hizmetleri vb.)'],
             ],
         ],
         'manage_assets' => [
@@ -460,6 +462,93 @@ return [
     'tasks' => [
         'drawer_title_prefix' => 'Görev',
         'pagination_total'    => '{{start}}-{{end}} / {{total}} öğe',
+    ],
+
+    'expose_configuration' => [
+        'title' => 'Expose Yapılandırması',
+        'alert' => [
+            'global_company_configuration' => 'Genel Şirket Yapılandırması',
+            'global_company_description'   => 'Bu ayarlar, oluşturulan tüm expose belgeleri için kullanılır (proje broşürü ve birim/mülk expose belgeleri).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Outro',
+            'qr_code_title' => 'QR Kodu',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Outro Bölümünü Etkinleştir',
+            'images'                     => 'Görseller',
+            'primary_image'              => 'Birincil Görsel',
+            'secondary_image_optional'   => 'İkincil Görsel (Opsiyonel)',
+            'enable_qr_code_on_exposes' => 'Expose Belgelerinde QR Kodunu Etkinleştir',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Outro başlığı',
+            'outro_description' => 'Outro açıklaması',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Birincil outro',
+            'outro_secondary_alt' => 'İkincil outro',
+            'no_image_uploaded'   => 'Görsel yüklenmedi',
+        ],
+        'actions' => [
+            'upload'             => 'Yükle',
+            'remove'             => 'Kaldır',
+            'save_configuration' => 'Yapılandırmayı Kaydet',
+        ],
+        'messages' => [
+            'upload_failed' => 'Görsel yüklenemedi',
+        ],
+    ],
+
+    'construction_project_photos' => [
+        'asset_tags' => [
+            'hero'        => 'Kahraman Görsel',
+            'facilities'  => 'Olanaklar',
+            'features'    => 'Özellikler',
+            'area'        => 'Alan / Konum',
+            'exterior'    => 'Dış Cephe',
+            'interior'    => 'İç Mekan',
+            'floor-plan'  => 'Kat Planı',
+            'site-plan'   => 'Şantiye Planı',
+            'footer'      => 'Alt Bilgi',
+            'gallery'     => 'Galeri',
+            'cover'       => 'Kapak',
+        ],
+        'labels' => [
+            'save_project_to_upload'   => 'Fotoğraf yüklemek için projeyi kaydedin',
+            'save_project_description' => 'Proje kaydedildikten sonra fotoğraflar yüklenebilir. Bu fotoğraflar bu projenin tüm bireysel birimlerinde görünür olacaktır.',
+            'loading_photos'           => 'Fotoğraflar yükleniyor...',
+            'photo_count'              => '{{count}} fotoğraf{{count_plural}}',
+            'no_photos_yet'            => 'Henüz fotoğraf yok',
+            'no_photos_uploaded_yet'   => 'Henüz fotoğraf yüklenmedi',
+            'tags_optional'            => 'Etiketler (isteğe bağlı)',
+            'uploading'                => 'Yükleniyor...',
+            'saving'                   => 'Kaydediliyor...',
+        ],
+        'placeholders' => [
+            'select_tags_for_all_photos'    => 'Tüm fotoğraflara uygulanacak etiketleri seçin',
+            'click_or_drag_photos'          => 'Fotoğrafları buraya tıklatın veya sürükleyin',
+            'supported_formats_and_size'    => 'JPG, PNG, GIF, WebP — her biri 50 MB\'ye kadar',
+        ],
+        'actions' => [
+            'save_and_continue'         => 'Kaydet & Devam Et',
+            'upload_photos'             => 'Fotoğraf Yükle',
+            'upload_first_photo'        => 'İlk Fotoğrafı Yükle',
+            'upload_photos_modal_title' => 'Fotoğraf Yükle',
+            'cancel'                    => 'İptal',
+            'upload_button'             => '{{count}} Fotoğraf{{count_plural}} Yükle',
+            'delete_photo_title'        => 'Fotoğrafı Sil',
+            'delete'                    => 'Sil',
+        ],
+        'messages' => [
+            'please_select_photos'      => 'Lütfen yüklenecek fotoğrafları seçin',
+            'partial_upload_warning'    => '{{failed}} dosya yüklenemedi. {{success}} dosya kaydedilecek.',
+            'all_uploads_failed'        => 'Tüm yüklemeler başarısız oldu',
+            'photo_deleted'             => 'Fotoğraf silindi',
+            'failed_to_delete'          => 'Fotoğraf silinemedi',
+            'delete_confirmation'       => '"{{name}}" sil? Bu geri alınamaz.',
+        ],
     ],
 
 ];

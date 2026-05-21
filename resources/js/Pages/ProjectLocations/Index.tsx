@@ -65,8 +65,21 @@ import {
 import { useGenerateDescription } from "@/lib/ai";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { PropertyEnumValues } from "@/Types";
+import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
+import type { ConfigItemsResponse } from "@/Types/propertyConfig";
 
 const { Text, Title } = Typography;
+
+const getMeaningfulText = (value?: string | null) => {
+    if (!value) {
+        return "";
+    }
+
+    return value
+        .replace(/<[^>]*>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .trim();
+};
 
 // ============================================
 // Types
@@ -183,6 +196,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const [activeTab, setActiveTab] = useState("basic");
     const isEditing = !!location;
     const selectedCity = Form.useWatch("address_city", form);
+    const selectedArea = Form.useWatch("address_state", form);
     const isInitialCity = useRef(true);
 
     const { data: enumValues } = useApiQuery<PropertyEnumValues>({
@@ -190,13 +204,65 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         options: { enabled: open },
     });
 
+    const { data: airportConfigData } = useApiQuery<ConfigItemsResponse>({
+        path: route("property-config.index", { type: "airports" }),
+        options: { enabled: open },
+    });
+
+    const { data: infrastructureConfigData } =
+        useApiQuery<ConfigItemsResponse>({
+            path: route("property-config.index", { type: "infrastructures" }),
+            options: { enabled: open },
+        });
+
     const cityOptions = useMemo(() => {
         const cities = enumValues?.cities || [];
         return cities.map((c) => ({
             value: c.name,
             label: c.label,
+            description: c.description,
         }));
     }, [enumValues?.cities]);
+
+    const airportOptions = useMemo(
+        () =>
+            (airportConfigData?.data || []).map((airport) => ({
+                value: airport.id,
+                label: airport.label,
+            })),
+        [airportConfigData?.data],
+    );
+
+    const infrastructureOptions = useMemo(
+        () =>
+            (infrastructureConfigData?.data || []).map((item) => ({
+                value: item.id,
+                label: item.label,
+            })),
+        [infrastructureConfigData?.data],
+    );
+
+    const airportById = useMemo(
+        () =>
+            Object.fromEntries(
+                (airportConfigData?.data || []).map((airport) => [
+                    airport.id,
+                    airport,
+                ]),
+            ),
+        [airportConfigData?.data],
+    );
+
+    const infrastructureById = useMemo(
+        () =>
+            Object.fromEntries(
+                (infrastructureConfigData?.data || []).map((item) => [
+                    item.id,
+                    item,
+                ]),
+            ),
+        [infrastructureConfigData?.data],
+    );
 
     const areaOptions = useMemo(() => {
         if (!selectedCity || !enumValues?.areas_by_city) {
@@ -210,12 +276,34 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         }));
     }, [selectedCity, enumValues?.areas_by_city]);
 
+    const selectedCityDescription = useMemo(() => {
+        const selected = cityOptions.find(
+            (city) => city.value === selectedCity,
+        );
+        if (typeof selected?.description !== "string") {
+            return "";
+        }
+        return selected.description;
+    }, [cityOptions, selectedCity]);
+
+    const autoLocationName = useMemo(() => {
+        const cityLabel =
+            cityOptions.find((city) => city.value === selectedCity)?.label ||
+            "";
+        const areaLabel =
+            areaOptions.find((area) => area.value === selectedArea)?.label ||
+            "";
+
+        return [areaLabel, cityLabel].filter(Boolean).join(", ");
+    }, [areaOptions, cityOptions, selectedArea, selectedCity]);
+
     const locationDescriptionValidator = useCallback(
         (formData: Record<string, any>) => {
             const missing: string[] = [];
             const name = String(formData.name ?? "").trim();
+            const descriptionText = getMeaningfulText(formData.description);
             const hasContext =
-                String(formData.description ?? "").trim() !== "" ||
+                descriptionText !== "" ||
                 String(formData.address_street ?? "").trim() !== "" ||
                 String(formData.address_city ?? "").trim() !== "" ||
                 String(formData.address_state ?? "").trim() !== "" ||
@@ -342,17 +430,21 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     })) || [],
                 infrastructure:
                     location.infrastructure?.map((i) => ({
+                        infrastructure_id: i.infrastructure_id,
                         name: i.name,
                         travelTimeInMin: i.travelTimeInMin,
                     })) || [],
                 airports:
                     location.airports?.map((a) => ({
+                        airport_id: a.airport_id,
                         name: a.name,
                         travelTimeInMin: a.travelTimeInMin,
                     })) || [],
             });
         } else if (open) {
             form.resetFields();
+            form.setFieldValue("airports", []);
+            form.setFieldValue("infrastructure", []);
         }
         setActiveTab("basic");
     }, [open, location, form]);
@@ -376,6 +468,31 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         form.setFieldValue("address_state", undefined);
     }, [selectedCity, form, open]);
 
+    useEffect(() => {
+        if (!open) {
+            return;
+        }
+
+        form.setFieldValue("name", autoLocationName || undefined);
+    }, [autoLocationName, form, open]);
+
+    useEffect(() => {
+        if (!open || !selectedCityDescription) {
+            return;
+        }
+
+        if (form.isFieldTouched("description")) {
+            return;
+        }
+
+        const currentDescription = form.getFieldValue("description");
+        if (getMeaningfulText(currentDescription)) {
+            return;
+        }
+
+        form.setFieldValue("description", selectedCityDescription);
+    }, [form, open, selectedCityDescription]);
+
     const tabItems = [
         {
             key: "basic",
@@ -387,78 +504,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             ),
             children: (
                 <div className="flex flex-col gap-y-4">
-                    <Form.Item
-                        name="name"
-                        label="Location Name"
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please enter a location name",
-                            },
-                        ]}
-                    >
-                        <Input placeholder="e.g., Kyrenia Waterfront" />
-                    </Form.Item>
-
-                    <div className="flex items-center justify-between gap-3">
-                        <label className="ant-form-item-label">
-                            <span>Description</span>
-                        </label>
-                        {aiEnabled && (
-                            <Button
-                                size="small"
-                                icon={<ThunderboltOutlined />}
-                                onClick={handleGenerateDescription}
-                                loading={isGeneratingDescription}
-                            >
-                                {isGeneratingDescription
-                                    ? "Generating..."
-                                    : "Generate with AI"}
-                            </Button>
-                        )}
-                    </div>
-                    <Form.Item name="description" noStyle>
-                        <Input.TextArea
-                            placeholder="Describe this location and its key features..."
-                            rows={3}
-                            showCount
-                            maxLength={500}
-                            disabled={isGeneratingDescription}
-                        />
-                    </Form.Item>
-                    {insufficientMessage && (
-                        <Alert
-                            message={insufficientMessage}
-                            type="info"
-                            showIcon
-                            closable
-                        />
-                    )}
-                    {descriptionError && (
-                        <Alert
-                            message={descriptionError}
-                            type="error"
-                            showIcon
-                            closable
-                        />
-                    )}
-
-                    <Divider orientation="left" plain>
-                        <Text type="secondary">
-                            <EnvironmentOutlined className="mr-2" />
-                            Address Details
-                        </Text>
-                    </Divider>
-
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Form.Item
-                            name="address_street"
-                            label="Street Address"
-                            className="md:col-span-2"
-                        >
-                            <Input placeholder="123 Main Street" />
-                        </Form.Item>
-
                         <Form.Item
                             name="address_city"
                             label="City"
@@ -499,6 +545,81 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                 disabled={!selectedCity}
                             />
                         </Form.Item>
+                    </div>
+
+                    <Form.Item
+                        name="name"
+                        label="Location Name"
+                        rules={[
+                            {
+                                required: true,
+                                message:
+                                    "Location name is generated from area and city",
+                            },
+                        ]}
+                    >
+                        <Input
+                            placeholder="Auto-generated from area and city"
+                            disabled
+                        />
+                    </Form.Item>
+
+                    <div className="flex items-center justify-between gap-3">
+                        <label className="ant-form-item-label">
+                            <span>Description</span>
+                        </label>
+                        {aiEnabled && (
+                            <Button
+                                size="small"
+                                icon={<ThunderboltOutlined />}
+                                onClick={handleGenerateDescription}
+                                loading={isGeneratingDescription}
+                            >
+                                {isGeneratingDescription
+                                    ? "Generating..."
+                                    : "Generate with AI"}
+                            </Button>
+                        )}
+                    </div>
+                    <Form.Item name="description" noStyle>
+                        <HtmlEditor
+                            placeholder="Describe this location and its key features..."
+                            disabled={isGeneratingDescription}
+                            height={220}
+                        />
+                    </Form.Item>
+                    {insufficientMessage && (
+                        <Alert
+                            message={insufficientMessage}
+                            type="info"
+                            showIcon
+                            closable
+                        />
+                    )}
+                    {descriptionError && (
+                        <Alert
+                            message={descriptionError}
+                            type="error"
+                            showIcon
+                            closable
+                        />
+                    )}
+
+                    <Divider orientation="left" plain>
+                        <Text type="secondary">
+                            <EnvironmentOutlined className="mr-2" />
+                            Address Details
+                        </Text>
+                    </Divider>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* <Form.Item
+                            name="address_street"
+                            label="Street Address"
+                            className="md:col-span-2"
+                        >
+                            <Input placeholder="123 Main Street" />
+                        </Form.Item> */}
 
                         <Form.Item name="address_country" label="Country">
                             <Input placeholder="Country" />
@@ -519,7 +640,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         </Text>
                     </Divider>
 
-                    <Form.Item
+                    {/* <Form.Item
                         name="map_image"
                         label="Location Map"
                         valuePropName="value"
@@ -532,7 +653,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                             existingUrl={location?.map_url || undefined}
                             placeholder="Upload Map Image"
                         />
-                    </Form.Item>
+                    </Form.Item> */}
                 </div>
             ),
         },
@@ -718,13 +839,14 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             ),
             children: (
                 <div>
-                    <Alert
-                        message="Nearby Infrastructure"
-                        description="Add hospitals, shopping centers, schools, and other key infrastructure with travel times."
-                        type="info"
-                        showIcon
-                        className="mb-4"
-                    />
+                    <div className="mb-4">
+                        <Alert
+                            message="Nearby Infrastructure"
+                            description="Add hospitals, shopping centers, schools, and other key infrastructure with travel times."
+                            type="info"
+                            showIcon
+                        />
+                    </div>
 
                     <Form.List name="infrastructure">
                         {(fields, { add, remove }) => (
@@ -739,7 +861,8 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             icon={<PlusOutlined />}
                                             onClick={() =>
                                                 add({
-                                                    name: "",
+                                                    infrastructure_id:
+                                                        undefined,
                                                     travelTimeInMin: 0,
                                                 })
                                             }
@@ -779,7 +902,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                             {...restField}
                                                             name={[
                                                                 name,
-                                                                "name",
+                                                                "infrastructure_id",
                                                             ]}
                                                             label="Name"
                                                             rules={[
@@ -791,7 +914,14 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                             ]}
                                                             className="md:col-span-2"
                                                         >
-                                                            <Input placeholder="e.g., City Hospital" />
+                                                            <Select
+                                                                options={
+                                                                    infrastructureOptions
+                                                                }
+                                                                placeholder="Select infrastructure"
+                                                                showSearch
+                                                                optionFilterProp="label"
+                                                            />
                                                         </Form.Item>
 
                                                         <Form.Item
@@ -830,7 +960,15 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 location
                                                                     ?.infrastructure?.[
                                                                     name
-                                                                ]?.image
+                                                                ]?.image ||
+                                                                infrastructureById[
+                                                                    form.getFieldValue([
+                                                                        "infrastructure",
+                                                                        name,
+                                                                        "infrastructure_id",
+                                                                    ])
+                                                                ]?.image_url ||
+                                                                undefined
                                                             }
                                                             placeholder="Upload Image"
                                                         />
@@ -843,7 +981,8 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             type="dashed"
                                             onClick={() =>
                                                 add({
-                                                    name: "",
+                                                    infrastructure_id:
+                                                        undefined,
                                                     travelTimeInMin: 0,
                                                 })
                                             }
@@ -872,7 +1011,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 <div>
                     <Alert
                         message="Nearby Airports"
-                        description="Add airports with their distance/travel time from this location."
+                        description="Select from managed airports and add as many as needed with travel time."
                         type="info"
                         showIcon
                         className="mb-4"
@@ -891,7 +1030,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             icon={<PlusOutlined />}
                                             onClick={() =>
                                                 add({
-                                                    name: "",
+                                                    airport_id: undefined,
                                                     travelTimeInMin: 0,
                                                 })
                                             }
@@ -930,9 +1069,9 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                             {...restField}
                                                             name={[
                                                                 name,
-                                                                "name",
+                                                                "airport_id",
                                                             ]}
-                                                            label="Airport Name"
+                                                            label="Airport"
                                                             rules={[
                                                                 {
                                                                     required: true,
@@ -942,7 +1081,14 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                             ]}
                                                             className="md:col-span-2"
                                                         >
-                                                            <Input placeholder="e.g., International Airport" />
+                                                            <Select
+                                                                options={
+                                                                    airportOptions
+                                                                }
+                                                                placeholder="Select airport"
+                                                                showSearch
+                                                                optionFilterProp="label"
+                                                            />
                                                         </Form.Item>
 
                                                         <Form.Item
@@ -981,7 +1127,15 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                 location
                                                                     ?.airports?.[
                                                                     name
-                                                                ]?.image
+                                                                ]?.image ||
+                                                                airportById[
+                                                                    form.getFieldValue([
+                                                                        "airports",
+                                                                        name,
+                                                                        "airport_id",
+                                                                    ])
+                                                                ]?.image_url ||
+                                                                undefined
                                                             }
                                                             placeholder="Upload Image"
                                                         />
@@ -994,7 +1148,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             type="dashed"
                                             onClick={() =>
                                                 add({
-                                                    name: "",
+                                                    airport_id: undefined,
                                                     travelTimeInMin: 0,
                                                 })
                                             }
@@ -1156,11 +1310,11 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             <EnvironmentOutlined className="text-white text-lg" />
                         </div>
                         <div>
-                            <div className="font-medium text-gray-900">
+                            <div className="font-medium text-gray-900 capitalize">
                                 {name}
                             </div>
                             {record.description && (
-                                <div className="text-sm text-gray-500 truncate max-w-xs">
+                                <div className="text-sm text-gray-500 truncate max-w-xs capitalize">
                                     {record.description}
                                 </div>
                             )}

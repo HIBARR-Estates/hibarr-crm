@@ -138,6 +138,17 @@ const Show = ({
                 open={showExposeModal}
                 onClose={() => setShowExposeModal(false)}
                 propertyId={currentProperty.id}
+                projectName={
+                    currentProperty?.developer_project?.name ||
+                    currentProperty?.developerProject?.name ||
+                    undefined
+                }
+                unitName={
+                    generatePropertySubtitle(currentProperty) ||
+                    currentProperty?.display_title ||
+                    currentProperty?.title ||
+                    undefined
+                }
             />
 
             <SavePropertyModal

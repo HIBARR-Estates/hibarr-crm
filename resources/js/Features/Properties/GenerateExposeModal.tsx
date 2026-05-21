@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     Modal,
     Button,
@@ -10,29 +10,31 @@ import {
     Collapse,
     Input,
     Spin,
+    Select,
 } from "antd";
 import {
     FilePdfOutlined,
     WarningOutlined,
     UserOutlined,
-    MailOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
 } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useExposeJobPoller } from "@/lib/api/client/useExposeJobPoller";
 import { ApiResponse } from "@/lib/api/types";
+import { useFormData } from "@/Hooks/useFormData";
 
 interface GenerateExposeModalProps {
     open: boolean;
     onClose: () => void;
     propertyId: number;
+    projectName?: string;
+    unitName?: string;
 }
 
 interface ExposeGeneratePayload {
     layout: string;
     client_name?: string;
-    client_email?: string;
 }
 
 interface GenerateJobResponse {
@@ -51,8 +53,13 @@ interface Warning {
     message: string;
 }
 
+interface LeadOption {
+    id: number;
+    client_name?: string;
+    company_name?: string;
+}
+
 interface LayoutOption {
-    // value: "vertical_standard" | "horizontal_premium";
     value: string;
     title: string;
     description: string;
@@ -62,22 +69,6 @@ interface LayoutOption {
 }
 
 const LAYOUT_OPTIONS: LayoutOption[] = [
-    // {
-    //     value: "vertical_standard",
-    //     title: "Vertical",
-    //     description: "Classic portrait layout suitable for printing.",
-    //     previewWidth: "w-12",
-    //     previewHeight: "h-16",
-    //     previewLabel: "Vertical",
-    // },
-    // {
-    //     value: "horizontal_premium",
-    //     title: "Horizontal",
-    //     description: "Modern landscape layout optimized for screens.",
-    //     previewWidth: "w-16",
-    //     previewHeight: "h-12",
-    //     previewLabel: "Horizontal",
-    // },
     {
         value: "expose-template",
         title: "Expose Template",
@@ -89,15 +80,27 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
     },
 ];
 
+const sanitizeFilePart = (value?: string, fallback = "na") => {
+    const cleaned = (value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    return cleaned || fallback;
+};
+
 const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
     open,
     onClose,
     propertyId,
+    projectName,
+    unitName,
 }) => {
     const [warnings, setWarnings] = useState<Warning[]>([]);
     const [layout, setLayout] = useState<string>("expose-template");
+    const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+    const [leadSearch, setLeadSearch] = useState<string>("");
     const [clientName, setClientName] = useState<string>("");
-    const [clientEmail, setClientEmail] = useState<string>("");
     const [phase, setPhase] = useState<Phase>("form");
     const [jobId, setJobId] = useState<number | null>(null);
     const [errorMessage, setErrorMessage] = useState<string>("");
@@ -114,13 +117,60 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
         ApiResponse<GenerateJobResponse>
     >(`/account/properties/${propertyId}/expose/generate`, "POST");
 
+    const { data: leads, loading: isLoadingLeads } = useFormData<LeadOption>(
+        "leads",
+        {
+            per_page: 50,
+            paginate: false,
+            search: leadSearch,
+            enabled: open,
+        },
+    );
+
+    const normalizedLeads = useMemo(
+        () => (Array.isArray(leads) ? leads : []),
+        [leads],
+    );
+
+    const leadOptions = useMemo(
+        () =>
+            normalizedLeads.map((lead) => ({
+                value: lead.id,
+                label:
+                    lead.client_name || lead.company_name || `Lead #${lead.id}`,
+            })),
+        [normalizedLeads],
+    );
+
+    const selectedLead = useMemo(
+        () => normalizedLeads.find((lead) => lead.id === selectedLeadId),
+        [normalizedLeads, selectedLeadId],
+    );
+
+    const buildDownloadFileName = (backendFilename?: string) => {
+        const chosenClientName =
+            clientName.trim() || selectedLead?.client_name || "client";
+
+        const safeClient = sanitizeFilePart(chosenClientName, "client");
+        const safeProject = sanitizeFilePart(projectName, "project");
+        const safeUnit = sanitizeFilePart(unitName, `unit-${propertyId}`);
+
+        return (
+            `${safeClient}-${safeProject}-${safeUnit}-expose.pdf` ||
+            backendFilename ||
+            `property-expose-${propertyId}.pdf`
+        );
+    };
+
+    const isGenerationInProgress = phase === "queued" || isSubmitting;
+
     useExposeJobPoller({
         jobId,
-        onReady: (downloadUrl) => {
+        onReady: (downloadUrl, backendFilename) => {
             setPhase("ready");
             const link = document.createElement("a");
             link.href = downloadUrl;
-            link.download = `property-expose-${propertyId}.pdf`;
+            link.download = buildDownloadFileName(backendFilename);
             link.click();
         },
         onError: (message) => {
@@ -135,8 +185,9 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
             setJobId(null);
             setErrorMessage("");
             setWarnings([]);
+            setSelectedLeadId(null);
+            setLeadSearch("");
             setClientName("");
-            setClientEmail("");
             validateExpose(
                 {},
                 {
@@ -154,14 +205,18 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
 
     const handleGenerate = () => {
         const payload: ExposeGeneratePayload = { layout };
-        if (clientName.trim()) payload.client_name = clientName.trim();
-        if (clientEmail.trim()) payload.client_email = clientEmail.trim();
+        const resolvedClientName =
+            clientName.trim() || selectedLead?.client_name || "";
+
+        if (resolvedClientName) {
+            payload.client_name = resolvedClientName;
+        }
 
         generateExpose(payload, {
             onSuccess: (response) => {
-                const jobId = response?.data?.job_id;
-                if (jobId) {
-                    setJobId(jobId);
+                const queuedJobId = response?.data?.job_id;
+                if (queuedJobId) {
+                    setJobId(queuedJobId);
                     setPhase("queued");
                 }
             },
@@ -173,6 +228,10 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
     };
 
     const handleClose = () => {
+        if (isGenerationInProgress) {
+            return;
+        }
+
         setPhase("form");
         setJobId(null);
         onClose();
@@ -209,13 +268,16 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
             footer={footer}
             width={600}
             destroyOnClose
+            maskClosable={!isGenerationInProgress}
+            closable={!isGenerationInProgress}
+            keyboard={!isGenerationInProgress}
         >
             {phase === "queued" && (
                 <div className="py-10 text-center flex flex-col items-center gap-4">
                     <Spin size="large" />
                     <p className="text-gray-600">
-                        Your expose PDF is being generated. You can close this
-                        window — a notification will appear when it's ready.
+                        Your expose PDF is being generated. Please wait until it
+                        is ready.
                     </p>
                 </div>
             )}
@@ -333,15 +395,67 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                     children: (
                                         <div className="flex flex-col gap-4">
                                             <p className="text-sm text-gray-600 mb-2">
-                                                Add client details to
-                                                personalize the expose PDF.
+                                                Select a lead to personalize the
+                                                expose. If not found, enter a
+                                                custom client name.
                                             </p>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Name
+                                                    Lead
+                                                </label>
+                                                <Select
+                                                    showSearch
+                                                    allowClear
+                                                    placeholder="Search and select a lead"
+                                                    options={leadOptions}
+                                                    loading={isLoadingLeads}
+                                                    value={
+                                                        selectedLeadId ??
+                                                        undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        const nextLeadId =
+                                                            typeof value ===
+                                                            "number"
+                                                                ? value
+                                                                : null;
+
+                                                        setSelectedLeadId(
+                                                            nextLeadId,
+                                                        );
+
+                                                        if (
+                                                            nextLeadId === null
+                                                        ) {
+                                                            return;
+                                                        }
+
+                                                        const selected =
+                                                            normalizedLeads.find(
+                                                                (lead) =>
+                                                                    lead.id ===
+                                                                    nextLeadId,
+                                                            );
+
+                                                        if (
+                                                            selected?.client_name &&
+                                                            !clientName.trim()
+                                                        ) {
+                                                            setClientName(
+                                                                selected.client_name,
+                                                            );
+                                                        }
+                                                    }}
+                                                    onSearch={setLeadSearch}
+                                                    filterOption={false}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Client Name (Optional)
                                                 </label>
                                                 <Input
-                                                    placeholder="Enter client name"
+                                                    placeholder="Enter client name if not found"
                                                     prefix={
                                                         <UserOutlined className="text-gray-400" />
                                                     }
@@ -351,25 +465,6 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                                             e.target.value,
                                                         )
                                                     }
-                                                    allowClear
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Email
-                                                </label>
-                                                <Input
-                                                    placeholder="Enter client email"
-                                                    prefix={
-                                                        <MailOutlined className="text-gray-400" />
-                                                    }
-                                                    value={clientEmail}
-                                                    onChange={(e) =>
-                                                        setClientEmail(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    type="email"
                                                     allowClear
                                                 />
                                             </div>

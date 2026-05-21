@@ -148,7 +148,7 @@ class ProjectLocation extends BaseModel
     /**
      * Get infrastructure with resolved names from Infrastructure model.
      * 
-     * @return array [{name, travelTimeInMin, icon}]
+     * @return array [{name, travelTimeInMin, icon, image}]
      */
     public function getExpandedInfrastructure(): array
     {
@@ -160,11 +160,23 @@ class ProjectLocation extends BaseModel
                 $infrastructure = Infrastructure::find($item['infrastructure_id']);
                 if ($infrastructure) {
                     $result[] = [
-                        'name' => $infrastructure->name,
+                        'name' => $item['name'] ?? $infrastructure->name,
                         'icon' => $infrastructure->icon,
                         'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
+                        'image' => $item['image'] ?? null,
                     ];
+                    continue;
                 }
+            }
+
+            // Support freeform infrastructure entries saved without a lookup id.
+            if (!empty($item['name'])) {
+                $result[] = [
+                    'name' => $item['name'],
+                    'icon' => null,
+                    'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
+                    'image' => $item['image'] ?? null,
+                ];
             }
         }
 
@@ -174,7 +186,7 @@ class ProjectLocation extends BaseModel
     /**
      * Get airports with resolved names from Airport model.
      * 
-     * @return array [{name, code, travelTimeInMin}]
+     * @return array [{name, code, travelTimeInMin, image}]
      */
     public function getExpandedAirports(): array
     {
@@ -186,11 +198,23 @@ class ProjectLocation extends BaseModel
                 $airport = Airport::find($item['airport_id']);
                 if ($airport) {
                     $result[] = [
-                        'name' => $airport->name,
+                        'name' => $item['name'] ?? $airport->name,
                         'code' => $airport->code,
                         'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
+                        'image' => $item['image'] ?? null,
                     ];
+                    continue;
                 }
+            }
+
+            // Support freeform airport entries saved without a lookup id.
+            if (!empty($item['name'])) {
+                $result[] = [
+                    'name' => $item['name'],
+                    'code' => $item['code'] ?? null,
+                    'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
+                    'image' => $item['image'] ?? null,
+                ];
             }
         }
 

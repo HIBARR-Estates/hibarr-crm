@@ -1,16 +1,25 @@
-import React, { useState, useEffect } from "react";
-import { Modal, Button, Alert, Skeleton, Collapse, Input, Spin } from "antd";
+import React, { useState, useEffect, useMemo } from "react";
+import {
+    Modal,
+    Button,
+    Alert,
+    Skeleton,
+    Collapse,
+    Input,
+    Spin,
+    Select,
+} from "antd";
 import {
     FilePdfOutlined,
     WarningOutlined,
     UserOutlined,
-    MailOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
 } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useExposeJobPoller } from "@/lib/api/client/useExposeJobPoller";
 import { ApiResponse } from "@/lib/api/types";
+import { useFormData } from "@/Hooks/useFormData";
 import type { DeveloperProjectUnitType } from "../../Types/developerProject";
 
 interface GenerateUnitTypeExposeModalProps {
@@ -24,7 +33,6 @@ interface GenerateUnitTypeExposeModalProps {
 interface ExposePayload {
     layout: string;
     client_name?: string;
-    client_email?: string;
 }
 
 interface GenerateJobResponse {
@@ -43,12 +51,28 @@ interface ValidationData {
     warnings: Warning[];
 }
 
+interface LeadOption {
+    id: number;
+    client_name?: string;
+    company_name?: string;
+}
+
+const sanitizeFilePart = (value?: string, fallback = "na") => {
+    const cleaned = (value || "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+
+    return cleaned || fallback;
+};
+
 const GenerateUnitTypeExposeModal: React.FC<
     GenerateUnitTypeExposeModalProps
 > = ({ open, onClose, projectId, projectName, unitType }) => {
     const [warnings, setWarnings] = useState<Warning[]>([]);
+    const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
+    const [leadSearch, setLeadSearch] = useState<string>("");
     const [clientName, setClientName] = useState<string>("");
-    const [clientEmail, setClientEmail] = useState<string>("");
     const [phase, setPhase] = useState<Phase>("form");
     const [jobId, setJobId] = useState<number | null>(null);
     const [errorMessage, setErrorMessage] = useState<string>("");
@@ -67,9 +91,54 @@ const GenerateUnitTypeExposeModal: React.FC<
         ApiResponse<GenerateJobResponse>
     >(`${baseUrl}/expose/generate`, "POST");
 
-    const filename = `${projectName}-${
-        unitType.display_label ?? unitType.property_type ?? "unit"
-    }-expose.pdf`;
+    const { data: leads, loading: isLoadingLeads } = useFormData<LeadOption>(
+        "leads",
+        {
+            per_page: 50,
+            paginate: false,
+            search: leadSearch,
+            enabled: open,
+        },
+    );
+
+    const normalizedLeads = useMemo(
+        () => (Array.isArray(leads) ? leads : []),
+        [leads],
+    );
+
+    const leadOptions = useMemo(
+        () =>
+            normalizedLeads.map((lead) => ({
+                value: lead.id,
+                label:
+                    lead.client_name || lead.company_name || `Lead #${lead.id}`,
+            })),
+        [normalizedLeads],
+    );
+
+    const selectedLead = useMemo(
+        () => normalizedLeads.find((lead) => lead.id === selectedLeadId),
+        [normalizedLeads, selectedLeadId],
+    );
+
+    const buildDownloadFileName = () => {
+        const chosenClientName =
+            clientName.trim() ||
+            selectedLead?.client_name ||
+            selectedLead?.company_name ||
+            "client";
+
+        const safeClient = sanitizeFilePart(chosenClientName, "client");
+        const safeProject = sanitizeFilePart(projectName, "project");
+        const safeUnit = sanitizeFilePart(
+            unitType.display_label ?? unitType.property_type ?? undefined,
+            `unit-${unitType.id}`,
+        );
+
+        return `${safeClient}-${safeProject}-${safeUnit}-expose.pdf`;
+    };
+
+    const isGenerationInProgress = phase === "queued" || isSubmitting;
 
     useExposeJobPoller({
         jobId,
@@ -77,7 +146,7 @@ const GenerateUnitTypeExposeModal: React.FC<
             setPhase("ready");
             const link = document.createElement("a");
             link.href = downloadUrl;
-            link.download = filename;
+            link.download = buildDownloadFileName();
             link.click();
         },
         onError: (message) => {
@@ -92,8 +161,9 @@ const GenerateUnitTypeExposeModal: React.FC<
             setJobId(null);
             setErrorMessage("");
             setWarnings([]);
+            setSelectedLeadId(null);
+            setLeadSearch("");
             setClientName("");
-            setClientEmail("");
             validateExpose(
                 {},
                 {
@@ -111,8 +181,15 @@ const GenerateUnitTypeExposeModal: React.FC<
 
     const handleGenerate = () => {
         const payload: ExposePayload = { layout: "expose-template" };
-        if (clientName.trim()) payload.client_name = clientName.trim();
-        if (clientEmail.trim()) payload.client_email = clientEmail.trim();
+        const resolvedClientName =
+            clientName.trim() ||
+            selectedLead?.client_name ||
+            selectedLead?.company_name ||
+            "";
+
+        if (resolvedClientName) {
+            payload.client_name = resolvedClientName;
+        }
 
         generateExpose(payload, {
             onSuccess: (response) => {
@@ -130,6 +207,10 @@ const GenerateUnitTypeExposeModal: React.FC<
     };
 
     const handleClose = () => {
+        if (isGenerationInProgress) {
+            return;
+        }
+
         setPhase("form");
         setJobId(null);
         onClose();
@@ -168,13 +249,16 @@ const GenerateUnitTypeExposeModal: React.FC<
             footer={footer}
             width={560}
             destroyOnClose
+            maskClosable={!isGenerationInProgress}
+            closable={!isGenerationInProgress}
+            keyboard={!isGenerationInProgress}
         >
             {phase === "queued" && (
                 <div className="py-10 text-center flex flex-col items-center gap-4">
                     <Spin size="large" />
                     <p className="text-gray-600">
-                        Your expose PDF is being generated. You can close this
-                        window — a notification will appear when it's ready.
+                        Your expose PDF is being generated. Please wait until it
+                        is ready.
                     </p>
                 </div>
             )}
@@ -257,15 +341,70 @@ const GenerateUnitTypeExposeModal: React.FC<
                                     children: (
                                         <div className="flex flex-col gap-4">
                                             <p className="text-sm text-gray-500">
-                                                Add client details to
-                                                personalize the PDF cover page.
+                                                Select a lead to personalize the
+                                                expose. If not found, enter a
+                                                custom client name.
                                             </p>
                                             <div>
                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Name
+                                                    Lead
+                                                </label>
+                                                <Select
+                                                    showSearch
+                                                    allowClear
+                                                    placeholder="Search and select a lead"
+                                                    options={leadOptions}
+                                                    loading={isLoadingLeads}
+                                                    value={
+                                                        selectedLeadId ??
+                                                        undefined
+                                                    }
+                                                    onChange={(value) => {
+                                                        const nextLeadId =
+                                                            typeof value ===
+                                                            "number"
+                                                                ? value
+                                                                : null;
+
+                                                        setSelectedLeadId(
+                                                            nextLeadId,
+                                                        );
+
+                                                        if (
+                                                            nextLeadId === null
+                                                        ) {
+                                                            return;
+                                                        }
+
+                                                        const selected =
+                                                            normalizedLeads.find(
+                                                                (lead) =>
+                                                                    lead.id ===
+                                                                    nextLeadId,
+                                                            );
+
+                                                        if (
+                                                            (selected?.client_name ||
+                                                                selected?.company_name) &&
+                                                            !clientName.trim()
+                                                        ) {
+                                                            setClientName(
+                                                                selected.client_name ||
+                                                                    selected.company_name ||
+                                                                    "",
+                                                            );
+                                                        }
+                                                    }}
+                                                    onSearch={setLeadSearch}
+                                                    filterOption={false}
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Client Name (Optional)
                                                 </label>
                                                 <Input
-                                                    placeholder="Enter client name"
+                                                    placeholder="Enter client name if not found"
                                                     prefix={
                                                         <UserOutlined className="text-gray-400" />
                                                     }
@@ -275,25 +414,6 @@ const GenerateUnitTypeExposeModal: React.FC<
                                                             e.target.value,
                                                         )
                                                     }
-                                                    allowClear
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                    Client Email
-                                                </label>
-                                                <Input
-                                                    placeholder="Enter client email"
-                                                    prefix={
-                                                        <MailOutlined className="text-gray-400" />
-                                                    }
-                                                    value={clientEmail}
-                                                    onChange={(e) =>
-                                                        setClientEmail(
-                                                            e.target.value,
-                                                        )
-                                                    }
-                                                    type="email"
                                                     allowClear
                                                 />
                                             </div>

@@ -380,6 +380,7 @@ export interface DefaultDistances {
 
 /** City lookup value with optional default distances */
 export interface CityLookupValue extends LookupValue {
+    description?: string | null;
     default_distances?: DefaultDistances | null;
 }
 
@@ -522,7 +523,8 @@ export type AssetTag =
     | "floor-plan"
     | "site-plan"
     | "footer"
-    | "gallery";
+    | "gallery"
+    | "cover";
 
 export interface AssetTagOption {
     value: AssetTag;

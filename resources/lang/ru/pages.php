@@ -382,6 +382,8 @@ return [
                 'location-features' => ['label' => 'Особенности локации', 'description' => 'Особенности расположения (рядом с пляжем, рядом со школой и т.д.)'],
                 'add-ons' => ['label' => 'Дополнения', 'description' => 'Дополнительные опции (пакет мебели, гарантия аренды и т.д.)'],
                 'project-facilities' => ['label' => 'Удобства проекта', 'description' => 'Удобства в проектах застройщика (спортзал, бассейн и т.д.)'],
+                'airports' => ['label' => 'Аэропорты', 'description' => 'Ближайшие аэропорты и транспортная доступность аэропортов'],
+                'infrastructures' => ['label' => 'Инфраструктуры', 'description' => 'Инфраструктурные опции (дороги, инженерные сети, государственные сервисы и т.д.)'],
             ],
         ],
         'manage_assets' => [
@@ -460,6 +462,93 @@ return [
     'tasks' => [
         'drawer_title_prefix' => 'Задача',
         'pagination_total'    => '{{start}}-{{end}} из {{total}} записей',
+    ],
+
+    'expose_configuration' => [
+        'title' => 'Конфигурация экспозе',
+        'alert' => [
+            'global_company_configuration' => 'Глобальная конфигурация компании',
+            'global_company_description'   => 'Эти настройки используются для всех генерируемых экспозе (брошюра проекта и экспозе юнитов/объектов).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Аутро',
+            'qr_code_title' => 'QR-код',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Включить раздел аутро',
+            'images'                     => 'Изображения',
+            'primary_image'              => 'Основное изображение',
+            'secondary_image_optional'   => 'Дополнительное изображение (необязательно)',
+            'enable_qr_code_on_exposes' => 'Включить QR-код в экспозе',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Заголовок аутро',
+            'outro_description' => 'Описание аутро',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Основное аутро',
+            'outro_secondary_alt' => 'Дополнительное аутро',
+            'no_image_uploaded'   => 'Изображение не загружено',
+        ],
+        'actions' => [
+            'upload'             => 'Загрузить',
+            'remove'             => 'Удалить',
+            'save_configuration' => 'Сохранить конфигурацию',
+        ],
+        'messages' => [
+            'upload_failed' => 'Не удалось загрузить изображение',
+        ],
+    ],
+
+    'construction_project_photos' => [
+        'asset_tags' => [
+            'hero'        => 'Главное изображение',
+            'facilities'  => 'Удобства',
+            'features'    => 'Характеристики',
+            'area'        => 'Площадь / Местоположение',
+            'exterior'    => 'Экстерьер',
+            'interior'    => 'Интерьер',
+            'floor-plan'  => 'План этажа',
+            'site-plan'   => 'План объекта',
+            'footer'      => 'Нижний колонтитул',
+            'gallery'     => 'Галерея',
+            'cover'       => 'Обложка',
+        ],
+        'labels' => [
+            'save_project_to_upload'   => 'Сохраните проект, чтобы загрузить фото',
+            'save_project_description' => 'Фото можно загружать после сохранения проекта. Эти фото будут видны для всех отдельных юнитов этого проекта.',
+            'loading_photos'           => 'Загрузка фото...',
+            'photo_count'              => '{{count}} фото{{count_plural}}',
+            'no_photos_yet'            => 'Фото еще не добавлены',
+            'no_photos_uploaded_yet'   => 'Фото не загружены',
+            'tags_optional'            => 'Теги (опционально)',
+            'uploading'                => 'Загрузка...',
+            'saving'                   => 'Сохранение...',
+        ],
+        'placeholders' => [
+            'select_tags_for_all_photos'    => 'Выберите теги для применения ко всем фото',
+            'click_or_drag_photos'          => 'Нажмите или перетащите фото сюда',
+            'supported_formats_and_size'    => 'JPG, PNG, GIF, WebP — до 50 МБ каждый',
+        ],
+        'actions' => [
+            'save_and_continue'         => 'Сохранить & Продолжить',
+            'upload_photos'             => 'Загрузить фото',
+            'upload_first_photo'        => 'Загрузить первое фото',
+            'upload_photos_modal_title' => 'Загрузить фото',
+            'cancel'                    => 'Отменить',
+            'upload_button'             => 'Загрузить {{count}} фото{{count_plural}}',
+            'delete_photo_title'        => 'Удалить фото',
+            'delete'                    => 'Удалить',
+        ],
+        'messages' => [
+            'please_select_photos'      => 'Пожалуйста, выберите фото для загрузки',
+            'partial_upload_warning'    => '{{failed}} файл(ов) не удалось загрузить. {{success}} файл(ов) будут сохранены.',
+            'all_uploads_failed'        => 'Все загрузки завершились ошибкой',
+            'photo_deleted'             => 'Фото удалено',
+            'failed_to_delete'          => 'Не удалось удалить фото',
+            'delete_confirmation'       => 'Удалить "{{name}}"? Это невозможно отменить.',
+        ],
     ],
 
 ];

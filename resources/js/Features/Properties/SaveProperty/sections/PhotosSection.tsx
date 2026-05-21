@@ -50,6 +50,7 @@ const ASSET_TAGS: Record<AssetTag, string> = {
     "site-plan": "Site Plan",
     footer: "Footer",
     gallery: "Gallery",
+    cover: "Cover",
 };
 
 const TAG_OPTIONS = Object.entries(ASSET_TAGS).map(([value, label]) => ({
@@ -68,6 +69,7 @@ const TAG_COLORS: Record<AssetTag, string> = {
     "site-plan": "volcano",
     footer: "geekblue",
     gallery: "lime",
+    cover: "red",
 };
 
 // ────────────────────────────────────────────────────────────

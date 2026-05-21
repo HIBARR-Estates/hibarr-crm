@@ -450,6 +450,14 @@ return [
                     'label'       => 'Project Facilities',
                     'description' => 'Facilities available in developer projects (Gym, Pool, etc.)',
                 ],
+                    'airports' => [
+                        'label'       => 'Airports',
+                        'description' => 'Nearby airports and airport accessibility',
+                    ],
+                    'infrastructures' => [
+                        'label'       => 'Infrastructures',
+                        'description' => 'Infrastructure options (roads, utilities, public services, etc.)',
+                    ],
             ],
         ],
         'manage_assets' => [
@@ -528,6 +536,93 @@ return [
     'tasks' => [
         'drawer_title_prefix' => 'Task',
         'pagination_total'    => '{{start}}-{{end}} of {{total}} items',
+    ],
+
+    'expose_configuration' => [
+        'title' => 'Expose Configuration',
+        'alert' => [
+            'global_company_configuration' => 'Global Company Configuration',
+            'global_company_description'   => 'These settings are used for all generated exposes (project brochure and unit/property exposes).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Outro',
+            'qr_code_title' => 'QR Code',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Enable Outro Section',
+            'images'                     => 'Images',
+            'primary_image'              => 'Primary Image',
+            'secondary_image_optional'   => 'Secondary Image (Optional)',
+            'enable_qr_code_on_exposes' => 'Enable QR Code on Exposes',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Outro title',
+            'outro_description' => 'Outro description',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Outro primary',
+            'outro_secondary_alt' => 'Outro secondary',
+            'no_image_uploaded'   => 'No image uploaded',
+        ],
+        'actions' => [
+            'upload'             => 'Upload',
+            'remove'             => 'Remove',
+            'save_configuration' => 'Save Configuration',
+        ],
+        'messages' => [
+            'upload_failed' => 'Failed to upload image',
+        ],
+    ],
+
+    'construction_project_photos' => [
+        'asset_tags' => [
+            'hero'        => 'Hero Image',
+            'facilities'  => 'Facilities',
+            'features'    => 'Features',
+            'area'        => 'Area / Location',
+            'exterior'    => 'Exterior',
+            'interior'    => 'Interior',
+            'floor-plan'  => 'Floor Plan',
+            'site-plan'   => 'Site Plan',
+            'footer'      => 'Footer',
+            'gallery'     => 'Gallery',
+            'cover'       => 'Cover',
+        ],
+        'labels' => [
+            'save_project_to_upload'   => 'Save the project to upload photos',
+            'save_project_description' => 'Photos can be uploaded once the project has been saved. These photos will be visible on all individual units of this project.',
+            'loading_photos'           => 'Loading photos...',
+            'photo_count'              => '{{count}} photo{{count}} {{count_plural}}',
+            'no_photos_yet'            => 'No photos yet',
+            'no_photos_uploaded_yet'   => 'No photos uploaded yet',
+            'tags_optional'            => 'Tags (optional)',
+            'uploading'                => 'Uploading...',
+            'saving'                   => 'Saving...',
+        ],
+        'placeholders' => [
+            'select_tags_for_all_photos'    => 'Select tags to apply to all photos',
+            'click_or_drag_photos'          => 'Click or drag photos here',
+            'supported_formats_and_size'    => 'JPG, PNG, GIF, WebP — up to 50 MB each',
+        ],
+        'actions' => [
+            'save_and_continue'         => 'Save & Continue',
+            'upload_photos'             => 'Upload Photos',
+            'upload_first_photo'        => 'Upload Your First Photo',
+            'upload_photos_modal_title' => 'Upload Photos',
+            'cancel'                    => 'Cancel',
+            'upload_button'             => 'Upload {{count}} Photo{{count_plural}}',
+            'delete_photo_title'        => 'Delete Photo',
+            'delete'                    => 'Delete',
+        ],
+        'messages' => [
+            'please_select_photos'  => 'Please select photos to upload',
+            'partial_upload_warning' => '{{failed}} file(s) failed. {{success}} file(s) will be saved.',
+            'all_uploads_failed'    => 'All uploads failed',
+            'photo_deleted'         => 'Photo deleted',
+            'failed_to_delete'      => 'Failed to delete photo',
+            'delete_confirmation'   => 'Delete "{{name}}"? This cannot be undone.',
+        ],
     ],
 
 ];

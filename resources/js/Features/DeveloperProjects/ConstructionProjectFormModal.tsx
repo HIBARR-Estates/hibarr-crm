@@ -261,17 +261,20 @@ const ConstructionProjectFormModal: React.FC<
                 .then((values) => {
                     const { _selected_developer_id, ...cleanData } = values;
 
-                    const facilities = Array.isArray(cleanData.facilities)
-                        ? cleanData.facilities
-                        : [];
-
                     const submitData = removeUndefined({
                         ...cleanData,
-                        facilities,
                         completion_date: cleanData.completion_date
                             ? cleanData.completion_date.format("YYYY-MM-DD")
                             : cleanData.completion_date,
                     });
+
+                    // When the facilities accordion is closed, that field may
+                    // be absent from the form payload. Preserve DB value on edit.
+                    if (Array.isArray(cleanData.facilities)) {
+                        submitData.facilities = cleanData.facilities;
+                    } else if (!isEffectivelyEditing) {
+                        submitData.facilities = [];
+                    }
 
                     const onError = (error: any) => {
                         if (error?.errors) {

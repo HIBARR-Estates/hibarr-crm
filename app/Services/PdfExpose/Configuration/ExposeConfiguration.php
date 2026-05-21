@@ -6,6 +6,7 @@ use App\Models\CompanyExposeConfiguration;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\ProjectFacility;
+use App\Models\PropertyCity;
 use Illuminate\Contracts\Support\Arrayable;
 
 class ExposeConfiguration implements Arrayable
@@ -21,8 +22,13 @@ class ExposeConfiguration implements Arrayable
 
     public static function fromProperty($property, string $layout, array $clientData = [], array $sections = []): self
     {
-        $agent = $property->product->addedBy ?? auth()->user();
-        $company = company();
+        $property->loadMissing(['projectLocation', 'developerProject.location']);
+
+        $agent = self::resolveGeneratingUser();
+        $company = self::resolveGeneratingCompany($agent);
+        $projectLocation = $property->projectLocation ?? $property->developerProject?->location;
+        $locationInfrastructure = $projectLocation?->getExpandedInfrastructure() ?? [];
+        $locationAirports = $projectLocation?->getExpandedAirports() ?? [];
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($property->company_id ?? $company?->id);
         
         // Group assets by tags
@@ -114,34 +120,33 @@ class ExposeConfiguration implements Arrayable
                 // Distances (for infrastructure page)
                 'distances' => $property->distances ?? [],
 
-                // Location page payload (property exposes usually don't have project location image)
-                'location_payload' => [
-                    'name' => $property->area ?? $property->city ?? null,
-                    'description' => null,
-                    'image_url' => null,
-                ],
+                // Structured location infrastructure for PDF sections
+                'location_infrastructure' => $locationInfrastructure,
+                'location_airports' => $locationAirports,
+
+                // Location page payload — fetch PropertyCity data if available
+                'location_payload' => (function() use ($property, $company) {
+                    $propertyCity = null;
+                    if (!empty($property->city)) {
+                        $propertyCity = PropertyCity::where('company_id', $property->company_id ?? $company?->id)
+                            ->where('name', $property->city)
+                            ->first();
+                    }
+                    return [
+                        'name' => $property->area ?? $property->city ?? null,
+                        'description' => $propertyCity?->description ?? null,
+                        'image_url' => $propertyCity?->image_url ?? null,
+                    ];
+                })(),
                 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
                 
                 // Agent info
-                'agent' => [
-                    'name' => $agent->name ?? 'N/A',
-                    'email' => $agent->email ?? 'N/A',
-                    'phone' => $agent->mobile ?? 'N/A',
-                    'image' => $agent->image_url ?? null,
-                    'position' => $agent->designation ?? null,
-                ],
+                'agent' => self::buildAgentData($agent),
                 
                 // Company branding
-                'company' => [
-                    'name' => $company?->company_name ?? config('app.name'),
-                    'logo' => $company?->logo_url ?? public_path('img/logo.png'),
-                    'address' => $company?->address ?? null,
-                    'phone' => $company?->company_phone ?? null,
-                    'email' => $company?->company_email ?? null,
-                    'website' => $company?->website ?? null,
-                ],
+                'company' => self::buildCompanyData($company),
                 
                 // Client personalization
                 'client' => [
@@ -163,8 +168,8 @@ class ExposeConfiguration implements Arrayable
     {
         $project->loadMissing(['developer', 'location', 'assets', 'unitTypes.assets']);
 
-        $agent = auth()->user();
-        $company = company();
+        $agent = self::resolveGeneratingUser();
+        $company = self::resolveGeneratingCompany($agent);
         $location = $project->location;
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project->company_id ?? $company?->id);
 
@@ -219,6 +224,8 @@ class ExposeConfiguration implements Arrayable
 
         // Build distances from project distances field
         $distances = $project->distances ?? [];
+        $expandedInfra = [];
+        $expandedAirports = [];
 
         // Enrich with location infrastructure/airports if available
         if ($location) {
@@ -228,6 +235,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $infra['name'],
                     'time' => $infra['travelTimeInMin'],
                     'type' => 'infrastructure',
+                    'image' => $infra['image'] ?? null,
                 ];
             }
             $expandedAirports = $location->getExpandedAirports();
@@ -236,6 +244,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $airport['name'] . ($airport['code'] ? ' (' . $airport['code'] . ')' : ''),
                     'time' => $airport['travelTimeInMin'],
                     'type' => 'airport',
+                    'image' => $airport['image'] ?? null,
                 ];
             }
         }
@@ -361,27 +370,18 @@ class ExposeConfiguration implements Arrayable
                 // Distances
                 'distances' => $distances,
 
+                // Structured location infrastructure for PDF sections
+                'location_infrastructure' => $expandedInfra ?? [],
+                'location_airports' => $expandedAirports ?? [],
+
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
 
                 // Agent info
-                'agent' => [
-                    'name' => $agent->name ?? 'N/A',
-                    'email' => $agent->email ?? 'N/A',
-                    'phone' => $agent->mobile ?? 'N/A',
-                    'image' => $agent->image_url ?? null,
-                    'position' => $agent->designation ?? null,
-                ],
+                'agent' => self::buildAgentData($agent),
 
                 // Company branding
-                'company' => [
-                    'name' => $company?->company_name ?? config('app.name'),
-                    'logo' => $company?->logo_url ?? public_path('img/logo.png'),
-                    'address' => $company?->address ?? null,
-                    'phone' => $company?->company_phone ?? null,
-                    'email' => $company?->company_email ?? null,
-                    'website' => $company?->website ?? null,
-                ],
+                'company' => self::buildCompanyData($company),
 
                 // Client personalization
                 'client' => [
@@ -415,8 +415,8 @@ class ExposeConfiguration implements Arrayable
 
         $project = $unitType->project;
         $location = $project?->location;
-        $agent = auth()->user();
-        $company = company();
+        $agent = self::resolveGeneratingUser();
+        $company = self::resolveGeneratingCompany($agent);
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project?->company_id ?? $company?->id);
 
         // Resolve asset URLs by tag with fallback chain:
@@ -557,6 +557,8 @@ class ExposeConfiguration implements Arrayable
 
         // Build distances from project + location infrastructure/airports
         $distances = $project?->distances ?? [];
+        $expandedInfra = [];
+        $expandedAirports = [];
         if ($location) {
             $expandedInfra = $location->getExpandedInfrastructure();
             foreach ($expandedInfra as $infra) {
@@ -564,6 +566,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $infra['name'],
                     'time' => $infra['travelTimeInMin'],
                     'type' => 'infrastructure',
+                    'image' => $infra['image'] ?? null,
                 ];
             }
             $expandedAirports = $location->getExpandedAirports();
@@ -572,6 +575,7 @@ class ExposeConfiguration implements Arrayable
                     'name' => $airport['name'] . ($airport['code'] ? ' (' . $airport['code'] . ')' : ''),
                     'time' => $airport['travelTimeInMin'],
                     'type' => 'airport',
+                    'image' => $airport['image'] ?? null,
                 ];
             }
         }
@@ -637,6 +641,7 @@ class ExposeConfiguration implements Arrayable
             data: [
                 // Basic info — mapped from unit type + project
                 'title' => $unitType->display_label . ($project ? ' — ' . $project->name : ''),
+                'display_label' => $unitType->display_label,
                 'reference_code' => $unitType->reference_code,
                 'price' => $formattedPrice,
                 'raw_price' => $unitType->starting_price,
@@ -708,27 +713,18 @@ class ExposeConfiguration implements Arrayable
                 // Distances (from project + location)
                 'distances' => $distances,
 
+                // Structured location infrastructure for PDF sections
+                'location_infrastructure' => $expandedInfra ?? [],
+                'location_airports' => $expandedAirports ?? [],
+
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
 
                 // Agent info
-                'agent' => [
-                    'name' => $agent->name ?? 'N/A',
-                    'email' => $agent->email ?? 'N/A',
-                    'phone' => $agent->mobile ?? 'N/A',
-                    'image' => $agent->image_url ?? null,
-                    'position' => $agent->designation ?? null,
-                ],
+                'agent' => self::buildAgentData($agent),
 
                 // Company branding
-                'company' => [
-                    'name' => $company?->company_name ?? config('app.name'),
-                    'logo' => $company?->logo_url ?? public_path('img/logo.png'),
-                    'address' => $company?->address ?? null,
-                    'phone' => $company?->company_phone ?? null,
-                    'email' => $company?->company_email ?? null,
-                    'website' => $company?->website ?? null,
-                ],
+                'company' => self::buildCompanyData($company),
 
                 // Client personalization
                 'client' => [
@@ -758,7 +754,7 @@ class ExposeConfiguration implements Arrayable
      */
     public static function fromProjectWithProperties($project, $properties, array $lead, $generatedBy, string $layout = 'vertical_standard'): self
     {
-        $company = company();
+        $company = self::resolveGeneratingCompany($generatedBy);
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project->company_id ?? $company?->id);
         
         // Group property assets by tags
@@ -849,21 +845,9 @@ class ExposeConfiguration implements Arrayable
                 // Assets
                 'assets' => $assetsByTag,
                 // Generated by info
-                'generated_by' => [
-                    'name' => $generatedBy->name ?? 'N/A',
-                    'email' => $generatedBy->email ?? 'N/A',
-                    'phone' => $generatedBy->mobile ?? null,
-                    'image' => $generatedBy->image_url ?? null,
-                ],
+                'generated_by' => self::buildAgentData($generatedBy),
                 // Company branding
-                'company' => [
-                    'name' => $company?->company_name ?? config('app.name'),
-                    'logo' => $company?->logo_url ?? public_path('img/logo.png'),
-                    'address' => $company?->address ?? null,
-                    'phone' => $company?->company_phone ?? null,
-                    'email' => $company?->company_email ?? null,
-                    'website' => $company?->website ?? null,
-                ],
+                'company' => self::buildCompanyData($company),
                 // Generation metadata
                 'generated_at' => now()->format('M d, Y H:i'),
 
@@ -876,6 +860,42 @@ class ExposeConfiguration implements Arrayable
                 'include_footer' => true,
             ]
         );
+    }
+
+    private static function resolveGeneratingUser(): mixed
+    {
+        return auth()->user();
+    }
+
+    private static function resolveGeneratingCompany($user): mixed
+    {
+        return $user?->company ?? company() ?: null;
+    }
+
+    private static function buildAgentData($agent): array
+    {
+        $agent?->loadMissing(['employeeDetail.designation']);
+
+        return [
+            'name' => $agent?->name ?? 'N/A',
+            'email' => $agent?->email ?? 'N/A',
+            'phone' => $agent?->mobile_with_phone_code ?? $agent?->mobile ?? 'N/A',
+            'image' => $agent?->image_url ?? null,
+            'position' => $agent?->employeeDetail?->designation?->name ?? null,
+        ];
+    }
+
+    private static function buildCompanyData($company): array
+    {
+        return [
+            'name' => $company?->company_name ?? config('app.name'),
+            'company_name' => $company?->company_name ?? config('app.name'),
+            'logo' => $company?->logo_url ?? public_path('img/logo.png'),
+            'address' => $company?->address ?? null,
+            'phone' => $company?->company_phone ?? null,
+            'email' => $company?->company_email ?? null,
+            'website' => $company?->website ?? null,
+        ];
     }
 
     private static function resolveGlobalExposeConfiguration(?int $companyId): array

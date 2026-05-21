@@ -21,6 +21,7 @@ import {
     CloseCircleOutlined,
     SaveOutlined,
 } from "@ant-design/icons";
+import useTranslation from "@/Hooks/useTranslation";
 import type { UploadFile } from "antd";
 import type { FormInstance } from "antd/lib/form";
 import type { AssetTag } from "@/Types";
@@ -34,38 +35,21 @@ import { ApiSuccessResponse } from "@/lib/api/types";
 const { Text, Title } = Typography;
 
 // ────────────────────────────────────────────────────────────
-// Tag definitions (same as PropertyAsset / PhotosSection)
+// Asset Tag Keys (labels are translated via useTranslation)
 // ────────────────────────────────────────────────────────────
-const ASSET_TAGS: Record<AssetTag, string> = {
-    hero: "Hero Image",
-    facilities: "Facilities",
-    features: "Features",
-    area: "Area / Location",
-    exterior: "Exterior",
-    interior: "Interior",
-    "floor-plan": "Floor Plan",
-    "site-plan": "Site Plan",
-    footer: "Footer",
-    gallery: "Gallery",
-};
-
-const TAG_OPTIONS = Object.entries(ASSET_TAGS).map(([value, label]) => ({
-    value: value as AssetTag,
-    label,
-}));
-
-const TAG_COLORS: Record<AssetTag, string> = {
-    hero: "gold",
-    facilities: "blue",
-    features: "green",
-    area: "cyan",
-    exterior: "orange",
-    interior: "purple",
-    "floor-plan": "magenta",
-    "site-plan": "volcano",
-    footer: "geekblue",
-    gallery: "lime",
-};
+const ASSET_TAG_KEYS: AssetTag[] = [
+    "hero",
+    "facilities",
+    "features",
+    "area",
+    "exterior",
+    "interior",
+    "floor-plan",
+    "site-plan",
+    "footer",
+    "gallery",
+    "cover",
+];
 
 // ────────────────────────────────────────────────────────────
 // Upload status tracking (mirrors ManageAssets / PhotosSection)
@@ -96,7 +80,18 @@ interface ConstructionProjectPhotosSectionProps {
 const ConstructionProjectPhotosSection: React.FC<
     ConstructionProjectPhotosSectionProps
 > = ({ form, projectId, onSaveForUpload }) => {
+    const { t } = useTranslation();
     const { message: messageApi } = App.useApp();
+
+    // Helper: get translated asset tag label
+    const getAssetTagLabel = useCallback(
+        (key: AssetTag): string => {
+            return t(
+                `pages.properties.construction_project_photos.asset_tags.${key}`,
+            );
+        },
+        [t],
+    );
 
     // Upload modal state
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -109,6 +104,34 @@ const ConstructionProjectPhotosSection: React.FC<
 
     // Delete confirmation
     const [deleteModal, deleteContextHolder] = Modal.useModal();
+
+    // Dynamically create TAG_OPTIONS with translated labels
+    const TAG_OPTIONS = useMemo(
+        () =>
+            ASSET_TAG_KEYS.map((key) => ({
+                value: key,
+                label: getAssetTagLabel(key),
+            })),
+        [getAssetTagLabel],
+    );
+
+    // Translatable color mapping (kept as static since colors don't change by locale)
+    const TAG_COLORS: Record<AssetTag, string> = useMemo(
+        () => ({
+            hero: "gold",
+            facilities: "blue",
+            features: "green",
+            area: "cyan",
+            exterior: "orange",
+            interior: "purple",
+            "floor-plan": "magenta",
+            "site-plan": "volcano",
+            footer: "geekblue",
+            gallery: "lime",
+            cover: "red",
+        }),
+        [],
+    );
 
     // ─── Fetch existing assets ───
     const {
@@ -187,7 +210,11 @@ const ConstructionProjectPhotosSection: React.FC<
         }
 
         if (files.length === 0) {
-            messageApi.warning("Please select photos to upload");
+            messageApi.warning(
+                t(
+                    "pages.properties.construction_project_photos.messages.please_select_photos",
+                ),
+            );
             return;
         }
 
@@ -264,7 +291,13 @@ const ConstructionProjectPhotosSection: React.FC<
                 const failedCount = files.length - successfulUploads.length;
                 if (failedCount > 0) {
                     messageApi.warning(
-                        `${failedCount} file(s) failed. ${successfulUploads.length} file(s) will be saved.`,
+                        t(
+                            "pages.properties.construction_project_photos.messages.partial_upload_warning",
+                            {
+                                failed: failedCount,
+                                success: successfulUploads.length,
+                            },
+                        ),
                     );
                 }
 
@@ -280,7 +313,11 @@ const ConstructionProjectPhotosSection: React.FC<
                     tags: selectedTags,
                 });
             } else {
-                messageApi.error("All uploads failed");
+                messageApi.error(
+                    t(
+                        "pages.properties.construction_project_photos.messages.all_uploads_failed",
+                    ),
+                );
             }
         } finally {
             setIsUploading(false);
@@ -300,9 +337,18 @@ const ConstructionProjectPhotosSection: React.FC<
             if (!projectId) return;
 
             deleteModal.confirm({
-                title: "Delete Photo",
-                content: `Delete "${asset.name}"? This cannot be undone.`,
-                okText: "Delete",
+                title: t(
+                    "pages.properties.construction_project_photos.actions.delete_photo_title",
+                ),
+                content: t(
+                    "pages.properties.construction_project_photos.messages.delete_confirmation",
+                    {
+                        name: asset.name,
+                    },
+                ),
+                okText: t(
+                    "pages.properties.construction_project_photos.actions.delete",
+                ),
                 okType: "danger",
                 onOk: () => {
                     const url = route("developer-projects.assets.destroy", [
@@ -323,11 +369,19 @@ const ConstructionProjectPhotosSection: React.FC<
                     })
                         .then((res) => res.json())
                         .then(() => {
-                            messageApi.success("Photo deleted");
+                            messageApi.success(
+                                t(
+                                    "pages.properties.construction_project_photos.messages.photo_deleted",
+                                ),
+                            );
                             refetchAssets();
                         })
                         .catch(() => {
-                            messageApi.error("Failed to delete photo");
+                            messageApi.error(
+                                t(
+                                    "pages.properties.construction_project_photos.messages.failed_to_delete",
+                                ),
+                            );
                         });
                 },
             });
@@ -344,12 +398,14 @@ const ConstructionProjectPhotosSection: React.FC<
                     className="mb-4"
                 />
                 <Title level={5} type="secondary">
-                    Save the project to upload photos
+                    {t(
+                        "pages.properties.construction_project_photos.labels.save_project_to_upload",
+                    )}
                 </Title>
                 <Text type="secondary" className="block mb-4">
-                    Photos can be uploaded once the project has been saved.
-                    These photos will be visible on all individual units of this
-                    project.
+                    {t(
+                        "pages.properties.construction_project_photos.labels.save_project_description",
+                    )}
                 </Text>
                 {onSaveForUpload && (
                     <Button
@@ -357,7 +413,9 @@ const ConstructionProjectPhotosSection: React.FC<
                         icon={<SaveOutlined />}
                         onClick={onSaveForUpload}
                     >
-                        Save & Continue
+                        {t(
+                            "pages.properties.construction_project_photos.actions.save_and_continue",
+                        )}
                     </Button>
                 )}
             </div>
@@ -368,7 +426,11 @@ const ConstructionProjectPhotosSection: React.FC<
     if (isLoadingAssets) {
         return (
             <div className="flex justify-center py-12">
-                <Spin tip="Loading photos..." />
+                <Spin
+                    tip={t(
+                        "pages.properties.construction_project_photos.labels.loading_photos",
+                    )}
+                />
             </div>
         );
     }
@@ -381,8 +443,13 @@ const ConstructionProjectPhotosSection: React.FC<
             <div className="flex items-center justify-between mb-4">
                 <Text type="secondary" className="text-sm">
                     {imageAssets.length > 0
-                        ? `${imageAssets.length} photo${imageAssets.length !== 1 ? "s" : ""}`
-                        : "No photos yet"}
+                        ? t(
+                              "pages.properties.construction_project_photos.labels.photo_count",
+                              { count: imageAssets.length },
+                          )
+                        : t(
+                              "pages.properties.construction_project_photos.labels.no_photos_yet",
+                          )}
                 </Text>
                 <Space>
                     <Button
@@ -390,7 +457,9 @@ const ConstructionProjectPhotosSection: React.FC<
                         icon={<UploadOutlined />}
                         onClick={() => setIsUploadModalOpen(true)}
                     >
-                        Upload Photos
+                        {t(
+                            "pages.properties.construction_project_photos.actions.upload_photos",
+                        )}
                     </Button>
                 </Space>
             </div>
@@ -421,7 +490,7 @@ const ConstructionProjectPhotosSection: React.FC<
                                             color={TAG_COLORS[tag] || "default"}
                                             className="text-[10px] leading-tight px-1 py-0"
                                         >
-                                            {ASSET_TAGS[tag] || tag}
+                                            {getAssetTagLabel(tag)}
                                         </Tag>
                                     ))}
                                 </div>
@@ -453,7 +522,9 @@ const ConstructionProjectPhotosSection: React.FC<
             ) : (
                 <Empty
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
-                    description="No photos uploaded yet"
+                    description={t(
+                        "pages.properties.construction_project_photos.labels.no_photos_uploaded_yet",
+                    )}
                     className="my-4"
                 >
                     <Button
@@ -461,14 +532,18 @@ const ConstructionProjectPhotosSection: React.FC<
                         icon={<UploadOutlined />}
                         onClick={() => setIsUploadModalOpen(true)}
                     >
-                        Upload Your First Photo
+                        {t(
+                            "pages.properties.construction_project_photos.actions.upload_first_photo",
+                        )}
                     </Button>
                 </Empty>
             )}
 
             {/* Upload Modal */}
             <Modal
-                title="Upload Photos"
+                title={t(
+                    "pages.properties.construction_project_photos.actions.upload_photos_modal_title",
+                )}
                 open={isUploadModalOpen}
                 onCancel={() => {
                     if (!isUploading) {
@@ -485,7 +560,9 @@ const ConstructionProjectPhotosSection: React.FC<
                         onClick={() => setIsUploadModalOpen(false)}
                         disabled={isUploading || isSavingToBackend}
                     >
-                        Cancel
+                        {t(
+                            "pages.properties.construction_project_photos.actions.cancel",
+                        )}
                     </Button>,
                     <Button
                         key="upload"
@@ -496,20 +573,33 @@ const ConstructionProjectPhotosSection: React.FC<
                         disabled={uploadFileList.length === 0}
                     >
                         {isUploading
-                            ? "Uploading..."
+                            ? t(
+                                  "pages.properties.construction_project_photos.labels.uploading",
+                              )
                             : isSavingToBackend
-                              ? "Saving..."
-                              : `Upload ${uploadFileList.length || ""} Photo${uploadFileList.length !== 1 ? "s" : ""}`}
+                              ? t(
+                                    "pages.properties.construction_project_photos.labels.saving",
+                                )
+                              : t(
+                                    "pages.properties.construction_project_photos.actions.upload_button",
+                                    { count: uploadFileList.length || "" },
+                                )}
                     </Button>,
                 ]}
                 maskClosable={!isUploading}
             >
                 {/* Tag selector */}
                 <div className="mb-4">
-                    <Text className="text-sm block mb-1">Tags (optional)</Text>
+                    <Text className="text-sm block mb-1">
+                        {t(
+                            "pages.properties.construction_project_photos.labels.tags_optional",
+                        )}
+                    </Text>
                     <Select
                         mode="multiple"
-                        placeholder="Select tags to apply to all photos"
+                        placeholder={t(
+                            "pages.properties.construction_project_photos.placeholders.select_tags_for_all_photos",
+                        )}
                         options={TAG_OPTIONS}
                         value={selectedTags}
                         onChange={setSelectedTags}
@@ -532,10 +622,14 @@ const ConstructionProjectPhotosSection: React.FC<
                             <CameraOutlined style={{ fontSize: 36 }} />
                         </p>
                         <p className="ant-upload-text">
-                            Click or drag photos here
+                            {t(
+                                "pages.properties.construction_project_photos.placeholders.click_or_drag_photos",
+                            )}
                         </p>
                         <p className="ant-upload-hint text-xs">
-                            JPG, PNG, GIF, WebP — up to 50 MB each
+                            {t(
+                                "pages.properties.construction_project_photos.placeholders.supported_formats_and_size",
+                            )}
                         </p>
                     </Upload.Dragger>
                 ) : (

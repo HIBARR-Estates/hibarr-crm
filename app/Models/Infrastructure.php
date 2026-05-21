@@ -19,6 +19,9 @@ class Infrastructure extends BaseModel
     protected $fillable = [
         'company_id',
         'name',
+        'label',
+        'description',
+        'image_url',
         'icon',
     ];
 

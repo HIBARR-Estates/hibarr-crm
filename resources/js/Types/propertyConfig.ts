@@ -7,7 +7,7 @@ import { DefaultDistances } from ".";
 /** A single item from any of the 9 property lookup tables. */
 export interface PropertyConfigItem {
     id: number;
-    company_id: number;
+    company_id: number | null;
     name: string;
     label: string;
     description: string | null;
@@ -19,6 +19,10 @@ export interface PropertyConfigItem {
     category?: string;
     /** Only present for project-facilities — Lucide icon identifier */
     icon?: string | null;
+    /** Only present for airports */
+    code?: string | null;
+    /** Only present for cities — image URL */
+    image_url?: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -34,6 +38,8 @@ export interface PropertyConfigPayload {
     category?: string;
     default_distances?: DefaultDistances;
     icon?: string | null;
+    code?: string | null;
+    image_url?: string | null;
 }
 
 /** Summary returned by GET /property-config/types */
@@ -83,7 +89,9 @@ export type ConfigTypeSlug =
     | "statuses"
     | "location-features"
     | "add-ons"
-    | "project-facilities";
+    | "project-facilities"
+    | "airports"
+    | "infrastructures";
 
 /** Human-readable labels and descriptions for each config type */
 export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
@@ -194,6 +202,16 @@ export const CONFIG_CATEGORIES: Record<ConfigTypeSlug, ConfigCategoryMeta> = {
             "Facilities available in developer projects (Gym, Pool, etc.)",
         icon: "AppstoreOutlined",
     },
+    airports: {
+        label: "Airports",
+        description: "Managed airport list used in project locations",
+        icon: "RocketOutlined",
+    },
+    infrastructures: {
+        label: "Infrastructure",
+        description: "Managed infrastructure list used in project locations",
+        icon: "CarOutlined",
+    },
 };
 
 /** Ordered list of type slugs for consistent rendering */
@@ -218,4 +236,6 @@ export const CONFIG_TYPE_ORDER: ConfigTypeSlug[] = [
     "location-features",
     "add-ons",
     "project-facilities",
+    "airports",
+    "infrastructures",
 ];

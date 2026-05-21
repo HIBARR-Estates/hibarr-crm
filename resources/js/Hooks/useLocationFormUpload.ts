@@ -1,30 +1,21 @@
 /**
  * Custom hook for handling file uploads in location forms
  *
- * This hook processes form data with file uploads using MockFileService,
- * transforms the data to match LocationConfig interface, and submits
- * via useApiMutate.
+ * This hook processes form data with file uploads using the real FileUploadService,
+ * uploads files to external storage (Minio/S3), transforms data to match
+ * LocationConfig interface, and submits the payload via useApiMutate.
  *
- * @note This hook currently uses MockFileService for development purposes.
- * For production file uploads, consider using the `useFileUpload` hook
- * from `@/Hooks/useFileUpload` which connects to the real upload API.
- *
- * @example
- * ```typescript
- * // Using with real file uploads:
- * import { useFileUpload } from '@/Hooks/useFileUpload';
- * const { uploadSingle } = useFileUpload();
- * // Replace mockUploadFile calls with uploadSingle
- * ```
+ * Features:
+ * - Real file uploads with progress tracking
+ * - Parallel upload processing
+ * - Proper error handling
+ * - URLs are stored in database and available for PDF generation
  */
 
 import { useState, useCallback } from "react";
 import { UploadFile } from "antd";
-import {
-    mockUploadFile,
-    mockUploadFiles,
-    PlaceholderCategory,
-} from "@/Services/MockFileService";
+import { getFileUploadService } from "@/Services/FileUploadService";
+import type { IUploadResponseItem } from "@/Types/uploads";
 import type {
     LocationAttraction,
     LocationInfrastructure,
@@ -55,13 +46,15 @@ interface AttractionFormValue {
 }
 
 interface InfrastructureFormValue {
-    name: string;
+    infrastructure_id?: number;
+    name?: string;
     travelTimeInMin?: number;
     image?: UploadFile[];
 }
 
 interface AirportFormValue {
-    name: string;
+    airport_id?: number;
+    name?: string;
     travelTimeInMin?: number;
     image?: UploadFile[];
 }
@@ -69,8 +62,8 @@ interface AirportFormValue {
 // Result of file extraction
 interface ExtractedFile {
     file: File;
-    category: PlaceholderCategory;
     path: string; // dot notation path to set the URL
+    targetFolder: string; // target folder for upload
 }
 
 /**
@@ -93,7 +86,11 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
     if (values.map_image?.[0]) {
         const file = getFileFromUpload(values.map_image[0]);
         if (file) {
-            files.push({ file, category: "map", path: "map_url" });
+            files.push({
+                file,
+                path: "map_url",
+                targetFolder: "project-locations/map-images",
+            });
         }
     }
 
@@ -104,8 +101,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "attraction",
                     path: `attractions.${index}.images.primary`,
+                    targetFolder: "project-locations/attractions",
                 });
             }
         }
@@ -114,8 +111,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "attraction",
                     path: `attractions.${index}.images.secondary`,
+                    targetFolder: "project-locations/attractions",
                 });
             }
         }
@@ -128,8 +125,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "infrastructure",
                     path: `infrastructure.${index}.image`,
+                    targetFolder: "project-locations/infrastructure",
                 });
             }
         }
@@ -142,8 +139,8 @@ const extractFilesFromForm = (values: LocationFormValues): ExtractedFile[] => {
             if (file) {
                 files.push({
                     file,
-                    category: "airport",
                     path: `airports.${index}.image`,
+                    targetFolder: "project-locations/airports",
                 });
             }
         }
@@ -173,10 +170,25 @@ const setAtPath = (obj: any, path: string, value: any): void => {
 
 /**
  * Transform form values to API payload
+ *
+ * Handles the complete upload pipeline:
+ * 1. Extracts files from form values
+ * 2. Uploads files to external storage service
+ * 3. Gets real download URLs (not mock URLs)
+ * 4. Injects URLs into the payload for database storage
  */
 export const transformFormToPayload = async (
     values: LocationFormValues,
     existingLocation?: {
+        name?: string | null;
+        description?: string | null;
+        address?: {
+            street?: string | null;
+            city?: string | null;
+            state?: string | null;
+            country?: string | null;
+            postalCode?: string | null;
+        } | null;
         map_url?: string | null;
         image_url?: string | null;
         attractions?: any[];
@@ -184,58 +196,95 @@ export const transformFormToPayload = async (
         airports?: any[];
     } | null,
 ): Promise<CreateProjectLocationInput> => {
-    // Start building the payload
+    const hasAttractions = Array.isArray(values.attractions);
+    const hasInfrastructure = Array.isArray(values.infrastructure);
+    const hasAirports = Array.isArray(values.airports);
+
+    // Start building the payload with existing base data
     const payload: CreateProjectLocationInput = {
-        name: values.name,
-        description: values.description,
+        name: values.name ?? existingLocation?.name ?? "",
+        description: values.description ?? existingLocation?.description ?? "",
         address: {
-            street: values.address_street,
-            city: values.address_city,
-            state: values.address_state,
-            country: values.address_country,
-            postalCode: values.address_postalCode,
+            street:
+                values.address_street ??
+                existingLocation?.address?.street ??
+                undefined,
+            city:
+                values.address_city ??
+                existingLocation?.address?.city ??
+                undefined,
+            state:
+                values.address_state ??
+                existingLocation?.address?.state ??
+                undefined,
+            country:
+                values.address_country ??
+                existingLocation?.address?.country ??
+                undefined,
+            postalCode:
+                values.address_postalCode ??
+                existingLocation?.address?.postalCode ??
+                undefined,
         },
         map_url: existingLocation?.map_url || undefined,
         image_url: existingLocation?.image_url || undefined,
-        attractions: (values.attractions || []).map((a, index) => ({
-            name: a.name,
-            content: Array.isArray(a.content) ? a.content : [a.content || ""],
-            images: {
-                primary:
-                    existingLocation?.attractions?.[index]?.images?.primary ||
-                    "",
-                secondary:
-                    existingLocation?.attractions?.[index]?.images?.secondary ||
-                    "",
-            },
-        })),
-        infrastructure: (values.infrastructure || []).map((i, index) => ({
-            name: i.name,
-            travelTimeInMin: i.travelTimeInMin || 0,
-            image: existingLocation?.infrastructure?.[index]?.image || "",
-        })),
-        airports: (values.airports || []).map((a, index) => ({
-            name: a.name,
-            travelTimeInMin: a.travelTimeInMin || 0,
-            image: existingLocation?.airports?.[index]?.image || "",
-        })),
+        attractions: hasAttractions
+            ? values.attractions!.map((a, index) => ({
+                  name: a.name,
+                  content: Array.isArray(a.content)
+                      ? a.content
+                      : [a.content || ""],
+                  images: {
+                      primary:
+                          existingLocation?.attractions?.[index]?.images
+                              ?.primary || "",
+                      secondary:
+                          existingLocation?.attractions?.[index]?.images
+                              ?.secondary || "",
+                  },
+              }))
+            : existingLocation?.attractions || [],
+        infrastructure: hasInfrastructure
+            ? values.infrastructure!.map((i, index) => ({
+                  infrastructure_id: i.infrastructure_id,
+                  name: i.name,
+                  travelTimeInMin: i.travelTimeInMin || 0,
+                  image: existingLocation?.infrastructure?.[index]?.image || "",
+              }))
+            : existingLocation?.infrastructure || [],
+        airports: hasAirports
+            ? values.airports!.map((a, index) => ({
+                  airport_id: a.airport_id,
+                  name: a.name,
+                  travelTimeInMin: a.travelTimeInMin || 0,
+                  image: existingLocation?.airports?.[index]?.image || "",
+              }))
+            : existingLocation?.airports || [],
     };
 
-    // Extract and upload files
+    // Extract files to upload
     const extractedFiles = extractFilesFromForm(values);
 
-    // Upload all files in parallel
-    const uploadResults = await Promise.all(
-        extractedFiles.map(async ({ file, category, path }) => {
-            const url = await mockUploadFile(file, category);
-            return { path, url };
-        }),
-    );
+    // Upload all files in parallel using real FileUploadService
+    if (extractedFiles.length > 0) {
+        const uploadService = getFileUploadService();
 
-    // Set uploaded URLs in payload
-    uploadResults.forEach(({ path, url }) => {
-        setAtPath(payload, path, url);
-    });
+        const uploadResults = await Promise.all(
+            extractedFiles.map(async ({ file, path, targetFolder }) => {
+                const response = await uploadService.uploadSingle(
+                    file,
+                    targetFolder,
+                );
+                // Return real download URL
+                return { path, url: response.downloadUrl };
+            }),
+        );
+
+        // Inject uploaded URLs into payload
+        uploadResults.forEach(({ path, url }) => {
+            setAtPath(payload, path, url);
+        });
+    }
 
     return payload;
 };

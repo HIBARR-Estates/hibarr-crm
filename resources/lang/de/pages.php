@@ -382,6 +382,8 @@ return [
                 'location-features' => ['label' => 'Lagemerkmale', 'description' => 'Umgebungsmerkmale (nahe Strand, nahe Schule usw.)'],
                 'add-ons' => ['label' => 'Zusatzoptionen', 'description' => 'Optionale Extras (Möbelpaket, Mietgarantie usw.)'],
                 'project-facilities' => ['label' => 'Projektanlagen', 'description' => 'Einrichtungen in Bauträgerprojekten (Fitnessstudio, Pool usw.)'],
+                'airports' => ['label' => 'Flughäfen', 'description' => 'Nahegelegene Flughäfen und Erreichbarkeit der Flughäfen'],
+                'infrastructures' => ['label' => 'Infrastrukturen', 'description' => 'Infrastrukturoptionen (Straßen, Versorgungsnetze, öffentliche Dienste usw.)'],
             ],
         ],
         'manage_assets' => [
@@ -460,6 +462,93 @@ return [
     'tasks' => [
         'drawer_title_prefix' => 'Aufgabe',
         'pagination_total'    => '{{start}}-{{end}} von {{total}} Einträgen',
+    ],
+
+    'expose_configuration' => [
+        'title' => 'Expose-Konfiguration',
+        'alert' => [
+            'global_company_configuration' => 'Globale Unternehmenseinstellungen',
+            'global_company_description'   => 'Diese Einstellungen werden für alle generierten Exposes verwendet (Projektbroschüre sowie Einheiten-/Objektexposes).',
+        ],
+        'sections' => [
+            'outro_title'   => 'Outro',
+            'qr_code_title' => 'QR-Code',
+        ],
+        'labels' => [
+            'enable_outro_section'       => 'Outro-Bereich aktivieren',
+            'images'                     => 'Bilder',
+            'primary_image'              => 'Primärbild',
+            'secondary_image_optional'   => 'Sekundärbild (optional)',
+            'enable_qr_code_on_exposes' => 'QR-Code auf Exposes aktivieren',
+        ],
+        'placeholders' => [
+            'outro_title'       => 'Outro-Titel',
+            'outro_description' => 'Outro-Beschreibung',
+            'qr_code_link'      => 'https://example.com/landing-page',
+        ],
+        'image' => [
+            'outro_primary_alt'   => 'Outro primär',
+            'outro_secondary_alt' => 'Outro sekundär',
+            'no_image_uploaded'   => 'Kein Bild hochgeladen',
+        ],
+        'actions' => [
+            'upload'             => 'Hochladen',
+            'remove'             => 'Entfernen',
+            'save_configuration' => 'Konfiguration speichern',
+        ],
+        'messages' => [
+            'upload_failed' => 'Bild konnte nicht hochgeladen werden',
+        ],
+    ],
+
+    'construction_project_photos' => [
+        'asset_tags' => [
+            'hero'        => 'Heldenbild',
+            'facilities'  => 'Einrichtungen',
+            'features'    => 'Merkmale',
+            'area'        => 'Fläche / Lage',
+            'exterior'    => 'Außenseite',
+            'interior'    => 'Innenseite',
+            'floor-plan'  => 'Grundriss',
+            'site-plan'   => 'Lageplan',
+            'footer'      => 'Fußzeile',
+            'gallery'     => 'Galerie',
+            'cover'       => 'Titelbild',
+        ],
+        'labels' => [
+            'save_project_to_upload'   => 'Speichern Sie das Projekt, um Fotos hochzuladen',
+            'save_project_description' => 'Fotos können hochgeladen werden, sobald das Projekt gespeichert wurde. Diese Fotos werden auf alle einzelnen Einheiten dieses Projekts angewendet.',
+            'loading_photos'           => 'Fotos werden geladen...',
+            'photo_count'              => '{{count}} Foto{{count_plural}}',
+            'no_photos_yet'            => 'Noch keine Fotos',
+            'no_photos_uploaded_yet'   => 'Noch keine Fotos hochgeladen',
+            'tags_optional'            => 'Tags (optional)',
+            'uploading'                => 'Wird hochgeladen...',
+            'saving'                   => 'Wird gespeichert...',
+        ],
+        'placeholders' => [
+            'select_tags_for_all_photos'    => 'Wählen Sie Tags aus, die auf alle Fotos angewendet werden sollen',
+            'click_or_drag_photos'          => 'Klicken Sie hier oder ziehen Sie Fotos hierher',
+            'supported_formats_and_size'    => 'JPG, PNG, GIF, WebP — bis 50 MB pro Datei',
+        ],
+        'actions' => [
+            'save_and_continue'         => 'Speichern & Fortfahren',
+            'upload_photos'             => 'Fotos hochladen',
+            'upload_first_photo'        => 'Erstes Foto hochladen',
+            'upload_photos_modal_title' => 'Fotos hochladen',
+            'cancel'                    => 'Abbrechen',
+            'upload_button'             => '{{count}} Foto{{count_plural}} hochladen',
+            'delete_photo_title'        => 'Foto löschen',
+            'delete'                    => 'Löschen',
+        ],
+        'messages' => [
+            'please_select_photos'      => 'Bitte wählen Sie hochzuladende Fotos aus',
+            'partial_upload_warning'    => '{{failed}} Datei(en) konnten nicht hochgeladen werden. {{success}} Datei(en) werden gespeichert.',
+            'all_uploads_failed'        => 'Alle Uploads sind fehlgeschlagen',
+            'photo_deleted'             => 'Foto gelöscht',
+            'failed_to_delete'          => 'Foto konnte nicht gelöscht werden',
+            'delete_confirmation'       => 'Foto "{{name}}" löschen? Dies kann nicht rückgängig gemacht werden.',
+        ],
     ],
 
 ];
