@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 /**
@@ -13,10 +14,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  */
 class Airport extends BaseModel
 {
-    use HasFactory;
+    use HasFactory, HasCompany;
 
     protected $fillable = [
+        'company_id',
         'name',
+        'label',
+        'description',
+        'image_url',
         'code',
     ];
 
@@ -34,9 +39,9 @@ class Airport extends BaseModel
     public static function getDefaultItems(): array
     {
         return [
-            ['name' => 'Ercan', 'code' => 'ECN'],
-            ['name' => 'Lanarca', 'code' => 'LCA'],
-            ['name' => 'Paphos', 'code' => 'PFO'],
+            ['name' => 'ercan_international', 'label' => 'Ercan International', 'code' => 'ECN'],
+            ['name' => 'larnaca_international', 'label' => 'Larnaca International', 'code' => 'LCA'],
+            ['name' => 'paphos_international', 'label' => 'Paphos International', 'code' => 'PFO'],
          
         ];
     }

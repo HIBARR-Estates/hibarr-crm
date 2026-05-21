@@ -30,6 +30,8 @@ import {
     AppstoreOutlined,
     BorderBottomOutlined,
     CheckCircleOutlined,
+    CarOutlined,
+    RocketOutlined,
     ReloadOutlined,
     SearchOutlined,
 } from "@ant-design/icons";
@@ -67,6 +69,8 @@ const ICON_MAP: Record<string, React.ReactNode> = {
     AppstoreOutlined: <AppstoreOutlined />,
     BorderBottomOutlined: <BorderBottomOutlined />,
     CheckCircleOutlined: <CheckCircleOutlined />,
+    CarOutlined: <CarOutlined />,
+    RocketOutlined: <RocketOutlined />,
 };
 
 interface ConfigProps {

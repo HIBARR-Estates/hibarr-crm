@@ -68,6 +68,8 @@ class DatabaseSeeder extends Seeder
             $this->call(PropertyProductSeeder::class, false, ['companyId' => $company->id]);
         }
 
+        $this->call(AirportInfrastructureSeeder::class);
+
         if (!App::environment('codecanyon')) {
             Artisan::call('sync-user-permissions all');
         }

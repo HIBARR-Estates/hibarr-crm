@@ -472,6 +472,46 @@
             gap: 22px;
         }
 
+        .facility-grid-2 {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          grid-template-rows: 1fr;
+          height: 100%;
+          gap: 22px;
+        }
+
+        .facility-grid-3 {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          grid-template-rows: repeat(2, 1fr);
+          height: 100%;
+          gap: 22px;
+        }
+
+        .facility-grid-3 .gallery-item:last-child {
+          grid-column: 1 / 3;
+        }
+
+        .facility-grid-4 {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          grid-template-rows: repeat(2, 1fr);
+          height: 100%;
+          gap: 22px;
+        }
+
+        .facility-grid-5 {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          grid-template-rows: repeat(2, 1fr);
+          height: 100%;
+          gap: 22px;
+        }
+
+        .facility-grid-5 .gallery-item:last-child {
+          grid-column: 2 / span 2;
+        }
+
         .gallery-item {
             width: 100%;
             height: 100%;
@@ -888,7 +928,9 @@
     $outroSecondaryImage = $outroConfig['secondary_image_url'] ?? ($exteriorImages[4] ?? $outroPrimaryImage);
 
     $locationPayload = $data['location_payload'] ?? [];
-    $locationTitle = $locationPayload['name'] ?? null;
+    $locationTitle = !empty($locationPayload['name'])
+      ? str_replace('_', ' ', (string) $locationPayload['name'])
+      : null;
     $locationDescription = $locationPayload['description'] ?? null;
     $locationImage = $locationPayload['image_url'] ?? null;
     $locationInfrastructure = array_values($data['location_infrastructure'] ?? []);
@@ -1152,29 +1194,60 @@
   @endif
 
   <!-- PAGE 5: FACILITIES GALLERY -->
-  @if(!empty($facilityItems))
-  <div class="page">
-    <div class="container" style="position: relative; z-index: 1;">
-      <div class="header">
-        <span class="title">FACILITIES</span>
-        <img style="width: 12%" src="{{ $data['branding']['logo_full'] }}" alt="hibarr-logo" />
-      </div>
-
-      <div class="gallery-grid">
-        @foreach(array_slice($facilityItems, 0, 6) as $index => $facility)
-          <div class="gallery-item">
-            @if(!empty($facility['image']))
-              <img src="{{ $facility['image'] }}" alt="{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}" />
-            @endif
-            <div class="title">
-              <span>{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}</span>
-            </div>
+  @php
+    $facilityPageItems = array_slice($facilityItems, 0, 6);
+    $facilityCount = count($facilityPageItems);
+  @endphp
+  @if($facilityCount > 0)
+    @if($facilityCount === 1)
+      @php
+        $singleFacility = $facilityPageItems[0];
+      @endphp
+      <div class="page bg" style="--bg-image: url('{{ $singleFacility['image'] ?? ($heroImages[0] ?? 'property/images/test.png') }}')">
+        <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
+          <div style="position: relative; display: inline-block; line-height: 0;">
+            <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
+                style="height: 72px; width: auto; display: block;" />
+            <span
+                style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">{{ $singleFacility['label'] ?? 'Facility' }}</span>
           </div>
-        @endforeach
+        </div>
+        <div class="logo-watermark-bottom">
+          <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
+        </div>
       </div>
-    </div>
-    
-  </div>
+    @else
+      @php
+        $facilityGridClass = match ($facilityCount) {
+          2 => 'facility-grid-2',
+          3 => 'facility-grid-3',
+          4 => 'facility-grid-4',
+          5 => 'facility-grid-5',
+          default => 'gallery-grid',
+        };
+      @endphp
+      <div class="page">
+        <div class="container" style="position: relative; z-index: 1;">
+          <div class="header">
+            <span class="title">FACILITIES</span>
+            <img style="width: 12%" src="{{ $data['branding']['logo_full'] }}" alt="hibarr-logo" />
+          </div>
+
+          <div class="{{ $facilityGridClass }}">
+            @foreach($facilityPageItems as $index => $facility)
+              <div class="gallery-item">
+                @if(!empty($facility['image']))
+                  <img src="{{ $facility['image'] }}" alt="{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}" />
+                @endif
+                <div class="title">
+                  <span>{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}</span>
+                </div>
+              </div>
+            @endforeach
+          </div>
+        </div>
+      </div>
+    @endif
   @endif
 
   <!-- PAGE — First gallery image full page (after facilities) -->
@@ -1489,7 +1562,7 @@
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
       <div class="container">
-        <p style="max-width:80%;">{!! !empty($locationDescription) ? Str::limit($locationDescription, 320) : 'Explore the surrounding neighborhood and its unique lifestyle advantages.' !!}</p>
+        <p style="max-width:80%;">{!! !empty($locationDescription) ? Str::limit($locationDescription, 320) : '' !!}</p>
       </div>
     </div>
     <div class="expose-title blue absolute">
@@ -1557,7 +1630,7 @@
           <div class="airport-item" style="position:relative; z-index:1;">
             <img src="{{ $a['image'] ?? ($data['assets']['exterior'][0] ?? 'property/images/test.png') }}" alt="{{ $a['name'] ?? '' }}" />
             <p>{{ strtoupper($a['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[0] ?? ''))) }}</p>
-            <span>{{ $a['travelTimeInMin'] ?? $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }}</span>
+            <span>{{ $a['travelTimeInMin'] ?? $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }} km</span>
           </div>
           @endif
         </div>
@@ -1583,7 +1656,7 @@
           <div class="airport-item">
             <img src="{{ $b['image'] ?? ($data['assets']['exterior'][1] ?? 'property/images/test.png') }}" alt="{{ $b['name'] ?? '' }}" />
             <p>{{ strtoupper($b['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[1] ?? ''))) }}</p>
-            <span>{{ $b['travelTimeInMin'] ?? $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }}</span>
+            <span>{{ $b['travelTimeInMin'] ?? $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }} km</span>
           </div>
           @endif
           @if(!empty($airportItems[2]))
@@ -1591,7 +1664,7 @@
           <div class="airport-item">
             <img src="{{ $c['image'] ?? ($data['assets']['exterior'][2] ?? 'property/images/test.png') }}" alt="{{ $c['name'] ?? '' }}" />
             <p>{{ strtoupper($c['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[2] ?? ''))) }}</p>
-            <span>{{ $c['travelTimeInMin'] ?? $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }}</span>
+            <span>{{ $c['travelTimeInMin'] ?? $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }} km</span>
           </div>
           @endif
           <div class="airport-logo" style="align-self:flex-end;">

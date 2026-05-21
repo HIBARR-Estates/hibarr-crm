@@ -23,6 +23,8 @@ use App\Models\PropertyLocationFeature;
 use App\Models\PropertyAddOn;
 use App\Models\PropertyArea;
 use App\Models\ProjectFacility;
+use App\Models\Airport;
+use App\Models\Infrastructure;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -63,6 +65,8 @@ class PropertyConfigController extends AccountBaseController
         'location-features'     => PropertyLocationFeature::class,
         'add-ons'               => PropertyAddOn::class,
         'project-facilities'    => ProjectFacility::class,
+        'airports'              => Airport::class,
+        'infrastructures'       => Infrastructure::class,
     ];
 
     public function __construct()
@@ -86,7 +90,13 @@ class PropertyConfigController extends AccountBaseController
     public function index(string $type)
     {
         $model = $this->resolveModel($type);
-        $items = $model::orderBy('name')->get();
+        $query = $model::query()->orderBy('name');
+
+        if (in_array($type, ['airports', 'infrastructures'], true)) {
+            $query->where('company_id', user()->company_id);
+        }
+
+        $items = $query->get();
 
         return Reply::successWithData('Lookup items fetched', ['data' => $items, 'type' => $type]);
     }
@@ -111,9 +121,14 @@ class PropertyConfigController extends AccountBaseController
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
             'icon'        => 'nullable|string|max:100',
+            'code'        => 'nullable|string|max:10',
         ];
 
         // Cities support default distance values and image URL
+        if ($type === 'cities' || $type === 'airports' || $type === 'infrastructures') {
+            $rules['image_url']                      = 'nullable|url|max:2048';
+        }
+
         if ($type === 'cities') {
             $rules['default_distances']              = 'nullable|array';
             $rules['default_distances.market_km']    = 'nullable|numeric|min:0';
@@ -122,7 +137,6 @@ class PropertyConfigController extends AccountBaseController
             $rules['default_distances.school_km']    = 'nullable|numeric|min:0';
             $rules['default_distances.beach_km']     = 'nullable|numeric|min:0';
             $rules['default_distances.sea_km']       = 'nullable|numeric|min:0';
-            $rules['image_url']                      = 'nullable|url|max:2048';
         }
 
         $validated = $request->validate($rules);
@@ -181,6 +195,18 @@ class PropertyConfigController extends AccountBaseController
             $fillable['icon'] = $validated['icon'];
         }
 
+        if ($type === 'airports' && isset($validated['code'])) {
+            $fillable['code'] = $validated['code'];
+        }
+
+        if (in_array($type, ['airports', 'infrastructures'], true) && isset($validated['image_url'])) {
+            $fillable['image_url'] = $validated['image_url'];
+        }
+
+        if ($type === 'infrastructures' && isset($validated['icon'])) {
+            $fillable['icon'] = $validated['icon'];
+        }
+
         $item = $modelClass::create($fillable);
 
         return Reply::successWithData('Lookup item created', ['data' => $item]);
@@ -212,9 +238,14 @@ class PropertyConfigController extends AccountBaseController
             'category'    => 'nullable|string|max:255',
             'city_id'     => 'nullable|integer|exists:property_cities,id',
             'icon'        => 'nullable|string|max:100',
+            'code'        => 'nullable|string|max:10',
         ];
 
         // Cities support default distance values and image URL
+        if ($type === 'cities' || $type === 'airports' || $type === 'infrastructures') {
+            $rules['image_url']                      = 'nullable|url|max:2048';
+        }
+
         if ($type === 'cities') {
             $rules['default_distances']              = 'nullable|array';
             $rules['default_distances.market_km']    = 'nullable|numeric|min:0';
@@ -223,7 +254,6 @@ class PropertyConfigController extends AccountBaseController
             $rules['default_distances.school_km']    = 'nullable|numeric|min:0';
             $rules['default_distances.beach_km']     = 'nullable|numeric|min:0';
             $rules['default_distances.sea_km']       = 'nullable|numeric|min:0';
-            $rules['image_url']                      = 'nullable|url|max:2048';
         }
 
         $validated = $request->validate($rules);
@@ -243,11 +273,14 @@ class PropertyConfigController extends AccountBaseController
         if ($type !== 'cities') {
             unset($updateData['default_distances']);
         }
-        if ($type !== 'cities') {
+        if (!in_array($type, ['cities', 'airports', 'infrastructures'], true)) {
             unset($updateData['image_url']);
         }
-        if ($type !== 'project-facilities') {
+        if (!in_array($type, ['project-facilities', 'infrastructures'], true)) {
             unset($updateData['icon']);
+        }
+        if ($type !== 'airports') {
+            unset($updateData['code']);
         }
 
         $item->update($updateData);
