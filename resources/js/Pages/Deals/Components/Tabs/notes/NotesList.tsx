@@ -113,17 +113,16 @@ export const NotesList: React.FC<NotesListProps> = ({
                         onChange={(e) => onSearchChange(e.target.value)}
                         allowClear
                         size="small"
-                        // prefix={<SearchOutlined />}
+                    // prefix={<SearchOutlined />}
                     />
                 </div>
             </div>
 
             {/* Notes Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-                {/* Add Note Card - Show only when not searching */}
-                {!searchTerm && (
-                    <div className="col-span-2">{renderAddNoteCard()}</div>
-                )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
+                {/* Add Note Card - Show only when there are no notes */}
+                {filteredNotes.length === 0 && renderAddNoteCard()}
+           
 
                 {/* Notes or Empty State */}
                 {filteredNotes.length === 0 &&
@@ -142,6 +141,7 @@ export const NotesList: React.FC<NotesListProps> = ({
                     />
                 ))}
             </div>
+      
         </div>
     );
 };
