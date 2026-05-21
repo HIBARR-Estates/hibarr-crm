@@ -37,10 +37,11 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     const canDelete = hasPermission("delete_developer_projects");
 
     const hasProperties = (project.properties_count ?? 0) > 0;
-    const soldCount = project.sold_properties_count ?? 0;
-    const totalCount = project.properties_count ?? 0;
+    const totalUnits = project.total_units ?? project.properties_count ?? 0;
+    const totalSold =
+        project.total_units_sold ?? project.sold_properties_count ?? 0;
     const soldPct =
-        totalCount > 0 ? Math.round((soldCount / totalCount) * 100) : 0;
+        totalUnits > 0 ? Math.round((totalSold / totalUnits) * 100) : 0;
 
     // First project photo from assets
     const firstPhoto =
