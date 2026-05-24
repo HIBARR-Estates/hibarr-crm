@@ -959,6 +959,7 @@
     $facilitySlugs = $data['facilities'] ?? [];
     $facilityLabels = $data['facility_labels'] ?? [];
     $facilityImagesBySlug = $data['facility_images_by_slug'] ?? [];
+    $facilityDefaultImagesBySlug = $data['facility_default_images_by_slug'] ?? [];
     $genericFacilityImages = array_values($data['assets']['facilities'] ?? []);
 
     $facilityItems = [];
@@ -968,7 +969,7 @@
       $slugImages = array_values($facilityImagesBySlug[$slug] ?? []);
       $facilityItems[] = [
         'label' => $facilityLabels[$index] ?? ucfirst(str_replace('_', ' ', (string) $slug)),
-        'image' => $slugImages[0] ?? ($genericFacilityImages[$genericFacilityIndex++] ?? null),
+        'image' => $slugImages[0] ?? ($facilityDefaultImagesBySlug[$slug] ?? ($genericFacilityImages[$genericFacilityIndex++] ?? null)),
       ];
     }
 

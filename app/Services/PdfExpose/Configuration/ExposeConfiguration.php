@@ -253,15 +253,19 @@ class ExposeConfiguration implements Arrayable
         $city = $location?->state ?? $location?->name ?? null;
         $area = $location?->name ?? null;
 
-        // Get facility labels from DB
+        // Get facility labels and default images from DB
         $facilitySlugs = $project->facilities ?? [];
-        $facilityLabelMap = ProjectFacility::where('company_id', $project->company_id)
+        $facilityMetaByName = ProjectFacility::where('company_id', $project->company_id)
             ->whereIn('name', $facilitySlugs)
-            ->pluck('label', 'name');
+            ->get(['name', 'label', 'image_url'])
+            ->keyBy('name');
 
         $facilityLabels = [];
+        $facilityDefaultImagesBySlug = [];
         foreach ($facilitySlugs as $facilityKey) {
-            $facilityLabels[] = $facilityLabelMap[$facilityKey] ?? ucfirst(str_replace('_', ' ', $facilityKey));
+            $facilityMeta = $facilityMetaByName->get($facilityKey);
+            $facilityLabels[] = $facilityMeta?->label ?? ucfirst(str_replace('_', ' ', $facilityKey));
+            $facilityDefaultImagesBySlug[$facilityKey] = $facilityMeta?->image_url;
         }
 
         // Build deterministic facility image mapping via namespaced tags (facilities:<slug>).
@@ -304,15 +308,33 @@ class ExposeConfiguration implements Arrayable
         }
 
         // Build ordered facility gallery list by facility slug order.
+        // Fallback order: tagged image -> facility default image -> generic facilities image.
         $facilityGalleryImages = [];
+        $remainingGenericFacilityImages = $genericFacilityImages;
+
         foreach ($facilitySlugs as $facilityKey) {
             if (!empty($facilityImagesBySlug[$facilityKey])) {
                 $facilityGalleryImages[] = $facilityImagesBySlug[$facilityKey][0];
+                continue;
+            }
+
+            $defaultImage = $facilityDefaultImagesBySlug[$facilityKey] ?? null;
+            if (!empty($defaultImage)) {
+                $facilityGalleryImages[] = $defaultImage;
+                continue;
+            }
+
+            while (!empty($remainingGenericFacilityImages)) {
+                $genericImage = array_shift($remainingGenericFacilityImages);
+                if (!in_array($genericImage, $facilityGalleryImages, true)) {
+                    $facilityGalleryImages[] = $genericImage;
+                    break;
+                }
             }
         }
 
-        // Backward-compatible fallback: fill remaining slots from generic facilities tag.
-        foreach ($genericFacilityImages as $url) {
+        // Backward-compatible fallback: append remaining generic facilities images.
+        foreach ($remainingGenericFacilityImages as $url) {
             if (!in_array($url, $facilityGalleryImages, true)) {
                 $facilityGalleryImages[] = $url;
             }
@@ -362,6 +384,7 @@ class ExposeConfiguration implements Arrayable
                 'facilities' => $project->facilities ?? [],
                 'facility_labels' => $facilityLabels,
                 'facility_images_by_slug' => $facilityImagesBySlug,
+                'facility_default_images_by_slug' => $facilityDefaultImagesBySlug,
                 'exterior_features' => $facilityLabels, // For template compatibility (facilities gallery uses exterior_features)
 
                 // Unit type summaries
@@ -487,16 +510,20 @@ class ExposeConfiguration implements Arrayable
 
         // Resolve project facilities and image mapping from project assets tags (facilities:<slug>)
         $facilitySlugs = $project?->facilities ?? [];
-        $facilityLabelMap = collect();
+        $facilityMetaByName = collect();
         if ($project && !empty($facilitySlugs)) {
-            $facilityLabelMap = ProjectFacility::where('company_id', $project->company_id)
+            $facilityMetaByName = ProjectFacility::where('company_id', $project->company_id)
                 ->whereIn('name', $facilitySlugs)
-                ->pluck('label', 'name');
+                ->get(['name', 'label', 'image_url'])
+                ->keyBy('name');
         }
 
         $facilityLabels = [];
+        $facilityDefaultImagesBySlug = [];
         foreach ($facilitySlugs as $facilityKey) {
-            $facilityLabels[] = $facilityLabelMap[$facilityKey] ?? ucfirst(str_replace('_', ' ', $facilityKey));
+            $facilityMeta = $facilityMetaByName->get($facilityKey);
+            $facilityLabels[] = $facilityMeta?->label ?? ucfirst(str_replace('_', ' ', $facilityKey));
+            $facilityDefaultImagesBySlug[$facilityKey] = $facilityMeta?->image_url;
         }
 
         $facilityImagesBySlug = [];
@@ -539,13 +566,29 @@ class ExposeConfiguration implements Arrayable
         }
 
         $facilityGalleryImages = [];
+        $remainingGenericFacilityImages = $genericFacilityImages;
         foreach ($facilitySlugs as $facilityKey) {
             if (!empty($facilityImagesBySlug[$facilityKey])) {
                 $facilityGalleryImages[] = $facilityImagesBySlug[$facilityKey][0];
+                continue;
+            }
+
+            $defaultImage = $facilityDefaultImagesBySlug[$facilityKey] ?? null;
+            if (!empty($defaultImage)) {
+                $facilityGalleryImages[] = $defaultImage;
+                continue;
+            }
+
+            while (!empty($remainingGenericFacilityImages)) {
+                $genericImage = array_shift($remainingGenericFacilityImages);
+                if (!in_array($genericImage, $facilityGalleryImages, true)) {
+                    $facilityGalleryImages[] = $genericImage;
+                    break;
+                }
             }
         }
 
-        foreach ($genericFacilityImages as $url) {
+        foreach ($remainingGenericFacilityImages as $url) {
             if (!in_array($url, $facilityGalleryImages, true)) {
                 $facilityGalleryImages[] = $url;
             }
@@ -696,6 +739,7 @@ class ExposeConfiguration implements Arrayable
                 'outside_features' => $unitType->outside_features ?? [],
                 'inside_features' => $unitType->inside_features ?? [],
                 'view_types' => $viewTypeLabels,
+                'facility_default_images_by_slug' => $facilityDefaultImagesBySlug,
                 'unit_style_list' => $unitStyleList,
 
                 // Project facilities for facilities page

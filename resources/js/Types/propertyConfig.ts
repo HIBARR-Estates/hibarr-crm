@@ -21,7 +21,7 @@ export interface PropertyConfigItem {
     icon?: string | null;
     /** Only present for airports */
     code?: string | null;
-    /** Only present for cities — image URL */
+    /** Present for cities, project-facilities, airports and infrastructures — image URL */
     image_url?: string | null;
     created_at: string;
     updated_at: string;
