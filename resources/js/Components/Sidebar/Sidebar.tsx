@@ -28,6 +28,7 @@ import {
 } from "../icons";
 import { PageProps } from "../DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useDealPermissions from "@/Hooks/useDealPermissions";
 import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
 
@@ -59,6 +60,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const pipelines = (props.pipelines || []) as Pipeline[];
     const defaultPipeline = pipelines.find((p) => p.default === 1);
     const { t, isRtl } = useTranslation();
+    const { td } = useTd();
     const isSalesManger =
         props.auth?.permissions?.edit_product === "all" ||
         props.auth?.permissions?.edit_product === 4;
@@ -181,7 +183,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 pipelines.length > 0
                     ? pipelines.map((pipeline) => ({
                           key: `deals-${pipeline.id}`,
-                          label: pipeline.name,
+                          label: td(pipeline.name),
                           icon: null,
                           href: `/account/deals?lead_pipeline_id=${pipeline.id}`,
                       }))

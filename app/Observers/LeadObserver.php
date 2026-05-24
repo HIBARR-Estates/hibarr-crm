@@ -9,6 +9,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Notification;
 use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
+use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
 
 
@@ -47,6 +48,8 @@ class LeadObserver
 
     public function created(Lead $leadContact)
     {
+        HasDynamicTranslations::dispatchDynamicTranslation($leadContact, false);
+
         if (!isRunningInConsoleOrSeeding()) {
 
             if (!session()->has('is_imported')) {
@@ -96,6 +99,8 @@ class LeadObserver
 
     public function updated(Lead $leadContact)
     {
+        HasDynamicTranslations::dispatchDynamicTranslation($leadContact, true);
+
         if (isRunningInConsoleOrSeeding()) {
             return;
         }
