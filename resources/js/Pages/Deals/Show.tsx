@@ -28,6 +28,7 @@ import { CrmEventTimeline } from "@/Components/CrmEvents";
 import { usePage } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -84,6 +85,7 @@ export const Show = ({
 
     const [isDealEditMode, setIsDealEditMode] = useState(false);
     const { t } = useTranslation();
+    const { td } = useTd();
 
     return (
         <>
@@ -118,11 +120,11 @@ export const Show = ({
                                         {deal.is_locked && (
                                             <LockOutlined className="text-amber-500 mr-2" />
                                         )}
-                                        {deal.name}
+                                        {td(deal.name)}
                                     </Title>
                                     <div className="flex flex-col gap-3">
                                         <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
-                                            {deal.pipeline?.name}
+                                            {td(deal.pipeline?.name)}
                                         </div>
 
                                         <div className="flex items-center gap-2 flex-wrap">
@@ -168,7 +170,7 @@ export const Show = ({
                                                                 }}
                                                             >
                                                                 <div className="mr-1.5 h-2 w-2 rounded-full bg-[#0000008F]" />
-                                                                {stage.name}
+                                                                {td(stage.name)}
                                                             </div>
                                                             {index <
                                                                 (deal.pipeline
