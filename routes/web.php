@@ -583,6 +583,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::prefix('api/dynamic-translations')->group(function () {
         Route::post('batch', [DynamicTranslationController::class, 'batch'])->name('dynamic-translations.batch');
     });
+    // deals route
 
     // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
     Route::get('lead-contact', [LeadContactController::class, 'index'])->name('lead-contact.index');
