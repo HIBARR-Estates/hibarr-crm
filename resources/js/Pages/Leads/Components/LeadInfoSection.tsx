@@ -1097,7 +1097,7 @@ export default function LeadInfoSection({
                 </div>
 
                 {/* Sidebar + Content */}
-                <div className="flex overflow-hidden max-h-[calc(100vh-14rem)]">
+                <div className="flex overflow-hidden max-h-[70vh]">
                     <SideNavTabs
                         items={sideNavItems}
                         activeKey={activeSection}
