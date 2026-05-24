@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
+use App\Traits\HasDynamicTranslations;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -126,9 +127,19 @@ class Deal extends BaseModel
 
     use Notifiable, HasFactory;
     use CustomFieldsTrait;
+    use HasDynamicTranslations;
     use HasCompany;
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Deal';
+
+    /**
+     * Fields eligible for dynamic translation background processing.
+     *
+     * @var array<int, string>
+     */
+    public array $translatableFields = [
+        'name',
+    ];
 
     protected $hidden = ["pivot"];
 

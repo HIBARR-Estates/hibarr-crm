@@ -23,6 +23,7 @@ use App\Models\MetaConversionTrigger;
 use App\Jobs\SendMetaConversionEventJob;
 
 use App\Traits\DealHistoryTrait;
+use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
 
 class DealObserver
@@ -151,6 +152,8 @@ class DealObserver
 
     public function updated(Deal $deal)
     {
+        HasDynamicTranslations::dispatchDynamicTranslation($deal, true);
+
         if (!isRunningInConsoleOrSeeding()) {
 
             $this->createClient($deal);
@@ -260,6 +263,7 @@ class DealObserver
 
     public function created(Deal $deal)
     {
+        HasDynamicTranslations::dispatchDynamicTranslation($deal, false);
 
         if (!isRunningInConsoleOrSeeding()) {
             if (user()) {

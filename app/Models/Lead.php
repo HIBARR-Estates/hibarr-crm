@@ -7,6 +7,7 @@ use App\Enums\Salutation;
 use App\Enums\Gender;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
+use App\Traits\HasDynamicTranslations;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -113,7 +114,19 @@ class Lead extends BaseModel
 
     use Notifiable, HasFactory;
     use CustomFieldsTrait;
+    use HasDynamicTranslations;
     use HasCompany;
+
+    /**
+     * Fields eligible for dynamic translation background processing.
+     *
+     * @var array<int, string>
+     */
+    public array $translatableFields = [
+        'client_name',
+        'company_name',
+        'note',
+    ];
 
     protected $hidden = ["pivot"];
 

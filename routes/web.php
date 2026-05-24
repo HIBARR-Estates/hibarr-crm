@@ -138,6 +138,7 @@ use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
 use App\Http\Controllers\MeetingTypeController;
+use App\Http\Controllers\DynamicTranslationController;
 
 // Signed URL route for availability request email responses (no auth required)
 Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'respondFromEmail'])
@@ -578,6 +579,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
+    // Dynamic translation lookup API (auth-protected)
+    Route::prefix('api/dynamic-translations')->group(function () {
+        Route::post('batch', [DynamicTranslationController::class, 'batch'])->name('dynamic-translations.batch');
+    });
     // deals route
 
     // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
