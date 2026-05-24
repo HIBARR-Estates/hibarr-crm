@@ -1753,7 +1753,9 @@
 
 <!-- PAGE 12: CLOSURE / CONTACT -->
 <div class="page">
-    <div class="bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/images/test.png' }}'); display:flex; justify-content:flex-end; height:100%;">
+  <div class="bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/images/test.png' }}'); display:flex; justify-content:flex-end; height:100%; position:relative;">
+
+    <div style="position:absolute; inset:0; background:#000; opacity:0.2; z-index:0;"></div>
 
         {{-- QR / CTA column bottom-left --}}
         @php
@@ -1774,7 +1776,7 @@
         </div>
         @endif
 
-        <div class="container">
+        <div class="container" style="position:relative; z-index:1;">
             <div class="closure" style="position:relative; overflow:hidden; z-index:0; background:rgba(255,255,255,0.82);">
                 <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt=""
                     style="height:70%; z-index:0;" />
