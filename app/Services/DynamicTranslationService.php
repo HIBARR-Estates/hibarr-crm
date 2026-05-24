@@ -18,6 +18,7 @@ class DynamicTranslationService
 
     private string $baseUrl;
     private int $timeout;
+    private ?string $apiKey;
 
     public function __construct()
     {
@@ -26,6 +27,8 @@ class DynamicTranslationService
             '/'
         );
         $this->timeout = (int) config('services.dynamic_translation.timeout', config('services.ai.timeout', 30));
+        $apiKey = config('services.dynamic_translation.api_key', config('services.ai.api_key'));
+        $this->apiKey = is_string($apiKey) && trim($apiKey) !== '' ? $apiKey : null;
     }
 
     public function normalize(string $text): string
@@ -127,9 +130,16 @@ class DynamicTranslationService
 
         $responses = Http::pool(function (Pool $pool) use ($sourceText) {
             foreach (self::TARGET_LOCALES as $locale) {
-                $pool->as($locale)
-                    ->timeout($this->timeout)
-                    ->post("{$this->baseUrl}/translation", [
+                $request = $pool->as($locale)
+                    ->timeout($this->timeout);
+
+                if ($this->apiKey !== null) {
+                    $request = $request->withHeaders([
+                        'X-API-KEY' => $this->apiKey,
+                    ]);
+                }
+
+                $request->post("{$this->baseUrl}/translation", [
                         'text' => $sourceText,
                         'targetLang' => $locale,
                     ]);
