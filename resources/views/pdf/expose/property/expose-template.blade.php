@@ -512,6 +512,26 @@
           grid-column: 2 / span 2;
         }
 
+        .facility-grid-6 {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          grid-template-rows: repeat(2, 1fr);
+          height: 100%;
+          gap: 22px;
+        }
+
+        .facility-grid-8 {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          grid-template-rows: repeat(2, 1fr);
+          height: 100%;
+          gap: 14px;
+        }
+
+        .facility-grid-8 .gallery-item .title {
+          font-size: 13px;
+        }
+
         .gallery-item {
             width: 100%;
             height: 100%;
@@ -1195,13 +1215,37 @@
 
   <!-- PAGE 5: FACILITIES GALLERY -->
   @php
-    $facilityPageItems = array_slice($facilityItems, 0, 6);
-    $facilityCount = count($facilityPageItems);
+    $facilityRenderQueue = array_values($facilityItems);
+    $facilityPages = [];
+
+    while (!empty($facilityRenderQueue)) {
+      $remainingCount = count($facilityRenderQueue);
+
+      if ($remainingCount % 2 !== 0) {
+        $facilityPages[] = [
+          'type' => 'single',
+          'items' => [array_shift($facilityRenderQueue)],
+        ];
+        continue;
+      }
+
+      $chunkSize = $remainingCount >= 8
+        ? 8
+        : ($remainingCount >= 6
+          ? 6
+          : ($remainingCount >= 4 ? 4 : 2));
+
+      $facilityPages[] = [
+        'type' => 'grid',
+        'gridClass' => 'facility-grid-' . $chunkSize,
+        'items' => array_splice($facilityRenderQueue, 0, $chunkSize),
+      ];
+    }
   @endphp
-  @if($facilityCount > 0)
-    @if($facilityCount === 1)
+  @foreach($facilityPages as $facilityPage)
+    @if($facilityPage['type'] === 'single')
       @php
-        $singleFacility = $facilityPageItems[0];
+        $singleFacility = $facilityPage['items'][0] ?? [];
       @endphp
       <div class="page bg" style="--bg-image: url('{{ $singleFacility['image'] ?? ($heroImages[0] ?? 'property/images/test.png') }}')">
         <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
@@ -1217,15 +1261,6 @@
         </div>
       </div>
     @else
-      @php
-        $facilityGridClass = match ($facilityCount) {
-          2 => 'facility-grid-2',
-          3 => 'facility-grid-3',
-          4 => 'facility-grid-4',
-          5 => 'facility-grid-5',
-          default => 'gallery-grid',
-        };
-      @endphp
       <div class="page">
         <div class="container" style="position: relative; z-index: 1;">
           <div class="header">
@@ -1233,8 +1268,8 @@
             <img style="width: 12%" src="{{ $data['branding']['logo_full'] }}" alt="hibarr-logo" />
           </div>
 
-          <div class="{{ $facilityGridClass }}">
-            @foreach($facilityPageItems as $index => $facility)
+          <div class="{{ $facilityPage['gridClass'] }}">
+            @foreach($facilityPage['items'] as $index => $facility)
               <div class="gallery-item">
                 @if(!empty($facility['image']))
                   <img src="{{ $facility['image'] }}" alt="{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}" />
@@ -1248,7 +1283,7 @@
         </div>
       </div>
     @endif
-  @endif
+  @endforeach
 
   <!-- PAGE — First gallery image full page (after facilities) -->
   @if(!empty($galleryImages[$galleryCursor]))
