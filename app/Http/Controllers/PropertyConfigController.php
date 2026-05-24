@@ -124,8 +124,8 @@ class PropertyConfigController extends AccountBaseController
             'code'        => 'nullable|string|max:10',
         ];
 
-        // Cities support default distance values and image URL
-        if ($type === 'cities' || $type === 'airports' || $type === 'infrastructures') {
+        // Cities, facilities, airports and infrastructures support image URL
+        if ($type === 'cities' || $type === 'project-facilities' || $type === 'airports' || $type === 'infrastructures') {
             $rules['image_url']                      = 'nullable|url|max:2048';
         }
 
@@ -185,14 +185,13 @@ class PropertyConfigController extends AccountBaseController
             $fillable['default_distances'] = $validated['default_distances'];
         }
 
-        // Only PropertyCity has image_url
-        if ($type === 'cities' && isset($validated['image_url'])) {
-            $fillable['image_url'] = $validated['image_url'];
-        }
-
         // Only ProjectFacility has icon
         if ($type === 'project-facilities' && isset($validated['icon'])) {
             $fillable['icon'] = $validated['icon'];
+        }
+
+        if (in_array($type, ['cities', 'project-facilities', 'airports', 'infrastructures'], true) && isset($validated['image_url'])) {
+            $fillable['image_url'] = $validated['image_url'];
         }
 
         if ($type === 'airports' && isset($validated['code'])) {
@@ -241,8 +240,8 @@ class PropertyConfigController extends AccountBaseController
             'code'        => 'nullable|string|max:10',
         ];
 
-        // Cities support default distance values and image URL
-        if ($type === 'cities' || $type === 'airports' || $type === 'infrastructures') {
+        // Cities, facilities, airports and infrastructures support image URL
+        if ($type === 'cities' || $type === 'project-facilities' || $type === 'airports' || $type === 'infrastructures') {
             $rules['image_url']                      = 'nullable|url|max:2048';
         }
 
@@ -273,7 +272,7 @@ class PropertyConfigController extends AccountBaseController
         if ($type !== 'cities') {
             unset($updateData['default_distances']);
         }
-        if (!in_array($type, ['cities', 'airports', 'infrastructures'], true)) {
+        if (!in_array($type, ['cities', 'project-facilities', 'airports', 'infrastructures'], true)) {
             unset($updateData['image_url']);
         }
         if (!in_array($type, ['project-facilities', 'infrastructures'], true)) {
