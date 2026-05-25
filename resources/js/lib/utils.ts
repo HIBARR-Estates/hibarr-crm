@@ -569,7 +569,7 @@ export function serializePhoneInputValue(
         if (originalDigits === phoneNum) {
             return withArea;
         }
-        if (countryCode && originalDigits.startsWith(countryCode)) {
+        if (countryCode && fullDigits === originalDigits) {
             return fullDigits;
         }
         if (
@@ -581,7 +581,7 @@ export function serializePhoneInputValue(
         return withArea;
     }
 
-    if (countryCode && originalDigits.startsWith(countryCode)) {
+    if (countryCode && fullDigits === originalDigits) {
         return fullDigits;
     }
 
