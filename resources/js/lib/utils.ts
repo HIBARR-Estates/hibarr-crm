@@ -552,17 +552,21 @@ export function serializePhoneInputValue(
         return "";
     }
 
-    const originalStr =
+    const originalRaw =
         typeof originalValue === "string"
             ? originalValue.trim()
             : formatMobileForDisplay(originalValue).trim();
-    const originalDigits = originalStr.replace(/\D/g, "");
-    const originalHasPlus = originalStr.startsWith("+");
+    const normalizedOriginal = formatMobileForDisplay(originalRaw).trim();
+    const originalDigits = normalizedOriginal.replace(/\D/g, "");
+    const originalHasPlus = originalRaw.startsWith("+");
     const fullDigits = `${countryCode}${areaCode}${phoneNum}`;
     const withArea = `${areaCode}${phoneNum}`;
 
+    const preserveOr = (digits: string, fallback: string): string =>
+        originalDigits === digits ? originalRaw : fallback;
+
     if (originalHasPlus && countryCode) {
-        return `+${fullDigits}`;
+        return preserveOr(fullDigits, `+${fullDigits}`);
     }
 
     if (areaCode) {
@@ -570,20 +574,24 @@ export function serializePhoneInputValue(
             return withArea;
         }
         if (countryCode && fullDigits === originalDigits) {
-            return fullDigits;
+            return originalRaw;
         }
         if (
             originalDigits === withArea ||
             (originalDigits && originalDigits.endsWith(withArea))
         ) {
-            return originalDigits;
+            return originalRaw;
         }
         return withArea;
     }
 
     if (countryCode && fullDigits === originalDigits) {
-        return fullDigits;
+        return originalRaw;
     }
 
-    return phoneNum || originalStr;
+    if (originalDigits === phoneNum) {
+        return originalRaw;
+    }
+
+    return phoneNum || originalRaw;
 }
