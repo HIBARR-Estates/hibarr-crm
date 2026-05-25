@@ -1218,6 +1218,8 @@ class DealCreationService
 
     /**
      * Non-critical operations run after the deal transaction commits.
+     * Failures are logged but not rethrown — the deal is already persisted and
+     * surfacing errors would retry the job and risk duplicate deals.
      */
     private function runPostTransactionOperations(
         Deal $deal,
@@ -1265,8 +1267,6 @@ class DealCreationService
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
-
-            throw $e;
         }
     }
 
