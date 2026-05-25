@@ -34,6 +34,18 @@ class CreateDealRequest extends CoreRequest
                 'package_id' => [(int) $this->package_id]
             ]);
         }
+
+        // Accept alternate key used by some clients
+        if ($this->has('deal_participants') && !$this->has('deal_participant')) {
+            $this->merge(['deal_participant' => $this->input('deal_participants')]);
+        }
+
+        // Convert single participant/watcher integer to array for backward compatibility
+        foreach (['deal_participant', 'deal_watcher'] as $field) {
+            if ($this->has($field) && !is_array($this->input($field)) && is_numeric($this->input($field))) {
+                $this->merge([$field => [(int) $this->input($field)]]);
+            }
+        }
     }
 
     /**
@@ -108,6 +120,8 @@ class CreateDealRequest extends CoreRequest
             'update_agent_if_exists' => 'nullable|boolean',
             'deal_watcher' => 'nullable|array',
             'deal_watcher.*' => 'integer|exists:users,id',
+            'deal_participant' => 'nullable|array',
+            'deal_participant.*' => 'integer|exists:users,id',
             
             // Optional UTM/marketing fields
             'utmInfo' => 'nullable|array',

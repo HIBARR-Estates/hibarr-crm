@@ -692,23 +692,10 @@ export default function EditableField({
                                             const phoneNum =
                                                 val.phoneNumber || "";
                                             const areaCode = val.areaCode || "";
-                                            // If original had + prefix, preserve it; otherwise just save the number
-                                            const originalHasPlus =
-                                                typeof inputValue ===
-                                                    "string" &&
-                                                inputValue.startsWith("+");
-                                            if (
-                                                originalHasPlus &&
-                                                countryCode
-                                            ) {
-                                                handleValueChange(
-                                                    `+${countryCode}${areaCode}${phoneNum}`,
-                                                );
-                                            } else {
-                                                handleValueChange(
-                                                    phoneNum || val,
-                                                );
-                                            }
+                                            const nextValue = countryCode
+                                                ? `+${countryCode}${areaCode}${phoneNum}`
+                                                : phoneNum || val;
+                                            handleValueChange(nextValue);
                                         } else if (typeof val === "string") {
                                             // Save string as-is (preserves + prefix and full format)
                                             handleValueChange(val);
