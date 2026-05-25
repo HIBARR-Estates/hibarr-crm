@@ -11,6 +11,7 @@ use App\Models\DealNote;
 use App\Models\Product;
 use App\Models\Property;
 use App\Models\Task;
+use App\Services\CrmEventDescriptionBuilder;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -52,10 +53,21 @@ class DealActivityEventService
             'company_id' => $deal->company_id,
         ]);
 
+        $noteTitle = trim((string) ($note->title ?? ''));
+        $fallbackTitle = $noteTitle !== '' ? $noteTitle : 'Untitled Note';
+        $details = trim(strip_tags((string) ($note->details ?? '')));
+        $notePreview = Str::limit($details, 120, '...');
+        $comment = 'Note added: ' . $fallbackTitle;
+
+        if ($notePreview !== '') {
+            $comment .= ' — ' . $notePreview;
+        }
+
         $this->record('deal_note_added', $deal, [
-            'comment' => 'Note added: ' . ($note->title ?? 'Untitled Note'),
+            'comment' => $comment,
             'note_id' => $note->id,
-            'note_title' => $note->title,
+            'note_title' => $fallbackTitle,
+            'note_preview' => $notePreview !== '' ? $notePreview : null,
             'added_by' => $note->added_by,
         ]);
     }
@@ -68,11 +80,22 @@ class DealActivityEventService
             'company_id' => $deal->company_id,
         ]);
 
+        $meetingTypeName = trim((string) ($followUp->meetingType?->type ?? ''));
+        $meetingLabel = $meetingTypeName !== '' ? $meetingTypeName : 'Follow-up';
+        $scheduledAtLabel = CrmEventDescriptionBuilder::formatDate($followUp->next_follow_up_date);
+
+        $comment = $meetingLabel . ' scheduled';
+        if ($scheduledAtLabel !== '--') {
+            $comment .= ' for ' . $scheduledAtLabel;
+        }
+
         $this->record('deal_followup_created', $deal, [
-            'comment' => 'Follow-up scheduled' . ($followUp->next_follow_up_date ? ' for ' . $followUp->next_follow_up_date->format('M d, Y H:i') : ''),
+            'comment' => $comment,
             'followup_id' => $followUp->id,
             'meeting_type_id' => $followUp->meeting_type_id,
+            'meeting_type_name' => $meetingTypeName !== '' ? $meetingTypeName : null,
             'next_follow_up_date' => $followUp->next_follow_up_date?->toIso8601String(),
+            'next_follow_up_label' => $scheduledAtLabel !== '--' ? $scheduledAtLabel : null,
             'remark' => $followUp->remark,
             'added_by' => $followUp->added_by,
         ]);
@@ -80,11 +103,22 @@ class DealActivityEventService
 
     public function recordTaskCreated(Deal $deal, Task $task): void
     {
+        $taskHeading = trim((string) $task->heading);
+        $taskLabel = $taskHeading !== '' ? $taskHeading : 'Untitled Task';
+        $dueDateLabel = CrmEventDescriptionBuilder::formatDate($task->due_date);
+
+        $comment = 'Task added: ' . $taskLabel;
+        if ($dueDateLabel !== '--') {
+            $comment .= ' (Due ' . $dueDateLabel . ')';
+        }
+
         $this->record('deal_task_created', $deal, [
-            'comment' => 'Task added: ' . $task->heading,
+            'comment' => $comment,
             'task_id' => $task->id,
-            'task_heading' => $task->heading,
+            'task_heading' => $taskLabel,
             'task_priority' => $task->priority,
+            'task_due_date' => $task->due_date?->toIso8601String(),
+            'task_due_date_label' => $dueDateLabel !== '--' ? $dueDateLabel : null,
             'added_by' => $task->added_by,
         ]);
     }

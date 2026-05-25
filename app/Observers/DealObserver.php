@@ -11,11 +11,15 @@ use App\Models\User;
 use App\Models\Role;
 use App\Models\Lead;
 use App\Models\PipelineStage;
+use App\Models\LeadPipeline;
+use App\Models\LeadSource;
+use App\Models\LeadStatus;
 use App\Notifications\LeadAgentAssigned;
 use App\Models\LeadSetting;
 use Illuminate\Support\Facades\Notification;
 use App\Traits\EmployeeActivityTrait;
 use App\Notifications\LeadImported;
+use App\Services\CrmEventDescriptionBuilder;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
 use App\Services\DealTaskService;
@@ -197,12 +201,15 @@ class DealObserver
             }
 
             // ── CRM Events for specific deal changes ──
+            $trackedDirtyFields = [];
+
             if ($deal->isDirty('pipeline_stage_id')) {
+                $trackedDirtyFields[] = 'pipeline_stage_id';
                 $fromStage = PipelineStage::find($deal->getOriginal('pipeline_stage_id'));
                 $toStage = PipelineStage::find($deal->pipeline_stage_id);
                 $this->recordCrmEvent('deal_stage_changed', $deal, [
                     'metadata' => [
-                        'comment' => 'Stage changed from ' . ($fromStage->name ?? 'Unknown') . ' to ' . ($toStage->name ?? 'Unknown'),
+                        'comment' => CrmEventDescriptionBuilder::dealStageChanged($fromStage->name ?? null, $toStage->name ?? null),
                         'from_stage_id' => $deal->getOriginal('pipeline_stage_id'),
                         'to_stage_id' => $deal->pipeline_stage_id,
                         'from_stage_name' => $fromStage->name ?? null,
@@ -214,42 +221,181 @@ class DealObserver
                 if ($toStage && $toStage->slug === 'win') {
                     $this->recordCrmEvent('deal_closed_won', $deal, [
                         'status' => 'completed',
-                        'metadata' => ['comment' => 'Deal closed as won'],
+                        'metadata' => [
+                            'comment' => 'Deal closed as won',
+                            'value' => $deal->value,
+                            'currency_id' => $deal->currency_id,
+                        ],
                     ]);
                 } elseif ($toStage && $toStage->slug === 'lost') {
                     $this->recordCrmEvent('deal_closed_lost', $deal, [
                         'status' => 'completed',
-                        'metadata' => ['comment' => 'Deal closed as lost'],
+                        'metadata' => [
+                            'comment' => 'Deal closed as lost',
+                            'value' => $deal->value,
+                            'currency_id' => $deal->currency_id,
+                        ],
                     ]);
                 }
             }
 
             if ($deal->isDirty('lead_pipeline_id')) {
+                $trackedDirtyFields[] = 'lead_pipeline_id';
+                $fromPipeline = LeadPipeline::find($deal->getOriginal('lead_pipeline_id'));
+                $toPipeline = LeadPipeline::find($deal->lead_pipeline_id);
+
                 $this->recordCrmEvent('deal_pipeline_changed', $deal, [
                     'metadata' => [
-                        'comment' => 'Deal moved to different pipeline',
+                        'comment' => CrmEventDescriptionBuilder::dealPipelineChanged($fromPipeline->name ?? null, $toPipeline->name ?? null),
                         'from_pipeline_id' => $deal->getOriginal('lead_pipeline_id'),
                         'to_pipeline_id' => $deal->lead_pipeline_id,
+                        'from_pipeline_name' => $fromPipeline->name ?? null,
+                        'to_pipeline_name' => $toPipeline->name ?? null,
                     ],
                 ]);
             }
 
             if ($deal->isDirty('agent_id')) {
+                $trackedDirtyFields[] = 'agent_id';
+                $fromAgentName = $this->resolveAgentName($deal->getOriginal('agent_id'));
+                $toAgentName = $this->resolveAgentName($deal->agent_id);
+
                 $this->recordCrmEvent('deal_agent_assigned', $deal, [
                     'metadata' => [
-                        'comment' => 'Agent reassigned on deal',
+                        'comment' => CrmEventDescriptionBuilder::dealAgentAssigned($fromAgentName, $toAgentName),
                         'from_agent_id' => $deal->getOriginal('agent_id'),
                         'to_agent_id' => $deal->agent_id,
+                        'from_agent_name' => $fromAgentName,
+                        'to_agent_name' => $toAgentName,
                     ],
                 ]);
             }
 
-            // Generic deal_updated for all other field changes
-            if (!$deal->isDirty('pipeline_stage_id') && !$deal->isDirty('lead_pipeline_id') && !$deal->isDirty('agent_id')) {
+            if ($deal->isDirty('value') || $deal->isDirty('currency_id')) {
+                $trackedDirtyFields[] = 'value';
+                $trackedDirtyFields[] = 'currency_id';
+
+                $currencyIdForFormatting = $deal->currency_id ?? $deal->getOriginal('currency_id');
+
+                $this->recordCrmEvent('deal_value_updated', $deal, [
+                    'metadata' => [
+                        'comment' => CrmEventDescriptionBuilder::dealValueUpdated(
+                            $deal->getOriginal('value'),
+                            $deal->value,
+                            $currencyIdForFormatting
+                        ),
+                        'old_value' => $deal->getOriginal('value'),
+                        'new_value' => $deal->value,
+                        'old_currency_id' => $deal->getOriginal('currency_id'),
+                        'currency_id' => $deal->currency_id,
+                    ],
+                ]);
+            }
+
+            if ($deal->isDirty('name')) {
+                $trackedDirtyFields[] = 'name';
+
+                $this->recordCrmEvent('deal_title_renamed', $deal, [
+                    'metadata' => [
+                        'comment' => CrmEventDescriptionBuilder::dealTitleRenamed($deal->getOriginal('name'), $deal->name),
+                        'old_title' => $deal->getOriginal('name'),
+                        'new_title' => $deal->name,
+                    ],
+                ]);
+            }
+
+            if ($deal->isDirty('close_date')) {
+                $trackedDirtyFields[] = 'close_date';
+
+                $this->recordCrmEvent('deal_close_date_changed', $deal, [
+                    'metadata' => [
+                        'comment' => CrmEventDescriptionBuilder::dealCloseDateChanged(
+                            $deal->getOriginal('close_date'),
+                            $deal->close_date
+                        ),
+                        'old_close_date' => $deal->getOriginal('close_date'),
+                        'new_close_date' => $deal->close_date,
+                    ],
+                ]);
+            }
+
+            if ($deal->isDirty('status_id')) {
+                $trackedDirtyFields[] = 'status_id';
+
+                $fromStatusName = $this->resolveStatusName($deal->getOriginal('status_id'));
+                $toStatusName = $this->resolveStatusName($deal->status_id);
+
+                $this->recordCrmEvent('deal_status_changed', $deal, [
+                    'metadata' => [
+                        'comment' => CrmEventDescriptionBuilder::dealStatusChanged($fromStatusName, $toStatusName),
+                        'old_status_id' => $deal->getOriginal('status_id'),
+                        'status_id' => $deal->status_id,
+                        'old_status_name' => $fromStatusName,
+                        'status_name' => $toStatusName,
+                    ],
+                ]);
+            }
+
+            if ($deal->isDirty('client_id')) {
+                $trackedDirtyFields[] = 'client_id';
+
+                $fromClientName = $this->resolveClientName($deal->getOriginal('client_id'));
+                $toClientName = $this->resolveClientName($deal->client_id);
+
+                $this->recordCrmEvent('deal_client_changed', $deal, [
+                    'metadata' => [
+                        'comment' => CrmEventDescriptionBuilder::dealClientChanged($fromClientName, $toClientName),
+                        'old_client_id' => $deal->getOriginal('client_id'),
+                        'client_id' => $deal->client_id,
+                        'old_client_name' => $fromClientName,
+                        'client_name' => $toClientName,
+                    ],
+                ]);
+            }
+
+            if ($deal->isDirty('source_id')) {
+                $trackedDirtyFields[] = 'source_id';
+
+                $fromSourceName = $this->resolveSourceName($deal->getOriginal('source_id'));
+                $toSourceName = $this->resolveSourceName($deal->source_id);
+
+                $this->recordCrmEvent('deal_source_changed', $deal, [
+                    'metadata' => [
+                        'comment' => CrmEventDescriptionBuilder::dealSourceChanged($fromSourceName, $toSourceName),
+                        'old_source_id' => $deal->getOriginal('source_id'),
+                        'source_id' => $deal->source_id,
+                        'old_source_name' => $fromSourceName,
+                        'source_name' => $toSourceName,
+                    ],
+                ]);
+            }
+
+            if ($deal->isDirty('outcome_status')) {
+                $trackedDirtyFields[] = 'outcome_status';
+
+                $this->recordCrmEvent('deal_outcome_changed', $deal, [
+                    'metadata' => [
+                        'comment' => CrmEventDescriptionBuilder::dealOutcomeChanged(
+                            $deal->getOriginal('outcome_status'),
+                            $deal->outcome_status
+                        ),
+                        'old_outcome_status' => $deal->getOriginal('outcome_status'),
+                        'outcome_status' => $deal->outcome_status,
+                    ],
+                ]);
+            }
+
+            // Generic deal_updated only for non-tracked field changes.
+            $remainingChangedFields = array_values(array_diff(
+                array_keys($deal->getDirty()),
+                array_unique($trackedDirtyFields)
+            ));
+
+            if (!empty($remainingChangedFields)) {
                 $this->recordCrmEvent('deal_updated', $deal, [
                     'metadata' => [
                         'comment' => 'Deal details updated',
-                        'changed_fields' => array_keys($deal->getDirty()),
+                        'changed_fields' => $remainingChangedFields,
                     ],
                 ]);
             }
@@ -473,6 +619,44 @@ class DealObserver
                 'exception' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function resolveAgentName(?int $agentId): ?string
+    {
+        if (!$agentId) {
+            return null;
+        }
+
+        $agent = LeadAgent::with('user')->find($agentId);
+
+        return $agent?->user?->name;
+    }
+
+    private function resolveStatusName(?int $statusId): ?string
+    {
+        if (!$statusId) {
+            return null;
+        }
+
+        return LeadStatus::find($statusId)?->type;
+    }
+
+    private function resolveSourceName(?int $sourceId): ?string
+    {
+        if (!$sourceId) {
+            return null;
+        }
+
+        return LeadSource::find($sourceId)?->type;
+    }
+
+    private function resolveClientName(?int $clientId): ?string
+    {
+        if (!$clientId) {
+            return null;
+        }
+
+        return User::find($clientId)?->name;
     }
 }
 
