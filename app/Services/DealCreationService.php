@@ -1230,9 +1230,11 @@ class DealCreationService
             $this->upsertCustomFields($deal, $request);
 
             $dealWatchers = $this->extractUserIdList($request, 'deal_watcher');
-            if ($dealWatchers !== null) {
+            if ($dealWatchers !== null && !empty($dealWatchers)) {
                 $validUserIds = $this->resolveValidUserIds($dealWatchers, $companyId);
-                $deal->dealWatchers()->sync($validUserIds);
+                if (!empty($validUserIds)) {
+                    $deal->dealWatchers()->sync($validUserIds);
+                }
             }
 
             $dealParticipants = $this->extractUserIdList(
@@ -1240,9 +1242,11 @@ class DealCreationService
                 'deal_participant',
                 'deal_participants',
             );
-            if ($dealParticipants !== null) {
+            if ($dealParticipants !== null && !empty($dealParticipants)) {
                 $validUserIds = $this->resolveValidUserIds($dealParticipants, $companyId);
-                $deal->dealParticipants()->sync($validUserIds);
+                if (!empty($validUserIds)) {
+                    $deal->dealParticipants()->sync($validUserIds);
+                }
             }
 
             $meeting = $request->input('meeting');
@@ -1289,7 +1293,7 @@ class DealCreationService
 
     /**
      * Extract user IDs from request, including optional alternate key.
-     * Returns null when the field was omitted; an array (possibly empty) when present.
+     * Returns null when the field was omitted; an array when present (empty arrays are no-ops).
      */
     private function extractUserIdList(Request $request, string $key, ?string $alternateKey = null): ?array
     {
