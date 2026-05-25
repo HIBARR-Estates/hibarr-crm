@@ -449,6 +449,7 @@ class DealCreationService
             $isNewDeal = $result['is_new'];
 
             // Transaction has committed — run post-commit work directly (do not defer via afterCommit)
+            $this->runPostTransactionOperations($deal, $isNewDeal, $request, $companyId);
             $this->releaseDealProcessingLocks(
                 $cacheKey,
                 $contactLockKey,
@@ -456,7 +457,6 @@ class DealCreationService
                 $hashChanged,
                 $newLockAcquired,
             );
-            $this->runPostTransactionOperations($deal, $isNewDeal, $request, $companyId);
 
             return ['deal' => $deal, 'is_new' => $isNewDeal];
         } catch (\Exception $e) {
@@ -1230,11 +1230,9 @@ class DealCreationService
             $this->upsertCustomFields($deal, $request);
 
             $dealWatchers = $this->extractUserIdList($request, 'deal_watcher');
-            if (!empty($dealWatchers)) {
+            if ($dealWatchers !== null) {
                 $validUserIds = $this->resolveValidUserIds($dealWatchers, $companyId);
-                if (!empty($validUserIds)) {
-                    $deal->dealWatchers()->sync($validUserIds);
-                }
+                $deal->dealWatchers()->sync($validUserIds);
             }
 
             $dealParticipants = $this->extractUserIdList(
@@ -1242,11 +1240,9 @@ class DealCreationService
                 'deal_participant',
                 'deal_participants',
             );
-            if (!empty($dealParticipants)) {
+            if ($dealParticipants !== null) {
                 $validUserIds = $this->resolveValidUserIds($dealParticipants, $companyId);
-                if (!empty($validUserIds)) {
-                    $deal->dealParticipants()->sync($validUserIds);
-                }
+                $deal->dealParticipants()->sync($validUserIds);
             }
 
             $meeting = $request->input('meeting');
@@ -1293,16 +1289,19 @@ class DealCreationService
 
     /**
      * Extract user IDs from request, including optional alternate key.
+     * Returns null when the field was omitted; an array (possibly empty) when present.
      */
-    private function extractUserIdList(Request $request, string $key, ?string $alternateKey = null): array
+    private function extractUserIdList(Request $request, string $key, ?string $alternateKey = null): ?array
     {
-        $value = $request->input($key);
-
-        if (($value === null || $value === '') && $alternateKey !== null && $request->has($alternateKey)) {
-            $value = $request->input($alternateKey);
+        if ($request->has($key)) {
+            return $this->normalizeUserIdList($request->input($key));
         }
 
-        return $this->normalizeUserIdList($value);
+        if ($alternateKey !== null && $request->has($alternateKey)) {
+            return $this->normalizeUserIdList($request->input($alternateKey));
+        }
+
+        return null;
     }
 
     /**

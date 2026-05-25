@@ -94,6 +94,23 @@ class CreateDealRequest extends CoreRequest
                 }
             ];
         }
+
+        $dealParticipantUserRule = 'integer|exists:users,id';
+        if ($companyId) {
+            $dealParticipantUserRule = [
+                'integer',
+                Rule::exists('users', 'id')->where(function ($query) use ($companyId) {
+                    return $query->where('company_id', $companyId);
+                }),
+            ];
+        } else {
+            $dealParticipantUserRule = [
+                'integer',
+                function ($attribute, $value, $fail) {
+                    $fail('Deal participant selection requires company context. Please provide X-COMPANY-ID header or ensure you are authenticated.');
+                },
+            ];
+        }
         
         return [
             // Required contact fields
@@ -121,7 +138,7 @@ class CreateDealRequest extends CoreRequest
             'deal_watcher' => 'nullable|array',
             'deal_watcher.*' => 'integer|exists:users,id',
             'deal_participant' => 'nullable|array',
-            'deal_participant.*' => 'integer|exists:users,id',
+            'deal_participant.*' => $dealParticipantUserRule,
             
             // Optional UTM/marketing fields
             'utmInfo' => 'nullable|array',
@@ -221,6 +238,7 @@ class CreateDealRequest extends CoreRequest
             'pipeline_stage_id.exists' => 'The selected pipeline stage does not exist.',
             'deal_owner_id.exists' => 'The selected deal owner does not exist.',
             'deal_watcher.*.exists' => 'One or more selected deal watchers do not exist.',
+            'deal_participant.*.exists' => 'One or more selected deal participants do not exist or do not belong to your company.',
             'meeting.meeting_link.url' => 'The meeting link must be a valid URL.',
             'custom_fields.*' => 'One or more custom fields are invalid.',
         ];

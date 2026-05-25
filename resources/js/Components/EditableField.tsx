@@ -30,6 +30,7 @@ import {
     formatCurrencyWithSymbol,
     formatCountryForDisplay,
     formatMobileForDisplay,
+    serializePhoneInputValue,
 } from "@/lib/utils";
 import { DetailFieldEditContext } from "./DetailSection";
 
@@ -687,15 +688,12 @@ export default function EditableField({
                                             "phoneNumber" in val
                                         ) {
                                             // If PhoneNumber object is returned, reconstruct the full number
-                                            const countryCode =
-                                                val.countryCode || "";
-                                            const phoneNum =
-                                                val.phoneNumber || "";
-                                            const areaCode = val.areaCode || "";
-                                            const nextValue = countryCode
-                                                ? `+${countryCode}${areaCode}${phoneNum}`
-                                                : phoneNum || val;
-                                            handleValueChange(nextValue);
+                                            handleValueChange(
+                                                serializePhoneInputValue(
+                                                    val,
+                                                    inputValue,
+                                                ),
+                                            );
                                         } else if (typeof val === "string") {
                                             // Save string as-is (preserves + prefix and full format)
                                             handleValueChange(val);
