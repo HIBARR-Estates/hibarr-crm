@@ -24,6 +24,7 @@ import { Note } from "@/Types/api/note";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import UserIndicator from "@/Components/UserIndicator";
 import { truncateText } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
@@ -51,6 +52,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     const canDelete =
         permissions.delete_deal_note === "all" ||
         (permissions.delete_deal_note === "added" && note.added_by === userId);
+    const { td } = useTd();
 
     const menuItems: MenuProps["items"] = [
         {
@@ -58,7 +60,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
             label: (
                 <span>
                     <EyeOutlined className="mr-2" />
-                    View Details
+                    {td("View Details")}
                 </span>
             ),
             onClick: () => onView(note),
@@ -70,7 +72,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                       label: (
                           <span>
                               <EditOutlined className="mr-2" />
-                              Edit Note
+                              {td("Edit Note")}
                           </span>
                       ),
                       onClick: () => onEdit(note),
@@ -88,7 +90,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                       label: (
                           <span>
                               <DeleteOutlined className="mr-2" />
-                              Delete Note
+                              {td("Delete Note")}
                           </span>
                       ),
                       danger: true,
@@ -116,7 +118,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                                 rows: 1,
                             }}
                         >
-                            {note.title}
+                            {td(note.title)}
                         </Title>
                     </div>
                 </div>
@@ -156,7 +158,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
 
                 {note.updated_at !== note.created_at && (
                     <Tag color="orange" className="text-xs">
-                        Updated
+                        {td("Updated")}
                     </Tag>
                 )}
             </div>
