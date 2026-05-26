@@ -14,7 +14,7 @@ import {
     DownOutlined,
     UpOutlined,
     ArrowDownOutlined,
-    ArrowUpOutlined
+    ArrowUpOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
@@ -24,6 +24,7 @@ import type {
     CrmEventDirection,
 } from "@/Types/api/crm-event";
 import getEventIcon from "./crmEvent";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -161,6 +162,8 @@ export default function CrmEventItem({ event, compact = false }: Props) {
         : null;
     const message = event.metadata?.comment as string | undefined;
 
+    const { td } = useTd();
+
     return (
         <div
             className={`group relative flex flex-col gap-2 rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200${message ? " cursor-pointer select-none" : ""}`}
@@ -193,13 +196,13 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             strong
                             className="text-[14px] text-gray-900 tracking-tight truncate leading-none"
                         >
-                            {event.event_type?.name ?? "Unknown Event"}
+                            {td(event.event_type?.name ?? "Unknown Event")}
                         </Text>
                         <span
                             className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${gen.className}`}
                         >
                             {gen.icon}
-                            {gen.label}
+                            {td(gen.label)}
                         </span>
                     </div>
                 </div>
@@ -221,7 +224,9 @@ export default function CrmEventItem({ event, compact = false }: Props) {
             {/* Meta Tags Row */}
             <div className="flex flex-wrap items-center gap-2">
                 {event.event_type?.category && (
-                    <span className={`text-[11px] rounded-sm font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600`}>
+                    <span
+                        className={`text-[11px] rounded-sm font-medium px-1.5 py-0.5 bg-gray-100 text-gray-600`}
+                    >
                         {event.event_type.category.name}
                     </span>
                 )}
@@ -231,19 +236,19 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <span className="flex items-center scale-90">
                         {statusCfg.icon}
                     </span>
-                    {statusCfg.label}
+                    {td(statusCfg.label)}
                 </div>
                 {directionCfg && (
                     <div
                         className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tight ${directionCfg.className}`}
                     >
-                        {directionCfg.label}
+                        {td(directionCfg.label)}
                     </div>
                 )}
                 {event.source && !compact && (
                     <div className="flex items-center gap-1 text-[11px] text-gray-400">
                         <GlobalOutlined className="text-[10px]" />
-                        <span>{event.source}</span>
+                        <span>{td(event.source)}</span>
                     </div>
                 )}
                 {event.user && (
@@ -262,7 +267,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
             {message && expanded && (
                 <div className="">
                     <div className="border-l-4 border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
-                        {message}
+                        {td(message)}
                     </div>
                 </div>
             )}

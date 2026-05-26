@@ -140,6 +140,145 @@ class DealActivityEventService
         $this->record('deal_property_linked', $deal, $metadata);
     }
 
+    public function recordPropertyUnlinked(Deal $deal, array $oldPropertyIds, array $newPropertyIds, array $oldPropertyNames, array $newPropertyNames): void
+    {
+        $removedIds = array_values(array_diff($oldPropertyIds, $newPropertyIds));
+        $removedNames = array_values(array_filter(array_map(fn ($id) => $oldPropertyNames[$id] ?? null, $removedIds)));
+
+        if (empty($removedIds)) {
+            return;
+        }
+
+        $comment = 'Deal property removed';
+        if (!empty($removedNames)) {
+            $comment .= ': ' . implode(', ', $removedNames);
+        }
+
+        $this->record('deal_property_unlinked', $deal, [
+            'comment' => $comment,
+            'old_property_ids' => array_values($oldPropertyIds),
+            'new_property_ids' => array_values($newPropertyIds),
+            'old_property_names' => array_values($oldPropertyNames),
+            'new_property_names' => array_values($newPropertyNames),
+            'removed_property_ids' => $removedIds,
+            'removed_property_names' => $removedNames ?: null,
+        ]);
+    }
+
+    public function recordPackagesUpdated(Deal $deal, array $oldPackageIds, array $newPackageIds, array $oldPackageNames, array $newPackageNames): void
+    {
+        $addedIds = array_values(array_diff($newPackageIds, $oldPackageIds));
+        $removedIds = array_values(array_diff($oldPackageIds, $newPackageIds));
+
+        if (empty($addedIds) && empty($removedIds)) {
+            return;
+        }
+
+        $addedNames = array_values(array_filter(array_map(fn ($id) => $newPackageNames[$id] ?? null, $addedIds)));
+        $removedNames = array_values(array_filter(array_map(fn ($id) => $oldPackageNames[$id] ?? null, $removedIds)));
+        $commentParts = [];
+
+        if (!empty($addedNames)) {
+            $commentParts[] = 'added ' . implode(', ', $addedNames);
+        }
+        if (!empty($removedNames)) {
+            $commentParts[] = 'removed ' . implode(', ', $removedNames);
+        }
+
+        $comment = 'Deal packages updated';
+        if (!empty($commentParts)) {
+            $comment .= ': ' . implode('; ', $commentParts);
+        }
+
+        $this->record('deal_packages_updated', $deal, [
+            'comment' => $comment,
+            'old_package_ids' => array_values($oldPackageIds),
+            'new_package_ids' => array_values($newPackageIds),
+            'old_package_names' => array_values($oldPackageNames),
+            'new_package_names' => array_values($newPackageNames),
+            'added_package_ids' => $addedIds,
+            'removed_package_ids' => $removedIds,
+            'added_package_names' => $addedNames ?: null,
+            'removed_package_names' => $removedNames ?: null,
+        ]);
+    }
+
+    public function recordWatchersUpdated(Deal $deal, array $oldWatcherIds, array $newWatcherIds, array $oldWatcherNames, array $newWatcherNames): void
+    {
+        $addedIds = array_values(array_diff($newWatcherIds, $oldWatcherIds));
+        $removedIds = array_values(array_diff($oldWatcherIds, $newWatcherIds));
+
+        if (empty($addedIds) && empty($removedIds)) {
+            return;
+        }
+
+        $addedNames = array_values(array_filter(array_map(fn ($id) => $newWatcherNames[$id] ?? null, $addedIds)));
+        $removedNames = array_values(array_filter(array_map(fn ($id) => $oldWatcherNames[$id] ?? null, $removedIds)));
+        $commentParts = [];
+
+        if (!empty($addedNames)) {
+            $commentParts[] = 'added ' . implode(', ', $addedNames);
+        }
+        if (!empty($removedNames)) {
+            $commentParts[] = 'removed ' . implode(', ', $removedNames);
+        }
+
+        $comment = 'Deal watchers updated';
+        if (!empty($commentParts)) {
+            $comment .= ': ' . implode('; ', $commentParts);
+        }
+
+        $this->record('deal_watchers_updated', $deal, [
+            'comment' => $comment,
+            'old_watcher_ids' => array_values($oldWatcherIds),
+            'new_watcher_ids' => array_values($newWatcherIds),
+            'old_watcher_names' => array_values($oldWatcherNames),
+            'new_watcher_names' => array_values($newWatcherNames),
+            'added_watcher_ids' => $addedIds,
+            'removed_watcher_ids' => $removedIds,
+            'added_watcher_names' => $addedNames ?: null,
+            'removed_watcher_names' => $removedNames ?: null,
+        ]);
+    }
+
+    public function recordParticipantsUpdated(Deal $deal, array $oldParticipantIds, array $newParticipantIds, array $oldParticipantNames, array $newParticipantNames): void
+    {
+        $addedIds = array_values(array_diff($newParticipantIds, $oldParticipantIds));
+        $removedIds = array_values(array_diff($oldParticipantIds, $newParticipantIds));
+
+        if (empty($addedIds) && empty($removedIds)) {
+            return;
+        }
+
+        $addedNames = array_values(array_filter(array_map(fn ($id) => $newParticipantNames[$id] ?? null, $addedIds)));
+        $removedNames = array_values(array_filter(array_map(fn ($id) => $oldParticipantNames[$id] ?? null, $removedIds)));
+        $commentParts = [];
+
+        if (!empty($addedNames)) {
+            $commentParts[] = 'added ' . implode(', ', $addedNames);
+        }
+        if (!empty($removedNames)) {
+            $commentParts[] = 'removed ' . implode(', ', $removedNames);
+        }
+
+        $comment = 'Deal participants updated';
+        if (!empty($commentParts)) {
+            $comment .= ': ' . implode('; ', $commentParts);
+        }
+
+        $this->record('deal_participants_updated', $deal, [
+            'comment' => $comment,
+            'old_participant_ids' => array_values($oldParticipantIds),
+            'new_participant_ids' => array_values($newParticipantIds),
+            'old_participant_names' => array_values($oldParticipantNames),
+            'new_participant_names' => array_values($newParticipantNames),
+            'added_participant_ids' => $addedIds,
+            'removed_participant_ids' => $removedIds,
+            'added_participant_names' => $addedNames ?: null,
+            'removed_participant_names' => $removedNames ?: null,
+        ]);
+    }
+
     // ─── Core recording logic ────────────────────────────────────
 
     /**

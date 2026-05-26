@@ -9,6 +9,7 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { Note } from "@/Types/api/note";
 import { Deal } from "@/Types/api/deals";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface SaveNoteFormData {
     title: string;
@@ -75,7 +76,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
         setErrors([]);
         onCancel();
     };
-
+    const { td } = useTd();
     return (
         <div className="">
             <Card variant="outlined">
@@ -88,19 +89,19 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                         className="text-gray-600 hover:text-gray-800 -ml-2"
                     />
                     <span className="text-lg font-medium ml-2 text-gray-500">
-                        Add New Note
+                        {td("Add New Note")}
                     </span>
                 </div>
 
                 {errors.length > 0 && (
                     <Alert
                         type="error"
-                        message="Please fix the following errors:"
+                        message={td("Please fix the following errors:")}
                         description={
                             <ul className="mt-2">
                                 {errors.map((error, index) => (
                                     <li key={index} className="text-red-600">
-                                        {error}
+                                        {td(error)}
                                     </li>
                                 ))}
                             </ul>
@@ -119,17 +120,19 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                 >
                     <Form.Item
                         name="title"
-                        label="Note Title"
+                        label={td("Note Title")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter a note title",
+                                message: td("Please enter a note title"),
                             },
                         ]}
                         className="mb-6"
                     >
                         <Input
-                            placeholder="Enter a descriptive title for your note..."
+                            placeholder={td(
+                                "Enter a descriptive title for your note...",
+                            )}
                             disabled={isLoading({
                                 status: addNoteMutation.status,
                             })}
@@ -140,7 +143,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
 
                     <Form.Item
                         name="details"
-                        label="Note Content"
+                        label={td("Note Content")}
                         rules={[
                             {
                                 required: true,
@@ -150,7 +153,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                         className="mb-6"
                     >
                         <HtmlEditor
-                            placeholder="Write your note content here..."
+                            placeholder={td("Write your note content here...")}
                             disabled={isLoading({
                                 status: addNoteMutation.status,
                             })}
@@ -165,7 +168,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                                 status: addNoteMutation.status,
                             })}
                         >
-                            Cancel
+                            {td("Cancel")}
                         </Button>
                         <Button
                             type="primary"
@@ -175,7 +178,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                             })}
                             icon={<SaveOutlined />}
                         >
-                            Save Note
+                            {td("Save Note")}
                         </Button>
                     </div>
                 </Form>

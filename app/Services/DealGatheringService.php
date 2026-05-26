@@ -286,42 +286,80 @@ class DealGatheringService
                 }
                 
                 if (array_key_exists('package_id', $data)) {
-                    // Get current and new package IDs
                     $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
+                    $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
+
                     $newPackageIds = is_array($data['package_id']) ? $data['package_id'] : [$data['package_id']];
                     $newPackageIds = array_filter($newPackageIds); // Remove empty values
-                    
+
                     // Detect added and removed packages
                     $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
                     $removedPackageIds = array_diff($currentPackageIds, $newPackageIds);
-                    
+
                     // Sync packages
                     $deal->packages()->sync($newPackageIds);
-                    
+                    $newPackageNames = Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray();
+
                     // Send notifications for package changes
                     if (!empty($addedPackageIds)) {
-                        $addedNames = Package::whereIn('id', $addedPackageIds)->pluck('name')->toArray();
+                        $addedNames = array_values(array_filter(array_map(fn ($id) => $newPackageNames[$id] ?? null, $addedPackageIds)));
                         if (!empty($addedNames)) {
                             $this->notificationService->notifyPackageAssigned($deal, $addedNames);
                         }
                     }
-                    
+
                     if (!empty($removedPackageIds)) {
-                        $removedNames = Package::whereIn('id', $removedPackageIds)->pluck('name')->toArray();
+                        $removedNames = array_values(array_filter(array_map(fn ($id) => $oldPackageNames[$id] ?? null, $removedPackageIds)));
                         if (!empty($removedNames)) {
                             $this->notificationService->notifyPackageRemoved($deal, $removedNames);
                         }
                     }
 
+                    app(DealActivityEventService::class)->recordPackagesUpdated(
+                        $deal,
+                        $currentPackageIds,
+                        $newPackageIds,
+                        $oldPackageNames,
+                        $newPackageNames
+                    );
+
                     $this->dealValueResolver->resolveAndPersist($deal->fresh());
                 }
 
                 if (array_key_exists('deal_watcher', $data)) {
-                    $deal->dealWatchers()->sync($data['deal_watcher']);
+                    $oldWatcherIds = $deal->dealWatchers()->pluck('id')->toArray();
+                    $oldWatcherNames = $deal->dealWatchers()->pluck('name', 'id')->toArray();
+                    $newWatcherIds = is_array($data['deal_watcher']) ? $data['deal_watcher'] : [$data['deal_watcher']];
+                    $newWatcherIds = array_filter($newWatcherIds);
+
+                    $deal->dealWatchers()->sync($newWatcherIds);
+                    $newWatcherNames = $deal->dealWatchers()->pluck('name', 'id')->toArray();
+
+                    app(DealActivityEventService::class)->recordWatchersUpdated(
+                        $deal,
+                        $oldWatcherIds,
+                        $newWatcherIds,
+                        $oldWatcherNames,
+                        $newWatcherNames
+                    );
                 }
 
                 if (array_key_exists('deal_participant', $data)) {
-                    $deal->dealParticipants()->sync($data['deal_participant']);
+                    $oldParticipantIds = $deal->dealParticipants()->pluck('id')->toArray();
+                    $oldParticipantNames = $deal->dealParticipants()->pluck('name', 'id')->toArray();
+                    $newParticipantIds = is_array($data['deal_participant']) ? $data['deal_participant'] : [$data['deal_participant']];
+                    $newParticipantIds = array_filter($newParticipantIds);
+
+                    $deal->dealParticipants()->sync($newParticipantIds);
+                    $newParticipantNames = $deal->dealParticipants()->pluck('name', 'id')->toArray();
+
+                    app(DealActivityEventService::class)->recordParticipantsUpdated(
+                        $deal,
+                        $oldParticipantIds,
+                        $newParticipantIds,
+                        $oldParticipantNames,
+                        $newParticipantNames
+                    );
                 }
                 break;
 

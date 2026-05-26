@@ -9,6 +9,7 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { Note } from "@/Types/api/note";
 import { Deal } from "@/Types/api/deals";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface UpdateNoteFormData {
     title: string;
@@ -29,6 +30,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
     const { message } = App.useApp();
     const [form] = Form.useForm();
     const [errors, setErrors] = React.useState<string[]>([]);
+    const { td } = useTd();
 
     // Custom validator for HTML content
     const validateHtmlContent = (_: any, value: string) => {
@@ -99,19 +101,19 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                         onClick={handleCancel}
                         className="text-gray-600 hover:text-gray-800 -ml-2"
                     >
-                        Back to Notes
+                        {td("Back to Notes")}
                     </Button>
                 </div>
 
                 {errors.length > 0 && (
                     <Alert
                         type="error"
-                        message="Please fix the following errors:"
+                        message={td("Please fix the following errors:")}
                         description={
                             <ul className="mt-2">
                                 {errors.map((error, index) => (
                                     <li key={index} className="text-red-600">
-                                        {error}
+                                        {td(error)}
                                     </li>
                                 ))}
                             </ul>
@@ -130,17 +132,19 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                 >
                     <Form.Item
                         name="title"
-                        label="Note Title"
+                        label={td("Note Title")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter a note title",
+                                message: td("Please enter a note title"),
                             },
                         ]}
                         className="mb-6"
                     >
                         <Input
-                            placeholder="Enter a descriptive title for your note..."
+                            placeholder={td(
+                                "Enter a descriptive title for your note...",
+                            )}
                             disabled={isLoading({
                                 status: updateNoteMutation.status,
                             })}
@@ -151,7 +155,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
 
                     <Form.Item
                         name="details"
-                        label="Note Content"
+                        label={td("Note Content")}
                         rules={[
                             {
                                 required: true,
@@ -161,7 +165,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                         className="mb-6"
                     >
                         <HtmlEditor
-                            placeholder="Edit your note content..."
+                            placeholder={td("Edit your note content...")}
                             disabled={isLoading({
                                 status: updateNoteMutation.status,
                             })}
@@ -177,7 +181,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                             })}
                             className="px-8"
                         >
-                            Cancel
+                            {td("Cancel")}
                         </Button>
                         <Button
                             type="primary"
@@ -188,7 +192,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                             icon={<SaveOutlined />}
                             className="bg-blue-600 hover:bg-blue-700 px-8"
                         >
-                            Update Note
+                            {td("Update Note")}
                         </Button>
                     </div>
                 </Form>

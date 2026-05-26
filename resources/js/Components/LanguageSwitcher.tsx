@@ -74,7 +74,11 @@ const LanguageSwitcher: React.FC<LanguageSwitcherProps> = ({
             trigger={["click"]}
             placement="bottomRight"
         >
-            <Button icon={<GlobalOutlined />} className={className} type="text">
+            <Button
+                icon={<GlobalOutlined />}
+                className={className}
+                type={compact ? "text" : "default"}
+            >
                 {!compact && (
                     <Space>
                         <span>{currentFlag}</span>

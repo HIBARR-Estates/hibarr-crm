@@ -14,6 +14,7 @@ import { Note } from "@/Types/api/note";
 import { Deal } from "@/Types/api/deals";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import UserIndicator from "@/Components/UserIndicator";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title, Text } = Typography;
 
@@ -43,6 +44,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
     const canDelete =
         permissions.delete_deal_note === "all" ||
         (permissions.delete_deal_note === "added" && note.added_by === userId);
+    const { td } = useTd();
 
     return (
         <div className="">
@@ -62,7 +64,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                             className="text-gray-600 hover:text-gray-800 -ml-2"
                         />
                         <span className="text-lg font-medium ml-2 text-gray-500">
-                            {note.title}
+                            {td(note.title)}
                         </span>
                     </div>
 
@@ -98,7 +100,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                             <span>
                                 Created{" "}
                                 {dayjs(note.created_at).format(
-                                    "MMMM DD, YYYY at HH:mm"
+                                    "MMMM DD, YYYY at HH:mm",
                                 )}
                             </span>
                         </Space>
@@ -115,7 +117,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
 
                         {note.updated_at !== note.created_at && (
                             <Tag color="orange">
-                                Updated{" "}
+                                {td("Updated")}{" "}
                                 {dayjs(note.updated_at).format("MMM DD, YYYY")}
                             </Tag>
                         )}
@@ -127,7 +129,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                 {/* Note Content */}
                 <div className="mb-8">
                     <Title level={5} className="mb-4 text-gray-800">
-                        Note Content
+                        {td("Note Content")}
                     </Title>
                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 min-h-[200px]">
                         {note.details ? (
@@ -138,7 +140,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                             />
                         ) : (
                             <Text type="secondary" italic className="text-base">
-                                No content provided for this note.
+                                {td("No content provided for this note.")}
                             </Text>
                         )}
                     </div>

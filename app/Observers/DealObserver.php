@@ -271,25 +271,48 @@ class DealObserver
                 ]);
             }
 
-            if ($deal->isDirty('value') || $deal->isDirty('currency_id')) {
+            if (
+                $deal->isDirty('value') ||
+                $deal->isDirty('currency_id') ||
+                $deal->isDirty('manual_value') ||
+                $deal->isDirty('calculated_value') ||
+                $deal->isDirty('value_source')
+            ) {
                 $trackedDirtyFields[] = 'value';
                 $trackedDirtyFields[] = 'currency_id';
+                $trackedDirtyFields[] = 'manual_value';
+                $trackedDirtyFields[] = 'calculated_value';
+                $trackedDirtyFields[] = 'value_source';
 
-                $currencyIdForFormatting = $deal->currency_id ?? $deal->getOriginal('currency_id');
+                $oldValue = $deal->getOriginal('value');
+                $newValue = $deal->value;
+                $oldCurrencyId = $deal->getOriginal('currency_id');
+                $newCurrencyId = $deal->currency_id;
 
-                $this->recordCrmEvent('deal_value_updated', $deal, [
-                    'metadata' => [
-                        'comment' => CrmEventDescriptionBuilder::dealValueUpdated(
-                            $deal->getOriginal('value'),
-                            $deal->value,
-                            $currencyIdForFormatting
-                        ),
-                        'old_value' => $deal->getOriginal('value'),
-                        'new_value' => $deal->value,
-                        'old_currency_id' => $deal->getOriginal('currency_id'),
-                        'currency_id' => $deal->currency_id,
-                    ],
-                ]);
+                $isInternalValueRecalc =
+                    !$deal->isDirty('value') &&
+                    (
+                        $deal->isDirty('manual_value') ||
+                        $deal->isDirty('value_source') ||
+                        $deal->isDirty('calculated_value')
+                    );
+
+                // Skip intermediate recalculation saves that only update manual/calculated value state
+                if (!$isInternalValueRecalc && ($oldValue != $newValue || $oldCurrencyId !== $newCurrencyId)) {
+                    $this->recordCrmEvent('deal_value_updated', $deal, [
+                        'metadata' => [
+                            'comment' => CrmEventDescriptionBuilder::dealValueUpdated(
+                                $oldValue,
+                                $newValue,
+                                $newCurrencyId ?? $oldCurrencyId
+                            ),
+                            'old_value' => $oldValue,
+                            'new_value' => $newValue,
+                            'old_currency_id' => $oldCurrencyId,
+                            'currency_id' => $newCurrencyId,
+                        ],
+                    ]);
+                }
             }
 
             if ($deal->isDirty('name')) {

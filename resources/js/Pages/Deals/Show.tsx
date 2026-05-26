@@ -93,8 +93,8 @@ export const Show = ({
                 title={pageTitle}
                 breadcrumbs={[
                     { name: t("app.menu.dashboard"), url: route("dashboard") },
-                    { name: t("app.deal"), url: route("deals.index") },
-                    { name: pageTitle },
+                    { name: td("Deals"), url: route("deals.index") },
+                    { name: td(pageTitle) },
                 ]}
             >
                 <div className="min-h-screen mx-12">
