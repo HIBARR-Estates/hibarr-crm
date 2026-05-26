@@ -854,17 +854,41 @@ class DealController extends AccountBaseController
 
         // Handle packages
         if ($request->package_id && is_array($request->package_id)) {
-            $deal->packages()->sync($request->package_id);
+            $packageIds = $request->package_id;
+            $deal->packages()->sync($packageIds);
+            app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
+                $deal,
+                [],
+                $packageIds,
+                [],
+                Package::whereIn('id', $packageIds)->pluck('name', 'id')->toArray()
+            );
         }
 
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
-            $deal->dealWatchers()->sync($request->deal_watcher);
+            $watcherIds = $request->deal_watcher;
+            $deal->dealWatchers()->sync($watcherIds);
+            app(\App\Services\DealActivityEventService::class)->recordWatchersUpdated(
+                $deal,
+                [],
+                $watcherIds,
+                [],
+                $deal->dealWatchers()->pluck('name', 'id')->toArray()
+            );
         }
 
         // Handle deal participants
         if ($request->deal_participant && is_array($request->deal_participant)) {
-            $deal->dealParticipants()->sync($request->deal_participant);
+            $participantIds = $request->deal_participant;
+            $deal->dealParticipants()->sync($participantIds);
+            app(\App\Services\DealActivityEventService::class)->recordParticipantsUpdated(
+                $deal,
+                [],
+                $participantIds,
+                [],
+                $deal->dealParticipants()->pluck('name', 'id')->toArray()
+            );
         }
 
         if (!is_null($request->product_id)) {
