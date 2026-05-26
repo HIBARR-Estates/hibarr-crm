@@ -119,7 +119,10 @@ export default function LeadInfoSection({
         const el = sectionRefs.current[key];
         const container = scrollContainerRef.current;
         if (el && container) {
-            container.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" });
+            const elTop = el.getBoundingClientRect().top;
+            const containerTop = container.getBoundingClientRect().top;
+            const targetScrollTop = container.scrollTop + (elTop - containerTop);
+            container.scrollTo({ top: Math.max(0, targetScrollTop), behavior: "smooth" });
         }
         const sectionsToExpand = getSectionsForKey(key);
         if (sectionsToExpand.length > 0) {
