@@ -6,6 +6,7 @@ import {
     RightOutlined,
 } from "@ant-design/icons";
 import { Tooltip } from "antd";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ─── DetailFieldEditContext ────────────────────────────────────────────────────
 // Lets a child EditableField register its startEditing fn so the parent
@@ -108,7 +109,9 @@ export function DetailField({
     copyValue,
 }: DetailFieldProps) {
     // editHandler is registered by a child EditableField via context
-    const [editHandler, setEditHandlerState] = useState<(() => void) | null>(null);
+    const [editHandler, setEditHandlerState] = useState<(() => void) | null>(
+        null,
+    );
     const [isFieldEditing, setIsFieldEditing] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -123,13 +126,16 @@ export function DetailField({
 
     const handleCopy = useCallback(() => {
         if (!copyValue) return;
-        if (typeof window !== 'undefined' && navigator?.clipboard) {
-            navigator.clipboard.writeText(copyValue).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-            }).catch(() => {
-                fallbackCopy(copyValue);
-            });
+        if (typeof window !== "undefined" && navigator?.clipboard) {
+            navigator.clipboard
+                .writeText(copyValue)
+                .then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                })
+                .catch(() => {
+                    fallbackCopy(copyValue);
+                });
         } else {
             fallbackCopy(copyValue);
         }
@@ -137,14 +143,14 @@ export function DetailField({
 
     const fallbackCopy = (text: string) => {
         try {
-            const ta = document.createElement('textarea');
+            const ta = document.createElement("textarea");
             ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.opacity = '0';
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
             document.body.appendChild(ta);
             ta.focus();
             ta.select();
-            document.execCommand('copy');
+            document.execCommand("copy");
             document.body.removeChild(ta);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
@@ -155,8 +161,9 @@ export function DetailField({
 
     const ctx = useMemo(
         () => ({ setEditHandler, setIsEditing }),
-        [setEditHandler, setIsEditing]
+        [setEditHandler, setIsEditing],
     );
+    const { td } = useTd();
 
     return (
         <DetailFieldEditContext.Provider value={ctx}>
@@ -168,7 +175,7 @@ export function DetailField({
                 {/* Label row — edit pencil appears here on group hover */}
                 <div className="flex items-center gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 leading-[1.5]">
-                        {label}
+                        {td(label)}
                     </span>
                     {editHandler && (
                         <EditOutlined

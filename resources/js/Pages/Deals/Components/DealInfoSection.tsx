@@ -37,6 +37,7 @@ import PropertyCarousel from "./PropertyCarousel";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import useTranslation from "@/Hooks/useTranslation";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -71,6 +72,7 @@ export default function DealInfoSection({
 }: Props) {
     const { props } = usePage<any>();
     const { t } = useTranslation();
+    const { td } = useTd();
     const user = props.auth.user;
     const currencies = props.currencies || [];
     const defaultCurrencyCode = props.default_currency_code || "TRY";
@@ -1444,7 +1446,7 @@ export default function DealInfoSection({
         { key: "details", label: t("pages.deals.info.tab_details") },
         ...(customFieldCategories || []).map((cat) => ({
             key: `category-${cat.id}`,
-            label: cat.name,
+            label: td(cat.name),
         })),
     ];
 

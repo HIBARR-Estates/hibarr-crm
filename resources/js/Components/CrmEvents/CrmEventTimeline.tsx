@@ -21,6 +21,7 @@ import { isLoading as _isLoading } from "@/lib/utils";
 import CrmEventItem from "./CrmEventItem";
 import LogActionModal from "./LogActionModal";
 import type { CrmEventsIndexResponse, CrmEvent } from "@/Types/api/crm-event";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Title } = Typography;
 
@@ -47,6 +48,7 @@ export default function CrmEventTimeline({
     const [filter, setFilter] = useState<FilterMode>("all");
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [modalOpen, setModalOpen] = useState(false);
+    const { td } = useTd();
 
     const perPage = compact ? 8 : 50;
 
@@ -96,7 +98,7 @@ export default function CrmEventTimeline({
     /* ---- Header actions --------------------------------------------------- */
     const headerActions = (
         <div className="flex items-center gap-1.5">
-            <Tooltip title="Log action">
+            <Tooltip title={td("Log action")}>
                 <Button
                     size="small"
                     type="primary"
@@ -104,7 +106,7 @@ export default function CrmEventTimeline({
                     onClick={() => setModalOpen(true)}
                 />
             </Tooltip>
-            <Tooltip title="Refresh">
+            <Tooltip title={td("Refresh")}>
                 <Button
                     size="small"
                     icon={<ReloadOutlined spin={isRefetching} />}
@@ -112,7 +114,7 @@ export default function CrmEventTimeline({
                 />
             </Tooltip>
             {compact && (
-                <Tooltip title="Expand">
+                <Tooltip title={td("Expand")}>
                     <Button
                         size="small"
                         icon={<ExpandAltOutlined />}
@@ -157,7 +159,7 @@ export default function CrmEventTimeline({
                         {opt.icon && (
                             <span className="text-[11px]">{opt.icon}</span>
                         )}
-                        {opt.label}
+                        {td(opt.label)}
                     </button>
                 );
             })}
@@ -172,7 +174,7 @@ export default function CrmEventTimeline({
                 <Skeleton active paragraph={{ rows: isCompact ? 4 : 10 }} />
             ) : events.length === 0 ? (
                 <Empty
-                    description="No events yet"
+                    description={td("No events yet")}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                 />
             ) : (
@@ -186,7 +188,7 @@ export default function CrmEventTimeline({
             {/* Card header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                 <Title level={5} className="!mb-0 !text-sm">
-                    Activity Timeline
+                    {td("Activity Timeline")}
                 </Title>
                 {headerActions}
             </div>
@@ -198,7 +200,9 @@ export default function CrmEventTimeline({
 
             {/* Expanded Drawer */}
             <Drawer
-                title={`Activity Timeline ${entityName ? ` — ${entityName}` : ""}`}
+                title={td(
+                    `Activity Timeline ${entityName ? ` — ${entityName}` : ""}`,
+                )}
                 open={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
                 width={520}
