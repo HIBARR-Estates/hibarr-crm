@@ -50,8 +50,6 @@ export function DetailSection({
     onToggle,
     sectionId,
 }: DetailSectionProps) {
-    const showBody = !accordion || isOpen;
-
     return (
         <div
             id={sectionId}
@@ -62,14 +60,15 @@ export function DetailSection({
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="w-full flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80 hover:bg-gray-100 transition-colors duration-150 text-left"
+                        className="w-full flex items-center justify-between px-5 py-3 border-b border-[#002040] bg-[#002040] hover:bg-[#003060] transition-colors duration-150 text-left"
                         aria-expanded={isOpen}
                     >
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
                             {title}
                         </h3>
                         <RightOutlined
-                            className={`text-gray-400 text-[10px] transition-transform duration-200 ${
+                            style={{ color: "white" }}
+                            className={`text-[10px] transition-transform duration-300 ${
                                 isOpen ? "rotate-90" : ""
                             }`}
                         />
@@ -81,9 +80,15 @@ export function DetailSection({
                         </h3>
                     </div>
                 ))}
-            {showBody && (
-                <div className={`px-4 py-3 ${gridClassName}`}>{children}</div>
-            )}
+            <div
+                className={`grid transition-all duration-300 ease-in-out ${
+                    accordion ? (isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]") : "grid-rows-[1fr]"
+                }`}
+            >
+                <div className="overflow-hidden">
+                    <div className={`px-4 py-3 ${gridClassName}`}>{children}</div>
+                </div>
+            </div>
         </div>
     );
 }

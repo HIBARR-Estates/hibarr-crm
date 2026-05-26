@@ -140,8 +140,11 @@ export default function DealInfoSection({
             const el = sectionRefs.current[key];
             const container = scrollContainerRef.current;
             if (el && container) {
+                const elTop = el.getBoundingClientRect().top;
+                const containerTop = container.getBoundingClientRect().top;
+                const targetScrollTop = container.scrollTop + (elTop - containerTop);
                 container.scrollTo({
-                    top: el.offsetTop - 8,
+                    top: Math.max(0, targetScrollTop),
                     behavior: "smooth",
                 });
             }
