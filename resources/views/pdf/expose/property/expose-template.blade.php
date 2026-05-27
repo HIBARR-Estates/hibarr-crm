@@ -37,7 +37,7 @@
         }
 
         .logo img {
-            width: 30%;
+          width: 37%;
         }
 
         .logo-watermark-top,
@@ -1019,7 +1019,7 @@
 
 
         <object data="{{ $data['branding']['expose_name_client'] }}" type="image/svg+xml"
-                    style="height: 90px; width: 340px; display: block;"></object>
+              style="height: 140px; width: 520px; display: block;"></object>
 
         <div style="position: absolute; top: 45%; left: 25%; transform: translateY(-50%); white-space: nowrap; line-height: 1.3;">
           <div style="font-size: 12px; font-weight: 400; color: #053160; letter-spacing: 1px; text-transform: uppercase;">Prepared for</div>
