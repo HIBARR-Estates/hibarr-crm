@@ -20,12 +20,19 @@ interface DealColumnOptions {
     onAgentChange?: (deal: Deal, agentId: number | null) => void;
     canEdit?: (deal: Deal) => boolean;
     t?: (key: string) => string;
+    td?: (text: string | null | undefined) => string;
 }
 
 export const DEAL_TABLE_COLUMNS = (
     options: DealColumnOptions = {},
 ): ColumnsType<Deal> => {
-    const { actionItems, onAgentChange, canEdit, t = (key) => key } = options;
+    const {
+        actionItems,
+        onAgentChange,
+        canEdit,
+        t = (key) => key,
+        td = (key) => key,
+    } = options;
 
     return [
         {
@@ -139,7 +146,7 @@ export const DEAL_TABLE_COLUMNS = (
 
                 return (
                     <div className="font-medium text-gray-900">
-                        {record.contact.lead_source.type}
+                        {td(record.contact.lead_source.type)}
                     </div>
                 );
             },
@@ -218,7 +225,7 @@ export const DEAL_TABLE_COLUMNS = (
                         ></div>
                         <Tooltip title={record.lead_stage.name}>
                             <span className="text-sm text-gray-900 truncate max-w-full">
-                                {record.lead_stage.name}
+                                {td(record.lead_stage.name)}
                             </span>
                         </Tooltip>
                     </div>

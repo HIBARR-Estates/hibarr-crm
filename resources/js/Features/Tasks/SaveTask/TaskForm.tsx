@@ -103,6 +103,7 @@ interface TaskFormProps {
         type: "deal" | "lead" | "property";
         id?: number;
     };
+    td?: (key: string) => string;
 }
 
 const TaskForm: React.FC<TaskFormProps> = ({
@@ -125,6 +126,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
     leads = [],
     properties = [],
     relatedEntity,
+    td = (key) => key,
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage();
@@ -208,31 +210,36 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 <Col span={24}>
                     <Form.Item
                         name="heading"
-                        label="Task Title"
+                        label={td("Task Title")}
                         rules={[
                             {
                                 required: true,
-                                message: "Please enter task title",
+                                message: td("Please enter task title"),
                             },
                             {
                                 min: 3,
-                                message: "Title must be at least 3 characters",
+                                message: td(
+                                    "Title must be at least 3 characters",
+                                ),
                             },
                         ]}
                     >
-                        <Input placeholder="Enter task title..." size="large" />
+                        <Input
+                            placeholder={td("Enter task title...")}
+                            size="large"
+                        />
                     </Form.Item>
                 </Col>
 
                 <Col span={24}>
                     <Form.Item
                         name="description"
-                        label="Description"
-                        extra="Provide a detailed description of the task"
+                        label={td("Description")}
+                        extra={td("Provide a detailed description of the task")}
                     >
                         <TextArea
                             rows={4}
-                            placeholder="Enter task description..."
+                            placeholder={td("Enter task description...")}
                             showCount
                             maxLength={1000}
                         />
@@ -242,7 +249,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 <Col xs={24} sm={12}>
                     <Form.Item
                         name="start_date"
-                        label="Start Date"
+                        label={td("Start Date")}
                         rules={[
                             {
                                 required: false,
@@ -261,13 +268,13 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 <Col xs={24} sm={12}>
                     <Form.Item
                         name="due_date"
-                        label="Due Date"
-                        extra="Leave empty if no due date"
+                        label={td("Due Date")}
+                        extra={td("Leave empty if no due date")}
                     >
                         <DatePicker
                             style={{ width: "100%" }}
                             showTime={{ format: "HH:mm" }}
-                            placeholder="Select due date"
+                            placeholder={td("Select due date")}
                         />
                     </Form.Item>
                 </Col>
@@ -275,23 +282,23 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 <Col xs={24} sm={12}>
                     <Form.Item
                         name="priority"
-                        label="Priority"
+                        label={td("Priority")}
                         rules={[
                             {
                                 required: false,
-                                message: "Please select priority",
+                                message: td("Please select priority"),
                             },
                         ]}
                     >
-                        <Select placeholder="Select priority">
+                        <Select placeholder={td("Select priority")}>
                             <Option value="low">
-                                <Space>🟢 Low Priority</Space>
+                                <Space>🟢 {td("Low Priority")}</Space>
                             </Option>
                             <Option value="medium">
-                                <Space>🔵 Medium Priority</Space>
+                                <Space>🔵 {td("Medium Priority")}</Space>
                             </Option>
                             <Option value="high">
-                                <Space>🔴 High Priority</Space>
+                                <Space>🔴 {td("High Priority")}</Space>
                             </Option>
                         </Select>
                     </Form.Item>
@@ -300,8 +307,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 <Col xs={24} sm={12}>
                     <Form.Item
                         name="board_column_id"
-                        label="Initial Status"
-                        extra="Starting status for this task"
+                        label={td("Initial Status")}
+                        extra={td("Starting status for this task")}
                     >
                         <Select>
                             {columns.map((column) => (
@@ -328,12 +335,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 <Col xs={24} sm={24}>
                     <Form.Item
                         name="user_ids"
-                        label="Assignees"
-                        extra="Select team members to assign this task"
+                        label={td("Assignees")}
+                        extra={td("Select team members to assign this task")}
                     >
                         <Select
                             mode="multiple"
-                            placeholder="Select assignees"
+                            placeholder={td("Select assignees")}
                             showSearch
                             filterOption={(input, option) => {
                                 const user = users.find(
@@ -362,7 +369,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                                     fontSize: 12,
                                                 }}
                                             >
-                                                ({user.designation_name})
+                                                ({td(user.designation_name)})
                                             </Text>
                                         )}
                                     </Space>
@@ -374,9 +381,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
                 {relatedEntity?.type !== "deal" && deals.length > 0 && (
                     <Col xs={24} sm={24}>
-                        <Form.Item name="deal_id" label="Related Deal">
+                        <Form.Item name="deal_id" label={td("Related Deal")}>
                             <Select
-                                placeholder="Select a deal"
+                                placeholder={td("Select a deal")}
                                 showSearch
                                 allowClear
                                 filterOption={(input, option) =>
@@ -387,7 +394,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                             >
                                 {deals.map((deal) => (
                                     <Option key={deal.id} value={deal.id}>
-                                        {deal.name}
+                                        {td(deal.name)}
                                     </Option>
                                 ))}
                             </Select>
@@ -397,9 +404,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
                 {relatedEntity?.type !== "lead" && leads.length > 0 && (
                     <Col xs={24} sm={24}>
-                        <Form.Item name="lead_id" label="Related Lead">
+                        <Form.Item name="lead_id" label={td("Related Lead")}>
                             <Select
-                                placeholder="Select a lead"
+                                placeholder={td("Select a lead")}
                                 showSearch
                                 allowClear
                                 filterOption={(input, option) =>
@@ -426,7 +433,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         <Col xs={24} sm={24}>
                             <Form.Item
                                 name="property_id"
-                                label="Related Property"
+                                label={td("Related Property")}
                             >
                                 <Select
                                     placeholder="Select a property"

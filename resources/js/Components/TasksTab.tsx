@@ -11,6 +11,7 @@ import { isLoading } from "@/lib/utils";
 import { useState } from "react";
 import { router } from "@inertiajs/react";
 import { taskApi } from "@/lib/api/tasks";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface TaskboardColumn {
     id: number;
@@ -61,6 +62,7 @@ export default function TasksTab({
         handleClose: closeAction,
         selected: selectedTask,
     } = useGenericEntityAction<Task>();
+    const { td } = useTd();
 
     const handleClose = () => {
         router.reload({ only: ["tasks"] });
@@ -90,7 +92,7 @@ export default function TasksTab({
     const handleStatusChange = (
         task: Task,
         newStatus: string,
-        newColumnId: number
+        newColumnId: number,
     ) => {
         updateTaskStatus(
             {
@@ -101,7 +103,7 @@ export default function TasksTab({
                 onSuccess: () => {
                     router.reload({ only: ["tasks"] });
                 },
-            }
+            },
         );
     };
 
@@ -131,14 +133,16 @@ export default function TasksTab({
                     <Empty
                         description={
                             <div className="text-center">
-                                <p className="text-gray-500 mb-2">No tasks</p>
+                                <p className="text-gray-500 mb-2">
+                                    {td("No tasks")}
+                                </p>
 
                                 <Button
                                     type="primary"
                                     icon={<PlusOutlined />}
                                     onClick={() => handleAction("add")}
                                 >
-                                    Add Task
+                                    {td("Add Task")}
                                 </Button>
 
                                 {relatedEntity.type === "deal" && (
@@ -149,7 +153,7 @@ export default function TasksTab({
                                                 variant="dashed"
                                                 onClick={() => {
                                                     setSelectedTaskType(
-                                                        task.key
+                                                        task.key,
                                                     );
                                                     return createDefaultTask(
                                                         {
@@ -158,11 +162,11 @@ export default function TasksTab({
                                                         {
                                                             onSettled: () => {
                                                                 setSelectedTaskType(
-                                                                    ""
+                                                                    "",
                                                                 );
                                                                 router.reload();
                                                             },
-                                                        }
+                                                        },
                                                     );
                                                 }}
                                                 loading={
@@ -201,13 +205,13 @@ export default function TasksTab({
                                                     {
                                                         onSettled: () => {
                                                             setSelectedTaskType(
-                                                                ""
+                                                                "",
                                                             );
                                                             router.reload({
                                                                 only: ["tasks"],
                                                             });
                                                         },
-                                                    }
+                                                    },
                                                 );
                                             }}
                                             loading={
@@ -240,6 +244,7 @@ export default function TasksTab({
                         onDelete={(task) => handleAction("delete", task)}
                         onDuplicate={(task) => handleAction("duplicate", task)}
                         onStatusChange={handleStatusChange}
+                        td={td}
                     />
                 </div>
             )}
@@ -248,6 +253,7 @@ export default function TasksTab({
                 open={action === "delete"}
                 task={selectedTask}
                 onClose={() => handleClose()}
+                td={td}
             />
             <SaveTaskModal
                 open={["add", "edit", "duplicate"].includes(action || "")}
@@ -260,18 +266,23 @@ export default function TasksTab({
                 users={employees}
                 projects={projects}
                 relatedEntity={relatedEntity}
+                td={td}
             />
 
             {/* Task Details Drawer */}
             <Drawer
-                title={`Task: ${selectedTask?.heading || ""}`}
+                title={td(`Task: ${selectedTask?.heading || ""}`)}
                 placement="right"
                 size="large"
                 open={action === "view"}
                 onClose={() => handleClose()}
                 destroyOnHidden
             >
-                <TaskDetailsDrawer task={selectedTask} loading={false} />
+                <TaskDetailsDrawer
+                    task={selectedTask}
+                    loading={false}
+                    td={td}
+                />
             </Drawer>
         </>
     );
