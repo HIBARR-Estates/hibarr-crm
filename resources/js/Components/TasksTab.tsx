@@ -231,6 +231,7 @@ export default function TasksTab({
                                 selectedEntityIds={selectedIds}
                                 columns={taskBoardColumns}
                                 clearSelected={clearSelected}
+                                td={td}
                             />
                         )}
                     </div>
