@@ -262,6 +262,7 @@
 
         .items {
             padding-left: 60px;
+            font-family: "Open Sans", sans-serif;
         }
 
         .item {
@@ -282,7 +283,7 @@
         }
 
         .item-list {
-            list-style-type: disc;
+            list-style-type: square;
             padding-left: 20px;
             margin: 0;
             color: #053160;
@@ -943,7 +944,7 @@
     $qrConfig = $globalExposeConfig['qr'] ?? [];
 
     $outroTitle = $outroConfig['title'] ?? 'ROOTED IN BEAUTY, GROWING IN VALUE';
-    $outroDescription = $outroConfig['description'] ?? (!empty($data['description']) ? Str::limit(strip_tags($data['description']), 280) : 'Discover luxury living at its finest...');
+    $outroDescription = $outroConfig['description'] ?? (!empty($data['description']) ? $data['description'] : '');
     $outroPrimaryImage = $outroConfig['primary_image_url'] ?? ($heroImages[0] ?? 'property/images/test.png');
     $outroSecondaryImage = $outroConfig['secondary_image_url'] ?? ($exteriorImages[4] ?? $outroPrimaryImage);
 
@@ -1023,7 +1024,7 @@
 
         <div style="position: absolute; top: 45%; left: 25%; transform: translateY(-50%); white-space: nowrap; line-height: 1.3;">
           <div style="font-size: 12px; font-weight: 400; color: #053160; letter-spacing: 1px; text-transform: uppercase;">Prepared for</div>
-          <div style="font-size: 18px; font-weight: 700; color: #053160;">{{ $data['client']['name'] }}</div>
+          <div style="font-size: 25px; font-weight: 700; color: #053160;">{{ $data['client']['name'] }}</div>
         </div>
 
       </div>
@@ -1056,7 +1057,7 @@
       <div class="expose-title">
         <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
         <div class="text">
-          <h1 style="margin-bottom: 0">PROPERTY OVERVIEW</h1>
+          <h1 style="margin-bottom: 0">PROJECT OVERVIEW</h1>
         </div>
       </div>
 
@@ -1104,7 +1105,7 @@
         <div class="item">
           <h3 class="item-header">FACILITIES</h3>
           <ul class="item-list">
-            @foreach($facilityItems as $facility)
+            @foreach(array_slice($facilityItems, 0, 10) as $facility)
             <li>{{ $facility['label'] }}</li>
             @endforeach
           </ul>
@@ -1125,9 +1126,9 @@
           <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
             <div style="position: relative; display: inline-block; line-height: 0;">
               <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
-                style="height: 72px; width: auto; display: block;" />
+                style="height: 94px; width: auto; display: block;" />
               <span
-                style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">Exterior</span>
+                style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 33.6px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">Exterior</span>
             </div>
           </div>
         </div>
@@ -1252,9 +1253,11 @@
         <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
           <div style="position: relative; display: inline-block; line-height: 0;">
             <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
-                style="height: 72px; width: auto; display: block;" />
+                style="height: 94px; width: auto; display: block;" />
             <span
-                style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 17px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">{{ $singleFacility['label'] ?? 'Facility' }}</span>
+                style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 33.6px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">{{ $singleFacility['label'] ?? 'Facility' }}</span>
+
+              
           </div>
         </div>
         <div class="logo-watermark-bottom">
@@ -1265,7 +1268,7 @@
       <div class="page">
         <div class="container" style="position: relative; z-index: 1;">
           <div class="header">
-            <span class="title">FACILITIES</span>
+            <span class="title" style=" font-size: 32.1px; font-weight: 700; text-transform: uppercase;">FACILITIES</span>
             <img style="width: 12%" src="{{ $data['branding']['logo_full'] }}" alt="hibarr-logo" />
           </div>
 
@@ -1275,7 +1278,7 @@
                 @if(!empty($facility['image']))
                   <img src="{{ $facility['image'] }}" alt="{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}" />
                 @endif
-                <div class="title">
+                <div class="title" style="font-size: 16.6px; color: #053160;">
                   <span>{{ $facility['label'] ?? ('Facility ' . ($index + 1)) }}</span>
                 </div>
               </div>
@@ -1287,7 +1290,7 @@
   @endforeach
 
   <!-- PAGE — First gallery image full page (after facilities) -->
-  @if(!empty($galleryImages[$galleryCursor]))
+  {{-- @if(!empty($galleryImages[$galleryCursor]))
   @php
     $firstGalleryImage = $galleryImages[$galleryCursor];
     $galleryCursor++;
@@ -1306,7 +1309,7 @@
     </div>
     
   </div>
-  @endif
+  @endif --}}
 
   <!-- PAGE(S) 6: UNIT DESCRIPTION — one page per unit style -->
   @foreach(array_slice($unitStyleList, 0, 1) as $styleLabel)
@@ -1324,21 +1327,32 @@
           <div class="content">
             <div class="expose-title">
               <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
-              <div class="text blue">
-                <h1 class="fw-500 rounded-text">{{ strtoupper((string) $styleLabel) }}</h1>
+              <div class="text ">
+                <h1 class="fw-500 rounded-text" style="font-size: 39.2px; !important; font-weight: 700 !important;">{{ strtoupper((string) $styleLabel) }}</h1>
               </div>
             </div>
+       
 
             {{-- <h1>{{ strtoupper((string) $styleLabel) }}</h1> --}}
 
-            <p>
-              {{ !empty($data['description']) ? Str::limit(strip_tags($data['description']), 300) : 'Modern property with smart layout and natural light.' }}
-            </p>
+            <div style="font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; margin-left: -45px;">
+              {!! !empty($data['description']) ? $data['description'] : '' !!}
+              
+            </div>
+            <style>
+              div[style*="font-size: 20px"] p,
+              div[style*="font-size: 20px"] span,
+              div[style*="font-size: 20px"] * {
+                font-size: 20px !important;
+                color: #053160 !important;
+                font-family: 'Open Sans', sans-serif !important;
+              }
+            </style>
           </div>
         </div>
 
         <div class="col-7" style="display: flex; align-items: center; padding: 10mm 0 10mm 5mm;">
-          <div class="illustration" style="height: 80%; width: 100%; border-radius: 0.5rem; overflow: hidden;">
+          <div class="illustration" style="height: 100%; width: 100%; border-radius: 0.4rem; overflow: hidden;">
             @if(!empty($styleImage))
             <img src="{{ $styleImage }}" alt="{{ $styleLabel }}" style="width: 100%; height: 100%; object-fit: cover;" />
             @endif
@@ -1435,7 +1449,7 @@
             <!-- Floor plan image — right column -->
               @if(!empty($data['assets']['floor-plan'][0]))
             <img src="{{ $data['assets']['floor-plan'][0] }}" alt="Floor plan"
-                style="width:100%; height:306px; object-fit:cover; display:block;" />
+                style="width:100%; height:auto; object-fit:cover; display:block;" />
             @endif
         </div>
         <!-- Bottom row: unit details centred -->
@@ -1597,14 +1611,25 @@
     <div class="split-bottom">
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
-      <div class="container">
-        <p style="max-width:80%;">{!! !empty($locationDescription) ? Str::limit($locationDescription, 320) : '' !!}</p>
+      
+      <div>
+         <div style="max-width:100%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 10px;">{!! !empty($locationDescription) ? $locationDescription : '' !!}</div>
+        <style>
+            div[style*="font-size: 20px"] p,
+            div[style*="font-size: 20px"] span,
+            div[style*="font-size: 20px"] * {
+              font-size: 20px !important;
+              color: #053160 !important;
+              font-family: 'Open Sans', sans-serif !important;
+            }
+          </style>
       </div>
+      
     </div>
-    <div class="expose-title blue absolute">
-      <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
-      <div class="text blue">
-        <h1 class="fw-500">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
+    <div class="expose-title blue absolute" style="top: 400px;">
+      {{-- <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" /> --}}
+      <div class="text blue" style="font-weight: 700 !important; margin-left: -95px;">
+        <h1 class="fw-500" style="font-size: 35px; !important; font-weight: 700 !important;">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
       </div>
     </div>
     {{-- <div class="rock">
@@ -1638,10 +1663,10 @@
   <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
   <div class="infrastructure">
     <div class="header">
-      <span class="title">INFRASTRUCTURE</span>
-      <span class="title end">AIRPORT</span>
+      <span class="title" style="font-size: 28.8px !important; font-weight: 600 !important; font-family: 'Open Sans', sans-serif !important; padding: 20px 3rem 20px 2.5rem; border-radius: 0 100px  100px 0;">INFRASTRUCTURE</span>
+      <span class="title end" style="font-size: 28.8px !important; font-weight: 600 !important; font-family: 'Open Sans', sans-serif !important; padding: 20px 3rem 20px 2.5rem; border-radius:  100px 0 0 100px;">AIRPORT</span>
     </div>
-    <div class="container" style="gap: 1rem;">
+    <div class="container" style="gap: 1rem; margin-top: -100px;">
 
       {{-- TOP ROW: first 2 infra items (left) + map & first airport item (right) --}}
       <div style="display:flex; flex:1; gap:2rem; align-items:center;">
@@ -1722,7 +1747,16 @@
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
             <div class="container">
-            <div style="max-width:80%;">{!! $outroDescription !!}</div>
+              <div style="max-width:80%; font-size: 18px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 20px;">{!! $outroDescription !!}</div>
+              <style>
+                div[style*="font-size: 18px"] p,
+                div[style*="font-size: 18px"] span,
+                div[style*="font-size: 18px"] * {
+                  font-size: 18px !important;
+                  color: #053160 !important;
+                  font-family: 'Open Sans', sans-serif !important;
+                }
+              </style>
             </div>
         </div>
         <div class="expose-title blue absolute">
@@ -1742,14 +1776,14 @@
 
 
 <!-- PAGE — Floor Plan -->
-@if(!empty($data['assets']['floor-plan']))
+{{-- @if(!empty($data['assets']['floor-plan']))
 <div class="page">
     <div class="container" style="justify-content:center;">
         <img src="{{ $data['assets']['floor-plan'][0] }}"  style="width:100%;height:auto;" alt="Floor plan" />
     </div>
    
 </div>
-@endif
+@endif --}}
 
 <!-- PAGE 12: CLOSURE / CONTACT -->
 <div class="page">
@@ -1790,16 +1824,16 @@
                         <p>{{ $data['agent']['position'] ?? 'Real Estate Consultant' }}</p>
                     </div>
                     <div>
-                        <a href="mailto:{{ $data['agent']['email'] ?? 'info@hibarr.de' }}">
-                            <h2 style="text-transform:none;">{{ $data['agent']['email'] ?? 'info@hibarr.de' }}</h2>
+                        <a href="mailto:{{ $data['agent']['email'] ?? '' }}">
+                            <h2 style="text-transform:none;">{{ $data['agent']['email'] ?? '' }}</h2>
                         </a>
-                        <a href="tel:{{ str_replace([' ', '+'], '', $data['agent']['phone'] ?? '+491731009900') }}">
-                            <h2 style="text-transform:none;">{{ $data['agent']['phone'] ?? '+49 173 100 99 00' }}</h2>
+                        <a href="tel:{{ str_replace([' ', '+'], '', $data['agent']['phone'] ?? '') }}">
+                            <h2 style="text-transform:none;">{{ $data['agent']['phone'] ?? '' }}</h2>
                         </a>
                     </div>
                     <div>
-                        <a href="https://{{ $data['company']['website'] ?? 'www.hibarr.de' }}">{{ $data['company']['website'] ?? 'www.hibarr.de' }}</a>
-                        <h2 style="text-transform:none;">{{ $data['company']['address'] ?? 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus' }}</h2>
+                        <a href="https://{{ $data['company']['website'] ?? 'www.hibarr.de' }}">{{ $data['company']['website'] ?? '' }}</a>
+                        <h2 style="text-transform:none;">{{ $data['company']['address'] ?? '' }}</h2>
                     </div>
                 </div>
             </div>
