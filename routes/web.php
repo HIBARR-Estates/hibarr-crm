@@ -1523,6 +1523,16 @@ if (!app()->environment('production')) {
             'exterior_features' => [
                 'Bar', 'Basketball Court', 'Beach', 'Cafe', 'Car Park', 'Central Generator', 'Cleaning Service', 'Cycling Routes', 'Gated Community', 'Gym', 'Hamam', 'Indoor Pool', 'Kids Playground', 'Massage Spa', 'On-site Management', 'Outdoor Pool', 'Restaurant', 'Sauna', 'Security 24/7', 'Tennis Court', 'Walking Paths', 'Supermarket'
             ],
+            'agent' => [
+                'name' => 'Rabih Rabea',
+                'position' => 'Real Estate Consultant',
+                'email' => 'info@hibarr.de',
+                'phone' => '+49 173 100 99 00',
+            ],
+            'company' => [
+                'website' => 'www.hibarr.de',
+                'address' => 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus',
+            ],
             'expose_global_config' => [
                 'outro' => [
                     'title' => 'ROOTED IN BEAUTY, GROWING IN VALUE',
@@ -1543,7 +1553,7 @@ if (!app()->environment('production')) {
                 ],
                 'qr' => [
                     'enabled' => true,
-                    'qr_code_data_uri' => 'https://hibarr.de/',
+                    'qr_code_data_uri' => 'https://via.placeholder.com/185?text=QR',
                     'label' => 'Scan for more details',
                 ],
             ],
