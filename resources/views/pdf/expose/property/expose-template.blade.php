@@ -1024,7 +1024,7 @@
 
         <div style="position: absolute; top: 45%; left: 25%; transform: translateY(-50%); white-space: nowrap; line-height: 1.3;">
           <div style="font-size: 12px; font-weight: 400; color: #053160; letter-spacing: 1px; text-transform: uppercase;">Prepared for</div>
-          <div style="font-size: 25px; font-weight: 700; color: #053160;">{{ $data['client']['name'] }}</div>
+          <div style="font-size: 25px; font-weight: 700; color: #053160; text-transform: capitalize;">{{ $data['client']['name'] }}</div>
         </div>
 
       </div>
