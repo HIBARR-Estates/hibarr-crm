@@ -142,7 +142,8 @@ export default function DealInfoSection({
             if (el && container) {
                 const elTop = el.getBoundingClientRect().top;
                 const containerTop = container.getBoundingClientRect().top;
-                const targetScrollTop = container.scrollTop + (elTop - containerTop);
+                const targetScrollTop =
+                    container.scrollTop + (elTop - containerTop);
                 container.scrollTo({
                     top: Math.max(0, targetScrollTop),
                     behavior: "smooth",
@@ -1419,7 +1420,7 @@ export default function DealInfoSection({
                         fields={fields}
                         customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
-                        title={category.name}
+                        title={td(category.name)}
                         column={2}
                         onUpdate={(field, value) =>
                             handleFieldUpdate(field, value, "custom_field")

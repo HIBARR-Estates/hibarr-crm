@@ -33,6 +33,7 @@ interface Props {
     }[];
     clearSelected: () => void;
     columns: TaskboardColumn[];
+    td?: (key: string) => string;
 }
 
 const DEFAULT_TASK_BULK_ACTIONS: Props["actions"] = [
@@ -45,6 +46,7 @@ const BulkTaskActionSelector: React.FC<Props> = ({
     actions = DEFAULT_TASK_BULK_ACTIONS,
     clearSelected,
     columns,
+    td = (key) => key,
 }) => {
     const [action, setAction] = React.useState<TTaskBulkAction>();
     const [open, setOpen] = React.useState(false);
@@ -82,15 +84,21 @@ const BulkTaskActionSelector: React.FC<Props> = ({
             {/* Action Selector UI */}
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
                 <span className="text-sm text-blue-700">
-                    {selectedEntityIds.length} selected
+                    {td("{selectedEntityIds.length} selected").replace(
+                        "{selectedEntityIds.length}",
+                        selectedEntityIds.length.toString(),
+                    )}
                 </span>
                 <Select
-                    placeholder="Choose action"
+                    placeholder={td("Choose action")}
                     value={action}
                     onChange={setAction}
                     style={{ width: 180 }}
                     size="small"
-                    options={actions}
+                    options={actions.map((act) => ({
+                        ...act,
+                        label: td(act.label),
+                    }))}
                 />
                 <Button
                     type="primary"
@@ -98,7 +106,7 @@ const BulkTaskActionSelector: React.FC<Props> = ({
                     disabled={!action}
                     onClick={onApply}
                 >
-                    Apply
+                    {td("Apply")}
                 </Button>
             </div>
         </>

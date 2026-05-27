@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { SectionKey } from "../Show";
 import { usePermission } from "@/lib/permissionUtils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface ShowSidebarProps {
     activeSection: SectionKey;
@@ -39,6 +40,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
 }) => {
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
+    const { td } = useTd();
     const navItems: {
         key: SectionKey;
         icon: React.ReactNode;
@@ -108,7 +110,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                         >
                             <span className="flex-shrink-0">{item.icon}</span>
                             <span className="text-sm font-medium">
-                                {item.label}
+                                {td(item.label)}
                             </span>
                         </a>
                     );
@@ -126,18 +128,18 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                         className={baseClasses}
                         title={
                             item.key === "pricelist" && isDisabled
-                                ? "Availability link absent"
+                                ? td("Availability link absent")
                                 : undefined
                         }
                     >
                         <span className="flex-shrink-0">{item.icon}</span>
                         <div className="flex min-w-0 flex-col">
                             <span className="text-sm font-medium">
-                                {item.label}
+                                {td(item.label)}
                             </span>
                             {item.key === "pricelist" && isDisabled && (
                                 <span className="text-xs">
-                                    Availability link absent
+                                    {td("Availability link absent")}
                                 </span>
                             )}
                         </div>
@@ -149,7 +151,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
             <div className="flex flex-col gap-2 pt-2">
                 {canEdit && (
                     <Button icon={<Pencil size={14} />} block onClick={onEdit}>
-                        Edit Project
+                        {td("Edit Project")}
                     </Button>
                 )}
             </div>

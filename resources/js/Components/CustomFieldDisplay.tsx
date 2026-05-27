@@ -1,12 +1,4 @@
-import {
-    Tag,
-    Upload,
-    Button,
-    message,
-    Spin,
-    Tooltip,
-    Progress,
-} from "antd";
+import { Tag, Upload, Button, message, Spin, Tooltip, Progress } from "antd";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import {
     UploadOutlined,

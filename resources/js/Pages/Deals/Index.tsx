@@ -46,6 +46,7 @@ import PipelineSelector from "@/Features/Deals/PipelineSelector";
 import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -112,6 +113,7 @@ const Index = ({
     const { props: pageProps } = usePage<any>();
     const currentUser = pageProps.auth?.user;
     const editDealsPermission = pageProps.auth?.permissions?.edit_deals;
+    const { td } = useTd();
 
     const queryClient = useQueryClient();
 
@@ -326,6 +328,7 @@ const Index = ({
         onAgentChange: handleAgentChange,
         canEdit: canEditDeal,
         t,
+        td,
     });
 
     const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
