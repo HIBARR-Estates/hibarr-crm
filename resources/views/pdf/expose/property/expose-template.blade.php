@@ -1330,7 +1330,7 @@
 
             {{-- <h1>{{ strtoupper((string) $styleLabel) }}</h1> --}}
 
-            <div style="font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; margin-left: -45px;">
+            <div style="font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; margin-left: 0px;">
               {!! !empty($data['description']) ? $data['description'] : '' !!}
               
             </div>
