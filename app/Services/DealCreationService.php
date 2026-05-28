@@ -447,17 +447,74 @@ class DealCreationService
             
             $deal = $result['deal'];
             $isNewDeal = $result['is_new'];
+            
+            // Release cache locks AFTER transaction commits 
+            // This prevents race condition where another process acquires lock before commit
+            DB::afterCommit(function () use ($cacheKey, $contactLockKey, $newCacheKey, $hashChanged, $newLockAcquired, $deal, $isNewDeal, $request, $companyId) {
+                // Release locks with error handling
+                try {
+                    Cache::forget($cacheKey);
+                    Cache::forget($contactLockKey);
+                    
+                    // If hash changed and we actually acquired the new lock, release it
+                    if ($hashChanged && $newCacheKey && $newLockAcquired) {
+                        Cache::forget($newCacheKey);
+                        Log::debug('DealCreationService: Released cache lock for changed hash', [
+                            'original_key' => $cacheKey,
+                            'new_key' => $newCacheKey,
+                        ]);
+                    }
+                } catch (\Exception $e) {
+                    // Log but don't fail - locks will expire naturally
+                    Log::warning('DealCreationService: Failed to release cache locks after commit', [
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+                
+                // Perform heavy/non-critical operations outside transaction to reduce lock contention
+                // These operations don't need to be in the transaction and can be done asynchronously
+                try {
+                    // Upsert Hibarr fields (non-critical, can be retried)
+                    $this->upsertHibarrFields($deal, $request);
+                    
+                    // Handle custom fields (non-critical, can be retried)
+                    $this->upsertCustomFields($deal, $request);
+                    
+                    // Sync deal watchers (non-critical)
+                    $dealWatchers = $request->input('deal_watcher', []);
+                    if (is_array($dealWatchers) && !empty($dealWatchers)) {
+                        $validUserIds = User::whereIn('id', $dealWatchers)
+                            ->pluck('id')
+                            ->toArray();
+                        
+                        if (!empty($validUserIds)) {
+                            $deal->dealWatchers()->sync($validUserIds);
+                        }
+                    }
+                    
+                    // Handle meeting if provided (non-critical)
+                    $meeting = $request->input('meeting');
+                    if ($request->has('meeting') && is_array($meeting)) {
+                        $this->createMeeting($deal, $meeting, $companyId);
+                    }
+                    
+                    // Send notifications (can be slow, moved outside transaction)
+                    if ($isNewDeal) {
+                        $this->sendDealCreatedNotifications($deal);
+                    }
 
-            // Transaction has committed — run post-commit work directly (do not defer via afterCommit)
-            $this->runPostTransactionOperations($deal, $isNewDeal, $request, $companyId);
-            $this->releaseDealProcessingLocks(
-                $cacheKey,
-                $contactLockKey,
-                $newCacheKey,
-                $hashChanged,
-                $newLockAcquired,
-            );
-
+                    // Auto-apply offers based on product properties
+                    app(DealOfferService::class)->applyOffersToDeal($deal);
+                } catch (\Exception $e) {
+                    // Log errors but don't fail the request - these are non-critical operations
+                    Log::error('DealCreationService: Error in post-transaction operations', [
+                        'deal_id' => $deal->id,
+                        'error' => $e->getMessage(),
+                        'trace' => $e->getTraceAsString(),
+                    ]);
+                }
+            });
+            
             return ['deal' => $deal, 'is_new' => $isNewDeal];
         } catch (\Exception $e) {
             // Remove cache locks on error to allow retry
@@ -1186,144 +1243,6 @@ class DealCreationService
         if ($deal->dealWatchers->isNotEmpty()) {
             Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
         }
-    }
-
-    /**
-     * Release cache locks after the deal transaction commits.
-     */
-    private function releaseDealProcessingLocks(
-        string $cacheKey,
-        string $contactLockKey,
-        ?string $newCacheKey,
-        bool $hashChanged,
-        bool $newLockAcquired,
-    ): void {
-        try {
-            Cache::forget($cacheKey);
-            Cache::forget($contactLockKey);
-
-            if ($hashChanged && $newCacheKey && $newLockAcquired) {
-                Cache::forget($newCacheKey);
-                Log::debug('DealCreationService: Released cache lock for changed hash', [
-                    'original_key' => $cacheKey,
-                    'new_key' => $newCacheKey,
-                ]);
-            }
-        } catch (\Exception $e) {
-            Log::warning('DealCreationService: Failed to release cache locks after commit', [
-                'error' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Non-critical operations run after the deal transaction commits.
-     * Failures are logged but not rethrown — the deal is already persisted and
-     * surfacing errors would retry the job and risk duplicate deals.
-     */
-    private function runPostTransactionOperations(
-        Deal $deal,
-        bool $isNewDeal,
-        Request $request,
-        int $companyId,
-    ): void {
-        try {
-            $this->upsertHibarrFields($deal, $request);
-            $this->upsertCustomFields($deal, $request);
-
-            $dealWatchers = $this->extractUserIdList($request, 'deal_watcher');
-            if ($dealWatchers !== null && !empty($dealWatchers)) {
-                $validUserIds = $this->resolveValidUserIds($dealWatchers, $companyId);
-                if (!empty($validUserIds)) {
-                    $deal->dealWatchers()->sync($validUserIds);
-                }
-            }
-
-            $dealParticipants = $this->extractUserIdList(
-                $request,
-                'deal_participant',
-                'deal_participants',
-            );
-            if ($dealParticipants !== null && !empty($dealParticipants)) {
-                $validUserIds = $this->resolveValidUserIds($dealParticipants, $companyId);
-                if (!empty($validUserIds)) {
-                    $deal->dealParticipants()->sync($validUserIds);
-                }
-            }
-
-            $meeting = $request->input('meeting');
-            if ($request->has('meeting') && is_array($meeting)) {
-                $this->createMeeting($deal, $meeting, $companyId);
-            }
-
-            if ($isNewDeal) {
-                $this->sendDealCreatedNotifications($deal);
-            }
-
-            app(DealOfferService::class)->applyOffersToDeal($deal);
-        } catch (\Exception $e) {
-            Log::error('DealCreationService: Error in post-transaction operations', [
-                'deal_id' => $deal->id,
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-        }
-    }
-
-    /**
-     * Normalize user ID list from request input (supports scalar or array).
-     */
-    private function normalizeUserIdList(mixed $value): array
-    {
-        if ($value === null || $value === '') {
-            return [];
-        }
-
-        if (is_numeric($value)) {
-            return [(int) $value];
-        }
-
-        if (!is_array($value)) {
-            return [];
-        }
-
-        return array_values(array_unique(array_filter(array_map(
-            static fn ($id) => is_numeric($id) ? (int) $id : null,
-            $value
-        ))));
-    }
-
-    /**
-     * Extract user IDs from request, including optional alternate key.
-     * Returns null when the field was omitted; an array when present (empty arrays are no-ops).
-     */
-    private function extractUserIdList(Request $request, string $key, ?string $alternateKey = null): ?array
-    {
-        if ($request->has($key)) {
-            return $this->normalizeUserIdList($request->input($key));
-        }
-
-        if ($alternateKey !== null && $request->has($alternateKey)) {
-            return $this->normalizeUserIdList($request->input($alternateKey));
-        }
-
-        return null;
-    }
-
-    /**
-     * Resolve valid active user IDs scoped to company when possible.
-     */
-    private function resolveValidUserIds(array $userIds, int $companyId): array
-    {
-        if (empty($userIds)) {
-            return [];
-        }
-
-        return User::query()
-            ->whereIn('id', $userIds)
-            ->when($companyId > 0, fn ($query) => $query->where('company_id', $companyId))
-            ->pluck('id')
-            ->toArray();
     }
 }
 
