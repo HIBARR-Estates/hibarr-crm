@@ -3,6 +3,7 @@
 return [
 
     'description',
+    'outro_description',
     'summery',
     'note',
     'notes',
