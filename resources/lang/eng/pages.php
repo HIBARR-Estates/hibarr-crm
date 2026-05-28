@@ -244,6 +244,7 @@ return [
                 'delete'            => 'Delete Deal',
                 'manage_properties' => 'Manage Properties',
                 'recalculate_value_tooltip' => 'Recalculate value from attached products, packages, and applied offers',
+                'view_lead_profile' => 'View lead profile',
             ],
             'value_insight' => [
                 'properties'        => 'Properties',

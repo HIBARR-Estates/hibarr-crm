@@ -73,6 +73,7 @@ class DealPropertyService
         }
 
         $deal->products()->attach($product->id);
+        app(DealActivityEventService::class)->recordProductLinked($deal, $product, $property);
         $this->dealValueResolver->resolveAndPersist($deal->fresh());
 
         return ['status' => 'success', 'message' => 'Property attached successfully.'];
@@ -88,7 +89,21 @@ class DealPropertyService
             ->where('product_id', $productId)
             ->delete();
 
+        $oldPropertyIds = $deal->products()->pluck('products.id')->toArray();
+        $oldPropertyNames = $deal->products()->pluck('products.name', 'products.id')->toArray();
+
         $deal->products()->detach($productId);
+
+        $newPropertyIds = $deal->products()->pluck('products.id')->toArray();
+        $newPropertyNames = $deal->products()->pluck('products.name', 'products.id')->toArray();
+
+        app(DealActivityEventService::class)->recordPropertyUnlinked(
+            $deal,
+            $oldPropertyIds,
+            $newPropertyIds,
+            $oldPropertyNames,
+            $newPropertyNames
+        );
 
         $this->dealValueResolver->resolveAndPersist($deal);
 
@@ -151,6 +166,7 @@ class DealPropertyService
         ]);
 
         $deal->products()->attach($product->id);
+        app(DealActivityEventService::class)->recordProductLinked($deal, $product, $property);
 
         // Apply selected offers immediately
         if (!empty($offerIds)) {

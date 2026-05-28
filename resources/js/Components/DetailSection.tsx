@@ -6,6 +6,7 @@ import {
     RightOutlined,
 } from "@ant-design/icons";
 import { Tooltip } from "antd";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ─── DetailFieldEditContext ────────────────────────────────────────────────────
 // Lets a child EditableField register its startEditing fn so the parent
@@ -49,26 +50,25 @@ export function DetailSection({
     onToggle,
     sectionId,
 }: DetailSectionProps) {
-    const showBody = !accordion || isOpen;
-
     return (
         <div
             id={sectionId}
-            className={`bg-white border border-gray-100 rounded-xl overflow-hidden mb-4 last:mb-0 ${className}`}
+            className={`bg-white border border-gray-100 rounded-lg overflow-hidden mb-4 last:mb-0 ${className}`}
         >
             {title &&
                 (accordion ? (
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="w-full flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80 hover:bg-gray-100 transition-colors duration-150 text-left"
+                        className="w-full flex cursor-pointer items-center justify-between px-5 py-3 border-b border-[#002040] bg-[#002040] hover:bg-[#003060] transition-colors duration-150 text-left"
                         aria-expanded={isOpen}
                     >
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
                             {title}
                         </h3>
                         <RightOutlined
-                            className={`text-gray-400 text-[10px] transition-transform duration-200 ${
+                            style={{ color: "white" }}
+                            className={`text-[10px] transition-transform duration-300 ${
                                 isOpen ? "rotate-90" : ""
                             }`}
                         />
@@ -80,9 +80,15 @@ export function DetailSection({
                         </h3>
                     </div>
                 ))}
-            {showBody && (
-                <div className={`px-4 py-3 ${gridClassName}`}>{children}</div>
-            )}
+            <div
+                className={`grid transition-all duration-300 ease-in-out ${
+                    accordion ? (isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]") : "grid-rows-[1fr]"
+                }`}
+            >
+                <div className="overflow-hidden">
+                    <div className={`px-4 py-3 ${gridClassName}`}>{children}</div>
+                </div>
+            </div>
         </div>
     );
 }
@@ -108,7 +114,9 @@ export function DetailField({
     copyValue,
 }: DetailFieldProps) {
     // editHandler is registered by a child EditableField via context
-    const [editHandler, setEditHandlerState] = useState<(() => void) | null>(null);
+    const [editHandler, setEditHandlerState] = useState<(() => void) | null>(
+        null,
+    );
     const [isFieldEditing, setIsFieldEditing] = useState(false);
     const [copied, setCopied] = useState(false);
 
@@ -123,13 +131,16 @@ export function DetailField({
 
     const handleCopy = useCallback(() => {
         if (!copyValue) return;
-        if (typeof window !== 'undefined' && navigator?.clipboard) {
-            navigator.clipboard.writeText(copyValue).then(() => {
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1500);
-            }).catch(() => {
-                fallbackCopy(copyValue);
-            });
+        if (typeof window !== "undefined" && navigator?.clipboard) {
+            navigator.clipboard
+                .writeText(copyValue)
+                .then(() => {
+                    setCopied(true);
+                    setTimeout(() => setCopied(false), 1500);
+                })
+                .catch(() => {
+                    fallbackCopy(copyValue);
+                });
         } else {
             fallbackCopy(copyValue);
         }
@@ -137,14 +148,14 @@ export function DetailField({
 
     const fallbackCopy = (text: string) => {
         try {
-            const ta = document.createElement('textarea');
+            const ta = document.createElement("textarea");
             ta.value = text;
-            ta.style.position = 'fixed';
-            ta.style.opacity = '0';
+            ta.style.position = "fixed";
+            ta.style.opacity = "0";
             document.body.appendChild(ta);
             ta.focus();
             ta.select();
-            document.execCommand('copy');
+            document.execCommand("copy");
             document.body.removeChild(ta);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
@@ -155,8 +166,9 @@ export function DetailField({
 
     const ctx = useMemo(
         () => ({ setEditHandler, setIsEditing }),
-        [setEditHandler, setIsEditing]
+        [setEditHandler, setIsEditing],
     );
+    const { td } = useTd();
 
     return (
         <DetailFieldEditContext.Provider value={ctx}>
@@ -168,7 +180,7 @@ export function DetailField({
                 {/* Label row — edit pencil appears here on group hover */}
                 <div className="flex items-center gap-1">
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400 leading-[1.5]">
-                        {label}
+                        {td(label)}
                     </span>
                     {editHandler && (
                         <EditOutlined

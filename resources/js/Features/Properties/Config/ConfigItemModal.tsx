@@ -70,6 +70,7 @@ const ConfigItemModal = ({
     const isEditing = !!editingItem;
     const supportsImageUpload =
         activeType === "cities" ||
+        activeType === "project-facilities" ||
         activeType === "airports" ||
         activeType === "infrastructures";
 
@@ -157,9 +158,11 @@ const ConfigItemModal = ({
                 const folder =
                     activeType === "cities"
                         ? "property-cities"
-                        : activeType === "airports"
-                          ? "property-airports"
-                          : "property-infrastructures";
+                        : activeType === "project-facilities"
+                          ? "property-project-facilities"
+                          : activeType === "airports"
+                            ? "property-airports"
+                            : "property-infrastructures";
                 const uploadResult = await uploadService.uploadSingle(
                     imageFile,
                     folder,
@@ -488,33 +491,40 @@ const ConfigItemModal = ({
                     )}
 
                     {activeType === "project-facilities" && (
-                        <Form.Item
-                            name="icon"
-                            label="Icon"
-                            tooltip="Select an icon to represent this facility"
-                        >
-                            <Select
-                                placeholder="Select an icon"
-                                allowClear
-                                showSearch
-                                optionFilterProp="label"
-                                options={FACILITY_ICON_OPTIONS.map((opt) => ({
-                                    value: opt.value,
-                                    label: opt.label,
-                                }))}
-                                optionRender={(option) => {
-                                    const IconComp = getFacilityIconComponent(
-                                        option.value as string,
-                                    );
-                                    return (
-                                        <div className="flex items-center gap-2">
-                                            <IconComp size={16} />
-                                            <span>{option.label}</span>
-                                        </div>
-                                    );
-                                }}
-                            />
-                        </Form.Item>
+                        <>
+                            <Form.Item
+                                name="icon"
+                                label="Icon"
+                                tooltip="Select an icon to represent this facility"
+                            >
+                                <Select
+                                    placeholder="Select an icon"
+                                    allowClear
+                                    showSearch
+                                    optionFilterProp="label"
+                                    options={FACILITY_ICON_OPTIONS.map((opt) => ({
+                                        value: opt.value,
+                                        label: opt.label,
+                                    }))}
+                                    optionRender={(option) => {
+                                        const IconComp =
+                                            getFacilityIconComponent(
+                                                option.value as string,
+                                            );
+                                        return (
+                                            <div className="flex items-center gap-2">
+                                                <IconComp size={16} />
+                                                <span>{option.label}</span>
+                                            </div>
+                                        );
+                                    }}
+                                />
+                            </Form.Item>
+                            {renderImageUploader(
+                                "Default Image",
+                                "Used in expose when no image is tagged for this facility",
+                            )}
+                        </>
                     )}
 
                     {activeType === "infrastructures" && (

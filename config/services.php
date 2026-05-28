@@ -87,6 +87,12 @@ return [
         'cache_ttl' => env('PROPERTY_RECOMMENDATION_CACHE_TTL', 900), // 15 minutes
     ],
 
+    'dynamic_translation' => [
+        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', 'https://staging-api.hibarr.org/v1')),
+        'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
+        'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
+    ],
+
     'keycloak' => [
         'client_id'     => env('KEYCLOAK_CLIENT_ID'),
         'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),

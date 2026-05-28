@@ -45,6 +45,7 @@ interface TaskListViewProps {
         newStatus: string,
         newColumnId: number,
     ) => void;
+    td?: (key: string) => string; // Optional translation function
 }
 
 const PriorityIcon = ({ priority }: { priority: string }) => {
@@ -86,6 +87,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     onDelete,
     onDuplicate,
     onStatusChange,
+    td = (key) => key, // Default to identity function if no translation provided
 }) => {
     const { user, permissions } = usePermission();
 
@@ -150,17 +152,17 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     />
                 </div>
                 <div className="w-8 ml-6 flex items-center justify-center">
-                    Priority
+                    {td("Priority")}
                 </div>
-                <div className="flex-1 ml-6">Title</div>
+                <div className="flex-1 ml-6">{td("Title")}</div>
                 <div className="w-24 ml-6 flex items-center justify-center">
-                    Status
+                    {td("Status")}
                 </div>
                 <div className="w-32 ml-6 hidden md:flex items-center justify-center">
-                    Assignee
+                    {td("Assignee")}
                 </div>
                 <div className="w-24 ml-6 hidden lg:flex items-center justify-center">
-                    Due
+                    {td("Due")}
                 </div>
                 <div className="w-10 ml-6"></div>
             </div>
@@ -177,20 +179,20 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     const actions: MenuProps["items"] = [
                         {
                             key: "view",
-                            label: "View Details",
+                            label: td("View Details"),
                             icon: <EyeOutlined />,
                             onClick: () => onView(task),
                         },
                         {
                             key: "edit",
-                            label: "Edit",
+                            label: td("Edit"),
                             icon: <EditOutlined />,
                             onClick: () => onEdit(task),
                             disabled: !canEdit,
                         },
                         {
                             key: "duplicate",
-                            label: "Duplicate",
+                            label: td("Duplicate"),
                             icon: <CopyOutlined />,
                             onClick: () => onDuplicate(task),
                             disabled: permissions["add_tasks"] === "none",
@@ -200,7 +202,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         },
                         {
                             key: "delete",
-                            label: "Delete",
+                            label: td("Delete"),
                             icon: <DeleteOutlined />,
                             danger: true,
                             onClick: () => onDelete(task),
@@ -241,7 +243,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                     className="font-medium text-gray-900 truncate cursor-pointer hover:underline"
                                     onClick={() => onView(task)}
                                 >
-                                    {task.heading}
+                                    {td(task.heading)}
                                 </span>
                                 {task.labels && task.labels.length > 0 && (
                                     <div className="flex gap-1 overflow-hidden">
@@ -255,7 +257,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                                         backgroundColor:
                                                             label.label_color,
                                                     }}
-                                                    title={label.label_name}
+                                                    title={td(label.label_name)}
                                                 />
                                             ))}
                                     </div>
@@ -278,7 +280,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                                         }}
                                                     />
                                                     <span>
-                                                        {col.column_name}
+                                                        {td(col.column_name)}
                                                     </span>
                                                 </div>
                                             ),
@@ -305,9 +307,9 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                             backgroundColor: "white",
                                         }}
                                     >
-                                        {(
+                                        {td(
                                             task.board_column?.column_name ||
-                                            task.status
+                                                task.status,
                                         )
                                             .split("_")
                                             .join(" ")}
@@ -363,7 +365,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                 })}
                 {tasks.length === 0 && (
                     <div className="p-8 text-center text-gray-400">
-                        No tasks found.
+                        {td("No tasks found.")}
                     </div>
                 )}
             </div>

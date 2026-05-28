@@ -138,6 +138,7 @@ use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
 use App\Http\Controllers\MeetingTypeController;
+use App\Http\Controllers\DynamicTranslationController;
 
 // Signed URL route for availability request email responses (no auth required)
 Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'respondFromEmail'])
@@ -578,6 +579,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('batch', [FormDataController::class, 'batch'])->name('form-data.batch');
     });
 
+    // Dynamic translation lookup API (auth-protected)
+    Route::prefix('api/dynamic-translations')->group(function () {
+        Route::post('batch', [DynamicTranslationController::class, 'batch'])->name('dynamic-translations.batch');
+    });
     // deals route
 
     // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
@@ -1370,3 +1375,196 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         });
     });
 });
+
+
+if (!app()->environment('production')) {
+    Route::get('debug/expose-template', function () {
+        $data = [
+            'assets' => [
+                'hero' => ['https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958912490-9a423243-23.jpg'],
+                'cover' => ['https://minio.hibarr.org/backend-uploads/developer-projects/47/assets/1777393241134-a23f5af0-5.jpg'],
+                'exterior' => [
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/51/assets/1777634351907-f0ea70de-1.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/51/assets/1777634351907-f0ea70de-1.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/42/assets/1777023118345-18624e20-2.jpeg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958911743-b21bfa96-22.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958911005-f9c65c66-21.jpg',
+                ],
+                'interior' => [
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/47/unit-types/184/assets/1777394074170-742a602e-6.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/47/unit-types/184/assets/1777394074889-9a34fceb-7.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/47/unit-types/185/assets/1777394345447-ea495007-3.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/47/unit-types/185/assets/1777394345447-ea495007-3.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/47/unit-types/185/assets/1777394351564-2ca4e02f-10.jpg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/47/unit-types/184/assets/1777394073656-eb6805fb-5.jpg'
+                ],
+                'facilities' => [
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/36/assets/1776778138230-ae745cb5-2026-04-21-16-25-26.png',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/37/assets/1776784462866-6403eb43-1.jpeg',
+                    'https://minio.hibarr.org/backend-uploads/developer-projects/40/assets/1776874576035-78862d53-carrington-esentepe-vaz-aci-00-email-c.jpg',
+                ],
+                'floor-plan' => ['https://minio.hibarr.org/backend-uploads/developer-projects/53/unit-types/197/assets/1778240261212-3b37b114-studio-plan.png'],
+                'footer' => ['https://minio.hibarr.org/backend-uploads/developer-projects/40/assets/1776874579203-095a9e3f-carrington-esentepe-vaz-aci-130-email-d.jpg']
+            ],
+            'branding' => [
+                'name_space' => url('/property/assets/name_space.png'),
+                'hibarr_expose_text' => url('/property/assets/hibarr_expose_text.png'),
+                'project_overview' => url('/property/assets/project_overview_space_for_img.png'),
+                'cover_image_project' => url('/property/assets/cover_image_project.png'),
+                'project_overview_example' => url('/property/assets/project_overview.png'),
+                'panther_watermark' => url('/property/assets/panther_watermark.svg'),
+                'logo_blue' => url('/property/assets/logo_blue.svg'),
+                'expose_name_client' => url('/property/assets/expose_name_client.svg'),
+                'sharp_page_header' => url('/property/assets/sharp_page_header.svg'),
+                'map' => url('/property/assets/map.svg'),
+                'pin' => url('/property/assets/pin.svg'),
+                'arrow' => url('/property/assets/arrow.svg'),
+                'hibarr_expose_logo' => url('/property/icons/hibarr-expose.png'),
+                'logo_white' => url('/property/icons/logo-white.png'),
+                'logo_rounded' => url('/property/icons/hibarr-rounded.png'),
+                'block_title' => url('/property/icons/block-title.svg'),
+                'logo_full' => url('/property/icons/logo.png'),
+            ],
+            'client' => ['name' => 'Ayomide Oluniyi'],
+            'bedrooms' => 4,
+            'living_room' => 1,
+            'display_label' => '',
+            'block_name' => 'Floor Plan',
+            'description' => "
+            <p>Imagine stepping into a bright, modern studio designed to make everyday living effortless. Soft lighting and clean finishes create a welcoming feel, while a smart layout gives you space to cook, rest, and work in comfort. From wide glass doors overlooking the pool to a window that opens to sea views , the room is filled with sunshine and a soft coastal breeze, filling the room with natural light and a calm, holiday vibe.
+            </p>
+
+            <p style='margin-top: 1em;'>
+            But it’s not just a lovely place to live, it’s also a smart choice for investors. With its strong rental appeal and low upkeep, it meets the growing demand for stylish, compact living. This studio promises good occupancy rates and impressive returns, making it a fantastic opportunity for those looking to invest wisely.
+            </p>
+",
+            'location_payload' => [
+                'name' => ' Esentepe, Kyrenia   ',
+                'description' => 
+                "
+                <p>Esentepe is a scenic coastal village located in Northern Cyprus, east of Kyrenia. Known for its natural beauty, peaceful environment, and panoramic views of the Mediterranean Sea, Esentepe has become an increasingly popular destination for both tourists and property investors. The area combines traditional Cypriot charm with modern developments, offering a mix of tranquil village life and convenient access to amenities.</p>
+                <p style='margin-top: 1em;'>
+                Surrounded by mountains and sea, Esentepe is home to beautiful beaches, hiking trails, and one of the region’s top golf courses, the Korineum Golf & Beach Resort. Its close proximity to Kyrenia allows for easy access to shopping, dining, and cultural attractions, while maintaining a quieter and more relaxed atmosphere.</p>
+              
+                "
+                ,
+                'image_url' => 'https://minio.hibarr.org/backend-uploads/developer-projects/11/assets/1772701670268-a3c13b32-22%20APRIL%20PHUKET%201%201.1.jpg',
+            ],
+            'location_infrastructure' => [
+                ['name' => 'Schools & Universities', 'distance' => '35 min', 'image' => 'https://minio.hibarr.org/backend-uploads/developer-projects/12/assets/1772798642170-98738864-casa-del-mare_1689668374.webp'],
+                ['name' => 'Hospital', 'distance' => '35 min', 'image' => 'https://minio.hibarr.org/backend-uploads/developer-projects/12/assets/1772798642636-95838987-casa-del-mare-sea-view-villas-na-sprzedaz-w-polnocnym-cyprze_1763971901_6.webp'],
+                ['name' => 'Supermarket', 'distance' => '2 min', 'image' => 'https://minio.hibarr.org/backend-uploads/developer-projects/12/assets/1772798643257-d7420b14-casa-del-mare-sea-view-villas-na-sprzedaz-w-polnocnym-cyprze_1763971901_14.webp'],
+                ['name' => 'Beach', 'distance' => '5 min', 'image' => 'https://minio.hibarr.org/backend-uploads/developer-projects/12/assets/1772798643749-4ceddccd-casa-del-mare-sea-view-villas-na-sprzedaz-w-polnocnym-cyprze_1763971956_12.webp'],
+            ],
+            'location_airports' => [
+                ['name' => 'Ercan International', 'distance' => '32', 'image' => 'https://minio.hibarr.org/backend-uploads/developer-projects/13/unit-types/56/assets/1772810961229-006e8c27-villa%20night2.jpg'],
+                ['name' => 'Paphos International', 'distance' => '160', 'image' => 'https://minio.hibarr.org/backend-uploads/developer-projects/13/unit-types/56/assets/1772810960321-4298e6da-villa%20night.jpg'],
+                ['name' => 'Larnaca International', 'distance' => '81.4', 'image' => 'https://minio.hibarr.org/backend-uploads/developer-projects/13/unit-types/56/assets/1772810961229-006e8c27-villa%20night2.jpg'],
+                ],
+            'facilities' => [
+                'bar', 'basketball_court', 'beach', 'cafe', 'car_park', 'central_generator', 'cleaning_service', 'cycling_routes', 'gated_community', 'gym', 
+                
+                // 'hamam', 'indoor_pool', 
+                'kids_playground', 'massage_spa', 'on_site_management', 
+                'outdoor_pool', 'restaurant', 'sauna', 'security_24_7', 
+                
+                'tennis_court', 
+                'walking_paths', 'supermarket'
+            ],
+            'facility_labels' => [
+                'Bar', 'Basketball Court', 'Beach', 'Cafe', 'Car Park', 'Central Generator', 'Cleaning Service', 'Cycling Routes', 'Gated Community', 'Gym', 'Hamam', 'Indoor Pool', 
+                'Kids Playground', 'Massage Spa', 'On-site Management', 'Outdoor Pool', 
+                'Restaurant', 'Sauna', 'Security 24/7',
+                 'Tennis Court', 'Walking Paths', 'Supermarket'
+            ],
+            'facility_images_by_slug' => [
+                'bar' => ['https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958914628-198cbf76-25.jpg'],
+                'basketball_court' => ['https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958915571-2f336d93-26.jpg'],
+                'beach' => ['https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958916830-c0af6049-27.jpg'],
+                'cafe' => ['https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958905344-9edcfc1c-15.jpg'],
+                'car_park' => ['https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958906313-48a8e43a-16.jpg'],
+                'central_generator' => ['https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319325248-24f790fa-8.jpg'],
+                'cleaning_service' => ['https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319348395-f67db718-9.jpg'],
+                'cycling_routes' => ['https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319367430-0d6fd132-10.jpg'],
+                'gated_community' => ['https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319388730-19ed746c-11.jpg'],
+                'gym' => ['https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319452222-94c3cf36-14.jpg'],
+                'hamam' => ['https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319462254-c61db28d-16.jpg'],
+                'indoor_pool' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369425974-7083ad4c-6.jpg'],
+                'kids_playground' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369428292-1bed2ca1-7.jpg'],
+                'massage_spa' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369434854-b83be26f-10.jpg'],
+                'on_site_management' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369436478-04334b3f-11.jpg'],
+                'outdoor_pool' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369437648-673730e2-12.jpg'],
+                'restaurant' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369438900-e8b451de-13.jpg'],
+                'sauna' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369440130-11f21c82-14.jpg'],
+                'security_24_7' => ['https://minio.hibarr.org/backend-uploads/developer-projects/45/unit-types/180/assets/1777370282693-a9a7668f-copy-of-img-1798.jpg'],
+                // tennis_court, walking_paths, supermarket left as defaults if needed
+            ],
+            'facility_default_images_by_slug' => [
+                'bar' => 'https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958914628-198cbf76-25.jpg',
+                'basketball_court' => 'https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958915571-2f336d93-26.jpg',
+                'beach' => 'https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958916830-c0af6049-27.jpg',
+                'cafe' => 'https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958905344-9edcfc1c-15.jpg',
+                'car_park' => 'https://minio.hibarr.org/backend-uploads/developer-projects/41/assets/1776958906313-48a8e43a-16.jpg',
+                'central_generator' => 'https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319325248-24f790fa-8.jpg',
+                'cleaning_service' => 'https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319348395-f67db718-9.jpg',
+                'cycling_routes' => 'https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319367430-0d6fd132-10.jpg',
+                'gated_community' => 'https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319388730-19ed746c-11.jpg',
+                'gym' => 'https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319452222-94c3cf36-14.jpg',
+                'hamam' => 'https://minio.hibarr.org/backend-uploads/developer-projects/44/assets/1777319462254-c61db28d-16.jpg',
+                'indoor_pool' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369425974-7083ad4c-6.jpg',
+                'kids_playground' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369428292-1bed2ca1-7.jpg',
+                'massage_spa' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369434854-b83be26f-10.jpg',
+                'on_site_management' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369436478-04334b3f-11.jpg',
+                'outdoor_pool' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369437648-673730e2-12.jpg',
+                'restaurant' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369438900-e8b451de-13.jpg',
+                'sauna' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/assets/1777369440130-11f21c82-14.jpg',
+                'security_24_7' => 'https://minio.hibarr.org/backend-uploads/developer-projects/45/unit-types/180/assets/1777370282693-a9a7668f-copy-of-img-1798.jpg',
+            ],
+            'exterior_features' => [
+                'Bar', 'Basketball Court', 'Beach', 'Cafe', 'Car Park', 'Central Generator', 'Cleaning Service', 'Cycling Routes', 'Gated Community', 'Gym', 'Hamam', 'Indoor Pool', 'Kids Playground', 'Massage Spa', 'On-site Management', 'Outdoor Pool', 'Restaurant', 'Sauna', 'Security 24/7', 'Tennis Court', 'Walking Paths', 'Supermarket'
+            ],
+            'agent' => [
+                'name' => 'Rabih Rabea',
+                'position' => 'Real Estate Consultant',
+                'email' => 'info@hibarr.de',
+                'phone' => '+49 173 100 99 00',
+            ],
+            'company' => [
+                'website' => 'www.hibarr.de',
+                'address' => 'Sehit Mehmet Mustafa Sokak 171, 9930 Kyrenia Merkez, North Cyprus',
+            ],
+            'expose_global_config' => [
+                'outro' => [
+                    'title' => 'ROOTED IN BEAUTY, GROWING IN VALUE',
+                    'description' => "
+                    <p>A rare Mediterranean destination with crystal-clear waters, golden beaches, and centuries of rich history, creating an unmatched lifestyle.</p>
+                    <p style='margin-top: 1em;'>
+                    Whether you seek a smart investment or a dream vacation home, North Cyprus blends natural beauty, cultural heritage, and modern comfort.
+
+                    </p>
+                    <p style='margin-top: 1em;'>
+                    With 340+ sunny days, low living costs, and one of Europe’s safest lifestyles, North Cyprus invites you to belong to a place where time slows, opportunities grow, and the Mediterranean feels truly authentic.
+
+                    </p>
+                    
+                    ",
+                    'primary_image_url' => 'https://minio.hibarr.org/backend-uploads/developer-projects/15/assets/1776678701638-a5b7ecc7-1775145486331-b8d156a2-a-tipi-balkony-1.jpeg',
+                    'secondary_image_url' => 'https://minio.hibarr.org/backend-uploads/developer-projects/15/assets/1776678702665-ce9e5bac-1775145487030-3f54324c-a-tipi.jpeg',
+                ],
+                'qr' => [
+                    'enabled' => true,
+                    'qr_code_data_uri' => 'https://via.placeholder.com/185?text=QR',
+                    'label' => 'Scan for more details',
+                ],
+            ],
+            'unit_style_list' => ['Studio', 'City Apartment'],
+            'unit_style' => ['Studio', 'City Apartment'],
+            'distances' => [
+                ['type' => 'infrastructure', 'title' => 'Metro Station', 'distance' => '2 km', 'image' => 'https://via.placeholder.com/400x300?text=Metro'],
+                ['type' => 'airport', 'title' => 'Regional Airport', 'distance' => '25 km', 'image' => 'https://via.placeholder.com/400x300?text=Airport'],
+            ],
+        ];
+
+        return view('pdf.expose.property.expose-template', compact('data'));
+    })->name('debug.expose_template');
+}

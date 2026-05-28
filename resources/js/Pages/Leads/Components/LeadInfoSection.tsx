@@ -74,9 +74,9 @@ export default function LeadInfoSection({
     const user = props.auth.user;
     const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState("overview");
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-        {},
-    );
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+        "lead-contact": true,
+    });
 
     const ALL_SECTIONS = useMemo(() => [
         "lead-contact",
@@ -119,7 +119,10 @@ export default function LeadInfoSection({
         const el = sectionRefs.current[key];
         const container = scrollContainerRef.current;
         if (el && container) {
-            container.scrollTo({ top: el.offsetTop - 8, behavior: "smooth" });
+            const elTop = el.getBoundingClientRect().top;
+            const containerTop = container.getBoundingClientRect().top;
+            const targetScrollTop = container.scrollTop + (elTop - containerTop);
+            container.scrollTo({ top: Math.max(0, targetScrollTop), behavior: "smooth" });
         }
         const sectionsToExpand = getSectionsForKey(key);
         if (sectionsToExpand.length > 0) {
@@ -496,13 +499,6 @@ export default function LeadInfoSection({
             icon: <CheckSquareOutlined />,
             label: <span>{t("pages.leads.info.actions.add_task")}</span>,
             onClick: () => setIsTaskModalOpen(true),
-        },
-        {
-            key: "toggle_sections",
-            tooltip: allSectionsOpen ? t("app.common.actions.collapse_all") : t("app.common.actions.expand_all"),
-            type: "text" as const,
-            icon: allSectionsOpen ? <MinusSquareOutlined /> : <PlusSquareOutlined />,
-            onClick: handleToggleAll,
         },
         // ...(canEdit  //deprecated
         //     ? [
@@ -1065,7 +1061,7 @@ export default function LeadInfoSection({
             <div>
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 bg-gray-50/80">
-                    <div className="flex items-center gap-x-2">
+                    <div className="flex items-center gap-x-3 flex-wrap">
                         <h2 className="text-sm font-semibold text-gray-700">
                             {t("pages.leads.info.title")}
                         </h2>
@@ -1079,6 +1075,23 @@ export default function LeadInfoSection({
                                 {Object.keys(pendingChanges).length} unsaved
                             </Tag>
                         )}
+                        <Button
+                            type="text"
+                            size="small"
+                            className="text-gray-600"
+                            icon={
+                                allSectionsOpen ? (
+                                    <MinusSquareOutlined />
+                                ) : (
+                                    <PlusSquareOutlined />
+                                )
+                            }
+                            onClick={handleToggleAll}
+                        >
+                            {allSectionsOpen
+                                ? t("app.common.actions.collapse_all")
+                                : t("app.common.actions.expand_all")}
+                        </Button>
                     </div>
                     <Space size="small">
                         {actionItems.map((item) => (

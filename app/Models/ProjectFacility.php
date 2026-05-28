@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  * @property string      $label       Human-readable display label
  * @property string|null $description
  * @property string|null $icon        Lucide icon identifier (e.g. "waves", "dumbbell")
+ * @property string|null $image_url   Default facility image URL used in expose fallback
  */
 class ProjectFacility extends BaseModel
 {
@@ -30,5 +31,6 @@ class ProjectFacility extends BaseModel
         'label',
         'description',
         'icon',
+        'image_url',
     ];
 }

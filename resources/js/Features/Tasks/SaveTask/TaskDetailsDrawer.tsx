@@ -111,11 +111,13 @@ export interface Task {
 interface TaskDetailsDrawerProps {
     task: Task | null | undefined;
     loading: boolean;
+    td?: (key: string) => string;
 }
 
 const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
     task: initialTask,
     loading: initialLoading,
+    td = (key) => key,
 }) => {
     // Fetch full task details
     const { data: fetchedTaskData, isLoading: isFetchingTask } = useApiQuery<{
@@ -220,14 +222,14 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             </Space>
                             <Space>
                                 {Boolean(task.is_private) && (
-                                    <Tooltip title="Private Task">
+                                    <Tooltip title={td("Private Task")}>
                                         <LockOutlined
                                             style={{ color: "#fa8c16" }}
                                         />
                                     </Tooltip>
                                 )}
                                 {Boolean(task.billable) && (
-                                    <Tooltip title="Billable">
+                                    <Tooltip title={td("Billable")}>
                                         <DollarOutlined
                                             style={{ color: "#52c41a" }}
                                         />
@@ -279,7 +281,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     </Col>
                     <Col span={12}>
                         <Space direction="vertical" size="small">
-                            <Text strong>Status</Text>
+                            <Text strong>{td("Status")}</Text>
                             <Tag
                                 color={getStatusColor(task.status)}
                                 className="capitalize"
@@ -299,25 +301,25 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 title={
                     <Space>
                         <CalendarOutlined />
-                        Timeline
+                        {td("Timeline")}
                     </Space>
                 }
                 style={{ marginBottom: 16 }}
                 variant="outlined"
             >
                 <Descriptions size="small" column={1}>
-                    <Descriptions.Item label="Start Date">
+                    <Descriptions.Item label={td("Start Date")}>
                         {task.start_date
                             ? dayjs(task.start_date).format(
-                                  "MMM DD, YYYY h:mm A"
+                                  "MMM DD, YYYY h:mm A",
                               )
                             : "Not set"}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Due Date">
+                    <Descriptions.Item label={td("Due Date")}>
                         {task.due_date ? (
                             <Space>
                                 {dayjs(task.due_date).format(
-                                    "MMM DD, YYYY h:mm A"
+                                    "MMM DD, YYYY h:mm A",
                                 )}
                                 {dayjs().isAfter(dayjs(task.due_date)) && (
                                     <Tag color="red">Overdue</Tag>
@@ -330,16 +332,16 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     {(task.created_at || task.updated_at) && (
                         <>
                             {task.created_at && (
-                                <Descriptions.Item label="Created">
+                                <Descriptions.Item label={td("Created")}>
                                     {dayjs(task.created_at).format(
-                                        "MMM DD, YYYY HH:mm"
+                                        "MMM DD, YYYY HH:mm",
                                     )}
                                 </Descriptions.Item>
                             )}
                             {task.updated_at && (
-                                <Descriptions.Item label="Last Updated">
+                                <Descriptions.Item label={td("Last Updated")}>
                                     {dayjs(task.updated_at).format(
-                                        "MMM DD, YYYY HH:mm"
+                                        "MMM DD, YYYY HH:mm",
                                     )}
                                 </Descriptions.Item>
                             )}
@@ -355,7 +357,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     title={
                         <Space>
                             <ClockCircleOutlined />
-                            Time Tracking
+                            {td("Time Tracking")}
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
@@ -364,7 +366,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     <Space direction="vertical" style={{ width: "100%" }}>
                         <Row gutter={16}>
                             <Col span={12}>
-                                <Text strong>Estimated</Text>
+                                <Text strong>{td("Estimated")}</Text>
                                 <br />
                                 <Text>
                                     {estimatedMinutes > 0
@@ -373,7 +375,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 </Text>
                             </Col>
                             <Col span={12}>
-                                <Text strong>Time Spent</Text>
+                                <Text strong>{td("Time Spent")}</Text>
                                 <br />
                                 <Text>
                                     {spentMinutes > 0
@@ -386,7 +388,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             <>
                                 <Divider />
                                 <div>
-                                    <Text strong>Progress</Text>
+                                    <Text strong>{td("Progress")}</Text>
                                     <Progress
                                         percent={Math.round(progressPercent)}
                                         status={
@@ -410,7 +412,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     title={
                         <Space>
                             <ProjectOutlined />
-                            Project & Assignment
+                            {td("Project & Assignment")}
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
@@ -418,7 +420,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                 >
                     {task.project && (
                         <div style={{ marginBottom: 16 }}>
-                            <Text strong>Project</Text>
+                            <Text strong>{td("Project")}</Text>
                             <br />
                             <Space>
                                 <ProjectOutlined />
@@ -432,7 +434,9 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
 
                     {task.users && task.users.length > 0 && (
                         <div>
-                            <Text strong>Assignees ({task.users.length})</Text>
+                            <Text strong>
+                                {td("Assignees")} ({task.users.length})
+                            </Text>
                             <List
                                 size="small"
                                 style={{ marginTop: 8 }}
@@ -460,7 +464,9 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                                             fontSize: "12px",
                                                         }}
                                                     >
-                                                        {user.designation_name}
+                                                        {td(
+                                                            user.designation_name,
+                                                        )}
                                                     </Text>
                                                 )}
                                             </div>
@@ -480,7 +486,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     title={
                         <Space>
                             <TagOutlined />
-                            Categories & Labels
+                            {td("Categories & Labels")}
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
@@ -493,15 +499,15 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                     (task?.labels || [])?.length > 0 ? 16 : 0,
                             }}
                         >
-                            <Text strong>Category</Text>
+                            <Text strong>{td("Category")}</Text>
                             <br />
-                            <Tag>{task.category.category_name}</Tag>
+                            <Tag>{td(task.category.category_name)}</Tag>
                         </div>
                     )}
 
                     {task.labels && task.labels.length > 0 && (
                         <div>
-                            <Text strong>Labels</Text>
+                            <Text strong>{td("Labels")}</Text>
                             <br />
                             <Space wrap style={{ marginTop: 4 }}>
                                 {task.labels.slice(0, 2).map((label: any) => (
@@ -514,14 +520,14 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                             color: "#fff",
                                         }}
                                     >
-                                        {label.label_name}
+                                        {td(label.label_name)}
                                     </Tag>
                                 ))}
                                 {task.labels.length > 2 && (
                                     <Tooltip
                                         title={task.labels
                                             .slice(2)
-                                            .map((l: any) => l.label_name)
+                                            .map((l: any) => td(l.label_name))
                                             .join(", ")}
                                     >
                                         <Tag>+{task.labels.length - 2}</Tag>
@@ -542,7 +548,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     title={
                         <Space>
                             <FlagOutlined />
-                            Related Entities
+                            {td("Related Entities")}
                         </Space>
                     }
                     style={{ marginBottom: 16 }}
@@ -559,7 +565,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                         : 0,
                             }}
                         >
-                            <Text strong>Deals</Text>
+                            <Text strong>{td("Deals")}</Text>
                             <List
                                 size="small"
                                 dataSource={task.deals}
@@ -572,7 +578,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                             <LinkOutlined
                                                 style={{ fontSize: 12 }}
                                             />
-                                            {deal.name}
+                                            {td(deal.name)}
                                         </Link>
                                     </List.Item>
                                 )}
@@ -587,7 +593,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                     (task.properties?.length || 0) > 0 ? 16 : 0,
                             }}
                         >
-                            <Text strong>Leads</Text>
+                            <Text strong>{td("Leads")}</Text>
                             <List
                                 size="small"
                                 dataSource={task.leads}
@@ -596,7 +602,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                         <Link
                                             href={route(
                                                 "lead-contact.show",
-                                                lead.id
+                                                lead.id,
                                             )}
                                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
                                         >
@@ -616,7 +622,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                     {/* Properties */}
                     {task.properties && task.properties.length > 0 && (
                         <div>
-                            <Text strong>Properties</Text>
+                            <Text strong>{td("Properties")}</Text>
                             <List
                                 size="small"
                                 dataSource={task.properties}
@@ -625,14 +631,14 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                         <Link
                                             href={route(
                                                 "products.show",
-                                                property.id
+                                                property.id,
                                             )}
                                             className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
                                         >
                                             <LinkOutlined
                                                 style={{ fontSize: 12 }}
                                             />
-                                            {property.name}
+                                            {td(property.name)}
                                         </Link>
                                     </List.Item>
                                 )}

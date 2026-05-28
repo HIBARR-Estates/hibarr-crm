@@ -8,12 +8,18 @@ import { ApiResponse } from "@/lib/api/types";
 
 interface Props extends IModalProps {
     task?: { id: number; heading: string };
+    td?: (key: string) => string;
 }
 
-const DeleteTask: React.FC<Props> = ({ task, onClose, open }) => {
+const DeleteTask: React.FC<Props> = ({
+    task,
+    onClose,
+    open,
+    td = (key) => key,
+}) => {
     const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
         task ? `/account/tasks/${task.id}` : "",
-        "DELETE"
+        "DELETE",
     );
 
     // Handle single task deletion
@@ -27,7 +33,7 @@ const DeleteTask: React.FC<Props> = ({ task, onClose, open }) => {
                     // refreshes data on the current page
                     router.reload({ only: ["tasks"] });
                 },
-            }
+            },
         );
     };
     return (
@@ -38,15 +44,15 @@ const DeleteTask: React.FC<Props> = ({ task, onClose, open }) => {
                 fn: handleDeleteDeal,
                 loading: deleteMutation.isPending,
             }}
-            title="Delete Task"
-            description={
+            title={td("Delete Task")}
+            description={td(
                 task?.heading
                     ? `Are you sure you want to delete "${task?.heading}"? This action cannot be undone.`
-                    : "Are you sure you want to delete this task? This action cannot be undone."
-            }
+                    : "Are you sure you want to delete this task? This action cannot be undone.",
+            )}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText="Yes, Delete"
-            cancelText="Cancel"
+            confirmText={td("Yes, Delete")}
+            cancelText={td("Cancel")}
             confirmType="primary"
             confirmDanger={true}
         />

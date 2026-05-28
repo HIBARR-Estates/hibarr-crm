@@ -3,6 +3,7 @@ import ReactQueryProvider from "./react-query/ReactQueryProviders";
 import AntdConfigProvider from "./antd/AntdConfigProvider";
 import { FilterProvider } from "@/contexts/FilterContext";
 import { TranslationProvider } from "@/contexts/TranslationContext";
+import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
 
 /**
  * Providers that DON'T require Inertia context (usePage)
@@ -24,9 +25,11 @@ export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
 }) => {
     return (
         <TranslationProvider>
-            <AntdConfigProvider>
-                <FilterProvider>{children}</FilterProvider>
-            </AntdConfigProvider>
+            <DynamicTranslationProvider>
+                <AntdConfigProvider>
+                    <FilterProvider>{children}</FilterProvider>
+                </AntdConfigProvider>
+            </DynamicTranslationProvider>
         </TranslationProvider>
     );
 };
