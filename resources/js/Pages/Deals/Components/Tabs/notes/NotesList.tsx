@@ -8,6 +8,7 @@ import {
 import { Note } from "@/Types/api/note";
 import { NoteCard } from "./NoteCard";
 import { NotesBreadcrumb, NotesView } from "./NotesBreadcrumb";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
@@ -52,6 +53,7 @@ export const NotesList: React.FC<NotesListProps> = ({
             note.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
             note.details?.toLowerCase().includes(searchTerm.toLowerCase()),
     );
+    const { td } = useTd();
 
     const renderAddNoteCard = () => {
         if (!canAddNote) return null;
@@ -72,10 +74,10 @@ export const NotesList: React.FC<NotesListProps> = ({
                         level={5}
                         className="text-gray-700 group-hover:text-blue-700 transition-colors mb-2"
                     >
-                        Add New Note
+                        {td("Add New Note")}
                     </Title>
                     <Text className="text-gray-500">
-                        Click to start writing
+                        {td("Click to start writing")}
                     </Text>
                 </div>
             </Card>
@@ -86,11 +88,11 @@ export const NotesList: React.FC<NotesListProps> = ({
         return (
             <div className="col-span-full">
                 <Empty
-                    description={
+                    description={td(
                         searchTerm
                             ? `No notes found for "${searchTerm}"`
-                            : "No notes yet"
-                    }
+                            : "No notes yet",
+                    )}
                 />
             </div>
         );
@@ -113,7 +115,7 @@ export const NotesList: React.FC<NotesListProps> = ({
                         onChange={(e) => onSearchChange(e.target.value)}
                         allowClear
                         size="small"
-                    // prefix={<SearchOutlined />}
+                        // prefix={<SearchOutlined />}
                     />
                 </div>
             </div>
@@ -122,7 +124,6 @@ export const NotesList: React.FC<NotesListProps> = ({
             <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6">
                 {/* Add Note Card - Show only when there are no notes */}
                 {filteredNotes.length === 0 && renderAddNoteCard()}
-           
 
                 {/* Notes or Empty State */}
                 {filteredNotes.length === 0 &&
@@ -141,7 +142,6 @@ export const NotesList: React.FC<NotesListProps> = ({
                     />
                 ))}
             </div>
-      
         </div>
     );
 };

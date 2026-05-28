@@ -37,6 +37,7 @@ import PropertyCarousel from "./PropertyCarousel";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import useTranslation from "@/Hooks/useTranslation";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface Props {
     deal: Deal;
@@ -71,6 +72,7 @@ export default function DealInfoSection({
 }: Props) {
     const { props } = usePage<any>();
     const { t } = useTranslation();
+    const { td } = useTd();
     const user = props.auth.user;
     const currencies = props.currencies || [];
     const defaultCurrencyCode = props.default_currency_code || "TRY";
@@ -138,8 +140,12 @@ export default function DealInfoSection({
             const el = sectionRefs.current[key];
             const container = scrollContainerRef.current;
             if (el && container) {
+                const elTop = el.getBoundingClientRect().top;
+                const containerTop = container.getBoundingClientRect().top;
+                const targetScrollTop =
+                    container.scrollTop + (elTop - containerTop);
                 container.scrollTo({
-                    top: el.offsetTop - 8,
+                    top: Math.max(0, targetScrollTop),
                     behavior: "smooth",
                 });
             }
@@ -1414,7 +1420,7 @@ export default function DealInfoSection({
                         fields={fields}
                         customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
-                        title={category.name}
+                        title={td(category.name)}
                         column={2}
                         onUpdate={(field, value) =>
                             handleFieldUpdate(field, value, "custom_field")
@@ -1444,7 +1450,7 @@ export default function DealInfoSection({
         { key: "details", label: t("pages.deals.info.tab_details") },
         ...(customFieldCategories || []).map((cat) => ({
             key: `category-${cat.id}`,
-            label: cat.name,
+            label: td(cat.name),
         })),
     ];
 

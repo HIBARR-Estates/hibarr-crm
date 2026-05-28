@@ -350,6 +350,7 @@ const GenerateUnitTypeExposeModal: React.FC<
                                                     Lead
                                                 </label>
                                                 <Select
+                                                    style={{ width: "100%" }}
                                                     showSearch
                                                     allowClear
                                                     placeholder="Search and select a lead"

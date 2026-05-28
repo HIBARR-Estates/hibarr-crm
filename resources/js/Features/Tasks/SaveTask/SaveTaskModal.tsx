@@ -130,6 +130,7 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
         type: "deal" | "lead" | "property";
         id?: number;
     };
+    td?: (key: string) => string;
 }
 
 const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
@@ -147,6 +148,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     leads = [],
     properties = [],
     relatedEntity,
+    td = (key) => key,
 }) => {
     const { props } = usePage();
 
@@ -359,8 +361,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                         visible={open}
                         onCancel={handleCancel}
                         onSubmit={handleSubmit}
-                        submitText={submitText}
-                        cancelText="Cancel"
+                        submitText={td(submitText)}
+                        cancelText={td("Cancel")}
                         errors={errors}
                         setErrors={(newErrors) => {
                             if (Array.isArray(newErrors)) {
@@ -378,6 +380,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                         leads={leads}
                         properties={properties}
                         relatedEntity={relatedEntity}
+                        td={td}
                     />
                 </>
             )}

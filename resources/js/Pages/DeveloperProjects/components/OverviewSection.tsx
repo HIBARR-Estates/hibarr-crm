@@ -16,6 +16,7 @@ import type {
     ImageItem,
 } from "../Show";
 import { generatePropertySubtitle, snakeToReadable } from "../../../lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
 const StatCard: React.FC<{
@@ -51,6 +52,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
     imagesByTag,
 }) => {
     const [imgError, setImgError] = useState(false);
+    const { td } = useTd();
 
     // Pick the first available project-source image, then any image
     const heroImage = useMemo(() => {
@@ -148,12 +150,12 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                     <StatCard
                         icon={<Building2 size={22} />}
                         value={`${statistics.total_units}`}
-                        label="Total Units"
+                        label={td("Total Units")}
                     />
                     <StatCard
                         icon={<CheckCircle2 size={22} />}
                         value={statistics.total_sold}
-                        label="Total Sold"
+                        label={td("Total Sold")}
                     />
                     <StatCard
                         icon={<TrendingUp size={22} />}
@@ -162,12 +164,12 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                                 ? `${Math.round((statistics.total_sold / statistics.total_units) * 100)}%`
                                 : "0%"
                         }
-                        label="Sold %"
+                        label={td("Sold %")}
                     />
                     <StatCard
                         icon={<Clock size={22} />}
                         value={statistics.starting_price_formatted ?? "-"}
-                        label="Starting Price"
+                        label={td("Starting Price")}
                     />
                 </div>
 
@@ -187,7 +189,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
 
                     {project.description ? (
                         <p className="text-sm leading-7 text-gray-600">
-                            {project.description}
+                            {td(project.description)}
                         </p>
                     ) : null}
 

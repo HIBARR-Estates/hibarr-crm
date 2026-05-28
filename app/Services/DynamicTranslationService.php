@@ -6,6 +6,7 @@ use App\Jobs\TranslateDynamicContentJob;
 use App\Models\DynamicTranslation;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Client\Pool;
+use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -155,12 +156,22 @@ class DynamicTranslationService
         foreach (self::TARGET_LOCALES as $locale) {
             $response = $responses[$locale] ?? null;
 
-            if (!$response || !$response->successful()) {
+            if (!$response instanceof Response) {
                 Log::warning('DynamicTranslationService: Translation API call failed', [
                     'hash_key' => $translation->hash_key,
                     'locale' => $locale,
-                    'status' => $response?->status(),
-                    'response' => $response?->body(),
+                    'error' => $response instanceof \Throwable ? $response->getMessage() : 'no response',
+                    'response' => $response instanceof Response ? $response->body() : null,
+                ]);
+                continue;
+            }
+
+            if (!$response->successful()) {
+                Log::warning('DynamicTranslationService: Translation API call failed', [
+                    'hash_key' => $translation->hash_key,
+                    'locale' => $locale,
+                    'status' => $response->status(),
+                    'response' => $response->body(),
                 ]);
                 continue;
             }
