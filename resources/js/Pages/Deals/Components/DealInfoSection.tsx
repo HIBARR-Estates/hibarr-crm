@@ -16,6 +16,7 @@ import {
     MinusSquareOutlined,
     InfoCircleOutlined,
     ReloadOutlined,
+    LinkOutlined,
 } from "@ant-design/icons";
 import SideNavTabs from "@/Components/SideNavTabs";
 import dayjs from "dayjs";
@@ -77,9 +78,9 @@ export default function DealInfoSection({
     const currencies = props.currencies || [];
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [activeSection, setActiveSection] = useState("overview");
-    const [openSections, setOpenSections] = useState<Record<string, boolean>>(
-        {},
-    );
+    const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+        "deal-overview": true,
+    });
     const { action, handleAction, handleClose } = useGenericEntityAction();
 
     const ALL_SECTIONS = useMemo(
@@ -252,6 +253,8 @@ export default function DealInfoSection({
     // Toggle edit mode
     const handleToggleEditMode = () => {
         onEditModeChange(!isEditMode);
+        if (!allSectionsOpen) handleToggleAll();
+        
         // Clear pending changes when entering edit mode
         if (!isEditMode) {
             setPendingChanges({});
@@ -647,19 +650,6 @@ export default function DealInfoSection({
             label: <span>{t("pages.deals.actions.add_task")}</span>,
             onClick: () => handleAction("add_task"),
         },
-        {
-            key: "toggle_sections",
-            tooltip: allSectionsOpen
-                ? t("app.common.actions.collapse_all")
-                : t("app.common.actions.expand_all"),
-            type: "text" as const,
-            icon: allSectionsOpen ? (
-                <MinusSquareOutlined />
-            ) : (
-                <PlusSquareOutlined />
-            ),
-            onClick: handleToggleAll,
-        },
         // Toggle edit mode button - only show if user can edit
         ...(canEdit && !isEditMode
             ? [
@@ -1030,29 +1020,38 @@ export default function DealInfoSection({
                                 selectorType="leads"
                                 displayValue={
                                     currentDeal.contact ? (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-col gap-1.5 min-w-0">
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="font-medium text-gray-900">
+                                                    {currentDeal.contact
+                                                        .client_name_salutation ||
+                                                        currentDeal.contact
+                                                            .client_name}
+                                                </span>
+                                                {currentDeal.contact
+                                                    .client_id && (
+                                                    <Tag
+                                                        color="blue"
+                                                        className="text-xs"
+                                                    >
+                                                        {t(
+                                                            "pages.deals.info.client_tag",
+                                                        )}
+                                                    </Tag>
+                                                )}
+                                            </div>
                                             <Link
                                                 href={route(
                                                     "lead-contact.show",
                                                     currentDeal.contact.id,
                                                 )}
-                                                className="text-blue-600 hover:text-blue-800 font-medium"
+                                                className="inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-800 font-medium w-fit"
                                             >
-                                                {currentDeal.contact
-                                                    .client_name_salutation ||
-                                                    currentDeal.contact
-                                                        .client_name}
+                                                <LinkOutlined />
+                                                {t(
+                                                    "pages.deals.info.actions.view_lead_profile",
+                                                )}
                                             </Link>
-                                            {currentDeal.contact.client_id && (
-                                                <Tag
-                                                    color="blue"
-                                                    className="text-xs"
-                                                >
-                                                    {t(
-                                                        "pages.deals.info.client_tag",
-                                                    )}
-                                                </Tag>
-                                            )}
                                         </div>
                                     ) : (
                                         <span className="text-gray-400">
@@ -1486,7 +1485,7 @@ export default function DealInfoSection({
                             : "bg-gray-50/80 border-gray-100"
                     }`}
                 >
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <h2 className="text-sm font-semibold text-gray-700">
                             {t("pages.deals.info.title")}
                         </h2>
@@ -1511,6 +1510,23 @@ export default function DealInfoSection({
                                 })}
                             </Tag>
                         )}
+                        <Button
+                            type="text"
+                            size="small"
+                            className="text-gray-600"
+                            icon={
+                                allSectionsOpen ? (
+                                    <MinusSquareOutlined />
+                                ) : (
+                                    <PlusSquareOutlined />
+                                )
+                            }
+                            onClick={handleToggleAll}
+                        >
+                            {allSectionsOpen
+                                ? t("app.common.actions.collapse_all")
+                                : t("app.common.actions.expand_all")}
+                        </Button>
                     </div>
                     <Space size="small">
                         {actionItems.map((item) => (

@@ -236,6 +236,7 @@ return [
                 'delete'            => 'Deal löschen',
                 'manage_properties' => 'Immobilien verwalten',
                 'recalculate_value_tooltip' => 'Wert anhand der verknüpften Produkte, Pakete und angewendeten Angebote neu berechnen',
+                'view_lead_profile' => 'Lead-Profil anzeigen',
             ],
             'value_insight' => [
                 'properties'        => 'Immobilien',
