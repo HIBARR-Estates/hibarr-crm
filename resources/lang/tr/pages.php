@@ -236,6 +236,7 @@ return [
                 'delete'            => 'Anlaşmayı Sil',
                 'manage_properties' => 'Mülkleri Yönet',
                 'recalculate_value_tooltip' => 'Bağlı ürünler, paketler ve uygulanan tekliflere göre değeri yeniden hesapla',
+                'view_lead_profile' => 'Müşteri adayı profilini görüntüle',
             ],
             'value_insight' => [
                 'properties'        => 'Mülkler',
