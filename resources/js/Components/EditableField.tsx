@@ -30,6 +30,7 @@ import {
     formatCurrencyWithSymbol,
     formatCountryForDisplay,
     formatMobileForDisplay,
+    serializePhoneInputValue,
 } from "@/lib/utils";
 import { DetailFieldEditContext } from "./DetailSection";
 
@@ -687,28 +688,12 @@ export default function EditableField({
                                             "phoneNumber" in val
                                         ) {
                                             // If PhoneNumber object is returned, reconstruct the full number
-                                            const countryCode =
-                                                val.countryCode || "";
-                                            const phoneNum =
-                                                val.phoneNumber || "";
-                                            const areaCode = val.areaCode || "";
-                                            // If original had + prefix, preserve it; otherwise just save the number
-                                            const originalHasPlus =
-                                                typeof inputValue ===
-                                                    "string" &&
-                                                inputValue.startsWith("+");
-                                            if (
-                                                originalHasPlus &&
-                                                countryCode
-                                            ) {
-                                                handleValueChange(
-                                                    `+${countryCode}${areaCode}${phoneNum}`,
-                                                );
-                                            } else {
-                                                handleValueChange(
-                                                    phoneNum || val,
-                                                );
-                                            }
+                                            handleValueChange(
+                                                serializePhoneInputValue(
+                                                    val,
+                                                    inputValue,
+                                                ),
+                                            );
                                         } else if (typeof val === "string") {
                                             // Save string as-is (preserves + prefix and full format)
                                             handleValueChange(val);

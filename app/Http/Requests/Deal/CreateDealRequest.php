@@ -34,6 +34,18 @@ class CreateDealRequest extends CoreRequest
                 'package_id' => [(int) $this->package_id]
             ]);
         }
+
+        // Accept alternate key used by some clients
+        if ($this->has('deal_participants') && !$this->has('deal_participant')) {
+            $this->merge(['deal_participant' => $this->input('deal_participants')]);
+        }
+
+        // Convert single participant/watcher integer to array for backward compatibility
+        foreach (['deal_participant', 'deal_watcher'] as $field) {
+            if ($this->has($field) && !is_array($this->input($field)) && is_numeric($this->input($field))) {
+                $this->merge([$field => [(int) $this->input($field)]]);
+            }
+        }
     }
 
     /**
@@ -82,6 +94,23 @@ class CreateDealRequest extends CoreRequest
                 }
             ];
         }
+
+        $dealUserRule = 'integer|exists:users,id';
+        if ($companyId) {
+            $dealUserRule = [
+                'integer',
+                Rule::exists('users', 'id')->where(function ($query) use ($companyId) {
+                    return $query->where('company_id', $companyId);
+                }),
+            ];
+        } else {
+            $dealUserRule = [
+                'integer',
+                function ($attribute, $value, $fail) {
+                    $fail('Deal watcher and participant selection requires company context. Please provide X-COMPANY-ID header or ensure you are authenticated.');
+                },
+            ];
+        }
         
         return [
             // Required contact fields
@@ -107,7 +136,9 @@ class CreateDealRequest extends CoreRequest
             'deal_owner_id' => 'nullable|integer|exists:users,id',
             'update_agent_if_exists' => 'nullable|boolean',
             'deal_watcher' => 'nullable|array',
-            'deal_watcher.*' => 'integer|exists:users,id',
+            'deal_watcher.*' => $dealUserRule,
+            'deal_participant' => 'nullable|array',
+            'deal_participant.*' => $dealUserRule,
             
             // Optional UTM/marketing fields
             'utmInfo' => 'nullable|array',
@@ -206,7 +237,8 @@ class CreateDealRequest extends CoreRequest
             'pipeline_id.exists' => 'The selected pipeline does not exist.',
             'pipeline_stage_id.exists' => 'The selected pipeline stage does not exist.',
             'deal_owner_id.exists' => 'The selected deal owner does not exist.',
-            'deal_watcher.*.exists' => 'One or more selected deal watchers do not exist.',
+            'deal_watcher.*.exists' => 'One or more selected deal watchers do not exist or do not belong to your company.',
+            'deal_participant.*.exists' => 'One or more selected deal participants do not exist or do not belong to your company.',
             'meeting.meeting_link.url' => 'The meeting link must be a valid URL.',
             'custom_fields.*' => 'One or more custom fields are invalid.',
         ];

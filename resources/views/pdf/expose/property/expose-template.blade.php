@@ -473,20 +473,26 @@
             gap: 22px;
         }
 
-        .facility-grid-2 {
+        .facility-grid-2,
+        .facility-grid-3,
+        .facility-grid-4,
+        .facility-grid-5,
+        .facility-grid-6,
+        .facility-grid-8 {
           display: grid;
+          gap: 22px;
+          box-sizing: border-box;
+          min-height: 0;
+        }
+
+        .facility-grid-2 {
           grid-template-columns: repeat(2, 1fr);
           grid-template-rows: 1fr;
-          height: 100%;
-          gap: 22px;
         }
 
         .facility-grid-3 {
-          display: grid;
           grid-template-columns: repeat(2, 1fr);
           grid-template-rows: repeat(2, 1fr);
-          height: 100%;
-          gap: 22px;
         }
 
         .facility-grid-3 .gallery-item:last-child {
@@ -494,19 +500,13 @@
         }
 
         .facility-grid-4 {
-          display: grid;
           grid-template-columns: repeat(2, 1fr);
           grid-template-rows: repeat(2, 1fr);
-          height: 100%;
-          gap: 22px;
         }
 
         .facility-grid-5 {
-          display: grid;
           grid-template-columns: repeat(3, 1fr);
           grid-template-rows: repeat(2, 1fr);
-          height: 100%;
-          gap: 22px;
         }
 
         .facility-grid-5 .gallery-item:last-child {
@@ -514,18 +514,13 @@
         }
 
         .facility-grid-6 {
-          display: grid;
           grid-template-columns: repeat(3, 1fr);
           grid-template-rows: repeat(2, 1fr);
-          height: 100%;
-          gap: 22px;
         }
 
         .facility-grid-8 {
-          display: grid;
           grid-template-columns: repeat(4, 1fr);
           grid-template-rows: repeat(2, 1fr);
-          height: 100%;
           gap: 14px;
         }
 
@@ -1335,7 +1330,7 @@
 
             {{-- <h1>{{ strtoupper((string) $styleLabel) }}</h1> --}}
 
-            <div style="font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; margin-left: -45px;">
+            <div style="font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; margin-left: 0px;">
               {!! !empty($data['description']) ? $data['description'] : '' !!}
               
             </div>

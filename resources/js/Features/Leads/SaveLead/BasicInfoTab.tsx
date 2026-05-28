@@ -46,7 +46,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     setLead,
 }) => {
     const { props } = usePage<any>();
-    const { salutations, sources, categories, employees, permissions } = props;
+    const { salutations, sources, categories, employees, permissions, countries } =
+        props;
     const [form] = Form.useForm();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const isEditing = data ? true : false;
@@ -250,7 +251,63 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         <Col span={8}>
                             <Form.Item label="Country" name="country">
-                                <Input placeholder="Enter country" />
+                                <Select
+                                    placeholder="Select country"
+                                    allowClear
+                                    showSearch
+                                    optionFilterProp="label"
+                                    filterOption={(input, option) => {
+                                        const searchText = input.toLowerCase();
+                                        const countryValue = option?.value as string;
+                                        const country = (countries || []).find(
+                                            (c: {
+                                                iso: string;
+                                                nicename: string;
+                                                name?: string;
+                                                iso3?: string;
+                                                nationality?: string;
+                                            }) => c.nicename === countryValue,
+                                        );
+
+                                        if (!country) return false;
+
+                                        return (
+                                            country.nicename
+                                                ?.toLowerCase()
+                                                .includes(searchText) ||
+                                            country.name
+                                                ?.toLowerCase()
+                                                .includes(searchText) ||
+                                            country.iso
+                                                ?.toLowerCase()
+                                                .includes(searchText) ||
+                                            country.iso3
+                                                ?.toLowerCase()
+                                                .includes(searchText) ||
+                                            country.nationality
+                                                ?.toLowerCase()
+                                                .includes(searchText)
+                                        );
+                                    }}
+                                >
+                                    {(countries || []).map(
+                                        (country: {
+                                            iso: string;
+                                            nicename: string;
+                                        }) => (
+                                            <Select.Option
+                                                key={country.iso}
+                                                value={country.nicename}
+                                                label={country.nicename}
+                                            >
+                                                <span
+                                                    className={`flag-icon flag-icon-${country.iso.toLowerCase()} mr-2`}
+                                                />
+                                                {country.nicename}
+                                            </Select.Option>
+                                        ),
+                                    )}
+                                </Select>
                             </Form.Item>
                         </Col>
                     </Row>
