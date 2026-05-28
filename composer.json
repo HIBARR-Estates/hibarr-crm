@@ -35,7 +35,6 @@
         "intervention/image": "^2.5",
         "ivanomatteo/laravel-device-tracking": "dev-master as 1.0.1",
         "kingflamez/laravelrave": "^4.5",
-        "laravel-lang/lang": "~6.1",
         "laravel-notification-channels/onesignal": "^2.5",
         "laravel-notification-channels/telegram": "^4.0",
         "laravel-notification-channels/twilio": "^3.3",
