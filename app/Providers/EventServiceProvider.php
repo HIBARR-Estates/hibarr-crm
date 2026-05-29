@@ -228,6 +228,8 @@ use App\Models\KnowledgeBase;
 use App\Models\KnowledgeBaseCategory;
 use App\Models\LanguageSetting;
 use App\Models\Deal;
+use App\Models\HibarrDealFields;
+use App\Models\LeadMarketing;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use App\Models\LeadCustomForm;
@@ -349,6 +351,8 @@ use App\Observers\DashboardWidgetObserver;
 use App\Observers\DealNoteObserver;
 use App\Observers\DealObserver;
 use App\Observers\DealFollowUpObserver;
+use App\Observers\HibarrDealFieldsObserver;
+use App\Observers\LeadMarketingObserver;
 use App\Observers\DesignationObserver;
 use App\Observers\DiscussionCategoryObserver;
 use App\Observers\DiscussionFileObserver;
@@ -618,6 +622,8 @@ class EventServiceProvider extends ServiceProvider
         InvoiceSetting::class => [InvoiceSettingObserver::class],
         Issue::class => [IssueObserver::class],
         Deal::class => [DealObserver::class],
+        HibarrDealFields::class => [HibarrDealFieldsObserver::class],
+        LeadMarketing::class => [LeadMarketingObserver::class],
         LeadAgent::class => [LeadAgentObserver::class],
         LeadCategory::class => [LeadCategoryObserver::class],
         LeadCustomForm::class => [LeadCustomFormObserver::class],

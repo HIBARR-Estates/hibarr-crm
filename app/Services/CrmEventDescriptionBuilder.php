@@ -70,6 +70,24 @@ class CrmEventDescriptionBuilder
             . self::optionalDisplay($from) . ' to ' . self::optionalDisplay($to);
     }
 
+    public static function dealHibarrFieldUpdated(
+        string $fieldLabel,
+        ?string $from,
+        ?string $to
+    ): string {
+        return 'Deal field "' . self::safeText($fieldLabel) . '" updated from '
+            . self::optionalDisplay($from) . ' to ' . self::optionalDisplay($to);
+    }
+
+    public static function dealLeadMarketingFieldUpdated(
+        string $fieldLabel,
+        ?string $from,
+        ?string $to
+    ): string {
+        return 'Lead marketing "' . self::safeText($fieldLabel) . '" updated from '
+            . self::optionalDisplay($from) . ' to ' . self::optionalDisplay($to);
+    }
+
     public static function formatDate(CarbonInterface|string|null $date): string
     {
         if (!$date) {
