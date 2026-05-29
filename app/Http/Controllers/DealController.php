@@ -869,12 +869,13 @@ class DealController extends AccountBaseController
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
             $watcherIds = $request->deal_watcher;
             $deal->dealWatchers()->sync($watcherIds);
+            $deal->load('dealWatchers');
             app(\App\Services\DealActivityEventService::class)->recordWatchersUpdated(
                 $deal,
                 [],
                 $watcherIds,
                 [],
-                $deal->dealWatchers()->pluck('name', 'id')->toArray()
+                $deal->dealWatchers->pluck('name', 'id')->toArray()
             );
         }
 
@@ -882,12 +883,13 @@ class DealController extends AccountBaseController
         if ($request->deal_participant && is_array($request->deal_participant)) {
             $participantIds = $request->deal_participant;
             $deal->dealParticipants()->sync($participantIds);
+            $deal->load('dealParticipants');
             app(\App\Services\DealActivityEventService::class)->recordParticipantsUpdated(
                 $deal,
                 [],
                 $participantIds,
                 [],
-                $deal->dealParticipants()->pluck('name', 'id')->toArray()
+                $deal->dealParticipants->pluck('name', 'id')->toArray()
             );
         }
 

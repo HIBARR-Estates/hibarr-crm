@@ -327,13 +327,15 @@ class DealGatheringService
                 }
 
                 if (array_key_exists('deal_watcher', $data)) {
-                    $oldWatcherIds = $deal->dealWatchers()->pluck('id')->toArray();
-                    $oldWatcherNames = $deal->dealWatchers()->pluck('name', 'id')->toArray();
+                    $deal->loadMissing('dealWatchers');
+                    $oldWatcherIds = $deal->dealWatchers->pluck('id')->toArray();
+                    $oldWatcherNames = $deal->dealWatchers->pluck('name', 'id')->toArray();
                     $newWatcherIds = is_array($data['deal_watcher']) ? $data['deal_watcher'] : [$data['deal_watcher']];
                     $newWatcherIds = array_filter($newWatcherIds);
 
                     $deal->dealWatchers()->sync($newWatcherIds);
-                    $newWatcherNames = $deal->dealWatchers()->pluck('name', 'id')->toArray();
+                    $deal->load('dealWatchers');
+                    $newWatcherNames = $deal->dealWatchers->pluck('name', 'id')->toArray();
 
                     app(DealActivityEventService::class)->recordWatchersUpdated(
                         $deal,
@@ -345,13 +347,15 @@ class DealGatheringService
                 }
 
                 if (array_key_exists('deal_participant', $data)) {
-                    $oldParticipantIds = $deal->dealParticipants()->pluck('id')->toArray();
-                    $oldParticipantNames = $deal->dealParticipants()->pluck('name', 'id')->toArray();
+                    $deal->loadMissing('dealParticipants');
+                    $oldParticipantIds = $deal->dealParticipants->pluck('id')->toArray();
+                    $oldParticipantNames = $deal->dealParticipants->pluck('name', 'id')->toArray();
                     $newParticipantIds = is_array($data['deal_participant']) ? $data['deal_participant'] : [$data['deal_participant']];
                     $newParticipantIds = array_filter($newParticipantIds);
 
                     $deal->dealParticipants()->sync($newParticipantIds);
-                    $newParticipantNames = $deal->dealParticipants()->pluck('name', 'id')->toArray();
+                    $deal->load('dealParticipants');
+                    $newParticipantNames = $deal->dealParticipants->pluck('name', 'id')->toArray();
 
                     app(DealActivityEventService::class)->recordParticipantsUpdated(
                         $deal,
