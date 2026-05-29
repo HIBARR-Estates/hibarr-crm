@@ -10,6 +10,7 @@ use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Services\DealActivityEventService;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use ReflectionClass;
 
 trait CustomFieldsTrait
@@ -131,7 +132,8 @@ trait CustomFieldsTrait
     public function updateCustomFieldData($fields, $company_id = null)
     {
         $isDeal = $this instanceof Deal;
-        $dealCustomFieldChanges = [];
+        $beforeSnapshot = $isDeal ? $this->getCustomFieldsData()->toArray() : [];
+        $requestedFieldKeys = $this->collectCustomFieldKeysFromPayload($fields);
 
         foreach ($fields as $key => $value) {
             if (str_starts_with((string) $key, 'country_phonecode_') || str_starts_with((string) $key, 'country_identifier_')) {
@@ -147,7 +149,6 @@ trait CustomFieldsTrait
 
             $customField = CustomField::findOrFail($id);
             $fieldType = $customField->type;
-            $fieldLabel = $customField->label;
 
             $existingEntry = DB::table('custom_fields_data')
                 ->where('model', $this->getModelName())
@@ -155,7 +156,6 @@ trait CustomFieldsTrait
                 ->where('custom_field_id', $id)
                 ->first();
 
-            $oldRawValue = $existingEntry->value ?? null;
             $company = $company_id ? Company::findOrFail($company_id) : company();
 
             // Handle date fields - support both ISO format (Y-m-d) and company date format
@@ -319,16 +319,6 @@ trait CustomFieldsTrait
 
             $stringValue = is_array($value) ? implode(', ', $value) : (string) ($value ?? '');
 
-            if ($isDeal && $this->customFieldValueChanged($oldRawValue, $stringValue)) {
-                $dealCustomFieldChanges[] = [
-                    'custom_field_id' => (int) $id,
-                    'field_label' => $fieldLabel,
-                    'field_type' => $fieldType,
-                    'old_value' => $oldRawValue,
-                    'new_value' => $stringValue,
-                ];
-            }
-
             if ($existingEntry) {
                 // Note: file deletion is handled above in the file type block.
                 // No need to delete here — the value is already resolved.
@@ -350,22 +340,128 @@ trait CustomFieldsTrait
             }
         }
 
-        if ($isDeal && !empty($dealCustomFieldChanges)) {
-            app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $dealCustomFieldChanges);
+        if ($isDeal && !empty($requestedFieldKeys)) {
+            $afterSnapshot = $this->getCustomFieldsData()->toArray();
+            $dealCustomFieldChanges = $this->buildDealCustomFieldChangeEntries(
+                $beforeSnapshot,
+                $afterSnapshot,
+                $requestedFieldKeys
+            );
+
+            if (!empty($dealCustomFieldChanges)) {
+                Log::info('[CustomFieldsTrait] Recording deal custom field CRM events.', [
+                    'deal_id' => $this->id,
+                    'change_count' => count($dealCustomFieldChanges),
+                    'field_keys' => array_column($dealCustomFieldChanges, 'custom_field_id'),
+                ]);
+
+                app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $dealCustomFieldChanges);
+            } else {
+                Log::debug('[CustomFieldsTrait] No deal custom field changes detected after save.', [
+                    'deal_id' => $this->id,
+                    'requested_field_keys' => $requestedFieldKeys,
+                ]);
+            }
         }
+    }
+
+    /**
+     * Resolve payload keys to canonical custom field keys (field_{id}).
+     */
+    protected function collectCustomFieldKeysFromPayload(array $fields): array
+    {
+        $keys = [];
+
+        foreach (array_keys($fields) as $key) {
+            $resolved = $this->resolveCustomFieldKey((string) $key);
+
+            if ($resolved) {
+                $keys[] = $resolved;
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    protected function resolveCustomFieldKey(string $key): ?string
+    {
+        if (preg_match('/^field_(\d+)$/', $key, $matches)) {
+            return 'field_' . $matches[1];
+        }
+
+        if (ctype_digit($key)) {
+            return 'field_' . $key;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $before
+     * @param array<string, mixed> $after
+     * @param array<int, string>   $fieldKeys
+     * @return array<int, array{custom_field_id: int, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}>
+     */
+    protected function buildDealCustomFieldChangeEntries(array $before, array $after, array $fieldKeys): array
+    {
+        $changes = [];
+
+        foreach ($fieldKeys as $fieldKey) {
+            $oldVal = $before[$fieldKey] ?? null;
+            $newVal = $after[$fieldKey] ?? null;
+
+            if (!$this->customFieldValueChanged(
+                $oldVal !== null ? (string) $oldVal : null,
+                $newVal !== null ? (string) $newVal : null
+            )) {
+                continue;
+            }
+
+            $fieldId = (int) substr($fieldKey, 6);
+            $customField = CustomField::find($fieldId);
+
+            $changes[] = [
+                'custom_field_id' => $fieldId,
+                'field_label' => $customField?->label ?? $fieldKey,
+                'field_type' => $customField?->type,
+                'old_value' => $oldVal !== null ? (string) $oldVal : null,
+                'new_value' => $newVal !== null ? (string) $newVal : null,
+            ];
+        }
+
+        return $changes;
     }
 
     protected function customFieldValueChanged(?string $oldValue, ?string $newValue): bool
     {
-        $normalize = static function (?string $value): string {
-            if ($value === null || $value === '') {
-                return '';
-            }
+        return $this->normalizeCustomFieldValueForComparison($oldValue)
+            !== $this->normalizeCustomFieldValueForComparison($newValue);
+    }
 
-            return trim((string) $value);
-        };
+    protected function normalizeCustomFieldValueForComparison(?string $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
 
-        return $normalize($oldValue) !== $normalize($newValue);
+        $str = trim((string) $value);
+        $lower = strtolower($str);
+
+        if (in_array($lower, ['1', 'true', 'yes', 'on'], true)) {
+            return '1';
+        }
+
+        if (in_array($lower, ['0', 'false', 'no', 'off'], true)) {
+            return '0';
+        }
+
+        $decoded = json_decode($str, true);
+
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            return json_encode($decoded);
+        }
+
+        return $str;
     }
 
     public function getExtrasAttribute()
