@@ -271,10 +271,6 @@ class DealActivityEventService
         $oldDisplay = $this->formatCustomFieldValueForDisplay($oldValue, $fieldType);
         $newDisplay = $this->formatCustomFieldValueForDisplay($newValue, $fieldType);
 
-        if ($this->normalizeCustomFieldValue($oldValue) === $this->normalizeCustomFieldValue($newValue)) {
-            return;
-        }
-
         $this->record('deal_custom_field_updated', $deal, [
             'comment' => CrmEventDescriptionBuilder::dealCustomFieldUpdated($fieldLabel, $oldDisplay, $newDisplay),
             'custom_field_id' => $customFieldId,
@@ -365,6 +361,13 @@ class DealActivityEventService
                 'event_id' => $event?->id,
                 'was_async' => $event === null,
             ]);
+
+            if ($event === null && $eventTypeSlug === 'deal_custom_field_updated') {
+                Log::warning('[DealActivityEventService::record] deal_custom_field_updated was not persisted. Run: php artisan db:seed --class=CrmEventSeeder', [
+                    'deal_id' => $deal->id,
+                    'company_id' => $deal->company_id,
+                ]);
+            }
 
             // Track the first event as the root for causation chaining
             if ($event && $this->rootEventId === null) {

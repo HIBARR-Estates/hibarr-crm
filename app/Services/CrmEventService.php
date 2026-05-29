@@ -5,7 +5,9 @@ namespace App\Services;
 use App\Enums\CrmEventGenerationType;
 use App\Enums\CrmEventSource;
 use App\Jobs\RecordCrmEventJob;
+use App\Models\CrmBusinessRule;
 use App\Models\CrmEvent;
+use App\Models\CrmEventCategory;
 use App\Models\CrmEventType;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Collection;
@@ -53,6 +55,10 @@ class CrmEventService
             $params['event_type_slug'],
             $params['company_id'] ?? null
         );
+
+        if (!$eventType) {
+            $eventType = $this->ensureSystemEventTypeFromConfig($params['event_type_slug']);
+        }
 
         if (!$eventType) {
             Log::warning('CrmEventService::record — Unknown event type slug.', [
@@ -339,6 +345,64 @@ class CrmEventService
                 ->with('category')
                 ->first();
         });
+    }
+
+    /**
+     * Register a system event type from config/crm_events.php when missing in the database.
+     */
+    public function ensureSystemEventTypeFromConfig(string $slug): ?CrmEventType
+    {
+        $configTypes = config('crm_events.event_types', []);
+        $config = collect($configTypes)->firstWhere('slug', $slug);
+
+        if (!$config) {
+            return null;
+        }
+
+        $category = CrmEventCategory::withoutGlobalScopes()
+            ->where('slug', $config['category'])
+            ->whereNull('company_id')
+            ->first();
+
+        if (!$category) {
+            Log::warning('CrmEventService::ensureSystemEventTypeFromConfig — Category missing.', [
+                'slug' => $slug,
+                'category' => $config['category'],
+            ]);
+
+            return null;
+        }
+
+        $businessRuleId = null;
+
+        if (!empty($config['business_rule'])) {
+            $businessRuleId = CrmBusinessRule::withoutGlobalScopes()
+                ->where('slug', $config['business_rule'])
+                ->whereNull('company_id')
+                ->value('id');
+        }
+
+        CrmEventType::withoutGlobalScopes()->updateOrCreate(
+            [
+                'slug' => $config['slug'],
+                'category_id' => $category->id,
+                'company_id' => null,
+            ],
+            [
+                'name' => $config['name'],
+                'description' => $config['description'] ?? null,
+                'model_type' => $config['model_type'] ?? null,
+                'business_rule_id' => $businessRuleId,
+                'is_system' => true,
+                'is_active' => true,
+                'sync_processing' => $config['sync_processing'] ?? true,
+                'metadata_schema' => $config['metadata_schema'] ?? null,
+            ]
+        );
+
+        $this->clearTypeCache();
+
+        return $this->resolveEventType($slug, null);
     }
 
     /**
