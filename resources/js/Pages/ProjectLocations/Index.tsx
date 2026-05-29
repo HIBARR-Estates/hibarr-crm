@@ -639,7 +639,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             attractions:
                 location.attractions?.map((a) => ({
                     name: a.name,
-                    content: a.content || [],
+                    content: Array.isArray(a.content)
+                        ? a.content.length === 1
+                            ? a.content[0]
+                            : a.content.join("")
+                        : typeof a.content === "string"
+                          ? a.content
+                          : "",
                 })) || [],
         });
         setActiveTab("basic");
@@ -933,7 +939,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             onClick={() =>
                                                 add({
                                                     name: "",
-                                                    content: [],
+                                                    content: "",
                                                 })
                                             }
                                         >
@@ -986,11 +992,11 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                         {...restField}
                                                         name={[name, "content"]}
                                                         label="Description"
-                                                        extra="Add paragraphs describing this attraction"
+                                                        extra="Rich text shown on the expose PDF attraction page"
                                                     >
-                                                        <Input.TextArea
+                                                        <HtmlEditor
                                                             placeholder="Describe the attraction..."
-                                                            rows={2}
+                                                            height={180}
                                                         />
                                                     </Form.Item>
 
@@ -1058,7 +1064,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                         <Button
                                             type="dashed"
                                             onClick={() =>
-                                                add({ name: "", content: [] })
+                                                add({ name: "", content: "" })
                                             }
                                             block
                                             icon={<PlusOutlined />}
