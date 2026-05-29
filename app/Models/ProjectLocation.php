@@ -160,7 +160,7 @@ class ProjectLocation extends BaseModel
                 $infrastructure = Infrastructure::find($item['infrastructure_id']);
                 if ($infrastructure) {
                     $result[] = [
-                        'name' => $item['name'] ?? $infrastructure->name,
+                        'name' => $infrastructure->name,
                         'icon' => $infrastructure->icon,
                         'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
                         'image' => $item['image'] ?? null,
@@ -198,7 +198,7 @@ class ProjectLocation extends BaseModel
                 $airport = Airport::find($item['airport_id']);
                 if ($airport) {
                     $result[] = [
-                        'name' => $item['name'] ?? $airport->name,
+                        'name' => $airport->name,
                         'code' => $airport->code,
                         'travelTimeInMin' => $item['travelTimeInMin'] ?? null,
                         'image' => $item['image'] ?? null,
