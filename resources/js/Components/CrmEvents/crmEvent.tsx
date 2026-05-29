@@ -1,4 +1,3 @@
-``
 import { EditOutlined,
     MailOutlined,
     PhoneOutlined,
@@ -44,6 +43,9 @@ export default function getEventIcon(slug: string | undefined): React.ReactNode 
         deal_property_linked: <LinkOutlined style={{ fontSize: "11px" }} />,
         deal_followup_created: <CalendarOutlined style={{ fontSize: "11px" }} />,
         deal_task_created: <CheckSquareOutlined style={{ fontSize: "11px" }} />,
+        deal_custom_field_updated: <FormOutlined style={{ fontSize: "11px" }} />,
+        deal_hibarr_field_updated: <HomeOutlined style={{ fontSize: "11px" }} />,
+        deal_lead_marketing_field_updated: <GlobalOutlined style={{ fontSize: "11px" }} />,
         deal_closed_won: <TrophyOutlined style={{ fontSize: "11px" }} />,
         deal_closed_lost: <CloseCircleOutlined style={{ fontSize: "11px" }} />,
         // Lead

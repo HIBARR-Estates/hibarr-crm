@@ -31,6 +31,7 @@ class ExposeConfiguration implements Arrayable
         $projectLocation = $property->projectLocation ?? $property->developerProject?->location;
         $locationInfrastructure = $projectLocation?->getExpandedInfrastructure() ?? [];
         $locationAirports = $projectLocation?->getExpandedAirports() ?? [];
+        $locationAttractions = $projectLocation?->getFormattedAttractionsForExpose() ?? [];
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($property->company_id ?? $company?->id);
         
         // Group assets by tags
@@ -125,6 +126,7 @@ class ExposeConfiguration implements Arrayable
                 // Structured location infrastructure for PDF sections
                 'location_infrastructure' => $locationInfrastructure,
                 'location_airports' => $locationAirports,
+                'location_attractions' => $locationAttractions,
 
                 // Location page payload — fetch PropertyCity data if available
                 'location_payload' => (function() use ($property, $company) {
@@ -173,6 +175,7 @@ class ExposeConfiguration implements Arrayable
         $agent = self::resolveGeneratingUser($generatedBy);
         $company = self::resolveGeneratingCompany($agent, $companyId ?? $project->company_id);
         $location = $project->location;
+        $locationAttractions = $location?->getFormattedAttractionsForExpose() ?? [];
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project->company_id ?? $company?->id);
 
         // Group project assets by tags, with the same tag list as property
@@ -398,6 +401,7 @@ class ExposeConfiguration implements Arrayable
                 // Structured location infrastructure for PDF sections
                 'location_infrastructure' => $expandedInfra ?? [],
                 'location_airports' => $expandedAirports ?? [],
+                'location_attractions' => $locationAttractions,
 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,
@@ -604,6 +608,7 @@ class ExposeConfiguration implements Arrayable
         $distances = $project?->distances ?? [];
         $expandedInfra = [];
         $expandedAirports = [];
+        $locationAttractions = $location?->getFormattedAttractionsForExpose() ?? [];
         if ($location) {
             $expandedInfra = $location->getExpandedInfrastructure();
             foreach ($expandedInfra as $infra) {
@@ -762,6 +767,7 @@ class ExposeConfiguration implements Arrayable
                 // Structured location infrastructure for PDF sections
                 'location_infrastructure' => $expandedInfra ?? [],
                 'location_airports' => $expandedAirports ?? [],
+                'location_attractions' => $locationAttractions,
 
                 // Assets grouped by tags
                 'assets' => $assetsByTag,

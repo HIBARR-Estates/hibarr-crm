@@ -241,6 +241,129 @@ class DealActivityEventService
         ]);
     }
 
+    /**
+     * Record CRM events for one or more custom field value changes on a deal.
+     *
+     * @param array<int, array{custom_field_id: int, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}> $changes
+     */
+    public function recordCustomFieldsUpdated(Deal $deal, array $changes): void
+    {
+        foreach ($changes as $change) {
+            $this->recordCustomFieldUpdated(
+                $deal,
+                (int) $change['custom_field_id'],
+                (string) $change['field_label'],
+                $change['old_value'] ?? null,
+                $change['new_value'] ?? null,
+                $change['field_type'] ?? null
+            );
+        }
+    }
+
+    public function recordCustomFieldUpdated(
+        Deal $deal,
+        int $customFieldId,
+        string $fieldLabel,
+        ?string $oldValue,
+        ?string $newValue,
+        ?string $fieldType = null
+    ): void {
+        $oldDisplay = $this->formatCustomFieldValueForDisplay($oldValue, $fieldType);
+        $newDisplay = $this->formatCustomFieldValueForDisplay($newValue, $fieldType);
+
+        $this->record('deal_custom_field_updated', $deal, [
+            'comment' => CrmEventDescriptionBuilder::dealCustomFieldUpdated($fieldLabel, $oldDisplay, $newDisplay),
+            'custom_field_id' => $customFieldId,
+            'field_label' => $fieldLabel,
+            'field_type' => $fieldType,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'old_value_display' => $oldDisplay,
+            'new_value_display' => $newDisplay,
+        ], $this->generationTypeForCurrentUser());
+    }
+
+    /**
+     * @param array<int, array{field_name: string, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}> $changes
+     */
+    public function recordHibarrFieldsUpdated(Deal $deal, array $changes): void
+    {
+        foreach ($changes as $change) {
+            $this->recordHibarrFieldUpdated(
+                $deal,
+                (string) $change['field_name'],
+                (string) $change['field_label'],
+                $change['old_value'] ?? null,
+                $change['new_value'] ?? null,
+                $change['field_type'] ?? null
+            );
+        }
+    }
+
+    public function recordHibarrFieldUpdated(
+        Deal $deal,
+        string $fieldName,
+        string $fieldLabel,
+        ?string $oldValue,
+        ?string $newValue,
+        ?string $fieldType = null
+    ): void {
+        $oldDisplay = $this->formatAssociatableFieldValueForDisplay($oldValue, $fieldType);
+        $newDisplay = $this->formatAssociatableFieldValueForDisplay($newValue, $fieldType);
+
+        $this->record('deal_hibarr_field_updated', $deal, [
+            'comment' => CrmEventDescriptionBuilder::dealHibarrFieldUpdated($fieldLabel, $oldDisplay, $newDisplay),
+            'field_name' => $fieldName,
+            'field_label' => $fieldLabel,
+            'field_type' => $fieldType,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'old_value_display' => $oldDisplay,
+            'new_value_display' => $newDisplay,
+        ], $this->generationTypeForCurrentUser());
+    }
+
+    /**
+     * @param array<int, array{field_name: string, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}> $changes
+     */
+    public function recordLeadMarketingFieldsUpdated(Deal $deal, array $changes): void
+    {
+        foreach ($changes as $change) {
+            $this->recordLeadMarketingFieldUpdated(
+                $deal,
+                (string) $change['field_name'],
+                (string) $change['field_label'],
+                $change['old_value'] ?? null,
+                $change['new_value'] ?? null,
+                $change['field_type'] ?? null
+            );
+        }
+    }
+
+    public function recordLeadMarketingFieldUpdated(
+        Deal $deal,
+        string $fieldName,
+        string $fieldLabel,
+        ?string $oldValue,
+        ?string $newValue,
+        ?string $fieldType = null
+    ): void {
+        $oldDisplay = $this->formatAssociatableFieldValueForDisplay($oldValue, $fieldType);
+        $newDisplay = $this->formatAssociatableFieldValueForDisplay($newValue, $fieldType);
+
+        $this->record('deal_lead_marketing_field_updated', $deal, [
+            'comment' => CrmEventDescriptionBuilder::dealLeadMarketingFieldUpdated($fieldLabel, $oldDisplay, $newDisplay),
+            'field_name' => $fieldName,
+            'field_label' => $fieldLabel,
+            'field_type' => $fieldType,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'old_value_display' => $oldDisplay,
+            'new_value_display' => $newDisplay,
+            'lead_id' => $deal->lead_id,
+        ], $this->generationTypeForCurrentUser());
+    }
+
     public function recordParticipantsUpdated(Deal $deal, array $oldParticipantIds, array $newParticipantIds, array $oldParticipantNames, array $newParticipantNames): void
     {
         $addedIds = array_values(array_diff($newParticipantIds, $oldParticipantIds));
@@ -284,8 +407,12 @@ class DealActivityEventService
     /**
      * Record a CRM event tied to a deal with system_generated type and shared correlation.
      */
-    protected function record(string $eventTypeSlug, Deal $deal, array $metadata): void
-    {
+    protected function record(
+        string $eventTypeSlug,
+        Deal $deal,
+        array $metadata,
+        CrmEventGenerationType $generationType = CrmEventGenerationType::SYSTEM_GENERATED
+    ): void {
         Log::info('[DealActivityEventService::record] Dispatching to CrmEventService.', [
             'slug' => $eventTypeSlug,
             'deal_id' => $deal->id,
@@ -301,7 +428,7 @@ class DealActivityEventService
                 'user_id' => auth()->id(),
                 'model_type' => Deal::class,
                 'model_id' => $deal->id,
-                'generation_type' => CrmEventGenerationType::SYSTEM_GENERATED->value,
+                'generation_type' => $generationType->value,
                 'source' => CrmEventSource::SYSTEM->value,
                 'correlation_id' => $this->getCorrelationId(),
                 'causation_id' => $this->rootEventId,
@@ -313,6 +440,18 @@ class DealActivityEventService
                 'event_id' => $event?->id,
                 'was_async' => $event === null,
             ]);
+
+            if ($event === null && in_array($eventTypeSlug, [
+                'deal_custom_field_updated',
+                'deal_hibarr_field_updated',
+                'deal_lead_marketing_field_updated',
+            ], true)) {
+                Log::warning('[DealActivityEventService::record] Event was not persisted. Run: php artisan db:seed --class=CrmEventSeeder', [
+                    'slug' => $eventTypeSlug,
+                    'deal_id' => $deal->id,
+                    'company_id' => $deal->company_id,
+                ]);
+            }
 
             // Track the first event as the root for causation chaining
             if ($event && $this->rootEventId === null) {
@@ -338,5 +477,75 @@ class DealActivityEventService
         }
 
         return $this->correlationId;
+    }
+
+    protected function generationTypeForCurrentUser(): CrmEventGenerationType
+    {
+        return auth()->check()
+            ? CrmEventGenerationType::USER_GENERATED
+            : CrmEventGenerationType::SYSTEM_GENERATED;
+    }
+
+    protected function normalizeCustomFieldValue(?string $value): string
+    {
+        if ($value === null || $value === '') {
+            return '';
+        }
+
+        return trim((string) $value);
+    }
+
+    protected function formatCustomFieldValueForDisplay(?string $value, ?string $fieldType = null): ?string
+    {
+        if ($value === null || trim($value) === '') {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        if ($fieldType === 'phone') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded) && !empty($decoded['phone'])) {
+                return (string) $decoded['phone'];
+            }
+        }
+
+        if ($fieldType === 'file') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded)) {
+                $count = count(array_filter($decoded));
+
+                return $count > 1 ? "{$count} files" : '1 file';
+            }
+
+            return '1 file';
+        }
+
+        if (in_array($fieldType, ['checkbox', 'multiselect', 'select'], true)) {
+            return $trimmed;
+        }
+
+        if (in_array($fieldType, ['repeatable', 'json'], true)) {
+            return Str::limit($trimmed, 120, '...');
+        }
+
+        return Str::limit($trimmed, 200, '...');
+    }
+
+    protected function formatAssociatableFieldValueForDisplay(?string $value, ?string $fieldType = null): ?string
+    {
+        if ($fieldType === 'boolean') {
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            return in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true) ? 'Yes' : 'No';
+        }
+
+        if ($fieldType === 'date' && $value !== null && trim($value) !== '') {
+            return CrmEventDescriptionBuilder::formatDate($value);
+        }
+
+        return $this->formatCustomFieldValueForDisplay($value, $fieldType);
     }
 }

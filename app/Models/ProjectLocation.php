@@ -46,7 +46,7 @@ class ProjectLocation extends BaseModel
      */
     protected $casts = [
         'address' => 'array',        // {street?, state?, country?, postalCode?}
-        'attractions' => 'array',     // [{name, content[], images: {primary, secondary}}]
+        'attractions' => 'array',     // [{name, content: string[] (HTML), images: {primary, secondary}}]
         'infrastructure' => 'array',  // [{infrastructure_id, travelTimeInMin}]
         'airports' => 'array',        // [{airport_id, travelTimeInMin}]
     ];
@@ -119,6 +119,43 @@ class ProjectLocation extends BaseModel
     public function isInUse(): bool
     {
         return $this->developerProjects()->exists() || $this->properties()->exists();
+    }
+
+    /**
+     * Normalize attractions for expose PDF rendering.
+     *
+     * @return array<int, array{name: string, description: string, primary_image_url: ?string, secondary_image_url: ?string}>
+     */
+    public function getFormattedAttractionsForExpose(): array
+    {
+        $result = [];
+
+        foreach ($this->attractions ?? [] as $item) {
+            $name = trim((string) ($item['name'] ?? ''));
+            if ($name === '') {
+                continue;
+            }
+
+            $content = $item['content'] ?? [];
+            if (is_string($content)) {
+                $description = $content;
+            } elseif (is_array($content)) {
+                $description = implode('', array_filter($content, fn ($part) => is_string($part) && trim($part) !== ''));
+            } else {
+                $description = '';
+            }
+
+            $images = is_array($item['images'] ?? null) ? $item['images'] : [];
+
+            $result[] = [
+                'name' => $name,
+                'description' => $description,
+                'primary_image_url' => $images['primary'] ?? null,
+                'secondary_image_url' => $images['secondary'] ?? null,
+            ];
+        }
+
+        return $result;
     }
 
     /**

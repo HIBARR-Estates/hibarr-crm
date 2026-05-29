@@ -37,6 +37,7 @@ import SaveTaskModal from "@/Features/Tasks/SaveTask/SaveTaskModal";
 import dayjs from "dayjs";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
+import { formatMobileForDisplay } from "@/lib/utils";
 import UserIndicator from "@/Components/UserIndicator";
 import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
@@ -197,6 +198,24 @@ export default function LeadInfoSection({
                             updated[key] = leadData[key];
                         }
                     });
+                    if (leadData.mobile !== undefined) {
+                        const formatted = formatMobileForDisplay(
+                            leadData.mobile,
+                        );
+                        updated.mobile_with_phonecode =
+                            formatted && formatted !== "--"
+                                ? formatted
+                                : "--";
+                    }
+                    if (leadData.office !== undefined) {
+                        const formatted = formatMobileForDisplay(
+                            leadData.office,
+                        );
+                        updated.office_phone_formatted =
+                            formatted && formatted !== "--"
+                                ? formatted
+                                : leadData.office || "--";
+                    }
                     return updated as Lead;
                 });
             }
@@ -303,19 +322,35 @@ export default function LeadInfoSection({
         }
     };
 
-    // Get mobile number from JSON format
-    const getMobileNumber = (mobile: string | null | undefined) => {
-        if (!mobile) return "--";
+    // Resolve mobile for display/edit — handles JSON (legacy + antd-phone-input shapes)
+    const getMobileNumber = (mobile: string | null | undefined): string => {
+        if (!mobile) return "";
 
         if (typeof mobile === "string" && mobile.trim().startsWith("{")) {
             try {
                 const mobileData = JSON.parse(mobile.trim());
-                return mobileData?.phone || mobile;
-            } catch (e) {
+                if (typeof mobileData?.phone === "string") {
+                    return mobileData.phone.trim();
+                }
+                return formatMobileForDisplay(mobile) || "";
+            } catch {
                 return mobile;
             }
         }
+
         return mobile;
+    };
+
+    const resolvePhoneFieldValue = (
+        mobile: string | null | undefined,
+        formattedFallback?: string | null,
+    ): string => {
+        const fromMobile = getMobileNumber(mobile);
+        if (fromMobile) return fromMobile;
+        if (formattedFallback && formattedFallback !== "--") {
+            return formattedFallback;
+        }
+        return "";
     };
 
     // Handle field update
@@ -588,17 +623,14 @@ export default function LeadInfoSection({
                             </div>
                         </DetailField>
 
-                        <DetailField label={t("pages.leads.info.fields.mobile")} copyValue={getMobileNumber(currentLeadState.mobile) || currentLeadState.mobile_with_phonecode || undefined}>
+                        <DetailField label={t("pages.leads.info.fields.mobile")} copyValue={resolvePhoneFieldValue(currentLeadState.mobile, currentLeadState.mobile_with_phonecode) || undefined}>
                             <div className="flex items-center gap-x-2">
                                 <PhoneOutlined className="text-gray-400 flex-shrink-0" />
                                 <EditableField
-                                    value={
-                                        getMobileNumber(
-                                            currentLeadState.mobile,
-                                        ) ||
-                                        currentLeadState.mobile_with_phonecode ||
-                                        ""
-                                    }
+                                    value={resolvePhoneFieldValue(
+                                        currentLeadState.mobile,
+                                        currentLeadState.mobile_with_phonecode,
+                                    )}
                                     fieldName="mobile"
                                     fieldType="phone"
                                     onSave={(value) =>
@@ -612,13 +644,12 @@ export default function LeadInfoSection({
                             </div>
                         </DetailField>
 
-                        <DetailField label={t("pages.leads.info.fields.office_phone")} copyValue={currentLeadState.office_phone_formatted || currentLeadState.office || undefined}>
+                        <DetailField label={t("pages.leads.info.fields.office_phone")} copyValue={resolvePhoneFieldValue(currentLeadState.office, currentLeadState.office_phone_formatted) || undefined}>
                             <EditableField
-                                value={
-                                    currentLeadState.office_phone_formatted ||
-                                    currentLeadState.office ||
-                                    ""
-                                }
+                                value={resolvePhoneFieldValue(
+                                    currentLeadState.office,
+                                    currentLeadState.office_phone_formatted,
+                                )}
                                 fieldName="office"
                                 fieldType="phone"
                                 onSave={(value) =>

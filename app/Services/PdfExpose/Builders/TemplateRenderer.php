@@ -174,6 +174,18 @@ class TemplateRenderer
             unset($item);
         }
 
+        if (!empty($data['location_attractions']) && is_array($data['location_attractions'])) {
+            foreach ($data['location_attractions'] as &$attraction) {
+                if (!empty($attraction['primary_image_url'])) {
+                    $attraction['primary_image_url'] = self::localUrlToBase64($attraction['primary_image_url']);
+                }
+                if (!empty($attraction['secondary_image_url'])) {
+                    $attraction['secondary_image_url'] = self::localUrlToBase64($attraction['secondary_image_url']);
+                }
+            }
+            unset($attraction);
+        }
+
         // 4. Add branding images as base64 (cached for 24 hours)
         $data['branding'] = $this->getBrandingAssets();
 
