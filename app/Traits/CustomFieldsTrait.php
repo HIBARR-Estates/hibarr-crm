@@ -7,6 +7,8 @@ use App\Helper\Files;
 use App\Models\Company;
 use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
+use App\Models\Deal;
+use App\Services\DealActivityEventService;
 use Illuminate\Support\Facades\DB;
 use ReflectionClass;
 
@@ -128,12 +130,32 @@ trait CustomFieldsTrait
 
     public function updateCustomFieldData($fields, $company_id = null)
     {
+        $isDeal = $this instanceof Deal;
+        $dealCustomFieldChanges = [];
+
         foreach ($fields as $key => $value) {
+            if (str_starts_with((string) $key, 'country_phonecode_') || str_starts_with((string) $key, 'country_identifier_')) {
+                continue;
+            }
 
             $idarray = explode('_', $key);
             $id = end($idarray);
 
-            $fieldType = CustomField::findOrFail($id)->type;
+            if (!is_numeric($id)) {
+                continue;
+            }
+
+            $customField = CustomField::findOrFail($id);
+            $fieldType = $customField->type;
+            $fieldLabel = $customField->label;
+
+            $existingEntry = DB::table('custom_fields_data')
+                ->where('model', $this->getModelName())
+                ->where('model_id', $this->id)
+                ->where('custom_field_id', $id)
+                ->first();
+
+            $oldRawValue = $existingEntry->value ?? null;
             $company = $company_id ? Company::findOrFail($company_id) : company();
 
             // Handle date fields - support both ISO format (Y-m-d) and company date format
@@ -295,19 +317,22 @@ trait CustomFieldsTrait
                 }
             }
 
-            // Find is entry exists
-            $entry = DB::table('custom_fields_data')
-                ->where('model', $this->getModelName())
-                ->where('model_id', $this->id)
-                ->where('custom_field_id', $id)
-                ->first();
+            $stringValue = is_array($value) ? implode(', ', $value) : (string) ($value ?? '');
 
-            if ($entry) {
+            if ($isDeal && $this->customFieldValueChanged($oldRawValue, $stringValue)) {
+                $dealCustomFieldChanges[] = [
+                    'custom_field_id' => (int) $id,
+                    'field_label' => $fieldLabel,
+                    'field_type' => $fieldType,
+                    'old_value' => $oldRawValue,
+                    'new_value' => $stringValue,
+                ];
+            }
+
+            if ($existingEntry) {
                 // Note: file deletion is handled above in the file type block.
                 // No need to delete here — the value is already resolved.
 
-                // Update entry - ensure value is a string
-                $stringValue = is_array($value) ? implode(', ', $value) : (string)($value ?? '');
                 DB::table('custom_fields_data')
                     ->where('model', $this->getModelName())
                     ->where('model_id', $this->id)
@@ -315,8 +340,6 @@ trait CustomFieldsTrait
                     ->update(['value' => $stringValue]);
             }
             else {
-                // Insert entry - ensure value is a string
-                $stringValue = is_array($value) ? implode(', ', $value) : (string)($value ?? '');
                 DB::table('custom_fields_data')
                     ->insert([
                         'model' => $this->getModelName(),
@@ -326,6 +349,23 @@ trait CustomFieldsTrait
                     ]);
             }
         }
+
+        if ($isDeal && !empty($dealCustomFieldChanges)) {
+            app(DealActivityEventService::class)->recordCustomFieldsUpdated($this, $dealCustomFieldChanges);
+        }
+    }
+
+    protected function customFieldValueChanged(?string $oldValue, ?string $newValue): bool
+    {
+        $normalize = static function (?string $value): string {
+            if ($value === null || $value === '') {
+                return '';
+            }
+
+            return trim((string) $value);
+        };
+
+        return $normalize($oldValue) !== $normalize($newValue);
     }
 
     public function getExtrasAttribute()
