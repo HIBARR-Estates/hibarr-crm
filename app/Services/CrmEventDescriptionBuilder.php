@@ -61,6 +61,15 @@ class CrmEventDescriptionBuilder
         return 'Deal outcome changed from ' . self::formatOutcome($from) . ' to ' . self::formatOutcome($to);
     }
 
+    public static function dealCustomFieldUpdated(
+        string $fieldLabel,
+        ?string $from,
+        ?string $to
+    ): string {
+        return 'Custom field "' . self::safeText($fieldLabel) . '" updated from '
+            . self::optionalDisplay($from) . ' to ' . self::optionalDisplay($to);
+    }
+
     public static function formatDate(CarbonInterface|string|null $date): string
     {
         if (!$date) {
@@ -125,5 +134,14 @@ class CrmEventDescriptionBuilder
         $cleaned = trim((string) $value);
 
         return $cleaned !== '' ? $cleaned : 'unknown';
+    }
+
+    private static function optionalDisplay(?string $value): string
+    {
+        if ($value === null || trim($value) === '') {
+            return '--';
+        }
+
+        return self::safeText($value);
     }
 }
