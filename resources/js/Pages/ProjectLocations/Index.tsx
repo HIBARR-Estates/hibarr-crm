@@ -67,6 +67,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { PropertyEnumValues } from "@/Types";
 import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
 import type { ConfigItemsResponse } from "@/Types/propertyConfig";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -183,6 +184,7 @@ interface LocationFormDrawerProps {
     onClose: () => void;
     location?: ProjectLocation | null;
     onSuccess: () => void;
+    td?: (key: string) => string;
 }
 
 const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
@@ -190,6 +192,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     onClose,
     location,
     onSuccess,
+    td = (key) => key,
 }) => {
     const [form] = Form.useForm<LocationFormValues>();
     const { modal } = App.useApp();
@@ -209,11 +212,12 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         options: { enabled: open },
     });
 
-    const { data: infrastructureConfigData } =
-        useApiQuery<ConfigItemsResponse>({
+    const { data: infrastructureConfigData } = useApiQuery<ConfigItemsResponse>(
+        {
             path: route("property-config.index", { type: "infrastructures" }),
             options: { enabled: open },
-        });
+        },
+    );
 
     const cityOptions = useMemo(() => {
         const cities = enumValues?.cities || [];
@@ -499,7 +503,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             label: (
                 <span className="flex items-center gap-2">
                     <InfoCircleOutlined />
-                    Basic Info
+                    {td("Basic Info")}
                 </span>
             ),
             children: (
@@ -507,11 +511,11 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Form.Item
                             name="address_city"
-                            label="City"
+                            label={td("City")}
                             rules={[
                                 {
                                     required: true,
-                                    message: "Please select a city",
+                                    message: td("Please select a city"),
                                 },
                             ]}
                         >
@@ -525,21 +529,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 
                         <Form.Item
                             name="address_state"
-                            label="Area / District"
-                            rules={[
-                                {
-                                    required: true,
-                                    message: "Please select an area",
-                                },
-                            ]}
+                            label={td("Area / District")}
                         >
                             <Select
                                 options={areaOptions}
-                                placeholder={
-                                    selectedCity
-                                        ? "Select area"
-                                        : "Select city first"
-                                }
+                                placeholder={`${selectedCity}
+                                        ? ${location?.area || td("Select area")}
+                                        : ${td("Select city first")}`}
                                 showSearch
                                 optionFilterProp="label"
                                 disabled={!selectedCity}
@@ -547,7 +543,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         </Form.Item>
                     </div>
 
-                    <Form.Item
+                    {/* <Form.Item
                         name="name"
                         label="Location Name"
                         rules={[
@@ -562,11 +558,11 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                             placeholder="Auto-generated from area and city"
                             disabled
                         />
-                    </Form.Item>
+                    </Form.Item> */}
 
                     <div className="flex items-center justify-between gap-3">
                         <label className="ant-form-item-label">
-                            <span>Description</span>
+                            <span>{td("Description")}</span>
                         </label>
                         {aiEnabled && (
                             <Button
@@ -962,11 +958,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                     name
                                                                 ]?.image ||
                                                                 infrastructureById[
-                                                                    form.getFieldValue([
-                                                                        "infrastructure",
-                                                                        name,
-                                                                        "infrastructure_id",
-                                                                    ])
+                                                                    form.getFieldValue(
+                                                                        [
+                                                                            "infrastructure",
+                                                                            name,
+                                                                            "infrastructure_id",
+                                                                        ],
+                                                                    )
                                                                 ]?.image_url ||
                                                                 undefined
                                                             }
@@ -1129,11 +1127,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                                     name
                                                                 ]?.image ||
                                                                 airportById[
-                                                                    form.getFieldValue([
-                                                                        "airports",
-                                                                        name,
-                                                                        "airport_id",
-                                                                    ])
+                                                                    form.getFieldValue(
+                                                                        [
+                                                                            "airports",
+                                                                            name,
+                                                                            "airport_id",
+                                                                        ],
+                                                                    )
                                                                 ]?.image_url ||
                                                                 undefined
                                                             }
@@ -1244,6 +1244,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 
 const Index = ({ pageTitle, locations, filters }: IndexProps) => {
     const { t } = useTranslation();
+    const { td } = useTd();
     const [drawerOpen, setDrawerOpen] = useState(false);
     const [selectedLocation, setSelectedLocation] =
         useState<ProjectLocation | null>(null);
@@ -1301,7 +1302,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
     const columns: TableColumnsType<ProjectLocation> = useMemo(
         () => [
             {
-                title: "Location",
+                title: td("Location"),
                 dataIndex: "name",
                 key: "name",
                 render: (name: string, record) => (
@@ -1313,17 +1314,12 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             <div className="font-medium text-gray-900 capitalize">
                                 {name}
                             </div>
-                            {record.description && (
-                                <div className="text-sm text-gray-500 truncate max-w-xs capitalize">
-                                    {record.description}
-                                </div>
-                            )}
                         </div>
                     </div>
                 ),
             },
             {
-                title: "Address",
+                title: td("Address"),
                 key: "address",
                 render: (_, record) => {
                     const parts = [
@@ -1340,12 +1336,12 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 },
             },
             {
-                title: "Details",
+                title: td("Details"),
                 key: "details",
                 render: (_, record) => (
                     <div className="flex items-center gap-2">
                         {(record.attractions?.length || 0) > 0 && (
-                            <Tooltip title="Attractions">
+                            <Tooltip title={td("Attractions")}>
                                 <Tag
                                     icon={<CameraOutlined />}
                                     color="blue"
@@ -1356,7 +1352,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             </Tooltip>
                         )}
                         {(record.infrastructure?.length || 0) > 0 && (
-                            <Tooltip title="Infrastructure">
+                            <Tooltip title={td("Infrastructure")}>
                                 <Tag
                                     icon={<CarOutlined />}
                                     color="green"
@@ -1367,7 +1363,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             </Tooltip>
                         )}
                         {(record.airports?.length || 0) > 0 && (
-                            <Tooltip title="Airports">
+                            <Tooltip title={td("Airports")}>
                                 <Tag
                                     icon={<RocketOutlined />}
                                     color="orange"
@@ -1381,24 +1377,24 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             !record.infrastructure?.length &&
                             !record.airports?.length && (
                                 <span className="text-gray-400 italic text-sm">
-                                    No details
+                                    {td("No details")}
                                 </span>
                             )}
                     </div>
                 ),
             },
             {
-                title: "Map",
+                title: td("Map"),
                 key: "map",
                 align: "center",
                 width: 80,
                 render: (_, record) =>
                     record.map_url ? (
-                        <Tooltip title="Map image available">
+                        <Tooltip title={td("Map image available")}>
                             <Badge status="success" />
                         </Tooltip>
                     ) : (
-                        <Tooltip title="No map image">
+                        <Tooltip title={td("No map image")}>
                             <Badge status="default" />
                         </Tooltip>
                     ),
@@ -1413,7 +1409,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                         {
                             key: "edit",
                             icon: <EditOutlined />,
-                            label: "Edit",
+                            label: td("Edit"),
                             onClick: () => handleEdit(record),
                         },
                         { type: "divider" },
@@ -1422,22 +1418,24 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             icon: <DeleteOutlined />,
                             label: (
                                 <Popconfirm
-                                    title="Delete Location"
+                                    title={td("Delete Location")}
                                     description={
                                         <span>
-                                            Are you sure you want to delete{" "}
-                                            <strong>{record.name}</strong>? This
-                                            cannot be undone.
+                                            {td(
+                                                "Are you sure you want to delete",
+                                            )}{" "}
+                                            <strong>{record.name}</strong>?{" "}
+                                            {td("This cannot be undone.")}
                                         </span>
                                     }
                                     onConfirm={() => handleDelete(record)}
-                                    okText="Delete"
-                                    cancelText="Cancel"
+                                    okText={td("Delete")}
+                                    cancelText={td("Cancel")}
                                     okButtonProps={{ danger: true }}
                                     placement="left"
                                 >
                                     <span className="text-red-600 w-full inline-block">
-                                        Delete
+                                        {td("Delete")}
                                     </span>
                                 </Popconfirm>
                             ),
@@ -1461,7 +1459,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 },
             },
         ],
-        [handleEdit, handleDelete],
+        [handleEdit, handleDelete, td],
     );
 
     return (
@@ -1482,11 +1480,12 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                             <div>
                                 <Title level={4} className="!mb-1">
-                                    Project Locations
+                                    {td("Project Locations")}
                                 </Title>
                                 <Text type="secondary">
-                                    Manage locations for your developer projects
-                                    and expose configurations
+                                    {td(
+                                        "Manage locations for your developer projects and expose configurations",
+                                    )}
                                 </Text>
                             </div>
                             <Button
@@ -1494,7 +1493,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                 icon={<PlusOutlined />}
                                 onClick={handleAdd}
                             >
-                                New Location
+                                {td("New Location")}
                             </Button>
                         </div>
                     </Card>
@@ -1506,7 +1505,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description={
                                     <span className="text-gray-500">
-                                        No locations created yet
+                                        {td("No locations created yet")}
                                     </span>
                                 }
                             >
@@ -1555,6 +1554,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 onClose={handleClose}
                 location={selectedLocation}
                 onSuccess={handleSuccess}
+                td={td}
             />
 
             {/* Custom styles */}
