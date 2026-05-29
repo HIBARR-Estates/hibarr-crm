@@ -951,6 +951,7 @@
     $locationImage = $locationPayload['image_url'] ?? null;
     $locationInfrastructure = array_values($data['location_infrastructure'] ?? []);
     $locationAirports = array_values($data['location_airports'] ?? []);
+    $locationAttractions = array_values($data['location_attractions'] ?? []);
 
     $facilitySlugs = $data['facilities'] ?? [];
     $facilityLabels = $data['facility_labels'] ?? [];
@@ -1048,7 +1049,7 @@
     </div>
 
     {{-- Left: content column --}}
-    <div class="container" style="width: 50%; box-sizing: border-box; position: relative; z-index: 1;">
+    <div class="container" style="width: 50%; box-sizing: border-box; position: relative; z-index: 1; background: linear-gradient(to right, white 0%, transparent 100%);">
       <div class="expose-title">
         <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
         <div class="text">
@@ -1212,7 +1213,7 @@
 
   <!-- PAGE 5: FACILITIES GALLERY -->
   @php
-    $facilityRenderQueue = array_values($facilityItems);
+    $facilityRenderQueue = array_values(array_slice($facilityItems, 0, 8));
     $facilityPages = [];
 
     while (!empty($facilityRenderQueue)) {
@@ -1616,7 +1617,7 @@
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
       
       <div>
-         <div style="max-width:100%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 10px;">{!! !empty($locationDescription) ? $locationDescription : '' !!}</div>
+         <div style="max-width:100%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 5px;">{!! !empty($locationDescription) ? $locationDescription : '' !!}</div>
         <style>
             div[style*="font-size: 20px"] p,
             div[style*="font-size: 20px"] span,
@@ -1629,7 +1630,7 @@
       </div>
       
     </div>
-    <div class="expose-title blue absolute" style="top: 0px;">
+    <div class="expose-title blue absolute" style="margin-top: 40px;">
       {{-- <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" /> --}}
       <div class="text blue" style="font-weight: 700 !important; margin-left: -95px;">
         <h1 class="fw-500" style="font-size: 35px; !important; font-weight: 700 !important;">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
@@ -1643,6 +1644,46 @@
 </div>
 @endif
 
+@foreach($locationAttractions as $attraction)
+@php
+  $attractionTitle = $attraction['name'] ?? 'ATTRACTION';
+  $attractionDescription = $attraction['description'] ?? '';
+  $attractionPrimaryImage = $attraction['primary_image_url'] ?? ($heroImages[0] ?? 'property/images/test.png');
+  $attractionSecondaryImage = $attraction['secondary_image_url'] ?? ($exteriorImages[1] ?? $attractionPrimaryImage);
+@endphp
+@if(!empty($attractionTitle) || !empty($attractionDescription) || !empty($attractionPrimaryImage) || !empty($attractionSecondaryImage))
+<div class="page">
+  <div class="split-page" style="position:relative; z-index:1;">
+    <div class="split-top" style="--bg-image: url('{{ $attractionPrimaryImage }}')"></div>
+    <div class="split-bottom">
+      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
+      <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
+      <div class="container">
+        <div style="max-width:80%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 5px;">{!! $attractionDescription !!}</div>
+        <style>
+          div[style*="font-size: 20px"] p,
+          div[style*="font-size: 20px"] span,
+          div[style*="font-size: 20px"] * {
+            font-size: 20px !important;
+            color: #053160 !important;
+            font-family: 'Open Sans', sans-serif !important;
+          }
+        </style>
+      </div>
+    </div>
+    <div class="expose-title blue absolute" style="margin-top: 40px;">
+      <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
+      <div class="text blue">
+        <h1 class="fw-500">{{ strtoupper($attractionTitle) }}</h1>
+      </div>
+    </div>
+    <div class="rock">
+      <img src="{{ $attractionSecondaryImage }}" alt="{{ $attractionTitle }}" />
+    </div>
+  </div>
+</div>
+@endif
+@endforeach
 
 <!-- PAGE 10: INFRASTRUCTURE / DISTANCES -->
 @if(!empty($data['distances']) || !empty($locationInfrastructure) || !empty($locationAirports))
@@ -1750,19 +1791,19 @@
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
             <div class="container">
-              <div style="max-width:80%; font-size: 18px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 20px;">{!! $outroDescription !!}</div>
+              <div style="max-width:80%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 5px;">{!! $outroDescription !!}</div>
               <style>
-                div[style*="font-size: 18px"] p,
-                div[style*="font-size: 18px"] span,
-                div[style*="font-size: 18px"] * {
-                  font-size: 18px !important;
+                div[style*="font-size: 20px"] p,
+                div[style*="font-size: 20px"] span,
+                div[style*="font-size: 20px"] * {
+                  font-size: 20px !important;
                   color: #053160 !important;
                   font-family: 'Open Sans', sans-serif !important;
                 }
               </style>
             </div>
         </div>
-        <div class="expose-title blue absolute" style="top: 40px;">
+        <div class="expose-title blue absolute" style="margin-top: 40px;">
             <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
             <div class="text blue">
                 <h1 class="fw-500">{{ strtoupper($outroTitle) }}</h1>

@@ -280,9 +280,88 @@ class DealActivityEventService
             'new_value' => $newValue,
             'old_value_display' => $oldDisplay,
             'new_value_display' => $newDisplay,
-        ], auth()->check()
-            ? CrmEventGenerationType::USER_GENERATED
-            : CrmEventGenerationType::SYSTEM_GENERATED);
+        ], $this->generationTypeForCurrentUser());
+    }
+
+    /**
+     * @param array<int, array{field_name: string, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}> $changes
+     */
+    public function recordHibarrFieldsUpdated(Deal $deal, array $changes): void
+    {
+        foreach ($changes as $change) {
+            $this->recordHibarrFieldUpdated(
+                $deal,
+                (string) $change['field_name'],
+                (string) $change['field_label'],
+                $change['old_value'] ?? null,
+                $change['new_value'] ?? null,
+                $change['field_type'] ?? null
+            );
+        }
+    }
+
+    public function recordHibarrFieldUpdated(
+        Deal $deal,
+        string $fieldName,
+        string $fieldLabel,
+        ?string $oldValue,
+        ?string $newValue,
+        ?string $fieldType = null
+    ): void {
+        $oldDisplay = $this->formatAssociatableFieldValueForDisplay($oldValue, $fieldType);
+        $newDisplay = $this->formatAssociatableFieldValueForDisplay($newValue, $fieldType);
+
+        $this->record('deal_hibarr_field_updated', $deal, [
+            'comment' => CrmEventDescriptionBuilder::dealHibarrFieldUpdated($fieldLabel, $oldDisplay, $newDisplay),
+            'field_name' => $fieldName,
+            'field_label' => $fieldLabel,
+            'field_type' => $fieldType,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'old_value_display' => $oldDisplay,
+            'new_value_display' => $newDisplay,
+        ], $this->generationTypeForCurrentUser());
+    }
+
+    /**
+     * @param array<int, array{field_name: string, field_label: string, field_type: ?string, old_value: ?string, new_value: ?string}> $changes
+     */
+    public function recordLeadMarketingFieldsUpdated(Deal $deal, array $changes): void
+    {
+        foreach ($changes as $change) {
+            $this->recordLeadMarketingFieldUpdated(
+                $deal,
+                (string) $change['field_name'],
+                (string) $change['field_label'],
+                $change['old_value'] ?? null,
+                $change['new_value'] ?? null,
+                $change['field_type'] ?? null
+            );
+        }
+    }
+
+    public function recordLeadMarketingFieldUpdated(
+        Deal $deal,
+        string $fieldName,
+        string $fieldLabel,
+        ?string $oldValue,
+        ?string $newValue,
+        ?string $fieldType = null
+    ): void {
+        $oldDisplay = $this->formatAssociatableFieldValueForDisplay($oldValue, $fieldType);
+        $newDisplay = $this->formatAssociatableFieldValueForDisplay($newValue, $fieldType);
+
+        $this->record('deal_lead_marketing_field_updated', $deal, [
+            'comment' => CrmEventDescriptionBuilder::dealLeadMarketingFieldUpdated($fieldLabel, $oldDisplay, $newDisplay),
+            'field_name' => $fieldName,
+            'field_label' => $fieldLabel,
+            'field_type' => $fieldType,
+            'old_value' => $oldValue,
+            'new_value' => $newValue,
+            'old_value_display' => $oldDisplay,
+            'new_value_display' => $newDisplay,
+            'lead_id' => $deal->lead_id,
+        ], $this->generationTypeForCurrentUser());
     }
 
     public function recordParticipantsUpdated(Deal $deal, array $oldParticipantIds, array $newParticipantIds, array $oldParticipantNames, array $newParticipantNames): void
@@ -362,8 +441,13 @@ class DealActivityEventService
                 'was_async' => $event === null,
             ]);
 
-            if ($event === null && $eventTypeSlug === 'deal_custom_field_updated') {
-                Log::warning('[DealActivityEventService::record] deal_custom_field_updated was not persisted. Run: php artisan db:seed --class=CrmEventSeeder', [
+            if ($event === null && in_array($eventTypeSlug, [
+                'deal_custom_field_updated',
+                'deal_hibarr_field_updated',
+                'deal_lead_marketing_field_updated',
+            ], true)) {
+                Log::warning('[DealActivityEventService::record] Event was not persisted. Run: php artisan db:seed --class=CrmEventSeeder', [
+                    'slug' => $eventTypeSlug,
                     'deal_id' => $deal->id,
                     'company_id' => $deal->company_id,
                 ]);
@@ -393,6 +477,13 @@ class DealActivityEventService
         }
 
         return $this->correlationId;
+    }
+
+    protected function generationTypeForCurrentUser(): CrmEventGenerationType
+    {
+        return auth()->check()
+            ? CrmEventGenerationType::USER_GENERATED
+            : CrmEventGenerationType::SYSTEM_GENERATED;
     }
 
     protected function normalizeCustomFieldValue(?string $value): string
@@ -439,5 +530,22 @@ class DealActivityEventService
         }
 
         return Str::limit($trimmed, 200, '...');
+    }
+
+    protected function formatAssociatableFieldValueForDisplay(?string $value, ?string $fieldType = null): ?string
+    {
+        if ($fieldType === 'boolean') {
+            if ($value === null || $value === '') {
+                return null;
+            }
+
+            return in_array(strtolower(trim($value)), ['1', 'true', 'yes', 'on'], true) ? 'Yes' : 'No';
+        }
+
+        if ($fieldType === 'date' && $value !== null && trim($value) !== '') {
+            return CrmEventDescriptionBuilder::formatDate($value);
+        }
+
+        return $this->formatCustomFieldValueForDisplay($value, $fieldType);
     }
 }

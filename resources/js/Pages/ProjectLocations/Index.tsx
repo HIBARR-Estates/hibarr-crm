@@ -55,6 +55,8 @@ import {
 import type {
     ProjectLocation,
     CreateProjectLocationInput,
+    LocationAirport,
+    LocationInfrastructure,
 } from "../../Types/developerProject";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
@@ -64,12 +66,100 @@ import {
 } from "@/Hooks/useLocationFormUpload";
 import { useGenerateDescription } from "@/lib/ai";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
-import type { PropertyEnumValues } from "@/Types";
+import type { CityLookupValue, PropertyEnumValues } from "@/Types";
 import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
-import type { ConfigItemsResponse } from "@/Types/propertyConfig";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
+
+interface LocationAirportOption {
+    id: number;
+    name: string;
+    code?: string | null;
+    label?: string | null;
+    image_url?: string | null;
+}
+
+interface LocationAirportsResponse {
+    status: string;
+    airports: LocationAirportOption[];
+}
+
+interface LocationInfrastructureOption {
+    id: number;
+    name: string;
+    icon?: string | null;
+    label?: string | null;
+    image_url?: string | null;
+}
+
+interface LocationInfrastructuresResponse {
+    status: string;
+    infrastructures: LocationInfrastructureOption[];
+}
+
+const humanizeConfigName = (value: string) =>
+    value
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const toNumericId = (value: unknown): number | undefined => {
+    if (value === null || value === undefined || value === "") {
+        return undefined;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const formatAirportLabel = (airport: LocationAirportOption) => {
+    const base = airport.label || humanizeConfigName(airport.name);
+    return airport.code ? `${base} (${airport.code})` : base;
+};
+
+const formatInfrastructureLabel = (item: LocationInfrastructureOption) =>
+    item.label || humanizeConfigName(item.name);
+
+const getLocationCity = (location: ProjectLocation) =>
+    location.address?.city ?? location.city;
+
+const getLocationArea = (location: ProjectLocation) =>
+    location.address?.state ?? location.area;
+
+const resolveLookupName = (
+    stored: string | undefined,
+    options: Array<{ name: string; label: string }>,
+): string | undefined => {
+    if (!stored) {
+        return undefined;
+    }
+
+    if (options.some((option) => option.name === stored)) {
+        return stored;
+    }
+
+    const byLabel = options.find((option) => option.label === stored);
+    return byLabel?.name ?? stored;
+};
+
+const resolveAreaName = (
+    stored: string | undefined,
+    cityName: string | undefined,
+    enumValues: PropertyEnumValues,
+): string | undefined => {
+    if (!stored) {
+        return undefined;
+    }
+
+    const cityAreas =
+        (cityName && enumValues.areas_by_city?.[cityName]) || [];
+    const resolvedInCity = resolveLookupName(stored, cityAreas);
+    if (resolvedInCity && cityAreas.some((area) => area.name === resolvedInCity)) {
+        return resolvedInCity;
+    }
+
+    return resolveLookupName(stored, enumValues.areas || []);
+};
 
 const getMeaningfulText = (value?: string | null) => {
     if (!value) {
@@ -200,24 +290,23 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const isEditing = !!location;
     const selectedCity = Form.useWatch("address_city", form);
     const selectedArea = Form.useWatch("address_state", form);
-    const isInitialCity = useRef(true);
+    const previousCityRef = useRef<string | undefined>();
 
     const { data: enumValues } = useApiQuery<PropertyEnumValues>({
         path: route("properties.enum_values"),
         options: { enabled: open },
     });
 
-    const { data: airportConfigData } = useApiQuery<ConfigItemsResponse>({
-        path: route("property-config.index", { type: "airports" }),
+    const { data: airportData } = useApiQuery<LocationAirportsResponse>({
+        path: route("project-locations.airports"),
         options: { enabled: open },
     });
 
-    const { data: infrastructureConfigData } = useApiQuery<ConfigItemsResponse>(
-        {
-            path: route("property-config.index", { type: "infrastructures" }),
+    const { data: infrastructureData } =
+        useApiQuery<LocationInfrastructuresResponse>({
+            path: route("project-locations.infrastructures"),
             options: { enabled: open },
-        },
-    );
+        });
 
     const cityOptions = useMemo(() => {
         const cities = enumValues?.cities || [];
@@ -228,44 +317,70 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         }));
     }, [enumValues?.cities]);
 
-    const airportOptions = useMemo(
-        () =>
-            (airportConfigData?.data || []).map((airport) => ({
-                value: airport.id,
-                label: airport.label,
-            })),
-        [airportConfigData?.data],
-    );
+    const airportOptions = useMemo(() => {
+        const options = (airportData?.airports || []).map((airport) => ({
+            value: airport.id,
+            label: formatAirportLabel(airport),
+        }));
+        const knownIds = new Set(options.map((option) => option.value));
 
-    const infrastructureOptions = useMemo(
-        () =>
-            (infrastructureConfigData?.data || []).map((item) => ({
+        location?.airports?.forEach((airport) => {
+            const id = toNumericId(airport.airport_id);
+            if (id !== undefined && !knownIds.has(id)) {
+                options.push({
+                    value: id,
+                    label: airport.name || `Airport #${id}`,
+                });
+                knownIds.add(id);
+            }
+        });
+
+        return options;
+    }, [airportData?.airports, location?.airports]);
+
+    const infrastructureOptions = useMemo(() => {
+        const options = (infrastructureData?.infrastructures || []).map(
+            (item) => ({
                 value: item.id,
-                label: item.label,
-            })),
-        [infrastructureConfigData?.data],
-    );
+                label: formatInfrastructureLabel(item),
+            }),
+        );
+        const knownIds = new Set(options.map((option) => option.value));
+
+        location?.infrastructure?.forEach((item) => {
+            const id = toNumericId(item.infrastructure_id);
+            if (id !== undefined && !knownIds.has(id)) {
+                options.push({
+                    value: id,
+                    label: item.name || `Infrastructure #${id}`,
+                });
+                knownIds.add(id);
+            }
+        });
+
+        return options;
+    }, [infrastructureData?.infrastructures, location?.infrastructure]);
 
     const airportById = useMemo(
         () =>
             Object.fromEntries(
-                (airportConfigData?.data || []).map((airport) => [
+                (airportData?.airports || []).map((airport) => [
                     airport.id,
                     airport,
                 ]),
             ),
-        [airportConfigData?.data],
+        [airportData?.airports],
     );
 
     const infrastructureById = useMemo(
         () =>
             Object.fromEntries(
-                (infrastructureConfigData?.data || []).map((item) => [
+                (infrastructureData?.infrastructures || []).map((item) => [
                     item.id,
                     item,
                 ]),
             ),
-        [infrastructureConfigData?.data],
+        [infrastructureData?.infrastructures],
     );
 
     const areaOptions = useMemo(() => {
@@ -274,11 +389,37 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         }
 
         const areas = enumValues.areas_by_city[selectedCity] || [];
-        return areas.map((a) => ({
+        const options = areas.map((a) => ({
             value: a.name,
             label: a.label,
         }));
-    }, [selectedCity, enumValues?.areas_by_city]);
+        const knownValues = new Set(options.map((option) => option.value));
+
+        if (location && selectedCity) {
+            const storedArea = getLocationArea(location);
+            const resolvedArea = resolveAreaName(
+                storedArea,
+                selectedCity,
+                enumValues,
+            );
+
+            if (
+                resolvedArea &&
+                !knownValues.has(resolvedArea) &&
+                storedArea
+            ) {
+                const matchedArea = areas.find(
+                    (area) => area.name === resolvedArea,
+                );
+                options.push({
+                    value: resolvedArea,
+                    label: matchedArea?.label || storedArea,
+                });
+            }
+        }
+
+        return options;
+    }, [selectedCity, enumValues, location]);
 
     const selectedCityDescription = useMemo(() => {
         const selected = cityOptions.find(
@@ -416,60 +557,165 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         }
     }, [form, generateDescription, modal]);
 
+    const resolveAirportId = useCallback(
+        (airport: LocationAirport) => {
+            const airports = airportData?.airports || [];
+            const numericId = toNumericId(airport.airport_id);
+
+            if (
+                numericId !== undefined &&
+                airports.some((item) => item.id === numericId)
+            ) {
+                return numericId;
+            }
+
+            if (airport.name) {
+                const match = airports.find(
+                    (item) =>
+                        item.name === airport.name ||
+                        formatAirportLabel(item) === airport.name,
+                );
+                if (match) {
+                    return match.id;
+                }
+            }
+
+            return numericId;
+        },
+        [airportData?.airports],
+    );
+
+    const resolveInfrastructureId = useCallback(
+        (item: LocationInfrastructure) => {
+            const infrastructures = infrastructureData?.infrastructures || [];
+            const numericId = toNumericId(item.infrastructure_id);
+
+            if (
+                numericId !== undefined &&
+                infrastructures.some((entry) => entry.id === numericId)
+            ) {
+                return numericId;
+            }
+
+            if (item.name) {
+                const match = infrastructures.find(
+                    (entry) =>
+                        entry.name === item.name ||
+                        formatInfrastructureLabel(entry) === item.name,
+                );
+                if (match) {
+                    return match.id;
+                }
+            }
+
+            return numericId;
+        },
+        [infrastructureData?.infrastructures],
+    );
+
     // Reset form when drawer opens/closes or location changes
-    useEffect(() => {
-        if (open && location) {
-            form.setFieldsValue({
-                name: location.name,
-                description: location.description || undefined,
-                address_street: location.address?.street,
-                address_city: location.address?.city,
-                address_state: location.address?.state,
-                address_country: location.address?.country,
-                address_postalCode: location.address?.postalCode,
-                attractions:
-                    location.attractions?.map((a) => ({
-                        name: a.name,
-                        content: a.content || [],
-                    })) || [],
-                infrastructure:
-                    location.infrastructure?.map((i) => ({
-                        infrastructure_id: i.infrastructure_id,
-                        name: i.name,
-                        travelTimeInMin: i.travelTimeInMin,
-                    })) || [],
-                airports:
-                    location.airports?.map((a) => ({
-                        airport_id: a.airport_id,
-                        name: a.name,
-                        travelTimeInMin: a.travelTimeInMin,
-                    })) || [],
-            });
-        } else if (open) {
-            form.resetFields();
-            form.setFieldValue("airports", []);
-            form.setFieldValue("infrastructure", []);
-        }
-        setActiveTab("basic");
-    }, [open, location, form]);
-
-    useEffect(() => {
-        if (open) {
-            isInitialCity.current = true;
-        }
-    }, [open]);
-
     useEffect(() => {
         if (!open) {
             return;
         }
 
-        if (isInitialCity.current) {
-            isInitialCity.current = false;
+        if (!location) {
+            previousCityRef.current = undefined;
+            form.resetFields();
+            form.setFieldValue("airports", []);
+            form.setFieldValue("infrastructure", []);
+            setActiveTab("basic");
             return;
         }
 
-        form.setFieldValue("address_state", undefined);
+        previousCityRef.current = undefined;
+
+        form.setFieldsValue({
+            name: location.name,
+            description: location.description || undefined,
+            address_street: location.address?.street,
+            address_country: location.address?.country,
+            address_postalCode: location.address?.postalCode,
+            attractions:
+                location.attractions?.map((a) => ({
+                    name: a.name,
+                    content: a.content || [],
+                })) || [],
+        });
+        setActiveTab("basic");
+    }, [open, location, form]);
+
+    // Populate city/area after enum values load so Select options are available
+    useEffect(() => {
+        if (!open || !location || !enumValues?.cities) {
+            return;
+        }
+
+        const cities = enumValues.cities as CityLookupValue[];
+        const resolvedCity = resolveLookupName(getLocationCity(location), cities);
+        const resolvedArea = resolveAreaName(
+            getLocationArea(location),
+            resolvedCity,
+            enumValues,
+        );
+
+        form.setFieldsValue({
+            address_city: resolvedCity,
+            address_state: resolvedArea,
+        });
+    }, [open, location, form, enumValues]);
+
+    // Populate airport/infrastructure selects after lookup options are loaded
+    useEffect(() => {
+        if (!open || !location) {
+            return;
+        }
+
+        if (!airportData?.airports || !infrastructureData?.infrastructures) {
+            return;
+        }
+
+        form.setFieldsValue({
+            infrastructure:
+                location.infrastructure?.map((item) => ({
+                    infrastructure_id: resolveInfrastructureId(item),
+                    travelTimeInMin: item.travelTimeInMin,
+                })) || [],
+            airports:
+                location.airports?.map((airport) => ({
+                    airport_id: resolveAirportId(airport),
+                    travelTimeInMin: airport.travelTimeInMin,
+                })) || [],
+        });
+    }, [
+        open,
+        location,
+        form,
+        airportData?.airports,
+        infrastructureData?.infrastructures,
+        resolveAirportId,
+        resolveInfrastructureId,
+    ]);
+
+    useEffect(() => {
+        if (!open) {
+            previousCityRef.current = undefined;
+            return;
+        }
+
+        if (selectedCity === undefined) {
+            return;
+        }
+
+        if (previousCityRef.current === undefined) {
+            previousCityRef.current = selectedCity;
+            return;
+        }
+
+        if (previousCityRef.current !== selectedCity) {
+            form.setFieldValue("address_state", undefined);
+            previousCityRef.current = selectedCity;
+        }
     }, [selectedCity, form, open]);
 
     useEffect(() => {
