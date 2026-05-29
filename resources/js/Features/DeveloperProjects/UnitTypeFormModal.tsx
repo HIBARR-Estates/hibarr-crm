@@ -51,9 +51,9 @@ import {
 } from "@/Features/DeveloperProjects/unitTypeConfig";
 import UnitTypePhotosSection from "@/Features/DeveloperProjects/UnitTypePhotosSection";
 import { useGenerateDescription } from "@/lib/ai";
+import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
 
 const { Title, Text } = Typography;
-const { TextArea } = Input;
 
 // ============================================
 // Types
@@ -768,7 +768,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                         name="restriction_notes"
                         label="Restriction Notes"
                     >
-                        <TextArea
+                        <Input.TextArea
                             rows={2}
                             placeholder="Describe the restrictions..."
                         />
@@ -832,12 +832,10 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     )}
                 </div>
                 <Form.Item name="description" noStyle>
-                    <TextArea
-                        rows={4}
+                    <HtmlEditor
                         placeholder="Detailed description of this unit type..."
-                        showCount
-                        maxLength={5000}
                         disabled={isGenerating}
+                        height={220}
                     />
                 </Form.Item>
                 {insufficientMessage && (

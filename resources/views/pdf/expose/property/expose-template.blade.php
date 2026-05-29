@@ -1383,43 +1383,51 @@
     $galleryGridImages = array_slice($remainingGallery, 0, 4);
   @endphp
   @if(!empty($remainingGallery))
-  <div class="page">
-    <div class="container" style="padding: 3.70mm !important;">
-      @if(count($galleryGridImages) === 2)
-        <div class="quad-grid-2">
-          <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
+    @if (count($galleryGridImages) === 1)
+      <div class="page bg" style="--bg-image: url('{{ $galleryGridImages[0] }}')">
+        <div class="logo-watermark-bottom">
+          <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
         </div>
-      @elseif(count($galleryGridImages) === 3)
-        <div class="tri-grid">
-          <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
-          <div class="bottom-wide" style="--bg-image: url('{{ $galleryGridImages[2] }}')"></div>
-        </div>
-      @elseif(count($galleryGridImages) === 6)
-        <div class="quad-grid-6">
-          <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[2] }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[3] }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[4] }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[5] }}')"></div>
-        </div>
-      @else
-        <div class="quad-grid">
-          <div style="--bg-image: url('{{ $galleryGridImages[0] ?? 'property/images/test.png' }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[1] ?? 'property/images/test.png' }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[2] ?? 'property/images/test.png' }}')"></div>
-          <div style="--bg-image: url('{{ $galleryGridImages[3] ?? 'property/images/test.png' }}')"></div>
-        </div>
-      @endif
-
-      <div class="logo-watermark-bottom">
-        <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
       </div>
-    </div>
-    
-  </div>
+    @else
+      <div class="page">
+        <div class="container" style="padding: 3.70mm !important;">
+          @if(count($galleryGridImages) === 2)
+            <div class="quad-grid-2">
+              <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
+            </div>
+          @elseif(count($galleryGridImages) === 3)
+            <div class="tri-grid">
+              <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
+              <div class="bottom-wide" style="--bg-image: url('{{ $galleryGridImages[2] }}')"></div>
+            </div>
+          @elseif(count($galleryGridImages) === 6)
+            <div class="quad-grid-6">
+              <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[1] }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[2] }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[3] }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[4] }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[5] }}')"></div>
+            </div>
+          @else
+            <div class="quad-grid">
+              <div style="--bg-image: url('{{ $galleryGridImages[0] ?? 'property/images/test.png' }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[1] ?? 'property/images/test.png' }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[2] ?? 'property/images/test.png' }}')"></div>
+              <div style="--bg-image: url('{{ $galleryGridImages[3] ?? 'property/images/test.png' }}')"></div>
+            </div>
+          @endif
+
+          <div class="logo-watermark-bottom">
+            <img src="{{ $data['branding']['logo_white'] }}" alt="hibarr-logo" />
+          </div>
+        </div>
+        
+      </div>
+    @endif
   @endif
 
   <!-- PAGE 8: UNIT LAYOUT / FLOOR PLAN -->
@@ -1621,7 +1629,7 @@
       </div>
       
     </div>
-    <div class="expose-title blue absolute" style="top: 400px;">
+    <div class="expose-title blue absolute" style="top: 0px;">
       {{-- <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" /> --}}
       <div class="text blue" style="font-weight: 700 !important; margin-left: -95px;">
         <h1 class="fw-500" style="font-size: 35px; !important; font-weight: 700 !important;">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
@@ -1754,7 +1762,7 @@
               </style>
             </div>
         </div>
-        <div class="expose-title blue absolute">
+        <div class="expose-title blue absolute" style="top: 40px;">
             <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
             <div class="text blue">
                 <h1 class="fw-500">{{ strtoupper($outroTitle) }}</h1>

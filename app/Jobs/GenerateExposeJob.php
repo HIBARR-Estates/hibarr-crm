@@ -109,15 +109,33 @@ class GenerateExposeJob implements ShouldQueue
             'client_email' => $payload['client_email'] ?? null,
         ];
 
+        // Queue workers have no HTTP session — use the user stored on the job.
+        $generatedBy = $exposeJob->user_id
+            ? User::with(['employeeDetail.designation', 'company.defaultAddress'])->find($exposeJob->user_id)
+            : null;
+
         switch ($exposeJob->entity_type) {
             case ExposeJob::ENTITY_PROPERTY:
                 $property = Property::with(['product.addedBy', 'assets'])->findOrFail($exposeJob->entity_id);
-                return ExposeConfiguration::fromProperty($property, 'expose-template', $clientData);
+                return ExposeConfiguration::fromProperty(
+                    $property,
+                    'expose-template',
+                    $clientData,
+                    [],
+                    $generatedBy,
+                    $exposeJob->company_id
+                );
 
             case ExposeJob::ENTITY_DEVELOPER_PROJECT:
                 $project = DeveloperProject::with(['developer', 'location', 'assets', 'unitTypes.assets'])
                     ->findOrFail($exposeJob->entity_id);
-                return ExposeConfiguration::fromDeveloperProject($project, 'project-expose-template', $clientData);
+                return ExposeConfiguration::fromDeveloperProject(
+                    $project,
+                    'project-expose-template',
+                    $clientData,
+                    $generatedBy,
+                    $exposeJob->company_id
+                );
 
             case ExposeJob::ENTITY_UNIT_TYPE:
                 $unitType = DeveloperProjectUnitType::with([
@@ -126,7 +144,13 @@ class GenerateExposeJob implements ShouldQueue
                     'project.assets',
                     'assets',
                 ])->findOrFail($exposeJob->sub_entity_id);
-                return ExposeConfiguration::fromUnitType($unitType, 'expose-template', $clientData);
+                return ExposeConfiguration::fromUnitType(
+                    $unitType,
+                    'expose-template',
+                    $clientData,
+                    $generatedBy,
+                    $exposeJob->company_id
+                );
 
             default:
                 throw new \InvalidArgumentException("Unknown entity_type: {$exposeJob->entity_type}");
