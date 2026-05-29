@@ -680,14 +680,11 @@ export default function EditableField({
                                                   | undefined)
                                     }
                                     onChange={(val) => {
-                                        // Always save as string to preserve the exact format
-                                        // This bypasses country code validation and keeps the number as-is
                                         if (
                                             val &&
                                             typeof val === "object" &&
                                             "phoneNumber" in val
                                         ) {
-                                            // If PhoneNumber object is returned, reconstruct the full number
                                             handleValueChange(
                                                 serializePhoneInputValue(
                                                     val,
@@ -695,7 +692,6 @@ export default function EditableField({
                                                 ),
                                             );
                                         } else if (typeof val === "string") {
-                                            // Save string as-is (preserves + prefix and full format)
                                             handleValueChange(val);
                                         } else {
                                             handleValueChange(val);
