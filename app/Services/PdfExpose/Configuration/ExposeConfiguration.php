@@ -2,11 +2,13 @@
 
 namespace App\Services\PdfExpose\Configuration;
 
+use App\Models\Company;
 use App\Models\CompanyExposeConfiguration;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\ProjectFacility;
 use App\Models\PropertyCity;
+use App\Models\User;
 use Illuminate\Contracts\Support\Arrayable;
 
 class ExposeConfiguration implements Arrayable
@@ -20,12 +22,12 @@ class ExposeConfiguration implements Arrayable
         public readonly array $options = [],       // Additional options
     ) {}
 
-    public static function fromProperty($property, string $layout, array $clientData = [], array $sections = []): self
+    public static function fromProperty($property, string $layout, array $clientData = [], array $sections = [], ?User $generatedBy = null, ?int $companyId = null): self
     {
         $property->loadMissing(['projectLocation', 'developerProject.location']);
 
-        $agent = self::resolveGeneratingUser();
-        $company = self::resolveGeneratingCompany($agent);
+        $agent = self::resolveGeneratingUser($generatedBy);
+        $company = self::resolveGeneratingCompany($agent, $companyId ?? $property->company_id);
         $projectLocation = $property->projectLocation ?? $property->developerProject?->location;
         $locationInfrastructure = $projectLocation?->getExpandedInfrastructure() ?? [];
         $locationAirports = $projectLocation?->getExpandedAirports() ?? [];
@@ -164,12 +166,12 @@ class ExposeConfiguration implements Arrayable
         );
     }
 
-    public static function fromDeveloperProject(DeveloperProject $project, string $layout = 'project-expose-template', array $clientData = []): self
+    public static function fromDeveloperProject(DeveloperProject $project, string $layout = 'project-expose-template', array $clientData = [], ?User $generatedBy = null, ?int $companyId = null): self
     {
         $project->loadMissing(['developer', 'location', 'assets', 'unitTypes.assets']);
 
-        $agent = self::resolveGeneratingUser();
-        $company = self::resolveGeneratingCompany($agent);
+        $agent = self::resolveGeneratingUser($generatedBy);
+        $company = self::resolveGeneratingCompany($agent, $companyId ?? $project->company_id);
         $location = $project->location;
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project->company_id ?? $company?->id);
 
@@ -432,14 +434,14 @@ class ExposeConfiguration implements Arrayable
      * Missing data (city, distances, construction_status, some asset tags) is
      * inherited from the parent DeveloperProject + ProjectLocation.
      */
-    public static function fromUnitType(DeveloperProjectUnitType $unitType, string $layout = 'expose-template', array $clientData = []): self
+    public static function fromUnitType(DeveloperProjectUnitType $unitType, string $layout = 'expose-template', array $clientData = [], ?User $generatedBy = null, ?int $companyId = null): self
     {
         $unitType->loadMissing(['project.developer', 'project.location', 'project.assets', 'assets']);
 
         $project = $unitType->project;
         $location = $project?->location;
-        $agent = self::resolveGeneratingUser();
-        $company = self::resolveGeneratingCompany($agent);
+        $agent = self::resolveGeneratingUser($generatedBy);
+        $company = self::resolveGeneratingCompany($agent, $companyId ?? $project?->company_id);
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project?->company_id ?? $company?->id);
 
         // Resolve asset URLs by tag with fallback chain:
@@ -906,40 +908,86 @@ class ExposeConfiguration implements Arrayable
         );
     }
 
-    private static function resolveGeneratingUser(): mixed
+    private static function resolveGeneratingUser(?User $generatedBy = null): ?User
     {
-        return auth()->user();
+        return $generatedBy ?? auth()->user();
     }
 
-    private static function resolveGeneratingCompany($user): mixed
+    private static function resolveGeneratingCompany(?User $user, ?int $companyId = null): ?Company
     {
-        return $user?->company ?? company() ?: null;
+        if ($user) {
+            $company = $user->company;
+            $company?->loadMissing('defaultAddress');
+
+            if ($company) {
+                return $company;
+            }
+        }
+
+        if ($companyId) {
+            return Company::with('defaultAddress')->find($companyId);
+        }
+
+        $sessionCompany = company();
+
+        return $sessionCompany instanceof Company ? $sessionCompany : null;
     }
 
-    private static function buildAgentData($agent): array
+    private static function buildAgentData(?User $agent): array
     {
         $agent?->loadMissing(['employeeDetail.designation']);
 
         return [
-            'name' => $agent?->name ?? 'N/A',
-            'email' => $agent?->email ?? 'N/A',
-            'phone' => $agent?->mobile_with_phone_code ?? $agent?->mobile ?? 'N/A',
+            'name' => $agent?->name_salutation ?? $agent?->name ?? null,
+            'email' => $agent?->email ?? null,
+            'phone' => $agent?->mobile_with_phone_code ?? $agent?->mobile ?? null,
             'image' => $agent?->image_url ?? null,
             'position' => $agent?->employeeDetail?->designation?->name ?? null,
         ];
     }
 
-    private static function buildCompanyData($company): array
+    private static function buildCompanyData(?Company $company): array
     {
+        $company?->loadMissing('defaultAddress');
+
         return [
             'name' => $company?->company_name ?? config('app.name'),
             'company_name' => $company?->company_name ?? config('app.name'),
             'logo' => $company?->logo_url ?? public_path('img/logo.png'),
-            'address' => $company?->address ?? null,
+            'address' => self::resolveCompanyAddress($company),
             'phone' => $company?->company_phone ?? null,
             'email' => $company?->company_email ?? null,
             'website' => $company?->website ?? null,
         ];
+    }
+
+    /**
+     * Resolve a display address from the company record or its default address.
+     */
+    private static function resolveCompanyAddress(?Company $company): ?string
+    {
+        if (!$company) {
+            return null;
+        }
+
+        $address = trim((string) ($company->address ?? ''));
+
+        if ($address !== '') {
+            return $address;
+        }
+
+        $defaultAddress = $company->defaultAddress;
+
+        if (!$defaultAddress) {
+            return null;
+        }
+
+        $parts = array_filter([
+            trim((string) ($defaultAddress->address ?? '')),
+            trim((string) ($defaultAddress->location ?? '')),
+        ]);
+
+        return $parts !== [] ? implode(', ', $parts) : null;
     }
 
     private static function resolveGlobalExposeConfiguration(?int $companyId): array
