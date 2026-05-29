@@ -529,9 +529,9 @@ type PhoneInputParts = {
 
 /**
  * Serialize antd-phone-input onChange value while respecting the original stored format.
- * - E.164 (+prefix) numbers stay E.164.
- * - Local numbers keep local formatting (no forced +).
- * - Bare local segments still gain area code when PhoneInput parses one (fixes truncated saves).
+ * - When PhoneInput provides a countryCode, always emit E.164 (+prefix).
+ * - When the library drops countryCode but the original was international, keep the original.
+ * - Local numbers without a country code keep local formatting (no forced +).
  */
 export function serializePhoneInputValue(
     val: PhoneInputParts | string | null | undefined,
@@ -558,40 +558,26 @@ export function serializePhoneInputValue(
             : formatMobileForDisplay(originalValue).trim();
     const normalizedOriginal = formatMobileForDisplay(originalRaw).trim();
     const originalDigits = normalizedOriginal.replace(/\D/g, "");
-    const originalHasPlus = originalRaw.startsWith("+");
+    const originalHasPlus =
+        normalizedOriginal.startsWith("+") || originalRaw.startsWith("+");
     const fullDigits = `${countryCode}${areaCode}${phoneNum}`;
     const withArea = `${areaCode}${phoneNum}`;
 
-    const preserveOr = (digits: string, fallback: string): string =>
-        originalDigits === digits ? originalRaw : fallback;
-
-    if (originalHasPlus && countryCode) {
-        return preserveOr(fullDigits, `+${fullDigits}`);
+    if (countryCode && fullDigits) {
+        return `+${fullDigits}`;
     }
 
-    if (areaCode) {
-        if (originalDigits === phoneNum) {
-            return withArea;
-        }
-        if (countryCode && fullDigits === originalDigits) {
-            return originalRaw;
-        }
-        if (
-            originalDigits === withArea ||
-            (originalDigits && originalDigits.endsWith(withArea))
-        ) {
-            return originalRaw;
-        }
+    if (originalHasPlus && originalDigits) {
+        return normalizedOriginal;
+    }
+
+    if (areaCode && withArea) {
         return withArea;
     }
 
-    if (countryCode && fullDigits === originalDigits) {
-        return originalRaw;
+    if (phoneNum) {
+        return phoneNum;
     }
 
-    if (originalDigits === phoneNum) {
-        return originalRaw;
-    }
-
-    return phoneNum || originalRaw;
+    return normalizedOriginal || originalRaw;
 }
