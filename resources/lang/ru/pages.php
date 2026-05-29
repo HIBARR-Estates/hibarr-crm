@@ -236,6 +236,7 @@ return [
                 'delete'            => 'Удалить сделку',
                 'manage_properties' => 'Управлять объектами',
                 'recalculate_value_tooltip' => 'Пересчитать сумму по связанным продуктам, пакетам и примененным предложениям',
+                'view_lead_profile' => 'Открыть профиль лида',
             ],
             'value_insight' => [
                 'properties'        => 'Объекты',

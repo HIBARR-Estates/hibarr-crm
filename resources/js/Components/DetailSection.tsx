@@ -53,14 +53,14 @@ export function DetailSection({
     return (
         <div
             id={sectionId}
-            className={`bg-white border border-gray-100 rounded-xl overflow-hidden mb-4 last:mb-0 ${className}`}
+            className={`bg-white border border-gray-100 rounded-lg overflow-hidden mb-4 last:mb-0 ${className}`}
         >
             {title &&
                 (accordion ? (
                     <button
                         type="button"
                         onClick={onToggle}
-                        className="w-full flex items-center justify-between px-5 py-3 border-b border-[#002040] bg-[#002040] hover:bg-[#003060] transition-colors duration-150 text-left"
+                        className="w-full flex cursor-pointer items-center justify-between px-5 py-3 border-b border-[#002040] bg-[#002040] hover:bg-[#003060] transition-colors duration-150 text-left"
                         aria-expanded={isOpen}
                     >
                         <h3 className="text-xs font-semibold uppercase tracking-wider text-white">
