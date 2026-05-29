@@ -1629,7 +1629,7 @@
       </div>
       
     </div>
-    <div class="expose-title blue absolute" style="top: 0px;">
+    <div class="expose-title blue absolute" style="margin-top: 40px;">
       {{-- <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" /> --}}
       <div class="text blue" style="font-weight: 700 !important; margin-left: -95px;">
         <h1 class="fw-500" style="font-size: 35px; !important; font-weight: 700 !important;">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
@@ -1762,7 +1762,7 @@
               </style>
             </div>
         </div>
-        <div class="expose-title blue absolute" style="top: 40px;">
+        <div class="expose-title blue absolute" style="margin-top: 40px;">
             <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
             <div class="text blue">
                 <h1 class="fw-500">{{ strtoupper($outroTitle) }}</h1>
