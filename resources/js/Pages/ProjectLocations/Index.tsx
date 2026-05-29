@@ -533,9 +533,11 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         >
                             <Select
                                 options={areaOptions}
-                                placeholder={`${selectedCity}
-                                        ? ${location?.area || td("Select area")}
-                                        : ${td("Select city first")}`}
+                                placeholder={
+                                    selectedCity
+                                        ? "Select area/district"
+                                        : location?.area || "Select city first"
+                                }
                                 showSearch
                                 optionFilterProp="label"
                                 disabled={!selectedCity}
