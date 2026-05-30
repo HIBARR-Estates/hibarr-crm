@@ -1048,67 +1048,69 @@
         style="width: 100%; height: 100%; object-fit: cover; -webkit-mask-image: linear-gradient(to right, transparent 0%, black 38%); mask-image: linear-gradient(to right, transparent 0%, black 38%);" />
     </div>
 
-    {{-- Left: content column --}}
-    <div class="container" style="width: 50%; box-sizing: border-box; position: relative; z-index: 1; background: linear-gradient(to right, white 0%, transparent 100%);">
-      <div class="expose-title">
-        <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
-        <div class="text">
-          <h1 style="margin-bottom: 0">PROJECT OVERVIEW</h1>
-        </div>
-      </div>
-
-      <div class="items" style="margin-top: 20px;">
-        {{-- Location --}}
-        <div class="item">
-          <h3 class="item-header">CITY</h3>
-          <div class="item-value" style="text-transform: capitalize;">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
-        </div>
-
-       
-         {{-- Unit Styles: Studio / 1+1 / 1+1 Loft / 2+1 Loft --}}
-        @if(!empty($unitStyleList))
-            <div class="item">
-              <h3 class="item-header">TYPES</h3>
-              <div class="item-value">{{ implode(' / ', $unitStyleList) }}</div>
-            </div>
-        @endif
-
-        {{-- Completion Date --}}
-        <div class="item">
-          <h3 class="item-header">Completion Date</h3>
-          <div class="item-value">
-            @php
-              $completionRaw = $data['completion_date'] ?? null;
-              if (!empty($completionRaw)) {
-                try {
-                  $completionDt = \Carbon\Carbon::parse($completionRaw);
-                  $completionDisplay = $completionDt->isPast()
-                    ? 'Ready to move in'
-                    : $completionDt->format('d, M, Y');
-                } catch (\Exception $e) {
-                  $completionDisplay = $completionRaw;
-                }
-              } else {
-                $completionDisplay = 'N/A';
-              }
-            @endphp
-            {{ $completionDisplay }}
+    {{-- Full-width gradient overlay; content stays in the left 50% --}}
+    <div style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 2; background: linear-gradient(to right, #ffffff 0%, #ffffff 22%, rgba(255, 255, 255, 0.88) 40%, rgba(255, 255, 255, 0.35) 58%, rgba(255, 255, 255, 0) 72%);">
+      <div class="container" style="width: 50%; max-width: 50%; box-sizing: border-box; position: relative; z-index: 1;">
+        <div class="expose-title">
+          <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
+          <div class="text">
+            <h1 style="margin-bottom: 0">PROJECT OVERVIEW</h1>
           </div>
         </div>
 
-        {{-- Facilities --}}
-        @if(!empty($facilityItems))
-        <div class="item">
-          <h3 class="item-header">FACILITIES</h3>
-          <ul class="item-list">
-            @foreach(array_slice($facilityItems, 0, 10) as $facility)
-            <li>{{ $facility['label'] }}</li>
-            @endforeach
-          </ul>
+        <div class="items" style="margin-top: 20px;">
+          {{-- Location --}}
+          <div class="item">
+            <h3 class="item-header">CITY</h3>
+            <div class="item-value" style="text-transform: capitalize;">{{ $locationTitle ?? ($data['city'] ?? '—') }}</div>
+          </div>
+
+         
+           {{-- Unit Styles: Studio / 1+1 / 1+1 Loft / 2+1 Loft --}}
+          @if(!empty($unitStyleList))
+              <div class="item">
+                <h3 class="item-header">TYPES</h3>
+                <div class="item-value">{{ implode(' / ', $unitStyleList) }}</div>
+              </div>
+          @endif
+
+          {{-- Completion Date --}}
+          <div class="item">
+            <h3 class="item-header">Completion Date</h3>
+            <div class="item-value">
+              @php
+                $completionRaw = $data['completion_date'] ?? null;
+                if (!empty($completionRaw)) {
+                  try {
+                    $completionDt = \Carbon\Carbon::parse($completionRaw);
+                    $completionDisplay = $completionDt->isPast()
+                      ? 'Ready to move in'
+                      : $completionDt->format('d, M, Y');
+                  } catch (\Exception $e) {
+                    $completionDisplay = $completionRaw;
+                  }
+                } else {
+                  $completionDisplay = 'N/A';
+                }
+              @endphp
+              {{ $completionDisplay }}
+            </div>
+          </div>
+
+          {{-- Facilities --}}
+          @if(!empty($facilityItems))
+          <div class="item">
+            <h3 class="item-header">FACILITIES</h3>
+            <ul class="item-list">
+              @foreach(array_slice($facilityItems, 0, 10) as $facility)
+              <li>{{ $facility['label'] }}</li>
+              @endforeach
+            </ul>
+          </div>
+          @endif
+
+
         </div>
-        @endif
-
-
       </div>
     </div>
   </div>
@@ -1319,7 +1321,7 @@
     <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
     <div class="container" style="padding: 5mm; position: relative; z-index: 1;">
       <div class="row overview-layout" style="align-items: stretch;">
-        <div class="col-5" style="display: flex; flex-direction: column; justify-content: center;">
+        <div class="col-5" style="display: flex; flex-direction: column; justify-content: start;">
           <div class="content">
             <div class="expose-title">
               <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
