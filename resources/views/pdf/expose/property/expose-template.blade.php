@@ -1619,7 +1619,7 @@
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
       
       <div>
-         <div style="max-width:100%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 5px;">{!! !empty($locationDescription) ? $locationDescription : '' !!}</div>
+         <div style="max-width:100%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 2px;">{!! !empty($locationDescription) ? $locationDescription : '' !!}</div>
         <style>
             div[style*="font-size: 20px"] p,
             div[style*="font-size: 20px"] span,
@@ -1661,7 +1661,7 @@
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
       <div class="container">
-        <div style="max-width:80%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 5px;">{!! $attractionDescription !!}</div>
+        <div style="max-width:80%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 2px;">{!! $attractionDescription !!}</div>
         <style>
           div[style*="font-size: 20px"] p,
           div[style*="font-size: 20px"] span,
@@ -1793,7 +1793,7 @@
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
             <div class="container">
-              <div style="max-width:80%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 5px;">{!! $outroDescription !!}</div>
+              <div style="max-width:80%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 2px;">{!! $outroDescription !!}</div>
               <style>
                 div[style*="font-size: 20px"] p,
                 div[style*="font-size: 20px"] span,

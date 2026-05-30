@@ -67,7 +67,7 @@ import {
 import { useGenerateDescription } from "@/lib/ai";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { CityLookupValue, PropertyEnumValues } from "@/Types";
-import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
+import HtmlEditor from "@/Components/HtmlEditor";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
@@ -909,6 +909,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         },
         {
             key: "attractions",
+            forceRender: true,
             label: (
                 <span className="flex items-center gap-2">
                     <CameraOutlined />
@@ -995,6 +996,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                         extra="Rich text shown on the expose PDF attraction page"
                                                     >
                                                         <HtmlEditor
+                                                            key={key}
                                                             placeholder="Describe the attraction..."
                                                             height={180}
                                                         />
