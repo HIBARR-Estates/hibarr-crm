@@ -67,7 +67,7 @@ import {
 import { useGenerateDescription } from "@/lib/ai";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { CityLookupValue, PropertyEnumValues } from "@/Types";
-import HtmlEditor from "@/Components/HtmlEditor/HtmlEditor";
+import HtmlEditor from "@/Components/HtmlEditor";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
@@ -290,7 +290,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const isEditing = !!location;
     const selectedCity = Form.useWatch("address_city", form);
     const selectedArea = Form.useWatch("address_state", form);
-    const previousCityRef = useRef<string | undefined>();
+    const previousCityRef = useRef<string | undefined>(undefined);
 
     const { data: enumValues } = useApiQuery<PropertyEnumValues>({
         path: route("properties.enum_values"),
@@ -639,7 +639,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             attractions:
                 location.attractions?.map((a) => ({
                     name: a.name,
-                    content: a.content || [],
+                    content: Array.isArray(a.content)
+                        ? a.content.length === 1
+                            ? a.content[0]
+                            : a.content.join("")
+                        : typeof a.content === "string"
+                          ? a.content
+                          : "",
                 })) || [],
         });
         setActiveTab("basic");
@@ -903,6 +909,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         },
         {
             key: "attractions",
+            forceRender: true,
             label: (
                 <span className="flex items-center gap-2">
                     <CameraOutlined />
@@ -933,7 +940,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                             onClick={() =>
                                                 add({
                                                     name: "",
-                                                    content: [],
+                                                    content: "",
                                                 })
                                             }
                                         >
@@ -986,11 +993,12 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                         {...restField}
                                                         name={[name, "content"]}
                                                         label="Description"
-                                                        extra="Add paragraphs describing this attraction"
+                                                        extra="Rich text shown on the expose PDF attraction page"
                                                     >
-                                                        <Input.TextArea
+                                                        <HtmlEditor
+                                                            key={key}
                                                             placeholder="Describe the attraction..."
-                                                            rows={2}
+                                                            height={180}
                                                         />
                                                     </Form.Item>
 
@@ -1058,7 +1066,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                         <Button
                                             type="dashed"
                                             onClick={() =>
-                                                add({ name: "", content: [] })
+                                                add({ name: "", content: "" })
                                             }
                                             block
                                             icon={<PlusOutlined />}

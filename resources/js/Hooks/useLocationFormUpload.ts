@@ -40,7 +40,7 @@ export interface LocationFormValues {
 
 interface AttractionFormValue {
     name: string;
-    content?: string[];
+    content?: string | string[];
     primary_image?: UploadFile[];
     secondary_image?: UploadFile[];
 }
@@ -231,9 +231,19 @@ export const transformFormToPayload = async (
         attractions: hasAttractions
             ? values.attractions!.map((a, index) => ({
                   name: a.name,
-                  content: Array.isArray(a.content)
-                      ? a.content
-                      : [a.content || ""],
+                  content: (() => {
+                      if (Array.isArray(a.content)) {
+                          return a.content.filter(
+                              (part) =>
+                                  typeof part === "string" && part.trim() !== "",
+                          );
+                      }
+
+                      const html =
+                          typeof a.content === "string" ? a.content.trim() : "";
+
+                      return html !== "" ? [html] : [];
+                  })(),
                   images: {
                       primary:
                           existingLocation?.attractions?.[index]?.images
