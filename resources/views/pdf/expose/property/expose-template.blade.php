@@ -1863,22 +1863,40 @@
                         <img style="width:65%;" src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr Logo" />
                         <div style="margin-top:16px; width:68%; height:3px; background:#053160; border-radius:1px;"></div>
                     </div>
+                    @if(!empty($data['agent']['name']) || !empty($data['agent']['position']))
                     <div>
-                        <h1>{{ $data['agent']['name'] ?? 'Rabih Rabea' }}</h1>
-                        <p>{{ $data['agent']['position'] ?? 'Real Estate Consultant' }}</p>
+                        @if(!empty($data['agent']['name']))
+                        <h1>{{ $data['agent']['name'] }}</h1>
+                        @endif
+                        @if(!empty($data['agent']['position']))
+                        <p>{{ $data['agent']['position'] }}</p>
+                        @endif
                     </div>
+                    @endif
+                    @if(!empty($data['agent']['email']) || !empty($data['agent']['phone']))
                     <div>
-                        <a href="mailto:{{ $data['agent']['email'] ?? '' }}">
-                            <h2 style="text-transform:none;">{{ $data['agent']['email'] ?? '' }}</h2>
+                        @if(!empty($data['agent']['email']))
+                        <a href="mailto:{{ $data['agent']['email'] }}">
+                            <h2 style="text-transform:none;">{{ $data['agent']['email'] }}</h2>
                         </a>
-                        <a href="tel:{{ str_replace([' ', '+'], '', $data['agent']['phone'] ?? '') }}">
-                            <h2 style="text-transform:none;">{{ $data['agent']['phone'] ?? '' }}</h2>
+                        @endif
+                        @if(!empty($data['agent']['phone']))
+                        <a href="tel:{{ str_replace([' ', '+'], '', $data['agent']['phone']) }}">
+                            <h2 style="text-transform:none;">{{ $data['agent']['phone'] }}</h2>
                         </a>
+                        @endif
                     </div>
+                    @endif
+                    @if(!empty($data['company']['website']) || !empty($data['company']['address']))
                     <div>
-                        <a href="https://{{ $data['company']['website'] ?? 'www.hibarr.de' }}">{{ $data['company']['website'] ?? '' }}</a>
-                        <h2 style="text-transform:none;">{{ $data['company']['address'] ?? '' }}</h2>
+                        @if(!empty($data['company']['website']))
+                        <a href="https://{{ $data['company']['website'] }}">{{ $data['company']['website'] }}</a>
+                        @endif
+                        @if(!empty($data['company']['address']))
+                        <h2 style="text-transform:none;">{{ $data['company']['address'] }}</h2>
+                        @endif
                     </div>
+                    @endif
                 </div>
             </div>
         </div>
