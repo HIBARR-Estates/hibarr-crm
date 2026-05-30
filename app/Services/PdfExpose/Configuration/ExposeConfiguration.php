@@ -3,6 +3,7 @@
 namespace App\Services\PdfExpose\Configuration;
 
 use App\Models\Company;
+use App\Models\CompanyAddress;
 use App\Models\CompanyExposeConfiguration;
 use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
@@ -943,12 +944,18 @@ class ExposeConfiguration implements Arrayable
     {
         $agent?->loadMissing(['employeeDetail.designation']);
 
+        $phone = self::sanitizeDisplayValue($agent?->mobile_with_phone_code);
+
+        if ($phone === null) {
+            $phone = self::sanitizeDisplayValue($agent?->mobile);
+        }
+
         return [
-            'name' => $agent?->name_salutation ?? $agent?->name ?? null,
-            'email' => $agent?->email ?? null,
-            'phone' => $agent?->mobile_with_phone_code ?? $agent?->mobile ?? null,
+            'name' => self::sanitizeDisplayValue($agent?->name_salutation ?? $agent?->name),
+            'email' => self::sanitizeDisplayValue($agent?->email),
+            'phone' => $phone,
             'image' => $agent?->image_url ?? null,
-            'position' => $agent?->employeeDetail?->designation?->name ?? null,
+            'position' => self::sanitizeDisplayValue($agent?->employeeDetail?->designation?->name),
         ];
     }
 
@@ -961,14 +968,14 @@ class ExposeConfiguration implements Arrayable
             'company_name' => $company?->company_name ?? config('app.name'),
             'logo' => $company?->logo_url ?? public_path('img/logo.png'),
             'address' => self::resolveCompanyAddress($company),
-            'phone' => $company?->company_phone ?? null,
-            'email' => $company?->company_email ?? null,
-            'website' => $company?->website ?? null,
+            'phone' => self::sanitizeDisplayValue($company?->company_phone),
+            'email' => self::sanitizeDisplayValue($company?->company_email),
+            'website' => self::sanitizeDisplayValue($company?->website),
         ];
     }
 
     /**
-     * Resolve a display address from the company record or its default address.
+     * Resolve a display address from the company's default CompanyAddress record.
      */
     private static function resolveCompanyAddress(?Company $company): ?string
     {
@@ -976,24 +983,39 @@ class ExposeConfiguration implements Arrayable
             return null;
         }
 
-        $address = trim((string) ($company->address ?? ''));
+        $companyAddress = $company->defaultAddress
+            ?? CompanyAddress::where('company_id', $company->id)
+                ->where('is_default', 1)
+                ->first();
 
-        if ($address !== '') {
-            return $address;
-        }
-
-        $defaultAddress = $company->defaultAddress;
-
-        if (!$defaultAddress) {
+        if (!$companyAddress) {
             return null;
         }
 
         $parts = array_filter([
-            trim((string) ($defaultAddress->address ?? '')),
-            trim((string) ($defaultAddress->location ?? '')),
+            self::sanitizeDisplayValue($companyAddress->address),
+            self::sanitizeDisplayValue($companyAddress->location),
         ]);
 
         return $parts !== [] ? implode(', ', $parts) : null;
+    }
+
+    /**
+     * Normalize optional display values — empty strings and UI placeholders become null.
+     */
+    private static function sanitizeDisplayValue(?string $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        $trimmed = trim($value);
+
+        if ($trimmed === '' || $trimmed === '--') {
+            return null;
+        }
+
+        return $trimmed;
     }
 
     private static function resolveGlobalExposeConfiguration(?int $companyId): array
