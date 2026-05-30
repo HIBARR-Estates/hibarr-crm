@@ -290,7 +290,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const isEditing = !!location;
     const selectedCity = Form.useWatch("address_city", form);
     const selectedArea = Form.useWatch("address_state", form);
-    const previousCityRef = useRef<string | undefined>();
+    const previousCityRef = useRef<string | undefined>(undefined);
 
     const { data: enumValues } = useApiQuery<PropertyEnumValues>({
         path: route("properties.enum_values"),
