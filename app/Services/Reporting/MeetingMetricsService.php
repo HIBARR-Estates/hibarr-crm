@@ -3,71 +3,24 @@
 namespace App\Services\Reporting;
 
 use App\Models\DealFollowUp;
-use App\Models\LeadAgent;
 use Carbon\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
-use Illuminate\Database\Eloquent\Builder;
 
 class MeetingMetricsService
 {
-    /**
-     * Convert lead_agents.id → users.id so we can scope by participant/creator.
-     */
-    private function resolveUserIds(array $agentIds): array
-    {
-        if (empty($agentIds)) {
-            return [];
-        }
-
-        return LeadAgent::whereIn('id', $agentIds)->pluck('user_id')->toArray();
-    }
-
-    /**
-     * Scope meetings to those where the user is a participant OR the creator.
-     * Matches the scoping used in MeetingsController.
-     */
-    private function scopeByUser(Builder $query, array $userIds): Builder
-    {
-        return $query->where(function (Builder $q) use ($userIds) {
-            foreach ($userIds as $userId) {
-                $q->orWhereJsonContains('participants', (int) $userId);
-            }
-            $q->orWhereIn('added_by', $userIds);
-        });
-    }
+    public function __construct(
+        private AgentReportScope $scope,
+    ) {}
 
     public function count(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        $query = DealFollowUp::whereBetween('next_follow_up_date', [$start->startOfDay(), $end->endOfDay()]);
-
-        if ($agentIds !== null) {
-            $userIds = $this->resolveUserIds($agentIds);
-
-            if (empty($userIds)) {
-                return 0;
-            }
-
-            $this->scopeByUser($query, $userIds);
-        }
-
-        return $query->count();
+        return $this->baseQuery($agentIds, $start, $end)->count();
     }
 
     public function list(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        $query = DealFollowUp::whereBetween('next_follow_up_date', [$start->startOfDay(), $end->endOfDay()]);
-
-        if ($agentIds !== null) {
-            $userIds = $this->resolveUserIds($agentIds);
-
-            if (empty($userIds)) {
-                return new \Illuminate\Pagination\LengthAwarePaginator([], 0, $perPage);
-            }
-
-            $this->scopeByUser($query, $userIds);
-        }
-
-        return $query->with([
+        return $this->baseQuery($agentIds, $start, $end)
+            ->with([
                 'deal:id,name,agent_id,value,currency_id,pipeline_stage_id',
                 'deal.leadStage',
                 'deal.contact',
@@ -87,22 +40,20 @@ class MeetingMetricsService
 
     public function countByType(?array $agentIds, Carbon $start, Carbon $end): array
     {
-        $query = DealFollowUp::whereBetween('next_follow_up_date', [$start->startOfDay(), $end->endOfDay()]);
-
-        if ($agentIds !== null) {
-            $userIds = $this->resolveUserIds($agentIds);
-
-            if (empty($userIds)) {
-                return [];
-            }
-
-            $this->scopeByUser($query, $userIds);
-        }
-
-        return $query->join('meeting_types', 'lead_follow_up.meeting_type_id', '=', 'meeting_types.id')
+        return $this->baseQuery($agentIds, $start, $end)
+            ->join('meeting_types', 'lead_follow_up.meeting_type_id', '=', 'meeting_types.id')
             ->selectRaw('meeting_types.name as meeting_type, count(*) as total')
             ->groupBy('meeting_types.name')
             ->pluck('total', 'meeting_type')
             ->toArray();
+    }
+
+    private function baseQuery(?array $agentIds, Carbon $start, Carbon $end)
+    {
+        return $this->scope->scopeMeetings(DealFollowUp::query(), $agentIds)
+            ->whereBetween('next_follow_up_date', [
+                $start->copy()->startOfDay(),
+                $end->copy()->endOfDay(),
+            ]);
     }
 }
