@@ -148,9 +148,9 @@ const dealsClosedColumns: TableColumnsType<any> = [
         render: (_, r) => r.lead_agent?.user?.name ?? "—",
     },
     {
-        title: "Won At",
-        dataIndex: "won_at",
-        key: "won_at",
+        title: "Closed At",
+        dataIndex: "close_date",
+        key: "close_date",
         render: (v: string) => (v ? dayjs(v).format("D MMMM YYYY") : "—"),
     },
 ];
