@@ -9,6 +9,10 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class NoteMetricsService
 {
+    public function __construct(
+        private AgentReportScope $scope,
+    ) {}
+
     public function count(?array $agentIds, Carbon $start, Carbon $end): int
     {
         return $this->dealNotesCount($agentIds, $start, $end)
@@ -17,55 +21,33 @@ class NoteMetricsService
 
     public function dealNotesCount(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return DealNote::when($agentIds !== null, fn ($q) =>
-                $q->whereHas('deal', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
-            )
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
-            ->count();
+        return $this->dealNotesQuery($agentIds, $start, $end)->count();
     }
 
     public function leadNotesCount(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return LeadNote::when($agentIds !== null, fn ($q) =>
-                $q->whereHas('lead', function ($lq) use ($agentIds) {
-                    $lq->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
-                })
-            )
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
-            ->count();
+        return $this->leadNotesQuery($agentIds, $start, $end)->count();
     }
 
-    /**
-     * Fetch concatenated note bodies for the AI summary engine.
-     * Caps output at $maxChars to avoid extremely large LLM payloads.
-     */
     public function getBodiesForAi(?array $agentIds, Carbon $start, Carbon $end, int $maxChars = 100000): string
     {
         $startOfDay = $start->copy()->startOfDay();
-        $endOfDay   = $end->copy()->endOfDay();
+        $endOfDay = $end->copy()->endOfDay();
 
-        $dealNotesCollection = DealNote::when($agentIds !== null, fn ($q) =>
-                $q->whereHas('deal', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
-            )
-            ->whereBetween('created_at', [$startOfDay, $endOfDay])
+        $dealNotesCollection = $this->dealNotesQuery($agentIds, $start, $end)
             ->pluck('details')
             ->filter()
             ->values();
 
-        $leadNotesCollection = LeadNote::when($agentIds !== null, fn ($q) =>
-                $q->whereHas('lead', function ($lq) use ($agentIds) {
-                    $lq->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
-                })
-            )
-            ->whereBetween('created_at', [$startOfDay, $endOfDay])
+        $leadNotesCollection = $this->leadNotesQuery($agentIds, $start, $end)
             ->pluck('details')
             ->filter()
             ->values();
 
         \Illuminate\Support\Facades\Log::debug('AI Summary getBodiesForAi', [
-            'agent_ids'        => $agentIds,
-            'start'            => $startOfDay->toDateTimeString(),
-            'end'              => $endOfDay->toDateTimeString(),
+            'agent_ids' => $agentIds,
+            'start' => $startOfDay->toDateTimeString(),
+            'end' => $endOfDay->toDateTimeString(),
             'deal_notes_count' => $dealNotesCollection->count(),
             'lead_notes_count' => $leadNotesCollection->count(),
         ]);
@@ -91,10 +73,7 @@ class NoteMetricsService
 
     public function listDealNotes(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return DealNote::when($agentIds !== null, fn ($q) =>
-                $q->whereHas('deal', fn ($dq) => $dq->whereIn('agent_id', $agentIds))
-            )
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
+        return $this->dealNotesQuery($agentIds, $start, $end)
             ->with([
                 'deal:id,name,lead_id,agent_id',
                 'deal.contact:id,client_name',
@@ -108,12 +87,7 @@ class NoteMetricsService
 
     public function listLeadNotes(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return LeadNote::when($agentIds !== null, fn ($q) =>
-                $q->whereHas('lead', function ($lq) use ($agentIds) {
-                    $lq->whereHas('deals', fn ($dq) => $dq->whereIn('agent_id', $agentIds));
-                })
-            )
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
+        return $this->leadNotesQuery($agentIds, $start, $end)
             ->with([
                 'lead:id,client_name',
                 'addedBy:id,name',
@@ -121,5 +95,23 @@ class NoteMetricsService
             ->select(['id', 'title', 'details', 'lead_id', 'added_by', 'created_at'])
             ->orderByDesc('created_at')
             ->paginate($perPage);
+    }
+
+    private function dealNotesQuery(?array $agentIds, Carbon $start, Carbon $end)
+    {
+        return $this->scope->scopeNotesByAuthor(DealNote::query(), $agentIds)
+            ->whereBetween('created_at', [
+                $start->copy()->startOfDay(),
+                $end->copy()->endOfDay(),
+            ]);
+    }
+
+    private function leadNotesQuery(?array $agentIds, Carbon $start, Carbon $end)
+    {
+        return $this->scope->scopeNotesByAuthor(LeadNote::query(), $agentIds)
+            ->whereBetween('created_at', [
+                $start->copy()->startOfDay(),
+                $end->copy()->endOfDay(),
+            ]);
     }
 }

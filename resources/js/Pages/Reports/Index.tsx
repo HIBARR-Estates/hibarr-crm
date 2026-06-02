@@ -108,7 +108,7 @@ const Index: React.FC = () => {
                 onRefresh={refresh}
                 isRefreshing={isRefreshing}
             >
-                <div className="space-y-6">
+                <div className="max-w-7xl mx-auto space-y-6">
                     <FilterBar
                         filters={filters}
                         agents={agents}
