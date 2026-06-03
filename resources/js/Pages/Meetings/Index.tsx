@@ -46,7 +46,10 @@ import { getStatusColor, isLoading } from "@/lib/utils";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
-import SaveFollowup from "@/Pages/Deals/Components/Tabs/followups/SaveFollowup";
+import SaveFollowup, {
+    SaveFollowupFormData,
+} from "@/Pages/Deals/Components/Tabs/followups/SaveFollowup";
+import MeetingSuccessStep from "@/Pages/Deals/Components/Tabs/followups/MeetingSuccessStep";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
@@ -592,6 +595,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
     const [loadingDeal, setLoadingDeal] = useState(false);
     const [errors, setErrors] = useState<string[]>([]);
     const [formKey, setFormKey] = useState(0);
+    const [step, setStep] = useState<"form" | "success">("form");
 
     // Reset state when drawer opens
     useEffect(() => {
@@ -599,6 +603,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
             setSelectedDealId(null);
             setSelectedDeal(null);
             setErrors([]);
+            setStep("form");
             setFormKey((prev) => prev + 1);
         }
     }, [open]);
@@ -633,26 +638,36 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
         setErrors([]);
         setSelectedDealId(null);
         setSelectedDeal(null);
-        setFormKey((prev) => prev + 1);
+        setStep("form");
         onClose();
     };
 
-    const { mutate, status } = useApiMutate<any, null, ApiResponse<null>>(
-        `/account/deals/follow-up-store`,
-        "POST",
-        () => {
-            handleCancel();
-        },
-    );
+    const handleDone = () => {
+        handleCancel();
+        router.reload();
+    };
 
-    const onSubmit = (data: any) => {
+    const handleBookAnother = () => {
+        setStep("form");
+        setSelectedDealId(null);
+        setSelectedDeal(null);
+        setErrors([]);
+        setFormKey((prev) => prev + 1);
+    };
+
+    const { mutate, status } = useApiMutate<
+        SaveFollowupFormData,
+        null,
+        ApiResponse<null>
+    >(`/account/deals/follow-up-store`, "POST");
+
+    const onSubmit = (data: SaveFollowupFormData) => {
         mutate(data, {
             onSuccess: () => {
                 setErrors([]);
-                setFormKey((prev) => prev + 1);
-                router.reload();
+                setStep("success");
             },
-            onError: (errorResponse: any) => {
+            onError: (errorResponse: unknown) => {
                 const responseErrors =
                     errorFormatter(errorResponse)?.errors || [];
                 setErrors(Object.values(responseErrors).flat() as string[]);
@@ -669,6 +684,12 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
             onClose={handleCancel}
             destroyOnClose
         >
+            {step === "success" ? (
+                <MeetingSuccessStep
+                    onDone={handleDone}
+                    onBookAnother={handleBookAnother}
+                />
+            ) : (
             <div className="space-y-6">
                 {/* Step 1: Select deal */}
                 <div>
@@ -706,6 +727,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                 {selectedDeal && !loadingDeal && (
                     <SaveFollowup
                         key={formKey}
+                        context="deal"
                         deal={selectedDeal}
                         onSubmit={onSubmit}
                         onCancel={handleCancel}
@@ -724,6 +746,7 @@ const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
                     </div>
                 )}
             </div>
+            )}
         </Drawer>
     );
 };

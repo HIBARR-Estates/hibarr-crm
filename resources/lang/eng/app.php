@@ -1540,6 +1540,17 @@ return array(
         'actions' => [
             'schedule' => 'Schedule Meeting',
         ],
+        'linked_lead_label' => 'Linked lead',
+        'optional_deal_label' => 'Link to deal (optional)',
+        'optional_deal_placeholder' => 'Search and select a deal...',
+        'linked_deal_column' => 'Linked deal',
+        'lead_owner_required' => 'This lead has no owner assigned. Assign a lead owner or link a deal with an agent before booking a meeting.',
+        'success' => [
+            'title' => 'Meeting scheduled',
+            'description' => 'The meeting was created successfully.',
+            'book_another' => 'Book another meeting',
+            'done' => 'Done',
+        ],
     ],
 
     'reports' => [

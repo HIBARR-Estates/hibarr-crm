@@ -123,6 +123,11 @@ class DealFollowUp extends BaseModel
         return $this->belongsTo(Deal::class, 'deal_id');
     }
 
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class, 'lead_id');
+    }
+
     /**
      * Get the effective meeting duration in minutes.
      * Falls back to DEFAULT_DURATION_MINUTES (30) when not explicitly set.

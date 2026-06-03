@@ -6,7 +6,10 @@ import DashboardLayout from "@/Components/DashboardLayout";
 import type { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Card, Tabs, Button, Tooltip, message } from "antd";
-import { ReloadOutlined } from "@ant-design/icons";
+import { ReloadOutlined, PlusOutlined } from "@ant-design/icons";
+import { DealFollowup } from "@/Types/api/deal-followup";
+import LeadFollowUpTab from "./Components/LeadFollowUpTab";
+import AddFollowup from "@/Pages/Deals/Components/Tabs/followups/AddFollowup";
 import { User } from "@/Types";
 import LeadInfoSection from "./Components/LeadInfoSection";
 import LeadNotesTab from "./Components/LeadNotesTab";
@@ -40,6 +43,9 @@ export interface LeadShowProps {
     taskBoardColumns: any[];
     projects: any[];
     permissions: Record<string, string>;
+    leadFollowUps?: DealFollowup[];
+    meetingTypes?: { id: number; name: string; color?: string }[];
+    followUpPermissions?: Record<string, string>;
 }
 
 const Show = ({
@@ -59,12 +65,23 @@ const Show = ({
     taskBoardColumns,
     projects,
     permissions,
+    leadFollowUps = [],
+    followUpPermissions = {},
 }: LeadShowProps) => {
     const { props } = usePage<PageProps>();
     const { t } = useTranslation();
 
     const [activeTab, setActiveTab] = useState("profile");
     const [isEditMode, setIsEditMode] = useState(false);
+    const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
+
+    const canAddFollowUp =
+        followUpPermissions.add_lead_follow_up === "all" ||
+        followUpPermissions.add_lead_follow_up === "added";
+
+    const showFollowUpTab =
+        followUpPermissions.view_lead_follow_up === "all" ||
+        followUpPermissions.view_lead_follow_up === "added";
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh({
@@ -111,6 +128,27 @@ const Show = ({
                 />
             ),
         },
+        ...(showFollowUpTab
+            ? [
+                  {
+                      key: "follow-up",
+                      label: t("modules.lead.followUp"),
+                      children: (
+                          <LeadFollowUpTab
+                              lead={lead}
+                              followUps={leadFollowUps}
+                              permissions={followUpPermissions}
+                              deals={deals}
+                              onScheduleMeeting={
+                                  canAddFollowUp
+                                      ? () => setScheduleMeetingOpen(true)
+                                      : undefined
+                              }
+                          />
+                      ),
+                  },
+              ]
+            : []),
         {
             key: "notes",
             label: t("pages.leads.tabs.notes"),
@@ -214,8 +252,30 @@ const Show = ({
                         backgroundColor: "#fafafa",
                         borderBottom: "1px solid #f0f0f0",
                     }}
+                    tabBarExtraContent={
+                        activeTab === "follow-up" && canAddFollowUp ? (
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={() => setScheduleMeetingOpen(true)}
+                            >
+                                {t("pages.deals.actions.add_meeting")}
+                            </Button>
+                        ) : null
+                    }
                 />
             </div>
+
+            <AddFollowup
+                context="lead"
+                lead={lead}
+                dealsForLead={deals.map((d) => ({
+                    id: d.id,
+                    name: d.name,
+                }))}
+                open={scheduleMeetingOpen}
+                onClose={() => setScheduleMeetingOpen(false)}
+            />
         </PageLayout>
     );
 };

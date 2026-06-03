@@ -34,15 +34,18 @@ trait DealAutomationTrait
                 $browserTimezone = 'UTC'; // Fallback only if absolutely necessary
             }
 
-            $agentInfo = $this->getAgentInformation($followUp->deal);
+            $agentInfo = $this->getAgentInformation($followUp->deal)
+                ?? $this->getLeadOwnerAgentInformation($followUp->lead_id);
             $watcherInfo = $this->getWatcherInformation($followUp->deal);
             $participantsInfo = $this->getParticipantsInformation($followUp);
 
+            $contactLeadId = $followUp->deal?->lead_id ?? $followUp->lead_id;
 
             $result = $this->sendFollowUpAutomationWebhook('followup', [
                 'followUpInformation' => [
                     'id' => $followUp->id,
                     'deal_id' => $followUp->deal_id,
+                    'lead_id' => $followUp->lead_id,
                     'meeting_type' => $followUp->meetingType ? $followUp->meetingType->name : null,
                     'meeting_type_id' => $followUp->meeting_type_id,
                     'location' => $followUp->location,
@@ -56,7 +59,7 @@ trait DealAutomationTrait
                     'created_at' => $followUp->created_at->format('Y-m-d H:i:s'),
                 ],
                 'dealInformation' => $followUp->deal ? $followUp->deal->toArray() : null,
-                'contactInformation' => $followUp->deal ? $this->getCustomerInfo($followUp->deal->lead_id) : null,
+                'contactInformation' => $contactLeadId ? $this->getCustomerInfo($contactLeadId) : null,
                 'agentInformation' => $agentInfo,
                 'watcherInformation' => $watcherInfo,
                 'participantsInformation' => $participantsInfo,
@@ -193,6 +196,44 @@ trait DealAutomationTrait
             ];
         } catch (\Throwable $e) {
             Log::error("Failed to get agent information for deal ID: {$deal->id}", ['exception' => $e, 'agent_id' => $deal->agent_id]);
+            return null;
+        }
+    }
+
+    private function getLeadOwnerAgentInformation(?int $leadId): ?array
+    {
+        if (!$leadId) {
+            return null;
+        }
+
+        try {
+            $lead = Lead::find($leadId);
+            if (!$lead || !$lead->lead_owner) {
+                return null;
+            }
+
+            $user = User::find($lead->lead_owner);
+            if (!$user) {
+                return null;
+            }
+
+            return [
+                'agent_id' => null,
+                'user_id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'mobile' => $user->mobile,
+                'status' => $user->status,
+                'role' => $user->role ? (is_object($user->role) && method_exists($user->role, 'first') ? $user->role->first()?->display_name : $user->role->display_name) : null,
+                'category_id' => null,
+                'category_name' => null,
+            ];
+        } catch (\Throwable $e) {
+            Log::error("Failed to get lead owner agent information", [
+                'exception' => $e,
+                'lead_id' => $leadId,
+            ]);
+
             return null;
         }
     }

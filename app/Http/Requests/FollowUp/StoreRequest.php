@@ -4,32 +4,20 @@ namespace App\Http\Requests\FollowUp;
 
 use App\Http\Requests\CoreRequest;
 use App\Models\Deal;
+use App\Models\Lead;
 use DateTimeZone;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class StoreRequest extends CoreRequest
 {
-
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
-        $deal = Deal::findOrFail($this->deal_id);
-        $setting = company();
-
         $rules = [
             'meeting_type_id' => 'nullable|exists:meeting_types,id',
             'location' => 'required|in:office,zoom,zoho,zoho_meet,google_meet,teams,meet,phone,physical,skype,other',
@@ -41,33 +29,52 @@ class StoreRequest extends CoreRequest
             'participants' => 'nullable|array',
             'participants.*' => 'required_with:participants|integer|exists:users,id',
             'duration' => 'nullable|integer|min:1|max:600',
+            'timezone' => [
+                'nullable',
+                'string',
+                Rule::in(DateTimeZone::listIdentifiers()),
+            ],
         ];
 
-        // Timezone must be a valid IANA identifier if provided
-        $rules['timezone'] = [
-            'nullable',
-            'string',
-            Rule::in(DateTimeZone::listIdentifiers()),
-        ];
-
-        // Zoho, office, phone, and physical meetings don't require meeting link
         if (in_array($this->location, ['zoho', 'office', 'phone', 'physical'])) {
             $rules['meeting_link'] = 'nullable|url';
         } else {
-            // Video meeting platforms (zoom, google_meet, teams, etc.) require meeting link
             $rules['meeting_link'] = 'required|url';
         }
 
-        // Video meetings (zoho) require at least one participant
         if ($this->location === 'zoho') {
             $rules['participants'] = 'required|array|min:1';
             $rules['participants.*'] = 'required|integer|exists:users,id';
         }
 
-        // Frontend sends date in DD-MM-YYYY format, so validate accordingly
-        $rules['next_follow_up_date'] = 'required|date_format:"d-m-Y"|after_or_equal:'.$deal->created_at->format('d-m-Y');
+        if ($this->filled('lead_id')) {
+            $lead = Lead::findOrFail($this->lead_id);
+            $rules['lead_id'] = 'required|exists:leads,id';
+            $rules['deal_id'] = 'nullable|exists:deals,id';
+            $rules['next_follow_up_date'] = 'required|date_format:"d-m-Y"|after_or_equal:'.$lead->created_at->format('d-m-Y');
+        } else {
+            $deal = Deal::findOrFail($this->deal_id);
+            $rules['deal_id'] = 'required|exists:deals,id';
+            $rules['next_follow_up_date'] = 'required|date_format:"d-m-Y"|after_or_equal:'.$deal->created_at->format('d-m-Y');
+        }
 
         return $rules;
     }
 
+    public function withValidator(Validator $validator): void
+    {
+        $validator->after(function (Validator $validator) {
+            if (!$this->filled('lead_id') || !$this->filled('deal_id')) {
+                return;
+            }
+
+            $dealBelongsToLead = Deal::where('id', $this->deal_id)
+                ->where('lead_id', $this->lead_id)
+                ->exists();
+
+            if (!$dealBelongsToLead) {
+                $validator->errors()->add('deal_id', __('messages.invalidDealForLead'));
+            }
+        });
+    }
 }
