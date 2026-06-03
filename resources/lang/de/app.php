@@ -258,6 +258,17 @@ return [
             'reschedule' => 'Meeting verschieben',
             'join'       => 'Meeting beitreten',
         ],
+        'linked_lead_label' => 'Verknüpfter Lead',
+        'optional_deal_label' => 'Mit Deal verknüpfen (optional)',
+        'optional_deal_placeholder' => 'Deal suchen und auswählen...',
+        'linked_deal_column' => 'Verknüpfter Deal',
+        'lead_owner_required' => 'Diesem Lead ist kein Eigentümer zugewiesen. Weisen Sie einen Lead-Eigentümer zu oder verknüpfen Sie einen Deal mit einem Agenten, bevor Sie ein Meeting buchen.',
+        'success' => [
+            'title' => 'Meeting geplant',
+            'description' => 'Das Meeting wurde erfolgreich erstellt.',
+            'book_another' => 'Weiteres Meeting buchen',
+            'done' => 'Fertig',
+        ],
         'sections_detail' => [
             'participants' => 'Teilnehmer',
             'summary'      => 'Meeting-Zusammenfassung',

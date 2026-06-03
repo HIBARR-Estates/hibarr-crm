@@ -1,5 +1,7 @@
 import { Deal } from "@/Types/api/deals";
+import { Lead } from "@/Types/api/leads";
 import { DealFollowup, Reminder } from "@/Types/api/deal-followup";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     App,
     Form,
@@ -33,22 +35,30 @@ const { TextArea } = Input;
 const { Option } = Select;
 const { Title } = Typography;
 
-interface SaveFollowupFormData {
-    deal_id: number;
+export interface SaveFollowupFormData {
+    lead_id?: number;
+    deal_id?: number;
     next_follow_up_date: string;
     start_time: string;
     meeting_type_id?: number;
     location: string;
     meeting_link?: string;
-    duration?: number | null; // Meeting duration in minutes
+    duration?: number | null;
     reminders: Reminder[];
     remark?: string;
-    timezone?: string; // Browser timezone
-    participants?: number[]; // Array of user IDs
+    timezone?: string;
+    participants?: number[];
 }
 
+export type SaveFollowupContext = "lead" | "deal";
+
 interface Props {
-    deal: Deal;
+    context: SaveFollowupContext;
+    deal?: Deal;
+    lead?: Lead;
+    dealsForLead?: { id: number; name: string }[];
+    showLeadEntity?: boolean;
+    showOptionalDealSelect?: boolean;
     followup?: DealFollowup;
     onSubmit: (data: SaveFollowupFormData) => void;
     onCancel: () => void;
@@ -57,7 +67,12 @@ interface Props {
 }
 
 export default function SaveFollowup({
+    context,
     deal,
+    lead,
+    dealsForLead = [],
+    showLeadEntity = false,
+    showOptionalDealSelect = false,
     followup,
     onSubmit,
     onCancel,
@@ -65,6 +80,7 @@ export default function SaveFollowup({
     errors = [],
 }: Props) {
     const { message } = App.useApp();
+    const { t } = useTranslation();
     const [form] = Form.useForm();
     const [generatingMeetingLink, setGeneratingMeetingLink] = useState(false);
 
@@ -202,29 +218,27 @@ export default function SaveFollowup({
         { value: "day", label: "Days" },
     ];
 
-    // Helper function to get default participants (participants, watchers)
     const getDefaultParticipants = (): number[] => {
         const participantIds: number[] = [];
 
-        // Add deal participants
-        if (deal.deal_participants && deal.deal_participants.length > 0) {
-            deal.deal_participants.forEach((participant: any) => {
-                if (
-                    participant.id &&
-                    !participantIds.includes(participant.id)
-                ) {
+        if (deal?.deal_participants?.length) {
+            deal.deal_participants.forEach((participant: { id?: number }) => {
+                if (participant.id && !participantIds.includes(participant.id)) {
                     participantIds.push(participant.id);
                 }
             });
         }
 
-        // Add deal watchers
-        if (deal.deal_watchers && deal.deal_watchers.length > 0) {
-            deal.deal_watchers.forEach((watcher: any) => {
+        if (deal?.deal_watchers?.length) {
+            deal.deal_watchers.forEach((watcher: { id?: number }) => {
                 if (watcher.id && !participantIds.includes(watcher.id)) {
                     participantIds.push(watcher.id);
                 }
             });
+        }
+
+        if (participantIds.length === 0 && lead?.lead_owner?.id) {
+            participantIds.push(lead.lead_owner.id);
         }
 
         return participantIds;
@@ -263,7 +277,7 @@ export default function SaveFollowup({
                 participants: defaultParticipants,
             });
         }
-    }, [followup, form]);
+    }, [followup, form, deal, lead]);
 
     const handleLocationChange = (value: string) => {
         if (value === "office") {
@@ -278,14 +292,24 @@ export default function SaveFollowup({
             return;
         }
 
-        const hasAgent =
-            deal.agent_id != null ||
-            (deal.lead_agent != null && deal.lead_agent?.id != null);
-        if (!hasAgent) {
-            message.warning(
-                "This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.",
-            );
-            return;
+        if (context === "deal" && deal) {
+            const hasAgent =
+                deal.agent_id != null ||
+                (deal.lead_agent != null && deal.lead_agent?.id != null);
+            if (!hasAgent) {
+                message.warning(
+                    "This deal has no agent assigned. Please assign an agent to the deal before booking a meeting.",
+                );
+                return;
+            }
+        }
+
+        if (context === "lead" && lead && !lead.lead_owner?.id) {
+            const optionalDealId = values.optional_deal_id;
+            if (!optionalDealId) {
+                message.warning(t("app.meetings.lead_owner_required"));
+                return;
+            }
         }
 
         // Validate participants for video meetings
@@ -319,13 +343,21 @@ export default function SaveFollowup({
             location: values.location,
             meeting_link: values.meeting_link || "",
             duration: values.duration ?? null,
-            reminders: customReminders, // Only send custom reminders, defaults are handled server-side
+            reminders: customReminders,
             remark: values.remark || "",
-            deal_id: deal.id,
             participants: participants,
-            timezone: browserTimezone, // Send browser timezone to backend
+            timezone: browserTimezone,
             ...(values.duration ? { duration: values.duration } : {}),
         };
+
+        if (context === "lead" && lead) {
+            formData.lead_id = lead.id;
+            if (values.optional_deal_id) {
+                formData.deal_id = values.optional_deal_id;
+            }
+        } else if (context === "deal" && deal) {
+            formData.deal_id = deal.id;
+        }
 
         onSubmit(formData);
 
@@ -371,6 +403,42 @@ export default function SaveFollowup({
                         </p>
                     ))}
                 </div>
+            )}
+
+            {showLeadEntity && lead && (
+                <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
+                    <p className="text-xs font-medium text-gray-500 mb-1">
+                        {t("app.meetings.linked_lead_label")}
+                    </p>
+                    <p className="text-sm font-medium text-gray-900 mb-0">
+                        {lead.client_name_salutation || lead.client_name}
+                    </p>
+                </div>
+            )}
+
+            {showOptionalDealSelect && (
+                <Form.Item
+                    name="optional_deal_id"
+                    label={t("app.meetings.optional_deal_label")}
+                >
+                    <Select
+                        showSearch
+                        allowClear
+                        placeholder={t("app.meetings.optional_deal_placeholder")}
+                        optionFilterProp="label"
+                        className="w-full"
+                        disabled={loading || isScheduled}
+                        options={dealsForLead.map((d) => ({
+                            value: d.id,
+                            label: d.name,
+                        }))}
+                        filterOption={(input, option) =>
+                            (option?.label as string)
+                                ?.toLowerCase()
+                                .includes(input.toLowerCase()) ?? false
+                        }
+                    />
+                </Form.Item>
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

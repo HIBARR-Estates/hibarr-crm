@@ -18,7 +18,8 @@ export interface MeetingSummary {
 
 export interface DealFollowup {
     id: number;
-    deal_id: number;
+    lead_id?: number | null;
+    deal_id?: number | null;
     next_follow_up_date: string;
     duration?: number | null; // Meeting duration in minutes
     meeting_link: string;
@@ -36,7 +37,7 @@ export interface DealFollowup {
     reminders?: Reminder[];
     participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
-    deal?: Deal; // Loaded via eager-loading on Meetings page
+    deal?: Pick<Deal, "id" | "name"> | Deal;
     effective_duration?: number; // Computed: duration ?? 30
     participant_users?: {
         id: number;

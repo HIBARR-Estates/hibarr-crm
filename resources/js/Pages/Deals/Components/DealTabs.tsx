@@ -330,6 +330,7 @@ export default function DealTabs({
                 open={action === "add_note"}
             />
             <AddFollowup
+                context="deal"
                 deal={deal}
                 onClose={() => handleClose()}
                 open={action === "add_follow_up"}

@@ -11,7 +11,8 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import { router } from "@inertiajs/react";
 
 interface SaveFollowupFormData {
-    deal_id: number;
+    lead_id?: number;
+    deal_id?: number;
     next_follow_up_date: string;
     start_time: string;
     meeting_type_id?: number;
@@ -63,7 +64,7 @@ const EditFollowup: React.FC<Props> = ({ deal, followup, onClose, open }) => {
                         ...Object.values(responseErrors).flat(),
                     ]);
                 },
-            }
+            },
         );
     };
 
@@ -76,6 +77,7 @@ const EditFollowup: React.FC<Props> = ({ deal, followup, onClose, open }) => {
             onClose={handleCancel}
         >
             <SaveFollowup
+                context="deal"
                 deal={deal}
                 followup={followup}
                 onSubmit={onSubmit}

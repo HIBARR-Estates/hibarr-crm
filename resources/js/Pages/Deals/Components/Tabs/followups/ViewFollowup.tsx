@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Deal } from "@/Types/api/deals";
+import { Lead } from "@/Types/api/leads";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { IModalProps } from "@/Types/common";
 import {
@@ -295,13 +296,15 @@ const DetailField: React.FC<{
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 interface Props extends IModalProps {
-    deal: Deal;
+    deal?: Deal;
+    lead?: Lead;
     followup: DealFollowup;
     onEdit?: () => void;
 }
 
 const ViewFollowup: React.FC<Props> = ({
     deal,
+    lead,
     followup,
     onClose,
     open,
@@ -445,7 +448,26 @@ const ViewFollowup: React.FC<Props> = ({
                         </div>
                     </Section>
 
+                    {/* ── Lead contact (when no deal) ──────────────────── */}
+                    {!deal && lead && (
+                        <Section title="Lead" icon={<UserOutlined />}>
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                                <DetailField label="Name">
+                                    {lead.client_name_salutation ||
+                                        lead.client_name ||
+                                        "--"}
+                                </DetailField>
+                                <DetailField label="Email">
+                                    {lead.client_email || (
+                                        <span className="text-gray-400">--</span>
+                                    )}
+                                </DetailField>
+                            </div>
+                        </Section>
+                    )}
+
                     {/* ── Deal Information ─────────────────────────────── */}
+                    {deal && (
                     <Section
                         title="Deal"
                         icon={<FundProjectionScreenOutlined />}
@@ -504,6 +526,7 @@ const ViewFollowup: React.FC<Props> = ({
                             )}
                         </div>
                     </Section>
+                    )}
 
                     {/* ── Participants ─────────────────────────────────── */}
                     <Section title="Participants" icon={<TeamOutlined />}>

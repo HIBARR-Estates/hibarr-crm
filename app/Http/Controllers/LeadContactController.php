@@ -15,6 +15,7 @@ use App\Http\Requests\Lead\PatchRequest;
 use App\Imports\LeadImport;
 use App\Jobs\ImportLeadJob;
 use App\Models\Deal;
+use App\Models\DealFollowUp;
 use App\Models\LeadNote;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
@@ -263,6 +264,27 @@ class LeadContactController extends AccountBaseController
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
+        $leadFollowUpsQuery = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary', 'deal:id,name'])
+            ->where('lead_id', $id)
+            ->orderBy('next_follow_up_date', 'desc');
+
+        if (user()->permission('view_lead_follow_up') === 'added') {
+            $leadFollowUpsQuery->where('added_by', user()->id);
+        }
+
+        $leadFollowUps = $leadFollowUpsQuery->get();
+
+        $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
+            ->select('id', 'name', 'color')
+            ->get();
+
+        $followUpPermissions = [
+            'view_lead_follow_up' => user()->permission('view_lead_follow_up'),
+            'add_lead_follow_up' => user()->permission('add_lead_follow_up'),
+            'edit_lead_follow_up' => user()->permission('edit_lead_follow_up'),
+            'delete_lead_follow_up' => user()->permission('delete_lead_follow_up'),
+        ];
+
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
             'fields' => $formData['customFields'],
@@ -279,6 +301,9 @@ class LeadContactController extends AccountBaseController
             'projects' => $projects,
             'taskPermissions' => $taskPermissions,
             'dealCustomFields' => $fields,
+            'leadFollowUps' => $leadFollowUps,
+            'meetingTypes' => $meetingTypes,
+            'followUpPermissions' => $followUpPermissions,
         ], $formData, $dealFormData));
     }
 

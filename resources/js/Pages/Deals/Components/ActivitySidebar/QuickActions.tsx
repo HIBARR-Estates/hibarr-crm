@@ -201,6 +201,7 @@ export default function QuickActions({ deal, permissions }: Props) {
             />
 
             <AddFollowup
+                context="deal"
                 open={meetingModalOpen}
                 onClose={() => setMeetingModalOpen(false)}
                 deal={deal}

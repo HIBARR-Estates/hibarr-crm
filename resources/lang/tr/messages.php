@@ -134,4 +134,6 @@ return array(
     'noPaymentAdded' => 'Ödeme eklenmemiş.',
     'noTemplateFound' => 'Şablon bulunamadı.',
     'noAgentAdded' => 'Ajan eklenmemiş.',
+    'invalidDealForLead' => 'Seçilen anlaşma bu müşteri adayına ait değil.',
+    'leadFollowUpOwnerRequired' => 'Bu müşteri adayına atanmış bir sahip yok. Toplantı oluşturmadan önce lütfen bir sahip atayın.',
 );

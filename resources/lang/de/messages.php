@@ -134,4 +134,6 @@ return array(
     'noPaymentAdded' => 'Keine Zahlung hinzugefügt.',
     'noTemplateFound' => 'Keine Vorlage gefunden.',
     'noAgentAdded' => 'Kein Agent hinzugefügt.',
+    'invalidDealForLead' => 'Der ausgewählte Deal gehört nicht zu diesem Lead.',
+    'leadFollowUpOwnerRequired' => 'Diesem Lead ist kein Eigentümer zugewiesen. Bitte weisen Sie einen Lead-Eigentümer zu, bevor Sie ein Meeting buchen.',
 );
