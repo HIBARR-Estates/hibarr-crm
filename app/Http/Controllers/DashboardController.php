@@ -32,6 +32,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use App\Services\PermissionService;
+use App\Services\MeetingVisibilityService;
 use App\Services\TaskService;
 use App\Services\TaskVisibilityService;
 
@@ -114,20 +115,16 @@ class DashboardController extends AccountBaseController
             });
         };
 
-        // Get upcoming meetings
-        $meetingsQuery = \App\Models\DealFollowUp::with([
+        // Get upcoming meetings where the user is creator or participant
+        $meetingsQuery = DealFollowUp::with([
             'deal:id,name,lead_id',
             'deal.contact:id,client_name,client_email,mobile',
             'deal.leadAgent.user:id,name,image'
         ])
         ->where('next_follow_up_date', '>=', now())
-        // ->where('status', 'incomplete')
         ->orderBy('next_follow_up_date', 'asc');
 
-        // Apply constraints
-        $meetingsQuery->whereHas('deal', function($q) use ($dealsConstraint) {
-            $dealsConstraint($q);
-        });
+        MeetingVisibilityService::scopeVisibleToUser($meetingsQuery, $userId);
 
         $upcomingMeetings = $meetingsQuery->take(5)->get();
         
@@ -650,9 +647,16 @@ class DashboardController extends AccountBaseController
         $leadFormData['leadCustomFields'] = $leadFormData['customFields'];
         $leadFormData['leadCustomFieldCategories'] = $leadFormData['customFieldCategories'];
 
+        $meetingPermissions = [
+            'add_lead_follow_up' => user()->permission('add_lead_follow_up'),
+        ];
+        $userDealsForMeetings = MeetingVisibilityService::schedulableDealsQuery()->get(['id', 'name']);
+
         return Inertia::render('Dashboard/ComprehensiveDashboard', array_merge([
             'tasks' => $tasks,
             'upcomingMeetings' => $upcomingMeetings,
+            'userDealsForMeetings' => $userDealsForMeetings,
+            'meetingPermissions' => $meetingPermissions,
             'deals' => $allDeals,
             'recentDeals' => $recentDeals,
             'poorDataQualityDeals' => $poorDataQualityDeals,

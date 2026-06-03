@@ -56,6 +56,7 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Services\MeetingVisibilityService;
 use App\Services\PermissionService;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
@@ -1867,9 +1868,13 @@ class DealController extends AccountBaseController
         $followUp->remind_type = $firstCustomReminder['type'];
         $followUp->setCustomReminders($customReminders);
 
-        if ($request->has('participants') && is_array($request->participants)) {
-            $followUp->participants = $request->participants;
-        }
+        $participants = $request->has('participants') && is_array($request->participants)
+            ? $request->participants
+            : [];
+        $followUp->participants = MeetingVisibilityService::ensureCreatorIsParticipant(
+            $participants,
+            user()->id
+        );
 
         $followUp->status = 'scheduled';
         $followUp->save();
