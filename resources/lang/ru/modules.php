@@ -56,6 +56,7 @@ return array(
         'addLead' => 'Добавить лид',
         'editLead' => 'Редактировать лид',
         'noLeadFound' => 'Лид не найден',
+        'followUp' => 'Встречи',
     ),
     'deal' => array(
         'title' => 'Сделка',

@@ -56,6 +56,7 @@ return array(
         'addLead' => 'Potansiyel Müşteri Ekle',
         'editLead' => 'Potansiyel Müşteri Düzenle',
         'noLeadFound' => 'Potansiyel müşteri bulunamadı',
+        'followUp' => 'Toplantılar',
     ),
     'deal' => array(
         'title' => 'Anlaşma',
