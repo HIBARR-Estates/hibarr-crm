@@ -35,6 +35,7 @@ return [
                 'contact_details' => 'Контактные данные',
                 'country'         => 'Страна',
                 'source'          => 'Источник',
+                'category'        => 'Категория',
                 'lead_owner'      => 'Ответственный за лид',
                 'created'         => 'Создано',
                 'actions'         => 'Действия',

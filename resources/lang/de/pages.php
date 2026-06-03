@@ -35,6 +35,7 @@ return [
                 'contact_details' => 'Kontaktdaten',
                 'country'         => 'Land',
                 'source'          => 'Quelle',
+                'category'        => 'Kategorie',
                 'lead_owner'      => 'Lead-Verantwortlicher',
                 'created'         => 'Erstellt',
                 'actions'         => 'Aktionen',

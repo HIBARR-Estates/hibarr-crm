@@ -208,6 +208,7 @@ class LeadService
             // Map frontend sort fields to database columns
             $sortMapping = [
                 'client_name' => 'leads.client_name',
+                'category' => 'lead_categories.category_name',
                 'lead_owner' => 'lead_owner_user.name',
                 'created_at' => 'leads.created_at',
                 'updated_at' => 'leads.updated_at',
@@ -216,9 +217,11 @@ class LeadService
             ];
             
             if (isset($sortMapping[$sortBy])) {
-                // Handle lead_owner sorting which requires a join
                 if ($sortBy === 'lead_owner') {
                     $query->leftJoin('users as lead_owner_user', 'leads.lead_owner', '=', 'lead_owner_user.id')
+                          ->orderBy($sortMapping[$sortBy], $sortDirection);
+                } elseif ($sortBy === 'category') {
+                    $query->leftJoin('lead_categories', 'leads.category_id', '=', 'lead_categories.id')
                           ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } else {
                     $query->orderBy($sortMapping[$sortBy], $sortDirection);

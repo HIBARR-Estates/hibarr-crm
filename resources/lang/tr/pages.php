@@ -35,6 +35,7 @@ return [
                 'contact_details' => 'İletişim Bilgileri',
                 'country'         => 'Ülke',
                 'source'          => 'Kaynak',
+                'category'        => 'Kategori',
                 'lead_owner'      => 'Müşteri Adayı Sorumlusu',
                 'created'         => 'Oluşturulma',
                 'actions'         => 'İşlemler',

@@ -118,7 +118,7 @@ export const LEAD_TABLE_COLUMNS = (
         width: 120,
         render: (_, record) => {
             if (!record.lead_source)
-                return <span className="text-gray-400">--</span>;
+                return <span className="text-gray-400">—</span>;
 
             return (
                 <Tooltip title={record.lead_source.type}>
@@ -126,6 +126,29 @@ export const LEAD_TABLE_COLUMNS = (
                         {record.lead_source.type}
                     </Tag>
                 </Tooltip>
+            );
+        },
+    },
+    {
+        title: (
+            <span className="flex items-center">
+                {t("pages.leads.contacts_table.columns.category")}
+                <PageDataSorter
+                    field="category"
+                    routeName="lead-contact.index"
+                />
+            </span>
+        ),
+        dataIndex: "category",
+        key: "category",
+        width: 140,
+        render: (_, record) => {
+            return record.category?.category_name ? (
+                <span className="text-gray-900 truncate max-w-full block text-sm">
+                    {record.category.category_name}
+                </span>
+            ) : (
+                <span className="text-gray-400">—</span>
             );
         },
     },

@@ -43,6 +43,7 @@ return [
                 'contact_details' => 'Contact Details',
                 'country'         => 'Country',
                 'source'          => 'Source',
+                'category'        => 'Category',
                 'lead_owner'      => 'Lead Owner',
                 'created'         => 'Created',
                 'actions'         => 'Actions',
