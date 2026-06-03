@@ -32,6 +32,8 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use App\Services\PermissionService;
+use App\Services\TaskService;
+use App\Services\TaskVisibilityService;
 
 
 class DashboardController extends AccountBaseController
@@ -91,15 +93,8 @@ class DashboardController extends AccountBaseController
     {
         $userId = user()->id;
         
-        // Define constraints for "My Items" view - enforcing strict visibility regardless of role permissions
-        $tasksConstraint = function($q) use ($userId) {
-            $q->where(function($query) use ($userId) {
-                $query->where('added_by', $userId)
-                      ->orWhereHas('users', function ($q) use ($userId) {
-                          $q->where('user_id', $userId);
-                      });
-            });
-        };
+        // Define constraints for "My Items" view - assigner OR assignee
+        $tasksConstraint = fn ($q) => TaskVisibilityService::scopeVisibleToUser($q, $userId);
 
         $dealsConstraint = function($q) use ($userId) {
             $q->where(function($query) use ($userId) {
@@ -139,7 +134,9 @@ class DashboardController extends AccountBaseController
         // Get upcoming tasks ordered by due date
         $tasksQuery = Task::with([
             'project:id,project_name,project_short_code', 
-            'users:id,name,image', 
+            'users:id,name,image',
+            'createBy:id,name,image',
+            'addedByUser:id,name,image',
             'boardColumn:id,column_name,slug', 
             'category:id,category_name',
             'labels'
@@ -187,6 +184,7 @@ class DashboardController extends AccountBaseController
                             'image' => $user->image_url,
                         ];
                     })->toArray(),
+                    'assigner' => TaskVisibilityService::formatAssigner($task),
                     'labels' => $task->labels->map(function ($label) {
                         return [
                             'id' => $label->id,
@@ -663,7 +661,7 @@ class DashboardController extends AccountBaseController
             'pipelineStages' => $pipelineStages,
             'overviewMetrics' => $overviewMetrics,
             'stats' => $stats,
-        ], $dealFormData, $leadFormData));
+        ], $dealFormData, $leadFormData, TaskService::getTaskFormData()));
     }
 
     public function widget(Request $request, $dashboardType)
@@ -918,8 +916,8 @@ class DashboardController extends AccountBaseController
 
                 $tasks = Task::with('boardColumn')
                     ->where('board_column_id', '<>', $completedTaskColumn->id)
-                    ->whereHas('users', function ($query) {
-                        $query->where('user_id', user()->id);
+                    ->where(function ($query) {
+                        TaskVisibilityService::scopeVisibleToUser($query, user()->id);
                     })
                     ->where(function ($q) use ($startDate, $endDate) {
                         $q->whereBetween(DB::raw('DATE(tasks.`due_date`)'), [$startDate->toDateString(), $endDate->toDateString()]);

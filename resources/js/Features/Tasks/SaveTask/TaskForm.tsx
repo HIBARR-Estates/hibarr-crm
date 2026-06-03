@@ -198,9 +198,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     ...taskableInfo,
                     priority: vals.priority || "medium",
                     without_duedate: !vals.due_date,
-                    user_id: isAdmin
+                    user_ids: isAdmin
                         ? vals?.user_ids
-                        : [props?.auth?.user?.id].filter(Boolean), //if not an admin or manager assign to self, TODO: Refactor with the controller in place
+                        : [props?.auth?.user?.id].filter(Boolean),
                 });
             }}
             preserve={false}

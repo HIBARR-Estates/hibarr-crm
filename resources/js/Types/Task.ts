@@ -41,6 +41,11 @@ export interface Task {
     is_private?: boolean;
     billable?: boolean;
     added_by?: number;
+    assigner?: {
+        id: number;
+        name: string;
+        image?: string;
+    };
     task_short_code?: string;
     board_column?: {
         id: number;

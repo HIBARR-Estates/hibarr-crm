@@ -17,6 +17,7 @@ use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
 use App\Helper\UserService;
 use App\Models\ClientContact;
+use App\Services\TaskVisibilityService;
 
 class TasksDataTable extends BaseDataTable
 {
@@ -580,7 +581,9 @@ class TasksDataTable extends BaseDataTable
             if ($this->viewTaskPermission == 'owned' && $this->projectView == false) {
                 $model->where(
                     function ($q) use ($request, $userId) {
-                        $q->where('task_users.user_id', '=', $userId);
+                        $q->where(function ($inner) use ($userId) {
+                            TaskVisibilityService::scopeVisibleToUser($inner, $userId);
+                        });
                         $q->orWhere('mention_users.user_id', $userId);
 
                         if ($this->viewUnassignedTasksPermission == 'all' && !in_array('client', user_roles()) && $request->assignedTo == 'all') {
@@ -607,6 +610,7 @@ class TasksDataTable extends BaseDataTable
                 $model->where(
                     function ($q) use ($userId) {
                         $q->where('tasks.added_by', '=', $userId)
+                            ->orWhere('tasks.created_by', '=', $userId)
                             ->orWhere('mention_users.user_id', $userId);
                     }
                 );
@@ -616,9 +620,10 @@ class TasksDataTable extends BaseDataTable
 
                 $model->where(
                     function ($q) use ($request, $userId) {
-                        $q->where('task_users.user_id', '=', $userId);
-                        $q->orWhere('tasks.added_by', '=', $userId)
-                            ->orWhere('mention_users.user_id', $userId);
+                        $q->where(function ($inner) use ($userId) {
+                            TaskVisibilityService::scopeVisibleToUser($inner, $userId);
+                        });
+                        $q->orWhere('mention_users.user_id', $userId);
 
                         if (in_array('client', user_roles())) {
                             $q->orWhere('projects.client_id', '=', $userId);

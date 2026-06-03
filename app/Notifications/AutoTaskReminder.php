@@ -35,7 +35,7 @@ class AutoTaskReminder extends BaseNotification
      */
     public function via($notifiable)
     {
-        $via = array();
+        $via = ['database'];
 
         if ($this->emailSetting->send_email == 'yes' && $notifiable->email_notifications && $notifiable->email != '') {
             array_push($via, 'mail');

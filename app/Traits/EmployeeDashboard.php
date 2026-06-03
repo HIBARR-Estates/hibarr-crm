@@ -28,6 +28,7 @@ use App\Models\TaskboardColumn;
 use App\Models\AttendanceSetting;
 use App\Models\TicketAgentGroups;
 use Illuminate\Support\Facades\DB;
+use App\Services\TaskVisibilityService;
 use App\Models\ProjectTimeLogBreak;
 use App\Models\EmployeeShiftSchedule;
 use App\Http\Requests\ClockIn\ClockInRequest;
@@ -247,9 +248,10 @@ trait EmployeeDashboard
         }
 
         $tasks = $this->pendingTasks = Task::with(['activeProject', 'boardColumn', 'labels'])
-            ->join('task_users', 'task_users.task_id', '=', 'tasks.id')
-            ->where('task_users.user_id', $this->user->id)
             ->where('tasks.board_column_id', '<>', $completedTaskColumn->id)
+            ->where(function ($query) {
+                TaskVisibilityService::scopeVisibleToUser($query, user()->id);
+            })
             ->select('tasks.*')
             ->distinct()
             ->orderBy('tasks.id', 'desc')
