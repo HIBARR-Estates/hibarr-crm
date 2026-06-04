@@ -29,6 +29,7 @@ import EditFollowup from "./followups/EditFollowup";
 import DeleteFollowup from "./followups/DeleteFollowup";
 import ViewFollowup from "./followups/ViewFollowup";
 import BulkFollowupActionSelector from "./followups/bulk/BulkFollowupActionSelector";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 import { getStatusColor } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ interface Props {
 }
 
 export default function FollowUpTab({ deal, followUps, permissions }: Props) {
+    const { td } = useTd();
     const { props } = usePage();
     const user = props.auth.user;
     const {
@@ -176,7 +178,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             width: 140,
             render: (_, record) =>
                 record.meeting_type?.name ? (
-                    <span className="">{record.meeting_type.name}</span>
+                    <span className="">{td(record.meeting_type.name)}</span>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),

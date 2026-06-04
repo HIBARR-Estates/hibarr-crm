@@ -36,6 +36,7 @@ interface BoardColumn extends PipelineStage {
 
 interface KanbanBoardProps {
     columns: BoardColumn[];
+    td?: (text: string | null | undefined) => string;
     addLeadPermission: string;
     onCreateDeal: (columnId?: number) => void;
     onEditDeal: (deal: Deal) => void;
@@ -51,6 +52,7 @@ interface KanbanBoardProps {
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
     columns: initialColumns,
+    td = (text) => text ?? "",
     addLeadPermission,
     onCreateDeal,
     onEditDeal,
@@ -352,6 +354,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                             columnIsDealAddable={i === 0}
                             key={column.id}
                             column={column}
+                            td={td}
                             onCollapse={handleCollapse}
                             onEditColumn={onEditColumn}
                             onDeleteColumn={onDeleteColumn}
@@ -379,6 +382,7 @@ const KanbanBoard: React.FC<KanbanBoardProps> = ({
                 {activeId && activeDeal ? (
                     <DealCard
                         deal={activeDeal}
+                        td={td}
                         draggable={false}
                         onEdit={onEditDeal}
                         onScheduleMeeting={onScheduleMeeting}

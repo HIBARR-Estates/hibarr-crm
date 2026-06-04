@@ -47,6 +47,7 @@ import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(utc);
 
@@ -164,6 +165,7 @@ interface MeetingCardProps {
     meeting: DealFollowup;
     permissions: Record<string, string>;
     userId?: number;
+    td: (text: string | null | undefined) => string;
     onView: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -173,6 +175,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
     meeting,
     permissions,
     userId,
+    td,
     onView,
     onEdit,
     onDelete,
@@ -351,8 +354,9 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         {getPlatformIcon(meeting.location)}
                     </span>
                     <span className="font-medium text-gray-800 text-sm truncate">
-                        {meeting.meeting_type?.name ??
-                            getLocationLabel(meeting.location, t)}
+                        {meeting.meeting_type?.name
+                            ? td(meeting.meeting_type.name)
+                            : getLocationLabel(meeting.location, t)}
                     </span>
                     {live && (
                         <Tag
@@ -394,7 +398,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             router.visit(`/account/deals/${meeting.deal!.id}`);
                         }}
                     >
-                        {meeting.deal.name}
+                        {td(meeting.deal.name)}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">
@@ -484,6 +488,7 @@ interface MeetingSectionProps {
     emptyMessage: string;
     permissions: Record<string, string>;
     userId?: number;
+    td: (text: string | null | undefined) => string;
     onView: (m: DealFollowup) => void;
     onEdit: (m: DealFollowup) => void;
     onDelete: (m: DealFollowup) => void;
@@ -497,6 +502,7 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
     emptyMessage,
     permissions,
     userId,
+    td,
     onView,
     onEdit,
     onDelete,
@@ -541,6 +547,7 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
                                 meeting={meeting}
                                 permissions={permissions}
                                 userId={userId}
+                                td={td}
                                 onView={() => onView(meeting)}
                                 onEdit={() => onEdit(meeting)}
                                 onDelete={() => onDelete(meeting)}
@@ -599,6 +606,7 @@ function MeetingsIndex() {
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();
     const { t } = useTranslation();
+    const { td } = useTd();
     // ── Render ─────────────────────────────────────────────────────────────
 
     return (
@@ -683,6 +691,7 @@ function MeetingsIndex() {
                     emptyMessage={t("app.meetings.empty.upcoming")}
                     permissions={permissions}
                     userId={user?.id}
+                    td={td}
                     onView={(m) => handleAction("view", m)}
                     onEdit={(m) => handleAction("edit", m)}
                     onDelete={(m) => handleAction("delete", m)}
@@ -697,6 +706,7 @@ function MeetingsIndex() {
                     emptyMessage={t("app.meetings.empty.past")}
                     permissions={permissions}
                     userId={user?.id}
+                    td={td}
                     onView={(m) => handleAction("view", m)}
                     onEdit={(m) => handleAction("edit", m)}
                     onDelete={(m) => handleAction("delete", m)}

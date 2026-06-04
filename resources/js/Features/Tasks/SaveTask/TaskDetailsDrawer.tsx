@@ -247,7 +247,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                             level={4}
                             style={{ margin: 0, wordBreak: "break-word" }}
                         >
-                            {task.heading}
+                            {td(task.heading)}
                         </Title>
 
                         <Text
@@ -257,8 +257,11 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 wordBreak: "break-word",
                             }}
                         >
-                            {task?.description ??
-                                "No Description has been assigned to this task"}
+                            {task?.description
+                                ? td(task.description)
+                                : td(
+                                      "No Description has been assigned to this task",
+                                  )}
                         </Text>
                     </Space>
                 </div>

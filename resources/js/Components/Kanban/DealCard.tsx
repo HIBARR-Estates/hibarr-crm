@@ -25,6 +25,7 @@ const { Text } = Typography;
 interface DealCardProps {
     deal: Deal;
     draggable?: boolean;
+    td?: (text: string | null | undefined) => string;
     onEdit?: (deal: Deal) => void;
     onScheduleMeeting?: (deal: Deal) => void;
     onAgentChange?: (deal: Deal, agentId: number | null) => void;
@@ -33,6 +34,7 @@ interface DealCardProps {
 const DealCard: React.FC<DealCardProps> = ({
     deal,
     draggable = true,
+    td = (text) => text ?? "",
     onEdit,
     onScheduleMeeting,
     onAgentChange,
@@ -150,12 +152,14 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Text
                                 strong
                                 className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
-                                ellipsis={{ tooltip: deal.name }}
+                                ellipsis={{ tooltip: td(deal.name) }}
                             >
                                 {isLocked && (
                                     <LockOutlined className="text-amber-500 mr-1 text-[12px]" />
                                 )}
-                                <span className="font-medium">{deal.name}</span>
+                                <span className="font-medium">
+                                    {td(deal.name)}
+                                </span>
                                 {deal.contact?.client_id && (
                                     <i
                                         className="fa fa-check-circle text-green-500 ml-1 text-[12px]"
@@ -190,7 +194,7 @@ const DealCard: React.FC<DealCardProps> = ({
                         <Text
                             className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{
-                                tooltip: `${deal.contact.salutation ? deal.contact.salutation + " " : ""}${deal.contact.client_name}`,
+                                tooltip: `${deal.contact.salutation ? deal.contact.salutation + " " : ""}${td(deal.contact.client_name)}`,
                             }}
                         >
                             {deal.contact.salutation &&

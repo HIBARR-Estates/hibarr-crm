@@ -12,6 +12,7 @@ import dayjs from "dayjs";
 import isBetween from "dayjs/plugin/isBetween";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 import { TasksStats } from "@/Features/Tasks/Components/TasksStats";
 
@@ -385,6 +386,7 @@ const TasksIndex = ({
     const { refresh, isRefreshing } = usePageRefresh();
 
     const { t } = useTranslation();
+    const { td } = useTd();
 
     return (
         <>
@@ -547,6 +549,7 @@ const TasksIndex = ({
                         deals={deals}
                         leads={leads}
                         properties={properties}
+                        td={td}
                     />
                     <SaveTaskModal
                         key="edit"
@@ -562,6 +565,7 @@ const TasksIndex = ({
                         deals={deals}
                         leads={leads}
                         properties={properties}
+                        td={td}
                     />
                     <SaveTaskModal
                         key="duplicate"
@@ -577,11 +581,12 @@ const TasksIndex = ({
                         deals={deals}
                         leads={leads}
                         properties={properties}
+                        td={td}
                     />
 
                     {/* Task Details Drawer */}
                     <Drawer
-                        title={`${t("pages.tasks.drawer_title_prefix")}: ${selectedTask?.heading || ""}`}
+                        title={`${t("pages.tasks.drawer_title_prefix")}: ${td(selectedTask?.heading || "")}`}
                         placement="right"
                         size="large"
                         open={action === "view"}
@@ -591,6 +596,7 @@ const TasksIndex = ({
                         <TaskDetailsDrawer
                             task={selectedTask}
                             loading={false}
+                            td={td}
                         />
                     </Drawer>
 
@@ -598,6 +604,7 @@ const TasksIndex = ({
                     <DeleteTask
                         open={action === "delete"}
                         task={selectedTask}
+                        td={td}
                         onClose={() => handleClose()}
                     />
                 </div>
