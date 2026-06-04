@@ -56,6 +56,7 @@ use GuzzleHttp\Client;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use App\Services\MeetingVisibilityService;
 use App\Services\PermissionService;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
@@ -1797,94 +1798,107 @@ class DealController extends AccountBaseController
      */
     public function followUpStore(FollowUpStoreRequest $request)
     {
-        $this->deal = Deal::findOrFail($request->deal_id);
-
         $this->addPermission = user()->permission('add_lead_follow_up');
 
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
-        if ($this->deal->next_follow_up != 'yes') {
-            return Reply::error(__('messages.leadFollowUpRestricted'));
+        $deal = null;
+        $lead = null;
+
+        if ($request->filled('lead_id')) {
+            $lead = Lead::findOrFail($request->lead_id);
+
+            if (($lead->next_follow_up ?? 'yes') === 'no') {
+                return Reply::error(__('messages.leadFollowUpRestricted'));
+            }
+
+            if ($request->filled('deal_id')) {
+                $deal = Deal::where('id', $request->deal_id)
+                    ->where('lead_id', $lead->id)
+                    ->firstOrFail();
+
+                if ($deal->next_follow_up != 'yes') {
+                    return Reply::error(__('messages.leadFollowUpRestricted'));
+                }
+            }
+        } else {
+            $deal = Deal::findOrFail($request->deal_id);
+
+            if ($deal->next_follow_up != 'yes') {
+                return Reply::error(__('messages.leadFollowUpRestricted'));
+            }
+
+            if ($deal->lead_id) {
+                $lead = Lead::find($deal->lead_id);
+            }
         }
 
-        // Parse the date and time sent from frontend (DD-MM-YYYY and HH:mm:ss format)
-        // Prefer browser timezone from request, fallback to company timezone if not provided
         $browserTimezone = $request->timezone;
-        
+
         if (!$browserTimezone) {
-            // Fallback to company timezone if browser timezone not provided
             $browserTimezone = company()->timezone ?? 'UTC';
             \Log::warning('Browser timezone not provided in follow-up request, using company timezone', [
                 'deal_id' => $request->deal_id,
+                'lead_id' => $request->lead_id,
                 'company_timezone' => $browserTimezone,
             ]);
         }
-        
+
         $next_follow_up_date = Carbon::createFromFormat(
             'd-m-Y H:i:s',
             $request->next_follow_up_date . ' ' . $request->start_time,
             $browserTimezone
-        )->setTimezone('UTC'); // Convert from browser/company timezone to UTC for database storage
+        )->setTimezone('UTC');
 
-        // Prepare reminders data - combine defaults with custom reminders
         $defaultReminders = DealFollowUp::DEFAULT_REMINDERS;
         $customReminders = $request->reminders ?? [];
-        $allReminders = array_merge($defaultReminders, $customReminders);
+        $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
 
-        // Create follow-up first, then try meeting generation
         $followUp = new DealFollowUp();
-        $followUp->deal_id = $request->deal_id;
+        $followUp->lead_id = $lead?->id;
+        $followUp->deal_id = $deal?->id;
         $followUp->meeting_type_id = $request->meeting_type_id;
         $followUp->location = $request->location ?? 'office';
         $followUp->meeting_link = $request->meeting_link;
         $followUp->next_follow_up_date = $next_follow_up_date;
         $followUp->remark = $request->remark;
         $followUp->duration = $request->filled('duration') ? (int) $request->duration : null;
-
-        // Set traditional reminder fields for backward compatibility (use first custom reminder or defaults)
-        $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
-        $followUp->send_reminder = 'yes'; // Always yes since reminders are mandatory now
+        $followUp->send_reminder = 'yes';
         $followUp->remind_time = $firstCustomReminder['time'];
         $followUp->remind_type = $firstCustomReminder['type'];
-        
-        // Set the new reminders JSON field with custom reminders only
         $followUp->setCustomReminders($customReminders);
-        
-        // Set participants if provided
-        if ($request->has('participants') && is_array($request->participants)) {
-            $followUp->participants = $request->participants;
-        }
 
-        // Set duration if provided (otherwise defaults to 30 via model)
-        if ($request->has('duration')) {
-            $followUp->duration = $request->duration;
-        }
-        
+        $participants = $request->has('participants') && is_array($request->participants)
+            ? $request->participants
+            : [];
+        $followUp->participants = MeetingVisibilityService::ensureCreatorIsParticipant(
+            $participants,
+            user()->id
+        );
+
         $followUp->status = 'scheduled';
-
         $followUp->save();
 
-        // Load the deal relationship for automation
-        $followUp->load('deal');
+        if ($followUp->deal_id) {
+            $followUp->load('deal');
+        }
 
-        // Try to trigger follow-up automation - if this fails, continue anyway
         try {
             $this->triggerFollowUpAutomation($followUp);
-            Log::info("Follow-up automation triggered successfully", [
+            Log::info('Follow-up automation triggered successfully', [
                 'follow_up_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
+                'lead_id' => $followUp->lead_id,
             ]);
         } catch (\Exception $e) {
-            Log::error("Follow-up automation failed during creation - continuing without meeting link", [
+            Log::error('Follow-up automation failed during creation - continuing without meeting link', [
                 'follow_up_id' => $followUp->id,
                 'deal_id' => $followUp->deal_id,
+                'lead_id' => $followUp->lead_id,
                 'error' => $e->getMessage(),
             ]);
-            
-            // Send notification to responsible agent
+
             $this->notifyAgentOfMeetingLinkFailure($followUp, $e->getMessage());
-            
-            // Continue without throwing exception - follow-up is already saved
         }
 
         event(new AutoFollowUpReminderEvent($followUp, true));
@@ -2561,6 +2575,13 @@ class DealController extends AccountBaseController
                 $leadAgent = \App\Models\LeadAgent::find($followUp->deal->agent_id);
                 if ($leadAgent) {
                     $agent = \App\Models\User::find($leadAgent->user_id);
+                }
+            }
+
+            if (!$agent && $followUp->lead_id) {
+                $lead = Lead::find($followUp->lead_id);
+                if ($lead?->lead_owner) {
+                    $agent = \App\Models\User::find($lead->lead_owner);
                 }
             }
             

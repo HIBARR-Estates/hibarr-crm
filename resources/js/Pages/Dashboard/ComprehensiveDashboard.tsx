@@ -144,6 +144,10 @@ interface DataQualityStats {
 interface IndexProps extends PageProps {
     tasks: Task[];
     upcomingMeetings: any[];
+    userDealsForMeetings: { id: number; name: string }[];
+    meetingPermissions: {
+        add_lead_follow_up?: string;
+    };
     deals: Deal[];
     recentDeals: Deal[];
     poorDataQualityDeals: DataQualityRecord[];
@@ -161,6 +165,8 @@ interface IndexProps extends PageProps {
 const Index: React.FC<IndexProps> = ({
     tasks,
     upcomingMeetings,
+    userDealsForMeetings,
+    meetingPermissions,
     deals,
     recentDeals,
     poorDataQualityDeals,
@@ -361,6 +367,8 @@ const Index: React.FC<IndexProps> = ({
                                     >
                                         <MeetingsPanel
                                             meetings={upcomingMeetings}
+                                            userDeals={userDealsForMeetings}
+                                            meetingPermissions={meetingPermissions}
                                         />
                                     </motion.div>
 

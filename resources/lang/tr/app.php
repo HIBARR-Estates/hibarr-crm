@@ -258,6 +258,17 @@ return [
             'reschedule' => 'Toplantıyı Yeniden Planla',
             'join'       => 'Toplantıya Katıl',
         ],
+        'linked_lead_label' => 'Bağlı müşteri adayı',
+        'optional_deal_label' => 'Anlaşmaya bağla (isteğe bağlı)',
+        'optional_deal_placeholder' => 'Anlaşma ara ve seç...',
+        'linked_deal_column' => 'Bağlı anlaşma',
+        'lead_owner_required' => 'Bu müşteri adayına atanmış bir sahip yok. Toplantı oluşturmadan önce bir sahip atayın veya temsilcisi olan bir anlaşma bağlayın.',
+        'success' => [
+            'title' => 'Toplantı planlandı',
+            'description' => 'Toplantı başarıyla oluşturuldu.',
+            'book_another' => 'Başka bir toplantı planla',
+            'done' => 'Tamam',
+        ],
         'sections_detail' => [
             'participants'   => 'Katılımcılar',
             'summary'        => 'Toplantı Özeti',

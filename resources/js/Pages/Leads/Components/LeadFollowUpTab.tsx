@@ -1,11 +1,10 @@
+import { Lead } from "@/Types/api/leads";
 import { Deal } from "@/Types/api/deals";
 import {
     Button,
     Dropdown,
     MenuProps,
     Tag,
-    Avatar,
-    Tooltip,
     Empty,
 } from "antd";
 import { DataTable } from "@/Components/DataTable";
@@ -14,32 +13,37 @@ import {
     EditOutlined,
     DeleteOutlined,
     VideoCameraOutlined as VideoCallOutlined,
-    CalendarOutlined,
     PlusOutlined,
     EyeOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import type { TableColumnsType } from "antd";
-import { usePage } from "@inertiajs/react";
+import { Link, usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
-import { ContentRenderer } from "@/Components/ContentRenderer";
-import AddFollowup from "./followups/AddFollowup";
-import EditFollowup from "./followups/EditFollowup";
-import DeleteFollowup from "./followups/DeleteFollowup";
-import ViewFollowup from "./followups/ViewFollowup";
-import BulkFollowupActionSelector from "./followups/bulk/BulkFollowupActionSelector";
-import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
+import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
+import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
+import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import { getStatusColor } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 
 interface Props {
-    deal: Deal;
+    lead: Lead;
     followUps: DealFollowup[];
     permissions: Record<string, string>;
+    deals: Deal[] | { id: number; name: string }[];
+    onScheduleMeeting?: () => void;
 }
 
-export default function FollowUpTab({ deal, followUps, permissions }: Props) {
+export default function LeadFollowUpTab({
+    lead,
+    followUps,
+    permissions,
+    deals,
+    onScheduleMeeting,
+}: Props) {
     const { props } = usePage();
+    const { t } = useTranslation();
     const user = props.auth.user;
     const {
         action,
@@ -48,8 +52,14 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
         selected: followUp,
     } = useGenericEntityAction<DealFollowup>();
 
+    const dealsForLead = deals.map((d) => ({
+        id: d.id,
+        name: d.name,
+    }));
+
+    const viewDeal = followUp?.deal as Deal | undefined;
+
     const renderMeetingLink = (record: DealFollowup) => {
-        // Get platform label based on location
         const getPlatformLabel = (location: string) => {
             switch (location) {
                 case "office":
@@ -64,8 +74,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
         };
 
         const platformLabel = getPlatformLabel(record.location);
-        
-        // If it's a non-video meeting platform or no meeting link, show the platform label
+
         if (platformLabel || !record.meeting_link) {
             return (
                 <span className="text-gray-500">
@@ -74,37 +83,6 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             );
         }
 
-        const getMeetingIcon = (location: string) => {
-            switch (location) {
-                case "zoom":
-                    return (
-                        <img
-                            src="https://img.icons8.com/color/20/000000/zoom.png"
-                            alt="Zoom"
-                            className="w-5 h-5"
-                        />
-                    );
-                case "google_meet":
-                    return (
-                        <img
-                            src="https://img.icons8.com/color/20/000000/google-meet.png"
-                            alt="Google Meet"
-                            className="w-5 h-5"
-                        />
-                    );
-                case "teams":
-                    return (
-                        <img
-                            src="https://img.icons8.com/color/20/000000/microsoft-teams.png"
-                            alt="Microsoft Teams"
-                            className="w-5 h-5"
-                        />
-                    );
-                default:
-                    return <VideoCallOutlined className="text-blue-500" />;
-            }
-        };
-
         return (
             <a
                 href={record.meeting_link}
@@ -112,37 +90,11 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                 rel="noopener noreferrer"
                 className="flex items-center space-x-2 text-blue-600 hover:text-blue-800"
             >
-                {getMeetingIcon(record.location)}
+                <VideoCallOutlined className="text-blue-500" />
                 <span className="underline">Join Meeting</span>
             </a>
         );
     };
-
-    const renderSummaryLink = (record: DealFollowup) => {
-        // Office, phone, and physical meetings don't have meeting summaries
-            const nonVideoMeetingLocations = ['office', 'phone', 'physical'];
-            if (nonVideoMeetingLocations.includes(record.location) || !record.meeting_link) {
-                return <span className="text-gray-500">--</span>;
-            }else{
-                if (record.meeting_summary) {
-                    return (
-                        <Button
-                            type="link"
-                            size="small"
-                            className="text-green-600 hover:text-green-800 p-0 h-auto whitespace-nowrap"
-                            onClick={() => handleAction("view", record)}
-                        >
-                            View Summary
-                        </Button>
-                    );
-                }
-                return (
-                    <Tag color="orange" className="text-xs whitespace-nowrap">
-                        Pending
-                    </Tag>
-                );
-            }
-    }
 
     const columns: TableColumnsType<DealFollowup> = [
         {
@@ -153,21 +105,33 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             fixed: "left" as const,
             render: (_, record) => (
                 <div
-                    className="flex items-center space-x-2 cursor-pointer hover:text-blue-600 transition-colors"
+                    className="cursor-pointer hover:text-blue-600 transition-colors"
                     onClick={() => handleAction("view", record)}
                 >
-                    <div>
-                        <div className="font-medium whitespace-nowrap">
-                            {dayjs(record.next_follow_up_date).format(
-                                "MMM DD, YYYY"
-                            )}
-                        </div>
-                        <div className="text-sm text-gray-500 whitespace-nowrap">
-                            {dayjs(record.next_follow_up_date).format("h:mm A")}
-                        </div>
+                    <div className="font-medium whitespace-nowrap">
+                        {dayjs(record.next_follow_up_date).format("MMM DD, YYYY")}
+                    </div>
+                    <div className="text-sm text-gray-500 whitespace-nowrap">
+                        {dayjs(record.next_follow_up_date).format("h:mm A")}
                     </div>
                 </div>
             ),
+        },
+        {
+            title: t("app.meetings.linked_deal_column"),
+            key: "linked_deal",
+            width: 160,
+            render: (_, record) =>
+                record.deal?.id ? (
+                    <Link
+                        href={route("deals.show", record.deal.id)}
+                        className="text-blue-600 hover:underline"
+                    >
+                        {record.deal.name}
+                    </Link>
+                ) : (
+                    <span className="text-gray-400">—</span>
+                ),
         },
         {
             title: "Meeting Type",
@@ -176,7 +140,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             width: 140,
             render: (_, record) =>
                 record.meeting_type?.name ? (
-                    <span className="">{record.meeting_type.name}</span>
+                    <span>{record.meeting_type.name}</span>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),
@@ -186,28 +150,22 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             dataIndex: "meeting_link",
             key: "meeting_link",
             width: 150,
-            render: (_, record) => record?.meeting_summary ? renderSummaryLink(record) : renderMeetingLink(record),
+            render: (_, record) => renderMeetingLink(record),
         },
         {
             title: "Status",
             dataIndex: "status",
             key: "status",
             width: 120,
-            render: (_, { status }) => {
-                return (
-                    <Tag color={getStatusColor(status)} className="capitalize whitespace-nowrap">
-                        {status}
-                    </Tag>
-                );
-            },
+            render: (_, { status }) => (
+                <Tag
+                    color={getStatusColor(status)}
+                    className="capitalize whitespace-nowrap"
+                >
+                    {status}
+                </Tag>
+            ),
         },
-        {
-            title: "Summary Status",
-            key: "summary_status",
-            width: 140,
-           render: (_, record) => renderSummaryLink(record),
-        },
-
         {
             title: "Actions",
             key: "actions",
@@ -217,15 +175,16 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                 if (!record.added_by) {
                     return null;
                 }
+
                 const canView =
                     permissions.view_lead_follow_up === "all" ||
                     (permissions.view_lead_follow_up === "added" &&
                         record.added_by?.id === user?.id);
                 const canEdit =
-                    permissions.edit_lead_follow_up === "all" ||
-                    (permissions.edit_lead_follow_up === "added" &&
-                        record.added_by?.id === user?.id);
-
+                    record.deal_id &&
+                    (permissions.edit_lead_follow_up === "all" ||
+                        (permissions.edit_lead_follow_up === "added" &&
+                            record.added_by?.id === user?.id));
                 const canDelete =
                     permissions.delete_lead_follow_up === "all" ||
                     (permissions.delete_lead_follow_up === "added" &&
@@ -264,11 +223,10 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                         ? [
                               {
                                   key: "delete",
-                                  onClick: () => {
-                                      handleAction("delete", record);
-                                  },
+                                  onClick: () =>
+                                      handleAction("delete", record),
                                   label: (
-                                      <span className="">
+                                      <span>
                                           <DeleteOutlined className="mr-2" />
                                           Delete
                                       </span>
@@ -292,9 +250,9 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
         },
     ];
 
-    // Table row selection
-    const { selectedEntities, rowSelection, clearSelected } =
-        useGenericTableRowSelection<DealFollowup>();
+    const canAdd =
+        permissions.add_lead_follow_up === "all" ||
+        permissions.add_lead_follow_up === "added";
 
     return (
         <>
@@ -306,19 +264,15 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                 <p className="text-gray-500 mb-2">
                                     No follow-ups found
                                 </p>
-                                {(permissions.add_lead_follow_up === "all" ||
-                                    permissions.add_lead_follow_up ===
-                                        "added") &&
-                                    deal.lead_stage?.slug !== "win" &&
-                                    deal.lead_stage?.slug !== "lost" && (
-                                        <Button
-                                            type="primary"
-                                            icon={<PlusOutlined />}
-                                            onClick={() => handleAction("add")}
-                                        >
-                                            Schedule Meeting
-                                        </Button>
-                                    )}
+                                {canAdd && onScheduleMeeting && (
+                                    <Button
+                                        type="primary"
+                                        icon={<PlusOutlined />}
+                                        onClick={onScheduleMeeting}
+                                    >
+                                        {t("pages.deals.actions.add_meeting")}
+                                    </Button>
+                                )}
                             </div>
                         }
                     />
@@ -326,61 +280,52 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             )}
             {followUps.length > 0 && (
                 <div className="p-6 flex flex-col gap-y-4">
-                    <div className="flex justify-end">
-                        {selectedEntities.length > 0 && (
-                            <BulkFollowupActionSelector
-                                selectedEntityIds={selectedEntities.map(
-                                    (e) => e.id
-                                )}
-                                clearSelected={() => clearSelected()}
-                            />
-                        )}
-                    </div>
+                    {canAdd && onScheduleMeeting && (
+                        <div className="flex justify-end">
+                            <Button
+                                type="primary"
+                                icon={<PlusOutlined />}
+                                onClick={onScheduleMeeting}
+                            >
+                                {t("pages.deals.actions.add_meeting")}
+                            </Button>
+                        </div>
+                    )}
                     <div className="overflow-x-auto">
-                        <DataTable
-                            columns={columns}
-                            dataSource={followUps}
-                            rowKey="id"
-                            className="follow-ups-table"
-                            size="small"
-                            rowSelection={rowSelection}
-                            scroll={{ x: "max-content" }}
-                        />
+                    <DataTable
+                        columns={columns}
+                        dataSource={followUps}
+                        rowKey="id"
+                        className="follow-ups-table"
+                        size="small"
+                        scroll={{ x: "max-content" }}
+                    />
                     </div>
                 </div>
             )}
-            {/* Add Follow-up Modal */}
-            <AddFollowup
-                context="deal"
-                open={action === "add"}
-                onClose={() => handleClose()}
-                deal={deal}
-            />
 
-            {/* Edit Follow-up Modal */}
-            {followUp && (
+            {followUp && viewDeal && (
                 <EditFollowup
                     open={action === "edit"}
                     onClose={() => handleClose()}
-                    deal={deal}
+                    deal={viewDeal}
                     followup={followUp}
                 />
             )}
 
-            {/* Delete Follow-up Modal */}
             <DeleteFollowup
                 open={action === "delete"}
                 onClose={() => handleClose()}
                 followup={followUp}
             />
 
-            {/* View Follow-up Modal */}
             {followUp && (
                 <ViewFollowup
                     open={action === "view"}
                     onClose={() => handleClose()}
                     followup={followUp}
-                    deal={deal}
+                    deal={viewDeal}
+                    lead={lead}
                 />
             )}
         </>

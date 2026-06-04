@@ -56,6 +56,7 @@ return array(
         'addLead' => 'Lead hinzufügen',
         'editLead' => 'Lead bearbeiten',
         'noLeadFound' => 'Kein Lead gefunden',
+        'followUp' => 'Meetings',
     ),
     'deal' => array(
         'title' => 'Angebot',

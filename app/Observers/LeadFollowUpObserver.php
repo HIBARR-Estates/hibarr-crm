@@ -46,7 +46,9 @@ class LeadFollowUpObserver
             /* Add google calendar event */
             if (!is_null($leadFollowUp->next_follow_up_date)) {
                 $leadFollowUp->event_id = $this->googleCalendarEvent($leadFollowUp);
-                self::createDealHistory($leadFollowUp->deal_id, 'followup-created', agentId: $leadFollowUp->agent_id);
+                if ($leadFollowUp->deal_id) {
+                    self::createDealHistory($leadFollowUp->deal_id, 'followup-created', agentId: $leadFollowUp->agent_id);
+                }
             }
         }
     }

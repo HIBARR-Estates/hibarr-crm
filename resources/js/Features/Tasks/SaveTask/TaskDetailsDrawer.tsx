@@ -92,6 +92,11 @@ export interface Task {
         name: string;
         image?: string;
     };
+    assigner?: {
+        id: number;
+        name: string;
+        image?: string;
+    };
     hash?: string;
     deals?: Array<{
         id: number;
@@ -406,7 +411,10 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
             )}
 
             {/* Project & Assignment */}
-            {(task.project || (task.users && task.users.length > 0)) && (
+            {(task.project ||
+                task.assigner ||
+                task.created_by ||
+                (task.users && task.users.length > 0)) && (
                 <Card
                     size="small"
                     title={
@@ -428,6 +436,26 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                                 {task.project.project_short_code && (
                                     <Tag>{task.project.project_short_code}</Tag>
                                 )}
+                            </Space>
+                        </div>
+                    )}
+
+                    {(task.assigner ?? task.created_by) && (
+                        <div style={{ marginBottom: 16 }}>
+                            <Text strong>{td("Assigner")}</Text>
+                            <br />
+                            <Space style={{ marginTop: 8 }}>
+                                <Avatar
+                                    size="small"
+                                    icon={<UserOutlined />}
+                                    src={
+                                        (task.assigner ?? task.created_by)
+                                            ?.image
+                                    }
+                                />
+                                <Text>
+                                    {(task.assigner ?? task.created_by)?.name}
+                                </Text>
                             </Space>
                         </div>
                     )}

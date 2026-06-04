@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Events\AutoTaskReminderEvent;
 use App\Notifications\AutoTaskReminder;
+use App\Services\TaskVisibilityService;
 use Illuminate\Support\Facades\Notification;
 
 class AutoTaskReminderListener
@@ -18,7 +19,8 @@ class AutoTaskReminderListener
 
     public function handle(AutoTaskReminderEvent $event)
     {
-        Notification::send($event->task->users, new AutoTaskReminder($event->task));
+        $recipients = TaskVisibilityService::reminderRecipients($event->task);
+        Notification::send($recipients, new AutoTaskReminder($event->task));
     }
 
 }

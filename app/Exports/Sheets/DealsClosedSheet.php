@@ -30,7 +30,7 @@ class DealsClosedSheet implements FromCollection, WithHeadings, WithMapping, Wit
 
     public function headings(): array
     {
-        return ['Deal Name', 'Contact', 'Value', 'Agent', 'Won At'];
+        return ['Deal Name', 'Contact', 'Value', 'Agent', 'Closed At'];
     }
 
     public function map($deal): array
@@ -40,7 +40,7 @@ class DealsClosedSheet implements FromCollection, WithHeadings, WithMapping, Wit
             $deal->contact?->client_name ?? '',
             $deal->value ?? '',
             $deal->leadAgent?->user?->name ?? '',
-            $deal->won_at?->format('Y-m-d H:i') ?? '',
+            $deal->close_date?->format('Y-m-d H:i') ?? '',
         ];
     }
 }

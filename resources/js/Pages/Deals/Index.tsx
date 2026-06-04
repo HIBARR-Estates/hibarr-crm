@@ -528,6 +528,7 @@ const Index = ({
             {/* Add Follow-up Modal */}
             {deal && (
                 <AddFollowup
+                    context="deal"
                     open={action === "add_follow_up"}
                     onClose={() => handleClose()}
                     deal={deal}

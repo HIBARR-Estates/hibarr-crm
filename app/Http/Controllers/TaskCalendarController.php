@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Helper\Common;
+use App\Services\TaskVisibilityService;
 
 class TaskCalendarController extends AccountBaseController
 {
@@ -122,7 +123,7 @@ class TaskCalendarController extends AccountBaseController
 
             if ($this->viewTaskPermission == 'owned') {
                 $model->where(function ($q1) use ($request) {
-                    $q1->where('task_users.user_id', '=', user()->id);
+                    TaskVisibilityService::scopeVisibleToUser($q1, user()->id);
 
                     if (in_array('client', user_roles())) {
                         $q1->orWhere('projects.client_id', '=', user()->id);
@@ -135,14 +136,15 @@ class TaskCalendarController extends AccountBaseController
             }
 
             if ($this->viewTaskPermission == 'added') {
-                $model->where('tasks.added_by', '=', user()->id);
+                $model->where(function ($q1) {
+                    $q1->where('tasks.added_by', '=', user()->id)
+                        ->orWhere('tasks.created_by', '=', user()->id);
+                });
             }
 
             if ($this->viewTaskPermission == 'both') {
                 $model->where(function ($q1) use ($request) {
-                    $q1->where('task_users.user_id', '=', user()->id);
-
-                    $q1->orWhere('tasks.added_by', '=', user()->id);
+                    TaskVisibilityService::scopeVisibleToUser($q1, user()->id);
 
                     if (in_array('client', user_roles())) {
                         $q1->orWhere('projects.client_id', '=', user()->id);

@@ -131,6 +131,8 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
         id?: number;
     };
     td?: (key: string) => string;
+    onSuccess?: () => void;
+    reloadKeys?: string[];
 }
 
 const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
@@ -149,6 +151,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     properties = [],
     relatedEntity,
     td = (key) => key,
+    onSuccess,
+    reloadKeys,
 }) => {
     const { props } = usePage();
 
@@ -304,8 +308,14 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
             onSuccess: () => {
                 setErrors([]);
                 handleCancel();
+                onSuccess?.();
                 router.reload({
-                    only: ["tasks"], // Adjust based on what needs to be refreshed
+                    only: reloadKeys ?? [
+                        "tableTasks",
+                        "kanbanTasks",
+                        "stats",
+                        "tasks",
+                    ],
                 });
             },
             onError: (errorResponse) => {

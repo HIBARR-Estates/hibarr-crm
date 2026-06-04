@@ -9,17 +9,18 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class DealMetricsService
 {
+    public function __construct(
+        private AgentReportScope $scope,
+    ) {}
+
     public function countCreated(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
-            ->count();
+        return $this->createdQuery($agentIds, $start, $end)->count();
     }
 
     public function listCreated(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
-            ->whereBetween('created_at', [$start->startOfDay(), $end->endOfDay()])
+        return $this->createdQuery($agentIds, $start, $end)
             ->with([
                 'leadAgent.user:id,name',
                 'contact:id,client_name,client_email',
@@ -32,31 +33,50 @@ class DealMetricsService
 
     public function countClosed(?array $agentIds, Carbon $start, Carbon $end): int
     {
-        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
-            ->where('outcome_status', OutcomeStatus::Won)
-            ->whereBetween('won_at', [$start->startOfDay(), $end->endOfDay()])
-            ->count();
+        return $this->closedQuery($agentIds, $start, $end)->count();
     }
 
     public function listClosed(?array $agentIds, Carbon $start, Carbon $end, int $perPage = 15): LengthAwarePaginator
     {
-        return Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
-            ->where('outcome_status', OutcomeStatus::Won)
-            ->whereBetween('won_at', [$start->startOfDay(), $end->endOfDay()])
+        return $this->closedQuery($agentIds, $start, $end)
             ->with([
                 'leadAgent.user:id,name',
                 'contact:id,client_name,client_email',
             ])
-            ->select(['id', 'name', 'value', 'agent_id', 'lead_id', 'won_at'])
-            ->orderByDesc('won_at')
+            ->select(['id', 'name', 'value', 'agent_id', 'lead_id', 'close_date', 'outcome_status'])
+            ->orderByDesc('close_date')
             ->paginate($perPage);
     }
 
     public function totalClosedValue(?array $agentIds, Carbon $start, Carbon $end): float
     {
-        return (float) Deal::when($agentIds !== null, fn ($q) => $q->whereIn('agent_id', $agentIds))
+        return (float) $this->scope->scopeDeals(Deal::query(), $agentIds)
             ->where('outcome_status', OutcomeStatus::Won)
-            ->whereBetween('won_at', [$start->startOfDay(), $end->endOfDay()])
+            ->whereNotNull('close_date')
+            ->whereBetween('close_date', [
+                $start->copy()->startOfDay(),
+                $end->copy()->endOfDay(),
+            ])
             ->sum('value');
+    }
+
+    private function createdQuery(?array $agentIds, Carbon $start, Carbon $end)
+    {
+        return $this->scope->scopeDeals(Deal::query(), $agentIds)
+            ->whereBetween('created_at', [
+                $start->copy()->startOfDay(),
+                $end->copy()->endOfDay(),
+            ]);
+    }
+
+    private function closedQuery(?array $agentIds, Carbon $start, Carbon $end)
+    {
+        return $this->scope->scopeDeals(Deal::query(), $agentIds)
+            ->whereIn('outcome_status', [OutcomeStatus::Won, OutcomeStatus::Lost])
+            ->whereNotNull('close_date')
+            ->whereBetween('close_date', [
+                $start->copy()->startOfDay(),
+                $end->copy()->endOfDay(),
+            ]);
     }
 }

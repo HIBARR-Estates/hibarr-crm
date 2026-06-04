@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { usePage, router } from "@inertiajs/react";
 import {
     Tag,
     Button,
     Dropdown,
     Empty,
-    Drawer,
-    Select,
-    Spin,
     Pagination,
 } from "antd";
 import type { MenuProps } from "antd";
@@ -42,15 +39,12 @@ import {
     PaginatedFollowupResponse,
 } from "@/Types/api/deal-followup";
 import { Deal } from "@/Types/api/deals";
-import { getStatusColor, isLoading } from "@/lib/utils";
+import { getStatusColor } from "@/lib/utils";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
-import SaveFollowup from "@/Pages/Deals/Components/Tabs/followups/SaveFollowup";
+import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
-import { useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
-import { errorFormatter } from "@/lib/api/utils/common";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 
@@ -570,161 +564,6 @@ const MeetingSection: React.FC<MeetingSectionProps> = ({
                 </>
             )}
         </div>
-    );
-};
-
-// ─── Schedule Meeting Drawer ─────────────────────────────────────────────────
-
-interface ScheduleMeetingDrawerProps {
-    open: boolean;
-    onClose: () => void;
-    userDeals: { id: number; name: string }[];
-}
-
-const ScheduleMeetingDrawer: React.FC<ScheduleMeetingDrawerProps> = ({
-    open,
-    onClose,
-    userDeals,
-}) => {
-    const { t } = useTranslation();
-    const [selectedDealId, setSelectedDealId] = useState<number | null>(null);
-    const [selectedDeal, setSelectedDeal] = useState<Deal | null>(null);
-    const [loadingDeal, setLoadingDeal] = useState(false);
-    const [errors, setErrors] = useState<string[]>([]);
-    const [formKey, setFormKey] = useState(0);
-
-    // Reset state when drawer opens
-    useEffect(() => {
-        if (open) {
-            setSelectedDealId(null);
-            setSelectedDeal(null);
-            setErrors([]);
-            setFormKey((prev) => prev + 1);
-        }
-    }, [open]);
-
-    // Fetch deal details when a deal is selected
-    useEffect(() => {
-        if (!selectedDealId) {
-            setSelectedDeal(null);
-            return;
-        }
-
-        setLoadingDeal(true);
-        fetch(`/account/meetings/deal/${selectedDealId}`, {
-            headers: {
-                Accept: "application/json",
-                "X-Requested-With": "XMLHttpRequest",
-            },
-        })
-            .then((res) => res.json())
-            .then((json) => {
-                if (json.success) {
-                    setSelectedDeal(json.data);
-                }
-            })
-            .catch(() => {
-                setErrors([t("pages.meetings.schedule.failed_to_load")]);
-            })
-            .finally(() => setLoadingDeal(false));
-    }, [selectedDealId]);
-
-    const handleCancel = () => {
-        setErrors([]);
-        setSelectedDealId(null);
-        setSelectedDeal(null);
-        setFormKey((prev) => prev + 1);
-        onClose();
-    };
-
-    const { mutate, status } = useApiMutate<any, null, ApiResponse<null>>(
-        `/account/deals/follow-up-store`,
-        "POST",
-        () => {
-            handleCancel();
-        },
-    );
-
-    const onSubmit = (data: any) => {
-        mutate(data, {
-            onSuccess: () => {
-                setErrors([]);
-                setFormKey((prev) => prev + 1);
-                router.reload();
-            },
-            onError: (errorResponse: any) => {
-                const responseErrors =
-                    errorFormatter(errorResponse)?.errors || [];
-                setErrors(Object.values(responseErrors).flat() as string[]);
-            },
-        });
-    };
-
-    return (
-        <Drawer
-            title={t("app.meetings.schedule_drawer_title")}
-            placement="right"
-            size="large"
-            open={open}
-            onClose={handleCancel}
-            destroyOnClose
-        >
-            <div className="space-y-6">
-                {/* Step 1: Select deal */}
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                        {t("app.meetings.select_deal_label")}{" "}
-                        <span className="text-red-500">*</span>
-                    </label>
-                    <Select
-                        showSearch
-                        placeholder={t("app.meetings.select_deal_placeholder")}
-                        optionFilterProp="label"
-                        className="w-full"
-                        value={selectedDealId}
-                        onChange={(val) => setSelectedDealId(val)}
-                        options={userDeals.map((d) => ({
-                            value: d.id,
-                            label: d.name,
-                        }))}
-                        filterOption={(input, option) =>
-                            (option?.label as string)
-                                ?.toLowerCase()
-                                .includes(input.toLowerCase()) ?? false
-                        }
-                    />
-                </div>
-
-                {/* Loading state */}
-                {loadingDeal && (
-                    <div className="flex justify-center py-8">
-                        <Spin tip={t("pages.meetings.schedule.loading_deal")} />
-                    </div>
-                )}
-
-                {/* Step 2: SaveFollowup form */}
-                {selectedDeal && !loadingDeal && (
-                    <SaveFollowup
-                        key={formKey}
-                        deal={selectedDeal}
-                        onSubmit={onSubmit}
-                        onCancel={handleCancel}
-                        loading={isLoading({ status })}
-                        errors={errors}
-                    />
-                )}
-
-                {/* Prompt when no deal selected */}
-                {!selectedDealId && !loadingDeal && (
-                    <div className="text-center py-8 text-gray-400">
-                        <CalendarOutlined className="text-4xl mb-3 block" />
-                        <p className="text-sm">
-                            {t("pages.meetings.schedule.select_deal_prompt")}
-                        </p>
-                    </div>
-                )}
-            </div>
-        </Drawer>
     );
 };
 

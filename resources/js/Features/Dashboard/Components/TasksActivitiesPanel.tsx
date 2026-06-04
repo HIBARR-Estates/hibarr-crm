@@ -27,6 +27,7 @@ import {
     CopyOutlined,
     DeleteOutlined,
     EyeOutlined,
+    PlusOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
@@ -62,6 +63,11 @@ interface Task {
         name: string;
         image?: string;
     }>;
+    assigner?: {
+        id: number;
+        name: string;
+        image?: string;
+    };
     labels?: Array<{
         id: number;
         label_name: string;
@@ -132,6 +138,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         handleAction,
         handleClose,
     } = useGenericEntityAction<Task>();
+
+    const handleTaskCreated = () => {
+        router.reload({ only: ["tasks", "stats", "overviewMetrics"] });
+    };
 
     const handleEditTask = (task: Task) => {
         handleAction("edit", task);
@@ -252,6 +262,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
 
                             {(task.due_date ||
                                 task.project ||
+                                task.assigner ||
                                 (task.users && task.users.length > 0)) && (
                                 <div className="flex items-center gap-x-4 text-sm text-gray-600">
                                     {task.due_date && (
@@ -273,6 +284,22 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                             <ProjectOutlined className="mr-1" />
                                             {task.project.project_name}
                                         </span>
+                                    )}
+
+                                    {task.assigner && (
+                                        <div className="flex items-center">
+                                            <UserOutlined className="mr-1" />
+                                            <Tooltip title={`Assigner: ${task.assigner.name}`}>
+                                                <Avatar
+                                                    size="small"
+                                                    src={task.assigner.image}
+                                                    icon={<UserOutlined />}
+                                                >
+                                                    {!task.assigner.image &&
+                                                        task.assigner.name?.charAt(0)}
+                                                </Avatar>
+                                            </Tooltip>
+                                        </div>
                                     )}
 
                                     {task.users && task.users.length > 0 && (
@@ -363,6 +390,14 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                     <div className="flex items-center justify-between gap-4">
                         <span>Tasks & Activities</span>
                         <div className="flex items-center gap-x-4">
+                            <Button
+                                type="primary"
+                                size="small"
+                                icon={<PlusOutlined />}
+                                onClick={() => handleAction("add")}
+                            >
+                                Add Task
+                            </Button>
                             <div className="text-sm font-normal">
                                 <Progress
                                     percent={completionRate}
@@ -447,6 +482,8 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 open={action === "add"}
                 isDuplicate={false}
                 onClose={handleClose}
+                onSuccess={handleTaskCreated}
+                reloadKeys={["tasks", "stats", "overviewMetrics"]}
                 categories={categories}
                 labels={labels}
                 columns={columns}

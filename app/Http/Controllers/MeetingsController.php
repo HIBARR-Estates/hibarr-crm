@@ -6,7 +6,7 @@ use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\MeetingType;
 use App\Models\User;
-use App\Services\PermissionService;
+use App\Services\MeetingVisibilityService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -49,26 +49,20 @@ class MeetingsController extends AccountBaseController
             'meetingSummary',
         ];
 
-        // ── Base scope: user is participant OR creator ──────────────────
-        $scopeUser = function ($query) use ($userId) {
-            $query->whereJsonContains('participants', $userId)
-                  ->orWhere('added_by', $userId);
-        };
-
         // ── Overview stats ─────────────────────────────────────────────
         $weekStart = Carbon::now('UTC')->startOfWeek();
         $weekEnd   = Carbon::now('UTC')->endOfWeek();
 
-        $upcomingCount = DealFollowUp::where($scopeUser)
+        $upcomingCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
             ->where('next_follow_up_date', '>=', $now)
             ->count();
 
-        $thisWeekCount = DealFollowUp::where($scopeUser)
+        $thisWeekCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
             ->whereBetween('next_follow_up_date', [$weekStart, $weekEnd])
             ->count();
 
         // Live = scheduled + currently within [start, start + duration]
-        $liveMeetings = DealFollowUp::where($scopeUser)
+        $liveMeetings = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
             ->where('status', 'scheduled')
             ->where('next_follow_up_date', '<=', $now)
             ->get(['id', 'next_follow_up_date', 'duration']);
@@ -79,7 +73,7 @@ class MeetingsController extends AccountBaseController
             return $now->lte($end);
         })->count();
 
-        $completedCount = DealFollowUp::where($scopeUser)
+        $completedCount = MeetingVisibilityService::scopeVisibleToUser(DealFollowUp::query(), $userId)
             ->where('status', 'completed')
             ->count();
 
@@ -99,9 +93,10 @@ class MeetingsController extends AccountBaseController
         // Live meetings should appear in Upcoming, not Past.
         $defaultDuration = DealFollowUp::DEFAULT_DURATION_MINUTES;
 
-        $upcomingMeetings = DealFollowUp::with($eagerLoads)
-            ->where($scopeUser)
-            ->where(function ($query) use ($now, $defaultDuration) {
+        $upcomingMeetings = MeetingVisibilityService::scopeVisibleToUser(
+            DealFollowUp::with($eagerLoads),
+            $userId
+        )->where(function ($query) use ($now, $defaultDuration) {
                 // Truly upcoming (haven't started yet)
                 $query->where('next_follow_up_date', '>=', $now)
                     // OR currently live (started but not ended)
@@ -117,9 +112,10 @@ class MeetingsController extends AccountBaseController
             ->orderBy('next_follow_up_date', 'asc')
             ->paginate($upcomingPerPage, ['*'], 'upcoming_page');
 
-        $pastMeetings = DealFollowUp::with($eagerLoads)
-            ->where($scopeUser)
-            ->where('next_follow_up_date', '<', $now)
+        $pastMeetings = MeetingVisibilityService::scopeVisibleToUser(
+            DealFollowUp::with($eagerLoads),
+            $userId
+        )->where('next_follow_up_date', '<', $now)
             // Exclude live meetings from Past
             ->where(function ($query) use ($now, $defaultDuration) {
                 $query->where('status', '!=', 'scheduled')
@@ -165,28 +161,7 @@ class MeetingsController extends AccountBaseController
         $transformRecords($pastMeetings);
 
         // ── User's deals for "Schedule Meeting" ────────────────────────
-        $dealsQuery = Deal::select('id', 'name')
-            ->where('next_follow_up', 'yes');
-
-        // Scope deals to the user unless they have 'all' permission
-        $viewDealsPermission = user()->permission('view_deals');
-        if ($viewDealsPermission !== 'all') {
-            $dealRules = [
-                'added' => 'deals.added_by',
-                'owned' => function ($q, $user) {
-                    $q->where(function ($query) use ($user) {
-                        $query->whereHas('leadAgent', function ($q) use ($user) {
-                            $q->where('user_id', $user->id);
-                        })->orWhereHas('dealWatchers', function ($q) use ($user) {
-                            $q->where('users.id', $user->id);
-                        });
-                    });
-                },
-            ];
-            PermissionService::applyScope($dealsQuery, user(), 'view_deals', $dealRules);
-        }
-
-        $userDeals = $dealsQuery->orderBy('name')->get();
+        $userDeals = MeetingVisibilityService::schedulableDealsQuery()->get();
 
         // ── Meeting types ──────────────────────────────────────────────
         $meetingTypes = MeetingType::where('is_active', 1)->get();
