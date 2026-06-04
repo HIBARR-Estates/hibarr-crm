@@ -4,6 +4,7 @@ namespace App\Listeners;
 
 use App\Events\TaskReminderEvent;
 use App\Notifications\TaskReminder;
+use App\Services\TaskVisibilityService;
 use Illuminate\Support\Facades\Notification;
 
 class TaskReminderListener
@@ -18,7 +19,8 @@ class TaskReminderListener
 
     public function handle(TaskReminderEvent $event)
     {
-        Notification::send($event->task->activeUsers, new TaskReminder($event->task));
+        $recipients = TaskVisibilityService::reminderRecipients($event->task);
+        Notification::send($recipients, new TaskReminder($event->task));
     }
 
 }

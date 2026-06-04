@@ -43,6 +43,7 @@ use App\Models\Lead;
 use App\Models\Property;
 use Inertia\Inertia;
 use App\Services\TaskService;
+use App\Services\TaskVisibilityService;
 
 class TaskController extends AccountBaseController
 {
@@ -75,6 +76,8 @@ class TaskController extends AccountBaseController
         $tasksQuery = Task::with([
             'project:id,project_name,project_short_code', 
             'users:id,name,image', 
+            'createBy:id,name,image',
+            'addedByUser:id,name,image',
             'category:id,category_name', 
             'labels', 
             'boardColumn:id,column_name,slug,label_color',
@@ -89,27 +92,14 @@ class TaskController extends AccountBaseController
             'completedSubtasks'
         ]);
 
-        // Apply permission-based filtering
-        $taskRules = [
-            'added' => function($q, $user) {
-                $q->where(function($query) use ($user) {
-                    $query->where('added_by', $user->id)
-                        ->orWhereHas('users', function ($u) use ($user) {
-                            $u->where('users.id', $user->id);
-                        });
-                });
-            },
-            'owned' => function($q, $user) {
-                $q->where(function($query) use ($user) {
-                    $query->where('added_by', $user->id)
-                        ->orWhereHas('users', function ($u) use ($user) {
-                            $u->where('users.id', $user->id);
-                        });
-                });
-            }
-        ];
-        PermissionService::applyScope($tasksQuery, user(), 'view_tasks', $taskRules);
-        // For 'all' permission, no additional filtering needed
+        // Apply permission-based filtering (assigner OR assignee for restricted scopes)
+        if ($viewPermission === 'none') {
+            abort_403(true);
+        }
+
+        if ($viewPermission !== 'all') {
+            TaskVisibilityService::scopeVisibleToUser($tasksQuery, user()->id);
+        }
 
         // Apply search filter
         if (request()->filled('search')) {
@@ -264,6 +254,8 @@ class TaskController extends AccountBaseController
                 'created_at' => $task->created_at->toISOString(),
                 'updated_at' => $task->updated_at->toISOString(),
                 'added_by' => $task->added_by,
+                'assigner' => TaskVisibilityService::formatAssigner($task),
+                'created_by' => TaskVisibilityService::formatAssigner($task),
                 'deals' => $task->deals->map(function ($deal) {
                     return [
                         'id' => $deal->id,
@@ -1528,10 +1520,7 @@ class TaskController extends AccountBaseController
         abort_403(
             !(
                 $overrideViewPermission == true
-                || $viewTaskPermission == 'all'
-                || ($viewTaskPermission == 'added' && $this->task->added_by == $this->userId)
-                || ($viewTaskPermission == 'owned' && in_array($this->userId, $taskUsers))
-                || ($viewTaskPermission == 'both' && (in_array($this->userId, $taskUsers) || $this->task->added_by == $this->userId))
+                || TaskVisibilityService::userCanViewTask($this->task, user(), $viewTaskPermission, $taskUsers)
                 || ($viewTaskPermission == 'owned' && in_array('client', user_roles()) && $this->task->project_id && $this->task->project->client_id == $this->userId)
                 || ($viewTaskPermission == 'both' && in_array('client', user_roles()) && $this->task->project_id && $this->task->project->client_id == $this->userId)
                 || ($this->viewUnassignedTasksPermission == 'all' && in_array('employee', user_roles()))
@@ -1728,10 +1717,7 @@ class TaskController extends AccountBaseController
         abort_403(
             !(
                 $overrideViewPermission == true
-                || $viewTaskPermission == 'all'
-                || ($viewTaskPermission == 'added' && $task->added_by == $userId)
-                || ($viewTaskPermission == 'owned' && in_array($userId, $taskUsers))
-                || ($viewTaskPermission == 'both' && (in_array($userId, $taskUsers) || $task->added_by == $userId))
+                || TaskVisibilityService::userCanViewTask($task, user(), $viewTaskPermission, $taskUsers)
                 || ($viewTaskPermission == 'owned' && in_array('client', user_roles()) && $task->project_id && $task->project->client_id == $userId)
                 || ($viewTaskPermission == 'both' && in_array('client', user_roles()) && $task->project_id && $task->project->client_id == $userId)
                 || ($viewUnassignedTasksPermission == 'all' && in_array('employee', user_roles()))
@@ -1860,15 +1846,8 @@ class TaskController extends AccountBaseController
             'time_logs' => [
                 ['total_minutes' => $timeSpentMinutes]
             ],
-            'created_by' => $task->createBy ? [
-                'id' => $task->createBy->id,
-                'name' => $task->createBy->name,
-                'image' => $task->createBy->image_url,
-            ] : ($task->addedByUser ? [
-                'id' => $task->addedByUser->id,
-                'name' => $task->addedByUser->name,
-                'image' => $task->addedByUser->image_url,
-            ] : null),
+            'created_by' => TaskVisibilityService::formatAssigner($task),
+            'assigner' => TaskVisibilityService::formatAssigner($task),
         ];
 
         // Fetch supporting data for edit/duplicate modals

@@ -34,7 +34,7 @@ class SendAutoTaskReminder extends Command
     public function handle()
     {
 
-        Company::active()->select(['id', 'before_days', 'after_days', 'timezone'])->chunk(50, function ($companies) {
+        Company::active()->select(['id', 'before_days', 'after_days', 'on_deadline', 'timezone'])->chunk(50, function ($companies) {
 
             foreach ($companies as $company) {
 
@@ -44,34 +44,41 @@ class SendAutoTaskReminder extends Command
                     ->where('slug', 'completed')
                     ->first();
 
-                if ($company->before_days > 0) {
-                    $beforeDeadline = $now->clone()->subDays($company->before_days)->format('Y-m-d');
-                    $tasks = Task::where('due_date', $beforeDeadline)
-                        ->where('company_id', $company->id)
-                        ->where('board_column_id', '<>', $completedTaskColumn->id)
-                        ->get();
+                if (!$completedTaskColumn) {
+                    continue;
+                }
 
-                    foreach ($tasks as $task) {
-                        event(new AutoTaskReminderEvent($task));
-                    }
+                if ($company->before_days > 0) {
+                    $beforeDeadline = $now->clone()->addDays($company->before_days)->format('Y-m-d');
+                    $this->dispatchReminders($beforeDeadline, $company->id, $completedTaskColumn->id);
+                }
+
+                if ($company->on_deadline === 'yes') {
+                    $onDeadline = $now->clone()->format('Y-m-d');
+                    $this->dispatchReminders($onDeadline, $company->id, $completedTaskColumn->id);
                 }
 
                 if ($company->after_days > 0) {
-                    $afterDeadline = $now->clone()->addDays($company->after_days)->format('Y-m-d');
-                    $tasks = Task::where('due_date', $afterDeadline)
-                        ->where('company_id', $company->id)
-                        ->where('board_column_id', '<>', $completedTaskColumn->id)
-                        ->get();
-
-                    foreach ($tasks as $task) {
-                        event(new AutoTaskReminderEvent($task));
-                    }
+                    $afterDeadline = $now->clone()->subDays($company->after_days)->format('Y-m-d');
+                    $this->dispatchReminders($afterDeadline, $company->id, $completedTaskColumn->id);
                 }
             }
         });
 
         return Command::SUCCESS;
 
+    }
+
+    private function dispatchReminders(string $dueDate, int $companyId, int $completedColumnId): void
+    {
+        $tasks = Task::whereDate('due_date', $dueDate)
+            ->where('company_id', $companyId)
+            ->where('board_column_id', '<>', $completedColumnId)
+            ->get();
+
+        foreach ($tasks as $task) {
+            event(new AutoTaskReminderEvent($task));
+        }
     }
 
 }

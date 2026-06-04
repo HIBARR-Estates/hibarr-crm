@@ -245,6 +245,18 @@ export const useTasksTableColumns = ({
             },
         },
         {
+            title: "Assigner",
+            key: "assigner",
+            render: (_: string, record: Task) => {
+                const assigner = record.assigner ?? record.created_by;
+                if (!assigner) {
+                    return <span className="text-gray-400">--</span>;
+                }
+
+                return <MultiUserIndicator users={[assigner]} />;
+            },
+        },
+        {
             title: "Assignee",
             key: "assignee",
             render: (_: string, record: Task) => {

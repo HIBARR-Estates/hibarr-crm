@@ -8,8 +8,10 @@ use App\Models\SubTask;
 use App\Models\SubTaskFile;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
+use App\Models\TaskCategory;
 use App\Models\TaskFile;
 use App\Models\TaskHistory;
+use App\Models\TaskLabelList;
 use App\Models\User;
 use App\Traits\ProjectProgress;
 use App\Traits\RecordsCrmEvents;
@@ -106,8 +108,10 @@ class TaskService
                 }
             }
             
-            // Set added_by
-            $task->added_by = $user ? $user->id : null;
+            if ($user) {
+                $task->added_by = $user->id;
+                $task->created_by = $user->id;
+            }
 
             $task->save();
 
@@ -115,12 +119,10 @@ class TaskService
             if (isset($data['task_labels'])) {
                 $task->labels()->sync($data['task_labels']);
             }
-            
-            // Sync Users (Assignees)
-            // Note: The original controller handled user syncing via `TaskUser` manually or via `sync` depending on implementation.
-            // Assuming `users()` relation exists on Task model.
-            if (isset($data['user_ids'])) {
-                $task->users()->sync($data['user_ids']);
+
+            $assigneeIds = self::normalizeAssigneeIds($data);
+            if ($assigneeIds !== null) {
+                $task->users()->sync($assigneeIds);
             }
 
             // Polymorphic Relations (Deal/Lead/Property)
@@ -247,8 +249,9 @@ class TaskService
                 $task->labels()->sync($data['task_labels']);
             }
             
-            if (isset($data['user_ids'])) { // Ensure this matches front-end key
-                $task->users()->sync($data['user_ids']);
+            $assigneeIds = self::normalizeAssigneeIds($data);
+            if ($assigneeIds !== null) {
+                $task->users()->sync($assigneeIds);
             }
             
             if (isset($data['custom_fields_data'])) {
@@ -480,5 +483,71 @@ class TaskService
         }
 
         $activity->save();
+    }
+
+    /**
+     * Accept user_ids or legacy user_id from request payloads.
+     *
+     * @return array<int>|null null when no assignee field was sent
+     */
+    public static function normalizeAssigneeIds(array $data): ?array
+    {
+        if (array_key_exists('user_ids', $data)) {
+            $ids = is_array($data['user_ids']) ? $data['user_ids'] : [$data['user_ids']];
+
+            return array_values(array_filter(array_map('intval', $ids)));
+        }
+
+        if (array_key_exists('user_id', $data)) {
+            $ids = is_array($data['user_id']) ? $data['user_id'] : [$data['user_id']];
+
+            return array_values(array_filter(array_map('intval', $ids)));
+        }
+
+        return null;
+    }
+
+    /**
+     * Shared task form metadata for dashboard and task pages.
+     */
+    public static function getTaskFormData(?string $viewPermission = null): array
+    {
+        $viewPermission = $viewPermission ?? user()->permission('view_tasks');
+
+        return [
+            'projects' => Project::allProjects()->map(fn ($project) => [
+                'id' => $project->id,
+                'project_name' => $project->project_name,
+                'project_short_code' => $project->project_short_code,
+            ])->values(),
+            'users' => User::allEmployees(null, true, ($viewPermission == 'all' ? 'all' : null))->map(fn ($user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'image' => $user->image,
+                'designation_name' => $user->designation_name ?? null,
+            ])->values(),
+            'columns' => TaskboardColumn::orderBy('priority', 'asc')->get()->map(fn ($column) => [
+                'id' => $column->id,
+                'column_name' => $column->column_name,
+                'slug' => $column->slug,
+                'label_color' => $column->label_color,
+                'priority' => $column->priority,
+            ])->values(),
+            'categories' => TaskCategory::all()->map(fn ($category) => [
+                'id' => $category->id,
+                'category_name' => $category->category_name,
+            ])->values(),
+            'labels' => TaskLabelList::all()->map(fn ($label) => [
+                'id' => $label->id,
+                'label_name' => $label->label_name,
+                'label_color' => $label->label_color,
+            ])->values(),
+            'permissions' => [
+                'add_tasks' => user()->permission('add_tasks'),
+                'edit_tasks' => user()->permission('edit_tasks'),
+                'delete_tasks' => user()->permission('delete_tasks'),
+                'view_tasks' => $viewPermission,
+            ],
+        ];
     }
 }

@@ -34,7 +34,7 @@ class TaskReminder extends BaseNotification
      */
     public function via($notifiable)
     {
-        $via = array();
+        $via = ['database'];
 
         if ($notifiable->email_notifications && $notifiable->email != '') {
             array_push($via, 'mail');
