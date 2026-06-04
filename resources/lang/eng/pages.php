@@ -186,7 +186,8 @@ return [
     ],
 
     'deals' => [
-        'locked_message' => 'This deal is locked. Editing and deletion are disabled.',
+        'locked_message'           => 'This deal is locked. Editing and deletion are disabled.',
+        'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'actions' => [
             'add_task'         => 'Add Task',
             'add_note'         => 'Add Note',

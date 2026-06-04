@@ -178,7 +178,8 @@ return [
     ],
 
     'deals' => [
-        'locked_message' => 'Bu anlaşma kilitli. Düzenleme ve silme devre dışı bırakıldı.',
+        'locked_message'           => 'Bu anlaşma kilitli. Düzenleme ve silme devre dışı bırakıldı.',
+        'refresh_tooltip_disabled' => 'Yenilemeden önce değişiklikleri kaydedin veya iptal edin',
         'actions' => [
             'add_task'        => 'Görev Ekle',
             'add_note'        => 'Not Ekle',

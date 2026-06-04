@@ -178,7 +178,8 @@ return [
     ],
 
     'deals' => [
-        'locked_message' => 'Dieser Deal ist gesperrt. Bearbeitung und Löschung sind deaktiviert.',
+        'locked_message'           => 'Dieser Deal ist gesperrt. Bearbeitung und Löschung sind deaktiviert.',
+        'refresh_tooltip_disabled' => 'Speichern oder abbrechen Sie Änderungen, bevor Sie aktualisieren',
         'actions' => [
             'add_task'        => 'Aufgabe hinzufügen',
             'add_note'        => 'Notiz hinzufügen',
