@@ -1,12 +1,17 @@
 import React, { useState } from "react";
 import { Card, List, Tag, Avatar, Button } from "antd";
-import { CalendarOutlined, UserOutlined, PlusOutlined } from "@ant-design/icons";
+import {
+    CalendarOutlined,
+    UserOutlined,
+    PlusOutlined,
+} from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -43,6 +48,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
     meetingPermissions = {},
 }) => {
     const { t } = useTranslation();
+    const { td } = useTd();
     const [scheduleOpen, setScheduleOpen] = useState(false);
 
     const canAdd =
@@ -96,7 +102,9 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                     <div className="w-full">
                                         <div className="flex justify-between items-start mb-2">
                                             <div className="font-medium text-gray-900 line-clamp-1">
-                                                {meeting.remark || "Meeting"}
+                                                {td(
+                                                    meeting.remark || "Meeting",
+                                                )}
                                             </div>
                                             <Tag
                                                 color={
@@ -139,7 +147,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                                         )}
                                                         className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                                                     >
-                                                        {meeting.deal?.name}
+                                                        {td(meeting.deal?.name)}
                                                     </Link>
                                                 </div>
                                             </div>

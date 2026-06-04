@@ -33,6 +33,7 @@ interface BoardColumn extends PipelineStage {
 
 interface KanbanColumnProps {
     column: BoardColumn;
+    td?: (text: string | null | undefined) => string;
     onCollapse: (columnId: number, type: "minimize" | "maximize") => void;
     onEditColumn: (columnId: number) => void;
     onDeleteColumn: (columnId: number) => void;
@@ -51,6 +52,7 @@ interface KanbanColumnProps {
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
     column,
+    td = (text) => text ?? "",
     onCollapse,
     onEditColumn,
     onDeleteColumn,
@@ -184,7 +186,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                             style={{ backgroundColor: column.label_color }}
                         />
                         <p className="text-sm font-medium text-gray-700 writing-mode-vertical-lr transform rotate-180">
-                            {column.name}
+                            {td(column.name)}
                         </p>
                     </div>
 
@@ -203,7 +205,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center">
                         <p className="text-base font-medium text-gray-400 truncate uppercase">
-                            {column.name}
+                            {td(column.name)}
                         </p>
 
                         <div
@@ -285,6 +287,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                             <DealCard
                                 key={deal.id}
                                 deal={deal}
+                                td={td}
                                 draggable={draggingEnabled}
                                 onEdit={onEditDeal}
                                 onScheduleMeeting={onScheduleMeeting}

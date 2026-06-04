@@ -30,6 +30,7 @@ import {
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 
@@ -311,6 +312,7 @@ const ViewFollowup: React.FC<Props> = ({
     onEdit,
 }) => {
     const { props } = usePage<any>();
+    const { td } = useTd();
     const currentUserId = props?.auth?.user?.id;
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
 
@@ -330,7 +332,9 @@ const ViewFollowup: React.FC<Props> = ({
         followup?.location,
     );
 
-    const meetingTitle = followup?.meeting_type?.name || "Follow-up Meeting";
+    const meetingTitle = td(
+        followup?.meeting_type?.name || "Follow-up Meeting",
+    );
 
     const handleEdit = () => {
         onClose();
@@ -346,7 +350,7 @@ const ViewFollowup: React.FC<Props> = ({
                         <div className="flex items-center gap-1.5 flex-wrap">
                             {followup?.meeting_type && (
                                 <span className="text-[11px] leading-none font-medium rounded-full px-2.5 py-1 bg-blue-100 text-blue-700">
-                                    {followup.meeting_type.name}
+                                    {td(followup.meeting_type.name)}
                                 </span>
                             )}
                             {live && (
@@ -453,13 +457,17 @@ const ViewFollowup: React.FC<Props> = ({
                         <Section title="Lead" icon={<UserOutlined />}>
                             <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                                 <DetailField label="Name">
-                                    {lead.client_name_salutation ||
-                                        lead.client_name ||
-                                        "--"}
+                                    {td(
+                                        lead.client_name_salutation ||
+                                            lead.client_name ||
+                                            "--",
+                                    )}
                                 </DetailField>
                                 <DetailField label="Email">
                                     {lead.client_email || (
-                                        <span className="text-gray-400">--</span>
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
                                     )}
                                 </DetailField>
                             </div>
@@ -468,64 +476,73 @@ const ViewFollowup: React.FC<Props> = ({
 
                     {/* ── Deal Information ─────────────────────────────── */}
                     {deal && (
-                    <Section
-                        title="Deal"
-                        icon={<FundProjectionScreenOutlined />}
-                    >
-                        <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                            <DetailField label="Name">
-                                {deal?.name ? (
-                                    <a
-                                        href={`/account/deals/${deal.id}`}
-                                        className="text-gray-900 hover:text-blue-600 transition-colors font-medium"
-                                        onClick={(e) => {
-                                            e.preventDefault();
-                                            router.visit(
-                                                `/account/deals/${deal.id}`,
-                                            );
-                                        }}
-                                    >
-                                        {deal.name}
-                                    </a>
-                                ) : (
-                                    <span className="text-gray-400">--</span>
-                                )}
-                            </DetailField>
-                            <DetailField label="Value">
-                                {deal?.value ? (
-                                    <span className="font-medium tabular-nums">
-                                        {deal?.currency?.currency_symbol || "$"}
-                                        {Number(deal.value).toLocaleString()}
-                                    </span>
-                                ) : (
-                                    <span className="text-gray-400">--</span>
-                                )}
-                            </DetailField>
-                            <DetailField label="Stage">
-                                {deal?.lead_stage ? (
-                                    <span className="inline-flex items-center gap-1.5 text-[13px]">
-                                        <span
-                                            className="w-2 h-2 rounded-full flex-shrink-0"
-                                            style={{
-                                                backgroundColor:
-                                                    deal.lead_stage
-                                                        .label_color ||
-                                                    "#3b82f6",
+                        <Section
+                            title="Deal"
+                            icon={<FundProjectionScreenOutlined />}
+                        >
+                            <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                                <DetailField label="Name">
+                                    {deal?.name ? (
+                                        <a
+                                            href={`/account/deals/${deal.id}`}
+                                            className="text-gray-900 hover:text-blue-600 transition-colors font-medium"
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                router.visit(
+                                                    `/account/deals/${deal.id}`,
+                                                );
                                             }}
-                                        />
-                                        {deal.lead_stage.name}
-                                    </span>
-                                ) : (
-                                    <span className="text-gray-400">--</span>
-                                )}
-                            </DetailField>
-                            {deal?.contact && (
-                                <DetailField label="Client">
-                                    {deal.contact.client_name}
+                                        >
+                                            {td(deal.name)}
+                                        </a>
+                                    ) : (
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
+                                    )}
                                 </DetailField>
-                            )}
-                        </div>
-                    </Section>
+                                <DetailField label="Value">
+                                    {deal?.value ? (
+                                        <span className="font-medium tabular-nums">
+                                            {deal?.currency?.currency_symbol ||
+                                                "$"}
+                                            {Number(
+                                                deal.value,
+                                            ).toLocaleString()}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
+                                    )}
+                                </DetailField>
+                                <DetailField label="Stage">
+                                    {deal?.lead_stage ? (
+                                        <span className="inline-flex items-center gap-1.5 text-[13px]">
+                                            <span
+                                                className="w-2 h-2 rounded-full flex-shrink-0"
+                                                style={{
+                                                    backgroundColor:
+                                                        deal.lead_stage
+                                                            .label_color ||
+                                                        "#3b82f6",
+                                                }}
+                                            />
+                                            {td(deal.lead_stage.name)}
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-400">
+                                            --
+                                        </span>
+                                    )}
+                                </DetailField>
+                                {deal?.contact && (
+                                    <DetailField label="Client">
+                                        {deal.contact.client_name}
+                                    </DetailField>
+                                )}
+                            </div>
+                        </Section>
                     )}
 
                     {/* ── Participants ─────────────────────────────────── */}
@@ -565,7 +582,7 @@ const ViewFollowup: React.FC<Props> = ({
                                                     {key.replace(/[_-]/g, " ")}
                                                 </span>
                                                 <p className="text-[13px] text-gray-700 leading-relaxed mb-0">
-                                                    {value}
+                                                    {td(String(value))}
                                                 </p>
                                             </div>
                                         ))}
@@ -596,7 +613,7 @@ const ViewFollowup: React.FC<Props> = ({
                                 icon={<FileTextOutlined />}
                             >
                                 <ContentRenderer
-                                    content={followup.remark}
+                                    content={td(followup.remark)}
                                     showFullContent={true}
                                     className="prose prose-sm max-w-none text-[13px] text-gray-700"
                                 />

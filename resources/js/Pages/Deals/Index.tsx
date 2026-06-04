@@ -486,6 +486,7 @@ const Index = ({
                             {/* <div className="bg-white rounded-lg border border-gray-200 p-4"> */}
                             <KanbanBoard
                                 columns={boardColumns}
+                                td={td}
                                 addLeadPermission={addLeadPermission}
                                 onCreateDeal={handleCreateDeal}
                                 onEditDeal={handleEditDeal}
