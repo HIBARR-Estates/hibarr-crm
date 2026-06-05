@@ -31,6 +31,7 @@ import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { useState } from "react";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
@@ -52,6 +53,7 @@ const Index = ({
     ...props
 }: IndexProps) => {
     const { t } = useTranslation();
+    const { td } = useTd();
 
     const {
         handleAction,
@@ -181,8 +183,8 @@ const Index = ({
     );
 
     const columns = useMemo(
-        () => LEAD_TABLE_COLUMNS(getActionItems, t),
-        [getActionItems, t],
+        () => LEAD_TABLE_COLUMNS({ actionItems: getActionItems, t, td }),
+        [getActionItems, t, td],
     );
 
     // ── Page-level refresh ──────────────────────────────────────────

@@ -48,7 +48,7 @@ export const DEAL_TABLE_COLUMNS = (
             render: (_, record) => {
                 return (
                     <div>
-                        <Tooltip title={record.name}>
+                        <Tooltip title={td(record.name)}>
                             <Link
                                 href={route("deals.show", record.id)}
                                 className="block text-gray-900 hover:text-blue-600 hover:underline transition-colors duration-200 truncate font-medium max-w-full"
@@ -56,7 +56,7 @@ export const DEAL_TABLE_COLUMNS = (
                                 {record.is_locked && (
                                     <LockOutlined className="text-amber-500 mr-1.5 text-xs" />
                                 )}
-                                {record.name}
+                                {td(record.name)}
                             </Link>
                         </Tooltip>
                     </div>
@@ -168,13 +168,16 @@ export const DEAL_TABLE_COLUMNS = (
                 if (hasContact && record.contact.salutation) {
                     displayName = `${record.contact.salutation} ${displayName}`;
                 }
+                const translatedName = displayName ? displayName : null;
 
                 return (
                     <div className="space-y-1 capitalize">
                         {hasContact ? (
                             <>
                                 <div className="flex items-center space-x-2">
-                                    <Tooltip title={displayName}>
+                                    <Tooltip
+                                        title={translatedName ?? undefined}
+                                    >
                                         <Link
                                             href={route(
                                                 "lead-contact.show",
@@ -182,7 +185,7 @@ export const DEAL_TABLE_COLUMNS = (
                                             )}
                                             className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline truncate max-w-full capitalize"
                                         >
-                                            {displayName}
+                                            {translatedName}
                                         </Link>
                                     </Tooltip>
                                 </div>
