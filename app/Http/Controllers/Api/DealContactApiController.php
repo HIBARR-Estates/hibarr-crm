@@ -163,11 +163,12 @@ class DealContactApiController extends Controller
             // Save UTM information if provided (also fast)
             $this->saveUtmInfo($contactId, $request);
 
-            // Process deal asynchronously via queued job to avoid blocking HTTP workers
-            // The job will handle transaction management and cache locks
-            ProcessDealRequestJob::dispatch($contactId, $companyId, $request->all());
-            
-            Log::info('Deal creation request enqueued for async processing', [
+            // Process synchronously in the web request so assignment uses current app code.
+            // Async queue workers can run stale code until restarted, which skipped
+            // lead owner and participant assignment even after service fixes.
+            ProcessDealRequestJob::dispatchSync($contactId, $companyId, $request->all());
+
+            Log::info('Deal creation request processed synchronously', [
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
                 'email' => $request->input('email'),
@@ -182,10 +183,7 @@ class DealContactApiController extends Controller
             ], 202);
             
         } catch (\Exception $e) {
-            // Catch exceptions from validation or job dispatch
-            // Note: Deal processing happens asynchronously in the job, so exceptions
-            // from processDeal() will be handled by the job's retry mechanism
-            Log::error('Failed to enqueue deal creation request', [
+            Log::error('Failed to process deal creation request', [
                 'message' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
                 'email' => $request->input('email'),
@@ -194,7 +192,7 @@ class DealContactApiController extends Controller
             
             // Return generic error message to avoid exposing sensitive information
             // Exception details are logged above for debugging
-            return Reply::error('Failed to enqueue deal creation request');
+            return Reply::error('Failed to process deal creation request');
         }
     }
 
