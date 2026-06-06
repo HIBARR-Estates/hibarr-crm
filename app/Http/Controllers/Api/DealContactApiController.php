@@ -174,13 +174,13 @@ class DealContactApiController extends Controller
                 'email' => $request->input('email'),
             ]);
             
-            // Return 202 Accepted - request accepted for processing
+            // Return 200 OK - request accepted for processing
             return response()->json([
                 'status' => 'accepted',
-                'message' => 'Deal creation request has been queued for processing.',
+                'message' => 'Deal creation request is being processed.',
                 'contact_id' => $contactId,
                 'company_id' => $companyId,
-            ], 202);
+            ], 200);
             
         } catch (\Exception $e) {
             Log::error('Failed to process deal creation request', [
