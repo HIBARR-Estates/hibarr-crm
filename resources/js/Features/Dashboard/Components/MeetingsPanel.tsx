@@ -39,12 +39,14 @@ interface MeetingPermissions {
 interface MeetingsPanelProps {
     meetings: Meeting[];
     userDeals?: { id: number; name: string }[];
+    userLeads?: { id: number; name: string }[];
     meetingPermissions?: MeetingPermissions;
 }
 
 const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
     meetings = [],
     userDeals = [],
+    userLeads = [],
     meetingPermissions = {},
 }) => {
     const { t } = useTranslation();
@@ -165,6 +167,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                     open={scheduleOpen}
                     onClose={() => setScheduleOpen(false)}
                     userDeals={userDeals}
+                    userLeads={userLeads}
                     onSuccess={handleMeetingCreated}
                 />
             )}

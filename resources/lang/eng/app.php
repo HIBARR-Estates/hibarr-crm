@@ -1520,8 +1520,13 @@ return array(
 
     'meetings' => [
         'my_meetings'           => 'My Meetings',
-        'select_deal_label'     => 'Select Deal',
+        'select_deal_label'       => 'Select Deal',
         'select_deal_placeholder' => 'Search and select a deal...',
+        'select_lead_label'       => 'Select Lead',
+        'select_lead_placeholder' => 'Search and select a lead...',
+        'entity_type_label'       => 'Schedule meeting for',
+        'entity_type_deal'          => 'Deal',
+        'entity_type_lead'          => 'Lead',
         'schedule_drawer_title' => 'Schedule Meeting',
         'stats' => [
             'upcoming'  => 'Upcoming',

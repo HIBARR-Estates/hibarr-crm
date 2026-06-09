@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Deal;
+use App\Models\Lead;
 use App\Models\User;
 use App\Services\PermissionService;
 use Illuminate\Database\Eloquent\Builder;
@@ -65,5 +66,33 @@ class MeetingVisibilityService
         }
 
         return $dealsQuery->orderBy('name');
+    }
+
+    /**
+     * Leads the user may attach when scheduling a meeting from the dashboard or meetings page.
+     */
+    public static function schedulableLeadsQuery(): Builder
+    {
+        $leadsQuery = Lead::select('id', 'client_name', 'company_name')
+            ->where('next_follow_up', 'yes');
+
+        $viewLeadPermission = user()->permission('view_lead');
+
+        if ($viewLeadPermission === 'none') {
+            return $leadsQuery->whereRaw('1 = 0');
+        }
+
+        if ($viewLeadPermission === 'owned') {
+            $leadsQuery->where('lead_owner', user()->id);
+        } elseif ($viewLeadPermission === 'added') {
+            $leadsQuery->where('added_by', user()->id);
+        } elseif ($viewLeadPermission === 'both') {
+            $leadsQuery->where(function ($query) {
+                $query->where('lead_owner', user()->id)
+                    ->orWhere('added_by', user()->id);
+            });
+        }
+
+        return $leadsQuery->orderBy('client_name');
     }
 }

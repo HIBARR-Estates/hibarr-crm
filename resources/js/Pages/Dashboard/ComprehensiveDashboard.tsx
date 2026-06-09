@@ -145,6 +145,7 @@ interface IndexProps extends PageProps {
     tasks: Task[];
     upcomingMeetings: any[];
     userDealsForMeetings: { id: number; name: string }[];
+    userLeadsForMeetings: { id: number; name: string }[];
     meetingPermissions: {
         add_lead_follow_up?: string;
     };
@@ -166,6 +167,7 @@ const Index: React.FC<IndexProps> = ({
     tasks,
     upcomingMeetings,
     userDealsForMeetings,
+    userLeadsForMeetings,
     meetingPermissions,
     deals,
     recentDeals,
@@ -368,6 +370,7 @@ const Index: React.FC<IndexProps> = ({
                                         <MeetingsPanel
                                             meetings={upcomingMeetings}
                                             userDeals={userDealsForMeetings}
+                                            userLeads={userLeadsForMeetings}
                                             meetingPermissions={
                                                 meetingPermissions
                                             }

@@ -1,5 +1,6 @@
 import { User } from "..";
 import { Deal } from "./deals";
+import { Lead } from "./leads";
 
 export interface Reminder {
     time: number;
@@ -38,6 +39,10 @@ export interface DealFollowup {
     participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
     deal?: Pick<Deal, "id" | "name"> | Deal;
+    lead?: Pick<
+        Lead,
+        "id" | "client_name" | "client_name_salutation" | "company_name"
+    >;
     effective_duration?: number; // Computed: duration ?? 30
     participant_users?: {
         id: number;
