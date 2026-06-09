@@ -15,11 +15,7 @@ class TaskVisibilityService
      */
     public static function scopeVisibleToUser(Builder|Relation $query, int $userId): Builder|Relation
     {
-        return $query->where(function ($q) use ($userId) {
-            $q->where('added_by', $userId)
-                ->orWhere('created_by', $userId)
-                ->orWhereHas('users', fn ($u) => $u->where('users.id', $userId));
-        });
+        return Task::scopeVisibleToUser($query, $userId);
     }
 
     /**
@@ -42,7 +38,7 @@ class TaskVisibilityService
 
     public static function isAssigner(Task $task, int $userId): bool
     {
-        return in_array($userId, array_filter([$task->added_by, $task->created_by]), true);
+        return $task->isCreatedBy($userId);
     }
 
     public static function userCanViewTask(Task $task, User $user, string $viewPermission, array $taskUserIds): bool

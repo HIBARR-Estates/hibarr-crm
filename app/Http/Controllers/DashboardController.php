@@ -94,8 +94,8 @@ class DashboardController extends AccountBaseController
     {
         $userId = user()->id;
         
-        // Define constraints for "My Items" view - assigner OR assignee
-        $tasksConstraint = fn ($q) => TaskVisibilityService::scopeVisibleToUser($q, $userId);
+        // "My items": tasks/meetings the user created or is assigned/participant on
+        $tasksConstraint = fn ($q) => Task::visibleToUser($userId);
 
         $dealsConstraint = function($q) use ($userId) {
             $q->where(function($query) use ($userId) {
@@ -126,7 +126,7 @@ class DashboardController extends AccountBaseController
         ->where('next_follow_up_date', '>=', now())
         ->orderBy('next_follow_up_date', 'asc');
 
-        MeetingVisibilityService::scopeVisibleToUser($meetingsQuery, $userId);
+        $meetingsQuery->visibleToUser($userId);
 
         $upcomingMeetings = $meetingsQuery->take(5)->get();
         

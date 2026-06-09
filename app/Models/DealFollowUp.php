@@ -142,6 +142,36 @@ class DealFollowUp extends BaseModel
         return $this->belongsTo(User::class, 'added_by');
     }
 
+    /**
+     * Meetings visible to a user as creator or JSON participant.
+     */
+    public function scopeVisibleToUser($query, int $userId)
+    {
+        return $query->where(function ($q) use ($userId) {
+            $q->where('added_by', $userId)
+                ->orWhereJsonContains('participants', $userId)
+                ->orWhereJsonContains('participants', (string) $userId);
+        });
+    }
+
+    public function isCreatedBy(int $userId): bool
+    {
+        return (int) $this->added_by === $userId;
+    }
+
+    public function hasParticipant(int $userId): bool
+    {
+        $participants = $this->participants ?? [];
+
+        return in_array($userId, $participants, true)
+            || in_array((string) $userId, $participants, true);
+    }
+
+    public function isVisibleToUser(int $userId): bool
+    {
+        return $this->isCreatedBy($userId) || $this->hasParticipant($userId);
+    }
+
     public function meetingType(): BelongsTo
     {
         return $this->belongsTo(MeetingType::class);
