@@ -230,8 +230,7 @@ class MeetingsController extends AccountBaseController
     public function getLeadForScheduling(Lead $lead)
     {
         abort_403(
-            ($lead->next_follow_up ?? 'yes') === 'no'
-            || !MeetingVisibilityService::schedulableLeadsQuery()
+            !MeetingVisibilityService::schedulableLeadsQuery()
                 ->where('id', $lead->id)
                 ->exists()
         );

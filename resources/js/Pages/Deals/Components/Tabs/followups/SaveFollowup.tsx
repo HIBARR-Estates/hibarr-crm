@@ -223,7 +223,10 @@ export default function SaveFollowup({
 
         if (deal?.deal_participants?.length) {
             deal.deal_participants.forEach((participant: { id?: number }) => {
-                if (participant.id && !participantIds.includes(participant.id)) {
+                if (
+                    participant.id &&
+                    !participantIds.includes(participant.id)
+                ) {
                     participantIds.push(participant.id);
                 }
             });
@@ -424,7 +427,9 @@ export default function SaveFollowup({
                     <Select
                         showSearch
                         allowClear
-                        placeholder={t("app.meetings.optional_deal_placeholder")}
+                        placeholder={t(
+                            "app.meetings.optional_deal_placeholder",
+                        )}
                         optionFilterProp="label"
                         className="w-full"
                         disabled={loading || isScheduled}
@@ -473,6 +478,49 @@ export default function SaveFollowup({
                         {
                             required: true,
                             message: "Please select a start time",
+                        },
+                        {
+                            validator: (_, value) => {
+                                const selectedDate = form.getFieldValue(
+                                    "next_follow_up_date",
+                                );
+
+                                if (!value || !selectedDate) {
+                                    return Promise.resolve();
+                                }
+
+                                if (
+                                    !dayjs.isDayjs(selectedDate) ||
+                                    !dayjs.isDayjs(value)
+                                ) {
+                                    return Promise.resolve();
+                                }
+
+                                const selectedDateTime = dayjs(selectedDate)
+                                    .hour(value.hour())
+                                    .minute(value.minute())
+                                    .second(0)
+                                    .millisecond(0);
+
+                                const minimumAllowedTime = dayjs().add(
+                                    5,
+                                    "minute",
+                                );
+
+                                if (
+                                    selectedDateTime.isBefore(
+                                        minimumAllowedTime,
+                                    )
+                                ) {
+                                    return Promise.reject(
+                                        new Error(
+                                            "Start time must be at least 5 minutes in the future.",
+                                        ),
+                                    );
+                                }
+
+                                return Promise.resolve();
+                            },
                         },
                     ]}
                 >

@@ -70,11 +70,13 @@ class MeetingVisibilityService
 
     /**
      * Leads the user may attach when scheduling a meeting from the dashboard or meetings page.
+     *
+     * Note: unlike deals, leads do not have a next_follow_up column — that flag lives on
+     * the deals table after the lead/deal schema split. Lead eligibility is permission-scoped only.
      */
     public static function schedulableLeadsQuery(): Builder
     {
-        $leadsQuery = Lead::select('id', 'client_name', 'company_name')
-            ->where('next_follow_up', 'yes');
+        $leadsQuery = Lead::select('id', 'client_name', 'company_name');
 
         $viewLeadPermission = user()->permission('view_lead');
 
