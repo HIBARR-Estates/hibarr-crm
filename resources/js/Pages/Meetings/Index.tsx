@@ -1,12 +1,6 @@
 import React, { useState } from "react";
 import { usePage, router } from "@inertiajs/react";
-import {
-    Tag,
-    Button,
-    Dropdown,
-    Empty,
-    Pagination,
-} from "antd";
+import { Tag, Button, Dropdown, Empty, Pagination } from "antd";
 import type { MenuProps } from "antd";
 import {
     MoreOutlined,
@@ -614,7 +608,7 @@ function MeetingsIndex() {
             title={t("app.menu.meetings")}
             breadcrumbs={[{ name: t("app.menu.meetings") }]}
         >
-            <div className="px-4 sm:px-6 py-6 space-y-8">
+            <div className="max-w-7xl mx-auto py-6 space-y-8">
                 {/* ── Header ────────────────────────────────────────── */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <h1 className="text-2xl font-bold text-gray-900 mb-0">
