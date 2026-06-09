@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Deal;
+use App\Models\DealFollowUp;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\PermissionService;
@@ -16,11 +17,7 @@ class MeetingVisibilityService
      */
     public static function scopeVisibleToUser(Builder|Relation $query, int $userId): Builder|Relation
     {
-        return $query->where(function ($q) use ($userId) {
-            $q->where('added_by', $userId)
-                ->orWhereJsonContains('participants', $userId)
-                ->orWhereJsonContains('participants', (string) $userId);
-        });
+        return DealFollowUp::scopeVisibleToUser($query, $userId);
     }
 
     /**

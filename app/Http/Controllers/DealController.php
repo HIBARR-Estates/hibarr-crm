@@ -1972,9 +1972,11 @@ class DealController extends AccountBaseController
         // Set the new reminders JSON field with custom reminders only
         $followUp->setCustomReminders($customReminders);
         
-        // Set participants if provided
         if ($request->has('participants') && is_array($request->participants)) {
-            $followUp->participants = $request->participants;
+            $followUp->participants = MeetingVisibilityService::ensureCreatorIsParticipant(
+                $request->participants,
+                $followUp->added_by ?? user()->id
+            );
         }
 
         // Set duration if provided
