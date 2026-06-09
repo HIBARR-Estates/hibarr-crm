@@ -651,11 +651,20 @@ class DashboardController extends AccountBaseController
             'add_lead_follow_up' => user()->permission('add_lead_follow_up'),
         ];
         $userDealsForMeetings = MeetingVisibilityService::schedulableDealsQuery()->get(['id', 'name']);
+        $userLeadsForMeetings = MeetingVisibilityService::schedulableLeadsQuery()
+            ->get(['id', 'client_name', 'company_name'])
+            ->map(fn ($lead) => [
+                'id'   => $lead->id,
+                'name' => $lead->company_name
+                    ? "{$lead->client_name} ({$lead->company_name})"
+                    : $lead->client_name,
+            ]);
 
         return Inertia::render('Dashboard/ComprehensiveDashboard', array_merge([
             'tasks' => $tasks,
             'upcomingMeetings' => $upcomingMeetings,
             'userDealsForMeetings' => $userDealsForMeetings,
+            'userLeadsForMeetings' => $userLeadsForMeetings,
             'meetingPermissions' => $meetingPermissions,
             'deals' => $allDeals,
             'recentDeals' => $recentDeals,

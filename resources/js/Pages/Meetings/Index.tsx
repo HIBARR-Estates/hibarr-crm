@@ -60,6 +60,7 @@ interface MeetingsPageProps extends PageProps {
     upcomingMeetings: PaginatedFollowupResponse;
     pastMeetings: PaginatedFollowupResponse;
     userDeals: { id: number; name: string }[];
+    userLeads: { id: number; name: string }[];
     meetingTypes: { id: number; name: string }[];
     permissions: Record<string, string>;
 }
@@ -382,7 +383,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                 </div>
             </div>
 
-            {/* Deal name */}
+            {/* Deal or lead name */}
             <div className="px-4 pb-2">
                 {meeting.deal ? (
                     <p
@@ -393,6 +394,21 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                         }}
                     >
                         {td(meeting.deal.name)}
+                    </p>
+                ) : meeting.lead ? (
+                    <p
+                        className="text-blue-600 text-sm font-medium mb-0 truncate hover:underline"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            router.visit(
+                                route("lead-contact.show", meeting.lead!.id),
+                            );
+                        }}
+                    >
+                        {td(
+                            meeting.lead.client_name_salutation ||
+                                meeting.lead.client_name,
+                        )}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">
@@ -577,6 +593,7 @@ function MeetingsIndex() {
         upcomingMeetings,
         pastMeetings,
         userDeals,
+        userLeads,
         permissions,
         pageTitle,
     } = props;
@@ -592,6 +609,7 @@ function MeetingsIndex() {
     } = useGenericEntityAction<DealFollowup>();
 
     const meetingDeal: Deal | undefined = meeting?.deal as Deal | undefined;
+    const meetingLead = meeting?.lead;
 
     const canAdd =
         permissions.add_lead_follow_up === "all" ||
@@ -712,15 +730,17 @@ function MeetingsIndex() {
                 open={scheduleOpen}
                 onClose={() => setScheduleOpen(false)}
                 userDeals={userDeals}
+                userLeads={userLeads}
             />
 
             {/* ── View Drawer ─────────────────────────────────────── */}
-            {meeting && meetingDeal && (
+            {meeting && (meetingDeal || meetingLead) && (
                 <ViewFollowup
                     open={action === "view"}
                     onClose={() => handleClose()}
                     followup={meeting}
                     deal={meetingDeal}
+                    lead={meetingLead}
                     onEdit={() => handleAction("edit", meeting)}
                 />
             )}
