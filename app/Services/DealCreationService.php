@@ -407,9 +407,9 @@ class DealCreationService
                         ->where('id', $contactId)
                         ->lockForUpdate() // Lock the row to serialize concurrent updates
                         ->first();
-                    $shouldUpdateLeadOwner = $request->boolean('update_agent_if_exists', false)
-                        && $lead
-                        && !$lead->lead_owner;
+                    $shouldUpdateLeadOwner = $lead
+                        && !$lead->lead_owner
+                        && ($isNewDeal || $request->boolean('update_agent_if_exists', false));
 
                     if ($shouldUpdateLeadOwner) {
                         $previousLeadOwner = $lead->lead_owner;
@@ -419,7 +419,8 @@ class DealCreationService
                             'contact_id' => $contactId,
                             'company_id' => $companyId,
                             'lead_id' => $lead->id,
-                            'update_agent_if_exists' => true,
+                            'is_new_deal' => $isNewDeal,
+                            'update_agent_if_exists' => $request->boolean('update_agent_if_exists', false),
                             'previous_lead_owner' => $previousLeadOwner,
                             'final_lead_owner' => $lead->lead_owner,
                             'deal_owner_id' => $dealOwnerId,
@@ -429,12 +430,17 @@ class DealCreationService
                             'contact_id' => $contactId,
                             'company_id' => $companyId,
                             'lead_id' => $lead?->id,
+                            'is_new_deal' => $isNewDeal,
                             'update_agent_if_exists' => $request->boolean('update_agent_if_exists', false),
                             'current_lead_owner' => $lead?->lead_owner,
                             'deal_owner_id' => $dealOwnerId,
-                            'reason' => !$request->boolean('update_agent_if_exists', false)
-                                ? 'flag_false'
-                                : (!$lead ? 'lead_not_found' : ($lead->lead_owner ? 'already_assigned' : 'unknown')),
+                            'reason' => !$lead
+                                ? 'lead_not_found'
+                                : ($lead->lead_owner
+                                    ? 'already_assigned'
+                                    : (!$isNewDeal && !$request->boolean('update_agent_if_exists', false)
+                                        ? 'flag_false'
+                                        : 'unknown')),
                         ]);
                     }
                 }
@@ -480,16 +486,25 @@ class DealCreationService
                     // Handle custom fields (non-critical, can be retried)
                     $this->upsertCustomFields($deal, $request);
                     
-                    // Sync deal watchers (non-critical)
-                    $dealWatchers = $request->input('deal_watcher', []);
-                    if (is_array($dealWatchers) && !empty($dealWatchers)) {
-                        $validUserIds = User::whereIn('id', $dealWatchers)
-                            ->pluck('id')
-                            ->toArray();
-                        
+                    // Sync deal watchers and participants (non-critical)
+                    $dealWatchers = $this->extractUserIdList($request, 'deal_watcher');
+                    if ($dealWatchers !== null && !empty($dealWatchers)) {
+                        $validUserIds = $this->resolveValidUserIds($dealWatchers, $companyId);
                         if (!empty($validUserIds)) {
                             $deal->dealWatchers()->sync($validUserIds);
                         }
+                    }
+
+                    $dealParticipants = $this->extractUserIdList(
+                        $request,
+                        'deal_participant',
+                        'deal_participants',
+                    );
+                    $validParticipantIds = $dealParticipants !== null && !empty($dealParticipants)
+                        ? $this->resolveValidUserIds($dealParticipants, $companyId)
+                        : [];
+                    if (!empty($validParticipantIds)) {
+                        $deal->dealParticipants()->sync($validParticipantIds);
                     }
                     
                     // Handle meeting if provided (non-critical)
@@ -1243,6 +1258,62 @@ class DealCreationService
         if ($deal->dealWatchers->isNotEmpty()) {
             Notification::send($deal->dealWatchers, new LeadAgentAssigned($deal));
         }
+    }
+
+    /**
+     * Normalize user ID list from request input (supports scalar or array).
+     */
+    private function normalizeUserIdList(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (is_numeric($value)) {
+            return [(int) $value];
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($id) => is_numeric($id) ? (int) $id : null,
+            $value
+        ))));
+    }
+
+    /**
+     * Extract user IDs from request, including optional alternate key.
+     * Returns null when the field was omitted; an array when present (empty arrays are no-ops).
+     */
+    private function extractUserIdList(Request $request, string $key, ?string $alternateKey = null): ?array
+    {
+        if ($request->has($key)) {
+            return $this->normalizeUserIdList($request->input($key));
+        }
+
+        if ($alternateKey !== null && $request->has($alternateKey)) {
+            return $this->normalizeUserIdList($request->input($alternateKey));
+        }
+
+        return null;
+    }
+
+    /**
+     * Resolve valid active user IDs scoped to company when possible.
+     */
+    private function resolveValidUserIds(array $userIds, int $companyId): array
+    {
+        if (empty($userIds)) {
+            return [];
+        }
+
+        return User::query()
+            ->whereIn('id', $userIds)
+            ->when($companyId > 0, fn ($query) => $query->where('company_id', $companyId))
+            ->pluck('id')
+            ->toArray();
     }
 }
 
