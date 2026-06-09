@@ -4,6 +4,11 @@ import {
     CalendarOutlined,
     UserOutlined,
     PlusOutlined,
+    VideoCameraOutlined,
+    TeamOutlined,
+    PhoneOutlined,
+    EnvironmentOutlined,
+    LinkOutlined,
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
@@ -15,11 +20,38 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
+const isSafeUrl = (url: string) => /^https?:\/\//i.test(url);
+
+const getPlatformIcon = (location: string) => {
+    switch (location) {
+        case "zoom":
+            return <VideoCameraOutlined style={{ color: "#2D8CFF" }} />;
+        case "teams":
+            return <TeamOutlined style={{ color: "#6264A7" }} />;
+        case "meet":
+        case "google_meet":
+            return <VideoCameraOutlined style={{ color: "#34A853" }} />;
+        case "phone":
+            return <PhoneOutlined style={{ color: "#FF6B35" }} />;
+        case "office":
+        case "physical":
+            return <EnvironmentOutlined style={{ color: "#666" }} />;
+        case "zoho":
+            return <VideoCameraOutlined style={{ color: "#1890ff" }} />;
+        default:
+            return <VideoCameraOutlined style={{ color: "#1890ff" }} />;
+    }
+};
+
 interface Meeting {
     id: number;
-    deal_id: number;
+    deal_id?: number | null;
+    lead_id?: number | null;
     remark?: string;
     next_follow_up_date: string;
+    meeting_link?: string;
+    location?: string;
+    meeting_type?: { id: number; name: string };
     deal?: {
         id: number;
         name: string;
@@ -29,6 +61,12 @@ interface Meeting {
             client_email?: string;
             mobile?: string;
         };
+    };
+    lead?: {
+        id: number;
+        client_name: string;
+        client_name_salutation?: string;
+        company_name?: string;
     };
 }
 
@@ -59,6 +97,95 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
 
     const handleMeetingCreated = () => {
         router.reload({ only: ["upcomingMeetings"] });
+    };
+
+    const renderMeetingLink = (meeting: Meeting) => {
+        const location = meeting.location ?? "zoho";
+        const isNonVideoLocation = ["office", "phone", "physical"].includes(
+            location,
+        );
+
+        if (isNonVideoLocation || !meeting.meeting_link) {
+            const platformLabels: Record<string, string> = {
+                office: t("pages.meetings.platforms.office"),
+                phone: t("pages.meetings.platforms.phone"),
+                physical: t("pages.meetings.platforms.physical"),
+            };
+            return (
+                <span className="text-xs text-gray-500">
+                    {platformLabels[location] ??
+                        t("pages.meetings.platforms.office")}
+                </span>
+            );
+        }
+
+        if (!isSafeUrl(meeting.meeting_link)) {
+            return (
+                <span className="text-xs text-gray-400">
+                    {t("pages.meetings.card.invalid_link")}
+                </span>
+            );
+        }
+
+        return (
+            <a
+                href={meeting.meeting_link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-800 text-xs font-medium"
+            >
+                {getPlatformIcon(location)}
+                <LinkOutlined />
+                <span className="underline">
+                    {t("pages.meetings.card.actions.join_meeting")}
+                </span>
+            </a>
+        );
+    };
+
+    const renderEntityLink = (meeting: Meeting) => {
+        if (meeting.deal) {
+            return (
+                <Link
+                    href={route("deals.show", meeting.deal.id)}
+                    className="text-xs text-blue-600 hover:underline"
+                >
+                    {td(meeting.deal.name)}
+                </Link>
+            );
+        }
+
+        if (meeting.lead) {
+            return (
+                <Link
+                    href={route("lead-contact.show", meeting.lead.id)}
+                    className="text-xs text-blue-600 hover:underline"
+                >
+                    {td(
+                        meeting.lead.client_name_salutation ||
+                            meeting.lead.client_name,
+                    )}
+                </Link>
+            );
+        }
+
+        return (
+            <span className="text-xs text-gray-400">
+                {t("pages.meetings.card.no_deal")}
+            </span>
+        );
+    };
+
+    const getContactName = (meeting: Meeting) => {
+        if (meeting.deal?.contact?.client_name) {
+            return meeting.deal.contact.client_name;
+        }
+        if (meeting.lead) {
+            return (
+                meeting.lead.client_name_salutation || meeting.lead.client_name
+            );
+        }
+        return t("pages.meetings.card.no_participants");
     };
 
     return (
@@ -102,11 +229,26 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                             renderItem={(meeting) => (
                                 <List.Item className="px-6 py-4 hover:bg-gray-50 transition-colors border-b last:border-b-0">
                                     <div className="w-full">
-                                        <div className="flex justify-between items-start mb-2">
-                                            <div className="font-medium text-gray-900 line-clamp-1">
-                                                {td(
-                                                    meeting.remark || "Meeting",
-                                                )}
+                                        <div className="flex justify-between items-start gap-3 mb-2">
+                                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                <span className="flex-shrink-0">
+                                                    {getPlatformIcon(
+                                                        meeting.location ??
+                                                            "zoho",
+                                                    )}
+                                                </span>
+                                                <div className="font-medium text-gray-900 line-clamp-1">
+                                                    {meeting.meeting_type?.name
+                                                        ? td(
+                                                              meeting
+                                                                  .meeting_type
+                                                                  .name,
+                                                          )
+                                                        : td(
+                                                              meeting.remark ||
+                                                                  "Meeting",
+                                                          )}
+                                                </div>
                                             </div>
                                             <Tag
                                                 color={
@@ -116,6 +258,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                                         ? "red"
                                                         : "green"
                                                 }
+                                                className="flex-shrink-0"
                                             >
                                                 {dayjs(
                                                     meeting.next_follow_up_date,
@@ -130,29 +273,33 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                             ).format("MMM D, YYYY h:mm A")}
                                         </div>
 
+                                        <div className="mb-3">
+                                            {renderMeetingLink(meeting)}
+                                        </div>
+
                                         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                                            <div className="flex items-center gap-2">
+                                            <div className="flex items-center gap-2 min-w-0">
                                                 <Avatar
                                                     size="small"
                                                     icon={<UserOutlined />}
                                                 />
-                                                <div className="flex flex-col">
-                                                    <span className="text-xs font-medium text-gray-700">
-                                                        {meeting.deal?.contact
-                                                            ?.client_name ||
-                                                            "Unknown Lead"}
-                                                    </span>
-                                                    <Link
-                                                        href={route(
-                                                            "deals.show",
-                                                            meeting.deal_id,
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-xs font-medium text-gray-700 truncate">
+                                                        {getContactName(
+                                                            meeting,
                                                         )}
-                                                        className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                                                    >
-                                                        {td(meeting.deal?.name)}
-                                                    </Link>
+                                                    </span>
+                                                    {renderEntityLink(meeting)}
                                                 </div>
                                             </div>
+                                            <Link
+                                                href={route("meetings.index")}
+                                                className="text-xs text-gray-500 hover:text-blue-600 flex-shrink-0"
+                                            >
+                                                {t(
+                                                    "pages.meetings.card.actions.view",
+                                                )}
+                                            </Link>
                                         </div>
                                     </div>
                                 </List.Item>

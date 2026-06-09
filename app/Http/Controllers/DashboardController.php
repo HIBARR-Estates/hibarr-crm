@@ -119,7 +119,9 @@ class DashboardController extends AccountBaseController
         $meetingsQuery = DealFollowUp::with([
             'deal:id,name,lead_id',
             'deal.contact:id,client_name,client_email,mobile',
-            'deal.leadAgent.user:id,name,image'
+            'deal.leadAgent.user:id,name,image',
+            'lead:id,client_name,salutation,company_name',
+            'meetingType:id,name',
         ])
         ->where('next_follow_up_date', '>=', now())
         ->orderBy('next_follow_up_date', 'asc');
