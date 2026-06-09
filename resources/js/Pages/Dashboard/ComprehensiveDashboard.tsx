@@ -345,7 +345,7 @@ const Index: React.FC<IndexProps> = ({
                                 {/* Left Column: Upcoming Meetings */}
                                 <Col
                                     xs={24}
-                                    lg={8}
+                                    lg={10}
                                     style={{
                                         display: "flex",
                                         flexDirection: "column",
@@ -368,7 +368,9 @@ const Index: React.FC<IndexProps> = ({
                                         <MeetingsPanel
                                             meetings={upcomingMeetings}
                                             userDeals={userDealsForMeetings}
-                                            meetingPermissions={meetingPermissions}
+                                            meetingPermissions={
+                                                meetingPermissions
+                                            }
                                         />
                                     </motion.div>
 
@@ -398,7 +400,7 @@ const Index: React.FC<IndexProps> = ({
                                 {/* Right Column: Data Quality Monitor (when enabled) OR Tasks & Activities (when disabled) */}
                                 <Col
                                     xs={24}
-                                    lg={16}
+                                    lg={14}
                                     style={{
                                         display: "flex",
                                         flexDirection: "column",
