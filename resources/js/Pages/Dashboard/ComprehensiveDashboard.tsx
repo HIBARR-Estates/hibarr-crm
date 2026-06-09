@@ -204,7 +204,7 @@ const Index: React.FC<IndexProps> = ({
                     router.visit(route("deals.index", { status: "closed" }));
                     break;
                 case "pendingActivities":
-                    router.visit(route("tasks.index", { status: "pending" }));
+                    router.visit(route("tasks.index", { status: "to_do" }));
                     break;
                 default:
                     break;
