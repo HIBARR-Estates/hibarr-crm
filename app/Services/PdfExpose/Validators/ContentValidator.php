@@ -116,6 +116,9 @@ class ContentValidator
             }
         }
 
+        // Warn when the expose relies on project-level defaults or incomplete footer content.
+        $warnings = array_merge($warnings, $this->checkFallbackWarnings($config));
+
         // Check for text overflow risks
         $overflowWarnings = $this->checkTextOverflow($config);
         $warnings = array_merge($warnings, $overflowWarnings);
@@ -158,6 +161,59 @@ class ContentValidator
                     'message' => "{$label}: {$count} of {$minRequired} required",
                 ];
             }
+        }
+
+        return $warnings;
+    }
+
+    private function checkFallbackWarnings(ExposeConfiguration $config): array
+    {
+        $warnings = [];
+
+        if ($config->get('unit_type_description_provided') === false) {
+            $warnings[] = [
+                'field' => 'Unit type description',
+                'message' => 'Unit type description is not populated. The expose will fall back to project-level content if available.',
+                'severity' => 'warning',
+            ];
+        }
+
+        if (empty($config->get('location_infrastructure', []))) {
+            $warnings[] = [
+                'field' => 'Project location infrastructure',
+                'message' => 'Project location infrastructure is not populated. Add nearby infrastructure details to enrich the expose.',
+                'severity' => 'warning',
+            ];
+        }
+
+        if (empty($config->get('location_airports', []))) {
+            $warnings[] = [
+                'field' => 'Project location airports',
+                'message' => 'Project location airports are not populated. Add airport travel details to enrich the expose.',
+                'severity' => 'warning',
+            ];
+        }
+
+        $outro = $config->get('expose_global_config.outro', []);
+        $hasOutroText = !empty(trim((string) ($outro['title'] ?? '')))
+            || !empty(trim((string) ($outro['description'] ?? '')));
+        $hasFooterImage = !empty($outro['primary_image_url'] ?? null)
+            || !empty($outro['secondary_image_url'] ?? null);
+
+        if (!$hasFooterImage) {
+            $warnings[] = [
+                'field' => 'Footer image',
+                'message' => 'The outro/footer image is not populated. Add a footer image to avoid an incomplete closing page.',
+                'severity' => 'warning',
+            ];
+        }
+
+        if (($outro['enabled'] ?? false) && !$hasOutroText) {
+            $warnings[] = [
+                'field' => 'Outro details',
+                'message' => 'The outro details are not populated. Add the closing title or description to complete the PDF footer section.',
+                'severity' => 'warning',
+            ];
         }
 
         return $warnings;

@@ -610,6 +610,8 @@ class ExposeConfiguration implements Arrayable
         $expandedInfra = [];
         $expandedAirports = [];
         $locationAttractions = $location?->getFormattedAttractionsForExpose() ?? [];
+        $hasUnitTypeDescription = filled($unitType->description);
+        $hasProjectDescription = filled($project?->description);
         if ($location) {
             $expandedInfra = $location->getExpandedInfrastructure();
             foreach ($expandedInfra as $infra) {
@@ -737,6 +739,10 @@ class ExposeConfiguration implements Arrayable
 
                 // Content
                 'description' => $unitType->description ?? $project?->description,
+                'unit_type_description_provided' => $hasUnitTypeDescription,
+                'unit_type_description_source' => $hasUnitTypeDescription
+                    ? 'unit_type'
+                    : ($hasProjectDescription ? 'project' : 'none'),
                 'created_at' => now()->format('M d, Y'),
 
                 // Features
