@@ -317,12 +317,30 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         }));
     }, [enumValues?.cities]);
 
+    const fallbackAirportChoices = [
+        { id: 1, name: "Ercan International" },
+        { id: 2, name: "Larnaca International" },
+        { id: 3, name: "Paphos International" },
+    ];
+
     const airportOptions = useMemo(() => {
         const options = (airportData?.airports || []).map((airport) => ({
             value: airport.id,
             label: formatAirportLabel(airport),
         }));
         const knownIds = new Set(options.map((option) => option.value));
+        const knownLabels = new Set(
+            options.map((option) => option.label.toLowerCase()),
+        );
+
+        fallbackAirportChoices.forEach((airport) => {
+            if (!knownIds.has(airport.id) && !knownLabels.has(airport.name.toLowerCase())) {
+                options.push({
+                    value: airport.id,
+                    label: airport.name,
+                });
+            }
+        });
 
         location?.airports?.forEach((airport) => {
             const id = toNumericId(airport.airport_id);
@@ -363,12 +381,16 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 
     const airportById = useMemo(
         () =>
-            Object.fromEntries(
-                (airportData?.airports || []).map((airport) => [
+            Object.fromEntries([
+                ...fallbackAirportChoices.map((airport) => [
+                    airport.id,
+                    { id: airport.id, name: airport.name },
+                ]),
+                ...(airportData?.airports || []).map((airport) => [
                     airport.id,
                     airport,
                 ]),
-            ),
+            ]),
         [airportData?.airports],
     );
 

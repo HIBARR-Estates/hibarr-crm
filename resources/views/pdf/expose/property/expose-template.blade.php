@@ -297,6 +297,8 @@
             grid-template-rows: 1fr 1fr;
             gap: 10px;
             height: 100%;
+            width: 100%;
+            min-width: 0;
             box-sizing: border-box;
         }
 
@@ -531,17 +533,23 @@
         .gallery-item {
             width: 100%;
             height: 100%;
+            min-height: 100%;
+            min-height: 10rem;
             background: #f5f5f5;
             overflow: hidden;
             border: 0.0625rem solid #ccc;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
 
         .gallery-item img {
             width: 100%;
             height: 100%;
+            min-height: 100%;
             object-fit: cover;
             display: block;
+            flex: 1 1 auto;
         }
 
         .gallery-item .title {
@@ -664,6 +672,7 @@
 
         .container {
             padding: 15mm;
+            width: 100%;
             height: 100%;
             box-sizing: border-box;
             display: flex;
@@ -938,9 +947,14 @@
     $outroConfig = $globalExposeConfig['outro'] ?? [];
     $qrConfig = $globalExposeConfig['qr'] ?? [];
 
+    $backgroundImageFallback = $heroImages[0]
+      ?? $exteriorImages[0]
+      ?? $galleryImages[0]
+      ?? 'property/images/test.png';
+
     $outroTitle = $outroConfig['title'] ?? 'ROOTED IN BEAUTY, GROWING IN VALUE';
     $outroDescription = $outroConfig['description'] ?? (!empty($data['description']) ? $data['description'] : '');
-    $outroPrimaryImage = $outroConfig['primary_image_url'] ?? ($heroImages[0] ?? 'property/images/test.png');
+    $outroPrimaryImage = $outroConfig['primary_image_url'] ?? $backgroundImageFallback;
     $outroSecondaryImage = $outroConfig['secondary_image_url'] ?? ($exteriorImages[4] ?? $outroPrimaryImage);
 
     $locationPayload = $data['location_payload'] ?? [];
@@ -1002,7 +1016,7 @@
   @endphp
 
   <!-- PAGE 1: HERO -->
-  <div class="page bg" style="--bg-image: url('{{ $heroImages[0] ?? 'property/images/test.png' }}')">
+  <div class="page bg" style="--bg-image: url('{{ $backgroundImageFallback }}')">
     <div class="container">
       <div class="logo">
         <img src="{{ $data['branding']['hibarr_expose_logo'] }}" alt="hibarr-expose-logo" />
@@ -1044,7 +1058,7 @@
   <div class="page">
     {{-- Right: full-height image fading to transparent on the left --}}
     <div style="position: absolute; right: 0; top: 0; width: 55%; height: 100%; overflow: hidden; z-index: 0;">
-      <img src="{{ $heroImages[0] ?? ($data['assets']['area'][0] ?? '') }}" alt="Property illustration"
+      <img src="{{ $backgroundImageFallback ?? ($data['assets']['area'][0] ?? '') }}" alt="Property illustration"
         style="width: 100%; height: 100%; object-fit: cover; -webkit-mask-image: linear-gradient(to right, transparent 0%, black 38%); mask-image: linear-gradient(to right, transparent 0%, black 38%);" />
     </div>
 
@@ -1117,7 +1131,7 @@
 
   <!-- PAGE 3: FEATURED IMAGES GRID -->
   <div class="page">
-    <div class="container" style="padding: 3.70mm !important;">
+    <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
       <div class="featured-grid">
         {{-- Left column: first exterior image with sharp_page_header label overlay --}}
         <div class="left-column" style="--bg-image: url('{{ $exteriorImages[0] ?? ($heroImages[0] ?? '') }}'); position: relative;">
@@ -1158,7 +1172,7 @@
         </div>
       @elseif(count($exteriorGridImages) === 2)
         <div class="page">
-          <div class="container" style="padding: 3.70mm !important;">
+          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
             <div class="duo-grid">
               <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
               <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
@@ -1171,7 +1185,7 @@
       </div>
       @elseif(count($exteriorGridImages) === 3)
       <div class="page">
-          <div class="container" style="padding: 3.70mm !important;">
+          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
             <div class="tri-grid">
               <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
               <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
@@ -1184,7 +1198,7 @@
       </div>
       @else
       <div class="page">
-          <div class="container" style="padding: 3.70mm !important;">
+          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
             <div class="quad-grid">
               <div style="--bg-image: url('{{ $exteriorGridImages[0] ?? 'property/images/test.png' }}')"></div>
               <div style="--bg-image: url('{{ $exteriorGridImages[1] ?? 'property/images/test.png' }}')"></div>
@@ -1247,7 +1261,7 @@
       @php
         $singleFacility = $facilityPage['items'][0] ?? [];
       @endphp
-      <div class="page bg" style="--bg-image: url('{{ $singleFacility['image'] ?? ($heroImages[0] ?? 'property/images/test.png') }}')">
+      <div class="page bg" style="--bg-image: url('{{ $singleFacility['image'] ?? $backgroundImageFallback }}')">
         <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
           <div style="position: relative; display: inline-block; line-height: 0;">
             <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
@@ -1333,9 +1347,9 @@
 
             {{-- <h1>{{ strtoupper((string) $styleLabel) }}</h1> --}}
 
-            <div style="font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; margin-left: 0px;">
+            <div style="font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; margin-left: 0px; max-height: 11rem; overflow: hidden; line-height: 1.4;">
               {!! !empty($data['description']) ? $data['description'] : '' !!}
-              
+
             </div>
             <style>
               div[style*="font-size: 20px"] p,
@@ -1394,7 +1408,7 @@
       </div>
     @else
       <div class="page">
-        <div class="container" style="padding: 3.70mm !important;">
+        <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
           @if(count($galleryGridImages) === 2)
             <div class="quad-grid-2">
               <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
@@ -1613,7 +1627,7 @@
 @if(!empty($locationTitle) || !empty($locationDescription) || !empty($locationImage))
 <div class="page">
   <div class="split-page" style="position:relative; z-index:1;">
-    <div class="split-top" style="--bg-image: url('{{ $locationImage ?? $outroPrimaryImage }}')"></div>
+    <div class="split-top" style="--bg-image: url('{{ $locationImage ?? $outroPrimaryImage ?? $backgroundImageFallback }}')"></div>
     <div class="split-bottom">
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
@@ -1650,8 +1664,8 @@
 @php
   $attractionTitle = $attraction['name'] ?? 'ATTRACTION';
   $attractionDescription = $attraction['description'] ?? '';
-  $attractionPrimaryImage = $attraction['primary_image_url'] ?? ($heroImages[0] ?? 'property/images/test.png');
-  $attractionSecondaryImage = $attraction['secondary_image_url'] ?? ($exteriorImages[1] ?? $attractionPrimaryImage);
+  $attractionPrimaryImage = $attraction['primary_image_url'] ?? $backgroundImageFallback;
+  $attractionSecondaryImage = $attraction['secondary_image_url'] ?? ($exteriorImages[1] ?? $attractionPrimaryImage) ?? $backgroundImageFallback;
 @endphp
 @if(!empty($attractionTitle) || !empty($attractionDescription) || !empty($attractionPrimaryImage) || !empty($attractionSecondaryImage))
 <div class="page">
@@ -1700,9 +1714,31 @@
     ? array_slice($locationInfrastructure, 0, 4)
     : array_slice($legacyInfraItems, 0, 4);
 
+  $fallbackAirportNames = [
+    'Ercan International',
+    'Larnaca International',
+    'Paphos International',
+  ];
+
+  $fallbackAirportImages = [
+    $data['assets']['exterior'][0] ?? ($data['assets']['interior'][0] ?? 'property/images/test.png'),
+    $data['assets']['exterior'][1] ?? ($data['assets']['interior'][1] ?? 'property/images/test.png'),
+    $data['assets']['exterior'][2] ?? ($data['assets']['interior'][2] ?? 'property/images/test.png'),
+  ];
+
   $airportItems = !empty($locationAirports)
     ? array_slice($locationAirports, 0, 3)
     : array_slice($legacyAirportItems, 0, 3);
+
+  $airportItems = array_pad($airportItems, 3, []);
+
+  foreach ($airportItems as $index => $airportItem) {
+    $airportItems[$index] = [
+      'name' => $fallbackAirportNames[$index] ?? ($airportItem['name'] ?? ''),
+      'travelTimeInMin' => $airportItem['travelTimeInMin'] ?? $airportItem['time'] ?? $airportItem['distance'] ?? '',
+      'image' => $airportItem['image'] ?? $fallbackAirportImages[$index] ?? 'property/images/test.png',
+    ];
+  }
 @endphp
 <div class="page">
   <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
@@ -1732,14 +1768,12 @@
           <div class="airport-map" style="flex:2; align-self:stretch; margin-right:-40px;">
             <img src="{{ $data['branding']['map'] }}" alt="Map" />
           </div>
-          @if(!empty($airportItems[0]))
-          @php $a = $airportItems[0]; @endphp
+          @php $a = $airportItems[0] ?? []; @endphp
           <div class="airport-item" style="position:relative; z-index:1;">
             <img src="{{ $a['image'] ?? ($data['assets']['exterior'][0] ?? 'property/images/test.png') }}" alt="{{ $a['name'] ?? '' }}" />
-            <p>{{ strtoupper($a['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[0] ?? ''))) }}</p>
-            <span>{{ $a['travelTimeInMin'] ?? $a['time'] ?? $a['distance'] ?? (is_scalar($a) ? $a : '') }} km</span>
+            <p>{{ $a['name'] ?? 'Airport' }}</p>
+            <span>{{ !empty($a['travelTimeInMin']) ? $a['travelTimeInMin'] . ' km' : '' }}</span>
           </div>
-          @endif
         </div>
       </div>
 
@@ -1758,22 +1792,18 @@
         </div>
         {{-- Second half: airport items [1] & [2] + logo --}}
         <div style="display:flex; flex:1; gap:1rem; align-items:flex-start;">
-          @if(!empty($airportItems[1]))
-          @php $b = $airportItems[1]; @endphp
+          @php $b = $airportItems[1] ?? []; @endphp
           <div class="airport-item">
             <img src="{{ $b['image'] ?? ($data['assets']['exterior'][1] ?? 'property/images/test.png') }}" alt="{{ $b['name'] ?? '' }}" />
-            <p>{{ strtoupper($b['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[1] ?? ''))) }}</p>
-            <span>{{ $b['travelTimeInMin'] ?? $b['time'] ?? $b['distance'] ?? (is_scalar($b) ? $b : '') }} km</span>
+            <p>{{ $b['name'] ?? 'Airport' }}</p>
+            <span>{{ !empty($b['travelTimeInMin']) ? $b['travelTimeInMin'] . ' km' : '' }}</span>
           </div>
-          @endif
-          @if(!empty($airportItems[2]))
-          @php $c = $airportItems[2]; @endphp
+          @php $c = $airportItems[2] ?? []; @endphp
           <div class="airport-item">
             <img src="{{ $c['image'] ?? ($data['assets']['exterior'][2] ?? 'property/images/test.png') }}" alt="{{ $c['name'] ?? '' }}" />
-            <p>{{ strtoupper($c['name'] ?? ucwords(str_replace('_', ' ', array_keys($data['distances'])[2] ?? ''))) }}</p>
-            <span>{{ $c['travelTimeInMin'] ?? $c['time'] ?? $c['distance'] ?? (is_scalar($c) ? $c : '') }} km</span>
+            <p>{{ $c['name'] ?? 'Airport' }}</p>
+            <span>{{ !empty($c['travelTimeInMin']) ? $c['travelTimeInMin'] . ' km' : '' }}</span>
           </div>
-          @endif
           <div class="airport-logo" style="align-self:flex-end;">
             <img src="{{ $data['branding']['logo_blue'] }}" alt="Hibarr" />
           </div>
@@ -1788,7 +1818,7 @@
 <!-- PAGE 9: SPLIT LAYOUT WITH QUOTE -->
 <div class="page">
     <div class="split-page" style="position:relative; z-index:1;">
-        <div class="split-top" style="--bg-image: url('{{ $outroPrimaryImage }}')"></div>
+        <div class="split-top" style="--bg-image: url('{{ $outroPrimaryImage ?? $backgroundImageFallback }}')"></div>
         <div class="split-bottom">
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
             <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
@@ -1812,7 +1842,7 @@
             </div>
         </div>
         <div class="rock">
-            <img src="{{ $outroSecondaryImage }}" alt="rock" />
+            <img src="{{ $outroSecondaryImage ?? $backgroundImageFallback }}" alt="rock" />
         </div>
     </div>
     
@@ -1833,7 +1863,7 @@
 
 <!-- PAGE 12: CLOSURE / CONTACT -->
 <div class="page">
-  <div class="bg" style="--bg-image: url('{{ $data['assets']['hero'][0] ?? 'property/images/test.png' }}'); display:flex; justify-content:flex-end; height:100%; position:relative;">
+  <div class="bg" style="--bg-image: url('{{ $backgroundImageFallback }}'); display:flex; justify-content:flex-end; height:100%; position:relative;">
 
     <div style="position:absolute; inset:0; background:#000; opacity:0.2; z-index:0;"></div>
 
