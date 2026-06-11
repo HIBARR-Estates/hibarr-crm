@@ -1,0 +1,163 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use App\Helper\Reply;
+use App\Models\Lead;
+use App\Models\LeadQualification;
+use App\Services\LeadQualificationService;
+use App\Services\PermissionService;
+use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
+
+class LeadQualificationController extends AccountBaseController
+{
+    public function __construct(
+        protected LeadQualificationService $qualificationService
+    ) {
+        parent::__construct();
+
+        $this->middleware(function ($request, $next) {
+            if (!in_array('leads', user_modules())) {
+                if ($request->ajax() || $request->header('X-Inertia')) {
+                    return redirect()->back()->with('error', __('messages.permissionDenied'));
+                }
+                abort(403);
+            }
+
+            return $next($request);
+        });
+    }
+
+    public function index(Lead $lead)
+    {
+        $this->authorizeLeadAccess($lead);
+
+        return Reply::dataOnly([
+            'qualifications' => $this->qualificationService->listForLead($lead),
+        ]);
+    }
+
+    public function store(Request $request, Lead $lead)
+    {
+        $this->authorizeLeadAccess($lead);
+
+        $validated = $request->validate([
+            'template_id' => ['required', 'string', 'max:255'],
+            'template_version' => ['required', 'integer', 'min:1'],
+            'agent_language' => ['nullable', 'string', 'max:10'],
+            'current_segment_key' => ['nullable', 'string', 'max:255'],
+            'selected_branch_keys' => ['nullable', 'array'],
+            'selected_branch_keys.*' => ['string', 'max:255'],
+        ]);
+
+        $qualification = $this->qualificationService->start($lead, $validated);
+
+        return Reply::successWithData(__('messages.recordSaved'), [
+            'qualification' => $qualification,
+        ]);
+    }
+
+    public function upsertAnswer(Request $request, LeadQualification $qualification)
+    {
+        $this->authorizeQualificationAccess($qualification);
+
+        $validated = $request->validate([
+            'segment_key' => ['required', 'string', 'max:255'],
+            'answer_values' => ['nullable', 'array'],
+            'answer_text' => ['nullable', 'string'],
+        ]);
+
+        $answer = $this->qualificationService->upsertAnswer($qualification, $validated);
+
+        return Reply::successWithData(__('messages.recordSaved'), [
+            'answer' => $answer,
+        ]);
+    }
+
+    public function updateNavigation(Request $request, LeadQualification $qualification)
+    {
+        $this->authorizeQualificationAccess($qualification);
+
+        $validated = $request->validate([
+            'current_segment_key' => ['nullable', 'string', 'max:255'],
+            'selected_branch_keys' => ['nullable', 'array'],
+            'selected_branch_keys.*' => ['string', 'max:255'],
+        ]);
+
+        $updated = $this->qualificationService->updateNavigation($qualification, $validated);
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'qualification' => $updated,
+        ]);
+    }
+
+    public function complete(Request $request, LeadQualification $qualification)
+    {
+        $this->authorizeQualificationAccess($qualification);
+
+        $validated = $request->validate([
+            'outcome' => ['required', Rule::in(['bookMeeting', 'inviteWebinar', 'callback', 'noFit'])],
+            'outcome_triggered_at' => ['nullable', 'date'],
+            'webinar_session_label' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $completed = $this->qualificationService->complete($qualification, $validated);
+
+        return Reply::successWithData(__('messages.recordSaved'), [
+            'qualification' => $completed,
+        ]);
+    }
+
+    public function abandon(LeadQualification $qualification)
+    {
+        $this->authorizeQualificationAccess($qualification);
+
+        $abandoned = $this->qualificationService->abandon($qualification);
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'qualification' => $abandoned,
+        ]);
+    }
+
+    public function clearBranchAnswers(Request $request, LeadQualification $qualification)
+    {
+        $this->authorizeQualificationAccess($qualification);
+
+        $validated = $request->validate([
+            'segment_keys' => ['required', 'array', 'min:1'],
+            'segment_keys.*' => ['string', 'max:255'],
+        ]);
+
+        $deletedCount = $this->qualificationService->clearBranchAnswers(
+            $qualification,
+            $validated['segment_keys']
+        );
+
+        return Reply::successWithData(__('messages.deleteSuccess'), [
+            'deleted_count' => $deletedCount,
+            'qualification' => $qualification->fresh()->load('answers'),
+        ]);
+    }
+
+    private function authorizeLeadAccess(Lead $lead): void
+    {
+        $access = PermissionService::checkAccess(user(), 'view_lead', $lead, [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ]);
+
+        if (!$access['canAccess']) {
+            throw ValidationException::withMessages([
+                'permission' => [__('messages.permissionDenied')],
+            ]);
+        }
+    }
+
+    private function authorizeQualificationAccess(LeadQualification $qualification): void
+    {
+        $lead = $qualification->lead()->firstOrFail();
+        $this->authorizeLeadAccess($lead);
+    }
+}

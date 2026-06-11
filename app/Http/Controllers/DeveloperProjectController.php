@@ -1100,7 +1100,7 @@ class DeveloperProjectController extends AccountBaseController
         $warnings = $this->exposeService->checkWarnings($config);
 
         return Reply::successWithData('Validation complete', [
-            'warnings' => $warnings,
+            'data' => ['warnings' => $warnings],
         ]);
     }
 
@@ -1161,7 +1161,7 @@ class DeveloperProjectController extends AccountBaseController
         $warnings = $this->exposeService->checkWarnings($config);
 
         return Reply::successWithData('Validation complete', [
-            'warnings' => $warnings,
+            'data' => ['warnings' => $warnings],
         ]);
     }
 }

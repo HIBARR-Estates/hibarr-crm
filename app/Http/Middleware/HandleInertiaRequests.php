@@ -96,6 +96,10 @@ class HandleInertiaRequests extends Middleware
             'fallbackTranslations' => fn () => $this->getFallbackTranslations(),
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => $this->getAvailableLocales(),
+            'featureFlags' => fn () => [
+                'crm.lead-qualification-tab' => (bool) config('features.crm.lead-qualification-tab'),
+                'crm.lead-language-core-field' => (bool) config('features.crm.lead-language-core-field'),
+            ],
         ]);
     }
      /**

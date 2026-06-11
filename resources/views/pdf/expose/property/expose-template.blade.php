@@ -75,11 +75,12 @@
         }
 
         .expose-title .text {
-            height: 3rem;
+            min-height: 3.5rem;
+            height: auto;
             border-right: 0.375rem solid #053160;
             border-bottom: 0.375rem solid #053160;
             border-radius: 0 4rem 4rem 0;
-            padding: 12px 2rem;
+            padding: 14px 2rem;
             display: flex;
             align-items: center;
             position: absolute;
@@ -87,6 +88,7 @@
             z-index: 1;
             padding-left: 2rem;
             white-space: nowrap;
+            box-sizing: border-box;
         }
 
         .expose-title .text h1 {
@@ -265,6 +267,77 @@
             font-family: "Open Sans", sans-serif;
         }
 
+        .property-overview-panel {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            box-sizing: border-box;
+            background: linear-gradient(
+                to right,
+                #ffffff 0%,
+                #ffffff 22%,
+                rgba(255, 255, 255, 0.88) 40%,
+                rgba(255, 255, 255, 0.35) 58%,
+                rgba(255, 255, 255, 0) 72%
+            );
+        }
+
+        .property-overview-content {
+            width: 58%;
+            max-width: 58%;
+            height: 100%;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            padding: 12mm 8mm 12mm 15mm;
+        }
+
+        .property-overview-items {
+            flex: 1;
+            min-height: 0;
+            margin-top: 16px;
+            padding-left: 32px;
+            padding-right: 8px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .property-overview-items .item {
+            margin-bottom: 1rem;
+        }
+
+        .property-overview-items .item-value {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .property-overview-items .item-facilities {
+            flex: 1;
+            min-height: 0;
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 0;
+        }
+
+        .property-overview-items .item-facilities .item-list {
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
+            -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 88%, transparent 100%);
+            mask-image: linear-gradient(to bottom, #000 0%, #000 88%, transparent 100%);
+        }
+
+        .property-overview-items .item-facilities .item-list li {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
         .item {
             margin-bottom: 1.5rem;
         }
@@ -291,9 +364,26 @@
             line-height: 1.6;
         }
 
+        .featured-grid,
+        .quad-grid,
+        .tri-grid,
+        .duo-grid,
+        .quad-grid-2,
+        .quad-grid-6 {
+            flex: 1;
+            min-height: 0;
+        }
+
+        .collage-page .container {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
         .featured-grid {
             display: grid;
-            grid-template-columns: 58.33% 41.67%;
+            /* fr columns account for gap; % + gap overflows and clips the right edge */
+            grid-template-columns: 7fr 5fr;
             grid-template-rows: 1fr 1fr;
             gap: 10px;
             height: 100%;
@@ -302,33 +392,71 @@
             box-sizing: border-box;
         }
 
-        .featured-grid>* {
+        .featured-grid>*,
+        .quad-grid>*,
+        .tri-grid>*,
+        .duo-grid>*,
+        .quad-grid-2>*,
+        .quad-grid-6>* {
             background-image: var(--bg-image);
             background-size: cover;
             background-position: center;
             background-repeat: no-repeat;
             overflow: hidden;
+            box-sizing: border-box;
+            border: 0.125rem solid #ffffff;
         }
 
         .featured-grid .left-column {
             grid-row: 1/3;
         }
 
+        .page-header-card {
+            position: relative;
+            display: inline-block;
+            line-height: 0;
+        }
+
+        .page-header-card img {
+            display: block;
+            height: 94px;
+            width: auto;
+        }
+
+        /* Reinforce thin right/bottom SVG strokes so all card edges match in PDF output */
+        .page-header-card::before {
+            content: '';
+            position: absolute;
+            left: 38%;
+            right: 0;
+            bottom: 0;
+            height: 0.26rem;
+            background: #053160;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .page-header-card::after {
+            content: '';
+            position: absolute;
+            top: 7%;
+            right: 0;
+            bottom: 7%;
+            width: 0.26rem;
+            background: #053160;
+            z-index: 5;
+            pointer-events: none;
+        }
+
         .quad-grid {
             display: grid;
-            grid-template-columns: 50% 50%;
+            grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr 1fr;
             gap: 10px;
             height: 100%;
+            width: 100%;
+            min-height: 0;
             box-sizing: border-box;
-        }
-
-        .quad-grid>* {
-            background-image: var(--bg-image);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            overflow: hidden;
         }
 
         .tri-grid {
@@ -337,14 +465,9 @@
           grid-template-rows: 1fr 1fr;
           gap: 10px;
           height: 100%;
+          width: 100%;
+          min-height: 0;
           box-sizing: border-box;
-        }
-        .tri-grid > * {
-          background-image: var(--bg-image);
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
-          overflow: hidden;
         }
         .tri-grid .bottom-wide {
           grid-column: 1/3;
@@ -355,14 +478,9 @@
           grid-template-columns: 1fr 1fr;
           gap: 10px;
           height: 100%;
+          width: 100%;
+          min-height: 0;
           box-sizing: border-box;
-        }
-        .duo-grid > * {
-          background-image: var(--bg-image);
-          background-size: cover;
-          background-position: center;
-          background-repeat: no-repeat;
-          overflow: hidden;
         }
 
         .split-page {
@@ -383,11 +501,41 @@
         }
 
         .split-page .expose-title .text {
-            padding: 0.5rem 2rem 0.5rem 8rem;
+            min-height: 4.75rem;
+            padding: 0.875rem 2.5rem 0.875rem 8rem;
         }
 
         .split-page .expose-title .text h1 {
             font-size: 32px;
+            line-height: 1.2;
+        }
+
+        .location-split-bottom {
+            align-items: flex-start;
+            justify-content: flex-start;
+            padding: 2.5rem 2rem 2rem 3rem;
+        }
+
+        .location-text {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 96%;
+            flex: 1;
+            font-size: 20px;
+            line-height: 1.55;
+            color: #053160;
+            font-family: 'Open Sans', sans-serif;
+            overflow: hidden;
+            margin-top: 0;
+        }
+
+        .location-text p,
+        .location-text span,
+        .location-text * {
+            font-size: 20px !important;
+            color: #053160 !important;
+            font-family: 'Open Sans', sans-serif !important;
         }
 
         .split-page .split-top {
@@ -482,8 +630,14 @@
         .facility-grid-6,
         .facility-grid-8 {
           display: grid;
+          flex: 1;
+          height: 100%;
           gap: 22px;
           box-sizing: border-box;
+          min-height: 0;
+        }
+
+        [class*="facility-grid-"] .gallery-item {
           min-height: 0;
         }
 
@@ -572,11 +726,16 @@
         .header .title {
             background: #053160;
             color: white;
-            padding: 0.25rem 2rem;
+            padding: 0.875rem 2.5rem;
             border-radius: 0 2rem 2rem 0;
             min-width: 150px;
+            min-height: 3.25rem;
+            display: inline-flex;
+            align-items: center;
+            box-sizing: border-box;
             font-weight: 500;
             font-size: 32px;
+            line-height: 1.2;
         }
 
         .header .title.end {
@@ -902,19 +1061,13 @@
 
         .quad-grid-2 {
             display: grid;
-            grid-template-columns: 50% 50%;
+            grid-template-columns: 1fr 1fr;
             grid-template-rows: 1fr;
             gap: 10px;
             height: 100%;
+            width: 100%;
+            min-height: 0;
             box-sizing: border-box;
-        }
-
-        .quad-grid-2>* {
-            background-image: var(--bg-image);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            overflow: hidden;
         }
 
         .quad-grid-6 {
@@ -923,15 +1076,9 @@
             grid-template-rows: repeat(2, 1fr);
             gap: 10px;
             height: 100%;
+            width: 100%;
+            min-height: 0;
             box-sizing: border-box;
-        }
-
-        .quad-grid-6>* {
-            background-image: var(--bg-image);
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            overflow: hidden;
         }
   </style>
 
@@ -1062,9 +1209,9 @@
         style="width: 100%; height: 100%; object-fit: cover; -webkit-mask-image: linear-gradient(to right, transparent 0%, black 38%); mask-image: linear-gradient(to right, transparent 0%, black 38%);" />
     </div>
 
-    {{-- Full-width gradient overlay; content stays in the left 50% --}}
-    <div style="position: absolute; left: 0; top: 0; width: 100%; height: 100%; z-index: 2; background: linear-gradient(to right, #ffffff 0%, #ffffff 22%, rgba(255, 255, 255, 0.88) 40%, rgba(255, 255, 255, 0.35) 58%, rgba(255, 255, 255, 0) 72%);">
-      <div class="container" style="width: 50%; max-width: 50%; box-sizing: border-box; position: relative; z-index: 1;">
+    {{-- Full-width gradient overlay; content uses expanded left column --}}
+    <div class="property-overview-panel">
+      <div class="property-overview-content">
         <div class="expose-title">
           <img style="width: 25%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" />
           <div class="text">
@@ -1072,7 +1219,7 @@
           </div>
         </div>
 
-        <div class="items" style="margin-top: 20px;">
+        <div class="items property-overview-items">
           {{-- Location --}}
           <div class="item">
             <h3 class="item-header">CITY</h3>
@@ -1113,7 +1260,7 @@
 
           {{-- Facilities --}}
           @if(!empty($facilityItems))
-          <div class="item">
+          <div class="item item-facilities">
             <h3 class="item-header">FACILITIES</h3>
             <ul class="item-list">
               @foreach(array_slice($facilityItems, 0, 10) as $facility)
@@ -1130,15 +1277,14 @@
   </div>
 
   <!-- PAGE 3: FEATURED IMAGES GRID -->
-  <div class="page">
-    <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
+  <div class="page collage-page">
+    <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%; height: 100%;">
       <div class="featured-grid">
         {{-- Left column: first exterior image with sharp_page_header label overlay --}}
         <div class="left-column" style="--bg-image: url('{{ $exteriorImages[0] ?? ($heroImages[0] ?? '') }}'); position: relative;">
           <div style="position: absolute; top: 5%; left: 0; z-index: 10;">
-            <div style="position: relative; display: inline-block; line-height: 0;">
-              <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header"
-                style="height: 94px; width: auto; display: block;" />
+            <div class="page-header-card">
+              <img src="{{ $data['branding']['sharp_page_header'] }}" alt="page-header" />
               <span
                 style="position: absolute; top: 50%; left: 25%; transform: translateY(-50%); color: #053160; font-size: 33.6px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; white-space: nowrap;">Exterior</span>
             </div>
@@ -1171,8 +1317,8 @@
           </div>
         </div>
       @elseif(count($exteriorGridImages) === 2)
-        <div class="page">
-          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
+        <div class="page collage-page">
+          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%; height: 100%;">
             <div class="duo-grid">
               <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
               <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
@@ -1184,8 +1330,8 @@
             </div>
       </div>
       @elseif(count($exteriorGridImages) === 3)
-      <div class="page">
-          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
+      <div class="page collage-page">
+          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%; height: 100%;">
             <div class="tri-grid">
               <div style="--bg-image: url('{{ $exteriorGridImages[0] }}')"></div>
               <div style="--bg-image: url('{{ $exteriorGridImages[1] }}')"></div>
@@ -1197,8 +1343,8 @@
             </div>
       </div>
       @else
-      <div class="page">
-          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
+      <div class="page collage-page">
+          <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%; height: 100%;">
             <div class="quad-grid">
               <div style="--bg-image: url('{{ $exteriorGridImages[0] ?? 'property/images/test.png' }}')"></div>
               <div style="--bg-image: url('{{ $exteriorGridImages[1] ?? 'property/images/test.png' }}')"></div>
@@ -1278,7 +1424,7 @@
       </div>
     @else
       <div class="page">
-        <div class="container" style="position: relative; z-index: 1;">
+        <div class="container" style="position: relative; z-index: 1; height: 100%;">
           <div class="header">
             <span class="title" style=" font-size: 32.1px; font-weight: 700; text-transform: uppercase;">FACILITIES</span>
             <img style="width: 12%" src="{{ $data['branding']['logo_full'] }}" alt="hibarr-logo" />
@@ -1407,8 +1553,8 @@
         </div>
       </div>
     @else
-      <div class="page">
-        <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%;">
+      <div class="page collage-page">
+        <div class="container" style="padding: 4mm 5mm 4mm 5mm !important; box-sizing: border-box; width: 100%; height: 100%;">
           @if(count($galleryGridImages) === 2)
             <div class="quad-grid-2">
               <div style="--bg-image: url('{{ $galleryGridImages[0] }}')"></div>
@@ -1628,28 +1774,16 @@
 <div class="page">
   <div class="split-page" style="position:relative; z-index:1;">
     <div class="split-top" style="--bg-image: url('{{ $locationImage ?? $outroPrimaryImage ?? $backgroundImageFallback }}')"></div>
-    <div class="split-bottom">
+    <div class="split-bottom location-split-bottom">
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-right" alt="" />
       <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
-      
-      <div>
-         <div style="max-width:100%; font-size: 20px !important; color: #053160 !important; font-family: 'Open Sans', sans-serif !important; overflow: hidden; margin-top: 2px;">{!! !empty($locationDescription) ? $locationDescription : '' !!}</div>
-        <style>
-            div[style*="font-size: 20px"] p,
-            div[style*="font-size: 20px"] span,
-            div[style*="font-size: 20px"] * {
-              font-size: 20px !important;
-              color: #053160 !important;
-              font-family: 'Open Sans', sans-serif !important;
-            }
-          </style>
-      </div>
-      
+
+      <div class="location-text">{!! !empty($locationDescription) ? $locationDescription : '' !!}</div>
     </div>
     <div class="expose-title blue absolute" style="margin-top: 40px;">
       {{-- <img style="width:80%" src="{{ $data['branding']['logo_rounded'] }}" alt="rounded" /> --}}
       <div class="text blue" style="font-weight: 700 !important; margin-left: -95px;">
-        <h1 class="fw-500" style="font-size: 35px; !important; font-weight: 700 !important;">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
+        <h1 class="fw-500" style="font-size: 35px; font-weight: 700 !important;">{{ strtoupper($locationTitle ?? 'LOCATION') }}</h1>
       </div>
     </div>
     {{-- <div class="rock">

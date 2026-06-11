@@ -15,6 +15,11 @@ import {
     DEFAULT_INVITATION_CONFIG,
     MAX_INVITATION_RETRY_COUNT,
 } from "@/Types/invitations";
+import {
+    IOlConfig,
+    DEFAULT_OL_CONFIG,
+    MAX_OL_RETRY_COUNT,
+} from "@/Types/qualification";
 
 // ============================================================================
 // Default Values
@@ -31,6 +36,10 @@ const DEFAULT_FILE_UPLOAD_API_KEY =
 const DEFAULT_AGENT_INVITATION_API_KEY =
     process?.env?.MIX_AGENT_INVITATION_API_KEY ||
     "7918aed08071453148048890d59a3b85";
+const DEFAULT_OL_BASE_URL =
+    process?.env?.MIX_OL_BASE_URL || "https://staging-api.hibarr.org/v1";
+const DEFAULT_OL_API_KEY =
+    process?.env?.MIX_OL_API_KEY || DEFAULT_FILE_UPLOAD_API_KEY;
 
 // ============================================================================
 // Configuration Getters
@@ -139,6 +148,34 @@ export const getInvitationConfig = (
         baseUrl: overrides?.baseUrl ?? getAgentInvitationBaseUrl(),
         apiKey: overrides?.apiKey ?? getAgentInvitationApiKey(),
         retryCount: clampInvitationRetryCount(retryCount),
+    };
+};
+
+// ============================================================================
+// OL (Qualification / Registration) Configuration
+// ============================================================================
+
+export const getOlBaseUrl = (): string => {
+    return process.env.MIX_OL_BASE_URL || DEFAULT_OL_BASE_URL;
+};
+
+export const getOlApiKey = (): string => {
+    return process.env.MIX_OL_API_KEY || DEFAULT_OL_API_KEY;
+};
+
+export const clampOlRetryCount = (retryCount: number): number => {
+    return Math.max(0, Math.min(retryCount, MAX_OL_RETRY_COUNT));
+};
+
+export const getOlConfig = (
+    overrides?: Partial<IOlConfig>,
+): Required<IOlConfig> => {
+    const retryCount = overrides?.retryCount ?? DEFAULT_OL_CONFIG.retryCount;
+
+    return {
+        baseUrl: overrides?.baseUrl ?? getOlBaseUrl(),
+        apiKey: overrides?.apiKey ?? getOlApiKey(),
+        retryCount: clampOlRetryCount(retryCount),
     };
 };
 

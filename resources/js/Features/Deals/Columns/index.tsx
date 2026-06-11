@@ -347,14 +347,42 @@ export const DEAL_TABLE_COLUMNS = (
                 </span>
             ),
             key: "created_at",
-            width: 120,
+            width: 150,
             render: (_, record) => {
                 if (!record.created_at)
                     return <span className="text-gray-400">--</span>;
 
                 return (
                     <span className="text-gray-900">
-                        {dayjs(record.created_at).format("MMM DD, YYYY")}
+                        {dayjs(record.created_at).format(
+                            "MMM DD, YYYY HH:mm",
+                        )}
+                    </span>
+                );
+            },
+        },
+
+        {
+            title: (
+                <span className="flex items-center">
+                    {t("pages.deals.table.columns.updated")}
+                    <PageDataSorter
+                        field="updated_at"
+                        routeName="deals.index"
+                    />
+                </span>
+            ),
+            key: "updated_at",
+            width: 150,
+            render: (_, record) => {
+                if (!record.updated_at)
+                    return <span className="text-gray-400">--</span>;
+
+                return (
+                    <span className="text-gray-900">
+                        {dayjs(record.updated_at).format(
+                            "MMM DD, YYYY HH:mm",
+                        )}
                     </span>
                 );
             },

@@ -21,6 +21,7 @@ use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use Illuminate\Support\Facades\DB;
 use App\Models\Lead;
+use App\Models\LeadLifecycleStatus;
 use App\Models\LeadCustomForm;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
@@ -40,6 +41,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
+use App\Services\LeadCoreFieldsService;
 use App\Services\PermissionService;
 use App\Services\LeadService;
 
@@ -52,10 +54,13 @@ class LeadContactController extends AccountBaseController
 
     protected $leadService;
 
-    public function __construct(LeadService $leadService)
+    protected LeadCoreFieldsService $coreFieldsService;
+
+    public function __construct(LeadService $leadService, LeadCoreFieldsService $coreFieldsService)
     {
         parent::__construct();
         $this->leadService = $leadService;
+        $this->coreFieldsService = $coreFieldsService;
         $this->pageTitle = 'modules.leadContact.leadContacts';
         $this->middleware(function ($request, $next) {
             if (!in_array('leads', user_modules())) {
@@ -98,7 +103,11 @@ class LeadContactController extends AccountBaseController
                 'end_date',
                 'lead_source',
                 'lead_owner_id',
-                'added_by_id'
+                'added_by_id',
+                'lifecycle_status_id',
+                'qualification_segment_key',
+                'qualification_answer_values',
+                'language',
             ]),
             'leads' => [
                 'data' => $leads->items(),
@@ -111,6 +120,9 @@ class LeadContactController extends AccountBaseController
             ],
             'customFields' => $customFieldsData['customFields'],
             'customFieldCategories' => $customFieldsData['customFieldCategories'],
+            'leadLifecycleStatuses' => LeadLifecycleStatus::query()
+                ->orderBy('sort_order')
+                ->get(['id', 'key', 'label']),
         ]);
     }
 
@@ -123,8 +135,15 @@ class LeadContactController extends AccountBaseController
             'leadSource:id,type',
             'category:id,category_name',
             'client:id,name,email',
-            'marketing'
+            'marketing',
+            'lifecycleStatus:id,key,label,label_color,sort_order',
+            'activeQualification.answers',
+            'activeQualification.agent:id,name,image',
         ])->findOrFail($id)->withCustomFields();
+
+        if ($this->coreFieldsService->useCoreFields()) {
+            $this->coreFieldsService->mergeOntoLead($this->leadContact);
+        }
 
         // Ensure enum values are available for frontend
         $this->leadContact->salutation_value = $this->leadContact->salutation instanceof \App\Enums\Salutation ? $this->leadContact->salutation->value : $this->leadContact->salutation;
@@ -285,9 +304,18 @@ class LeadContactController extends AccountBaseController
             'delete_lead_follow_up' => user()->permission('delete_lead_follow_up'),
         ];
 
+        $qualificationPermissions = [
+            'view_lead' => user()->permission('view_lead'),
+            'edit_lead' => user()->permission('edit_lead'),
+        ];
+
+        $customFields = $this->coreFieldsService
+            ->filterPromotedFieldDefinitions($formData['customFields'])
+            ->all();
+
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
-            'fields' => $formData['customFields'],
+            'fields' => $customFields,
             'editLeadPermission' => $this->editLeadPermission,
             'deleteLeadPermission' => $this->deleteLeadPermission,
             'deals' => $deals,
@@ -304,6 +332,7 @@ class LeadContactController extends AccountBaseController
             'leadFollowUps' => $leadFollowUps,
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
+            'qualificationPermissions' => $qualificationPermissions,
         ], $formData, $dealFormData));
     }
 
@@ -478,6 +507,9 @@ class LeadContactController extends AccountBaseController
         }
         Log::info("Create Lead Contact, b4 save");
 
+        $this->coreFieldsService->write($leadContact, $request->only([
+            'languages', 'date_of_birth', 'nationality', 'occupation',
+        ]));
         $leadContact->save();
 
         if ($request->has('create_deal') && $request->create_deal == 'on') {
@@ -486,7 +518,11 @@ class LeadContactController extends AccountBaseController
 
         // To add custom fields data
         if ($request->custom_fields_data) {
-            $leadContact->updateCustomFieldData($request->custom_fields_data);
+            $filtered = $this->coreFieldsService->filterCustomFieldsFromPayload(
+                ['custom_fields_data' => $request->custom_fields_data],
+                (int) company()->id
+            );
+            $leadContact->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
         }
 
         // Log search
@@ -639,6 +675,9 @@ class LeadContactController extends AccountBaseController
         } else {
             $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
         }
+        $this->coreFieldsService->write($leadContact, $request->only([
+            'languages', 'date_of_birth', 'nationality', 'occupation',
+        ]));
         $leadContact->save();
 
         $clientCreated = $request->create_client == "on" ? '1' : '0';
@@ -646,7 +685,11 @@ class LeadContactController extends AccountBaseController
 
         // To add custom fields data
         if ($request->custom_fields_data) {
-            $leadContact->updateCustomFieldData($request->custom_fields_data);
+            $filtered = $this->coreFieldsService->filterCustomFieldsFromPayload(
+                ['custom_fields_data' => $request->custom_fields_data],
+                (int) company()->id
+            );
+            $leadContact->updateCustomFieldData($filtered['custom_fields_data'] ?? []);
         }
 
         return Reply::successWithData(__('messages.leadUpdateSuccess'), ['redirectUrl' => route('lead-contact.index')]);
@@ -798,6 +841,10 @@ class LeadContactController extends AccountBaseController
                 $leadContact->hash = $request->hash;
             }
 
+            $this->coreFieldsService->write($leadContact, $request->only([
+                'languages', 'date_of_birth', 'nationality', 'occupation',
+            ]));
+
             // Save the lead contact
             $leadContact->save();
 
@@ -873,7 +920,11 @@ class LeadContactController extends AccountBaseController
                 }
                 
                 if (!empty($customFieldsData)) {
-                    $leadContact->updateCustomFieldData($customFieldsData);
+                    $filtered = $this->coreFieldsService->filterCustomFieldsFromPayload(
+                        ['custom_fields' => $customFieldsData],
+                        (int) company()->id
+                    );
+                    $leadContact->updateCustomFieldData($filtered['custom_fields'] ?? []);
                 }
             }
 
@@ -899,12 +950,17 @@ class LeadContactController extends AccountBaseController
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
-                    'source_id', 'agent_id', 'value', 'currency_id', 'salutation'
+                    'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
+                    'languages', 'date_of_birth', 'nationality', 'occupation',
                 ];
                 
                 foreach ($allowedFields as $field) {
                     if ($request->has($field)) {
-                        $responseData[$field] = $leadContact->getAttribute($field);
+                        if (in_array($field, ['languages', 'date_of_birth', 'nationality', 'occupation'], true)) {
+                            $responseData[$field] = $this->coreFieldsService->read($leadContact)[$field] ?? null;
+                        } else {
+                            $responseData[$field] = $leadContact->getAttribute($field);
+                        }
                     }
                 }
                 

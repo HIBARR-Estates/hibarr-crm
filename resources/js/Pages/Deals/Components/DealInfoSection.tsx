@@ -17,6 +17,7 @@ import {
     InfoCircleOutlined,
     ReloadOutlined,
     LinkOutlined,
+    CalendarOutlined,
 } from "@ant-design/icons";
 import SideNavTabs from "@/Components/SideNavTabs";
 import dayjs from "dayjs";
@@ -1099,6 +1100,36 @@ export default function DealInfoSection({
                                 }
                                 disabled={!canEdit}
                             />
+                        </DetailField>
+
+                        <DetailField
+                            label={t("pages.deals.info.fields.created_at")}
+                        >
+                            {currentDeal.created_at ? (
+                                <span className="flex items-center gap-1">
+                                    <CalendarOutlined className="text-gray-400" />
+                                    {dayjs(currentDeal.created_at).format(
+                                        "MMM DD, YYYY HH:mm",
+                                    )}
+                                </span>
+                            ) : (
+                                <span className="text-gray-400">--</span>
+                            )}
+                        </DetailField>
+
+                        <DetailField
+                            label={t("pages.deals.info.fields.updated_at")}
+                        >
+                            {currentDeal.updated_at ? (
+                                <span className="flex items-center gap-1">
+                                    <CalendarOutlined className="text-gray-400" />
+                                    {dayjs(currentDeal.updated_at).format(
+                                        "MMM DD, YYYY HH:mm",
+                                    )}
+                                </span>
+                            ) : (
+                                <span className="text-gray-400">--</span>
+                            )}
                         </DetailField>
 
                         <DetailField

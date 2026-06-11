@@ -95,17 +95,38 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 })) || [],
         },
         {
-            key: "status",
-            label: "Status",
+            key: "lifecycle_status_id",
+            label: "Lifecycle Status",
             type: "select",
-            placeholder: "Select status",
+            placeholder: "Select lifecycle status",
             span: 12,
-            options: [
-                { value: "active", label: "Active" },
-                { value: "inactive", label: "Inactive" },
-                { value: "converted", label: "Converted" },
-                { value: "lost", label: "Lost" },
-            ],
+            options:
+                props.leadLifecycleStatuses?.map(
+                    (status: { id: number; label: string }) => ({
+                        value: status.id,
+                        label: status.label,
+                    }),
+                ) || [],
+        },
+        {
+            key: "qualification_segment_key",
+            label: "Qualification Segment",
+            type: "text",
+            placeholder: "Segment key (e.g. budget_question)",
+            span: 12,
+        },
+        {
+            key: "qualification_answer_values",
+            label: "Qualification Answers",
+            type: "text",
+            placeholder: "Comma-separated answer values",
+            span: 12,
+            formatDisplayValue: (value: any) => {
+                if (Array.isArray(value)) {
+                    return value.join(", ");
+                }
+                return value;
+            },
         },
         {
             key: "client_category_id",
@@ -119,18 +140,35 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                     label: category.category_name,
                 })) || [],
         },
-        {
-            key: "language_id",
-            label: "Language",
-            type: "select",
-            placeholder: "Select language",
-            span: 12,
-            options:
-                props.languages?.map((language: any) => ({
-                    value: language.id,
-                    label: language.language_name,
-                })) || [],
-        },
+        ...(props.useLeadCoreFields
+            ? [
+                  {
+                      key: "language",
+                      label: "Language",
+                      type: "select" as const,
+                      placeholder: "Select language",
+                      span: 12,
+                      options:
+                          props.languages?.map((language: any) => ({
+                              value: language.language_code,
+                              label: language.language_name,
+                          })) || [],
+                  },
+              ]
+            : [
+                  {
+                      key: "language_id",
+                      label: "Language",
+                      type: "select" as const,
+                      placeholder: "Select language",
+                      span: 12,
+                      options:
+                          props.languages?.map((language: any) => ({
+                              value: language.id,
+                              label: language.language_name,
+                          })) || [],
+                  },
+              ]),
     ],
     excludeFields: props.excludeFields,
     defaultValues: {},

@@ -24,7 +24,7 @@ import {
     FilterOutlined,
     ReloadOutlined,
 } from "@ant-design/icons";
-import { Link, router } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
@@ -44,16 +44,20 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 export interface IndexProps extends PageProps {
     pageTitle: string;
     leads: PaginatedLeadResponse;
+    leadLifecycleStatuses?: Array<{ id: number; label: string; key: string }>;
 }
 
 const Index = ({
     pageTitle,
     leads,
-
+    leadLifecycleStatuses = [],
     ...props
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { props: pageProps } = usePage<PageProps>();
+    const useLeadCoreFields =
+        pageProps.featureFlags?.["crm.lead-language-core-field"] === true;
 
     const {
         handleAction,
@@ -89,9 +93,14 @@ const Index = ({
                 countries: formData.countries || [],
                 clientCategories: formData["client-categories"] || [],
                 languages: formData.languages || [],
+                leadLifecycleStatuses:
+                    leadLifecycleStatuses.length > 0
+                        ? leadLifecycleStatuses
+                        : formData["lead-lifecycle-statuses"] || [],
+                useLeadCoreFields,
                 excludeFields: ["search"],
             }),
-        [formData],
+        [formData, leadLifecycleStatuses, useLeadCoreFields],
     );
 
     // Setup search and filter contexts

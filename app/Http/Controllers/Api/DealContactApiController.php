@@ -13,6 +13,7 @@ use App\Models\PipelineStage;
 use App\Http\Requests\Deal\CreateDealRequest;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
 use App\Services\DealCreationService;
+use App\Services\LeadCoreFieldsService;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Arr;
@@ -440,15 +441,33 @@ class DealContactApiController extends Controller
                 }
             }
         }
+
+        $coreFieldsService = app(LeadCoreFieldsService::class);
+        $corePayload = [];
+
         if ($request->has('date_of_birth')) {
-            $value = $request->input('date_of_birth');
-            $parsed = $value ? \Carbon\Carbon::parse($value)->startOfDay() : null;
-            $current = $lead->date_of_birth?->startOfDay();
-            if ($parsed?->format('Y-m-d') !== $current?->format('Y-m-d')) {
-                $lead->date_of_birth = $parsed;
+            $corePayload['date_of_birth'] = $request->input('date_of_birth');
+        }
+        if ($request->has('languages')) {
+            $corePayload['languages'] = $request->input('languages');
+        }
+        if ($request->has('nationality')) {
+            $corePayload['nationality'] = $request->input('nationality');
+        }
+        if ($request->has('occupation')) {
+            $corePayload['occupation'] = $request->input('occupation');
+        }
+
+        if ($corePayload !== [] && $coreFieldsService->useCoreFields()) {
+            $before = $coreFieldsService->read($lead);
+            $coreFieldsService->write($lead, $corePayload);
+            $after = $coreFieldsService->read($lead);
+
+            if ($before !== $after) {
                 $updated = true;
             }
         }
+
         return $updated;
     }
 

@@ -55,6 +55,7 @@ interface Props {
     projects: any[];
     isEditMode: boolean;
     onEditModeChange: (value: boolean) => void;
+    useLeadCoreFields?: boolean;
 }
 
 export default function LeadInfoSection({
@@ -70,8 +71,15 @@ export default function LeadInfoSection({
     projects,
     isEditMode,
     onEditModeChange,
+    useLeadCoreFields = false,
 }: Props) {
     const { props } = usePage();
+    const languageOptions = (
+        (props.languages as Array<{ language_code: string; language_name: string }>) || []
+    ).map((lang) => ({
+        value: lang.language_code,
+        label: lang.language_name,
+    }));
     const user = props.auth.user;
     const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState("overview");
@@ -697,6 +705,92 @@ export default function LeadInfoSection({
                                 loading={isFieldLoading("gender")}
                             />
                         </DetailField>
+
+                        {useLeadCoreFields && (
+                            <>
+                                <DetailField label={t("pages.leads.info.fields.languages", { defaultValue: "Languages" })}>
+                                    <EditableField
+                                        value={currentLeadState.languages || []}
+                                        fieldName="languages"
+                                        fieldType="multiselect"
+                                        options={languageOptions}
+                                        onSave={(value) =>
+                                            handleFieldUpdate("languages", value)
+                                        }
+                                        onChange={handleFieldChange}
+                                        displayValue={
+                                            currentLeadState.languages?.length ? (
+                                                <span>
+                                                    {currentLeadState.languages
+                                                        .map(
+                                                            (code) =>
+                                                                languageOptions.find(
+                                                                    (o) => o.value === code,
+                                                                )?.label || code,
+                                                        )
+                                                        .join(", ")}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400">--</span>
+                                            )
+                                        }
+                                        alwaysEditing={isFieldEditable}
+                                        loading={isFieldLoading("languages")}
+                                    />
+                                </DetailField>
+
+                                <DetailField label={t("pages.leads.info.fields.date_of_birth", { defaultValue: "Date of Birth" })}>
+                                    <EditableField
+                                        value={currentLeadState.date_of_birth || ""}
+                                        fieldName="date_of_birth"
+                                        fieldType="date"
+                                        onSave={(value) =>
+                                            handleFieldUpdate("date_of_birth", value)
+                                        }
+                                        onChange={handleFieldChange}
+                                        displayValue={
+                                            currentLeadState.date_of_birth ? (
+                                                <span>
+                                                    {dayjs(currentLeadState.date_of_birth).format("DD MMM YYYY")}
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-400">--</span>
+                                            )
+                                        }
+                                        alwaysEditing={isFieldEditable}
+                                        loading={isFieldLoading("date_of_birth")}
+                                    />
+                                </DetailField>
+
+                                <DetailField label={t("pages.leads.info.fields.nationality", { defaultValue: "Nationality" })}>
+                                    <EditableField
+                                        value={currentLeadState.nationality || ""}
+                                        fieldName="nationality"
+                                        fieldType="country"
+                                        onSave={(value) =>
+                                            handleFieldUpdate("nationality", value)
+                                        }
+                                        onChange={handleFieldChange}
+                                        alwaysEditing={isFieldEditable}
+                                        loading={isFieldLoading("nationality")}
+                                    />
+                                </DetailField>
+
+                                <DetailField label={t("pages.leads.info.fields.occupation", { defaultValue: "Occupation" })}>
+                                    <EditableField
+                                        value={currentLeadState.occupation || ""}
+                                        fieldName="occupation"
+                                        fieldType="text"
+                                        onSave={(value) =>
+                                            handleFieldUpdate("occupation", value)
+                                        }
+                                        onChange={handleFieldChange}
+                                        alwaysEditing={isFieldEditable}
+                                        loading={isFieldLoading("occupation")}
+                                    />
+                                </DetailField>
+                            </>
+                        )}
 
                         <DetailField label={t("pages.leads.info.fields.company")}>
                             <EditableField

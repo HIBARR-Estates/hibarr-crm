@@ -15,6 +15,7 @@ import LeadInfoSection from "./Components/LeadInfoSection";
 import LeadNotesTab from "./Components/LeadNotesTab";
 import LeadDealsTab from "./Components/LeadDealsTab";
 import LeadMarketingTab from "./Components/LeadMarketingTab";
+import LeadQualificationTab from "./Components/Qualification/LeadQualificationTab";
 import { Task } from "@/Types/api/tasks";
 import TasksTab from "@/Components/TasksTab";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
@@ -70,6 +71,10 @@ const Show = ({
 }: LeadShowProps) => {
     const { props } = usePage<PageProps>();
     const { t } = useTranslation();
+    const showQualificationTab =
+        props.featureFlags?.["crm.lead-qualification-tab"] === true;
+    const useLeadCoreFields =
+        props.featureFlags?.["crm.lead-language-core-field"] === true;
 
     const [activeTab, setActiveTab] = useState("profile");
     const [isEditMode, setIsEditMode] = useState(false);
@@ -114,6 +119,7 @@ const Show = ({
                     projects={projects}
                     isEditMode={isEditMode}
                     onEditModeChange={setIsEditMode}
+                    useLeadCoreFields={useLeadCoreFields}
                 />
             ),
         },
@@ -165,6 +171,16 @@ const Show = ({
             label: t("pages.leads.tabs.marketing"),
             children: <LeadMarketingTab lead={lead} />,
         },
+        ...(showQualificationTab
+            ? [
+                  {
+                      key: "qualification",
+                      label: t("pages.leads.tabs.qualification"),
+                      children: <LeadQualificationTab lead={lead} />,
+                      wide: true,
+                  },
+              ]
+            : []),
         {
             key: "tasks",
             label: t("pages.leads.tabs.tasks"),
@@ -197,7 +213,13 @@ const Show = ({
     ].map((item) => ({
         ...item,
         children: (
-            <div className="max-w-4xl mx-auto mt-8 mb-12">
+            <div
+                className={`${
+                    (item as { wide?: boolean }).wide
+                        ? "max-w-6xl"
+                        : "max-w-4xl"
+                } mx-auto mt-8 mb-12`}
+            >
                 <Card
                     variant="outlined"
                     className="border-0 rounded-lg overflow-hidden"
