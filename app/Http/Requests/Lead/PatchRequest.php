@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Lead;
 
 use App\Http\Requests\CoreRequest;
+use App\Services\LeadCoreFieldsService;
 use Illuminate\Validation\Rule;
 
 class PatchRequest extends CoreRequest
@@ -74,6 +75,8 @@ class PatchRequest extends CoreRequest
             // Additional optional fields
             'tags' => 'sometimes|array',
             'tags.*' => 'string|max:50',
+
+            ...app(LeadCoreFieldsService::class)->validationRules(sometimes: true),
         ];
     }
 

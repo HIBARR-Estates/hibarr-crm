@@ -140,18 +140,35 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                     label: category.category_name,
                 })) || [],
         },
-        {
-            key: "language_id",
-            label: "Language",
-            type: "select",
-            placeholder: "Select language",
-            span: 12,
-            options:
-                props.languages?.map((language: any) => ({
-                    value: language.id,
-                    label: language.language_name,
-                })) || [],
-        },
+        ...(props.useLeadCoreFields
+            ? [
+                  {
+                      key: "language",
+                      label: "Language",
+                      type: "select" as const,
+                      placeholder: "Select language",
+                      span: 12,
+                      options:
+                          props.languages?.map((language: any) => ({
+                              value: language.language_code,
+                              label: language.language_name,
+                          })) || [],
+                  },
+              ]
+            : [
+                  {
+                      key: "language_id",
+                      label: "Language",
+                      type: "select" as const,
+                      placeholder: "Select language",
+                      span: 12,
+                      options:
+                          props.languages?.map((language: any) => ({
+                              value: language.id,
+                              label: language.language_name,
+                          })) || [],
+                  },
+              ]),
     ],
     excludeFields: props.excludeFields,
     defaultValues: {},

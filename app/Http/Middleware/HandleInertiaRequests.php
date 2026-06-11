@@ -98,6 +98,7 @@ class HandleInertiaRequests extends Middleware
             'availableLocales' => fn () => $this->getAvailableLocales(),
             'featureFlags' => fn () => [
                 'crm.lead-qualification-tab' => (bool) config('features.crm.lead-qualification-tab'),
+                'crm.lead-language-core-field' => (bool) config('features.crm.lead-language-core-field'),
             ],
         ]);
     }

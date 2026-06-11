@@ -16,6 +16,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\ClientCategory;
 use App\Models\LanguageSetting;
+use App\Services\LeadCoreFieldsService;
 
 trait LeadFormDataTrait
 {
@@ -59,7 +60,9 @@ trait LeadFormDataTrait
                 $q->where('status', 'active');
             })->get(),
             'products' => Product::all(),
-            'customFields' => $fields,
+            'customFields' => app(LeadCoreFieldsService::class)
+                ->filterPromotedFieldDefinitions($fields)
+                ->all(),
             'customFieldCategories' => $customFieldCategories,
             'clientCategories' => ClientCategory::all(),
             'languages' => LanguageSetting::where('status', 'enabled')->get(),

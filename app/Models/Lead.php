@@ -140,6 +140,7 @@ class Lead extends BaseModel
         'type' => ContactType::class,
         'gender' => Gender::class,
         'date_of_birth' => 'date',
+        'languages' => 'array',
     ];
 
     public function getImageUrlAttribute()

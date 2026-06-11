@@ -73,6 +73,8 @@ const Show = ({
     const { t } = useTranslation();
     const showQualificationTab =
         props.featureFlags?.["crm.lead-qualification-tab"] === true;
+    const useLeadCoreFields =
+        props.featureFlags?.["crm.lead-language-core-field"] === true;
 
     const [activeTab, setActiveTab] = useState("profile");
     const [isEditMode, setIsEditMode] = useState(false);
@@ -117,6 +119,7 @@ const Show = ({
                     projects={projects}
                     isEditMode={isEditMode}
                     onEditModeChange={setIsEditMode}
+                    useLeadCoreFields={useLeadCoreFields}
                 />
             ),
         },

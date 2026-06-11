@@ -9,6 +9,7 @@ import {
     Card,
     Divider,
     Button,
+    DatePicker,
 } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { Lead } from "@/Types/api/leads";
@@ -46,8 +47,18 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     setLead,
 }) => {
     const { props } = usePage<any>();
-    const { salutations, sources, categories, employees, permissions, countries } =
-        props;
+    const {
+        salutations,
+        sources,
+        categories,
+        employees,
+        permissions,
+        countries,
+        languages = [],
+        featureFlags,
+    } = props;
+    const useLeadCoreFields =
+        featureFlags?.["crm.lead-language-core-field"] === true;
     const [form] = Form.useForm();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const isEditing = data ? true : false;
@@ -57,6 +68,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             const formData = {
                 ...data,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
+                date_of_birth: data.date_of_birth ? dayjs(data.date_of_birth) : null,
                 deal_watcher: data.deal_watcher || [],
                 product_id: data.product_id || [],
             };
@@ -75,6 +87,9 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             close_date: values.close_date
                 ? values.close_date.format("YYYY-MM-DD")
                 : "",
+            date_of_birth: values.date_of_birth
+                ? values.date_of_birth.format("YYYY-MM-DD")
+                : null,
             deal_watcher: values.deal_watcher || [],
             product_id: values.product_id || [],
             strategy_accepted: values.strategy_accepted || false,
@@ -218,6 +233,72 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                     {createDeal && <LeadDealCreation />}
                 </Card>
+
+                {useLeadCoreFields && (
+                    <Card title="Personal Details" size="small">
+                        <Row gutter={[24, 16]}>
+                            <Col span={12}>
+                                <Form.Item label="Languages" name="languages">
+                                    <Select
+                                        mode="multiple"
+                                        allowClear
+                                        placeholder="Select languages"
+                                        options={(languages || []).map(
+                                            (lang: {
+                                                language_code: string;
+                                                language_name: string;
+                                            }) => ({
+                                                value: lang.language_code,
+                                                label: lang.language_name,
+                                            }),
+                                        )}
+                                    />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item
+                                    label="Date of Birth"
+                                    name="date_of_birth"
+                                >
+                                    <DatePicker className="w-full" />
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item
+                                    label="Nationality"
+                                    name="nationality"
+                                >
+                                    <Select
+                                        placeholder="Select nationality"
+                                        allowClear
+                                        showSearch
+                                        optionFilterProp="label"
+                                    >
+                                        {(countries || []).map(
+                                            (country: {
+                                                iso: string;
+                                                nicename: string;
+                                            }) => (
+                                                <Select.Option
+                                                    key={country.iso}
+                                                    value={country.nicename}
+                                                    label={country.nicename}
+                                                >
+                                                    {country.nicename}
+                                                </Select.Option>
+                                            ),
+                                        )}
+                                    </Select>
+                                </Form.Item>
+                            </Col>
+                            <Col span={12}>
+                                <Form.Item label="Occupation" name="occupation">
+                                    <Input placeholder="Enter occupation" />
+                                </Form.Item>
+                            </Col>
+                        </Row>
+                    </Card>
+                )}
 
                 {/* Address Information */}
                 <Card title="Address Information" size="small">

@@ -97,6 +97,10 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             (lead?.gender as any)?.value ??
             lead?.gender ??
             "",
+        languages: lead?.languages || [],
+        date_of_birth: lead?.date_of_birth || null,
+        nationality: lead?.nationality || "",
+        occupation: lead?.occupation || "",
         custom_fields_data:
             constructCustomFieldsData(customFields, lead?.custom_fields_data) ||
             {},

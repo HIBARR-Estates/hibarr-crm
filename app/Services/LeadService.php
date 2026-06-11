@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\PipelineStage;
 use App\Models\CustomFieldGroup;
 use App\Models\CustomFieldCategory;
+use App\Services\LeadCoreFieldsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class LeadService
 {
+    public function __construct(
+        private readonly LeadCoreFieldsService $coreFieldsService,
+    ) {
+    }
     /**
      * Get paginated leads with optimized queries
      */
@@ -36,7 +41,8 @@ class LeadService
                 'leads.lead_owner', 'leads.added_by', 'leads.source_id', 'leads.category_id', 'leads.client_id',
                 'leads.lead_lifecycle_status_id',
                 'leads.salutation', 'leads.gender', 'leads.address', 'leads.city', 'leads.state', 
-                'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office'
+                'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office',
+                'leads.languages', 'leads.date_of_birth', 'leads.nationality', 'leads.occupation',
             ]);
 
         // Apply permission-based filtering
@@ -53,7 +59,13 @@ class LeadService
         $leads->getCollection()->transform(function ($lead) {
             $lead->salutation_value = $lead->salutation instanceof \App\Enums\Salutation ? $lead->salutation->value : $lead->salutation;
             $lead->gender_value = $lead->gender instanceof \App\Enums\Gender ? $lead->gender->value : $lead->gender;
-            return $lead->withCustomFields();
+            $lead = $lead->withCustomFields();
+
+            if ($this->coreFieldsService->useCoreFields()) {
+                $this->coreFieldsService->mergeOntoLead($lead);
+            }
+
+            return $lead;
         });
 
         return $leads;
@@ -123,7 +135,9 @@ class LeadService
         }
 
         return [
-            'customFields' => $customFields,
+            'customFields' => $this->coreFieldsService
+                ->filterPromotedFieldDefinitions($customFields)
+                ->all(),
             'customFieldCategories' => $customFieldCategories,
         ];
     }
@@ -194,6 +208,13 @@ class LeadService
 
         if ($request->filled('lifecycle_status_id')) {
             $query->where('lead_lifecycle_status_id', $request->get('lifecycle_status_id'));
+        }
+
+        if ($this->coreFieldsService->useCoreFields() && $request->filled('language')) {
+            $languageCode = $request->get('language');
+            $query->where(function ($q) use ($languageCode) {
+                $q->whereJsonContains('languages', $languageCode);
+            });
         }
 
         if ($request->filled('qualification_segment_key')) {

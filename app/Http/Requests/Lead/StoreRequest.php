@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Lead;
 
 use App\Http\Requests\CoreRequest;
+use App\Services\LeadCoreFieldsService;
 use App\Traits\CustomFieldsRequestTrait;
 
 class StoreRequest extends CoreRequest
@@ -41,8 +42,9 @@ class StoreRequest extends CoreRequest
             $rules['value'] = 'required';
         }
 
-        return $this->customFieldRules($rules);
+        $rules = $this->customFieldRules($rules);
 
+        return array_merge($rules, app(LeadCoreFieldsService::class)->validationRules());
     }
 
     public function attributes()

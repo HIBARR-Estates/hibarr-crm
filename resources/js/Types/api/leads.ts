@@ -63,6 +63,10 @@ export interface Lead {
     marketing?: LeadMarketing | null;
     lifecycle_status_id?: number | null;
     lead_lifecycle_status?: LeadLifecycleStatus | null;
+    languages?: string[];
+    date_of_birth?: string | null;
+    nationality?: string | null;
+    occupation?: string | null;
 
     // Custom Fields
     // custom_fields?: Record<string, any>;
@@ -129,6 +133,10 @@ export interface CreateLeadFormData {
     create_deal?: boolean;
     create_client?: boolean;
     custom_fields_data?: Record<string, any>;
+    languages?: string[];
+    date_of_birth?: string | null;
+    nationality?: string | null;
+    occupation?: string | null;
     // Deal creation fields
     name?: string; // Deal name
     pipeline?: number;
