@@ -241,6 +241,8 @@ return [
                 'deal_agent'        => 'Deal-Agent',
                 'deal_participants' => 'Deal-Teilnehmer',
                 'deal_watchers'     => 'Deal-Beobachter',
+                'created_at'        => 'Erstellt am',
+                'updated_at'        => 'Aktualisiert am',
             ],
             'actions' => [
                 'edit'              => 'Bearbeiten',
@@ -279,6 +281,7 @@ return [
                 'stage'           => 'Phase',
                 'assigned_agent'  => 'Zugewiesener Agent',
                 'created'         => 'Erstellt',
+                'updated'         => 'Aktualisiert',
                 'actions'         => 'Aktionen',
             ],
             'no_lead_assigned' => 'Kein Lead zugewiesen',

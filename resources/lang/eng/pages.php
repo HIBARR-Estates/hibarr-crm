@@ -249,6 +249,8 @@ return [
                 'deal_agent'        => 'Deal Agent',
                 'deal_participants' => 'Deal Participants',
                 'deal_watchers'     => 'Deal Watchers',
+                'created_at'        => 'Created At',
+                'updated_at'        => 'Updated At',
             ],
             'actions' => [
                 'edit'              => 'Edit',
@@ -287,6 +289,7 @@ return [
                 'stage'           => 'Stage',
                 'assigned_agent'  => 'Assigned Agent',
                 'created'         => 'Created',
+                'updated'         => 'Updated',
                 'actions'         => 'Actions',
             ],
             'no_lead_assigned' => 'No lead assigned',

@@ -140,6 +140,8 @@ class DealController extends AccountBaseController
             // Convert to array and add custom fields data
             $dealArray = $deal->toArray();
             $dealArray['custom_fields_data'] = $customFieldsData;
+            $dealArray['created_at'] = $deal->created_at?->toIso8601String();
+            $dealArray['updated_at'] = $deal->updated_at?->toIso8601String();
             
             return $dealArray;
         });
@@ -417,7 +419,11 @@ class DealController extends AccountBaseController
 
         // Transform deals to include custom fields
         $deals->getCollection()->transform(function ($deal) {
-            return $deal->withCustomFields();
+            $deal = $deal->withCustomFields();
+            $deal->setAttribute('created_at', $deal->created_at?->toIso8601String());
+            $deal->setAttribute('updated_at', $deal->updated_at?->toIso8601String());
+
+            return $deal;
         });
 
         return Reply::dataOnly(['deals' => $deals]);
@@ -680,6 +686,8 @@ class DealController extends AccountBaseController
         // Prepare deal with custom fields data
         $dealWithCustomFields = $deal->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
+        $dealWithCustomFields['created_at'] = $deal->created_at?->toIso8601String();
+        $dealWithCustomFields['updated_at'] = $deal->updated_at?->toIso8601String();
         $dealWithCustomFields['value_breakdown'] = app(DealValueResolver::class)->getBreakdown($deal);
         
         $formData = $this->getDealFormData();

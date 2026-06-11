@@ -258,7 +258,11 @@ const DealCard: React.FC<DealCardProps> = ({
                     <div className="flex items-center">
                         {formattedDate ? (
                             <Tooltip
-                                title={`Created: ${dayjs(deal.created_at).format("MMM D, YYYY h:mm A")}`}
+                                title={
+                                    deal.updated_at
+                                        ? `Created: ${dayjs(deal.created_at).format("MMM D, YYYY h:mm A")} · Updated: ${dayjs(deal.updated_at).format("MMM D, YYYY h:mm A")}`
+                                        : `Created: ${dayjs(deal.created_at).format("MMM D, YYYY h:mm A")}`
+                                }
                             >
                                 <div className="flex items-center gap-1 text-[12px] text-gray-400">
                                     <CalendarOutlined className="text-[12px]" />

@@ -241,6 +241,8 @@ return [
                 'deal_agent'        => 'Anlaşma Temsilcisi',
                 'deal_participants' => 'Anlaşma Katılımcıları',
                 'deal_watchers'     => 'Anlaşma İzleyicileri',
+                'created_at'        => 'Oluşturulma Tarihi',
+                'updated_at'        => 'Güncellenme Tarihi',
             ],
             'actions' => [
                 'edit'              => 'Düzenle',
@@ -279,6 +281,7 @@ return [
                 'stage'           => 'Aşama',
                 'assigned_agent'  => 'Atanan Temsilci',
                 'created'         => 'Oluşturulma',
+                'updated'         => 'Güncellenme',
                 'actions'         => 'İşlemler',
             ],
             'no_lead_assigned' => 'Müşteri adayı atanmadı',

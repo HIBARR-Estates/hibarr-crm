@@ -241,6 +241,8 @@ return [
                 'deal_agent'        => 'Ответственный агент',
                 'deal_participants' => 'Участники сделки',
                 'deal_watchers'     => 'Наблюдатели сделки',
+                'created_at'        => 'Создано',
+                'updated_at'        => 'Обновлено',
             ],
             'actions' => [
                 'edit'              => 'Редактировать',
@@ -279,6 +281,7 @@ return [
                 'stage'           => 'Стадия',
                 'assigned_agent'  => 'Назначенный агент',
                 'created'         => 'Создано',
+                'updated'         => 'Обновлено',
                 'actions'         => 'Действия',
             ],
             'no_lead_assigned' => 'Лид не назначен',
