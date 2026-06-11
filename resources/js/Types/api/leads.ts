@@ -22,6 +22,8 @@ interface Link {
     active: boolean;
 }
 
+import { LeadLifecycleStatus } from "@/Types/qualification";
+
 export interface Lead {
     id: number;
     added_by?: User | null;
@@ -59,6 +61,8 @@ export interface Lead {
     created_at?: string;
     updated_at?: string;
     marketing?: LeadMarketing | null;
+    lifecycle_status_id?: number | null;
+    lead_lifecycle_status?: LeadLifecycleStatus | null;
 
     // Custom Fields
     // custom_fields?: Record<string, any>;

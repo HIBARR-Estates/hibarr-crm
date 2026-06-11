@@ -36,6 +36,7 @@ use App\Models\PipelineStage;
 use App\Models\MessageSetting;
 use App\Models\TicketChannel;
 use App\Models\TicketCustomForm;
+use App\Models\LeadLifecycleStatus;
 use App\Models\LeadStatus;
 use App\Models\LeaveType;
 use App\Models\PermissionRole;
@@ -170,6 +171,7 @@ class CompanyObserver
         $this->googleCalendar($company);
         $this->unitType($company);
         $this->leadStages($company);
+        $this->leadLifecycleStatuses($company);
 
         // Will be used in various module
         event(new NewCompanyCreatedEvent($company));
@@ -426,6 +428,11 @@ class CompanyObserver
 
         return $pipeline;
 
+    }
+
+    public function leadLifecycleStatuses(Company $company): void
+    {
+        LeadLifecycleStatus::seedDefaultsForCompany($company->id);
     }
 
     public function leaveType($company)

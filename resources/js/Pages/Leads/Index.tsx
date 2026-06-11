@@ -44,12 +44,13 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 export interface IndexProps extends PageProps {
     pageTitle: string;
     leads: PaginatedLeadResponse;
+    leadLifecycleStatuses?: Array<{ id: number; label: string; key: string }>;
 }
 
 const Index = ({
     pageTitle,
     leads,
-
+    leadLifecycleStatuses = [],
     ...props
 }: IndexProps) => {
     const { t } = useTranslation();
@@ -89,9 +90,13 @@ const Index = ({
                 countries: formData.countries || [],
                 clientCategories: formData["client-categories"] || [],
                 languages: formData.languages || [],
+                leadLifecycleStatuses:
+                    leadLifecycleStatuses.length > 0
+                        ? leadLifecycleStatuses
+                        : formData["lead-lifecycle-statuses"] || [],
                 excludeFields: ["search"],
             }),
-        [formData],
+        [formData, leadLifecycleStatuses],
     );
 
     // Setup search and filter contexts

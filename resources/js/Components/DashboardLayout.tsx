@@ -13,6 +13,7 @@ interface SidebarPermissions {
 export interface PageProps extends InertiaPageProps {
     auth: AuthType;
     appName: string;
+    featureFlags?: Record<string, boolean>;
     sidebar: {
         permissions: Record<string, number | string>;
         modules: string[];

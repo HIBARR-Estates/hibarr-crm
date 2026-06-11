@@ -21,6 +21,7 @@ use App\Models\LeadAgent;
 use App\Models\LeadCategory;
 use Illuminate\Support\Facades\DB;
 use App\Models\Lead;
+use App\Models\LeadLifecycleStatus;
 use App\Models\LeadCustomForm;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
@@ -98,7 +99,10 @@ class LeadContactController extends AccountBaseController
                 'end_date',
                 'lead_source',
                 'lead_owner_id',
-                'added_by_id'
+                'added_by_id',
+                'lifecycle_status_id',
+                'qualification_segment_key',
+                'qualification_answer_values',
             ]),
             'leads' => [
                 'data' => $leads->items(),
@@ -111,6 +115,9 @@ class LeadContactController extends AccountBaseController
             ],
             'customFields' => $customFieldsData['customFields'],
             'customFieldCategories' => $customFieldsData['customFieldCategories'],
+            'leadLifecycleStatuses' => LeadLifecycleStatus::query()
+                ->orderBy('sort_order')
+                ->get(['id', 'key', 'label']),
         ]);
     }
 
@@ -123,7 +130,10 @@ class LeadContactController extends AccountBaseController
             'leadSource:id,type',
             'category:id,category_name',
             'client:id,name,email',
-            'marketing'
+            'marketing',
+            'lifecycleStatus:id,key,label,label_color,sort_order',
+            'activeQualification.answers',
+            'activeQualification.agent:id,name,image',
         ])->findOrFail($id)->withCustomFields();
 
         // Ensure enum values are available for frontend
@@ -285,6 +295,11 @@ class LeadContactController extends AccountBaseController
             'delete_lead_follow_up' => user()->permission('delete_lead_follow_up'),
         ];
 
+        $qualificationPermissions = [
+            'view_lead' => user()->permission('view_lead'),
+            'edit_lead' => user()->permission('edit_lead'),
+        ];
+
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
             'fields' => $formData['customFields'],
@@ -304,6 +319,7 @@ class LeadContactController extends AccountBaseController
             'leadFollowUps' => $leadFollowUps,
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
+            'qualificationPermissions' => $qualificationPermissions,
         ], $formData, $dealFormData));
     }
 
