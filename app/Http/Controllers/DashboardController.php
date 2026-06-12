@@ -94,8 +94,8 @@ class DashboardController extends AccountBaseController
     {
         $userId = user()->id;
         
-        // Define constraints for "My Items" view - assigner OR assignee
-        $tasksConstraint = fn ($q) => TaskVisibilityService::scopeVisibleToUser($q, $userId);
+        // "My items": tasks/meetings the user created or is assigned/participant on
+        $tasksConstraint = fn ($q) => Task::visibleToUser($userId);
 
         $dealsConstraint = function($q) use ($userId) {
             $q->where(function($query) use ($userId) {
@@ -119,12 +119,14 @@ class DashboardController extends AccountBaseController
         $meetingsQuery = DealFollowUp::with([
             'deal:id,name,lead_id',
             'deal.contact:id,client_name,client_email,mobile',
-            'deal.leadAgent.user:id,name,image'
+            'deal.leadAgent.user:id,name,image',
+            'lead:id,client_name,salutation,company_name',
+            'meetingType:id,name',
         ])
         ->where('next_follow_up_date', '>=', now())
         ->orderBy('next_follow_up_date', 'asc');
 
-        MeetingVisibilityService::scopeVisibleToUser($meetingsQuery, $userId);
+        $meetingsQuery->visibleToUser($userId);
 
         $upcomingMeetings = $meetingsQuery->take(5)->get();
         
@@ -651,11 +653,20 @@ class DashboardController extends AccountBaseController
             'add_lead_follow_up' => user()->permission('add_lead_follow_up'),
         ];
         $userDealsForMeetings = MeetingVisibilityService::schedulableDealsQuery()->get(['id', 'name']);
+        $userLeadsForMeetings = MeetingVisibilityService::schedulableLeadsQuery()
+            ->get(['id', 'client_name', 'company_name'])
+            ->map(fn ($lead) => [
+                'id'   => $lead->id,
+                'name' => $lead->company_name
+                    ? "{$lead->client_name} ({$lead->company_name})"
+                    : $lead->client_name,
+            ]);
 
         return Inertia::render('Dashboard/ComprehensiveDashboard', array_merge([
             'tasks' => $tasks,
             'upcomingMeetings' => $upcomingMeetings,
             'userDealsForMeetings' => $userDealsForMeetings,
+            'userLeadsForMeetings' => $userLeadsForMeetings,
             'meetingPermissions' => $meetingPermissions,
             'deals' => $allDeals,
             'recentDeals' => $recentDeals,

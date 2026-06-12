@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Deal;
 use App\Models\DealFollowUp;
+use App\Models\Lead;
 use App\Models\MeetingType;
 use App\Models\User;
 use App\Services\MeetingVisibilityService;
@@ -44,6 +45,7 @@ class MeetingsController extends AccountBaseController
             'deal.leadStage:id,name,slug,label_color',
             'deal.contact:id,client_name',
             'deal.currency:id,currency_symbol',
+            'lead:id,client_name,salutation,company_name',
             'addedBy:id,name,image',
             'meetingType',
             'meetingSummary',
@@ -160,8 +162,16 @@ class MeetingsController extends AccountBaseController
         $transformRecords($upcomingMeetings);
         $transformRecords($pastMeetings);
 
-        // ── User's deals for "Schedule Meeting" ────────────────────────
+        // ── User's deals & leads for "Schedule Meeting" ────────────────
         $userDeals = MeetingVisibilityService::schedulableDealsQuery()->get();
+        $userLeads = MeetingVisibilityService::schedulableLeadsQuery()
+            ->get()
+            ->map(fn (Lead $lead) => [
+                'id'   => $lead->id,
+                'name' => $lead->company_name
+                    ? "{$lead->client_name} ({$lead->company_name})"
+                    : $lead->client_name,
+            ]);
 
         // ── Meeting types ──────────────────────────────────────────────
         $meetingTypes = MeetingType::where('is_active', 1)->get();
@@ -180,6 +190,7 @@ class MeetingsController extends AccountBaseController
             'upcomingMeetings' => $upcomingMeetings,
             'pastMeetings'     => $pastMeetings,
             'userDeals'        => $userDeals,
+            'userLeads'        => $userLeads,
             'meetingTypes'     => $meetingTypes,
             'permissions'      => $permissions,
         ]);
@@ -191,6 +202,13 @@ class MeetingsController extends AccountBaseController
      */
     public function getDealForScheduling(Deal $deal)
     {
+        abort_403(
+            $deal->next_follow_up !== 'yes'
+            || !MeetingVisibilityService::schedulableDealsQuery()
+                ->where('id', $deal->id)
+                ->exists()
+        );
+
         $deal->load([
             'dealParticipants:id,name,image,email',
             'dealWatchers:id,name,image,email',
@@ -202,6 +220,35 @@ class MeetingsController extends AccountBaseController
         return response()->json([
             'success' => true,
             'data' => $deal,
+        ]);
+    }
+
+    /**
+     * Return a lead's data sufficient for the SaveFollowup form (owner, related deals).
+     * Called via AJAX when user selects a lead in the "Schedule Meeting" drawer.
+     */
+    public function getLeadForScheduling(Lead $lead)
+    {
+        abort_403(
+            !MeetingVisibilityService::schedulableLeadsQuery()
+                ->where('id', $lead->id)
+                ->exists()
+        );
+
+        $lead->load([
+            'leadOwner:id,name,image,email',
+        ]);
+
+        $dealsForLead = Deal::select('id', 'name')
+            ->where('lead_id', $lead->id)
+            ->where('next_follow_up', 'yes')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json([
+            'success'        => true,
+            'data'           => $lead,
+            'deals_for_lead' => $dealsForLead,
         ]);
     }
 

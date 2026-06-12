@@ -323,9 +323,12 @@ const GenerateUnitTypeExposeModal: React.FC<
                                     unitType.property_type ??
                                     "this unit type"}
                             </strong>{" "}
-                            in <strong>{projectName}</strong>. Missing data
-                            (city, distances, hero images) will be inherited
-                            from the project.
+                            in <strong>{projectName}</strong>. The validation
+                            below highlights missing unit-type or project data
+                            (such as unit description, location
+                            infrastructure/airports, footer image, or outro
+                            details) that may otherwise be inherited from the
+                            project or left out of the PDF.
                         </div>
 
                         <Collapse

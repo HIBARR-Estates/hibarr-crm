@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Deal;
+use App\Models\DealFollowUp;
+use App\Models\Lead;
 use App\Models\User;
 use App\Services\PermissionService;
 use Illuminate\Database\Eloquent\Builder;
@@ -15,11 +17,7 @@ class MeetingVisibilityService
      */
     public static function scopeVisibleToUser(Builder|Relation $query, int $userId): Builder|Relation
     {
-        return $query->where(function ($q) use ($userId) {
-            $q->where('added_by', $userId)
-                ->orWhereJsonContains('participants', $userId)
-                ->orWhereJsonContains('participants', (string) $userId);
-        });
+        return DealFollowUp::scopeVisibleToUser($query, $userId);
     }
 
     /**
@@ -65,5 +63,35 @@ class MeetingVisibilityService
         }
 
         return $dealsQuery->orderBy('name');
+    }
+
+    /**
+     * Leads the user may attach when scheduling a meeting from the dashboard or meetings page.
+     *
+     * Note: unlike deals, leads do not have a next_follow_up column — that flag lives on
+     * the deals table after the lead/deal schema split. Lead eligibility is permission-scoped only.
+     */
+    public static function schedulableLeadsQuery(): Builder
+    {
+        $leadsQuery = Lead::select('id', 'client_name', 'company_name');
+
+        $viewLeadPermission = user()->permission('view_lead');
+
+        if ($viewLeadPermission === 'none') {
+            return $leadsQuery->whereRaw('1 = 0');
+        }
+
+        if ($viewLeadPermission === 'owned') {
+            $leadsQuery->where('lead_owner', user()->id);
+        } elseif ($viewLeadPermission === 'added') {
+            $leadsQuery->where('added_by', user()->id);
+        } elseif ($viewLeadPermission === 'both') {
+            $leadsQuery->where(function ($query) {
+                $query->where('lead_owner', user()->id)
+                    ->orWhere('added_by', user()->id);
+            });
+        }
+
+        return $leadsQuery->orderBy('client_name');
     }
 }

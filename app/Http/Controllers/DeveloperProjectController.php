@@ -284,8 +284,8 @@ class DeveloperProjectController extends AccountBaseController
 
         // Find lowest starting price across unit types
         $lowestPriceUnit = $project->unitTypes->whereNotNull('starting_price')->sortBy('starting_price')->first();
-        $startingPrice = $lowestPriceUnit ? (float) $lowestPriceUnit->starting_price : null;
-        $startingPriceFormatted = $lowestPriceUnit ? $lowestPriceUnit->formatted_price : null;
+        $startingPrice = $project->starting_price ?? ($lowestPriceUnit ? (float) $lowestPriceUnit->starting_price : null);
+        $startingPriceFormatted = $project->formatted_starting_price ?? ($lowestPriceUnit ? $lowestPriceUnit->formatted_starting_price : null);
 
         // Build unit types summary (grouped by property_type)
         $unitTypesSummary = $this->getUnitTypesSummary($project->unitTypes);
@@ -1100,7 +1100,7 @@ class DeveloperProjectController extends AccountBaseController
         $warnings = $this->exposeService->checkWarnings($config);
 
         return Reply::successWithData('Validation complete', [
-            'warnings' => $warnings,
+            'data' => ['warnings' => $warnings],
         ]);
     }
 
@@ -1161,7 +1161,7 @@ class DeveloperProjectController extends AccountBaseController
         $warnings = $this->exposeService->checkWarnings($config);
 
         return Reply::successWithData('Validation complete', [
-            'warnings' => $warnings,
+            'data' => ['warnings' => $warnings],
         ]);
     }
 }

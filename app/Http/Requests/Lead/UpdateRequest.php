@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Lead;
 
 use App\Http\Requests\CoreRequest;
+use App\Services\LeadCoreFieldsService;
 use App\Traits\CustomFieldsRequestTrait;
 
 class UpdateRequest extends CoreRequest
@@ -34,7 +35,7 @@ class UpdateRequest extends CoreRequest
 
         $rules = $this->customFieldRules($rules);
 
-        return $rules;
+        return array_merge($rules, app(LeadCoreFieldsService::class)->validationRules());
     }
 
     public function attributes()

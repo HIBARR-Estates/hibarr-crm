@@ -140,6 +140,7 @@ class Lead extends BaseModel
         'type' => ContactType::class,
         'gender' => Gender::class,
         'date_of_birth' => 'date',
+        'languages' => 'array',
     ];
 
     public function getImageUrlAttribute()
@@ -286,6 +287,23 @@ class Lead extends BaseModel
     public function marketing(): HasOne
     {
         return $this->hasOne(LeadMarketing::class, 'lead_id');
+    }
+
+    public function lifecycleStatus(): BelongsTo
+    {
+        return $this->belongsTo(LeadLifecycleStatus::class, 'lead_lifecycle_status_id');
+    }
+
+    public function qualifications(): HasMany
+    {
+        return $this->hasMany(LeadQualification::class, 'lead_id');
+    }
+
+    public function activeQualification(): HasOne
+    {
+        return $this->hasOne(LeadQualification::class, 'lead_id')
+            ->where('status', \App\Enums\QualificationStatus::InProgress->value)
+            ->latestOfMany('started_at');
     }
 
     public static function allLeads($contactId = null)

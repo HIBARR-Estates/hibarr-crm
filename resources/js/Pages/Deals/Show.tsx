@@ -11,7 +11,13 @@ import {
     Button,
     Tooltip,
 } from "antd";
-import { RightOutlined, LockOutlined, ReloadOutlined } from "@ant-design/icons";
+import {
+    RightOutlined,
+    LockOutlined,
+    ReloadOutlined,
+    CalendarOutlined,
+} from "@ant-design/icons";
+import dayjs from "dayjs";
 import DealInfoSection from "./Components/DealInfoSection";
 import DealTabs from "./Components/DealTabs";
 import ActivitySidebar from "./Components/ActivitySidebar";
@@ -125,6 +131,45 @@ export const Show = ({
                                     <div className="flex flex-col gap-3">
                                         <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
                                             {td(deal.pipeline?.name)}
+                                        </div>
+
+                                        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
+                                            <span className="inline-flex items-center gap-1">
+                                                <CalendarOutlined />
+                                                <span className="font-medium text-gray-600">
+                                                    {t(
+                                                        "pages.deals.info.fields.created_at",
+                                                    )}
+                                                    :
+                                                </span>
+                                                {deal.created_at ? (
+                                                    dayjs(deal.created_at).format(
+                                                        "MMM DD, YYYY HH:mm",
+                                                    )
+                                                ) : (
+                                                    <span className="text-gray-400">
+                                                        --
+                                                    </span>
+                                                )}
+                                            </span>
+                                            <span className="inline-flex items-center gap-1">
+                                                <CalendarOutlined />
+                                                <span className="font-medium text-gray-600">
+                                                    {t(
+                                                        "pages.deals.info.fields.updated_at",
+                                                    )}
+                                                    :
+                                                </span>
+                                                {deal.updated_at ? (
+                                                    dayjs(deal.updated_at).format(
+                                                        "MMM DD, YYYY HH:mm",
+                                                    )
+                                                ) : (
+                                                    <span className="text-gray-400">
+                                                        --
+                                                    </span>
+                                                )}
+                                            </span>
                                         </div>
 
                                         <div className="flex items-center gap-2 flex-wrap">

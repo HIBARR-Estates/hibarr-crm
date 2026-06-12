@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\PipelineStage;
 use App\Models\CustomFieldGroup;
 use App\Models\CustomFieldCategory;
+use App\Services\LeadCoreFieldsService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -14,6 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class LeadService
 {
+    public function __construct(
+        private readonly LeadCoreFieldsService $coreFieldsService,
+    ) {
+    }
     /**
      * Get paginated leads with optimized queries
      */
@@ -27,14 +32,17 @@ class LeadService
                 'addedBy:id,name,email',
                 'leadSource:id,type',
                 'category:id,category_name',
-                'client:id,name,email'
+                'client:id,name,email',
+                'lifecycleStatus:id,key,label,label_color,sort_order',
             ])
             ->select([
                 'leads.id', 'leads.company_id', 'leads.client_name', 'leads.client_email', 
                 'leads.company_name', 'leads.mobile', 'leads.created_at', 'leads.updated_at',
                 'leads.lead_owner', 'leads.added_by', 'leads.source_id', 'leads.category_id', 'leads.client_id',
+                'leads.lead_lifecycle_status_id',
                 'leads.salutation', 'leads.gender', 'leads.address', 'leads.city', 'leads.state', 
-                'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office'
+                'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office',
+                'leads.languages', 'leads.date_of_birth', 'leads.nationality', 'leads.occupation',
             ]);
 
         // Apply permission-based filtering
@@ -51,7 +59,13 @@ class LeadService
         $leads->getCollection()->transform(function ($lead) {
             $lead->salutation_value = $lead->salutation instanceof \App\Enums\Salutation ? $lead->salutation->value : $lead->salutation;
             $lead->gender_value = $lead->gender instanceof \App\Enums\Gender ? $lead->gender->value : $lead->gender;
-            return $lead->withCustomFields();
+            $lead = $lead->withCustomFields();
+
+            if ($this->coreFieldsService->useCoreFields()) {
+                $this->coreFieldsService->mergeOntoLead($lead);
+            }
+
+            return $lead;
         });
 
         return $leads;
@@ -121,7 +135,9 @@ class LeadService
         }
 
         return [
-            'customFields' => $customFields,
+            'customFields' => $this->coreFieldsService
+                ->filterPromotedFieldDefinitions($customFields)
+                ->all(),
             'customFieldCategories' => $customFieldCategories,
         ];
     }
@@ -189,6 +205,40 @@ class LeadService
                 $request->get('end_date')
             ]);
         }
+
+        if ($request->filled('lifecycle_status_id')) {
+            $query->where('lead_lifecycle_status_id', $request->get('lifecycle_status_id'));
+        }
+
+        if ($this->coreFieldsService->useCoreFields() && $request->filled('language')) {
+            $languageCode = $request->get('language');
+            $query->where(function ($q) use ($languageCode) {
+                $q->whereJsonContains('languages', $languageCode);
+            });
+        }
+
+        if ($request->filled('qualification_segment_key')) {
+            $segmentKey = $request->get('qualification_segment_key');
+            $answerValues = array_filter((array) $request->get('qualification_answer_values', []));
+
+            $query->whereExists(function ($sub) use ($segmentKey, $answerValues) {
+                $sub->select(DB::raw(1))
+                    ->from('lead_qualification_answers as lqa')
+                    ->join('lead_qualifications as lq', 'lq.id', '=', 'lqa.lead_qualification_id')
+                    ->whereColumn('lq.lead_id', 'leads.id')
+                    ->where('lqa.segment_key', $segmentKey)
+                    ->whereRaw('lq.id = (
+                        SELECT lq2.id FROM lead_qualifications lq2
+                        WHERE lq2.lead_id = leads.id
+                        ORDER BY lq2.started_at DESC, lq2.id DESC
+                        LIMIT 1
+                    )');
+
+                foreach ($answerValues as $value) {
+                    $sub->whereJsonContains('lqa.answer_values', $value);
+                }
+            });
+        }
     }
 
     /**
@@ -208,7 +258,7 @@ class LeadService
             // Map frontend sort fields to database columns
             $sortMapping = [
                 'client_name' => 'leads.client_name',
-                'category' => 'lead_categories.category_name',
+                'category' => 'lead_category.category_name',
                 'lead_owner' => 'lead_owner_user.name',
                 'created_at' => 'leads.created_at',
                 'updated_at' => 'leads.updated_at',
@@ -221,7 +271,7 @@ class LeadService
                     $query->leftJoin('users as lead_owner_user', 'leads.lead_owner', '=', 'lead_owner_user.id')
                           ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } elseif ($sortBy === 'category') {
-                    $query->leftJoin('lead_categories', 'leads.category_id', '=', 'lead_categories.id')
+                    $query->leftJoin('lead_category', 'leads.category_id', '=', 'lead_category.id')
                           ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } else {
                     $query->orderBy($sortMapping[$sortBy], $sortDirection);

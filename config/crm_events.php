@@ -441,6 +441,22 @@ return [
             'description' => 'Lead status was changed.',
             'sync_processing' => true,
         ],
+        [
+            'slug' => 'qualification_completed',
+            'name' => 'Qualification Completed',
+            'category' => 'lead',
+            'model_type' => 'App\\Models\\Lead',
+            'description' => 'Lead qualification was completed with an outcome.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'qualification_id' => ['type' => 'number', 'label' => 'Qualification ID'],
+                'template_id' => ['type' => 'string', 'label' => 'Template ID'],
+                'template_version' => ['type' => 'number', 'label' => 'Template Version'],
+                'outcome' => ['type' => 'string', 'label' => 'Outcome'],
+                'lifecycle_status_key' => ['type' => 'string', 'label' => 'Lifecycle Status Key'],
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+            ],
+        ],
 
         // ── Property Events ──────────────────────────────────────
         [

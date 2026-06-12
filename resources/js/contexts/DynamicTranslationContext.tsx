@@ -12,8 +12,10 @@ const DynamicTranslationContext =
 
 export const DynamicTranslationProvider: React.FC<{
     children: React.ReactNode;
-}> = ({ children }) => {
-    const { locale } = useTranslationContext();
+    locale?: string;
+}> = ({ children, locale: localeOverride }) => {
+    const { locale: appLocale } = useTranslationContext();
+    const locale = localeOverride ?? appLocale;
 
     const value = useMemo<DynamicTranslationContextValue>(
         () => ({

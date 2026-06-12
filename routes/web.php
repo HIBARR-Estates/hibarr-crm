@@ -127,6 +127,7 @@ use App\Http\Controllers\EmployeeShiftChangeRequestController;
 use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
+use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
@@ -595,6 +596,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
 
+    // Lead qualification routes
+    Route::get('lead-contact/{lead}/qualifications', [LeadQualificationController::class, 'index'])->name('lead-qualifications.index');
+    Route::post('lead-contact/{lead}/qualifications', [LeadQualificationController::class, 'store'])->name('lead-qualifications.store');
+    Route::patch('lead-qualifications/{qualification}/answers', [LeadQualificationController::class, 'upsertAnswer'])->name('lead-qualifications.answers');
+    Route::patch('lead-qualifications/{qualification}/navigation', [LeadQualificationController::class, 'updateNavigation'])->name('lead-qualifications.navigation');
+    Route::post('lead-qualifications/{qualification}/complete', [LeadQualificationController::class, 'complete'])->name('lead-qualifications.complete');
+    Route::post('lead-qualifications/{qualification}/abandon', [LeadQualificationController::class, 'abandon'])->name('lead-qualifications.abandon');
+    Route::delete('lead-qualifications/{qualification}/branch-answers', [LeadQualificationController::class, 'clearBranchAnswers'])->name('lead-qualifications.clear-branch-answers');
+
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
         Route::post('apply-quick-action', [AgentController::class, 'applyQuickAction'])->name('agents.apply_quick_action');
@@ -659,6 +669,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     // Meetings (user's meetings across all deals)
     Route::get('meetings', [\App\Http\Controllers\MeetingsController::class, 'index'])->name('meetings.index');
     Route::get('meetings/deal/{deal}', [\App\Http\Controllers\MeetingsController::class, 'getDealForScheduling'])->name('meetings.deal_for_scheduling');
+    Route::get('meetings/lead/{lead}', [\App\Http\Controllers\MeetingsController::class, 'getLeadForScheduling'])->name('meetings.lead_for_scheduling');
     Route::post('meetings/{followUp}/reschedule', [\App\Http\Controllers\MeetingsController::class, 'reschedule'])->name('meetings.reschedule');
     
 // Meeting Summary Routes

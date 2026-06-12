@@ -313,6 +313,30 @@ class Task extends BaseModel
     }
 
     /**
+     * Tasks visible to a user as creator (assigner) or assignee.
+     */
+    public function scopeVisibleToUser($query, int $userId)
+    {
+        $table = $query->getModel()->getTable();
+
+        return $query->where(function ($q) use ($userId, $table) {
+            $q->where("{$table}.added_by", $userId)
+                ->orWhere("{$table}.created_by", $userId)
+                ->orWhereExists(function ($sub) use ($userId, $table) {
+                    $sub->selectRaw('1')
+                        ->from('task_users')
+                        ->whereColumn('task_users.task_id', "{$table}.id")
+                        ->where('task_users.user_id', $userId);
+                });
+        });
+    }
+
+    public function isCreatedBy(int $userId): bool
+    {
+        return in_array($userId, array_filter([$this->added_by, $this->created_by]), true);
+    }
+
+    /**
      * @return string
      */
     public function getDueOnAttribute()

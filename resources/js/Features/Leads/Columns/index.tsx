@@ -178,6 +178,24 @@ export const LEAD_TABLE_COLUMNS = (
             },
         },
         {
+            title: translate(
+                "pages.leads.contacts_table.columns.lifecycle_status",
+            ),
+            dataIndex: "lead_lifecycle_status",
+            key: "lead_lifecycle_status",
+            width: 130,
+            render: (_, record) => {
+                if (!record.lead_lifecycle_status) {
+                    return <span className="text-gray-400">—</span>;
+                }
+                return (
+                    <Tag color={record.lead_lifecycle_status.label_color}>
+                        {record.lead_lifecycle_status.label}
+                    </Tag>
+                );
+            },
+        },
+        {
             title: (
                 <span className="flex items-center">
                     {translate("pages.leads.contacts_table.columns.lead_owner")}
