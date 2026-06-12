@@ -146,6 +146,10 @@ class DeveloperProject extends BaseModel
      */
     protected $hidden = ['unitTypes'];
 
+    protected $appends = [
+        'formatted_starting_price',
+    ];
+
     /**
      * The attributes that should be cast.
      */
@@ -168,6 +172,16 @@ class DeveloperProject extends BaseModel
      * Eager load these relations by default
      */
     protected $with = [];
+
+    /**
+     * Get formatted starting price with currency symbol.
+     */
+    public function getFormattedStartingPriceAttribute(): ?string
+    {
+        if (!$this->starting_price) return null;
+        return $this->currency_symbol . number_format((float) $this->starting_price, 0);
+    }
+
 
     /**
      * Get the developer that owns this project.
