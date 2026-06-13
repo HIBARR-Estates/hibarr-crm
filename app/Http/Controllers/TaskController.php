@@ -112,9 +112,13 @@ class TaskController extends AccountBaseController
 
         // Apply status filter
         if (request()->filled('status') && request('status') !== 'all') {
-            $tasksQuery->whereHas('boardColumn', function ($query) {
-                $query->where('slug', request('status'));
-            });
+            if (request('status') === 'pending') {
+                $tasksQuery->pending();
+            } else {
+                $tasksQuery->whereHas('boardColumn', function ($query) {
+                    $query->where('slug', request('status'));
+                });
+            }
         }
 
         // Apply priority filter
