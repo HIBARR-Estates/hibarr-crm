@@ -95,7 +95,7 @@ class DashboardController extends AccountBaseController
         $userId = user()->id;
         
         // "My items": tasks/meetings the user created or is assigned/participant on
-        $tasksConstraint = fn ($q) => Task::visibleToUser($userId);
+        $tasksConstraint = fn ($q) => $q->visibleToUser($userId);
 
         $dealsConstraint = function($q) use ($userId) {
             $q->where(function($query) use ($userId) {
@@ -140,9 +140,7 @@ class DashboardController extends AccountBaseController
             'category:id,category_name',
             'labels'
         ])
-            ->where('board_column_id', '!=', function($query) {
-                $query->select('id')->from('taskboard_columns')->where('slug', 'completed');
-            });
+            ->pending();
 
         // Apply strict filtering for tasks
         $tasksConstraint($tasksQuery);
@@ -525,7 +523,7 @@ class DashboardController extends AccountBaseController
             });
 
         // Calculate comprehensive overview metrics
-        $completedColumn = TaskboardColumn::where('slug', 'completed')->first();
+        $completedColumn = TaskboardColumn::completeColumn();
         
         $currentMonthDealsCount = $allDeals->filter(function ($deal) {
             return \Carbon\Carbon::parse($deal['updated_at'])->isCurrentMonth();
@@ -594,25 +592,24 @@ class DashboardController extends AccountBaseController
             ],
         ];
 
-        // Calculate basic stats for backwards compatibility  
-        $pendingTasksQuery = Task::where('board_column_id', '!=', $completedColumn?->id);
+        // Calculate basic stats for backwards compatibility
+        $pendingTasksQuery = Task::query()->pending();
         $tasksConstraint($pendingTasksQuery);
         $pendingTasksCount = $pendingTasksQuery->count();
-            
+
         // Update overview metrics to use calculated pending activities
         $overviewMetrics['pendingActivities'] = $pendingTasksCount;
-        
+
         $totalTasksQuery = Task::query();
         $tasksConstraint($totalTasksQuery);
 
-        $completedTasksQuery = Task::where('board_column_id', $completedColumn?->id);
+        $completedTasksQuery = Task::query();
         $tasksConstraint($completedTasksQuery);
+        if ($completedColumn) {
+            $completedTasksQuery->where('board_column_id', $completedColumn->id);
+        }
 
-        $pendingTasksQuery2 = Task::where('board_column_id', '!=', $completedColumn?->id);
-        $tasksConstraint($pendingTasksQuery2);
-
-        $overdueTasksQuery = Task::where('due_date', '<', now())
-            ->where('board_column_id', '!=', $completedColumn?->id);
+        $overdueTasksQuery = Task::query()->pending()->where('due_date', '<', now());
         $tasksConstraint($overdueTasksQuery);
 
         $totalDealsQuery = \App\Models\Deal::query();
@@ -631,7 +628,7 @@ class DashboardController extends AccountBaseController
         $stats = [
             'total_tasks' => $totalTasksQuery->count(),
             'completed_tasks' => $completedTasksQuery->count(),
-            'pending_tasks' => $pendingTasksQuery2->count(),
+            'pending_tasks' => $pendingTasksCount,
             'overdue_tasks' => $overdueTasksQuery->count(),
             'total_deals' => $totalDealsQuery->count(),
             'deals_this_month' => $dealsThisMonthQuery->count(),

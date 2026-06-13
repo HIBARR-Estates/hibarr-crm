@@ -15,7 +15,7 @@ class TaskVisibilityService
      */
     public static function scopeVisibleToUser(Builder|Relation $query, int $userId): Builder|Relation
     {
-        return Task::scopeVisibleToUser($query, $userId);
+        return $query->visibleToUser($userId);
     }
 
     /**

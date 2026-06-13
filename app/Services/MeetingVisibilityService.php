@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Deal;
-use App\Models\DealFollowUp;
 use App\Models\Lead;
 use App\Models\User;
 use App\Services\PermissionService;
@@ -17,7 +16,7 @@ class MeetingVisibilityService
      */
     public static function scopeVisibleToUser(Builder|Relation $query, int $userId): Builder|Relation
     {
-        return DealFollowUp::scopeVisibleToUser($query, $userId);
+        return $query->visibleToUser($userId);
     }
 
     /**
