@@ -42,6 +42,7 @@ use App\Http\Controllers\AttendanceSettingController;
 use App\Http\Controllers\ContractSettingController;
 use App\Http\Controllers\CustomLinkSettingController;
 use App\Http\Controllers\LeadSourceSettingController;
+use App\Http\Controllers\LeadLifecycleStatusSettingController;
 use App\Http\Controllers\SocialAuthSettingController;
 use App\Http\Controllers\TicketEmailSettingController;
 use App\Http\Controllers\TicketReplyTemplatesController;
@@ -218,6 +219,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('lead-settings', LeadSettingController::class);
     Route::post('lead-settings-status/update-status/{companyId}', [LeadSettingController::class, 'updateLeadSettingStatus'])->name('lead-setting.update_status');
     Route::resource('lead-source-settings', LeadSourceSettingController::class);
+    Route::resource('lead-lifecycle-status-settings', LeadLifecycleStatusSettingController::class)
+        ->only(['create', 'store', 'edit', 'update', 'destroy']);
 
     Route::get('lead-stage-update/{statusId}', [LeadStageSettingController::class, 'statusUpdate'])->name('lead-stage-setting.stageUpdate');
     Route::resource('lead-stage-setting', LeadStageSettingController::class);

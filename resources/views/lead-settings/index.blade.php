@@ -34,6 +34,10 @@ $addLeadCategoryPermission = user()->permission('add_lead_category');
                                 href="{{ route('lead-settings.index') }}?tab=method" role="tab"
                                 aria-controls="nav-leadAgent" aria-selected="true">@lang('modules.deal.dealMethod')
                             </a>
+                            <a class="nav-item nav-link f-15 lifecycle"
+                                href="{{ route('lead-settings.index') }}?tab=lifecycle" role="tab"
+                                aria-controls="nav-lifecycle" aria-selected="true">@lang('modules.lead.lifecycleStatus')
+                            </a>
                         </div>
                     </nav>
                 </div>
@@ -66,6 +70,10 @@ $addLeadCategoryPermission = user()->permission('add_lead_category');
                                 @lang('app.addNewDealCategory')
                             </x-forms.button-primary>
                         @endif
+
+                        <x-forms.button-primary icon="plus" id="addLifecycleStatus" class="lifecycle-btn mb-2 d-none actionBtn">
+                            @lang('modules.lead.addLifecycleStatus')
+                        </x-forms.button-primary>
                     </div>
                 </div>
             </x-slot>
@@ -193,6 +201,65 @@ $addLeadCategoryPermission = user()->permission('add_lead_category');
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
         });
+
+        /* LEAD LIFECYCLE STATUS SCRIPTS */
+        $('body').on('click', '#addLifecycleStatus', function() {
+            var url = "{{ route('lead-lifecycle-status-settings.create') }}";
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('body').on('click', '.edit-lifecycle-status', function() {
+            var statusId = $(this).data('lifecycle-status-id');
+            var url = "{{ route('lead-lifecycle-status-settings.edit', ':id') }}";
+            url = url.replace(':id', statusId);
+
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+
+        $('body').on('click', '.delete-lifecycle-status', function() {
+            var id = $(this).data('lifecycle-status-id');
+            Swal.fire({
+                title: "@lang('messages.sweetAlertTitle')",
+                text: "@lang('messages.recoverRecord')",
+                icon: 'warning',
+                showCancelButton: true,
+                focusConfirm: false,
+                confirmButtonText: "@lang('messages.confirmDelete')",
+                cancelButtonText: "@lang('app.cancel')",
+                customClass: {
+                    confirmButton: 'btn btn-primary mr-3',
+                    cancelButton: 'btn btn-secondary'
+                },
+                showClass: {
+                    popup: 'swal2-noanimation',
+                    backdrop: 'swal2-noanimation'
+                },
+                buttonsStyling: false
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var url = "{{ route('lead-lifecycle-status-settings.destroy', ':id') }}";
+                    url = url.replace(':id', id);
+
+                    $.easyAjax({
+                        type: 'POST',
+                        url: url,
+                        blockUI: true,
+                        data: {
+                            '_token': "{{ csrf_token() }}",
+                            '_method': 'DELETE'
+                        },
+                        success: function(response) {
+                            if (response.status == "success") {
+                                window.location.href = "{{ route('lead-settings.index') }}?tab=lifecycle";
+                            }
+                        }
+                    });
+                }
+            });
+        });
+        /* LEAD LIFECYCLE STATUS SCRIPTS */
 
         /* delete source */
         $('body').on('click', '.delete-source', function() {
