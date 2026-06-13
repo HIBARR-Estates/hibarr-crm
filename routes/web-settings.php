@@ -217,6 +217,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* Lead Settings */
     Route::resource('lead-settings', LeadSettingController::class);
     Route::post('lead-settings-status/update-status/{companyId}', [LeadSettingController::class, 'updateLeadSettingStatus'])->name('lead-setting.update_status');
+    Route::post('lead-sources/reorder', [LeadSourceSettingController::class, 'reorder'])->name('lead-sources.reorder');
     Route::resource('lead-source-settings', LeadSourceSettingController::class);
 
     Route::get('lead-stage-update/{statusId}', [LeadStageSettingController::class, 'statusUpdate'])->name('lead-stage-setting.stageUpdate');
