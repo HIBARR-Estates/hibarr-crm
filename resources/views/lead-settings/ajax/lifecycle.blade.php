@@ -45,6 +45,15 @@
                                 <i class="fa fa-edit icons mr-2"></i> @lang('app.edit')
                             </a>
                         </div>
+                        @if(!$status->isSystemKey() && $status->leads_count === 0)
+                            <div class="task_view mt-1 mt-lg-0 mt-md-0">
+                                <a href="javascript:;"
+                                    data-lifecycle-status-id="{{ $status->id }}"
+                                    class="delete-lifecycle-status task_view_more d-flex align-items-center justify-content-center">
+                                    <i class="fa fa-trash icons mr-2"></i> @lang('app.delete')
+                                </a>
+                            </div>
+                        @endif
                     </td>
                 </tr>
             @empty

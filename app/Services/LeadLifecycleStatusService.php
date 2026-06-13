@@ -27,6 +27,24 @@ class LeadLifecycleStatusService
         return $status->leads()->exists();
     }
 
+    public function create(int $companyId, array $data): LeadLifecycleStatus
+    {
+        $maxSortOrder = (int) LeadLifecycleStatus::query()
+            ->where('company_id', $companyId)
+            ->max('sort_order');
+
+        return LeadLifecycleStatus::create([
+            'company_id' => $companyId,
+            'key' => $data['key'],
+            'label' => $data['label'],
+            'description' => $data['description'] ?? null,
+            'label_color' => $data['label_color'],
+            'sort_order' => isset($data['sort_order'])
+                ? (int) $data['sort_order']
+                : $maxSortOrder + 1,
+        ]);
+    }
+
     public function update(LeadLifecycleStatus $status, array $data): LeadLifecycleStatus
     {
         $status->update([
@@ -37,5 +55,18 @@ class LeadLifecycleStatusService
         ]);
 
         return $status->fresh();
+    }
+
+    public function delete(LeadLifecycleStatus $status): void
+    {
+        if ($status->isSystemKey()) {
+            throw new \InvalidArgumentException('System lifecycle statuses cannot be deleted.');
+        }
+
+        if ($this->isInUse($status)) {
+            throw new \InvalidArgumentException('Lifecycle status is assigned to leads and cannot be deleted.');
+        }
+
+        $status->delete();
     }
 }
