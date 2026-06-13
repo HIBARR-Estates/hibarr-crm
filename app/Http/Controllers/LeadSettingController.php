@@ -10,6 +10,7 @@ use App\Models\PipelineStage;
 use App\Models\User;
 use Illuminate\Http\Request;
 use App\Models\LeadSetting;
+use App\Services\LeadLifecycleStatusService;
 
 class LeadSettingController extends AccountBaseController
 {
@@ -38,6 +39,8 @@ class LeadSettingController extends AccountBaseController
         $this->leadAgents = User::whereHas('leadAgent')->with('leadAgent', 'employeeDetail.designation:id,name')->get();
         $this->leadCategories = LeadCategory::all();
         $this->leadSettings = LeadSetting::select('status')->first();
+        $this->leadLifecycleStatuses = app(LeadLifecycleStatusService::class)
+            ->listForCompany((int) company()->id);
 
         $this->employees = User::doesntHave('leadAgent')
             ->join('role_user', 'role_user.user_id', '=', 'users.id')
@@ -53,6 +56,7 @@ class LeadSettingController extends AccountBaseController
             'agent' => 'lead-settings.ajax.agent',
             'category' => 'lead-settings.ajax.category',
             'method' => 'lead-settings.ajax.method',
+            'lifecycle' => 'lead-settings.ajax.lifecycle',
             default => 'lead-settings.ajax.source',
         };
 

@@ -9,6 +9,8 @@ class LeadLifecycleStatus extends BaseModel
 {
     use HasCompany;
 
+    public const DEFAULT_KEY = 'new';
+
     protected $fillable = [
         'company_id',
         'key',
@@ -33,6 +35,21 @@ class LeadLifecycleStatus extends BaseModel
             ->where('company_id', $companyId)
             ->where('key', $key)
             ->first();
+    }
+
+    public static function systemKeys(): array
+    {
+        return array_column(static::defaultStatusDefinitions(), 'key');
+    }
+
+    public function isSystemKey(): bool
+    {
+        return in_array($this->key, static::systemKeys(), true);
+    }
+
+    public function isDefaultForNewLeads(): bool
+    {
+        return $this->key === static::DEFAULT_KEY;
     }
 
     public static function defaultStatusDefinitions(): array
