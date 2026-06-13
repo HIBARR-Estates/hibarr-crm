@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Events\LeadEvent;
 use App\Models\Lead;
+use App\Models\LeadLifecycleStatus;
 use App\Models\UniversalSearch;
 use App\Models\User;
 use Illuminate\Support\Facades\Notification;
@@ -11,6 +12,7 @@ use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
+use App\Services\LeadLifecycleStatusService;
 
 
 class LeadObserver
@@ -43,6 +45,15 @@ class LeadObserver
 
         if (company()) {
             $leadContact->company_id = company()->id;
+        }
+
+        if (!$leadContact->lead_lifecycle_status_id && $leadContact->company_id) {
+            $defaultStatus = app(LeadLifecycleStatusService::class)
+                ->resolveDefaultForCompany((int) $leadContact->company_id);
+
+            if ($defaultStatus) {
+                $leadContact->lead_lifecycle_status_id = $defaultStatus->id;
+            }
         }
     }
 

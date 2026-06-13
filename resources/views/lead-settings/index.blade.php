@@ -34,6 +34,10 @@ $addLeadCategoryPermission = user()->permission('add_lead_category');
                                 href="{{ route('lead-settings.index') }}?tab=method" role="tab"
                                 aria-controls="nav-leadAgent" aria-selected="true">@lang('modules.deal.dealMethod')
                             </a>
+                            <a class="nav-item nav-link f-15 lifecycle"
+                                href="{{ route('lead-settings.index') }}?tab=lifecycle" role="tab"
+                                aria-controls="nav-lifecycle" aria-selected="true">@lang('modules.lead.lifecycleStatus')
+                            </a>
                         </div>
                     </nav>
                 </div>
@@ -193,6 +197,17 @@ $addLeadCategoryPermission = user()->permission('add_lead_category');
             $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
             $.ajaxModal(MODAL_LG, url);
         });
+
+        /* LEAD LIFECYCLE STATUS SCRIPTS */
+        $('body').on('click', '.edit-lifecycle-status', function() {
+            var statusId = $(this).data('lifecycle-status-id');
+            var url = "{{ route('lead-lifecycle-status-settings.edit', ':id') }}";
+            url = url.replace(':id', statusId);
+
+            $(MODAL_LG + ' ' + MODAL_HEADING).html('...');
+            $.ajaxModal(MODAL_LG, url);
+        });
+        /* LEAD LIFECYCLE STATUS SCRIPTS */
 
         /* delete source */
         $('body').on('click', '.delete-source', function() {
