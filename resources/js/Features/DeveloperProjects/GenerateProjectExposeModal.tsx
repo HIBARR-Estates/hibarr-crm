@@ -11,6 +11,10 @@ import {
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useExposeJobPoller } from "@/lib/api/client/useExposeJobPoller";
 import { ApiResponse } from "@/lib/api/types";
+import {
+    formatExposeValidationLabel,
+    type ExposeValidationWarning,
+} from "@/lib/expose/formatExposeValidationLabel";
 
 interface GenerateProjectExposeModalProps {
     open: boolean;
@@ -30,14 +34,8 @@ interface GenerateJobResponse {
 
 type Phase = "form" | "queued" | "ready" | "failed";
 
-interface Warning {
-    severity: string;
-    field: string;
-    message: string;
-}
-
 interface ValidationData {
-    warnings: Warning[];
+    warnings: ExposeValidationWarning[];
 }
 
 const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
@@ -46,7 +44,7 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
     projectId,
     projectName,
 }) => {
-    const [warnings, setWarnings] = useState<Warning[]>([]);
+    const [warnings, setWarnings] = useState<ExposeValidationWarning[]>([]);
     const [clientName, setClientName] = useState<string>("");
     const [clientEmail, setClientEmail] = useState<string>("");
     const [phase, setPhase] = useState<Phase>("form");
@@ -215,7 +213,10 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
                                                 }
                                             >
                                                 <strong>
-                                                    {warning.field}:
+                                                    {formatExposeValidationLabel(
+                                                        warning,
+                                                    )}
+                                                    :
                                                 </strong>{" "}
                                                 {warning.message}
                                             </li>

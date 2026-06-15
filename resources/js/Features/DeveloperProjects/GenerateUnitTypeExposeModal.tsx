@@ -26,6 +26,10 @@ import {
 import { ApiResponse } from "@/lib/api/types";
 import { useFormData } from "@/Hooks/useFormData";
 import type { DeveloperProjectUnitType } from "../../Types/developerProject";
+import {
+    formatExposeValidationLabel,
+    type ExposeValidationWarning,
+} from "@/lib/expose/formatExposeValidationLabel";
 
 interface GenerateUnitTypeExposeModalProps {
     open: boolean;
@@ -46,14 +50,8 @@ interface GenerateJobResponse {
 
 type Phase = "form" | "queued" | "ready" | "failed";
 
-interface Warning {
-    severity: string;
-    field: string;
-    message: string;
-}
-
 interface ValidationData {
-    warnings: Warning[];
+    warnings: ExposeValidationWarning[];
 }
 
 interface LeadOption {
@@ -74,7 +72,7 @@ const sanitizeFilePart = (value?: string, fallback = "na") => {
 const GenerateUnitTypeExposeModal: React.FC<
     GenerateUnitTypeExposeModalProps
 > = ({ open, onClose, projectId, projectName, unitType }) => {
-    const [warnings, setWarnings] = useState<Warning[]>([]);
+    const [warnings, setWarnings] = useState<ExposeValidationWarning[]>([]);
     const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
     const [leadSearch, setLeadSearch] = useState<string>("");
     const [clientName, setClientName] = useState<string>("");
@@ -342,7 +340,10 @@ const GenerateUnitTypeExposeModal: React.FC<
                                                 }
                                             >
                                                 <strong>
-                                                    {warning.field}:
+                                                    {formatExposeValidationLabel(
+                                                        warning,
+                                                    )}
+                                                    :
                                                 </strong>{" "}
                                                 {warning.message}
                                             </li>

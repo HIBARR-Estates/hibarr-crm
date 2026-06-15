@@ -28,6 +28,10 @@ import {
 } from "@/lib/api/client/useExposeJobPoller";
 import { ApiResponse } from "@/lib/api/types";
 import { useFormData } from "@/Hooks/useFormData";
+import {
+    formatExposeValidationLabel,
+    type ExposeValidationWarning,
+} from "@/lib/expose/formatExposeValidationLabel";
 
 interface GenerateExposeModalProps {
     open: boolean;
@@ -49,13 +53,7 @@ interface GenerateJobResponse {
 type Phase = "form" | "queued" | "ready" | "failed";
 
 interface ValidationData {
-    warnings: Warning[];
-}
-
-interface Warning {
-    severity: string;
-    field: string;
-    message: string;
+    warnings: ExposeValidationWarning[];
 }
 
 interface LeadOption {
@@ -101,7 +99,7 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
     projectName,
     unitName,
 }) => {
-    const [warnings, setWarnings] = useState<Warning[]>([]);
+    const [warnings, setWarnings] = useState<ExposeValidationWarning[]>([]);
     const [layout, setLayout] = useState<string>("expose-template");
     const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
     const [leadSearch, setLeadSearch] = useState<string>("");
@@ -350,7 +348,10 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                                         {warnings.map((warning, index) => (
                                             <li key={index}>
                                                 <strong>
-                                                    {warning.field}:
+                                                    {formatExposeValidationLabel(
+                                                        warning,
+                                                    )}
+                                                    :
                                                 </strong>{" "}
                                                 {warning.message}
                                             </li>
