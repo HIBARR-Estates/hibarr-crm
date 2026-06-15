@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { router } from "@inertiajs/react";
 import {
     Modal,
     Button,
@@ -29,9 +30,9 @@ import {
 import { ApiResponse } from "@/lib/api/types";
 import { useFormData } from "@/Hooks/useFormData";
 import {
-    formatExposeValidationLabel,
     type ExposeValidationWarning,
 } from "@/lib/expose/formatExposeValidationLabel";
+import ExposeValidationWarnings from "@/Features/Expose/ExposeValidationWarnings";
 
 interface GenerateExposeModalProps {
     open: boolean;
@@ -267,6 +268,11 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
         onClose();
     };
 
+    const handleFixNavigate = (href: string) => {
+        onClose();
+        router.visit(href);
+    };
+
     const footer =
         phase === "form" || phase === "failed"
             ? [
@@ -344,19 +350,10 @@ const GenerateExposeModal: React.FC<GenerateExposeModalProps> = ({
                             <Alert
                                 message="Missing Information"
                                 description={
-                                    <ul className="list-disc pl-4 mt-2">
-                                        {warnings.map((warning, index) => (
-                                            <li key={index}>
-                                                <strong>
-                                                    {formatExposeValidationLabel(
-                                                        warning,
-                                                    )}
-                                                    :
-                                                </strong>{" "}
-                                                {warning.message}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <ExposeValidationWarnings
+                                        warnings={warnings}
+                                        onNavigate={handleFixNavigate}
+                                    />
                                 }
                                 type="warning"
                                 showIcon

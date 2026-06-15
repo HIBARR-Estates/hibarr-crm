@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { router } from "@inertiajs/react";
 import { Property } from "@/Types";
 
@@ -57,6 +57,12 @@ const Show = ({
     const [showExposeModal, setShowExposeModal] = useState(false);
     const [showEditModal, setShowEditModal] = useState(false);
     const [currentProperty, setCurrentProperty] = useState<Property>(property);
+
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).get("edit") === "1") {
+            setShowEditModal(true);
+        }
+    }, []);
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh();

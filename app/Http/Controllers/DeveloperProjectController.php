@@ -1097,7 +1097,11 @@ class DeveloperProjectController extends AccountBaseController
 
         $config = ExposeConfiguration::fromDeveloperProject($project, 'project-expose-template');
 
-        $warnings = $this->exposeService->checkWarnings($config);
+        $warnings = $this->exposeService->checkWarnings($config, [
+            'context' => 'developer_project',
+            'project_id' => $project->id,
+            'location_id' => $project->location?->id,
+        ]);
 
         return Reply::successWithData('Validation complete', [
             'data' => ['warnings' => $warnings],
@@ -1158,7 +1162,12 @@ class DeveloperProjectController extends AccountBaseController
 
         $config = ExposeConfiguration::fromUnitType($unitType, 'expose-template');
 
-        $warnings = $this->exposeService->checkWarnings($config);
+        $warnings = $this->exposeService->checkWarnings($config, [
+            'context' => 'unit_type',
+            'project_id' => (int) $projectId,
+            'unit_type_id' => $unitType->id,
+            'location_id' => $unitType->project?->location?->id,
+        ]);
 
         return Reply::successWithData('Validation complete', [
             'data' => ['warnings' => $warnings],

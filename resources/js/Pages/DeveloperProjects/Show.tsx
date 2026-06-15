@@ -1,4 +1,4 @@
-import { useState, useCallback, Component } from "react";
+import { useState, useCallback, useEffect, Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
 import { router } from "@inertiajs/react";
 import { Link } from "@inertiajs/react";
@@ -131,6 +131,43 @@ export type SectionKey =
     | "pdf"
     | "offers";
 
+const VALID_SECTIONS: SectionKey[] = [
+    "overview",
+    "developers",
+    "unit_types",
+    "photos",
+    "facilities",
+    "exterior",
+    "interior",
+    "siteplan",
+    "pricelist",
+    "pdf",
+    "offers",
+];
+
+const parseSectionFromUrl = (): SectionKey | null => {
+    const section = new URLSearchParams(window.location.search).get("section");
+
+    if (section && VALID_SECTIONS.includes(section as SectionKey)) {
+        return section as SectionKey;
+    }
+
+    return null;
+};
+
+const parseEditUnitTypeFromUrl = (): number | null => {
+    const value = new URLSearchParams(window.location.search).get(
+        "edit_unit_type",
+    );
+
+    if (!value) {
+        return null;
+    }
+
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+};
+
 // ============================================
 // Error Boundary
 // ============================================
@@ -191,9 +228,20 @@ const Show = ({
     developerProjects,
 }: ShowProps) => {
     const { t } = useTranslation();
-    const [activeSection, setActiveSection] = useState<SectionKey>("overview");
+    const [activeSection, setActiveSection] = useState<SectionKey>(
+        () => parseSectionFromUrl() ?? "overview",
+    );
     const [editModalOpen, setEditModalOpen] = useState(false);
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [initialEditUnitTypeId] = useState<number | null>(() =>
+        parseEditUnitTypeFromUrl(),
+    );
+
+    useEffect(() => {
+        if (new URLSearchParams(window.location.search).get("edit") === "1") {
+            setEditModalOpen(true);
+        }
+    }, []);
 
     const handleEditSuccess = useCallback(() => {
         router.reload();
@@ -224,6 +272,7 @@ const Show = ({
                     <UnitTypesSection
                         projectId={project.id}
                         unitTypes={unitTypes ?? []}
+                        initialEditUnitTypeId={initialEditUnitTypeId}
                         onRefresh={() =>
                             router.reload({ only: ["unitTypes", "project"] })
                         }

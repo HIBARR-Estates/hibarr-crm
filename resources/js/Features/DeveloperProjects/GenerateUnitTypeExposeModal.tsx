@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { router } from "@inertiajs/react";
 import {
     Modal,
     Button,
@@ -27,9 +28,9 @@ import { ApiResponse } from "@/lib/api/types";
 import { useFormData } from "@/Hooks/useFormData";
 import type { DeveloperProjectUnitType } from "../../Types/developerProject";
 import {
-    formatExposeValidationLabel,
     type ExposeValidationWarning,
 } from "@/lib/expose/formatExposeValidationLabel";
+import ExposeValidationWarnings from "@/Features/Expose/ExposeValidationWarnings";
 
 interface GenerateUnitTypeExposeModalProps {
     open: boolean;
@@ -246,6 +247,11 @@ const GenerateUnitTypeExposeModal: React.FC<
         onClose();
     };
 
+    const handleFixNavigate = (href: string) => {
+        onClose();
+        router.visit(href);
+    };
+
     const hasErrors = warnings.some((w) => w.severity === "error");
 
     const footer =
@@ -329,26 +335,10 @@ const GenerateUnitTypeExposeModal: React.FC<
                                         : "Missing Information"
                                 }
                                 description={
-                                    <ul className="list-disc pl-4 mt-2">
-                                        {warnings.map((warning, index) => (
-                                            <li
-                                                key={index}
-                                                className={
-                                                    warning.severity === "error"
-                                                        ? "text-red-600"
-                                                        : ""
-                                                }
-                                            >
-                                                <strong>
-                                                    {formatExposeValidationLabel(
-                                                        warning,
-                                                    )}
-                                                    :
-                                                </strong>{" "}
-                                                {warning.message}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <ExposeValidationWarnings
+                                        warnings={warnings}
+                                        onNavigate={handleFixNavigate}
+                                    />
                                 }
                                 type={hasErrors ? "error" : "warning"}
                                 showIcon

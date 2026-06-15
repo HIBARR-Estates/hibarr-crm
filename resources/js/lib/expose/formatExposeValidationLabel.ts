@@ -1,8 +1,15 @@
+export interface ExposeValidationAction {
+    type: "link";
+    label: string;
+    href: string;
+}
+
 export interface ExposeValidationWarning {
     severity: string;
     field: string;
     label?: string;
     message: string;
+    action?: ExposeValidationAction;
 }
 
 export function formatExposeValidationLabel(

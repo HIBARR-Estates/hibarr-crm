@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { router } from "@inertiajs/react";
 import { Modal, Button, Alert, Skeleton, Collapse, Input, Spin } from "antd";
 import {
     FilePdfOutlined,
@@ -12,9 +13,9 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { useExposeJobPoller } from "@/lib/api/client/useExposeJobPoller";
 import { ApiResponse } from "@/lib/api/types";
 import {
-    formatExposeValidationLabel,
     type ExposeValidationWarning,
 } from "@/lib/expose/formatExposeValidationLabel";
+import ExposeValidationWarnings from "@/Features/Expose/ExposeValidationWarnings";
 
 interface GenerateProjectExposeModalProps {
     open: boolean;
@@ -129,6 +130,11 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
         onClose();
     };
 
+    const handleFixNavigate = (href: string) => {
+        onClose();
+        router.visit(href);
+    };
+
     const hasErrors = warnings.some((w) => w.severity === "error");
 
     const footer =
@@ -202,26 +208,10 @@ const GenerateProjectExposeModal: React.FC<GenerateProjectExposeModalProps> = ({
                                         : "Missing Information"
                                 }
                                 description={
-                                    <ul className="list-disc pl-4 mt-2">
-                                        {warnings.map((warning, index) => (
-                                            <li
-                                                key={index}
-                                                className={
-                                                    warning.severity === "error"
-                                                        ? "text-red-600"
-                                                        : ""
-                                                }
-                                            >
-                                                <strong>
-                                                    {formatExposeValidationLabel(
-                                                        warning,
-                                                    )}
-                                                    :
-                                                </strong>{" "}
-                                                {warning.message}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <ExposeValidationWarnings
+                                        warnings={warnings}
+                                        onNavigate={handleFixNavigate}
+                                    />
                                 }
                                 type={hasErrors ? "error" : "warning"}
                                 showIcon
