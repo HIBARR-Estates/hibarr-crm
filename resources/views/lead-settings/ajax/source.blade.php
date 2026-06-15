@@ -67,7 +67,7 @@
                 </tr>
             @empty
                 <tr>
-                    <td colspan="4">
+                    <td colspan="3">
                         <x-cards.no-record icon="list" :message="__('messages.noLeadSourceAdded')" />
                     </td>
                 </tr>
