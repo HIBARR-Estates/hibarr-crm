@@ -45,7 +45,6 @@ export const ExposeValidationWarnings: React.FC<
                             <Button
                                 type="dashed"
                                 size="small"
-                                className="!px-0 !h-auto"
                                 onClick={() =>
                                     handleAction(warning.action!.href!)
                                 }

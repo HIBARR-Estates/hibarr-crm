@@ -3,7 +3,6 @@
 namespace App\Services\PdfExpose\Generators;
 
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
-use Spatie\Browsershot\Enums\Polling;
 use Spatie\LaravelPdf\Facades\Pdf;
 
 class PdfGenerator
@@ -26,11 +25,11 @@ class PdfGenerator
         $browsershot->setOption('waitUntil', 'load');
 
         // pdf.wrapper sets window.__exposePdfImagesReady once remote assets finish loading.
-        $browsershot->waitForFunction(
-            'window.__exposePdfImagesReady === true',
-            Polling::RequestAnimationFrame,
-            $timeoutSeconds * 1000
-        );
+        // Use setOption() directly — Browsershot v5 changed waitForFunction()'s signature
+        // (Polling enum instead of int), and queue workers must be restarted after deploy.
+        $browsershot->setOption('function', 'window.__exposePdfImagesReady === true');
+        $browsershot->setOption('functionPolling', 'raf');
+        $browsershot->setOption('functionTimeout', $timeoutSeconds * 1000);
 
         // Brief paint buffer after images are ready.
         $browsershot->setDelay(300);
