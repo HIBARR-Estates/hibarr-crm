@@ -1,11 +1,33 @@
 import { useEffect, useRef } from "react";
 import axios from "axios";
 
-type JobStatus = "queued" | "processing" | "ready" | "failed";
+export type ExposeJobStatus = "queued" | "processing" | "ready" | "failed";
+
+export const formatExposeElapsed = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+
+    if (mins === 0) {
+        return `${secs}s`;
+    }
+
+    return `${mins}m ${secs.toString().padStart(2, "0")}s`;
+};
+
+export const exposeJobStatusLabel = (status: ExposeJobStatus | null) => {
+    switch (status) {
+        case "queued":
+            return "Queued — waiting for a worker";
+        case "processing":
+            return "Generating PDF";
+        default:
+            return "Preparing your expose";
+    }
+};
 
 interface JobStatusResponse {
     id: number;
-    status: JobStatus;
+    status: ExposeJobStatus;
     filename: string;
     download_url: string | null;
     error_message: string | null;
@@ -16,6 +38,7 @@ interface UseExposeJobPollerOptions {
     jobId: number | null;
     onReady: (downloadUrl: string, filename: string) => void;
     onError: (message: string) => void;
+    onStatusChange?: (status: ExposeJobStatus) => void;
     intervalMs?: number;
 }
 
@@ -27,6 +50,7 @@ export function useExposeJobPoller({
     jobId,
     onReady,
     onError,
+    onStatusChange,
     intervalMs = 3000,
 }: UseExposeJobPollerOptions): void {
     const timerRef = useRef<number | undefined>(undefined);
@@ -52,12 +76,15 @@ export function useExposeJobPoller({
 
                 const job = response.data?.data;
 
+                if (job?.status) {
+                    onStatusChange?.(job.status);
+                }
+
                 if (job?.status === "ready" && job.download_url) {
                     onReady(job.download_url, job.filename);
                 } else if (job?.status === "failed") {
                     onError(job.error_message ?? "PDF generation failed.");
                 } else {
-                    // queued or processing — schedule next poll
                     timerRef.current = window.setTimeout(poll, intervalMs);
                 }
             } catch {
@@ -67,7 +94,6 @@ export function useExposeJobPoller({
             }
         };
 
-        // First poll after a short initial delay
         timerRef.current = window.setTimeout(poll, intervalMs);
 
         return () => {
@@ -75,5 +101,5 @@ export function useExposeJobPoller({
                 clearTimeout(timerRef.current);
             }
         };
-    }, [jobId]);
+    }, [jobId, intervalMs, onError, onReady, onStatusChange]);
 }

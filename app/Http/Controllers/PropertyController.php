@@ -1479,12 +1479,17 @@ class PropertyController extends AccountBaseController
 
     public function validateExpose($id)
     {
-        $property = Property::with(['product.addedBy'])->findOrFail($id);
+        $property = Property::with(['product.addedBy', 'projectLocation', 'developerProject.location'])->findOrFail($id);
         
         // Create default config for validation
         $config = ExposeConfiguration::fromProperty($property, 'vertical_standard');
         
-        $warnings = $this->exposeService->checkWarnings($config);
+        $warnings = $this->exposeService->checkWarnings($config, [
+            'context' => 'property',
+            'property_id' => $property->id,
+            'project_id' => $property->developer_project_id ?? $property->developerProject?->id,
+            'location_id' => $property->projectLocation?->id ?? $property->developerProject?->location?->id,
+        ]);
         
         return Reply::successWithData('Expose validation completed successfully!',[
             'data' => ['warnings' => $warnings]
@@ -1510,7 +1515,7 @@ class PropertyController extends AccountBaseController
             'payload'     => $payload,
         ]);
 
-        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue(\App\Jobs\GenerateExposeJob::QUEUE);
 
         return Reply::successWithData('Expose generation queued', [
             'data' => ['job_id' => $exposeJob->id],

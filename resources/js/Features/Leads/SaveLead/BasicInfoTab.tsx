@@ -319,14 +319,14 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         </Col>
 
                         <Col span={8}>
-                            <Form.Item label="State/Province" name="state">
-                                <Input placeholder="Enter state or province" />
+                            <Form.Item label="Postal Code" name="postal_code">
+                                <Input placeholder="Enter postal code" />
                             </Form.Item>
                         </Col>
 
                         <Col span={8}>
-                            <Form.Item label="Postal Code" name="postal_code">
-                                <Input placeholder="Enter postal code" />
+                            <Form.Item label="State/Province" name="state">
+                                <Input placeholder="Enter state or province" />
                             </Form.Item>
                         </Col>
 

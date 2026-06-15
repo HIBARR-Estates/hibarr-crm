@@ -137,7 +137,15 @@ export const LEAD_TABLE_COLUMNS = (
             },
         },
         {
-            title: translate("pages.leads.contacts_table.columns.source"),
+            title: (
+                <span className="flex items-center">
+                    {translate("pages.leads.contacts_table.columns.source")}
+                    <PageDataSorter
+                        field="source_id"
+                        routeName="lead-contact.index"
+                    />
+                </span>
+            ),
             dataIndex: "source",
             key: "source",
             width: 120,
