@@ -104,6 +104,66 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                     </Form.Item>
                 </Col>
 
+
+                <Col span={24}>
+                    <Form.Item
+                        label="Address"
+                        validateStatus={errors.address ? "error" : ""}
+                        help={errors.address}
+                    >
+                        <Input.TextArea
+                            placeholder="Enter full address"
+                            value={data.address}
+                            onChange={(e) => setData("address", e.target.value)}
+                            rows={3}
+                        />
+                    </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                    <Form.Item
+                        label="Postal Code"
+                        validateStatus={errors.postal_code ? "error" : ""}
+                        help={errors.postal_code}
+                    >
+                        <Input
+                            placeholder="Enter postal code"
+                            value={data.postal_code}
+                            onChange={(e) =>
+                                setData("postal_code", e.target.value)
+                            }
+                        />
+                    </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                    <Form.Item
+                        label="City"
+                        validateStatus={errors.city ? "error" : ""}
+                        help={errors.city}
+                    >
+                        <Input
+                            placeholder="Enter city"
+                            value={data.city}
+                            onChange={(e) => setData("city", e.target.value)}
+                        />
+                    </Form.Item>
+                </Col>
+
+                <Col span={8}>
+                    <Form.Item
+                        label="State/Province"
+                        validateStatus={errors.state ? "error" : ""}
+                        help={errors.state}
+                    >
+                        <Input
+                            placeholder="Enter state or province"
+                            value={data.state}
+                            onChange={(e) => setData("state", e.target.value)}
+                        />
+                    </Form.Item>
+                </Col>
+
                 <Col span={8}>
                     <Form.Item
                         label="Country"
@@ -140,66 +200,7 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
                             )}
                         </Select>
                     </Form.Item>
-                </Col>
-
-                <Col span={8}>
-                    <Form.Item
-                        label="State/Province"
-                        validateStatus={errors.state ? "error" : ""}
-                        help={errors.state}
-                    >
-                        <Input
-                            placeholder="Enter state or province"
-                            value={data.state}
-                            onChange={(e) => setData("state", e.target.value)}
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col span={8}>
-                    <Form.Item
-                        label="City"
-                        validateStatus={errors.city ? "error" : ""}
-                        help={errors.city}
-                    >
-                        <Input
-                            placeholder="Enter city"
-                            value={data.city}
-                            onChange={(e) => setData("city", e.target.value)}
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col span={8}>
-                    <Form.Item
-                        label="Postal Code"
-                        validateStatus={errors.postal_code ? "error" : ""}
-                        help={errors.postal_code}
-                    >
-                        <Input
-                            placeholder="Enter postal code"
-                            value={data.postal_code}
-                            onChange={(e) =>
-                                setData("postal_code", e.target.value)
-                            }
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col span={24}>
-                    <Form.Item
-                        label="Address"
-                        validateStatus={errors.address ? "error" : ""}
-                        help={errors.address}
-                    >
-                        <Input.TextArea
-                            placeholder="Enter full address"
-                            value={data.address}
-                            onChange={(e) => setData("address", e.target.value)}
-                            rows={3}
-                        />
-                    </Form.Item>
-                </Col>
+                </Col>   
             </Row>
         </div>
     );
