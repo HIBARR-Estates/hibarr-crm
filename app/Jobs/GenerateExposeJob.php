@@ -29,7 +29,7 @@ class GenerateExposeJob implements ShouldQueue
     /**
      * Max execution time – Browsershot can take a while on large PDFs.
      */
-    public int $timeout = 600;
+    public int $timeout = 420;
 
     /**
      * Do not retry — PDF generation is expensive and failures are usually

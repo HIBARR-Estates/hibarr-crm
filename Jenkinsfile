@@ -116,7 +116,16 @@ pipeline {
                                 echo 'Run once: sudo bash ${LIVE_LINK}/scripts/setup-grpc-staging.sh YOUR_GRPC_DOMAIN'
                             fi
 
-                            echo 'Step 7: Cleanup old deployments...'
+                            echo 'Step 8: Restart queue workers (required for atomic deploys)...'
+                            # queue:restart only signals graceful exit; supervisor ensures workers
+                            # pick up the new release path immediately.
+                            if [ "$ENV_NAME" = "production" ]; then
+                                sudo supervisorctl restart hibarr_crm:* hibarr_crm_expose:* || true
+                            else
+                                sudo supervisorctl restart hibarr_crm_staging:* hibarr_crm_staging_expose:* || true
+                            fi
+
+                            echo 'Step 9: Cleanup old deployments...'
                             cd /home/$TARGET_USER/deployments
                             ls -dt ${ENV_NAME}_build_* | tail -n +6 | xargs rm -rf || true
 
