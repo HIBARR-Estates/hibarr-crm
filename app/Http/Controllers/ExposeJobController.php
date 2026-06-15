@@ -19,6 +19,17 @@ class ExposeJobController extends AccountBaseController
             ->where('user_id', user()->id)
             ->findOrFail($id);
 
+        if (
+            $exposeJob->status === ExposeJob::STATUS_PROCESSING
+            && $exposeJob->updated_at?->lt(now()->subMinutes(12))
+        ) {
+            $exposeJob->update([
+                'status'        => ExposeJob::STATUS_FAILED,
+                'error_message' => 'PDF generation timed out. Please try again.',
+            ]);
+            $exposeJob->refresh();
+        }
+
         $data = [
             'id'           => $exposeJob->id,
             'status'       => $exposeJob->status,

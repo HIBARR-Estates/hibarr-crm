@@ -1079,7 +1079,7 @@ class DeveloperProjectController extends AccountBaseController
             'payload'     => $payload,
         ]);
 
-        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue(\App\Jobs\GenerateExposeJob::QUEUE);
 
         return Reply::successWithData('Brochure generation queued', [
             'data' => ['job_id' => $exposeJob->id],
@@ -1136,7 +1136,7 @@ class DeveloperProjectController extends AccountBaseController
             'payload'       => $payload,
         ]);
 
-        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue('default');
+        \App\Jobs\GenerateExposeJob::dispatch($exposeJob->id)->onQueue(\App\Jobs\GenerateExposeJob::QUEUE);
 
         return Reply::successWithData('Expose generation queued', [
             'data' => ['job_id' => $exposeJob->id],

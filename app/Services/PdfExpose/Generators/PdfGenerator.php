@@ -21,10 +21,19 @@ class PdfGenerator
             '--allow-running-insecure-content',
         ]);
 
-        // networkidle2 is more resilient for pages that keep a small number of
-        // background requests alive while still waiting for most assets.
-        $browsershot->waitUntilNetworkIdle(false);
-        $browsershot->setDelay(1500);
+        // "load" is faster and more predictable than networkIdle, which can hang
+        // when Minio or background requests keep connections open.
+        $browsershot->setOption('waitUntil', 'load');
+
+        // pdf.wrapper sets window.__exposePdfImagesReady once remote assets finish loading.
+        $browsershot->waitForFunction(
+            'window.__exposePdfImagesReady === true',
+            200,
+            $timeoutSeconds * 1000
+        );
+
+        // Brief paint buffer after images are ready.
+        $browsershot->setDelay(300);
 
         $browsershot->timeout($timeoutSeconds);
         $browsershot->protocolTimeout($timeoutSeconds + 60);
@@ -39,11 +48,10 @@ class PdfGenerator
     {
         $filename = $this->generateFilename($config);
 
-        // Generate PDF using Spatie and return download response
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
             ->withBrowsershot(function ($browsershot) {
                 $browsershot->setOption('preferCSSPageSize', true);
-                $this->configureBrowsershot($browsershot, 120);
+                $this->configureBrowsershot($browsershot, 180);
             })
             ->margins(0, 0, 0, 0);
 
@@ -59,7 +67,7 @@ class PdfGenerator
         Pdf::view('pdf.wrapper', ['content' => $html])
             ->withBrowsershot(function ($browsershot) {
                 $browsershot->setOption('preferCSSPageSize', true);
-                $this->configureBrowsershot($browsershot, 240);
+                $this->configureBrowsershot($browsershot, 480);
             })
             ->margins(0, 0, 0, 0)
             ->save($destinationPath);
@@ -86,7 +94,7 @@ class PdfGenerator
         return Pdf::view('pdf.wrapper', ['content' => $html])
             ->withBrowsershot(function ($browsershot) {
                 $browsershot->setOption('preferCSSPageSize', true);
-                $this->configureBrowsershot($browsershot, 120);
+                $this->configureBrowsershot($browsershot, 180);
             })
             ->margins(0, 0, 0, 0)
             ->name($filename)
