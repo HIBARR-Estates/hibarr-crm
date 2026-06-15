@@ -3,8 +3,8 @@
 namespace App\Services\PdfExpose\Generators;
 
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use Spatie\Browsershot\Enums\Polling;
 use Spatie\LaravelPdf\Facades\Pdf;
-use Illuminate\Support\Facades\Storage;
 
 class PdfGenerator
 {
@@ -28,7 +28,7 @@ class PdfGenerator
         // pdf.wrapper sets window.__exposePdfImagesReady once remote assets finish loading.
         $browsershot->waitForFunction(
             'window.__exposePdfImagesReady === true',
-            200,
+            Polling::RequestAnimationFrame,
             $timeoutSeconds * 1000
         );
 

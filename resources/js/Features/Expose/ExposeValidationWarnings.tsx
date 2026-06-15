@@ -29,7 +29,9 @@ export const ExposeValidationWarnings: React.FC<
                 <li
                     key={`${warning.field}-${index}`}
                     className={
-                        warning.severity === "error" ? "text-red-600" : undefined
+                        warning.severity === "error"
+                            ? "text-red-600"
+                            : undefined
                     }
                 >
                     <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
@@ -41,7 +43,7 @@ export const ExposeValidationWarnings: React.FC<
                         </span>
                         {warning.action?.href && (
                             <Button
-                                type="link"
+                                type="dashed"
                                 size="small"
                                 className="!px-0 !h-auto"
                                 onClick={() =>
