@@ -40,6 +40,22 @@ class LeadSource extends BaseModel
 
     protected $guarded = ['id'];
 
+    public static function boot()
+    {
+        parent::boot();
+
+        static::addGlobalScope('order', function (\Illuminate\Database\Eloquent\Builder $builder) {
+            $builder->orderBy('sort_order', 'asc');
+        });
+
+        static::creating(function ($model) {
+            if (is_null($model->sort_order)) {
+                $maxOrder = static::withoutGlobalScope('order')->where('company_id', $model->company_id)->max('sort_order');
+                $model->sort_order = is_numeric($maxOrder) ? $maxOrder + 1 : 1;
+            }
+        });
+    }
+
     public function leads(): HasMany
     {
         return $this->hasMany(Lead::class, 'source_id')->orderBy('column_priority');

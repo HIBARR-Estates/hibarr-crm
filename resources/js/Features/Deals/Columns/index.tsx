@@ -38,14 +38,46 @@ export const DEAL_TABLE_COLUMNS = (
         {
             title: (
                 <span className="flex items-center">
+                    {t("pages.deals.table.columns.updated")}
+                    <PageDataSorter
+                        field="updated_at"
+                        routeName="deals.index"
+                    />
+                </span>
+            ),
+            key: "updated_at",
+            width: 150,
+            render: (_, record) => {
+                if (!record.updated_at)
+                    return <span className="text-gray-400">--</span>;
+
+                return (
+                    <span className="text-gray-900">
+                        {dayjs(record.updated_at).format(
+                            "MMM DD, YYYY HH:mm",
+                        )}
+                    </span>
+                );
+            },
+        },
+        {
+            title: (
+                <span className="flex items-center">
                     {t("pages.deals.table.columns.deal_name")}
                     <PageDataSorter field="name" routeName="deals.index" />
                 </span>
             ),
             dataIndex: "name",
             key: "deal_name",
-            width: 280,
+            width: 250,
             render: (_, record) => {
+                const hasContact = !!record.contact;
+                let displayName = hasContact ? record.contact.client_name : null;
+                if (hasContact && record.contact.salutation) {
+                    displayName = `${record.contact.salutation} ${displayName}`;
+                }
+                const translatedName = displayName ? displayName : null;
+        
                 return (
                     <div>
                         <Tooltip title={td(record.name)}>
@@ -59,6 +91,34 @@ export const DEAL_TABLE_COLUMNS = (
                                 {td(record.name)}
                             </Link>
                         </Tooltip>
+                        {hasContact ? (
+                            <>
+                                <div className="flex items-center space-x-2">
+                                    <Tooltip title={translatedName ?? undefined}>
+                                        <Link
+                                            href={route(
+                                                "lead-contact.show",
+                                                record.contact.id,
+                                            )}
+                                            className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline truncate max-w-full capitalize"
+                                        >
+                                            {translatedName}
+                                        </Link>
+                                    </Tooltip>
+                                </div>
+                                {record.contact.company_name && (
+                                    <Tooltip title={record.contact.company_name}>
+                                        <div className="text-xs text-gray-500 truncate max-w-full capitalize">
+                                            {record.contact.company_name}
+                                        </div>
+                                    </Tooltip>
+                                )}
+                            </>
+                        ) : (
+                            <span className="text-gray-400 text-xs">
+                                {t("pages.deals.table.no_lead_assigned")}
+                            </span>
+                        )}
                     </div>
                 );
             },
@@ -113,24 +173,7 @@ export const DEAL_TABLE_COLUMNS = (
                 );
             },
         },
-        {
-            title: t("pages.deals.table.columns.country"),
-            dataIndex: ["contact", "country"],
-            key: "country",
-            width: 120,
-            render: (_, record) => {
-                if (!record.contact)
-                    return <span className="text-gray-400">--</span>;
-                const str = formatCountryForDisplay(record.contact.country);
-                return str ? (
-                    <span className="text-gray-900 truncate max-w-full block text-sm">
-                        {str}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">--</span>
-                );
-            },
-        },
+   
         {
             title: (
                 <span className="flex items-center">
@@ -151,63 +194,7 @@ export const DEAL_TABLE_COLUMNS = (
                 );
             },
         },
-        {
-            title: (
-                <span className="flex items-center">
-                    {t("pages.deals.table.columns.lead_name")}
-                </span>
-            ),
-            dataIndex: "lead_name",
-            key: "lead_name",
-            width: 200,
-            render: (_, record) => {
-                const hasContact = !!record.contact;
-                let displayName = hasContact
-                    ? record.contact.client_name
-                    : null;
-                if (hasContact && record.contact.salutation) {
-                    displayName = `${record.contact.salutation} ${displayName}`;
-                }
-                const translatedName = displayName ? displayName : null;
-
-                return (
-                    <div className="space-y-1 capitalize">
-                        {hasContact ? (
-                            <>
-                                <div className="flex items-center space-x-2">
-                                    <Tooltip
-                                        title={translatedName ?? undefined}
-                                    >
-                                        <Link
-                                            href={route(
-                                                "lead-contact.show",
-                                                record.contact.id,
-                                            )}
-                                            className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline truncate max-w-full capitalize"
-                                        >
-                                            {translatedName}
-                                        </Link>
-                                    </Tooltip>
-                                </div>
-                                {record.contact.company_name && (
-                                    <Tooltip
-                                        title={record.contact.company_name}
-                                    >
-                                        <div className="text-xs text-gray-500 truncate max-w-full capitalize">
-                                            {record.contact.company_name}
-                                        </div>
-                                    </Tooltip>
-                                )}
-                            </>
-                        ) : (
-                            <span className="text-gray-400 text-xs">
-                                {t("pages.deals.table.no_lead_assigned")}
-                            </span>
-                        )}
-                    </div>
-                );
-            },
-        },
+     
         {
             title: t("pages.deals.table.columns.stage"),
             dataIndex: "stage",
@@ -362,31 +349,7 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
 
-        {
-            title: (
-                <span className="flex items-center">
-                    {t("pages.deals.table.columns.updated")}
-                    <PageDataSorter
-                        field="updated_at"
-                        routeName="deals.index"
-                    />
-                </span>
-            ),
-            key: "updated_at",
-            width: 150,
-            render: (_, record) => {
-                if (!record.updated_at)
-                    return <span className="text-gray-400">--</span>;
-
-                return (
-                    <span className="text-gray-900">
-                        {dayjs(record.updated_at).format(
-                            "MMM DD, YYYY HH:mm",
-                        )}
-                    </span>
-                );
-            },
-        },
+        
 
         {
             title: t("pages.deals.table.columns.actions"),
