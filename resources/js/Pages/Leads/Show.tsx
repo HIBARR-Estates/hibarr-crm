@@ -72,11 +72,8 @@ const Show = ({
     const { props } = usePage<PageProps>();
     const { t } = useTranslation();
     const showQualificationTab = true;
-    const useLeadCoreFields = true;
-    // const showQualificationTab =
-    //     props.featureFlags?.["crm.lead-qualification-tab"] === true;
-    // const useLeadCoreFields =
-    //     props.featureFlags?.["crm.lead-language-core-field"] === true;
+    const useLeadCoreFields =
+        props.featureFlags?.["crm.lead-language-core-field"] === true;
 
     const [activeTab, setActiveTab] = useState("profile");
     const [isEditMode, setIsEditMode] = useState(false);

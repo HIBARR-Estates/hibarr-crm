@@ -61,9 +61,7 @@ class LeadService
             $lead->gender_value = $lead->gender instanceof \App\Enums\Gender ? $lead->gender->value : $lead->gender;
             $lead = $lead->withCustomFields();
 
-            if ($this->coreFieldsService->useCoreFields()) {
-                $this->coreFieldsService->mergeOntoLead($lead);
-            }
+            $this->coreFieldsService->mergeOntoLead($lead);
 
             return $lead;
         });
