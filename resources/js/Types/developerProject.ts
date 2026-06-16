@@ -44,6 +44,7 @@ export interface Developer {
     description: string | null;
     project_list: string[] | null;
     whatsapp_group_link: string | null;
+    google_drive_link: string | null;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;

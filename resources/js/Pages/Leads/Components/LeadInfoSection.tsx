@@ -80,6 +80,15 @@ export default function LeadInfoSection({
         value: lang.language_code,
         label: lang.language_name,
     }));
+
+    const resolveLanguageLabel = useCallback(
+        (code: string) =>
+            languageOptions.find(
+                (option) =>
+                    option.value.toLowerCase() === code.toLowerCase(),
+            )?.label || code,
+        [languageOptions],
+    );
     const user = props.auth.user;
     const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState("overview");
@@ -203,7 +212,12 @@ export default function LeadInfoSection({
                     const leadData = response.data.lead as Record<string, any>;
                     Object.keys(leadData).forEach((key) => {
                         if (leadData[key] !== undefined) {
-                            updated[key] = leadData[key];
+                            updated[key] =
+                                key === "languages"
+                                    ? Array.isArray(leadData[key])
+                                        ? leadData[key]
+                                        : []
+                                    : leadData[key];
                         }
                     });
                     if (leadData.mobile !== undefined) {
@@ -300,6 +314,10 @@ export default function LeadInfoSection({
                         fieldName === "next_follow_up"
                     ) {
                         processedValue = value || null;
+                    } else if (fieldName === "gender") {
+                        processedValue = value || null;
+                    } else if (fieldName === "languages") {
+                        processedValue = Array.isArray(value) ? value : [];
                     }
                     standardChanges[fieldName] = processedValue;
                 }
@@ -319,6 +337,15 @@ export default function LeadInfoSection({
             }
 
             await Promise.all(promises);
+
+            if (standardChanges.languages !== undefined) {
+                setCurrentLeadState((prev) => ({
+                    ...prev,
+                    languages: Array.isArray(standardChanges.languages)
+                        ? standardChanges.languages
+                        : [],
+                }));
+            }
 
             message.success(t("pages.leads.info.save_all_success"));
             setPendingChanges({});
@@ -466,6 +493,8 @@ export default function LeadInfoSection({
                 } else if (fieldName === "gender") {
                     // Ensure gender is sent as the actual value (male/female) or null
                     processedValue = value || null;
+                } else if (fieldName === "languages") {
+                    processedValue = Array.isArray(value) ? value : [];
                 } else if (
                     fieldName === "category_id" ||
                     fieldName === "source_id" ||
@@ -481,6 +510,15 @@ export default function LeadInfoSection({
             }
 
             await updateLead(payloadData);
+
+            if (!isCustomField && fieldName === "languages") {
+                setCurrentLeadState((prev) => ({
+                    ...prev,
+                    languages: Array.isArray(payloadData.languages)
+                        ? payloadData.languages
+                        : [],
+                }));
+            }
         } catch (error: any) {
             // Clear the updating field on error
             setUpdatingField(null);
@@ -722,11 +760,10 @@ export default function LeadInfoSection({
                                             currentLeadState.languages?.length ? (
                                                 <span>
                                                     {currentLeadState.languages
-                                                        .map(
-                                                            (code) =>
-                                                                languageOptions.find(
-                                                                    (o) => o.value === code,
-                                                                )?.label || code,
+                                                        .map((code) =>
+                                                            resolveLanguageLabel(
+                                                                code,
+                                                            ),
                                                         )
                                                         .join(", ")}
                                                 </span>

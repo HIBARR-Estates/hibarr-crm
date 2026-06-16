@@ -141,9 +141,7 @@ class LeadContactController extends AccountBaseController
             'activeQualification.agent:id,name,image',
         ])->findOrFail($id)->withCustomFields();
 
-        if ($this->coreFieldsService->useCoreFields()) {
-            $this->coreFieldsService->mergeOntoLead($this->leadContact);
-        }
+        $this->coreFieldsService->mergeOntoLead($this->leadContact);
 
         // Ensure enum values are available for frontend
         $this->leadContact->salutation_value = $this->leadContact->salutation instanceof \App\Enums\Salutation ? $this->leadContact->salutation->value : $this->leadContact->salutation;
@@ -936,6 +934,9 @@ class LeadContactController extends AccountBaseController
 
             // Commit transaction
             \DB::commit();
+
+            $leadContact->refresh();
+            $this->coreFieldsService->mergeOntoLead($leadContact);
 
             // Return success response for API calls or redirect for web
             if ($request->ajax() || $request->wantsJson() || $request->header('X-Inertia') || $request->header('X-Requested-With')) {

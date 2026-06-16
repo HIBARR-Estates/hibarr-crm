@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { LeadFormProps } from "./LeadForm";
-import { Button, Card, Form, Space } from "antd";
+import { Button, Card, Form, Space, FormInstance } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 
 interface CustomFieldTabProps
@@ -18,6 +18,7 @@ interface CustomFieldTabProps
     > {
     categoryId: number;
     categoryName: string;
+    onFormInstance?: (form: FormInstance | null) => void;
 }
 
 const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
@@ -29,8 +30,17 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     cancelText = "Cancel",
     categoryId,
     categoryName,
+    onFormInstance,
 }) => {
     const [form] = Form.useForm();
+
+    useEffect(() => {
+        onFormInstance?.(form);
+
+        return () => {
+            onFormInstance?.(null);
+        };
+    }, [form, onFormInstance]);
 
     useEffect(() => {
         // Initialize form values when data changes

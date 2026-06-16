@@ -86,7 +86,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
     return (
         <div className="w-full lg:w-64 lg:flex-shrink-0 lg:sticky lg:top-4 flex flex-col gap-2">
             {/* Nav items – each is its own card */}
-            {navItems.map((item) => {
+            {navItems.filter((item) => item.disabled !== true).map((item) => {
                 const isDisabled = Boolean(item.disabled);
                 const isActive = activeSection === item.key;
                 const baseClasses = `flex items-center gap-4 p-2 rounded-md border transition-colors ${
