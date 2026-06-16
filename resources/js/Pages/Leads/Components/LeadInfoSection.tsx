@@ -1027,67 +1027,7 @@ export default function LeadInfoSection({
                         isOpen={openSections["lead-address"] ?? false}
                         onToggle={() => toggleSection("lead-address")}
                     >
-                        <DetailField label={t("pages.leads.info.fields.country")}>
-                            <EditableField
-                                value={currentLeadState.country || ""}
-                                fieldName="country"
-                                fieldType="country"
-                                onSave={(value) =>
-                                    handleFieldUpdate("country", value)
-                                }
-                                onChange={handleFieldChange}
-                                placeholder={t("pages.leads.info.placeholders.country")}
-                                alwaysEditing={isFieldEditable}
-                                loading={isFieldLoading("country")}
-                            />
-                        </DetailField>
-
-                        <DetailField label={t("pages.leads.info.fields.state")}>
-                            <EditableField
-                                value={currentLeadState.state || ""}
-                                fieldName="state"
-                                fieldType="text"
-                                onSave={(value) =>
-                                    handleFieldUpdate("state", value)
-                                }
-                                onChange={handleFieldChange}
-                                placeholder={t("pages.leads.info.placeholders.state")}
-                                alwaysEditing={isFieldEditable}
-                                loading={isFieldLoading("state")}
-                            />
-                        </DetailField>
-
-                        <DetailField label={t("pages.leads.info.fields.city")}>
-                            <EditableField
-                                value={currentLeadState.city || ""}
-                                fieldName="city"
-                                fieldType="text"
-                                onSave={(value) =>
-                                    handleFieldUpdate("city", value)
-                                }
-                                onChange={handleFieldChange}
-                                placeholder={t("pages.leads.info.placeholders.city")}
-                                alwaysEditing={isFieldEditable}
-                                loading={isFieldLoading("city")}
-                            />
-                        </DetailField>
-
-                        <DetailField label={t("pages.leads.info.fields.postal_code")}>
-                            <EditableField
-                                value={currentLeadState.postal_code || ""}
-                                fieldName="postal_code"
-                                fieldType="text"
-                                onSave={(value) =>
-                                    handleFieldUpdate("postal_code", value)
-                                }
-                                onChange={handleFieldChange}
-                                placeholder={t("pages.leads.info.placeholders.postal_code")}
-                                alwaysEditing={isFieldEditable}
-                                loading={isFieldLoading("postal_code")}
-                            />
-                        </DetailField>
-
-                        <DetailField label={t("pages.leads.info.fields.address")} span={2}>
+                         <DetailField label={t("pages.leads.info.fields.address")} span={2}>
                             <EditableField
                                 value={currentLeadState.address || ""}
                                 fieldName="address"
@@ -1109,6 +1049,65 @@ export default function LeadInfoSection({
                                 loading={isFieldLoading("address")}
                             />
                         </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.postal_code")}>
+                            <EditableField
+                                value={currentLeadState.postal_code || ""}
+                                fieldName="postal_code"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("postal_code", value)
+                                }
+                                onChange={handleFieldChange}
+                                placeholder={t("pages.leads.info.placeholders.postal_code")}
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("postal_code")}
+                            />
+                        </DetailField>
+                        <DetailField label={t("pages.leads.info.fields.city")}>
+                            <EditableField
+                                value={currentLeadState.city || ""}
+                                fieldName="city"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("city", value)
+                                }
+                                onChange={handleFieldChange}
+                                placeholder={t("pages.leads.info.placeholders.city")}
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("city")}
+                            />
+                        </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.state")}>
+                            <EditableField
+                                value={currentLeadState.state || ""}
+                                fieldName="state"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleFieldUpdate("state", value)
+                                }
+                                onChange={handleFieldChange}
+                                placeholder={t("pages.leads.info.placeholders.state")}
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("state")}
+                            />
+                        </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.country")}>
+                            <EditableField
+                                value={currentLeadState.country || ""}
+                                fieldName="country"
+                                fieldType="country"
+                                onSave={(value) =>
+                                    handleFieldUpdate("country", value)
+                                }
+                                onChange={handleFieldChange}
+                                placeholder={t("pages.leads.info.placeholders.country")}
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("country")}
+                            />
+                        </DetailField> 
                     </DetailSection>
 
                     {/* Notes */}
