@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Form, Tabs, Button, Space, Alert } from "antd";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Tabs, Alert } from "antd";
 import { CreateLeadFormData, Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
 import BasicInfoTab from "./BasicInfoTab";
@@ -18,6 +18,7 @@ export interface LeadFormProps {
     cancelText?: string;
     visible?: boolean;
     isEditing?: boolean;
+    getIsDirtyRef?: React.MutableRefObject<(() => boolean) | null>;
 }
 
 const LeadForm: React.FC<LeadFormProps> = ({
@@ -33,15 +34,29 @@ const LeadForm: React.FC<LeadFormProps> = ({
     onErrorsClear,
     visible,
     isEditing = false,
+    getIsDirtyRef,
 }) => {
     const [activeTab, setActiveTab] = useState("basic");
+    const userEditedRef = useRef(false);
     const { props } = usePage<any>();
     const customFieldCategories =
         props.leadCustomFieldCategories || props.customFieldCategories || [];
 
+    const markUserEdited = useCallback(() => {
+        userEditedRef.current = true;
+    }, []);
+
     useEffect(() => {
-        if (!visible) {
-            setActiveTab("deal");
+        if (getIsDirtyRef) {
+            getIsDirtyRef.current = () => userEditedRef.current;
+        }
+    }, [getIsDirtyRef]);
+
+    useEffect(() => {
+        if (visible) {
+            userEditedRef.current = false;
+        } else {
+            setActiveTab("basic");
         }
     }, [visible]);
 
@@ -51,6 +66,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
         setLead?.(undefined);
         _onCancel?.();
     };
+
     const tabItems = [
         {
             key: "basic",
@@ -65,11 +81,11 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
+                    onUserEdit={markUserEdited}
                 />
             ),
         },
 
-        // Add custom field category tabs
         ...customFieldCategories.map((category: any) => ({
             key: `custom_${category.id}`,
             label: category.name,
@@ -83,6 +99,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     submitText={submitText}
                     categoryId={category.id}
                     categoryName={category.name}
+                    onUserEdit={markUserEdited}
                 />
             ) : null,
             disabled: !isEditing,
@@ -91,7 +108,6 @@ const LeadForm: React.FC<LeadFormProps> = ({
 
     return (
         <>
-            {/* Display errors */}
             {errors.length > 0 && (
                 <div className="mb-4">
                     <Alert
@@ -115,7 +131,6 @@ const LeadForm: React.FC<LeadFormProps> = ({
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 items={tabItems}
-                // type="card"
             />
         </>
     );

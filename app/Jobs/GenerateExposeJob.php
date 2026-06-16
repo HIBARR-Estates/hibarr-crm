@@ -18,15 +18,18 @@ use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class GenerateExposeJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    public const QUEUE = 'expose';
+
     /**
      * Max execution time – Browsershot can take a while on large PDFs.
      */
-    public int $timeout = 300;
+    public int $timeout = 420;
 
     /**
      * Do not retry — PDF generation is expensive and failures are usually
@@ -45,28 +48,38 @@ class GenerateExposeJob implements ShouldQueue
         $exposeJob->update(['status' => ExposeJob::STATUS_PROCESSING]);
 
         $tempPath = null;
+        $startedAt = microtime(true);
 
         try {
+            $phaseStarted = microtime(true);
             $config = $this->buildConfig($exposeJob);
+            $this->logPhase('build_config', $phaseStarted, $this->exposeJobId);
 
-            // Render Blade → HTML
+            $phaseStarted = microtime(true);
             $html = $renderer->render($config);
+            $this->logPhase('render_html', $phaseStarted, $this->exposeJobId, [
+                'html_bytes' => strlen($html),
+            ]);
 
-            // Save PDF to a local temp file (avoids streaming it back synchronously)
             $tempDir = storage_path('app/temp/expose');
             if (!is_dir($tempDir)) {
                 mkdir($tempDir, 0755, true);
             }
             $tempPath = $tempDir . '/' . uniqid('expose_', true) . '.pdf';
 
+            $phaseStarted = microtime(true);
             $generator->saveToFile($html, $config, $tempPath);
+            $this->logPhase('browsershot_pdf', $phaseStarted, $this->exposeJobId, [
+                'pdf_bytes' => file_exists($tempPath) ? filesize($tempPath) : 0,
+            ]);
 
-            // Upload to the external file storage (Minio via API)
+            $phaseStarted = microtime(true);
             $uploadResult = $fileStorageService->uploadFromPath(
                 $tempPath,
                 $exposeJob->filename,
                 'backend-uploads'
             );
+            $this->logPhase('upload_pdf', $phaseStarted, $this->exposeJobId);
 
             $exposeJob->update([
                 'status'       => ExposeJob::STATUS_READY,
@@ -75,16 +88,21 @@ class GenerateExposeJob implements ShouldQueue
                 'expires_at'   => now()->addDays(7),
             ]);
 
-            // Notify the user via in-app notification
             $user = User::find($exposeJob->user_id);
             if ($user) {
                 $user->notify(new ExposeReadyNotification($exposeJob));
             }
-        } catch (\Throwable $e) {
+
+            Log::info('GenerateExposeJob completed', [
+                'expose_job_id' => $this->exposeJobId,
+                'total_ms'      => (int) round((microtime(true) - $startedAt) * 1000),
+            ]);
+        } catch (Throwable $e) {
             Log::error('GenerateExposeJob failed', [
                 'expose_job_id' => $this->exposeJobId,
                 'error'         => $e->getMessage(),
                 'trace'         => $e->getTraceAsString(),
+                'elapsed_ms'    => (int) round((microtime(true) - $startedAt) * 1000),
             ]);
 
             $exposeJob->update([
@@ -99,6 +117,35 @@ class GenerateExposeJob implements ShouldQueue
     }
 
     /**
+     * Ensure the expose_jobs row is marked failed when the queue worker kills the job.
+     */
+    public function failed(?Throwable $exception): void
+    {
+        $message = $exception?->getMessage() ?? 'PDF generation timed out or was interrupted.';
+
+        Log::error('GenerateExposeJob failed (queue)', [
+            'expose_job_id' => $this->exposeJobId,
+            'error'         => $message,
+        ]);
+
+        ExposeJob::where('id', $this->exposeJobId)
+            ->whereIn('status', [ExposeJob::STATUS_QUEUED, ExposeJob::STATUS_PROCESSING])
+            ->update([
+                'status'        => ExposeJob::STATUS_FAILED,
+                'error_message' => $message,
+            ]);
+    }
+
+    private function logPhase(string $phase, float $startedAt, int $exposeJobId, array $extra = []): void
+    {
+        Log::info('GenerateExposeJob phase', array_merge([
+            'expose_job_id' => $exposeJobId,
+            'phase'         => $phase,
+            'duration_ms'   => (int) round((microtime(true) - $startedAt) * 1000),
+        ], $extra));
+    }
+
+    /**
      * Reconstruct the ExposeConfiguration from the stored job record.
      */
     private function buildConfig(ExposeJob $exposeJob): ExposeConfiguration
@@ -109,7 +156,6 @@ class GenerateExposeJob implements ShouldQueue
             'client_email' => $payload['client_email'] ?? null,
         ];
 
-        // Queue workers have no HTTP session — use the user stored on the job.
         $generatedBy = $exposeJob->user_id
             ? User::with(['employeeDetail.designation', 'company.defaultAddress'])->find($exposeJob->user_id)
             : null;

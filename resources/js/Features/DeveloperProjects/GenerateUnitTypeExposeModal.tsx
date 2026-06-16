@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { router } from "@inertiajs/react";
 import {
     Modal,
     Button,
@@ -17,10 +18,19 @@ import {
     CloseCircleOutlined,
 } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { useExposeJobPoller } from "@/lib/api/client/useExposeJobPoller";
+import {
+    useExposeJobPoller,
+    exposeJobStatusLabel,
+    formatExposeElapsed,
+    type ExposeJobStatus,
+} from "@/lib/api/client/useExposeJobPoller";
 import { ApiResponse } from "@/lib/api/types";
 import { useFormData } from "@/Hooks/useFormData";
 import type { DeveloperProjectUnitType } from "../../Types/developerProject";
+import {
+    type ExposeValidationWarning,
+} from "@/lib/expose/formatExposeValidationLabel";
+import ExposeValidationWarnings from "@/Features/Expose/ExposeValidationWarnings";
 
 interface GenerateUnitTypeExposeModalProps {
     open: boolean;
@@ -41,14 +51,8 @@ interface GenerateJobResponse {
 
 type Phase = "form" | "queued" | "ready" | "failed";
 
-interface Warning {
-    severity: string;
-    field: string;
-    message: string;
-}
-
 interface ValidationData {
-    warnings: Warning[];
+    warnings: ExposeValidationWarning[];
 }
 
 interface LeadOption {
@@ -69,12 +73,15 @@ const sanitizeFilePart = (value?: string, fallback = "na") => {
 const GenerateUnitTypeExposeModal: React.FC<
     GenerateUnitTypeExposeModalProps
 > = ({ open, onClose, projectId, projectName, unitType }) => {
-    const [warnings, setWarnings] = useState<Warning[]>([]);
+    const [warnings, setWarnings] = useState<ExposeValidationWarning[]>([]);
     const [selectedLeadId, setSelectedLeadId] = useState<number | null>(null);
     const [leadSearch, setLeadSearch] = useState<string>("");
     const [clientName, setClientName] = useState<string>("");
     const [phase, setPhase] = useState<Phase>("form");
     const [jobId, setJobId] = useState<number | null>(null);
+    const [jobStatus, setJobStatus] = useState<ExposeJobStatus | null>(null);
+    const [queuedAt, setQueuedAt] = useState<number | null>(null);
+    const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [errorMessage, setErrorMessage] = useState<string>("");
 
     const baseUrl = `/account/developer-projects/${projectId}/unit-types/${unitType.id}`;
@@ -142,6 +149,7 @@ const GenerateUnitTypeExposeModal: React.FC<
 
     useExposeJobPoller({
         jobId,
+        onStatusChange: setJobStatus,
         onReady: (downloadUrl) => {
             setPhase("ready");
             const link = document.createElement("a");
@@ -156,9 +164,28 @@ const GenerateUnitTypeExposeModal: React.FC<
     });
 
     useEffect(() => {
+        if (phase !== "queued" || !queuedAt) {
+            setElapsedSeconds(0);
+            return;
+        }
+
+        const updateElapsed = () => {
+            setElapsedSeconds(Math.floor((Date.now() - queuedAt) / 1000));
+        };
+
+        updateElapsed();
+        const timer = window.setInterval(updateElapsed, 1000);
+
+        return () => window.clearInterval(timer);
+    }, [phase, queuedAt]);
+
+    useEffect(() => {
         if (open) {
             setPhase("form");
             setJobId(null);
+            setJobStatus(null);
+            setQueuedAt(null);
+            setElapsedSeconds(0);
             setErrorMessage("");
             setWarnings([]);
             setSelectedLeadId(null);
@@ -196,6 +223,8 @@ const GenerateUnitTypeExposeModal: React.FC<
                 const id = response?.data?.job_id;
                 if (id) {
                     setJobId(id);
+                    setJobStatus("queued");
+                    setQueuedAt(Date.now());
                     setPhase("queued");
                 }
             },
@@ -213,7 +242,14 @@ const GenerateUnitTypeExposeModal: React.FC<
 
         setPhase("form");
         setJobId(null);
+        setJobStatus(null);
+        setQueuedAt(null);
         onClose();
+    };
+
+    const handleFixNavigate = (href: string) => {
+        onClose();
+        router.visit(href);
     };
 
     const hasErrors = warnings.some((w) => w.severity === "error");
@@ -256,9 +292,16 @@ const GenerateUnitTypeExposeModal: React.FC<
             {phase === "queued" && (
                 <div className="py-10 text-center flex flex-col items-center gap-4">
                     <Spin size="large" />
-                    <p className="text-gray-600">
-                        Your expose PDF is being generated. Please wait until it
-                        is ready.
+                    <p className="text-gray-700 font-medium">
+                        {exposeJobStatusLabel(jobStatus)}
+                    </p>
+                    <p className="text-gray-500 text-sm">
+                        Elapsed: {formatExposeElapsed(elapsedSeconds)}
+                    </p>
+                    <p className="text-gray-600 text-sm max-w-sm">
+                        Large exposes with many photos can take a few minutes.
+                        You can keep this window open or close it — we will
+                        notify you when the PDF is ready.
                     </p>
                 </div>
             )}
@@ -292,23 +335,10 @@ const GenerateUnitTypeExposeModal: React.FC<
                                         : "Missing Information"
                                 }
                                 description={
-                                    <ul className="list-disc pl-4 mt-2">
-                                        {warnings.map((warning, index) => (
-                                            <li
-                                                key={index}
-                                                className={
-                                                    warning.severity === "error"
-                                                        ? "text-red-600"
-                                                        : ""
-                                                }
-                                            >
-                                                <strong>
-                                                    {warning.field}:
-                                                </strong>{" "}
-                                                {warning.message}
-                                            </li>
-                                        ))}
-                                    </ul>
+                                    <ExposeValidationWarnings
+                                        warnings={warnings}
+                                        onNavigate={handleFixNavigate}
+                                    />
                                 }
                                 type={hasErrors ? "error" : "warning"}
                                 showIcon

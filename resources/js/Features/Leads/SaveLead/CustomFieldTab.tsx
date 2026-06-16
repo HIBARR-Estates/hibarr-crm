@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { LeadFormProps } from "./LeadForm";
 import { Button, Card, Form, Space } from "antd";
@@ -18,6 +18,7 @@ interface CustomFieldTabProps
     > {
     categoryId: number;
     categoryName: string;
+    onUserEdit?: () => void;
 }
 
 const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
@@ -29,13 +30,18 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     cancelText = "Cancel",
     categoryId,
     categoryName,
+    onUserEdit,
 }) => {
     const [form] = Form.useForm();
+    const isPopulatingRef = useRef(false);
 
     useEffect(() => {
-        // Initialize form values when data changes
         if (data) {
+            isPopulatingRef.current = true;
             form.setFieldsValue(data);
+            queueMicrotask(() => {
+                isPopulatingRef.current = false;
+            });
         }
     }, [data, form]);
 
@@ -53,7 +59,16 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     }
 
     return (
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            onValuesChange={() => {
+                if (!isPopulatingRef.current) {
+                    onUserEdit?.();
+                }
+            }}
+        >
             <Card title={`${categoryName} Custom Fields`} size="small">
                 <GeneralCustomFieldTab
                     data={data}

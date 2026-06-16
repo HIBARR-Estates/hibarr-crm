@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
     Form,
     Input,
@@ -33,6 +33,7 @@ interface BasicInfoTabProps
         | "onErrorsClear"
     > {
     setLead?: (lead: Lead | undefined) => void;
+    onUserEdit?: () => void;
 }
 
 const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -45,6 +46,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     onErrorsClear,
     setErrors,
     setLead,
+    onUserEdit,
 }) => {
     const { props } = usePage<any>();
     const {
@@ -60,11 +62,14 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
     const [form] = Form.useForm();
+    const isPopulatingRef = useRef(false);
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const isEditing = data ? true : false;
+
     // Populate form when data changes
     useEffect(() => {
         if (data) {
+            isPopulatingRef.current = true;
             const formData = {
                 ...data,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
@@ -73,6 +78,9 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 product_id: data.product_id || [],
             };
             form.setFieldsValue(formData);
+            queueMicrotask(() => {
+                isPopulatingRef.current = false;
+            });
         }
     }, [data, form]);
 
@@ -105,6 +113,11 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
+            onValuesChange={() => {
+                if (!isPopulatingRef.current) {
+                    onUserEdit?.();
+                }
+            }}
             onFinishFailed={(errorInfo) => {
                 setErrors?.(
                     errorInfo.errorFields.map((field) => field.errors).flat()
@@ -313,6 +326,12 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         </Col>
 
                         <Col span={8}>
+                            <Form.Item label="Postal Code" name="postal_code">
+                                <Input placeholder="Enter postal code" />
+                            </Form.Item>
+                        </Col>
+
+                        <Col span={8}>
                             <Form.Item label="City" name="city">
                                 <Input placeholder="Enter city" />
                             </Form.Item>
@@ -321,12 +340,6 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         <Col span={8}>
                             <Form.Item label="State/Province" name="state">
                                 <Input placeholder="Enter state or province" />
-                            </Form.Item>
-                        </Col>
-
-                        <Col span={8}>
-                            <Form.Item label="Postal Code" name="postal_code">
-                                <Input placeholder="Enter postal code" />
                             </Form.Item>
                         </Col>
 

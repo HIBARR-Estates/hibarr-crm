@@ -57,7 +57,7 @@ class DeveloperController extends AccountBaseController
     public function all()
     {
         $developers = Developer::where('company_id', user()->company_id)
-            ->select('id', 'name', 'logo_url', 'project_list', 'whatsapp_group_link')
+            ->select('id', 'name', 'logo_url', 'project_list', 'whatsapp_group_link', 'google_drive_link')
             ->orderBy('name')
             ->get();
 
@@ -117,6 +117,7 @@ class DeveloperController extends AccountBaseController
             'logo_url' => 'nullable|url|max:500',
             'description' => 'nullable|string',
             'whatsapp_group_link' => 'nullable|url|max:500',
+            'google_drive_link' => 'nullable|url|max:500',
         ]);
 
         if ($validator->fails()) {
@@ -129,6 +130,7 @@ class DeveloperController extends AccountBaseController
             'logo_url' => $request->logo_url,
             'description' => $request->description,
             'whatsapp_group_link' => $request->whatsapp_group_link,
+            'google_drive_link' => $request->google_drive_link,
         ]);
 
         return Reply::successWithData('Developer created successfully', [
@@ -149,13 +151,14 @@ class DeveloperController extends AccountBaseController
             'logo_url' => 'nullable|url|max:500',
             'description' => 'nullable|string',
             'whatsapp_group_link' => 'nullable|url|max:500',
+            'google_drive_link' => 'nullable|url|max:500',
         ]);
 
         if ($validator->fails()) {
             return Reply::error($validator->errors()->first());
         }
 
-        $developer->update($request->only(['name', 'logo_url', 'description', 'whatsapp_group_link']));
+        $developer->update($request->only(['name', 'logo_url', 'description', 'whatsapp_group_link', 'google_drive_link']));
 
         return Reply::successWithData('Developer updated successfully', [
             'developer' => $developer->fresh(),

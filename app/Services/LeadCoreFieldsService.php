@@ -245,9 +245,10 @@ class LeadCoreFieldsService
 
         $lookup = [];
         foreach (LanguageSetting::select('language_code', 'language_name')->get() as $language) {
-            $code = strtolower(trim($language->language_code));
-            $lookup[$code] = $code;
-            $lookup[strtolower(trim($language->language_name))] = $code;
+            $canonicalCode = trim($language->language_code);
+            $code = strtolower($canonicalCode);
+            $lookup[$code] = $canonicalCode;
+            $lookup[strtolower(trim($language->language_name))] = $canonicalCode;
         }
 
         $codes = [];
@@ -266,8 +267,8 @@ class LeadCoreFieldsService
                 continue;
             }
 
-            if (preg_match('/^[a-z]{2}(-[a-z]{2})?$/', $token)) {
-                $codes[] = strtok($token, '-');
+            if (preg_match('/^[a-z]{2}(-[a-z]{2})?$/i', $token)) {
+                $codes[] = $lookup[$token] ?? $token;
             }
         }
 

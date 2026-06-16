@@ -24,42 +24,42 @@ class ContentValidator
     private array $rules = [
         'property' => [
             'required' => [
-                'title' => 'Property title is required',
-                'price' => 'Property price is required',
-                'city' => 'Property city is required',
+                'title' => ['label' => 'Property title', 'message' => 'Property title is required'],
+                'price' => ['label' => 'Property price', 'message' => 'Property price is required'],
+                'city' => ['label' => 'Property city', 'message' => 'Property city is required'],
             ],
             'recommended' => [
-                'description' => 'Property description is recommended',
-                'bedrooms' => 'Number of bedrooms is recommended',
-                'bathrooms' => 'Number of bathrooms is recommended',
-                'living_area_sqm' => 'Living area (sqm) is recommended',
-                'property_type' => 'Property type is recommended',
+                'description' => ['label' => 'Property description', 'message' => 'Property description is recommended'],
+                'bedrooms' => ['label' => 'Bedrooms', 'message' => 'Number of bedrooms is recommended'],
+                'bathrooms' => ['label' => 'Bathrooms', 'message' => 'Number of bathrooms is recommended'],
+                'living_area_sqm' => ['label' => 'Living area (sqm)', 'message' => 'Living area (sqm) is recommended'],
+                'property_type' => ['label' => 'Property type', 'message' => 'Property type is recommended'],
             ],
             'optimal' => [
-                'features' => 'Property features enhance the expose',
-                'agent.name' => 'Agent information improves credibility',
-                'distances' => 'Distance information enhances the infrastructure page',
-            ]
+                'features' => ['label' => 'Property features', 'message' => 'Property features enhance the expose'],
+                'agent.name' => ['label' => 'Agent name', 'message' => 'Agent information improves credibility'],
+                'distances' => ['label' => 'Distance information', 'message' => 'Distance information enhances the infrastructure page'],
+            ],
         ],
         'developer_project' => [
             'required' => [
-                'title' => 'Project title is required',
-                'developer' => 'Developer name is required',
-                'city' => 'Project city/area is required',
+                'title' => ['label' => 'Project title', 'message' => 'Project title is required'],
+                'developer' => ['label' => 'Developer name', 'message' => 'Developer name is required'],
+                'city' => ['label' => 'Project city/area', 'message' => 'Project city/area is required'],
             ],
             'recommended' => [
-                'description' => 'Project description is recommended',
-                'completion_date' => 'Completion date is recommended',
-                'construction_status' => 'Construction status is recommended',
-                'starting_price' => 'Starting price is recommended',
-                'unit_types' => 'Unit type summaries enhance the brochure',
+                'description' => ['label' => 'Project description', 'message' => 'Project description is recommended'],
+                'completion_date' => ['label' => 'Completion date', 'message' => 'Completion date is recommended'],
+                'construction_status' => ['label' => 'Construction status', 'message' => 'Construction status is recommended'],
+                'starting_price' => ['label' => 'Starting price', 'message' => 'Starting price is recommended'],
+                'unit_types' => ['label' => 'Unit types', 'message' => 'Unit type summaries enhance the brochure'],
             ],
             'optimal' => [
-                'facilities' => 'Facility information enhances the brochure',
-                'distances' => 'Distance information enhances the infrastructure page',
-                'payment_plan' => 'Payment plan details improve buyer engagement',
+                'facilities' => ['label' => 'Facilities', 'message' => 'Facility information enhances the brochure'],
+                'distances' => ['label' => 'Distance information', 'message' => 'Distance information enhances the infrastructure page'],
+                'payment_plan' => ['label' => 'Payment plan', 'message' => 'Payment plan details improve buyer engagement'],
             ],
-        ]
+        ],
     ];
 
     /**
@@ -72,64 +72,51 @@ class ContentValidator
         $warnings = [];
         $rules = $this->rules[$config->entityType] ?? [];
 
-        // Check required fields
-        foreach ($rules['required'] ?? [] as $field => $message) {
+        foreach ($rules['required'] ?? [] as $field => $rule) {
             if (!$config->has($field) || empty($config->get($field))) {
-                $warnings[] = [
-                    'severity' => 'error',
-                    'field' => $field,
-                    'message' => $message,
-                ];
+                $warnings[] = $this->makeWarning('error', $field, $rule['label'], $rule['message']);
             }
         }
 
-        // Check recommended fields
-        foreach ($rules['recommended'] ?? [] as $field => $message) {
+        foreach ($rules['recommended'] ?? [] as $field => $rule) {
             $value = $config->get($field);
-            
-            // Special handling for images
+
             if ($field === 'images') {
                 if (empty($value) || count($value) < 3) {
-                    $warnings[] = [
-                        'severity' => 'warning',
-                        'field' => $field,
-                        'message' => $message,
-                    ];
+                    $warnings[] = $this->makeWarning('warning', $field, $rule['label'], $rule['message']);
                 }
             } elseif (!$config->has($field) || empty($value)) {
-                $warnings[] = [
-                    'severity' => 'warning',
-                    'field' => $field,
-                    'message' => $message,
-                ];
+                $warnings[] = $this->makeWarning('warning', $field, $rule['label'], $rule['message']);
             }
         }
 
-        // Check optimal fields
-        foreach ($rules['optimal'] ?? [] as $field => $message) {
+        foreach ($rules['optimal'] ?? [] as $field => $rule) {
             if (!$config->has($field) || empty($config->get($field))) {
-                $warnings[] = [
-                    'severity' => 'info',
-                    'field' => $field,
-                    'message' => $message,
-                ];
+                $warnings[] = $this->makeWarning('info', $field, $rule['label'], $rule['message']);
             }
         }
 
-        // Warn when the expose relies on project-level defaults or incomplete footer content.
         $warnings = array_merge($warnings, $this->checkFallbackWarnings($config));
 
-        // Check for text overflow risks
         $overflowWarnings = $this->checkTextOverflow($config);
         $warnings = array_merge($warnings, $overflowWarnings);
 
-        // Check image counts for property and project exposes
         if (in_array($config->entityType, ['property', 'developer_project'])) {
             $imageWarnings = $this->checkImageCounts($config);
             $warnings = array_merge($warnings, $imageWarnings);
         }
 
         return $warnings;
+    }
+
+    private function makeWarning(string $severity, string $field, string $label, string $message): array
+    {
+        return [
+            'severity' => $severity,
+            'field' => $field,
+            'label' => $label,
+            'message' => $message,
+        ];
     }
 
     /**
@@ -144,22 +131,23 @@ class ContentValidator
             $count = count($assets[$tag] ?? []);
             $minRequired = $requirement['min'];
             $label = $requirement['label'];
+            $field = "assets.{$tag}";
 
             if ($count === 0) {
-                // Critical - no images at all for this tag
                 $severity = in_array($tag, ['hero', 'exterior']) ? 'error' : 'warning';
-                $warnings[] = [
-                    'severity' => $severity,
-                    'field' => "assets.{$tag}",
-                    'message' => "{$label}: No images uploaded (requires {$minRequired})",
-                ];
+                $warnings[] = $this->makeWarning(
+                    $severity,
+                    $field,
+                    $label,
+                    "No images uploaded (requires {$minRequired})"
+                );
             } elseif ($count < $minRequired) {
-                // Has some but not enough
-                $warnings[] = [
-                    'severity' => 'warning',
-                    'field' => "assets.{$tag}",
-                    'message' => "{$label}: {$count} of {$minRequired} required",
-                ];
+                $warnings[] = $this->makeWarning(
+                    'warning',
+                    $field,
+                    $label,
+                    "{$count} of {$minRequired} required"
+                );
             }
         }
 
@@ -171,27 +159,30 @@ class ContentValidator
         $warnings = [];
 
         if ($config->get('unit_type_description_provided') === false) {
-            $warnings[] = [
-                'field' => 'Unit type description',
-                'message' => 'Unit type description is not populated. The expose will fall back to project-level content if available.',
-                'severity' => 'warning',
-            ];
+            $warnings[] = $this->makeWarning(
+                'warning',
+                'unit_type_description',
+                'Unit type description',
+                'Not populated. The expose will fall back to project-level content if available.'
+            );
         }
 
         if (empty($config->get('location_infrastructure', []))) {
-            $warnings[] = [
-                'field' => 'Project location infrastructure',
-                'message' => 'Project location infrastructure is not populated. Add nearby infrastructure details to enrich the expose.',
-                'severity' => 'warning',
-            ];
+            $warnings[] = $this->makeWarning(
+                'warning',
+                'location_infrastructure',
+                'Project location infrastructure',
+                'Not populated. Add nearby infrastructure details to enrich the expose.'
+            );
         }
 
         if (empty($config->get('location_airports', []))) {
-            $warnings[] = [
-                'field' => 'Project location airports',
-                'message' => 'Project location airports are not populated. Add airport travel details to enrich the expose.',
-                'severity' => 'warning',
-            ];
+            $warnings[] = $this->makeWarning(
+                'warning',
+                'location_airports',
+                'Project location airports',
+                'Not populated. Add airport travel details to enrich the expose.'
+            );
         }
 
         $outro = $config->get('expose_global_config.outro', []);
@@ -201,19 +192,21 @@ class ContentValidator
             || !empty($outro['secondary_image_url'] ?? null);
 
         if (!$hasFooterImage) {
-            $warnings[] = [
-                'field' => 'Footer image',
-                'message' => 'The outro/footer image is not populated. Add a footer image to avoid an incomplete closing page.',
-                'severity' => 'warning',
-            ];
+            $warnings[] = $this->makeWarning(
+                'warning',
+                'footer_image',
+                'Footer image',
+                'Not populated. Add a footer image to avoid an incomplete closing page.'
+            );
         }
 
         if (($outro['enabled'] ?? false) && !$hasOutroText) {
-            $warnings[] = [
-                'field' => 'Outro details',
-                'message' => 'The outro details are not populated. Add the closing title or description to complete the PDF footer section.',
-                'severity' => 'warning',
-            ];
+            $warnings[] = $this->makeWarning(
+                'warning',
+                'outro_details',
+                'Outro details',
+                'Not populated. Add the closing title or description to complete the PDF footer section.'
+            );
         }
 
         return $warnings;
@@ -226,20 +219,22 @@ class ContentValidator
     {
         $warnings = [];
         $maxLengths = [
-            'title' => 100,
-            'description' => 1500,
+            'title' => ['label' => 'Title', 'max' => 100],
+            'description' => ['label' => 'Description', 'max' => 1500],
         ];
 
-        foreach ($maxLengths as $field => $maxLength) {
+        foreach ($maxLengths as $field => $fieldConfig) {
             $value = $config->get($field, '');
             $length = strlen($value);
+            $maxLength = $fieldConfig['max'];
 
             if ($length > $maxLength) {
-                $warnings[] = [
-                    'severity' => 'warning',
-                    'field' => $field,
-                    'message' => "The {$field} is very long ({$length} chars). It may overflow on the PDF.",
-                ];
+                $warnings[] = $this->makeWarning(
+                    'warning',
+                    $field,
+                    $fieldConfig['label'],
+                    "Very long ({$length} characters). It may overflow on the PDF."
+                );
             }
         }
 

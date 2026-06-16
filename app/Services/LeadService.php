@@ -61,9 +61,7 @@ class LeadService
             $lead->gender_value = $lead->gender instanceof \App\Enums\Gender ? $lead->gender->value : $lead->gender;
             $lead = $lead->withCustomFields();
 
-            if ($this->coreFieldsService->useCoreFields()) {
-                $this->coreFieldsService->mergeOntoLead($lead);
-            }
+            $this->coreFieldsService->mergeOntoLead($lead);
 
             return $lead;
         });
@@ -264,6 +262,7 @@ class LeadService
                 'updated_at' => 'leads.updated_at',
                 'company_name' => 'leads.company_name',
                 'client_email' => 'leads.client_email',
+                'source_id' => 'lead_sources.sort_order',
             ];
             
             if (isset($sortMapping[$sortBy])) {
@@ -272,6 +271,9 @@ class LeadService
                           ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } elseif ($sortBy === 'category') {
                     $query->leftJoin('lead_category', 'leads.category_id', '=', 'lead_category.id')
+                          ->orderBy($sortMapping[$sortBy], $sortDirection);
+                } elseif ($sortBy === 'source_id') {
+                    $query->leftJoin('lead_sources', 'leads.source_id', '=', 'lead_sources.id')
                           ->orderBy($sortMapping[$sortBy], $sortDirection);
                 } else {
                     $query->orderBy($sortMapping[$sortBy], $sortDirection);

@@ -5,7 +5,7 @@
  * and an "Add Unit Type" button that opens UnitTypeFormModal.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Button,
     Card,
@@ -61,6 +61,7 @@ const { Text, Paragraph } = Typography;
 interface UnitTypesSectionProps {
     projectId: number;
     unitTypes: DeveloperProjectUnitType[];
+    initialEditUnitTypeId?: number | null;
     /**
      * Optional callback for refreshing data after mutations.
      * When provided, uses this instead of router.reload (for API-driven contexts like modals).
@@ -722,6 +723,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
 const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
     projectId,
     unitTypes,
+    initialEditUnitTypeId = null,
     onRefresh,
 }) => {
     const { hasPermission } = usePermission();
@@ -731,6 +733,24 @@ const UnitTypesSection: React.FC<UnitTypesSectionProps> = ({
         useState<DeveloperProjectUnitType | null>(null);
     const [isDuplicating, setIsDuplicating] = useState(false);
     const [expandedId, setExpandedId] = useState<number | null>(null);
+
+    useEffect(() => {
+        if (!initialEditUnitTypeId || !canEdit) {
+            return;
+        }
+
+        const unitType = unitTypes.find(
+            (item) => item.id === initialEditUnitTypeId,
+        );
+
+        if (!unitType) {
+            return;
+        }
+
+        setEditingItem(unitType);
+        setIsDuplicating(false);
+        setModalOpen(true);
+    }, [initialEditUnitTypeId, unitTypes, canEdit]);
 
     const handleDelete = (unitType: DeveloperProjectUnitType) => {
         if (!canEdit) return;

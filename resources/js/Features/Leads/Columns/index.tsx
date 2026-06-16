@@ -137,7 +137,15 @@ export const LEAD_TABLE_COLUMNS = (
             },
         },
         {
-            title: translate("pages.leads.contacts_table.columns.source"),
+            title: (
+                <span className="flex items-center">
+                    {translate("pages.leads.contacts_table.columns.source")}
+                    <PageDataSorter
+                        field="source_id"
+                        routeName="lead-contact.index"
+                    />
+                </span>
+            ),
             dataIndex: "source",
             key: "source",
             width: 120,
@@ -267,9 +275,18 @@ export const LEAD_TABLE_COLUMNS = (
                     return <span className="text-gray-400">--</span>;
 
                 return (
-                    <span className="text-gray-900">
-                        {dayjs(record.created_at).format("MMM DD, YYYY")}
-                    </span>
+                    <div className="flex flex-col text-sm">
+                        <span className="text-gray-950 font-medium">
+                            {dayjs(record.created_at).format(
+                                "MMM DD, YYYY",
+                            )}
+                        </span>
+                        <span className="text-gray-600">
+                             {dayjs(record.created_at).format(
+                                "HH:mm",
+                            )}
+                        </span>
+                    </div>
                 );
             },
         },

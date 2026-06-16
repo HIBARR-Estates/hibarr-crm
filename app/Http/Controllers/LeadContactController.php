@@ -44,6 +44,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
 use App\Services\PermissionService;
 use App\Services\LeadService;
+use App\Support\FeatureFlags;
 
 class LeadContactController extends AccountBaseController
 {
@@ -94,6 +95,7 @@ class LeadContactController extends AccountBaseController
 
         return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
+            'featureFlags' => FeatureFlags::forInertia(),
             'leadContacts' => $leadContacts,
             'stages' => $this->leadService->getLeadStages(),
             'filters' => $request->only([
@@ -141,9 +143,7 @@ class LeadContactController extends AccountBaseController
             'activeQualification.agent:id,name,image',
         ])->findOrFail($id)->withCustomFields();
 
-        if ($this->coreFieldsService->useCoreFields()) {
-            $this->coreFieldsService->mergeOntoLead($this->leadContact);
-        }
+        $this->coreFieldsService->mergeOntoLead($this->leadContact);
 
         // Ensure enum values are available for frontend
         $this->leadContact->salutation_value = $this->leadContact->salutation instanceof \App\Enums\Salutation ? $this->leadContact->salutation->value : $this->leadContact->salutation;
@@ -315,6 +315,7 @@ class LeadContactController extends AccountBaseController
 
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
+            'featureFlags' => FeatureFlags::forInertia(),
             'fields' => $customFields,
             'editLeadPermission' => $this->editLeadPermission,
             'deleteLeadPermission' => $this->deleteLeadPermission,
@@ -936,6 +937,9 @@ class LeadContactController extends AccountBaseController
 
             // Commit transaction
             \DB::commit();
+
+            $leadContact->refresh();
+            $this->coreFieldsService->mergeOntoLead($leadContact);
 
             // Return success response for API calls or redirect for web
             if ($request->ajax() || $request->wantsJson() || $request->header('X-Inertia') || $request->header('X-Requested-With')) {

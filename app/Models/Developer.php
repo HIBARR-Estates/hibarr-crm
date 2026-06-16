@@ -27,6 +27,7 @@ class Developer extends BaseModel
         'description',
         'project_list',
         'whatsapp_group_link',
+        'google_drive_link',
     ];
 
     /**

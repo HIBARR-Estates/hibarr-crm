@@ -283,7 +283,7 @@ return [
         ],
         'table' => [
             'columns' => [
-                'deal_name'       => 'Deal Name',
+                'deal_name'       => 'Deal',
                 'contact_details' => 'Contact Details',
                 'country'         => 'Country',
                 'lead_source'     => 'Lead Source',

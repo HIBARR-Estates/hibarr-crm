@@ -47,6 +47,7 @@ export interface LeadShowProps {
     leadFollowUps?: DealFollowup[];
     meetingTypes?: { id: number; name: string; color?: string }[];
     followUpPermissions?: Record<string, string>;
+    featureFlags?: Record<string, boolean>;
 }
 
 const Show = ({
@@ -68,15 +69,14 @@ const Show = ({
     permissions,
     leadFollowUps = [],
     followUpPermissions = {},
+    featureFlags: pageFeatureFlags,
 }: LeadShowProps) => {
     const { props } = usePage<PageProps>();
     const { t } = useTranslation();
+    const featureFlags = pageFeatureFlags ?? props.featureFlags;
     const showQualificationTab = true;
-    const useLeadCoreFields = true;
-    // const showQualificationTab =
-    //     props.featureFlags?.["crm.lead-qualification-tab"] === true;
-    // const useLeadCoreFields =
-    //     props.featureFlags?.["crm.lead-language-core-field"] === true;
+    const useLeadCoreFields =
+        featureFlags?.["crm.lead-language-core-field"] === true;
 
     const [activeTab, setActiveTab] = useState("profile");
     const [isEditMode, setIsEditMode] = useState(false);

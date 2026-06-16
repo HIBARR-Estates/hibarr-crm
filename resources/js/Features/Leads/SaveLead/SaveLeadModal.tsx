@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { router, usePage } from "@inertiajs/react";
-import { Drawer, message } from "antd";
+import { App, Modal } from "antd";
 import { Lead, CreateLeadFormData } from "@/Types/api/leads";
 import { IModalProps } from "@/Types/common";
 import { useApiMutate } from "@/lib/api/client";
@@ -35,28 +35,24 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
 }) => {
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateLeadFormData | null>(null);
+    const getIsDirtyRef = useRef<(() => boolean) | null>(null);
+    const { modal } = App.useApp();
     const { props } = usePage<any>();
-    console.log(lead, "why lead ....");
 
     const customFields = props.leadCustomFields || props.customFields || [];
-    // Determine if we're editing or creating
     const isEditing = !!lead;
     const submitText = isEditing ? "Update Contact" : "Create Contact";
 
-    // Parse mobile from DB (could be JSON string, object, or plain string)
     const parseMobile = (mobile: any) => {
         if (!mobile) return "";
-        if (typeof mobile === "object") return mobile; // already an object (antd-phone-input format)
+        if (typeof mobile === "object") return mobile;
         if (typeof mobile === "string") {
             try {
                 const parsed = JSON.parse(mobile);
                 if (typeof parsed === "object" && parsed !== null) {
-                    // antd-phone-input format: {countryCode, areaCode, phoneNumber, isoCode}
                     if ("countryCode" in parsed && "phoneNumber" in parsed) {
                         return parsed;
                     }
-                    // Legacy format: {phone, country_code, country_identifier}
-                    // Return empty - let user re-enter
                     return "";
                 }
             } catch {
@@ -66,7 +62,6 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         return mobile;
     };
 
-    // Initialize form data
     const getInitialData = (): CreateLeadFormData => ({
         salutation:
             lead?.salutation_value ??
@@ -106,7 +101,6 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             {},
     });
 
-    // Setup API mutation
     const { mutate: createLead, status: createStatus } = useApiMutate<
         CreateLeadFormData,
         Lead,
@@ -119,7 +113,10 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         ApiResponse<Lead>
     >(isEditing ? `/account/lead-contact/${lead?.id}` : "", "PUT");
 
-    // Update form data when lead or modal opens
+    const isLoading =
+        getLoadingStatus({ status: createStatus }) ||
+        getLoadingStatus({ status: updateStatus });
+
     useEffect(() => {
         if (open) {
             const initialData = getInitialData();
@@ -127,8 +124,36 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         }
     }, [lead, open, customFields]);
 
+    const handleCancel = useCallback(() => {
+        setFormData(null);
+        setErrors([]);
+        onClose();
+    }, [onClose]);
+
+    const handleDismiss = useCallback(() => {
+        if (isLoading) {
+            return;
+        }
+
+        const isDirty = getIsDirtyRef.current?.() ?? false;
+
+        if (isDirty) {
+            modal.confirm({
+                title: "Discard changes?",
+                content:
+                    "You have unsaved changes. Are you sure you want to close without saving?",
+                okText: "Discard",
+                okType: "danger",
+                cancelText: "Keep editing",
+                onOk: handleCancel,
+            });
+            return;
+        }
+
+        handleCancel();
+    }, [handleCancel, isLoading, modal]);
+
     const handleSubmit = (data: CreateLeadFormData) => {
-        // Clear previous errors
         setErrors([]);
 
         const mutation = isEditing ? updateLead : createLead;
@@ -150,48 +175,45 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         });
     };
 
-    const handleCancel = () => {
-        setFormData(null);
-        setErrors([]);
-        onClose();
-    };
-
     const handleErrorsClear = () => {
         setErrors([]);
     };
 
-    const isLoading =
-        getLoadingStatus({ status: createStatus }) ||
-        getLoadingStatus({ status: updateStatus });
-
     return (
-        <Drawer
+        <Modal
             title={isEditing ? "Edit Lead" : "Add Lead"}
-            placement="right"
-            size="large"
             open={open}
-            onClose={handleCancel}
-            destroyOnHidden
+            onCancel={handleDismiss}
+            footer={null}
+            width={1000}
+            centered
+            destroyOnClose
+            maskClosable
+            closable
+            className="top-8"
         >
-            <LeadForm
-                data={formData || undefined}
-                visible={open}
-                onCancel={handleCancel}
-                onSubmit={handleSubmit}
-                submitText={submitText}
-                cancelText={"Cancel"}
-                errors={errors}
-                setErrors={(newErrors) => {
-                    if (Array.isArray(newErrors)) {
-                        setErrors(newErrors);
-                    }
-                }}
-                onErrorsClear={handleErrorsClear}
-                setLead={setLead}
-                loading={isLoading}
-                isEditing={isEditing}
-            />
-        </Drawer>
+            <div className="overflow-y-auto max-h-[65vh] pr-1">
+                <LeadForm
+                    data={formData || undefined}
+                    visible={open}
+                    onCancel={handleDismiss}
+                    onSubmit={handleSubmit}
+                    submitText={submitText}
+                    cancelText="Cancel"
+                    errors={errors}
+                    setErrors={(newErrors) => {
+                        if (Array.isArray(newErrors)) {
+                            setErrors(newErrors);
+                        }
+                    }}
+                    onErrorsClear={handleErrorsClear}
+                    setLead={setLead}
+                    loading={isLoading}
+                    isEditing={isEditing}
+                    getIsDirtyRef={getIsDirtyRef}
+                />
+            </div>
+        </Modal>
     );
 };
 

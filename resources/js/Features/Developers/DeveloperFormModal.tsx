@@ -8,6 +8,8 @@ import {
     Upload,
     message,
     Progress,
+    Row,
+    Col,
 } from "antd";
 import {
     UploadOutlined,
@@ -33,6 +35,7 @@ interface CreateDeveloperInput {
     logo_url?: string;
     description?: string;
     whatsapp_group_link?: string;
+    google_drive_link?: string;
 }
 
 const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
@@ -126,6 +129,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     logo_url: developer.logo_url,
                     description: developer.description,
                     whatsapp_group_link: developer.whatsapp_group_link,
+                    google_drive_link: developer.google_drive_link,
                 });
                 setLogoUrl(developer.logo_url || null);
             } else {
@@ -241,18 +245,36 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     />
                 </Form.Item>
 
-                <Form.Item
-                    name="whatsapp_group_link"
-                    label="WhatsApp Group Link"
-                    rules={[
-                        {
-                            type: "url",
-                            message: "Please enter a valid URL",
-                        },
-                    ]}
-                >
-                    <Input placeholder="https://chat.whatsapp.com/..." />
-                </Form.Item>
+                <Row gutter={16}>
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            name="whatsapp_group_link"
+                            label="WhatsApp Group Link"
+                            rules={[
+                                {
+                                    type: "url",
+                                    message: "Please enter a valid URL",
+                                },
+                            ]}
+                        >
+                            <Input placeholder="https://chat.whatsapp.com/..." />
+                        </Form.Item>
+                    </Col>
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            name="google_drive_link"
+                            label="Google Drive Link"
+                            rules={[
+                                {
+                                    type: "url",
+                                    message: "Please enter a valid URL",
+                                },
+                            ]}
+                        >
+                            <Input placeholder="https://drive.google.com/..." />
+                        </Form.Item>
+                    </Col>
+                </Row>
             </Form>
         </Modal>
     );

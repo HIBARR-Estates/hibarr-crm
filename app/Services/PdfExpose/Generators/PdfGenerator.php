@@ -4,10 +4,18 @@ namespace App\Services\PdfExpose\Generators;
 
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use Spatie\LaravelPdf\Facades\Pdf;
-use Illuminate\Support\Facades\Storage;
 
 class PdfGenerator
 {
+    /** Max time Browsershot waits for window.__exposePdfImagesReady (wrapper caps at 90s). */
+    private const IMAGE_READY_TIMEOUT_SECONDS = 120;
+
+    /** Total Browsershot process timeout for async queue jobs. */
+    private const ASYNC_PROCESS_TIMEOUT_SECONDS = 360;
+
+    /** Total Browsershot process timeout for synchronous downloads. */
+    private const SYNC_PROCESS_TIMEOUT_SECONDS = 180;
+
     /**
      * Shared Browsershot tuning for large expose templates with many assets.
      */
@@ -21,10 +29,17 @@ class PdfGenerator
             '--allow-running-insecure-content',
         ]);
 
-        // networkidle2 is more resilient for pages that keep a small number of
-        // background requests alive while still waiting for most assets.
-        $browsershot->waitUntilNetworkIdle(false);
-        $browsershot->setDelay(1500);
+        // "load" is faster and more predictable than networkIdle, which can hang
+        // when Minio or background requests keep connections open.
+        $browsershot->setOption('waitUntil', 'load');
+
+        // pdf.wrapper sets window.__exposePdfImagesReady (with per-image + 90s global cap).
+        $browsershot->setOption('function', 'window.__exposePdfImagesReady === true');
+        $browsershot->setOption('functionPolling', 'raf');
+        $browsershot->setOption('functionTimeout', self::IMAGE_READY_TIMEOUT_SECONDS * 1000);
+
+        // Brief paint buffer after images are ready.
+        $browsershot->setDelay(500);
 
         $browsershot->timeout($timeoutSeconds);
         $browsershot->protocolTimeout($timeoutSeconds + 60);
@@ -39,11 +54,10 @@ class PdfGenerator
     {
         $filename = $this->generateFilename($config);
 
-        // Generate PDF using Spatie and return download response
         $pdf = Pdf::view('pdf.wrapper', ['content' => $html])
             ->withBrowsershot(function ($browsershot) {
                 $browsershot->setOption('preferCSSPageSize', true);
-                $this->configureBrowsershot($browsershot, 120);
+                $this->configureBrowsershot($browsershot, self::SYNC_PROCESS_TIMEOUT_SECONDS);
             })
             ->margins(0, 0, 0, 0);
 
@@ -59,7 +73,7 @@ class PdfGenerator
         Pdf::view('pdf.wrapper', ['content' => $html])
             ->withBrowsershot(function ($browsershot) {
                 $browsershot->setOption('preferCSSPageSize', true);
-                $this->configureBrowsershot($browsershot, 240);
+                $this->configureBrowsershot($browsershot, self::ASYNC_PROCESS_TIMEOUT_SECONDS);
             })
             ->margins(0, 0, 0, 0)
             ->save($destinationPath);
@@ -86,7 +100,7 @@ class PdfGenerator
         return Pdf::view('pdf.wrapper', ['content' => $html])
             ->withBrowsershot(function ($browsershot) {
                 $browsershot->setOption('preferCSSPageSize', true);
-                $this->configureBrowsershot($browsershot, 120);
+                $this->configureBrowsershot($browsershot, self::SYNC_PROCESS_TIMEOUT_SECONDS);
             })
             ->margins(0, 0, 0, 0)
             ->name($filename)

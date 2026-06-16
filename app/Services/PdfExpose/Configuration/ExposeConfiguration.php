@@ -35,22 +35,9 @@ class ExposeConfiguration implements Arrayable
         $locationAttractions = $projectLocation?->getFormattedAttractionsForExpose() ?? [];
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($property->company_id ?? $company?->id);
         
-        // Group assets by tags
-        $assetsByTag = [];
         $availableTags = ['hero', 'cover', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
-        
-        foreach ($availableTags as $tag) {
-            $assetsByTag[$tag] = $property->assets()
-                ->where('asset_type', 'image')
-                ->whereJsonContains('tags', $tag)
-                ->orderBy('order')
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(fn($asset) => $asset->url)
-                ->filter()
-                ->values()
-                ->toArray();
-        }
+        $property->loadMissing('assets');
+        $assetsByTag = self::groupImageAssetsByTags($property->assets, $availableTags);
 
         return new self(
             entityType: 'property',
@@ -179,22 +166,8 @@ class ExposeConfiguration implements Arrayable
         $locationAttractions = $location?->getFormattedAttractionsForExpose() ?? [];
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project->company_id ?? $company?->id);
 
-        // Group project assets by tags, with the same tag list as property
         $availableTags = ['hero', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery', 'site-plan'];
-        $assetsByTag = [];
-
-        foreach ($availableTags as $tag) {
-            $assetsByTag[$tag] = $project->assets()
-                ->where('asset_type', 'image')
-                ->whereJsonContains('tags', $tag)
-                ->orderBy('order')
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(fn($asset) => $asset->url)
-                ->filter()
-                ->values()
-                ->toArray();
-        }
+        $assetsByTag = self::groupImageAssetsByTags($project->assets, $availableTags);
 
         // Build unit type summaries for the project brochure
         $unitTypeSummaries = [];
@@ -449,66 +422,16 @@ class ExposeConfiguration implements Arrayable
         $company = self::resolveGeneratingCompany($agent, $companyId ?? $project?->company_id);
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($project?->company_id ?? $company?->id);
 
-        // Resolve asset URLs by tag with fallback chain:
-        // 1. Unit type assets for that tag
-        // 2. Project assets for that tag
-        // 3. Unit type "cover" tag → used as "hero" fallback
         $availableTags = ['hero', 'cover', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
-        $assetsByTag = [];
+        $unitAssetsByTag = self::groupImageAssetsByTags($unitType->assets, $availableTags);
+        $projectAssetsByTag = $project
+            ? self::groupImageAssetsByTags($project->assets, $availableTags)
+            : array_fill_keys($availableTags, []);
 
-        foreach ($availableTags as $tag) {
-            // First: check unit type assets
-            $unitAssets = $unitType->assets()
-                ->where('asset_type', 'image')
-                ->whereJsonContains('tags', $tag)
-                ->orderBy('order')
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(fn($asset) => $asset->url)
-                ->filter()
-                ->values()
-                ->toArray();
+        $assetsByTag = self::mergeAssetTagsWithFallback($unitAssetsByTag, $projectAssetsByTag, $availableTags);
 
-            if (!empty($unitAssets)) {
-                $assetsByTag[$tag] = $unitAssets;
-                continue;
-            }
-
-            // Fallback: check project assets for the tag
-            if ($project) {
-                $projectAssets = $project->assets()
-                    ->where('asset_type', 'image')
-                    ->whereJsonContains('tags', $tag)
-                    ->orderBy('order')
-                    ->orderBy('created_at', 'desc')
-                    ->get()
-                    ->map(fn($asset) => $asset->url)
-                    ->filter()
-                    ->values()
-                    ->toArray();
-
-                $assetsByTag[$tag] = $projectAssets;
-            } else {
-                $assetsByTag[$tag] = [];
-            }
-        }
-
-        // Special: if hero is still empty, fall back to cover tag from unit type
-        if (empty($assetsByTag['hero'])) {
-            $coverAssets = $unitType->assets()
-                ->where('asset_type', 'image')
-                ->whereJsonContains('tags', 'cover')
-                ->orderBy('order')
-                ->orderBy('created_at', 'desc')
-                ->get()
-                ->map(fn($asset) => $asset->url)
-                ->filter()
-                ->values()
-                ->toArray();
-
-            if (!empty($coverAssets)) {
-                $assetsByTag['hero'] = $coverAssets;
-            }
+        if (empty($assetsByTag['hero']) && !empty($assetsByTag['cover'])) {
+            $assetsByTag['hero'] = $assetsByTag['cover'];
         }
 
         // Resolve location-derived fields from ProjectLocation
@@ -1087,5 +1010,61 @@ class ExposeConfiguration implements Arrayable
     public function has(string $key): bool
     {
         return data_get($this->data, $key) !== null;
+    }
+
+    /**
+     * Group preloaded image assets by tag without issuing per-tag DB queries.
+     *
+     * @param  iterable<int, object>  $assets
+     * @param  string[]  $tags
+     * @return array<string, string[]>
+     */
+    private static function groupImageAssetsByTags(iterable $assets, array $tags): array
+    {
+        $images = collect($assets)
+            ->filter(fn ($asset) => ($asset->asset_type ?? null) === 'image')
+            ->sortBy([
+                fn ($asset) => $asset->order ?? PHP_INT_MAX,
+                fn ($asset) => -1 * ($asset->created_at?->getTimestamp() ?? 0),
+            ])
+            ->values();
+
+        $grouped = array_fill_keys($tags, []);
+
+        foreach ($images as $asset) {
+            $url = $asset->url ?? null;
+            if (empty($url)) {
+                continue;
+            }
+
+            foreach ($asset->tags ?? [] as $tag) {
+                if (array_key_exists($tag, $grouped)) {
+                    $grouped[$tag][] = $url;
+                }
+            }
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * Prefer primary assets per tag, then fall back to secondary assets.
+     *
+     * @param  array<string, string[]>  $primary
+     * @param  array<string, string[]>  $fallback
+     * @param  string[]  $tags
+     * @return array<string, string[]>
+     */
+    private static function mergeAssetTagsWithFallback(array $primary, array $fallback, array $tags): array
+    {
+        $merged = [];
+
+        foreach ($tags as $tag) {
+            $merged[$tag] = !empty($primary[$tag])
+                ? $primary[$tag]
+                : ($fallback[$tag] ?? []);
+        }
+
+        return $merged;
     }
 }
