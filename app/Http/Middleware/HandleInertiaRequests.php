@@ -4,6 +4,7 @@ namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use App\Support\FeatureFlags;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -96,10 +97,7 @@ class HandleInertiaRequests extends Middleware
             'fallbackTranslations' => fn () => $this->getFallbackTranslations(),
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => $this->getAvailableLocales(),
-            'featureFlags' => fn () => [
-                'crm.lead-qualification-tab' => (bool) config('features.crm.lead-qualification-tab'),
-                'crm.lead-language-core-field' => (bool) config('features.crm.lead-language-core-field'),
-            ],
+            'featureFlags' => fn () => FeatureFlags::forInertia(),
         ]);
     }
      /**

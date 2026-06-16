@@ -44,6 +44,7 @@ use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
 use App\Services\PermissionService;
 use App\Services\LeadService;
+use App\Support\FeatureFlags;
 
 class LeadContactController extends AccountBaseController
 {
@@ -94,6 +95,7 @@ class LeadContactController extends AccountBaseController
 
         return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
+            'featureFlags' => FeatureFlags::forInertia(),
             'leadContacts' => $leadContacts,
             'stages' => $this->leadService->getLeadStages(),
             'filters' => $request->only([
@@ -313,6 +315,7 @@ class LeadContactController extends AccountBaseController
 
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
+            'featureFlags' => FeatureFlags::forInertia(),
             'fields' => $customFields,
             'editLeadPermission' => $this->editLeadPermission,
             'deleteLeadPermission' => $this->deleteLeadPermission,
