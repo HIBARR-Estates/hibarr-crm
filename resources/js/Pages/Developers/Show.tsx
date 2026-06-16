@@ -27,6 +27,7 @@ import {
     BankOutlined,
     EnvironmentOutlined,
     WhatsAppOutlined,
+    FolderOpenOutlined,
     CopyOutlined,
     GiftOutlined,
     PlusOutlined,
@@ -311,6 +312,31 @@ const Show = ({
                                             onClick={() => {
                                                 navigator.clipboard.writeText(
                                                     developer.whatsapp_group_link!,
+                                                );
+                                                message.success(
+                                                    "Link copied to clipboard",
+                                                );
+                                            }}
+                                        />
+                                    </Space>
+                                )}
+                                {developer.google_drive_link && (
+                                    <Space size="small">
+                                        <a
+                                            href={developer.google_drive_link}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1"
+                                        >
+                                            <FolderOpenOutlined /> Google Drive
+                                        </a>
+                                        <Button
+                                            type="text"
+                                            size="small"
+                                            icon={<CopyOutlined />}
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(
+                                                    developer.google_drive_link!,
                                                 );
                                                 message.success(
                                                     "Link copied to clipboard",

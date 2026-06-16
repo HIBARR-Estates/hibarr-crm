@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from "react";
-import { Form, Tabs, Button, Space, Alert } from "antd";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Tabs, Alert, FormInstance } from "antd";
 import { CreateLeadFormData, Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
 import BasicInfoTab from "./BasicInfoTab";
@@ -18,6 +18,7 @@ export interface LeadFormProps {
     cancelText?: string;
     visible?: boolean;
     isEditing?: boolean;
+    getIsDirtyRef?: React.MutableRefObject<(() => boolean) | null>;
 }
 
 const LeadForm: React.FC<LeadFormProps> = ({
@@ -33,15 +34,51 @@ const LeadForm: React.FC<LeadFormProps> = ({
     onErrorsClear,
     visible,
     isEditing = false,
+    getIsDirtyRef,
 }) => {
     const [activeTab, setActiveTab] = useState("basic");
+    const basicFormRef = useRef<FormInstance | null>(null);
+    const customFormRefs = useRef<Map<number, FormInstance>>(new Map());
     const { props } = usePage<any>();
     const customFieldCategories =
         props.leadCustomFieldCategories || props.customFieldCategories || [];
 
+    const registerCustomForm = useCallback(
+        (categoryId: number, form: FormInstance | null) => {
+            if (form) {
+                customFormRefs.current.set(categoryId, form);
+            } else {
+                customFormRefs.current.delete(categoryId);
+            }
+        },
+        [],
+    );
+
+    const getIsDirty = useCallback(() => {
+        if (activeTab === "basic") {
+            return basicFormRef.current?.isFieldsTouched() ?? false;
+        }
+
+        const categoryId = Number(activeTab.replace("custom_", ""));
+        if (!Number.isNaN(categoryId)) {
+            return (
+                customFormRefs.current.get(categoryId)?.isFieldsTouched() ??
+                false
+            );
+        }
+
+        return false;
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (getIsDirtyRef) {
+            getIsDirtyRef.current = getIsDirty;
+        }
+    }, [getIsDirty, getIsDirtyRef]);
+
     useEffect(() => {
         if (!visible) {
-            setActiveTab("deal");
+            setActiveTab("basic");
         }
     }, [visible]);
 
@@ -65,6 +102,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
+                    formRef={basicFormRef}
                 />
             ),
         },
@@ -83,6 +121,9 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     submitText={submitText}
                     categoryId={category.id}
                     categoryName={category.name}
+                    onFormInstance={(form) =>
+                        registerCustomForm(category.id, form)
+                    }
                 />
             ) : null,
             disabled: !isEditing,

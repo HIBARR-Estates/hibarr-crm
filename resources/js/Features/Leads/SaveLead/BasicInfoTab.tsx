@@ -10,6 +10,7 @@ import {
     Divider,
     Button,
     DatePicker,
+    FormInstance,
 } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { Lead } from "@/Types/api/leads";
@@ -33,6 +34,7 @@ interface BasicInfoTabProps
         | "onErrorsClear"
     > {
     setLead?: (lead: Lead | undefined) => void;
+    formRef?: React.MutableRefObject<FormInstance | null>;
 }
 
 const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -45,6 +47,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     onErrorsClear,
     setErrors,
     setLead,
+    formRef,
 }) => {
     const { props } = usePage<any>();
     const {
@@ -62,6 +65,19 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     const [form] = Form.useForm();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const isEditing = data ? true : false;
+
+    useEffect(() => {
+        if (formRef) {
+            formRef.current = form;
+        }
+
+        return () => {
+            if (formRef) {
+                formRef.current = null;
+            }
+        };
+    }, [form, formRef]);
+
     // Populate form when data changes
     useEffect(() => {
         if (data) {
