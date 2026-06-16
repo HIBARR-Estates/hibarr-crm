@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
     Form,
     Input,
@@ -10,7 +10,6 @@ import {
     Divider,
     Button,
     DatePicker,
-    FormInstance,
 } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 import { Lead } from "@/Types/api/leads";
@@ -34,7 +33,7 @@ interface BasicInfoTabProps
         | "onErrorsClear"
     > {
     setLead?: (lead: Lead | undefined) => void;
-    formRef?: React.MutableRefObject<FormInstance | null>;
+    onUserEdit?: () => void;
 }
 
 const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -47,7 +46,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     onErrorsClear,
     setErrors,
     setLead,
-    formRef,
+    onUserEdit,
 }) => {
     const { props } = usePage<any>();
     const {
@@ -63,24 +62,14 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
     const [form] = Form.useForm();
+    const isPopulatingRef = useRef(false);
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const isEditing = data ? true : false;
-
-    useEffect(() => {
-        if (formRef) {
-            formRef.current = form;
-        }
-
-        return () => {
-            if (formRef) {
-                formRef.current = null;
-            }
-        };
-    }, [form, formRef]);
 
     // Populate form when data changes
     useEffect(() => {
         if (data) {
+            isPopulatingRef.current = true;
             const formData = {
                 ...data,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
@@ -89,6 +78,9 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                 product_id: data.product_id || [],
             };
             form.setFieldsValue(formData);
+            queueMicrotask(() => {
+                isPopulatingRef.current = false;
+            });
         }
     }, [data, form]);
 
@@ -121,6 +113,11 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
+            onValuesChange={() => {
+                if (!isPopulatingRef.current) {
+                    onUserEdit?.();
+                }
+            }}
             onFinishFailed={(errorInfo) => {
                 setErrors?.(
                     errorInfo.errorFields.map((field) => field.errors).flat()

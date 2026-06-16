@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Tabs, Alert, FormInstance } from "antd";
+import { Tabs, Alert } from "antd";
 import { CreateLeadFormData, Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
 import BasicInfoTab from "./BasicInfoTab";
@@ -37,47 +37,25 @@ const LeadForm: React.FC<LeadFormProps> = ({
     getIsDirtyRef,
 }) => {
     const [activeTab, setActiveTab] = useState("basic");
-    const basicFormRef = useRef<FormInstance | null>(null);
-    const customFormRefs = useRef<Map<number, FormInstance>>(new Map());
+    const userEditedRef = useRef(false);
     const { props } = usePage<any>();
     const customFieldCategories =
         props.leadCustomFieldCategories || props.customFieldCategories || [];
 
-    const registerCustomForm = useCallback(
-        (categoryId: number, form: FormInstance | null) => {
-            if (form) {
-                customFormRefs.current.set(categoryId, form);
-            } else {
-                customFormRefs.current.delete(categoryId);
-            }
-        },
-        [],
-    );
-
-    const getIsDirty = useCallback(() => {
-        if (activeTab === "basic") {
-            return basicFormRef.current?.isFieldsTouched() ?? false;
-        }
-
-        const categoryId = Number(activeTab.replace("custom_", ""));
-        if (!Number.isNaN(categoryId)) {
-            return (
-                customFormRefs.current.get(categoryId)?.isFieldsTouched() ??
-                false
-            );
-        }
-
-        return false;
-    }, [activeTab]);
+    const markUserEdited = useCallback(() => {
+        userEditedRef.current = true;
+    }, []);
 
     useEffect(() => {
         if (getIsDirtyRef) {
-            getIsDirtyRef.current = getIsDirty;
+            getIsDirtyRef.current = () => userEditedRef.current;
         }
-    }, [getIsDirty, getIsDirtyRef]);
+    }, [getIsDirtyRef]);
 
     useEffect(() => {
-        if (!visible) {
+        if (visible) {
+            userEditedRef.current = false;
+        } else {
             setActiveTab("basic");
         }
     }, [visible]);
@@ -88,6 +66,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
         setLead?.(undefined);
         _onCancel?.();
     };
+
     const tabItems = [
         {
             key: "basic",
@@ -102,12 +81,11 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
-                    formRef={basicFormRef}
+                    onUserEdit={markUserEdited}
                 />
             ),
         },
 
-        // Add custom field category tabs
         ...customFieldCategories.map((category: any) => ({
             key: `custom_${category.id}`,
             label: category.name,
@@ -121,9 +99,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     submitText={submitText}
                     categoryId={category.id}
                     categoryName={category.name}
-                    onFormInstance={(form) =>
-                        registerCustomForm(category.id, form)
-                    }
+                    onUserEdit={markUserEdited}
                 />
             ) : null,
             disabled: !isEditing,
@@ -132,7 +108,6 @@ const LeadForm: React.FC<LeadFormProps> = ({
 
     return (
         <>
-            {/* Display errors */}
             {errors.length > 0 && (
                 <div className="mb-4">
                     <Alert
@@ -156,7 +131,6 @@ const LeadForm: React.FC<LeadFormProps> = ({
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 items={tabItems}
-                // type="card"
             />
         </>
     );

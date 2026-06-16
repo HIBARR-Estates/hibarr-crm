@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { router, usePage } from "@inertiajs/react";
-import { Modal } from "antd";
+import { App, Modal } from "antd";
 import { Lead, CreateLeadFormData } from "@/Types/api/leads";
 import { IModalProps } from "@/Types/common";
 import { useApiMutate } from "@/lib/api/client";
@@ -36,6 +36,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateLeadFormData | null>(null);
     const getIsDirtyRef = useRef<(() => boolean) | null>(null);
+    const { modal } = App.useApp();
     const { props } = usePage<any>();
 
     const customFields = props.leadCustomFields || props.customFields || [];
@@ -112,6 +113,10 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         ApiResponse<Lead>
     >(isEditing ? `/account/lead-contact/${lead?.id}` : "", "PUT");
 
+    const isLoading =
+        getLoadingStatus({ status: createStatus }) ||
+        getLoadingStatus({ status: updateStatus });
+
     useEffect(() => {
         if (open) {
             const initialData = getInitialData();
@@ -126,10 +131,14 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     }, [onClose]);
 
     const handleDismiss = useCallback(() => {
+        if (isLoading) {
+            return;
+        }
+
         const isDirty = getIsDirtyRef.current?.() ?? false;
 
         if (isDirty) {
-            Modal.confirm({
+            modal.confirm({
                 title: "Discard changes?",
                 content:
                     "You have unsaved changes. Are you sure you want to close without saving?",
@@ -142,7 +151,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         }
 
         handleCancel();
-    }, [handleCancel]);
+    }, [handleCancel, isLoading, modal]);
 
     const handleSubmit = (data: CreateLeadFormData) => {
         setErrors([]);
@@ -170,10 +179,6 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         setErrors([]);
     };
 
-    const isLoading =
-        getLoadingStatus({ status: createStatus }) ||
-        getLoadingStatus({ status: updateStatus });
-
     return (
         <Modal
             title={isEditing ? "Edit Lead" : "Add Lead"}
@@ -184,7 +189,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             centered
             destroyOnClose
             maskClosable
-            closable={!isLoading}
+            closable
             className="top-8"
         >
             <div className="overflow-y-auto max-h-[65vh] pr-1">
