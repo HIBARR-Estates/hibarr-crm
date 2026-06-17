@@ -1,9 +1,22 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Tabs, Alert } from "antd";
+import React, {
+    useState,
+    useEffect,
+    useRef,
+    useCallback,
+    useMemo,
+} from "react";
+import { Tabs, Alert, Button } from "antd";
+import { ArrowRightOutlined } from "@ant-design/icons";
 import { CreateLeadFormData, Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
+import { useFormData } from "@/Hooks/useFormData";
+import { Language } from "@/Types";
 import BasicInfoTab from "./BasicInfoTab";
 import CustomFieldTab from "./CustomFieldTab";
+export const SAVE_LEAD_BASIC_FORM_ID = "save-lead-basic-form";
+
+export const getSaveLeadCustomFormId = (categoryId: number) =>
+    `save-lead-custom-form-${categoryId}`;
 
 export interface LeadFormProps {
     data?: CreateLeadFormData;
@@ -27,8 +40,6 @@ const LeadForm: React.FC<LeadFormProps> = ({
     onCancel: _onCancel,
     loading = false,
     setLead,
-    submitText = "Save Contact",
-    cancelText = "Cancel",
     errors = [],
     setErrors,
     onErrorsClear,
@@ -42,6 +53,31 @@ const LeadForm: React.FC<LeadFormProps> = ({
     const customFieldCategories =
         props.leadCustomFieldCategories || props.customFieldCategories || [];
 
+    const pageLanguages = useMemo(
+        () =>
+            (props.languages as Array<{
+                language_code: string;
+                language_name: string;
+            }>) || [],
+        [props.languages],
+    );
+
+    const { data: fetchedLanguages, loading: languagesLoading } =
+        useFormData<Language>("languages", {
+            enabled: pageLanguages.length === 0,
+        });
+
+    const languageOptions = useMemo(() => {
+        const source =
+            pageLanguages.length > 0 ? pageLanguages : fetchedLanguages;
+
+        return (source || []).map(
+            (lang: { language_code: string; language_name: string }) => ({
+                value: lang.language_code,
+                label: lang.language_name,
+            }),
+        );
+    }, [pageLanguages, fetchedLanguages]);
     const markUserEdited = useCallback(() => {
         userEditedRef.current = true;
     }, []);
@@ -67,6 +103,21 @@ const LeadForm: React.FC<LeadFormProps> = ({
         _onCancel?.();
     };
 
+    const activeFormId = useMemo(() => {
+        if (activeTab === "basic") {
+            return SAVE_LEAD_BASIC_FORM_ID;
+        }
+
+        const categoryId = Number(activeTab.replace("custom_", ""));
+        if (!Number.isNaN(categoryId)) {
+            return getSaveLeadCustomFormId(categoryId);
+        }
+
+        return SAVE_LEAD_BASIC_FORM_ID;
+    }, [activeTab]);
+
+    const submitLabel = isEditing ? "Update lead" : "Save lead";
+
     const tabItems = [
         {
             key: "basic",
@@ -77,11 +128,13 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     onSubmit={onSubmit}
                     onCancel={onCancel}
                     loading={loading}
-                    submitText={submitText}
-                    cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
                     onUserEdit={markUserEdited}
+                    formId={SAVE_LEAD_BASIC_FORM_ID}
+                    hideFooter
+                    languageOptions={languageOptions}
+                    languagesLoading={languagesLoading}
                 />
             ),
         },
@@ -89,17 +142,17 @@ const LeadForm: React.FC<LeadFormProps> = ({
         ...customFieldCategories.map((category: any) => ({
             key: `custom_${category.id}`,
             label: category.name,
-
             children: data ? (
                 <CustomFieldTab
                     data={data}
                     onSubmit={onSubmit}
                     onCancel={onCancel}
                     loading={loading}
-                    submitText={submitText}
                     categoryId={category.id}
                     categoryName={category.name}
                     onUserEdit={markUserEdited}
+                    formId={getSaveLeadCustomFormId(category.id)}
+                    hideFooter
                 />
             ) : null,
             disabled: !isEditing,
@@ -107,9 +160,9 @@ const LeadForm: React.FC<LeadFormProps> = ({
     ];
 
     return (
-        <>
+        <div className="save-lead-form">
             {errors.length > 0 && (
-                <div className="mb-4">
+                <div className="save-lead-form__errors">
                     <Alert
                         message="Validation Error"
                         description={
@@ -128,11 +181,41 @@ const LeadForm: React.FC<LeadFormProps> = ({
             )}
 
             <Tabs
+                className="save-lead-form__tabs"
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 items={tabItems}
             />
-        </>
+
+            <div className="save-lead-form__footer">
+                <Button
+                    type="text"
+                    className="save-lead-form__cancel-btn"
+                    onClick={onCancel}
+                    disabled={loading}
+                >
+                    Cancel
+                </Button>
+
+                <div className="save-lead-form__footer-actions">
+                    {!isEditing && (
+                        <Button className="save-lead-form__draft-btn" disabled>
+                            Save as draft
+                        </Button>
+                    )}
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        form={activeFormId}
+                        loading={loading}
+                        className="save-lead-form__submit-btn"
+                    >
+                        {submitLabel}
+                        <ArrowRightOutlined />
+                    </Button>
+                </div>
+            </div>
+        </div>
     );
 };
 

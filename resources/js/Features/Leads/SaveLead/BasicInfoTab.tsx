@@ -6,12 +6,10 @@ import {
     Row,
     Col,
     Checkbox,
-    Card,
     Divider,
     Button,
     DatePicker,
 } from "antd";
-import { SaveOutlined } from "@ant-design/icons";
 import { Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
 import { LeadFormProps } from "./LeadForm";
@@ -34,6 +32,10 @@ interface BasicInfoTabProps
     > {
     setLead?: (lead: Lead | undefined) => void;
     onUserEdit?: () => void;
+    formId?: string;
+    hideFooter?: boolean;
+    languageOptions?: Array<{ value: string; label: string }>;
+    languagesLoading?: boolean;
 }
 
 const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -47,6 +49,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     setErrors,
     setLead,
     onUserEdit,
+    formId,
+    hideFooter = false,
+    languageOptions = [],
+    languagesLoading = false,
 }) => {
     const { props } = usePage<any>();
     const {
@@ -56,7 +62,6 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         employees,
         permissions,
         countries,
-        languages = [],
         featureFlags,
     } = props;
     const useLeadCoreFields =
@@ -110,6 +115,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
     return (
         <Form
+            id={formId}
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
@@ -128,31 +134,35 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             }}
             size="middle"
         >
-            <div className="space-y-4">
-                <Card title="Contact Information" size="small">
+            <div className="space-y-1">
+                <section className="save-lead-form__section">
+                    <h3 className="save-lead-form__section-title">
+                        Contact information
+                    </h3>
                     <Row gutter={[24, 16]}>
-                        <Col span={8}>
+                        <Col xs={24} md={8}>
                             <Form.Item label="Salutation" name="salutation">
                                 <FormDataSelector
                                     type="salutations"
-                                    placeholder="Salutation"
+                                    placeholder="—"
                                 />
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
+                        <Col xs={24} md={8}>
                             <Form.Item label="Gender" name="gender">
                                 <FormDataSelector
                                     type="genders"
-                                    placeholder="Gender"
+                                    placeholder="—"
                                 />
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
+                        <Col xs={24} md={8}>
                             <Form.Item
                                 label="Name"
-                                name={"client_name"}
+                                name="client_name"
+                                required
                                 rules={[
                                     {
                                         required: true,
@@ -164,8 +174,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
-                            <Form.Item label="Email" name={"client_email"}>
+                        <Col xs={24} md={8}>
+                            <Form.Item label="Email" name="client_email">
                                 <Input
                                     type="email"
                                     placeholder="Enter email address"
@@ -173,33 +183,30 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
+                        <Col xs={24} md={8}>
                             <Form.Item label="Mobile" name="mobile">
-                                <PhoneInput 
-                                    enableSearch 
-                                    placeholder="Enter mobile number"
+                                <PhoneInput
+                                    enableSearch
+                                    placeholder="—"
                                     country=""
                                 />
                             </Form.Item>
                         </Col>
 
                         {permissions?.view_lead_sources !== "none" && (
-                            <Col span={8}>
-                                <Form.Item
-                                    label="Lead Source"
-                                    name={"source_id"}
-                                >
+                            <Col xs={24} md={8}>
+                                <Form.Item label="Lead source" name="source_id">
                                     <FormDataSelector
                                         type="sources"
-                                        placeholder="Lead Source"
+                                        placeholder="Lead source"
                                     />
                                 </Form.Item>
                             </Col>
                         )}
 
                         {permissions?.add_lead === "all" && (
-                            <Col span={8}>
-                                <Form.Item label="Added By" name={"added_by"}>
+                            <Col xs={24} md={8}>
+                                <Form.Item label="Added By" name="added_by">
                                     <FormDataSelector
                                         type="employees"
                                         placeholder="Added By"
@@ -208,8 +215,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Col>
                         )}
 
-                        <Col span={8}>
-                            <Form.Item label="Lead Owner" name={"lead_owner"}>
+                        <Col xs={24} md={8}>
+                            <Form.Item label="Lead Owner" name="lead_owner">
                                 <FormDataSelector
                                     type="employees"
                                     placeholder="Lead Owner"
@@ -218,37 +225,40 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         </Col>
                     </Row>
 
-                    {/* Deal Creation Options */}
                     {isEditing && (
-                        <Row gutter={[24, 16]} className="mt-4">
+                        <>
                             {["all", "added"].includes(
-                                permissions?.add_deals
+                                permissions?.add_deals,
                             ) && (
-                                <Col span={12}>
-                                    <Form.Item name={"create_deal"}>
-                                        <Checkbox value={"on"}>
-                                            Create Deal
-                                        </Checkbox>
-                                    </Form.Item>
-                                </Col>
+                                <Row gutter={[24, 16]} className="mt-2">
+                                    <Col span={24}>
+                                        <Form.Item name="create_deal">
+                                            <Checkbox>Create Deal</Checkbox>
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
                             )}
 
-                            <Col span={12}>
-                                <Form.Item name={"create_client"}>
-                                    <Checkbox value={true}>
-                                        Auto Convert lead to client when deal
-                                        stage is set to 'Win'
+                            <div className="save-lead-form__auto-convert">
+                                <Form.Item name="create_client">
+                                    <Checkbox>
+                                        Auto-convert lead to client when deal
+                                        stage is set to{" "}
+                                        <strong>Won</strong>
                                     </Checkbox>
                                 </Form.Item>
-                            </Col>
-                        </Row>
+                            </div>
+                        </>
                     )}
 
                     {createDeal && <LeadDealCreation />}
-                </Card>
+                </section>
 
                 {useLeadCoreFields && (
-                    <Card title="Personal Details" size="small">
+                    <section className="save-lead-form__section">
+                        <h3 className="save-lead-form__section-title">
+                            Personal information
+                        </h3>
                         <Row gutter={[24, 16]}>
                             <Col span={12}>
                                 <Form.Item label="Languages" name="languages">
@@ -256,15 +266,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                         mode="multiple"
                                         allowClear
                                         placeholder="Select languages"
-                                        options={(languages || []).map(
-                                            (lang: {
-                                                language_code: string;
-                                                language_name: string;
-                                            }) => ({
-                                                value: lang.language_code,
-                                                label: lang.language_name,
-                                            }),
-                                        )}
+                                        options={languageOptions}
+                                        loading={languagesLoading}
+                                        showSearch
+                                        optionFilterProp="label"
                                     />
                                 </Form.Item>
                             </Col>
@@ -310,43 +315,45 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                 </Form.Item>
                             </Col>
                         </Row>
-                    </Card>
+                    </section>
                 )}
 
-                {/* Address Information */}
-                <Card title="Address Information" size="small">
+                <section className="save-lead-form__section">
+                    <h3 className="save-lead-form__section-title">
+                        Address information
+                    </h3>
                     <Row gutter={[24, 16]}>
                         <Col span={24}>
-                            <Form.Item label="Address" name="address">
-                                <Input.TextArea
-                                    rows={2}
-                                    placeholder="Enter street address"
-                                />
+                            <Form.Item label="Street address" name="address">
+                                <Input placeholder="Enter street address" />
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
-                            <Form.Item label="Postal Code" name="postal_code">
-                                <Input placeholder="Enter postal code" />
+                        <Col xs={24} md={12}>
+                            <Form.Item label="Postcode" name="postal_code">
+                                <Input placeholder="Enter postcode" />
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
+                        <Col xs={24} md={12}>
                             <Form.Item label="City" name="city">
                                 <Input placeholder="Enter city" />
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
-                            <Form.Item label="State/Province" name="state">
+                        <Col xs={24} md={12}>
+                            <Form.Item
+                                label="State / Province"
+                                name="state"
+                            >
                                 <Input placeholder="Enter state or province" />
                             </Form.Item>
                         </Col>
 
-                        <Col span={8}>
+                        <Col xs={24} md={12}>
                             <Form.Item label="Country" name="country">
                                 <Select
-                                    placeholder="Select country"
+                                    placeholder="— Select country —"
                                     allowClear
                                     showSearch
                                     optionFilterProp="label"
@@ -405,25 +412,27 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Form.Item>
                         </Col>
                     </Row>
-                </Card>
+                </section>
 
-                <Divider />
-
-                <Row justify="end" gutter={8} style={{ marginTop: 24 }}>
-                    <Col>
-                        <Button onClick={onCancel}>{cancelText}</Button>
-                    </Col>
-                    <Col>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={loading}
-                            icon={<SaveOutlined />}
-                        >
-                            {submitText}
-                        </Button>
-                    </Col>
-                </Row>
+                {!hideFooter && (
+                    <>
+                        <Divider />
+                        <Row justify="end" gutter={8} style={{ marginTop: 24 }}>
+                            <Col>
+                                <Button onClick={onCancel}>{cancelText}</Button>
+                            </Col>
+                            <Col>
+                                <Button
+                                    type="primary"
+                                    htmlType="submit"
+                                    loading={loading}
+                                >
+                                    {submitText}
+                                </Button>
+                            </Col>
+                        </Row>
+                    </>
+                )}
             </div>
         </Form>
     );
