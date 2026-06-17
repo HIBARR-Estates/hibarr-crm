@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { LeadFormProps } from "./LeadForm";
-import { Button, Card, Form, Space } from "antd";
+import { Button, Form, Space } from "antd";
 import { SaveOutlined } from "@ant-design/icons";
 
 interface CustomFieldTabProps
@@ -19,6 +19,8 @@ interface CustomFieldTabProps
     categoryId: number;
     categoryName: string;
     onUserEdit?: () => void;
+    formId?: string;
+    hideFooter?: boolean;
 }
 
 const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
@@ -31,6 +33,8 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     categoryId,
     categoryName,
     onUserEdit,
+    formId,
+    hideFooter = false,
 }) => {
     const [form] = Form.useForm();
     const isPopulatingRef = useRef(false);
@@ -60,6 +64,7 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
 
     return (
         <Form
+            id={formId}
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
@@ -69,34 +74,34 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
                 }
             }}
         >
-            <Card title={`${categoryName} Custom Fields`} size="small">
+            <section className="save-lead-form__section">
+                <h3 className="save-lead-form__section-title">
+                    {categoryName}
+                </h3>
                 <GeneralCustomFieldTab
                     data={data}
-                    setData={(key, value) => {
-                        // Update form fields when GeneralCustomFieldTab changes data
-                        // if (key === "custom_fields_data") {
-                        //     form.setFieldsValue({ [key]: value });
-                        // }
-                    }}
+                    setData={() => {}}
                     errors={{}}
                     categoryId={categoryId}
                     categoryName={categoryName}
                 />
 
-                <div style={{ marginTop: 24 }}>
-                    <Space>
-                        <Button onClick={onCancel}>{cancelText}</Button>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={loading}
-                            icon={<SaveOutlined />}
-                        >
-                            {submitText}
-                        </Button>
-                    </Space>
-                </div>
-            </Card>
+                {!hideFooter && (
+                    <div style={{ marginTop: 24 }}>
+                        <Space>
+                            <Button onClick={onCancel}>{cancelText}</Button>
+                            <Button
+                                type="primary"
+                                htmlType="submit"
+                                loading={loading}
+                                icon={<SaveOutlined />}
+                            >
+                                {submitText}
+                            </Button>
+                        </Space>
+                    </div>
+                )}
+            </section>
         </Form>
     );
 };
