@@ -74,7 +74,8 @@ const Show = ({
     const { props } = usePage<PageProps>();
     const { t } = useTranslation();
     const featureFlags = pageFeatureFlags ?? props.featureFlags;
-    const showQualificationTab = true;
+    const showQualificationTab =
+        featureFlags?.["crm.lead-qualification-tab"] === true;
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
 

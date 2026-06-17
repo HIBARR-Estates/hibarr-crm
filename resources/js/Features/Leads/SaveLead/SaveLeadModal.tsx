@@ -8,6 +8,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import LeadForm from "./LeadForm";
+import "./save-lead-modal.css";
 
 interface SaveLeadModalProps extends Omit<IModalProps, "onClose"> {
     lead?: Lead;
@@ -41,7 +42,6 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
 
     const customFields = props.leadCustomFields || props.customFields || [];
     const isEditing = !!lead;
-    const submitText = isEditing ? "Update Contact" : "Create Contact";
 
     const parseMobile = (mobile: any) => {
         if (!mobile) return "";
@@ -181,7 +181,8 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
 
     return (
         <Modal
-            title={isEditing ? "Edit Lead" : "Add Lead"}
+            className="save-lead-modal"
+            title={null}
             open={open}
             onCancel={handleDismiss}
             footer={null}
@@ -190,29 +191,33 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             destroyOnClose
             maskClosable
             closable
-            className="top-8"
         >
-            <div className="overflow-y-auto max-h-[65vh] pr-1">
-                <LeadForm
-                    data={formData || undefined}
-                    visible={open}
-                    onCancel={handleDismiss}
-                    onSubmit={handleSubmit}
-                    submitText={submitText}
-                    cancelText="Cancel"
-                    errors={errors}
-                    setErrors={(newErrors) => {
-                        if (Array.isArray(newErrors)) {
-                            setErrors(newErrors);
-                        }
-                    }}
-                    onErrorsClear={handleErrorsClear}
-                    setLead={setLead}
-                    loading={isLoading}
-                    isEditing={isEditing}
-                    getIsDirtyRef={getIsDirtyRef}
-                />
+            <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100">
+                <h2 className="text-xl font-semibold text-gray-900 leading-tight">
+                    {isEditing ? "Edit lead" : "Add lead"}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                    Fill in the details below. Only name is required.
+                </p>
             </div>
+
+            <LeadForm
+                data={formData || undefined}
+                visible={open}
+                onCancel={handleDismiss}
+                onSubmit={handleSubmit}
+                errors={errors}
+                setErrors={(newErrors) => {
+                    if (Array.isArray(newErrors)) {
+                        setErrors(newErrors);
+                    }
+                }}
+                onErrorsClear={handleErrorsClear}
+                setLead={setLead}
+                loading={isLoading}
+                isEditing={isEditing}
+                getIsDirtyRef={getIsDirtyRef}
+            />
         </Modal>
     );
 };

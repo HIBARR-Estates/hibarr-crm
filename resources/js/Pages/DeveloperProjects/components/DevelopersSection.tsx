@@ -110,10 +110,10 @@ const DevelopersSection: React.FC<{
                                     />
                                 </Space>
                             )}
-                            {googleDriveLink && (
+                            {developer.google_drive_link && (
                                 <Space size="small">
                                     <a
-                                        href={googleDriveLink}
+                                        href={developer.google_drive_link}
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
@@ -131,7 +131,8 @@ const DevelopersSection: React.FC<{
                                         icon={<CopyOutlined />}
                                         onClick={() => {
                                             navigator.clipboard.writeText(
-                                                googleDriveLink,
+                                                developer.google_drive_link ??
+                                                    "",
                                             );
                                             message.success(
                                                 "Link copied to clipboard",

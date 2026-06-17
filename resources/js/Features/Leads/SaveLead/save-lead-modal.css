@@ -1,0 +1,178 @@
+.save-lead-modal .ant-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 0;
+}
+
+.save-lead-modal .ant-modal-body {
+    padding: 0;
+}
+
+.save-lead-modal .ant-modal-close {
+    top: 20px;
+    inset-inline-end: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-lead-modal .ant-modal-close:hover {
+    background: #f9fafb;
+}
+
+.save-lead-modal .ant-modal-close-x {
+    font-size: 14px;
+    line-height: 1;
+    color: #6b7280;
+}
+
+.save-lead-form {
+    display: flex;
+    flex-direction: column;
+}
+
+.save-lead-form__tabs .ant-tabs-nav {
+    margin-bottom: 0;
+    padding: 0 24px;
+}
+
+.save-lead-form__tabs .ant-tabs-nav::before {
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.save-lead-form__tabs .ant-tabs-tab {
+    padding: 14px 0;
+    margin: 0 28px 0 0;
+    font-size: 14px;
+}
+
+.save-lead-form__tabs .ant-tabs-tab-btn {
+    color: #9ca3af;
+    font-weight: 500;
+    transition: color 0.2s;
+}
+
+.save-lead-form__tabs .ant-tabs-tab-active .ant-tabs-tab-btn {
+    color: #2563eb;
+}
+
+.save-lead-form__tabs .ant-tabs-ink-bar {
+    height: 2px;
+    background: #2563eb;
+}
+
+.save-lead-form__tabs .ant-tabs-content-holder {
+    padding: 24px;
+    max-height: min(55vh, 520px);
+    overflow-y: auto;
+}
+
+.save-lead-form__tabs .ant-tabs-content {
+    height: 100%;
+}
+
+.save-lead-form__section {
+    margin-bottom: 28px;
+}
+
+.save-lead-form__section:last-child {
+    margin-bottom: 0;
+}
+
+.save-lead-form__section-title {
+    margin: 0 0 16px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    line-height: 1.4;
+}
+
+.save-lead-form__section .ant-form-item-label > label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+.save-lead-form__section .ant-input,
+.save-lead-form__section .ant-input-affix-wrapper,
+.save-lead-form__section .ant-select-selector,
+.save-lead-form__section .ant-picker,
+.save-lead-form__section .ant-input-number,
+.save-lead-form__section .ant-phone-input-wrapper input {
+    border-radius: 8px;
+    border-color: #e5e7eb;
+}
+
+.save-lead-form__auto-convert {
+    margin-top: 8px;
+    padding: 12px 16px;
+    border-radius: 8px;
+    background: #eff6ff;
+    border: 1px solid #dbeafe;
+}
+
+.save-lead-form__auto-convert .ant-checkbox-wrapper {
+    color: #1e40af;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.save-lead-form__auto-convert .ant-form-item {
+    margin-bottom: 0;
+}
+
+.save-lead-form__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 16px 24px;
+    border-top: 1px solid #f3f4f6;
+    background: #fff;
+}
+
+.save-lead-form__footer-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.save-lead-form__cancel-btn {
+    color: #6b7280 !important;
+    font-weight: 500;
+    padding-inline: 0;
+}
+
+.save-lead-form__cancel-btn:hover {
+    color: #374151 !important;
+    background: transparent !important;
+}
+
+.save-lead-form__draft-btn {
+    border-radius: 8px;
+    border-color: #e5e7eb;
+    color: #374151;
+    font-weight: 500;
+    height: 40px;
+    padding-inline: 20px;
+}
+
+.save-lead-form__submit-btn {
+    border-radius: 8px;
+    font-weight: 500;
+    height: 40px;
+    padding-inline: 20px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: none;
+}
+
+.save-lead-form__errors {
+    margin: 16px 24px 0;
+}
