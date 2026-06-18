@@ -22,6 +22,7 @@ use App\Services\CycleService;
 use App\Services\CycleLevelSnapshotService;
 use App\Services\HierarchyService;
 use App\Services\LevelService;
+use App\Services\AgentCommissionProfileService;
 use App\Services\MlmCommissionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -35,13 +36,15 @@ class MlmAdminApiController extends AccountBaseController
     protected MlmCommissionService $commissionService;
     protected CycleService $cycleService;
     protected CycleLevelSnapshotService $snapshotService;
+    protected AgentCommissionProfileService $commissionProfileService;
 
     public function __construct(
         HierarchyService $hierarchyService,
         LevelService $levelService,
         MlmCommissionService $commissionService,
         CycleService $cycleService,
-        CycleLevelSnapshotService $snapshotService
+        CycleLevelSnapshotService $snapshotService,
+        AgentCommissionProfileService $commissionProfileService
     ) {
         parent::__construct();
         $this->hierarchyService = $hierarchyService;
@@ -49,6 +52,7 @@ class MlmAdminApiController extends AccountBaseController
         $this->commissionService = $commissionService;
         $this->cycleService = $cycleService;
         $this->snapshotService = $snapshotService;
+        $this->commissionProfileService = $commissionProfileService;
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -170,14 +174,22 @@ class MlmAdminApiController extends AccountBaseController
             'name' => 'required|string|max:255',
             'rank' => 'required|integer|min:1',
             'commission_percentage' => 'required|numeric|min:0|max:100',
+            'direct_rate' => 'nullable|numeric|min:0|max:100',
+            'override_rate' => 'nullable|numeric|min:0|max:100',
+            'is_hidden' => 'sometimes|boolean',
         ]);
+
+        $commissionPct = $validated['commission_percentage'];
 
         $level = MlmLevel::create([
             'company_id' => company()->id,
             'name' => $validated['name'],
             'slug' => \Str::slug($validated['name']),
             'rank' => $validated['rank'],
-            'commission_percentage' => $validated['commission_percentage'],
+            'commission_percentage' => $commissionPct,
+            'direct_rate' => $validated['direct_rate'] ?? $commissionPct,
+            'override_rate' => $validated['override_rate'] ?? $commissionPct,
+            'is_hidden' => $validated['is_hidden'] ?? false,
         ]);
 
         return response()->json([
@@ -195,13 +207,21 @@ class MlmAdminApiController extends AccountBaseController
             'name' => 'required|string|max:255',
             'rank' => 'required|integer|min:1',
             'commission_percentage' => 'required|numeric|min:0|max:100',
+            'direct_rate' => 'nullable|numeric|min:0|max:100',
+            'override_rate' => 'nullable|numeric|min:0|max:100',
+            'is_hidden' => 'sometimes|boolean',
         ]);
+
+        $commissionPct = $validated['commission_percentage'];
 
         $level->update([
             'name' => $validated['name'],
             'slug' => \Str::slug($validated['name']),
             'rank' => $validated['rank'],
-            'commission_percentage' => $validated['commission_percentage'],
+            'commission_percentage' => $commissionPct,
+            'direct_rate' => $validated['direct_rate'] ?? $commissionPct,
+            'override_rate' => $validated['override_rate'] ?? $commissionPct,
+            'is_hidden' => $validated['is_hidden'] ?? $level->is_hidden,
         ]);
 
         return response()->json([
@@ -543,6 +563,54 @@ class MlmAdminApiController extends AccountBaseController
             'status' => 'success',
             'message' => 'Level assigned successfully.',
             'data' => $history->load(['agent.user:id,name,email,image', 'level', 'assignedByUser:id,name']),
+        ]);
+    }
+
+    public function getAgentCommissionProfile(Request $request, int $agentId): JsonResponse
+    {
+        if (!config('features.sales.per-agent-commission-override')) {
+            abort(404);
+        }
+
+        $perPage = min((int) $request->input('audit_per_page', 15), 100);
+
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->commissionProfileService->getProfile($agentId, company()->id, $perPage),
+        ]);
+    }
+
+    public function updateAgentCommissionProfile(Request $request, int $agentId): JsonResponse
+    {
+        if (!config('features.sales.per-agent-commission-override')) {
+            abort(404);
+        }
+
+        $validated = $request->validate([
+            'custom_direct_rate' => 'nullable|numeric|min:0|max:100',
+            'custom_override_rate' => 'nullable|numeric|min:0|max:100',
+            'reason' => 'nullable|string|max:1000',
+        ]);
+
+        $result = $this->commissionProfileService->updateProfile(
+            $agentId,
+            company()->id,
+            auth()->id(),
+            $validated
+        );
+
+        if (!empty($result['errors'])) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Commission rate validation failed.',
+                'errors' => $result['errors'],
+            ], 422);
+        }
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Commission profile updated successfully.',
+            'data' => $result['profile'],
         ]);
     }
 

@@ -11,6 +11,7 @@ import {
     message,
     Tag,
     Empty,
+    Switch,
 } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import { motion } from "framer-motion";
@@ -22,7 +23,7 @@ import {
     Settings,
     LucideAlignVerticalSpaceAround,
 } from "lucide-react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -41,6 +42,9 @@ interface Props extends PageProps {
 
 const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
     const { t } = useTranslation();
+    const { props } = usePage<PageProps>();
+    const commissionOverrideEnabled =
+        props.featureFlags?.["sales.per-agent-commission-override"] === true;
     const { data, isLoading, refetch } = useMlmLevels();
     const levels: MlmLevel[] =
         (data as any)?.data?.data ?? (data as any)?.data ?? initialLevels ?? [];
@@ -86,6 +90,9 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
             name: level.name,
             rank: level.rank,
             commission_percentage: level.commission_percentage,
+            direct_rate: level.direct_rate ?? level.commission_percentage,
+            override_rate: level.override_rate ?? level.commission_percentage,
+            is_hidden: level.is_hidden ?? false,
         });
         setModalOpen(true);
     };
@@ -143,6 +150,44 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                 <span className="font-semibold text-green-600">{val}%</span>
             ),
         },
+        ...(commissionOverrideEnabled
+            ? [
+                  {
+                      title: "Direct %",
+                      dataIndex: "direct_rate",
+                      key: "direct_rate",
+                      align: "right" as const,
+                      render: (val: number, record: MlmLevel) => (
+                          <span className="text-blue-600">
+                              {val ?? record.commission_percentage}%
+                          </span>
+                      ),
+                  },
+                  {
+                      title: "Override %",
+                      dataIndex: "override_rate",
+                      key: "override_rate",
+                      align: "right" as const,
+                      render: (val: number, record: MlmLevel) => (
+                          <span className="text-purple-600">
+                              {val ?? record.commission_percentage}%
+                          </span>
+                      ),
+                  },
+                  {
+                      title: "Hidden",
+                      dataIndex: "is_hidden",
+                      key: "is_hidden",
+                      width: 80,
+                      render: (val: boolean) =>
+                          val ? (
+                              <Tag color="default">Hidden</Tag>
+                          ) : (
+                              <Tag color="green">Visible</Tag>
+                          ),
+                  },
+              ]
+            : []),
         {
             title: "Criteria",
             key: "criteria",
@@ -316,6 +361,45 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                     />
                                 </Form.Item>
                             </div>
+
+                            {commissionOverrideEnabled && (
+                                <>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Form.Item
+                                            label="Direct Rate %"
+                                            name="direct_rate"
+                                            tooltip="Rate used when this agent closes a deal"
+                                        >
+                                            <InputNumber
+                                                min={0}
+                                                max={100}
+                                                className="w-full"
+                                                addonAfter="%"
+                                            />
+                                        </Form.Item>
+                                        <Form.Item
+                                            label="Override Rate %"
+                                            name="override_rate"
+                                            tooltip="Ceiling rate used in upline differential calculations"
+                                        >
+                                            <InputNumber
+                                                min={0}
+                                                max={100}
+                                                className="w-full"
+                                                addonAfter="%"
+                                            />
+                                        </Form.Item>
+                                    </div>
+                                    <Form.Item
+                                        label="Hidden Level"
+                                        name="is_hidden"
+                                        valuePropName="checked"
+                                        tooltip="Hidden levels are excluded from visible level progression"
+                                    >
+                                        <Switch />
+                                    </Form.Item>
+                                </>
+                            )}
                         </Form>
                     </Modal>
                 </div>
