@@ -20,8 +20,8 @@ class AgentLevelInternalController extends Controller
         $companyId = (int) $request->header('X-COMPANY-ID');
 
         $validated = $request->validate([
-            'levelId' => 'nullable|integer|exists:mlm_levels,id',
-            'level_id' => 'nullable|integer|exists:mlm_levels,id',
+            'levelId' => 'nullable|integer',
+            'level_id' => 'nullable|integer',
         ]);
 
         $levelId = $validated['levelId'] ?? $validated['level_id'] ?? null;
@@ -34,7 +34,23 @@ class AgentLevelInternalController extends Controller
             ], 422);
         }
 
-        $level = MlmLevel::where('company_id', $companyId)->findOrFail($levelId);
+        $agent = LeadAgent::where('company_id', $companyId)->find($agentId);
+
+        if (!$agent) {
+            return response()->json([
+                'error' => 'AGENT_NOT_FOUND',
+                'message' => 'Agent not found.',
+            ], 404);
+        }
+
+        $level = MlmLevel::where('company_id', $companyId)->find($levelId);
+
+        if (!$level) {
+            return response()->json([
+                'error' => 'LEVEL_NOT_FOUND',
+                'message' => 'Commission level not found.',
+            ], 404);
+        }
 
         if ($level->is_hidden) {
             return response()->json([
@@ -42,8 +58,6 @@ class AgentLevelInternalController extends Controller
                 'message' => 'Hidden levels cannot be assigned through normal promotion flows.',
             ], 422);
         }
-
-        $agent = LeadAgent::where('company_id', $companyId)->findOrFail($agentId);
 
         $history = $this->levelService->assignLevel(
             $agent,

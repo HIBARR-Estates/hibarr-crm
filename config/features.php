@@ -7,5 +7,6 @@ return [
     ],
     'sales' => [
         'per-agent-commission-override' => env('FEATURE_SALES_PER_AGENT_COMMISSION_OVERRIDE', false),
+        'bulk-agent-promotion' => env('FEATURE_SALES_BULK_AGENT_PROMOTION', false),
     ],
 ];
