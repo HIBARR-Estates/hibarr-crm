@@ -211,19 +211,10 @@ class MlmAdminController extends AccountBaseController
         $activeCycle = $enrollment?->cycle;
         $metricsForEvaluation = $cycleMetrics ?? $allTimeMetrics;
 
-        $nextLevel = null;
-        if ($currentLevel) {
-            $nextLevel = MlmLevel::where('company_id', $agent->company_id)
-                ->where('rank', '>', $currentLevel->rank)
-                ->ordered()
-                ->with('criteria')
-                ->first();
-        } else {
-            $nextLevel = MlmLevel::where('company_id', $agent->company_id)
-                ->ordered()
-                ->with('criteria')
-                ->first();
-        }
+        $nextLevel = $this->levelService->getNextVisibleLevel(
+            $agent->company_id,
+            $currentLevel?->rank ?? -1
+        );
 
         $criteriaProgress = [];
         $overallProgress = 0;

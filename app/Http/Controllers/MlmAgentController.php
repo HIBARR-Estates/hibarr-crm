@@ -100,26 +100,17 @@ class MlmAgentController extends AccountBaseController
         // Use cycle metrics for criteria progress (matches backend evaluation)
         $metricsForEvaluation = $cycleMetrics ?? $allTimeMetrics;
 
-        // Get next level
-        $nextLevel = null;
-        if ($currentLevel) {
-            $nextLevel = MlmLevel::where('company_id', company()->id)
-                ->where('rank', '>', $currentLevel->rank)
-                ->ordered()
-                ->with('criteria')
-                ->first();
-        } else {
-            $nextLevel = MlmLevel::where('company_id', company()->id)
-                ->ordered()
-                ->with('criteria')
-                ->first();
-        }
+        // Get next visible level
+        $nextLevel = $this->levelService->getNextVisibleLevel(
+            $agent->company_id,
+            $currentLevel?->rank ?? -1
+        );
 
         // Calculate progress
         $criteriaProgress = [];
         $overallProgress = 0;
 
-        if ($nextLevel && $nextLevel->criteria->count() > 0 && $metricsForEvaluation) {
+        if (!$currentLevel?->is_hidden && $nextLevel && $nextLevel->criteria->count() > 0 && $metricsForEvaluation) {
             $totalCriteria = $nextLevel->criteria->count();
             $metCount = 0;
 
@@ -193,7 +184,7 @@ class MlmAgentController extends AccountBaseController
                 ->get()
             : [];
 
-        return [
+        return $this->maskAgentLevelResponse([
             'current_level' => $currentLevel,
             'next_level' => $nextLevel,
             'progress_percentage' => $overallProgress,
@@ -237,7 +228,58 @@ class MlmAgentController extends AccountBaseController
                 'end_date' => $activeCycle->end_date->format('Y-m-d'),
                 'days_remaining' => max(0, (int) now()->startOfDay()->diffInDays($activeCycle->end_date, false)),
             ] : null,
-        ];
+        ]);
+    }
+
+    /**
+     * Mask hidden levels from agent-facing responses and strip is_hidden from level payloads.
+     */
+    private function maskAgentLevelResponse(array $payload): array
+    {
+        $currentLevel = $payload['current_level'] ?? null;
+
+        if ($currentLevel instanceof MlmLevel && $currentLevel->is_hidden) {
+            $payload['current_level'] = null;
+            $payload['next_level'] = null;
+            $payload['progress_percentage'] = 0.0;
+            $payload['criteria_progress'] = [];
+        } else {
+            $payload['current_level'] = $this->serializeLevelForAgent($currentLevel);
+            $payload['next_level'] = $this->serializeLevelForAgent($payload['next_level'] ?? null);
+        }
+
+        if (isset($payload['level_history']) && is_iterable($payload['level_history'])) {
+            $payload['level_history'] = collect($payload['level_history'])->map(function ($entry) {
+                if (is_array($entry)) {
+                    if (isset($entry['level'])) {
+                        $entry['level'] = $this->serializeLevelForAgent($entry['level']);
+                    }
+
+                    return $entry;
+                }
+
+                if (is_object($entry) && isset($entry->level)) {
+                    $entry->level = $this->serializeLevelForAgent($entry->level);
+                }
+
+                return $entry;
+            })->all();
+        }
+
+        return $payload;
+    }
+
+    private function serializeLevelForAgent(mixed $level): mixed
+    {
+        if ($level instanceof MlmLevel) {
+            return $level->makeHidden(['is_hidden'])->toArray();
+        }
+
+        if (is_array($level) && array_key_exists('is_hidden', $level)) {
+            unset($level['is_hidden']);
+        }
+
+        return $level;
     }
 
     /**
@@ -439,24 +481,15 @@ class MlmAgentController extends AccountBaseController
         $activeCycle = $enrollment?->cycle;
         $metricsForEvaluation = $cycleMetrics ?? $allTimeMetrics;
 
-        // Next level
-        $nextLevel = null;
-        if ($currentLevel) {
-            $nextLevel = MlmLevel::where('company_id', company()->id)
-                ->where('rank', '>', $currentLevel->rank)
-                ->ordered()
-                ->with('criteria')
-                ->first();
-        } else {
-            $nextLevel = MlmLevel::where('company_id', company()->id)
-                ->ordered()
-                ->with('criteria')
-                ->first();
-        }
+        // Next visible level
+        $nextLevel = $this->levelService->getNextVisibleLevel(
+            $agent->company_id,
+            $currentLevel?->rank ?? -1
+        );
 
         // Criteria progress
         $criteriaProgress = [];
-        if ($nextLevel && $metricsForEvaluation) {
+        if (!$currentLevel?->is_hidden && $nextLevel && $metricsForEvaluation) {
             foreach ($nextLevel->criteria as $criterion) {
                 $currentValue = $criterion->metric->resolveValue($metricsForEvaluation);
                 $targetValue = (float) $criterion->threshold;
@@ -481,7 +514,7 @@ class MlmAgentController extends AccountBaseController
 
         return response()->json([
             'status' => 'success',
-            'data' => [
+            'data' => $this->maskAgentLevelResponse([
                 'current_level' => $currentLevel,
                 'next_level' => $nextLevel,
                 'metrics' => [
@@ -514,7 +547,7 @@ class MlmAgentController extends AccountBaseController
                 ] : null,
                 'criteria_progress' => $criteriaProgress,
                 'level_history' => $levelHistory,
-            ],
+            ]),
         ]);
     }
 

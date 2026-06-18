@@ -284,12 +284,20 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                 Current Level
                                             </div>
                                             {levelData?.current_level ? (
-                                                <LevelBadge
-                                                    level={
-                                                        levelData.current_level
-                                                    }
-                                                    showPercentage
-                                                />
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <LevelBadge
+                                                        level={
+                                                            levelData.current_level
+                                                        }
+                                                        showPercentage
+                                                    />
+                                                    {levelData.current_level
+                                                        .is_hidden && (
+                                                        <Tag color="default">
+                                                            Hidden
+                                                        </Tag>
+                                                    )}
+                                                </div>
                                             ) : (
                                                 <Tag className="text-lg">
                                                     Unranked

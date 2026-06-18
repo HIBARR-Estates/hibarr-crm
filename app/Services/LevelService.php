@@ -79,6 +79,10 @@ class LevelService
                 break;
             }
 
+            if ($level->is_hidden) {
+                continue;
+            }
+
             if ($this->evaluateCriteria($metricsForEvaluation, $level->criteria)) {
                 $qualifiedLevel = $level;
                 break; // Found the highest qualifying level
@@ -230,6 +234,10 @@ class LevelService
                 break;
             }
 
+            if ($snapshot->is_hidden) {
+                continue;
+            }
+
             if ($snapshot->evaluateCriteria($metrics)) {
                 $liveLevel = $snapshot->source_level_id
                     ? MlmLevel::find($snapshot->source_level_id)
@@ -256,6 +264,30 @@ class LevelService
         }
 
         return null;
+    }
+
+    /**
+     * First visible level with rank above the given rank (ordered ascending).
+     */
+    public function getNextVisibleLevel(int $companyId, int $currentRank): ?MlmLevel
+    {
+        return MlmLevel::where('company_id', $companyId)
+            ->visible()
+            ->where('rank', '>', $currentRank)
+            ->ordered()
+            ->with('criteria')
+            ->first();
+    }
+
+    /**
+     * Highest-rank visible level for a company.
+     */
+    public function getHighestVisibleLevel(int $companyId): ?MlmLevel
+    {
+        return MlmLevel::where('company_id', $companyId)
+            ->visible()
+            ->orderedDesc()
+            ->first();
     }
 
     /**

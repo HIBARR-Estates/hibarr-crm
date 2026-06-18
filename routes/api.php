@@ -80,6 +80,10 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.show', 'uses' => 'Api\AgentCommissionProfileInternalController@show']);
         ApiRoute::patch('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.update', 'uses' => 'Api\AgentCommissionProfileInternalController@update']);
 
+        // Commission levels & agent level (internal)
+        ApiRoute::get('internal/commissions/levels', ['as' => 'api.internal.commissions.levels.index', 'uses' => 'Api\CommissionLevelsInternalController@index']);
+        ApiRoute::patch('internal/agents/{agentId}/level', ['as' => 'api.internal.agents.level.update', 'uses' => 'Api\AgentLevelInternalController@update']);
+
     });
 
 });
