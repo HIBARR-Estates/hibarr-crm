@@ -95,6 +95,9 @@ class CycleLevelSnapshotService
                     'slug' => $level->slug,
                     'rank' => $level->rank,
                     'commission_percentage' => $level->commission_percentage,
+                    'direct_rate' => $level->direct_rate,
+                    'override_rate' => $level->override_rate,
+                    'is_hidden' => $level->is_hidden,
                 ]);
 
                 // Copy criteria

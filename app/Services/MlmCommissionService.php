@@ -70,11 +70,15 @@ class MlmCommissionService
 
         if ($useSnapshots && $agentLevel) {
             $agentSnapshotLevel = $this->snapshotService->getSnapshotLevelBySourceId($cycle, $agentLevel->id);
-            $agentCommissionPct = $agentSnapshotLevel
-                ? (float) $agentSnapshotLevel->commission_percentage
-                : (float) $agentLevel->commission_percentage;
+            $agentCommissionPct = $this->isPerAgentOverrideEnabled()
+                ? $this->resolveDirectRate($agent, $agentLevel, $agentSnapshotLevel)
+                : ($agentSnapshotLevel
+                    ? (float) $agentSnapshotLevel->commission_percentage
+                    : (float) $agentLevel->commission_percentage);
         } elseif ($agentLevel) {
-            $agentCommissionPct = (float) $agentLevel->commission_percentage;
+            $agentCommissionPct = $this->isPerAgentOverrideEnabled()
+                ? $this->resolveDirectRate($agent, $agentLevel, null)
+                : (float) $agentLevel->commission_percentage;
         }
 
         $records = [];
@@ -113,12 +117,16 @@ class MlmCommissionService
 
                 // Resolve commission % from snapshot or live
                 $ancestorSnapshotLevel = null;
-                $ancestorPct = (float) $ancestorLevel->commission_percentage;
+                $ancestorPct = $this->isPerAgentOverrideEnabled()
+                    ? $this->resolveOverrideRate($ancestor, $ancestorLevel, null)
+                    : (float) $ancestorLevel->commission_percentage;
 
                 if ($useSnapshots) {
                     $ancestorSnapshotLevel = $this->snapshotService->getSnapshotLevelBySourceId($cycle, $ancestorLevel->id);
                     if ($ancestorSnapshotLevel) {
-                        $ancestorPct = (float) $ancestorSnapshotLevel->commission_percentage;
+                        $ancestorPct = $this->isPerAgentOverrideEnabled()
+                            ? $this->resolveOverrideRate($ancestor, $ancestorLevel, $ancestorSnapshotLevel)
+                            : (float) $ancestorSnapshotLevel->commission_percentage;
                     }
                 }
 
@@ -188,6 +196,51 @@ class MlmCommissionService
     protected function calculateAmount(float $dealValue, float $percentage): float
     {
         return round($dealValue * ($percentage / 100), 2);
+    }
+
+    protected function isPerAgentOverrideEnabled(): bool
+    {
+        return (bool) config('features.sales.per-agent-commission-override', false);
+    }
+
+    protected function resolveDirectRate(
+        LeadAgent $agent,
+        ?MlmLevel $level,
+        ?MlmCycleLevelSnapshot $snapshot
+    ): float {
+        if ($agent->custom_direct_rate !== null) {
+            return (float) $agent->custom_direct_rate;
+        }
+
+        if ($snapshot) {
+            return (float) ($snapshot->direct_rate ?? $snapshot->commission_percentage);
+        }
+
+        if ($level) {
+            return (float) ($level->direct_rate ?? $level->commission_percentage);
+        }
+
+        return 0;
+    }
+
+    protected function resolveOverrideRate(
+        LeadAgent $agent,
+        ?MlmLevel $level,
+        ?MlmCycleLevelSnapshot $snapshot
+    ): float {
+        if ($agent->custom_override_rate !== null) {
+            return (float) $agent->custom_override_rate;
+        }
+
+        if ($snapshot) {
+            return (float) ($snapshot->override_rate ?? $snapshot->commission_percentage);
+        }
+
+        if ($level) {
+            return (float) ($level->override_rate ?? $level->commission_percentage);
+        }
+
+        return 0;
     }
 
     /**

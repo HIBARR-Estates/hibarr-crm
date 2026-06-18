@@ -184,6 +184,21 @@ class LevelService
         bool $systemAssigned = false,
         ?int $cycleLevelSnapshotId = null
     ): AgentLevelHistory {
+        $currentLevel = $this->getCurrentLevel($agent);
+        $oldRank = $currentLevel?->rank ?? -1;
+
+        if (
+            $level->rank > $oldRank
+            && config('features.sales.per-agent-commission-override')
+            && ($agent->custom_direct_rate !== null || $agent->custom_override_rate !== null)
+        ) {
+            app(AgentCommissionProfileService::class)->clearCustomRatesOnPromotion(
+                $agent,
+                $assignedBy,
+                'Custom rates cleared on level promotion'
+            );
+        }
+
         return AgentLevelHistory::create([
             'company_id' => $agent->company_id,
             'agent_id' => $agent->id,

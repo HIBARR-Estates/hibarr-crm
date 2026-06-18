@@ -12,6 +12,7 @@ class FeatureFlags
         return [
             'crm.lead-qualification-tab' => (bool) config('features.crm.lead-qualification-tab'),
             'crm.lead-language-core-field' => (bool) config('features.crm.lead-language-core-field'),
+            'sales.per-agent-commission-override' => (bool) config('features.sales.per-agent-commission-override'),
         ];
     }
 }

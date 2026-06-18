@@ -1328,6 +1328,8 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
             Route::get('agent-metrics', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentMetrics'])->name('agent_metrics');
             Route::get('agents/{agentId}/dashboard-stats', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentDashboardStats'])->name('agent_dashboard_stats');
             Route::post('agents/{agentId}/assign-level', [App\Http\Controllers\MlmAdminApiController::class, 'assignAgentLevel'])->name('agent_assign_level');
+            Route::get('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'getAgentCommissionProfile'])->name('agent_commission_profile.show');
+            Route::patch('agents/{agentId}/commission-profile', [App\Http\Controllers\MlmAdminApiController::class, 'updateAgentCommissionProfile'])->name('agent_commission_profile.update');
 
             // Level History
             Route::get('level-history', [App\Http\Controllers\MlmAdminApiController::class, 'getLevelHistory'])->name('level_history');

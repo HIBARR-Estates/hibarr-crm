@@ -76,6 +76,9 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('properties/filters/features', ['as' => 'api.properties.filters.features', 'uses' => 'Api\PropertyApiController@getFeatures']);
         ApiRoute::get('properties/filters/locations', ['as' => 'api.properties.filters.location', 'uses' => 'Api\PropertyApiController@getLocation']);
 
+        // Agent commission profile (internal)
+        ApiRoute::get('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.show', 'uses' => 'Api\AgentCommissionProfileInternalController@show']);
+        ApiRoute::patch('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.update', 'uses' => 'Api\AgentCommissionProfileInternalController@update']);
 
     });
 

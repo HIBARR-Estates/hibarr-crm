@@ -178,4 +178,9 @@ class LeadAgent extends BaseModel
     {
         return $this->hasMany(AgentCycleMetric::class, 'agent_id');
     }
+
+    public function commissionRateAuditLogs(): HasMany
+    {
+        return $this->hasMany(AgentCommissionRateAuditLog::class, 'agent_id')->orderByDesc('changed_at');
+    }
 }

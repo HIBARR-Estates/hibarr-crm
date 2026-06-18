@@ -18,11 +18,17 @@ class MlmLevel extends BaseModel
         'slug',
         'rank',
         'commission_percentage',
+        'direct_rate',
+        'override_rate',
+        'is_hidden',
     ];
 
     protected $casts = [
         'rank' => 'integer',
         'commission_percentage' => 'decimal:2',
+        'direct_rate' => 'decimal:2',
+        'override_rate' => 'decimal:2',
+        'is_hidden' => 'boolean',
     ];
 
     // ── Relationships ────────────────────────────────────────────
@@ -53,5 +59,10 @@ class MlmLevel extends BaseModel
     public function scopeOrderedDesc($query)
     {
         return $query->orderBy('rank', 'desc');
+    }
+
+    public function scopeVisible($query)
+    {
+        return $query->where('is_hidden', false);
     }
 }
