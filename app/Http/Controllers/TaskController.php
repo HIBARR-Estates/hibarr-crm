@@ -276,7 +276,7 @@ class TaskController extends AccountBaseController
                 'properties' => $task->properties->map(function ($property) {
                     return [
                         'id' => $property->id,
-                        'title' => $property->title,
+                        'name' => $property->title,
                     ];
                 })->toArray(),
             ];
@@ -331,7 +331,7 @@ class TaskController extends AccountBaseController
 
         $deals = Deal::select('id', 'name')->get();
         $leads = Lead::select('id', 'client_name', 'company_name')->get();
-        $properties = Property::select('id', 'title')->get();
+        $properties = Property::select('id', 'title as name')->get();
 
         // Get user permissions
         $permissions = [

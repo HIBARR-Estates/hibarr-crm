@@ -77,7 +77,8 @@ interface Lead {
 
 interface Property {
     id: number;
-    name: string;
+    name?: string;
+    title?: string;
 }
 
 interface TaskFormProps {
@@ -139,8 +140,42 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
     const isAdmin = permissions?.view_tasks === "all";
 
-    console.log(permissions, "this permissions are testable ....");
-    console.log(props, "user ....");
+    const getPropertyLabel = (property: Property) =>
+        property.name ?? property.title ?? `Property #${property.id}`;
+
+    const getLeadLabel = (lead: Lead) => {
+        const company = lead.company_name ? `(${lead.company_name})` : "";
+        return `${lead.client_name ?? ""} ${company}`.trim();
+    };
+
+    const getDealLabel = (deal: Deal) => td(deal.name);
+
+    const filterLeadOption = (
+        input: string,
+        option?: { value?: number },
+    ) => {
+        const lead = leads.find((l) => l.id === option?.value);
+        const label = lead ? getLeadLabel(lead) : "";
+        return label.toLowerCase().includes(input.toLowerCase());
+    };
+
+    const filterDealOption = (
+        input: string,
+        option?: { value?: number },
+    ) => {
+        const deal = deals.find((d) => d.id === option?.value);
+        const label = deal ? getDealLabel(deal) : "";
+        return label.toLowerCase().includes(input.toLowerCase());
+    };
+
+    const filterPropertyOption = (
+        input: string,
+        option?: { value?: number },
+    ) => {
+        const property = properties.find((p) => p.id === option?.value);
+        const label = property ? getPropertyLabel(property) : "";
+        return label.toLowerCase().includes(input.toLowerCase());
+    };
 
     // Set form values when data changes
     React.useEffect(() => {
@@ -386,11 +421,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                 placeholder={td("Select a deal")}
                                 showSearch
                                 allowClear
-                                filterOption={(input, option) =>
-                                    (option?.children as unknown as string)
-                                        .toLowerCase()
-                                        .includes(input.toLowerCase())
-                                }
+                                filterOption={filterDealOption}
                             >
                                 {deals.map((deal) => (
                                     <Option key={deal.id} value={deal.id}>
@@ -409,11 +440,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                 placeholder={td("Select a lead")}
                                 showSearch
                                 allowClear
-                                filterOption={(input, option) =>
-                                    (option?.children as unknown as string)
-                                        .toLowerCase()
-                                        .includes(input.toLowerCase())
-                                }
+                                filterOption={filterLeadOption}
                             >
                                 {leads.map((lead) => (
                                     <Option key={lead.id} value={lead.id}>
@@ -439,18 +466,14 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                     placeholder="Select a property"
                                     showSearch
                                     allowClear
-                                    filterOption={(input, option) =>
-                                        (option?.children as unknown as string)
-                                            .toLowerCase()
-                                            .includes(input.toLowerCase())
-                                    }
+                                    filterOption={filterPropertyOption}
                                 >
                                     {properties.map((property) => (
                                         <Option
                                             key={property.id}
                                             value={property.id}
                                         >
-                                            {property.name}
+                                            {getPropertyLabel(property)}
                                         </Option>
                                     ))}
                                 </Select>
