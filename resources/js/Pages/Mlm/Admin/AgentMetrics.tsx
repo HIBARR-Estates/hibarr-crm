@@ -324,7 +324,7 @@ const MlmAgentMetrics: React.FC<Props> = ({ metrics: initialMetrics }) => {
                             onChange={(val) => setSelectedLevelId(val)}
                             options={levels.map((level) => ({
                                 value: level.id,
-                                label: `${level.name} (Rank #${level.rank})`,
+                                label: `${level.name} (Rank #${level.rank})${level.is_hidden ? " (Hidden)" : ""}`,
                             }))}
                         />
 

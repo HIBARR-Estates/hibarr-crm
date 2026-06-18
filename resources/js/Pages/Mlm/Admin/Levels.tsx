@@ -80,6 +80,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
         form.setFieldsValue({
             rank: levels.length + 1,
             commission_percentage: 0,
+            is_hidden: false,
         });
         setModalOpen(true);
     };
@@ -174,20 +175,20 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                           </span>
                       ),
                   },
-                  {
-                      title: "Hidden",
-                      dataIndex: "is_hidden",
-                      key: "is_hidden",
-                      width: 80,
-                      render: (val: boolean) =>
-                          val ? (
-                              <Tag color="default">Hidden</Tag>
-                          ) : (
-                              <Tag color="green">Visible</Tag>
-                          ),
-                  },
               ]
             : []),
+        {
+            title: "Hidden",
+            dataIndex: "is_hidden",
+            key: "is_hidden",
+            width: 80,
+            render: (val: boolean) =>
+                val ? (
+                    <Tag color="default">Hidden</Tag>
+                ) : (
+                    <Tag color="green">Visible</Tag>
+                ),
+        },
         {
             title: "Criteria",
             key: "criteria",
@@ -363,43 +364,42 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                             </div>
 
                             {commissionOverrideEnabled && (
-                                <>
-                                    <div className="grid grid-cols-2 gap-4">
-                                        <Form.Item
-                                            label="Direct Rate %"
-                                            name="direct_rate"
-                                            tooltip="Rate used when this agent closes a deal"
-                                        >
-                                            <InputNumber
-                                                min={0}
-                                                max={100}
-                                                className="w-full"
-                                                addonAfter="%"
-                                            />
-                                        </Form.Item>
-                                        <Form.Item
-                                            label="Override Rate %"
-                                            name="override_rate"
-                                            tooltip="Ceiling rate used in upline differential calculations"
-                                        >
-                                            <InputNumber
-                                                min={0}
-                                                max={100}
-                                                className="w-full"
-                                                addonAfter="%"
-                                            />
-                                        </Form.Item>
-                                    </div>
+                                <div className="grid grid-cols-2 gap-4">
                                     <Form.Item
-                                        label="Hidden Level"
-                                        name="is_hidden"
-                                        valuePropName="checked"
-                                        tooltip="Hidden levels are excluded from visible level progression"
+                                        label="Direct Rate %"
+                                        name="direct_rate"
+                                        tooltip="Rate used when this agent closes a deal"
                                     >
-                                        <Switch />
+                                        <InputNumber
+                                            min={0}
+                                            max={100}
+                                            className="w-full"
+                                            addonAfter="%"
+                                        />
                                     </Form.Item>
-                                </>
+                                    <Form.Item
+                                        label="Override Rate %"
+                                        name="override_rate"
+                                        tooltip="Ceiling rate used in upline differential calculations"
+                                    >
+                                        <InputNumber
+                                            min={0}
+                                            max={100}
+                                            className="w-full"
+                                            addonAfter="%"
+                                        />
+                                    </Form.Item>
+                                </div>
                             )}
+
+                            <Form.Item
+                                label="Hidden Level"
+                                name="is_hidden"
+                                valuePropName="checked"
+                                tooltip="Hidden levels are excluded from visible level progression"
+                            >
+                                <Switch />
+                            </Form.Item>
                         </Form>
                     </Modal>
                 </div>
