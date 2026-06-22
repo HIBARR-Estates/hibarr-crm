@@ -2,13 +2,11 @@ import React, { useState } from "react";
 import {
     Form,
     Input,
-    Select,
     Radio,
     Button,
     Row,
     Col,
     Divider,
-    Empty,
 } from "antd";
 import {
     SearchOutlined,
@@ -17,10 +15,10 @@ import {
     PlusOutlined,
     ArrowLeftOutlined,
 } from "@ant-design/icons";
+import { usePage } from "@inertiajs/react";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
-import axios from "axios";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
 
@@ -39,6 +37,8 @@ const StepOne: React.FC<StepOneProps> = ({
     existingDeal,
     pipelineId,
 }) => {
+    const { props } = usePage<any>();
+    const { permissions } = props;
     const [form] = Form.useForm();
     const [leadType, setLeadType] = useState<"client" | "agent">("client");
     // Track the current flow step
@@ -301,6 +301,25 @@ const StepOne: React.FC<StepOneProps> = ({
             <div>
                 <Row gutter={16}>
                     <Col span={12}>
+                        <Form.Item name="salutation" label="Salutation">
+                            <FormDataSelector
+                                type="salutations"
+                                placeholder="—"
+                            />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="gender" label="Gender">
+                            <FormDataSelector
+                                type="genders"
+                                placeholder="—"
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={16}>
+                    <Col span={12}>
                         <Form.Item
                             name="name"
                             label="Name"
@@ -333,13 +352,66 @@ const StepOne: React.FC<StepOneProps> = ({
                 <Row gutter={16}>
                     <Col span={12}>
                         <Form.Item name="phone" label="Phone">
-                            <PhoneInput 
-                                enableSearch 
+                            <PhoneInput
+                                enableSearch
                                 placeholder="Phone number"
                             />
                         </Form.Item>
                     </Col>
-                    {leadType === "agent" && (
+                    {permissions?.view_lead_sources !== "none" && (
+                        <Col span={12}>
+                            <Form.Item
+                                name="lead_source_id"
+                                label="Lead Source"
+                            >
+                                <FormDataSelector
+                                    type="sources"
+                                    placeholder="Lead source"
+                                />
+                            </Form.Item>
+                        </Col>
+                    )}
+                </Row>
+
+                <Row gutter={16}>
+                    <Col span={24}>
+                        <Form.Item name="address" label="Address">
+                            <Input placeholder="Enter street address" />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={16}>
+                    <Col span={12}>
+                        <Form.Item name="postal_code" label="Postcode">
+                            <Input placeholder="Enter postcode" />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="city" label="City">
+                            <Input placeholder="Enter city" />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={16}>
+                    <Col span={12}>
+                        <Form.Item name="state" label="State / Province">
+                            <Input placeholder="Enter state or province" />
+                        </Form.Item>
+                    </Col>
+                    <Col span={12}>
+                        <Form.Item name="country" label="Country">
+                            <FormDataSelector
+                                type="countries"
+                                placeholder="— Select country —"
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                {leadType === "agent" && (
+                    <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item
                                 name="company_name"
@@ -355,11 +427,6 @@ const StepOne: React.FC<StepOneProps> = ({
                                 <Input placeholder="Company or agency name" />
                             </Form.Item>
                         </Col>
-                    )}
-                </Row>
-
-                {leadType === "agent" && (
-                    <Row gutter={16}>
                         <Col span={12}>
                             <Form.Item name="referral" label="Referral Source">
                                 <Input placeholder="How did they find you?" />
