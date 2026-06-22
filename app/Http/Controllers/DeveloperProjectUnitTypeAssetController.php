@@ -6,8 +6,10 @@ use App\Models\DeveloperProject;
 use App\Models\DeveloperProjectUnitType;
 use App\Models\DeveloperProjectUnitTypeAsset;
 use App\Helper\Reply;
+use App\Services\FileStorageService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -128,10 +130,7 @@ class DeveloperProjectUnitTypeAssetController extends Controller
         $unitType = $this->findUnitType($projectId, $unitTypeId);
         $asset = $unitType->assets()->findOrFail($assetId);
 
-        // Delete the file from storage
-        if ($asset->file_path && Storage::disk('public')->exists($asset->file_path)) {
-            Storage::disk('public')->delete($asset->file_path);
-        }
+        $this->deleteAssetFile($asset);
 
         $asset->delete();
 
@@ -157,9 +156,7 @@ class DeveloperProjectUnitTypeAssetController extends Controller
         $assets = $unitType->assets()->whereIn('id', $request->asset_ids)->get();
 
         foreach ($assets as $asset) {
-            if ($asset->file_path && Storage::disk('public')->exists($asset->file_path)) {
-                Storage::disk('public')->delete($asset->file_path);
-            }
+            $this->deleteAssetFile($asset);
             $asset->delete();
         }
 
@@ -287,6 +284,56 @@ class DeveloperProjectUnitTypeAssetController extends Controller
         } catch (\Exception $e) {
             DB::rollBack();
             return Reply::error('Failed to save assets: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Delete the physical file for an asset, if one exists.
+     *
+     * Externally stored assets (uploaded via FileUploadService) must be removed
+     * through FileStorageService. Local uploads use the public disk.
+     * Failures are logged but do not block database deletion.
+     */
+    private function deleteAssetFile(DeveloperProjectUnitTypeAsset $asset): void
+    {
+        if (!empty($asset->external_url)) {
+            $objectPath = $asset->file_path;
+
+            if (empty($objectPath)) {
+                $objectPath = FileStorageService::extractObjectPathFromUrl($asset->external_url);
+            }
+
+            if (empty($objectPath)) {
+                return;
+            }
+
+            try {
+                app(FileStorageService::class)->delete($objectPath);
+            } catch (\Exception $e) {
+                Log::warning('Failed to delete external unit type asset file', [
+                    'asset_id' => $asset->id,
+                    'object_path' => $objectPath,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return;
+        }
+
+        if (empty($asset->file_path)) {
+            return;
+        }
+
+        try {
+            if (Storage::disk('public')->exists($asset->file_path)) {
+                Storage::disk('public')->delete($asset->file_path);
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to delete local unit type asset file', [
+                'asset_id' => $asset->id,
+                'file_path' => $asset->file_path,
+                'error' => $e->getMessage(),
+            ]);
         }
     }
 
