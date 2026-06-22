@@ -214,7 +214,6 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
                 : "",
             "POST",
             () => {
-                messageApi.success("Photos deleted");
                 refetchAssets();
                 setIsSelecting(false);
                 setSelectedAssetIds(new Set());
@@ -448,14 +447,7 @@ const UnitTypePhotosSection: React.FC<UnitTypePhotosSectionProps> = ({
             content: "This cannot be undone.",
             okText: "Delete",
             okType: "danger",
-            onOk: () =>
-                bulkDeleteAssets(
-                    { asset_ids: ids },
-                    {
-                        onError: () =>
-                            messageApi.error("Failed to delete photos"),
-                    },
-                ),
+            onOk: () => bulkDeleteAssets({ asset_ids: ids }),
         });
     }, [
         projectId,

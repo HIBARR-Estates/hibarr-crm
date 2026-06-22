@@ -58,6 +58,7 @@ import type {
     MlmCommission,
     AgentCommissionProfile,
     AgentCommissionProfileUpdatePayload,
+    AgentCommissionRateAuditLog,
 } from "@/Features/Mlm/types";
 import { COMMISSION_TYPE_LABELS } from "@/Features/Mlm/types";
 
@@ -104,8 +105,8 @@ const AdminAgentDashboard: React.FC<Props> = ({
     useEffect(() => {
         if (commissionProfile) {
             commissionForm.setFieldsValue({
-                custom_direct_rate: commissionProfile.custom_direct_rate,
-                custom_override_rate: commissionProfile.custom_override_rate,
+                custom_commission_rate:
+                    commissionProfile.custom_commission_rate,
             });
         }
     }, [commissionProfile, commissionForm]);
@@ -412,266 +413,6 @@ const AdminAgentDashboard: React.FC<Props> = ({
                             </Col>
                         </Row>
 
-                        {commissionOverrideEnabled && (
-                            <Row gutter={[16, 16]} className="mb-6">
-                                <Col xs={24}>
-                                    <motion.div
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        transition={{
-                                            duration: 0.4,
-                                            delay: 0.15,
-                                        }}
-                                    >
-                                        <Card
-                                            title={
-                                                <div className="flex items-center gap-2">
-                                                    <Percent
-                                                        size={18}
-                                                        className="text-indigo-500"
-                                                    />
-                                                    <span className="font-semibold">
-                                                        Commission Rate
-                                                        Overrides
-                                                    </span>
-                                                </div>
-                                            }
-                                            variant="outlined"
-                                        >
-                                            <Skeleton loading={profileLoading}>
-                                                {commissionProfile ? (
-                                                    <div className="space-y-4">
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                                                            <div>
-                                                                <span className="text-gray-500">
-                                                                    Level
-                                                                    defaults
-                                                                </span>
-                                                                <div className="font-medium">
-                                                                    Direct:{" "}
-                                                                    {commissionProfile
-                                                                        .defaults
-                                                                        ?.direct_rate ??
-                                                                        "—"}
-                                                                    %{" · "}
-                                                                    Override:{" "}
-                                                                    {commissionProfile
-                                                                        .defaults
-                                                                        ?.override_rate ??
-                                                                        "—"}
-                                                                    %
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-gray-500">
-                                                                    Ceilings
-                                                                </span>
-                                                                <div className="font-medium">
-                                                                    Direct ≤{" "}
-                                                                    {
-                                                                        commissionProfile
-                                                                            .bounds
-                                                                            .directCeiling
-                                                                    }
-                                                                    %{" · "}
-                                                                    Override ≤{" "}
-                                                                    {
-                                                                        commissionProfile
-                                                                            .bounds
-                                                                            .overrideCeiling
-                                                                    }
-                                                                    %
-                                                                </div>
-                                                            </div>
-                                                            <div>
-                                                                <span className="text-gray-500">
-                                                                    Status
-                                                                </span>
-                                                                <div>
-                                                                    {commissionProfile
-                                                                        .bounds
-                                                                        .isHighestVisibleLevel ? (
-                                                                        <Tag color="gold">
-                                                                            Highest
-                                                                            visible
-                                                                            level
-                                                                        </Tag>
-                                                                    ) : (
-                                                                        <Tag color="blue">
-                                                                            Bounded
-                                                                            by
-                                                                            next
-                                                                            level
-                                                                        </Tag>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <Form
-                                                            form={
-                                                                commissionForm
-                                                            }
-                                                            layout="vertical"
-                                                            onFinish={(
-                                                                values,
-                                                            ) =>
-                                                                updateCommissionProfile.mutate(
-                                                                    values,
-                                                                )
-                                                            }
-                                                        >
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                                <Form.Item
-                                                                    label="Custom Direct Rate"
-                                                                    name="custom_direct_rate"
-                                                                    tooltip="Leave empty to use level default"
-                                                                >
-                                                                    <InputNumber
-                                                                        min={0}
-                                                                        max={
-                                                                            100
-                                                                        }
-                                                                        className="w-full"
-                                                                        addonAfter="%"
-                                                                        placeholder={commissionProfile.defaults?.direct_rate?.toString()}
-                                                                    />
-                                                                </Form.Item>
-                                                                <Form.Item
-                                                                    label="Custom Override Rate"
-                                                                    name="custom_override_rate"
-                                                                    tooltip="Leave empty to use level default"
-                                                                >
-                                                                    <InputNumber
-                                                                        min={0}
-                                                                        max={
-                                                                            100
-                                                                        }
-                                                                        className="w-full"
-                                                                        addonAfter="%"
-                                                                        placeholder={commissionProfile.defaults?.override_rate?.toString()}
-                                                                    />
-                                                                </Form.Item>
-                                                            </div>
-                                                            <Form.Item
-                                                                label="Reason"
-                                                                name="reason"
-                                                            >
-                                                                <Input.TextArea
-                                                                    rows={2}
-                                                                    placeholder="Optional reason for audit log"
-                                                                />
-                                                            </Form.Item>
-                                                            <div className="flex gap-2">
-                                                                <Button
-                                                                    type="primary"
-                                                                    htmlType="submit"
-                                                                    loading={
-                                                                        updateCommissionProfile.isPending
-                                                                    }
-                                                                >
-                                                                    Save
-                                                                    Overrides
-                                                                </Button>
-                                                                <Button
-                                                                    onClick={() =>
-                                                                        updateCommissionProfile.mutate(
-                                                                            {
-                                                                                custom_direct_rate:
-                                                                                    null,
-                                                                                custom_override_rate:
-                                                                                    null,
-                                                                                reason: "Cleared custom rates",
-                                                                            },
-                                                                        )
-                                                                    }
-                                                                >
-                                                                    Clear
-                                                                    Overrides
-                                                                </Button>
-                                                            </div>
-                                                        </Form>
-
-                                                        {commissionProfile.audit
-                                                            ?.data?.length ? (
-                                                            <>
-                                                                <Divider />
-                                                                <DataTable
-                                                                    columns={[
-                                                                        {
-                                                                            title: "Changed At",
-                                                                            dataIndex:
-                                                                                "changed_at",
-                                                                            key: "changed_at",
-                                                                            render: (
-                                                                                val: string,
-                                                                            ) =>
-                                                                                new Date(
-                                                                                    val,
-                                                                                ).toLocaleString(),
-                                                                        },
-                                                                        {
-                                                                            title: "Direct",
-                                                                            key: "direct",
-                                                                            render: (
-                                                                                _: unknown,
-                                                                                row: any,
-                                                                            ) =>
-                                                                                `${row.previous_direct_rate ?? "—"} → ${row.new_direct_rate ?? "—"}`,
-                                                                        },
-                                                                        {
-                                                                            title: "Override",
-                                                                            key: "override",
-                                                                            render: (
-                                                                                _: unknown,
-                                                                                row: any,
-                                                                            ) =>
-                                                                                `${row.previous_override_rate ?? "—"} → ${row.new_override_rate ?? "—"}`,
-                                                                        },
-                                                                        {
-                                                                            title: "By",
-                                                                            key: "by",
-                                                                            render: (
-                                                                                _: unknown,
-                                                                                row: any,
-                                                                            ) =>
-                                                                                row
-                                                                                    .changed_by_user
-                                                                                    ?.name ??
-                                                                                "System",
-                                                                        },
-                                                                        {
-                                                                            title: "Reason",
-                                                                            dataIndex:
-                                                                                "reason",
-                                                                            key: "reason",
-                                                                        },
-                                                                    ]}
-                                                                    dataSource={
-                                                                        commissionProfile
-                                                                            .audit
-                                                                            .data
-                                                                    }
-                                                                    rowKey="id"
-                                                                    size="small"
-                                                                    // pagination={false}
-                                                                    scroll={{
-                                                                        x: "max-content",
-                                                                    }}
-                                                                />
-                                                            </>
-                                                        ) : null}
-                                                    </div>
-                                                ) : (
-                                                    <Empty description="No commission profile available" />
-                                                )}
-                                            </Skeleton>
-                                        </Card>
-                                    </motion.div>
-                                </Col>
-                            </Row>
-                        )}
-
                         {/* Stat Cards */}
                         <Row gutter={[16, 16]} className="mb-6">
                             {statCards.map((card, idx) => (
@@ -873,6 +614,262 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                 />
                             </Card>
                         </motion.div>
+
+                        {commissionOverrideEnabled && (
+                            <Row gutter={[16, 16]} className="mb-6">
+                                <Col xs={24}>
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{
+                                            duration: 0.4,
+                                            delay: 0.15,
+                                        }}
+                                    >
+                                        <Card
+                                            title={
+                                                <div className="flex items-center gap-2">
+                                                    <Percent
+                                                        size={18}
+                                                        className="text-indigo-500"
+                                                    />
+                                                    <span className="font-semibold">
+                                                        Commission Rate
+                                                        Overrides
+                                                    </span>
+                                                </div>
+                                            }
+                                            variant="outlined"
+                                        >
+                                            <Skeleton loading={profileLoading}>
+                                                {commissionProfile ? (
+                                                    <div className="space-y-4">
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                                            <div>
+                                                                <span className="text-gray-500">
+                                                                    Level
+                                                                    default
+                                                                </span>
+                                                                <div className="font-medium">
+                                                                    {commissionProfile
+                                                                        .level
+                                                                        ?.default_commission_rate ??
+                                                                        "—"}
+                                                                    %
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500">
+                                                                    Max allowed
+                                                                </span>
+                                                                <div className="font-medium">
+                                                                    ≤{" "}
+                                                                    {
+                                                                        commissionProfile
+                                                                            .bounds
+                                                                            .max_ceiling
+                                                                    }
+                                                                    %
+                                                                </div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-gray-500">
+                                                                    Status
+                                                                </span>
+                                                                <div>
+                                                                    {commissionProfile
+                                                                        .bounds
+                                                                        .is_highest_visible_level ? (
+                                                                        <Tag color="gold">
+                                                                            Highest
+                                                                            visible
+                                                                            level
+                                                                        </Tag>
+                                                                    ) : (
+                                                                        <Tag color="blue">
+                                                                            Bounded
+                                                                            by
+                                                                            next
+                                                                            level
+                                                                        </Tag>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <Form
+                                                            form={
+                                                                commissionForm
+                                                            }
+                                                            layout="vertical"
+                                                            onFinish={(
+                                                                values,
+                                                            ) =>
+                                                                updateCommissionProfile.mutate(
+                                                                    values,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Form.Item
+                                                                label="Custom Commission Rate"
+                                                                name="custom_commission_rate"
+                                                                tooltip="Leave empty to use level default"
+                                                                rules={[
+                                                                    {
+                                                                        validator:
+                                                                            async (
+                                                                                _,
+                                                                                value,
+                                                                            ) => {
+                                                                                if (
+                                                                                    value ===
+                                                                                        null ||
+                                                                                    value ===
+                                                                                        undefined ||
+                                                                                    value ===
+                                                                                        ""
+                                                                                ) {
+                                                                                    return;
+                                                                                }
+
+                                                                                const max =
+                                                                                    commissionProfile
+                                                                                        .bounds
+                                                                                        .max_ceiling;
+
+                                                                                if (
+                                                                                    value <
+                                                                                        0 ||
+                                                                                    value >
+                                                                                        max
+                                                                                ) {
+                                                                                    throw new Error(
+                                                                                        `Rate must be between 0 and ${max}%`,
+                                                                                    );
+                                                                                }
+                                                                            },
+                                                                    },
+                                                                ]}
+                                                            >
+                                                                <InputNumber
+                                                                    min={0}
+                                                                    max={
+                                                                        commissionProfile
+                                                                            .bounds
+                                                                            .max_ceiling
+                                                                    }
+                                                                    className="w-full"
+                                                                    addonAfter="%"
+                                                                    placeholder={commissionProfile.level?.default_commission_rate?.toString()}
+                                                                />
+                                                            </Form.Item>
+                                                            <Form.Item
+                                                                label="Reason"
+                                                                name="reason"
+                                                            >
+                                                                <Input.TextArea
+                                                                    rows={2}
+                                                                    placeholder="Optional reason for audit log"
+                                                                />
+                                                            </Form.Item>
+                                                            <div className="flex gap-2">
+                                                                <Button
+                                                                    type="primary"
+                                                                    htmlType="submit"
+                                                                    loading={
+                                                                        updateCommissionProfile.isPending
+                                                                    }
+                                                                >
+                                                                    Save
+                                                                    Override
+                                                                </Button>
+                                                                <Button
+                                                                    onClick={() =>
+                                                                        updateCommissionProfile.mutate(
+                                                                            {
+                                                                                custom_commission_rate:
+                                                                                    null,
+                                                                                reason: "Cleared custom rate",
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Clear
+                                                                    Override
+                                                                </Button>
+                                                            </div>
+                                                        </Form>
+
+                                                        {commissionProfile.audit
+                                                            ?.data?.length ? (
+                                                            <>
+                                                                <Divider />
+                                                                <DataTable
+                                                                    columns={[
+                                                                        {
+                                                                            title: "Changed At",
+                                                                            dataIndex:
+                                                                                "changed_at",
+                                                                            key: "changed_at",
+                                                                            render: (
+                                                                                val: string,
+                                                                            ) =>
+                                                                                new Date(
+                                                                                    val,
+                                                                                ).toLocaleString(),
+                                                                        },
+                                                                        {
+                                                                            title: "Rate",
+                                                                            key: "rate",
+                                                                            render: (
+                                                                                _: unknown,
+                                                                                row: AgentCommissionRateAuditLog,
+                                                                            ) =>
+                                                                                `${row.previous_direct_rate ?? "—"} → ${row.new_direct_rate ?? "—"}`,
+                                                                        },
+                                                                        {
+                                                                            title: "By",
+                                                                            key: "by",
+                                                                            render: (
+                                                                                _: unknown,
+                                                                                row: any,
+                                                                            ) =>
+                                                                                row
+                                                                                    .changed_by_user
+                                                                                    ?.name ??
+                                                                                "System",
+                                                                        },
+                                                                        {
+                                                                            title: "Reason",
+                                                                            dataIndex:
+                                                                                "reason",
+                                                                            key: "reason",
+                                                                        },
+                                                                    ]}
+                                                                    dataSource={
+                                                                        commissionProfile
+                                                                            .audit
+                                                                            .data
+                                                                    }
+                                                                    rowKey="id"
+                                                                    size="small"
+                                                                    // pagination={false}
+                                                                    scroll={{
+                                                                        x: "max-content",
+                                                                    }}
+                                                                />
+                                                            </>
+                                                        ) : null}
+                                                    </div>
+                                                ) : (
+                                                    <Empty description="No commission profile available" />
+                                                )}
+                                            </Skeleton>
+                                        </Card>
+                                    </motion.div>
+                                </Col>
+                            </Row>
+                        )}
                     </Skeleton>
                 </div>
             </PageLayout>

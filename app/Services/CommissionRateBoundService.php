@@ -104,4 +104,38 @@ class CommissionRateBoundService
 
         return $errors;
     }
+
+    public function getEffectiveCeiling(LeadAgent $agent): float
+    {
+        $bounds = $this->resolveBounds($agent);
+
+        return min($bounds['directCeiling'], $bounds['overrideCeiling']);
+    }
+
+    /**
+     * @return array<string, list<string>>
+     */
+    public function validateUnifiedRate(LeadAgent $agent, ?float $rate): array
+    {
+        if ($rate === null) {
+            return [];
+        }
+
+        $errors = $this->validateRates($agent, $rate, $rate);
+
+        if ($errors === []) {
+            return [];
+        }
+
+        $ceiling = $this->getEffectiveCeiling($agent);
+
+        return [
+            'custom_commission_rate' => [
+                sprintf(
+                    'Commission rate must be between 0 and %.2f (inclusive).',
+                    $ceiling
+                ),
+            ],
+        ];
+    }
 }

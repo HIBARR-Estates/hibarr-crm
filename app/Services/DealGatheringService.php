@@ -46,24 +46,7 @@ class DealGatheringService
      */
     public function createLead(array $data)
     {
-        // Build the lead data array
-        // IMPORTANT: Don't pass 'note' as null, because the Lead model has a note() relationship
-        // and ApiModel's fill() treats null values for methods as relationship clearing,
-        // which causes it to set the relationship's foreign key (lead_id) on this model
-        $leadData = [
-            'client_name' => $data['name'] ?? null,
-            'company_name' => $data['company_name'] ?? null,
-            'client_email' => $data['email'] ?? null,
-            'mobile' => $data['phone'] ?? null,
-            'added_by' => user()->id,
-        ];
-
-        // Only add note if it has a value (to avoid ApiModel treating it as a relationship)
-        if (!empty($data['referral'])) {
-            $leadData['note'] = $data['referral'];
-        }
-
-        return Lead::create($leadData);
+        return Lead::create($this->mapLeadDataFromRequest($data));
     }
 
     /**
@@ -72,22 +55,59 @@ class DealGatheringService
     public function updateLead(int $leadId, array $data)
     {
         $lead = Lead::findOrFail($leadId);
-        
-        $updateData = [
-            'client_name' => $data['name'] ?? $lead->client_name,
-            'company_name' => $data['company_name'] ?? $lead->company_name,
-            'client_email' => $data['email'] ?? $lead->client_email,
-            'mobile' => $data['phone'] ?? $lead->mobile,
+        $lead->update($this->mapLeadDataFromRequest($data, $lead));
+
+        return $lead;
+    }
+
+    /**
+     * Map deal-gathering lead_data payload to Lead model attributes.
+     */
+    private function mapLeadDataFromRequest(array $data, ?Lead $existing = null): array
+    {
+        // IMPORTANT: Don't pass 'note' as null, because the Lead model has a note() relationship
+        // and ApiModel's fill() treats null values for methods as relationship clearing,
+        // which causes it to set the relationship's foreign key (lead_id) on this model
+        $leadData = [
+            'client_name' => $data['name'] ?? $existing?->client_name,
+            'company_name' => $data['company_name'] ?? $existing?->company_name,
+            'client_email' => $data['email'] ?? $existing?->client_email,
+            'mobile' => $data['phone'] ?? $existing?->mobile,
+            'added_by' => $existing?->added_by ?? user()->id,
+            'lead_owner' => $existing?->lead_owner ?? user()->id,
         ];
 
-        // Only update note if provided and not empty
-        if (!empty($data['referral'])) {
-            $updateData['note'] = $data['referral'];
+        $optionalFields = [
+            'salutation' => 'salutation',
+            'gender' => 'gender',
+            'address' => 'address',
+            'postal_code' => 'postal_code',
+            'city' => 'city',
+            'state' => 'state',
+            'country' => 'country',
+        ];
+
+        foreach ($optionalFields as $inputKey => $modelKey) {
+            if (array_key_exists($inputKey, $data)) {
+                $leadData[$modelKey] = $data[$inputKey] ?: null;
+            } elseif ($existing) {
+                $leadData[$modelKey] = $existing->{$modelKey};
+            }
         }
 
-        $lead->update($updateData);
-        
-        return $lead;
+        if (array_key_exists('lead_source_id', $data)) {
+            $leadData['source_id'] = $data['lead_source_id'] ?: null;
+        } elseif ($existing) {
+            $leadData['source_id'] = $existing->source_id;
+        }
+
+        if (!empty($data['referral'])) {
+            $leadData['note'] = $data['referral'];
+        } elseif ($existing) {
+            $leadData['note'] = $existing->note;
+        }
+
+        return $leadData;
     }
 
     /**
