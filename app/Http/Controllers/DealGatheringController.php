@@ -6,7 +6,10 @@ use App\Http\Controllers\AccountBaseController;
 use App\Services\DealGatheringService;
 use Illuminate\Http\Request;
 use App\Models\Lead;
+use App\Models\LeadSource;
 use App\Models\Deal;
+use App\Enums\Salutation;
+use Illuminate\Validation\Rule;
 use App\Enums\DealUpdateType;
 use Illuminate\Validation\Rules\Enum;
 use Illuminate\Support\Facades\Log;
@@ -63,10 +66,20 @@ class DealGatheringController extends AccountBaseController
             }
         } else if ($request->filled('lead_data')) {
             // Creating new lead or updating existing lead's info
+            $salutationValues = array_column(Salutation::cases(), 'value');
+
             $rules = [
                 'lead_data.name' => 'required|string',
                 'lead_data.email' => 'nullable|email',
                 'lead_data.phone' => 'nullable|string',
+                'lead_data.salutation' => ['nullable', 'string', Rule::in($salutationValues)],
+                'lead_data.gender' => 'nullable|in:male,female',
+                'lead_data.lead_source_id' => 'nullable|integer',
+                'lead_data.address' => 'nullable|string',
+                'lead_data.postal_code' => 'nullable|string',
+                'lead_data.city' => 'nullable|string',
+                'lead_data.state' => 'nullable|string',
+                'lead_data.country' => 'nullable|string',
             ];
 
             if ($request->lead_type === 'agent') {
@@ -74,6 +87,23 @@ class DealGatheringController extends AccountBaseController
             }
 
             $request->validate($rules);
+
+            if ($request->filled('lead_data.lead_source_id')) {
+                $sourceExists = LeadSource::query()
+                    ->where('id', $request->input('lead_data.lead_source_id'))
+                    ->where('company_id', company()->id)
+                    ->exists();
+
+                if (!$sourceExists) {
+                    return response()->json([
+                        'status' => 'error',
+                        'message' => 'Lead source not found.',
+                        'errors' => [
+                            'lead_data.lead_source_id' => ['The selected lead source does not exist.'],
+                        ],
+                    ], 404);
+                }
+            }
             
             // If we have an existing deal, update its lead; otherwise create new
             if ($existingDeal) {

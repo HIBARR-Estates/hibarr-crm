@@ -14,6 +14,8 @@ import type {
     MlmAdminDashboardStats,
     MlmAgentDashboardStats,
     MlmSettings,
+    AgentCommissionProfile,
+    AgentCommissionProfileUpdatePayload,
     PaginatedResponse,
     MlmCycle,
     MlmCycleFormData,
@@ -340,6 +342,28 @@ export const useAdminAgentDashboard = (agentId: number) =>
         path: `${ADMIN_API}/agents/${agentId}/dashboard-stats`,
         options: { enabled: agentId > 0 },
     });
+
+/** Agent commission rate override profile */
+export const useAgentCommissionProfile = (agentId: number, enabled = true) =>
+    useApiQuery<{ data: AgentCommissionProfile }>({
+        path: `${ADMIN_API}/agents/${agentId}/commission-profile`,
+        options: { enabled: enabled && agentId > 0 },
+    });
+
+/** Update agent commission rate overrides */
+export const useUpdateAgentCommissionProfile = (
+    agentId: number,
+    onSuccess?: (res?: any) => void,
+) =>
+    useApiMutate<
+        AgentCommissionProfileUpdatePayload,
+        AgentCommissionProfile,
+        ApiResponse<AgentCommissionProfile>
+    >(
+        `${ADMIN_API}/agents/${agentId}/commission-profile`,
+        "PATCH",
+        onSuccess,
+    );
 
 // ══════════════════════════════════════════════════════════════════
 // AGENT QUERIES (read-only)

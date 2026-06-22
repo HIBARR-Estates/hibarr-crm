@@ -79,6 +79,10 @@ class LevelService
                 break;
             }
 
+            if ($level->is_hidden) {
+                continue;
+            }
+
             if ($this->evaluateCriteria($metricsForEvaluation, $level->criteria)) {
                 $qualifiedLevel = $level;
                 break; // Found the highest qualifying level
@@ -184,6 +188,21 @@ class LevelService
         bool $systemAssigned = false,
         ?int $cycleLevelSnapshotId = null
     ): AgentLevelHistory {
+        $currentLevel = $this->getCurrentLevel($agent);
+        $oldRank = $currentLevel?->rank ?? -1;
+
+        if (
+            $level->rank > $oldRank
+            && config('features.sales.per-agent-commission-override')
+            && ($agent->custom_direct_rate !== null || $agent->custom_override_rate !== null)
+        ) {
+            app(AgentCommissionProfileService::class)->clearCustomRatesOnPromotion(
+                $agent,
+                $assignedBy,
+                'Custom rates cleared on level promotion'
+            );
+        }
+
         return AgentLevelHistory::create([
             'company_id' => $agent->company_id,
             'agent_id' => $agent->id,
@@ -215,6 +234,10 @@ class LevelService
                 break;
             }
 
+            if ($snapshot->is_hidden) {
+                continue;
+            }
+
             if ($snapshot->evaluateCriteria($metrics)) {
                 $liveLevel = $snapshot->source_level_id
                     ? MlmLevel::find($snapshot->source_level_id)
@@ -241,6 +264,30 @@ class LevelService
         }
 
         return null;
+    }
+
+    /**
+     * First visible level with rank above the given rank (ordered ascending).
+     */
+    public function getNextVisibleLevel(int $companyId, int $currentRank): ?MlmLevel
+    {
+        return MlmLevel::where('company_id', $companyId)
+            ->visible()
+            ->where('rank', '>', $currentRank)
+            ->ordered()
+            ->with('criteria')
+            ->first();
+    }
+
+    /**
+     * Highest-rank visible level for a company.
+     */
+    public function getHighestVisibleLevel(int $companyId): ?MlmLevel
+    {
+        return MlmLevel::where('company_id', $companyId)
+            ->visible()
+            ->orderedDesc()
+            ->first();
     }
 
     /**

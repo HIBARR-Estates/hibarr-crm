@@ -151,7 +151,7 @@ class AgentMetric extends BaseModel
     }
 
     /**
-     * Get all company levels ordered by rank (cached per-request).
+     * Get visible company levels ordered by rank (cached per-request).
      */
     protected function getCompanyLevels(): Collection
     {
@@ -161,6 +161,7 @@ class AgentMetric extends BaseModel
 
         if (!isset($cache[$companyId])) {
             $cache[$companyId] = MlmLevel::where('company_id', $companyId)
+                ->visible()
                 ->ordered()
                 ->with('criteria')
                 ->get();

@@ -88,6 +88,9 @@ export interface MlmLevel {
     slug: string;
     rank: number;
     commission_percentage: number;
+    direct_rate?: number;
+    override_rate?: number;
+    is_hidden?: boolean;
     created_at: string;
     updated_at: string;
     criteria?: MlmLevelCriterion[];
@@ -97,6 +100,9 @@ export interface MlmLevelFormData {
     name: string;
     rank: number;
     commission_percentage: number;
+    direct_rate?: number;
+    override_rate?: number;
+    is_hidden?: boolean;
 }
 
 // ── Level Criteria ───────────────────────────────────────────────
@@ -347,6 +353,43 @@ export interface MlmSettings {
     default_cycle_duration_type: CycleDurationType;
     default_cycle_duration_days: number | null;
     default_overflow_multiplier: number;
+}
+
+export interface AgentCommissionRateBounds {
+    max_ceiling: number;
+    is_highest_visible_level: boolean;
+}
+
+export interface AgentCommissionRateAuditLog {
+    id: number;
+    company_id: number;
+    agent_id: number;
+    changed_by_user_id: number | null;
+    previous_direct_rate: number | null;
+    new_direct_rate: number | null;
+    previous_override_rate: number | null;
+    new_override_rate: number | null;
+    changed_at: string;
+    reason: string | null;
+    changed_by_user?: { id: number; name: string } | null;
+}
+
+export interface AgentCommissionProfile {
+    agent_id: number;
+    level: {
+        id: number;
+        name: string;
+        rank: number;
+        default_commission_rate: number;
+    } | null;
+    custom_commission_rate: number | null;
+    bounds: AgentCommissionRateBounds;
+    audit: PaginatedResponse<AgentCommissionRateAuditLog>;
+}
+
+export interface AgentCommissionProfileUpdatePayload {
+    custom_commission_rate?: number | null;
+    reason?: string | null;
 }
 
 // ── Cycle ────────────────────────────────────────────────────────
