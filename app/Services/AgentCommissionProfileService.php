@@ -26,44 +26,39 @@ class AgentCommissionProfileService
                 'id' => $level->id,
                 'name' => $level->name,
                 'rank' => $level->rank,
-                'direct_rate' => (float) $level->direct_rate,
-                'override_rate' => (float) $level->override_rate,
-                'commission_percentage' => (float) $level->commission_percentage,
+                'default_commission_rate' => (float) $level->commission_percentage,
             ] : null,
-            'defaults' => $level ? [
-                'direct_rate' => (float) $level->direct_rate,
-                'override_rate' => (float) $level->override_rate,
-            ] : null,
-            'custom_direct_rate' => $agent->custom_direct_rate !== null
-                ? (float) $agent->custom_direct_rate
-                : null,
-            'custom_override_rate' => $agent->custom_override_rate !== null
-                ? (float) $agent->custom_override_rate
-                : null,
-            'bounds' => $bounds,
+            'custom_commission_rate' => $this->resolveUnifiedCustomRate($agent),
+            'bounds' => [
+                'max_ceiling' => $this->boundService->getEffectiveCeiling($agent),
+                'is_highest_visible_level' => $bounds['isHighestVisibleLevel'],
+            ],
             'audit' => $this->getAuditLogs($agentId, $companyId, $auditPerPage),
         ];
     }
 
     /**
-     * @param  array{custom_direct_rate?: float|null, custom_override_rate?: float|null, reason?: string|null}  $payload
+     * @param  array{custom_commission_rate?: float|null, reason?: string|null}  $payload
      * @return array{profile: array, errors?: array<string, list<string>>}
      */
     public function updateProfile(int $agentId, int $companyId, ?int $userId, array $payload): array
     {
         $agent = LeadAgent::where('company_id', $companyId)->findOrFail($agentId);
 
-        $directRate = array_key_exists('custom_direct_rate', $payload)
-            ? $payload['custom_direct_rate']
-            : $agent->custom_direct_rate;
-        $overrideRate = array_key_exists('custom_override_rate', $payload)
-            ? $payload['custom_override_rate']
-            : $agent->custom_override_rate;
+        if (!array_key_exists('custom_commission_rate', $payload)) {
+            return [
+                'profile' => [],
+                'errors' => [
+                    'custom_commission_rate' => ['The custom commission rate field is required.'],
+                ],
+            ];
+        }
 
-        $directRate = $directRate !== null ? (float) $directRate : null;
-        $overrideRate = $overrideRate !== null ? (float) $overrideRate : null;
+        $unifiedRate = $payload['custom_commission_rate'];
+        $directRate = $unifiedRate !== null ? (float) $unifiedRate : null;
+        $overrideRate = $directRate;
 
-        $errors = $this->boundService->validateRates($agent, $directRate, $overrideRate);
+        $errors = $this->boundService->validateUnifiedRate($agent, $directRate);
 
         if ($errors !== []) {
             return ['profile' => [], 'errors' => $errors];
@@ -134,6 +129,22 @@ class AgentCommissionProfileService
                 'reason' => $reason ?? 'Custom rates cleared on level promotion',
             ]);
         });
+    }
+
+    public function resolveUnifiedCustomRate(LeadAgent $agent): ?float
+    {
+        $direct = $agent->custom_direct_rate;
+        $override = $agent->custom_override_rate;
+
+        if ($direct === null && $override === null) {
+            return null;
+        }
+
+        if ($direct !== null && $override !== null) {
+            return (float) $direct;
+        }
+
+        return (float) ($direct ?? $override);
     }
 
     protected function getAuditLogs(int $agentId, int $companyId, int $perPage): LengthAwarePaginator

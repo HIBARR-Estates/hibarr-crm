@@ -587,8 +587,7 @@ class MlmAdminApiController extends AccountBaseController
         }
 
         $validated = $request->validate([
-            'custom_direct_rate' => 'nullable|numeric|min:0|max:100',
-            'custom_override_rate' => 'nullable|numeric|min:0|max:100',
+            'custom_commission_rate' => 'nullable|numeric|min:0|max:100',
             'reason' => 'nullable|string|max:1000',
         ]);
 

@@ -356,9 +356,8 @@ export interface MlmSettings {
 }
 
 export interface AgentCommissionRateBounds {
-    directCeiling: number;
-    overrideCeiling: number;
-    isHighestVisibleLevel: boolean;
+    max_ceiling: number;
+    is_highest_visible_level: boolean;
 }
 
 export interface AgentCommissionRateAuditLog {
@@ -381,23 +380,15 @@ export interface AgentCommissionProfile {
         id: number;
         name: string;
         rank: number;
-        direct_rate: number;
-        override_rate: number;
-        commission_percentage: number;
+        default_commission_rate: number;
     } | null;
-    defaults: {
-        direct_rate: number;
-        override_rate: number;
-    } | null;
-    custom_direct_rate: number | null;
-    custom_override_rate: number | null;
+    custom_commission_rate: number | null;
     bounds: AgentCommissionRateBounds;
     audit: PaginatedResponse<AgentCommissionRateAuditLog>;
 }
 
 export interface AgentCommissionProfileUpdatePayload {
-    custom_direct_rate?: number | null;
-    custom_override_rate?: number | null;
+    custom_commission_rate?: number | null;
     reason?: string | null;
 }
 
