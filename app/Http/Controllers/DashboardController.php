@@ -136,7 +136,7 @@ class DashboardController extends AccountBaseController
             'users:id,name,image',
             'createBy:id,name,image',
             'addedByUser:id,name,image',
-            'boardColumn:id,column_name,slug', 
+            'boardColumn:id,column_name,slug,label_color', 
             'category:id,category_name',
             'labels'
         ])
@@ -165,6 +165,12 @@ class DashboardController extends AccountBaseController
                     'priority' => $task->priority,
                     'status' => $task->boardColumn->slug ?? 'incomplete',
                     'board_column_id' => $task->board_column_id,
+                    'board_column' => $task->boardColumn ? [
+                        'id' => $task->boardColumn->id,
+                        'column_name' => $task->boardColumn->column_name,
+                        'slug' => $task->boardColumn->slug,
+                        'label_color' => $task->boardColumn->label_color,
+                    ] : null,
                     'project' => $task->project ? [
                         'id' => $task->project->id,
                         'project_name' => $task->project->project_name,

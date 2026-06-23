@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
     Card,
     List,
@@ -37,6 +37,10 @@ import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import { TasksIndexProps } from "@/Pages/Tasks/Index";
+import TaskStatusDropdownPill, {
+    isCompletedColumn,
+} from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import { taskApi } from "@/lib/api/tasks";
 
 dayjs.extend(relativeTime);
 
@@ -49,6 +53,12 @@ interface Task {
     priority: "low" | "medium" | "high";
     status: string;
     board_column_id?: number;
+    board_column?: {
+        id: number;
+        column_name: string;
+        slug: string;
+        label_color: string;
+    };
     project?: {
         id: number;
         project_name: string;
@@ -92,6 +102,19 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     const [processingTasks, setProcessingTasks] = useState<Set<number>>(
         new Set(),
     );
+    const [statusOverrides, setStatusOverrides] = useState<
+        Record<number, string>
+    >({});
+
+    useEffect(() => {
+        setStatusOverrides({});
+    }, [tasks]);
+
+    const { mutate: updateTaskStatus } = taskApi.useUpdateStatus();
+
+    const getEffectiveStatus = (task: Task) =>
+        statusOverrides[task.id] ?? task.status;
+
     const {
         props: {
             tasks: initialTasks = [],
@@ -108,6 +131,8 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
             },
         },
     } = usePage<TasksIndexProps>();
+
+    const canEditTasks = permissions.edit_tasks !== false;
 
     const isOverdue = (dueDate?: string) => {
         if (!dueDate) return false;
@@ -160,6 +185,47 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         handleAction("delete", task);
     };
 
+    const handleStatusChange = (
+        task: Task,
+        newStatus: string,
+        _columnId: number,
+    ) => {
+        const previousStatus = getEffectiveStatus(task);
+
+        setStatusOverrides((prev) => ({ ...prev, [task.id]: newStatus }));
+        setProcessingTasks((prev) => new Set(prev).add(task.id));
+
+        updateTaskStatus(
+            { taskId: task.id, status: newStatus },
+            {
+                onSuccess: () => {
+                    router.reload({
+                        only: ["tasks", "stats", "overviewMetrics"],
+                    });
+                },
+                onError: () => {
+                    setStatusOverrides((prev) => {
+                        const next = { ...prev };
+                        if (previousStatus === task.status) {
+                            delete next[task.id];
+                        } else {
+                            next[task.id] = previousStatus;
+                        }
+                        return next;
+                    });
+                    message.error("Failed to update task status");
+                },
+                onSettled: () => {
+                    setProcessingTasks((prev) => {
+                        const next = new Set(prev);
+                        next.delete(task.id);
+                        return next;
+                    });
+                },
+            },
+        );
+    };
+
     const getTaskActions = (task: Task): MenuProps["items"] => [
         // view, edit, duplicate, delete
         {
@@ -194,12 +260,17 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         },
     ];
 
-    // Separate tasks by status and urgency
-    const overdueTasks = tasks.filter((task) => isOverdue(task.due_date));
-    const todayTasks = tasks.filter(
+    // Separate tasks by status and urgency (exclude optimistically completed tasks)
+    const visibleTasks = tasks.filter(
+        (task) => !isCompletedColumn(getEffectiveStatus(task), columns),
+    );
+    const overdueTasks = visibleTasks.filter((task) =>
+        isOverdue(task.due_date),
+    );
+    const todayTasks = visibleTasks.filter(
         (task) => isDueToday(task.due_date) && !isOverdue(task.due_date),
     );
-    const upcomingTasks = tasks.filter(
+    const upcomingTasks = visibleTasks.filter(
         (task) =>
             !isOverdue(task.due_date) &&
             !isDueToday(task.due_date) &&
@@ -208,8 +279,21 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
 
     const allTasks = [...overdueTasks, ...todayTasks, ...upcomingTasks];
 
+    const completionRate = useMemo(() => {
+        if (tasks.length === 0) return 0;
+
+        const completedCount = tasks.filter((task) =>
+            isCompletedColumn(getEffectiveStatus(task), columns),
+        ).length;
+
+        return Math.round((completedCount / tasks.length) * 100);
+    }, [tasks, statusOverrides, columns]);
+
     const renderTask = (task: Task) => {
-        const isTaskOverdue = isOverdue(task.due_date);
+        const effectiveStatus = getEffectiveStatus(task);
+        const isTaskOverdue =
+            isOverdue(task.due_date) &&
+            !isCompletedColumn(effectiveStatus, columns);
         const isTaskToday = isDueToday(task.due_date);
         const isProcessing = processingTasks.has(task.id);
 
@@ -233,38 +317,60 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                     loading={isProcessing}
                     variant="outlined"
                 >
-                    <div className="flex items-start justify-between">
-                        <div className="flex-1 min-w-0 space-y-2">
-                            <div className="flex items-center gap-x-1">
-                                <span className="text-xs">
-                                    {getPriorityIcon(task.priority)}
-                                </span>
-                                <div className="font-medium text-gray-900 truncate">
-                                    {task.heading}
-                                </div>
-                                {isTaskOverdue && (
-                                    <Tag
-                                        color="error"
-                                        icon={<ExclamationCircleOutlined />}
-                                    >
-                                        Overdue
-                                    </Tag>
-                                )}
-                                {isTaskToday && (
-                                    <Tag
-                                        color="warning"
-                                        icon={<ClockCircleOutlined />}
-                                    >
-                                        Due Today
-                                    </Tag>
-                                )}
+                    <div className="space-y-2">
+                        <div className="flex min-w-0 items-center gap-2">
+                            <span className="shrink-0 text-xs">
+                                {getPriorityIcon(task.priority)}
+                            </span>
+                            <div className="min-w-0 flex-1 truncate font-medium text-gray-900">
+                                {task.heading}
                             </div>
+                            <TaskStatusDropdownPill
+                                status={effectiveStatus}
+                                columns={columns}
+                                disabled={!canEditTasks || isProcessing}
+                                onChange={(newStatus, columnId) =>
+                                    handleStatusChange(task, newStatus, columnId)
+                                }
+                            />
+                            {isTaskOverdue && (
+                                <Tag
+                                    color="error"
+                                    className="!m-0 shrink-0"
+                                    icon={<ExclamationCircleOutlined />}
+                                >
+                                    Overdue
+                                </Tag>
+                            )}
+                            {isTaskToday && (
+                                <Tag
+                                    color="warning"
+                                    className="!m-0 shrink-0"
+                                    icon={<ClockCircleOutlined />}
+                                >
+                                    Due Today
+                                </Tag>
+                            )}
+                            <Dropdown
+                                menu={{ items: getTaskActions(task) }}
+                                trigger={["click"]}
+                                placement="bottomRight"
+                                overlayClassName="z-[1050]"
+                            >
+                                <Button
+                                    size="small"
+                                    icon={<MoreOutlined />}
+                                    className="ml-auto shrink-0"
+                                    type="text"
+                                />
+                            </Dropdown>
+                        </div>
 
-                            {(task.due_date ||
-                                task.project ||
-                                task.assigner ||
-                                (task.users && task.users.length > 0)) && (
-                                <div className="flex items-center gap-x-4 text-sm text-gray-600">
+                        {(task.due_date ||
+                            task.project ||
+                            task.assigner ||
+                            (task.users && task.users.length > 0)) && (
+                            <div className="flex items-center gap-x-4 text-sm text-gray-600">
                                     {task.due_date && (
                                         <span className="flex items-center">
                                             <CalendarOutlined className="mr-1" />
@@ -352,36 +458,11 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                     ))}
                                 </div>
                             )}
-                        </div>
-
-                        <div className="flex items-center gap-x-2 ml-4">
-                            <Dropdown
-                                menu={{ items: getTaskActions(task) }}
-                                trigger={["click"]}
-                                placement="bottomRight"
-                            >
-                                <Button
-                                    size="small"
-                                    icon={<MoreOutlined />}
-                                    className="shrink-0"
-                                    type="text"
-                                />
-                            </Dropdown>
-                        </div>
                     </div>
                 </Card>
             </motion.div>
         );
     };
-
-    const completionRate =
-        tasks.length > 0
-            ? Math.round(
-                  (tasks.filter((t) => t.status === "done").length /
-                      tasks.length) *
-                      100,
-              )
-            : 0;
 
     return (
         <>
