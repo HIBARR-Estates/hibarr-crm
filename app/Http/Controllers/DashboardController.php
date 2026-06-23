@@ -159,6 +159,7 @@ class DashboardController extends AccountBaseController
                 return [
                     'id' => $task->id,
                     'heading' => $task->heading,
+                    'added_by' => $task->added_by,
                     'description' => $task->description,
                     'due_date' => $task->due_date?->toDateString(),
                     'start_date' => $task->start_date?->toDateString(),

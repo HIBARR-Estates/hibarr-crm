@@ -41,12 +41,15 @@ import TaskStatusDropdownPill, {
     isCompletedColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { taskApi } from "@/lib/api/tasks";
+import { usePermission } from "@/lib/permissionUtils";
+import { PermissionKey } from "@/Types/permission";
 
 dayjs.extend(relativeTime);
 
 interface Task {
     id: number;
     heading: string;
+    added_by?: number;
     description?: string;
     due_date?: string;
     start_date?: string;
@@ -123,16 +126,26 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
             columns = [],
             users = [],
             projects = [],
-            permissions = {
-                add_tasks: true,
-                edit_tasks: true,
-                delete_tasks: true,
-                view_tasks: "all",
-            },
         },
     } = usePage<TasksIndexProps>();
 
-    const canEditTasks = permissions.edit_tasks !== false;
+    const { user, permissions: authPermissions } = usePermission();
+
+    const hasTaskPermission = (task: Task, permissionName: PermissionKey) => {
+        const perm = authPermissions?.[permissionName];
+
+        if (perm === "all") return true;
+        if (!perm || perm === "none") return false;
+
+        const isAdded = task.added_by === user?.id;
+        const isOwned = task.users?.some((u) => u.id === user?.id);
+
+        if (perm === "added" && isAdded) return true;
+        if (perm === "owned" && isOwned) return true;
+        if (perm === "both" && (isAdded || isOwned)) return true;
+
+        return false;
+    };
 
     const isOverdue = (dueDate?: string) => {
         if (!dueDate) return false;
@@ -328,7 +341,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                             <TaskStatusDropdownPill
                                 status={effectiveStatus}
                                 columns={columns}
-                                disabled={!canEditTasks || isProcessing}
+                                disabled={
+                                    !hasTaskPermission(task, "change_status") ||
+                                    isProcessing
+                                }
                                 onChange={(newStatus, columnId) =>
                                     handleStatusChange(task, newStatus, columnId)
                                 }

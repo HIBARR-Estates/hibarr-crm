@@ -73,7 +73,9 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
             placement="bottomLeft"
             overlayClassName="z-[1050]"
         >
-            <span
+            <button
+                type="button"
+                disabled={disabled}
                 className={`inline-flex shrink-0 items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium capitalize transition-opacity ${
                     disabled
                         ? "cursor-not-allowed opacity-60"
@@ -88,7 +90,7 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
             >
                 {currentLabel}
                 <DownOutlined style={{ fontSize: "10px" }} />
-            </span>
+            </button>
         </Dropdown>
     );
 };

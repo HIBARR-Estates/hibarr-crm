@@ -546,6 +546,7 @@ class TaskService
                 'add_tasks' => user()->permission('add_tasks'),
                 'edit_tasks' => user()->permission('edit_tasks'),
                 'delete_tasks' => user()->permission('delete_tasks'),
+                'change_status' => user()->permission('change_status'),
                 'view_tasks' => $viewPermission,
             ],
         ];
