@@ -136,7 +136,7 @@ class DashboardController extends AccountBaseController
             'users:id,name,image',
             'createBy:id,name,image',
             'addedByUser:id,name,image',
-            'boardColumn:id,column_name,slug', 
+            'boardColumn:id,column_name,slug,label_color', 
             'category:id,category_name',
             'labels'
         ])
@@ -159,12 +159,19 @@ class DashboardController extends AccountBaseController
                 return [
                     'id' => $task->id,
                     'heading' => $task->heading,
+                    'added_by' => $task->added_by,
                     'description' => $task->description,
                     'due_date' => $task->due_date?->toDateString(),
                     'start_date' => $task->start_date?->toDateString(),
                     'priority' => $task->priority,
                     'status' => $task->boardColumn->slug ?? 'incomplete',
                     'board_column_id' => $task->board_column_id,
+                    'board_column' => $task->boardColumn ? [
+                        'id' => $task->boardColumn->id,
+                        'column_name' => $task->boardColumn->column_name,
+                        'slug' => $task->boardColumn->slug,
+                        'label_color' => $task->boardColumn->label_color,
+                    ] : null,
                     'project' => $task->project ? [
                         'id' => $task->project->id,
                         'project_name' => $task->project->project_name,
