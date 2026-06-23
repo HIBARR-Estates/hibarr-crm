@@ -151,6 +151,7 @@ export interface TasksIndexProps extends PageProps {
         add_tasks: string;
         edit_tasks: string;
         delete_tasks: string;
+        change_status: string;
         view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
     };
     stats: {
@@ -244,6 +245,7 @@ const TasksIndex = ({
         add_tasks: "all",
         edit_tasks: "all",
         delete_tasks: "all",
+        change_status: "all",
         view_tasks: "all",
     },
     stats = {
