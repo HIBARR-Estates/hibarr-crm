@@ -2,7 +2,7 @@ import { IModalProps } from "@/Types/common";
 import { User } from "@/Types";
 import { router } from "@inertiajs/react";
 import { message, Select, Modal, Button, Avatar } from "antd";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { UserOutlined } from "@ant-design/icons";
 import { pluralOrSingular } from "@/lib/utils";
 import UserIndicator from "@/Components/UserIndicator";
@@ -28,6 +28,21 @@ const BulkChangeDealAgents: React.FC<Props> = ({
 }) => {
     const [bulkChangeAgentLoading, setBulkChangeAgentLoading] = useState(false);
     const [selectedAgentId, setSelectedAgentId] = useState<number>();
+
+    // One entry per user, matching the legacy deals index bulk-action dropdown.
+    const uniqueLeadAgents = useMemo(() => {
+        const seenUserIds = new Set<number>();
+
+        return leadAgents.filter((agent) => {
+            const userId = agent.user?.id ?? agent.user_id;
+            if (!userId || seenUserIds.has(userId)) {
+                return false;
+            }
+
+            seenUserIds.add(userId);
+            return true;
+        });
+    }, [leadAgents]);
 
     const handleBulkChangeAgent = () => {
         if (!selectedAgentId) {
@@ -65,7 +80,7 @@ const BulkChangeDealAgents: React.FC<Props> = ({
         onClose();
     };
 
-    const selectedAgent = leadAgents.find(
+    const selectedAgent = uniqueLeadAgents.find(
         (agent) => agent.id === selectedAgentId
     );
 
@@ -110,7 +125,7 @@ const BulkChangeDealAgents: React.FC<Props> = ({
                         className="w-full"
                         optionLabelProp="label"
                     >
-                        {leadAgents.map((agent) => (
+                        {uniqueLeadAgents.map((agent) => (
                             <Select.Option
                                 key={agent.id}
                                 value={agent.id}

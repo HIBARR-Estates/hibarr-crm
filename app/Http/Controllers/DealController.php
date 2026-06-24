@@ -1754,14 +1754,11 @@ class DealController extends AccountBaseController
                 continue;
             }
 
-            // Find an agent from the list with matching category
+            // Prefer the agent record for this deal's category; fall back to the
+            // selected agent (same behaviour as changeAgent()).
             $matchingAgent = $agentsWithSameUser->firstWhere('lead_category_id', $deal->category_id);
-
-            if ($matchingAgent) {
-                // Assign the matching agent to the deal
-                $deal->agent_id = $matchingAgent->id;
-                $deal->save();
-            }
+            $deal->agent_id = $matchingAgent?->id ?? $agent->id;
+            $deal->save();
         }
     }
 
