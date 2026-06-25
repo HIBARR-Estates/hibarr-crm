@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
     Form,
     Input,
+    InputNumber,
     Select,
     Row,
     Col,
@@ -17,6 +18,10 @@ import LeadDealCreation from "./LeadDealCreation";
 import dayjs from "dayjs";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
+import {
+    computeAgeFieldsFromDateOfBirth,
+    getLeadAgeFieldVisibility,
+} from "@/lib/leadAge";
 
 interface BasicInfoTabProps
     extends Pick<
@@ -75,10 +80,18 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     useEffect(() => {
         if (data) {
             isPopulatingRef.current = true;
+            const computedAgeFields = data.date_of_birth
+                ? computeAgeFieldsFromDateOfBirth(data.date_of_birth)
+                : {
+                      age: data.age ?? null,
+                      age_range: data.age_range ?? null,
+                  };
             const formData = {
                 ...data,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
                 date_of_birth: data.date_of_birth ? dayjs(data.date_of_birth) : null,
+                age: computedAgeFields.age ?? data.age ?? null,
+                age_range: computedAgeFields.age_range ?? data.age_range ?? null,
                 deal_watcher: data.deal_watcher || [],
                 product_id: data.product_id || [],
             };
@@ -92,8 +105,48 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     // watch create_deal and create_client checkboxes to update form values
     const createDeal = Form.useWatch("create_deal", form);
     const createClient = Form.useWatch("create_client", form);
+    const dateOfBirth = Form.useWatch("date_of_birth", form);
+    const watchedAge = Form.useWatch("age", form);
+    const watchedAgeRange = Form.useWatch("age_range", form);
+
+    const ageFieldVisibility = useMemo(
+        () =>
+            getLeadAgeFieldVisibility({
+                dateOfBirth:
+                    dateOfBirth === undefined
+                        ? data?.date_of_birth ?? null
+                        : dateOfBirth
+                          ? dateOfBirth.format("YYYY-MM-DD")
+                          : null,
+                age: watchedAge ?? data?.age ?? null,
+                ageRange: watchedAgeRange ?? data?.age_range ?? null,
+            }),
+        [dateOfBirth, watchedAge, watchedAgeRange, data],
+    );
+
+    useEffect(() => {
+        if (isPopulatingRef.current) {
+            return;
+        }
+
+        if (dateOfBirth) {
+            const { age, age_range } =
+                computeAgeFieldsFromDateOfBirth(dateOfBirth);
+            form.setFieldsValue({ age, age_range });
+        }
+    }, [dateOfBirth, form]);
 
     const handleSubmit = (values: any) => {
+        const computedAgeFields = values.date_of_birth
+            ? computeAgeFieldsFromDateOfBirth(values.date_of_birth)
+            : {
+                  age:
+                      values.age === null || values.age === undefined
+                          ? null
+                          : Number(values.age),
+                  age_range: values.age_range || null,
+              };
+
         // Transform the values to match the API expectations
         const formData = {
             ...values,
@@ -103,6 +156,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             date_of_birth: values.date_of_birth
                 ? values.date_of_birth.format("YYYY-MM-DD")
                 : null,
+            age: computedAgeFields.age,
+            age_range: computedAgeFields.age_range,
             deal_watcher: values.deal_watcher || [],
             product_id: values.product_id || [],
             strategy_accepted: values.strategy_accepted || false,
@@ -273,13 +328,39 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="Date of Birth"
-                                    name="date_of_birth"
-                                >
-                                    <DatePicker className="w-full" />
-                                </Form.Item>
+                            <Col span={24}>
+                                <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] gap-3 w-full">
+                                    <Form.Item label="DOB" name="date_of_birth">
+                                        <DatePicker
+                                            className="w-full"
+                                            format="DD MMM YYYY"
+                                            placeholder="Select date"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Age" name="age">
+                                        <InputNumber
+                                            className="!w-full"
+                                            min={0}
+                                            max={150}
+                                            placeholder="Enter age"
+                                            disabled={
+                                                ageFieldVisibility.ageAndRangeReadOnly
+                                            }
+                                        />
+                                    </Form.Item>
+                                    <Form.Item
+                                        label="Age Range"
+                                        name="age_range"
+                                    >
+                                        <FormDataSelector
+                                            type="age-ranges"
+                                            placeholder="Select age range"
+                                            disabled={
+                                                ageFieldVisibility.ageAndRangeReadOnly
+                                            }
+                                        />
+                                    </Form.Item>
+                                </div>
                             </Col>
                             <Col span={12}>
                                 <Form.Item
