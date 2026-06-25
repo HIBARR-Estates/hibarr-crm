@@ -328,11 +328,16 @@ export default function LeadInfoSection({
                 [fieldName]: value,
             };
 
-            if (fieldName === "date_of_birth" && value) {
-                const { age, age_range } =
-                    computeAgeFieldsFromDateOfBirth(value);
-                next.age = age;
-                next.age_range = age_range;
+            if (fieldName === "date_of_birth") {
+                if (value) {
+                    const { age, age_range } =
+                        computeAgeFieldsFromDateOfBirth(value);
+                    next.age = age;
+                    next.age_range = age_range;
+                } else {
+                    next.age = null;
+                    next.age_range = null;
+                }
             }
 
             return next;
@@ -383,12 +388,17 @@ export default function LeadInfoSection({
                 }
             }
 
-            if (standardChanges.date_of_birth) {
-                const computed = computeAgeFieldsFromDateOfBirth(
-                    standardChanges.date_of_birth,
-                );
-                standardChanges.age = computed.age;
-                standardChanges.age_range = computed.age_range;
+            if (standardChanges.date_of_birth !== undefined) {
+                if (standardChanges.date_of_birth) {
+                    const computed = computeAgeFieldsFromDateOfBirth(
+                        standardChanges.date_of_birth,
+                    );
+                    standardChanges.age = computed.age;
+                    standardChanges.age_range = computed.age_range;
+                } else {
+                    standardChanges.age = null;
+                    standardChanges.age_range = null;
+                }
             }
 
             // Make API calls for each type of change
@@ -595,7 +605,11 @@ export default function LeadInfoSection({
                             age_range: computed.age_range,
                         };
                     } else {
-                        payloadData = { date_of_birth: null };
+                        payloadData = {
+                            date_of_birth: null,
+                            age: null,
+                            age_range: null,
+                        };
                     }
                 } else if (
                     fieldName === "category_id" ||

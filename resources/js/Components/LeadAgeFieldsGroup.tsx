@@ -406,28 +406,34 @@ export default function LeadAgeFieldsGroup({
 
             {!alwaysEditing && (
                 <>
-                    <CheckOutlined
+                    <button
+                        type="button"
+                        aria-label="Save"
+                        disabled={isLocked}
                         onMouseDown={handleActionMouseDown}
-                        onClick={
-                            isLocked ? undefined : () => void handleInlineSave()
-                        }
-                        className={`flex-shrink-0 mb-2 ${
+                        onClick={() => void handleInlineSave()}
+                        className={`flex-shrink-0 mb-2 border-0 bg-transparent p-0 leading-none ${
                             isLocked
-                                ? "cursor-not-allowed opacity-50 pointer-events-none"
+                                ? "cursor-not-allowed opacity-50"
                                 : "cursor-pointer text-green-600 hover:text-green-700"
                         }`}
-                        aria-disabled={isLocked}
-                    />
-                    <CloseOutlined
+                    >
+                        <CheckOutlined />
+                    </button>
+                    <button
+                        type="button"
+                        aria-label="Cancel"
+                        disabled={isLocked}
                         onMouseDown={handleActionMouseDown}
-                        onClick={isLocked ? undefined : handleInlineCancel}
-                        className={`flex-shrink-0 mb-2 ${
+                        onClick={handleInlineCancel}
+                        className={`flex-shrink-0 mb-2 border-0 bg-transparent p-0 leading-none ${
                             isLocked
-                                ? "cursor-not-allowed opacity-50 pointer-events-none"
+                                ? "cursor-not-allowed opacity-50"
                                 : "cursor-pointer text-red-600 hover:text-red-700"
                         }`}
-                        aria-disabled={isLocked}
-                    />
+                    >
+                        <CloseOutlined />
+                    </button>
                 </>
             )}
         </div>
