@@ -85,12 +85,17 @@ export default function LeadInfoSection({
         value: lang.language_code,
         label: lang.language_name,
     }));
-    const ageRangeOptions = (
-        (props.ageRanges as Array<{ value: string; label: string }>) || []
-    ).map((option) => ({
-        value: option.value,
-        label: option.label,
-    }));
+    const ageRangeOptions = useMemo(
+        () =>
+            (
+                (props.ageRanges as Array<{ value: string; label: string }>) ||
+                []
+            ).map((option) => ({
+                value: option.value,
+                label: option.label,
+            })),
+        [props.ageRanges],
+    );
 
     const resolveAgeRangeLabel = useCallback(
         (value: string) =>

@@ -20,6 +20,7 @@ import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
 import {
     computeAgeFieldsFromDateOfBirth,
+    computeAgeRangeFromAge,
     getLeadAgeFieldVisibility,
 } from "@/lib/leadAge";
 
@@ -133,8 +134,15 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             const { age, age_range } =
                 computeAgeFieldsFromDateOfBirth(dateOfBirth);
             form.setFieldsValue({ age, age_range });
+            return;
         }
-    }, [dateOfBirth, form]);
+
+        if (watchedAge != null) {
+            form.setFieldsValue({
+                age_range: computeAgeRangeFromAge(Number(watchedAge)),
+            });
+        }
+    }, [dateOfBirth, watchedAge, form]);
 
     const handleSubmit = (values: any) => {
         const computedAgeFields = values.date_of_birth
@@ -341,7 +349,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                         <InputNumber
                                             className="!w-full"
                                             min={0}
-                                            max={150}
+                                            max={300}
                                             placeholder="Enter age"
                                             disabled={
                                                 ageFieldVisibility.ageAndRangeReadOnly

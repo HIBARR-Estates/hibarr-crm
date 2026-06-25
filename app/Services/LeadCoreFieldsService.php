@@ -77,7 +77,7 @@ class LeadCoreFieldsService
             if ($value === null || $value === '') {
                 $lead->age_range = null;
             } else {
-                $lead->age_range = AgeRange::tryFrom((string) $value) ?? $value;
+                $lead->age_range = AgeRange::tryFrom((string) $value);
             }
         }
 

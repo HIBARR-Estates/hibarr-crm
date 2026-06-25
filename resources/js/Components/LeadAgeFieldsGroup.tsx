@@ -16,6 +16,7 @@ import {
     computeAgeFieldsFromDateOfBirth,
     computeAgeRangeFromAge,
     formatLeadAgeDisplay,
+    isValidDateOfBirth,
 } from "@/lib/leadAge";
 import { DetailFieldEditContext } from "./DetailSection";
 
@@ -107,7 +108,7 @@ export default function LeadAgeFieldsGroup({
             ? draftDateOfBirth || null
             : dateOfBirth ?? null;
 
-        return !!effectiveDateOfBirth;
+        return isValidDateOfBirth(effectiveDateOfBirth);
     }, [alwaysEditing, isEditing, draftDateOfBirth, dateOfBirth]);
 
     const displayText = useMemo(
@@ -282,7 +283,12 @@ export default function LeadAgeFieldsGroup({
 
         if (alwaysEditing) {
             onChange?.("date_of_birth", null);
+            onChange?.("age", null);
+            onChange?.("age_range", null);
         }
+
+        setDraftAge(null);
+        setDraftAgeRange(null);
     };
 
     const applyAgeChange = (value: number | null) => {

@@ -12,19 +12,24 @@ export type AgeRangeValue =
 export function computeAgeFromDateOfBirth(
     dateOfBirth: string | Dayjs | null | undefined,
 ): number | null {
-    if (!dateOfBirth) {
+    if (!isValidDateOfBirth(dateOfBirth)) {
         return null;
     }
 
     const dob = dayjs(dateOfBirth);
-
-    if (!dob.isValid()) {
-        return null;
-    }
-
     const age = dayjs().diff(dob, "year");
 
     return age >= 0 ? age : null;
+}
+
+export function isValidDateOfBirth(
+    dateOfBirth: string | Dayjs | null | undefined,
+): boolean {
+    if (!dateOfBirth) {
+        return false;
+    }
+
+    return dayjs(dateOfBirth).isValid();
 }
 
 export function computeAgeRangeFromAge(
@@ -84,7 +89,7 @@ export function getLeadAgeFieldVisibility(params: {
     age?: number | null;
     ageRange?: string | null;
 }): LeadAgeFieldVisibility {
-    const hasDob = !!params.dateOfBirth;
+    const hasDob = isValidDateOfBirth(params.dateOfBirth);
     const hasAge = params.age != null;
 
     if (hasDob) {
@@ -122,11 +127,11 @@ export function resolveLeadAgeFields(params: {
     age: number | null;
     ageRange: AgeRangeValue | string | null;
 } {
-    if (params.dateOfBirth) {
+    if (isValidDateOfBirth(params.dateOfBirth)) {
         const computed = computeAgeFieldsFromDateOfBirth(params.dateOfBirth);
 
         return {
-            dateOfBirth: params.dateOfBirth,
+            dateOfBirth: params.dateOfBirth ?? null,
             age: computed.age,
             ageRange: computed.age_range,
         };
@@ -160,7 +165,7 @@ export function formatLeadAgeDisplay(
     },
     resolveAgeRangeLabel?: (value: string) => string,
 ): string | null {
-    const hasDob = !!fields.dateOfBirth;
+    const hasDob = isValidDateOfBirth(fields.dateOfBirth);
     const hasAge = fields.age != null;
 
     if (hasDob || hasAge) {
@@ -198,7 +203,7 @@ export function hasLeadAgeData(fields: {
     ageRange: AgeRangeValue | string | null;
 }): boolean {
     return !!(
-        fields.dateOfBirth ||
+        isValidDateOfBirth(fields.dateOfBirth) ||
         fields.age != null ||
         fields.ageRange
     );
