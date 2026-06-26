@@ -282,7 +282,10 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                 rowKey="id"
                                 loading={isLoading}
                                 size="middle"
-                                emptyState={{ description: "No levels defined yet. Create one to get started." }}
+                                emptyState={{
+                                    description:
+                                        "No levels defined yet. Create one to get started.",
+                                }}
                                 scroll={{ y: "calc(100vh - 360px)" }}
                             />
                         </Card>
@@ -363,7 +366,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                 </Form.Item>
                             </div>
 
-                            {commissionOverrideEnabled && (
+                            {/* {commissionOverrideEnabled && (
                                 <div className="grid grid-cols-2 gap-4">
                                     <Form.Item
                                         label="Direct Rate %"
@@ -390,7 +393,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                         />
                                     </Form.Item>
                                 </div>
-                            )}
+                            )} */}
 
                             <Form.Item
                                 label="Hidden Level"
