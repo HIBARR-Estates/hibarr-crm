@@ -45,6 +45,8 @@ class AppServiceProvider extends ServiceProvider
             \App\Contracts\PropertyDescriptionInterface::class,
             \App\Services\AiDescription\HibarrPropertyDescriptionService::class,
         );
+
+        $this->app->singleton(\App\Services\FeatureFlagService::class);
     }
 
     public function boot()

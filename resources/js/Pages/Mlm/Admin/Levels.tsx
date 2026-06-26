@@ -151,32 +151,32 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                 <span className="font-semibold text-green-600">{val}%</span>
             ),
         },
-        ...(commissionOverrideEnabled
-            ? [
-                  {
-                      title: "Direct %",
-                      dataIndex: "direct_rate",
-                      key: "direct_rate",
-                      align: "right" as const,
-                      render: (val: number, record: MlmLevel) => (
-                          <span className="text-blue-600">
-                              {val ?? record.commission_percentage}%
-                          </span>
-                      ),
-                  },
-                  {
-                      title: "Override %",
-                      dataIndex: "override_rate",
-                      key: "override_rate",
-                      align: "right" as const,
-                      render: (val: number, record: MlmLevel) => (
-                          <span className="text-purple-600">
-                              {val ?? record.commission_percentage}%
-                          </span>
-                      ),
-                  },
-              ]
-            : []),
+        // ...(commissionOverrideEnabled
+        //     ? [
+        //           {
+        //               title: "Direct %",
+        //               dataIndex: "direct_rate",
+        //               key: "direct_rate",
+        //               align: "right" as const,
+        //               render: (val: number, record: MlmLevel) => (
+        //                   <span className="text-blue-600">
+        //                       {val ?? record.commission_percentage}%
+        //                   </span>
+        //               ),
+        //           },
+        //           {
+        //               title: "Override %",
+        //               dataIndex: "override_rate",
+        //               key: "override_rate",
+        //               align: "right" as const,
+        //               render: (val: number, record: MlmLevel) => (
+        //                   <span className="text-purple-600">
+        //                       {val ?? record.commission_percentage}%
+        //                   </span>
+        //               ),
+        //           },
+        //       ]
+        //     : []),
         {
             title: "Hidden",
             dataIndex: "is_hidden",

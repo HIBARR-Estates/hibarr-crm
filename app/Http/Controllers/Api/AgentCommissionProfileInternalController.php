@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\AgentCommissionProfileService;
+use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -65,6 +66,6 @@ class AgentCommissionProfileInternalController extends Controller
 
     protected function featureEnabled(): bool
     {
-        return (bool) config('features.sales.per-agent-commission-override', false);
+        return FeatureFlags::enabled('sales.per-agent-commission-override');
     }
 }

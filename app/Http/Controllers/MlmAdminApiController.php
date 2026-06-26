@@ -24,6 +24,7 @@ use App\Services\HierarchyService;
 use App\Services\LevelService;
 use App\Services\AgentCommissionProfileService;
 use App\Services\MlmCommissionService;
+use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -568,7 +569,7 @@ class MlmAdminApiController extends AccountBaseController
 
     public function getAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (!config('features.sales.per-agent-commission-override')) {
+        if (!FeatureFlags::enabled('sales.per-agent-commission-override')) {
             abort(404);
         }
 
@@ -582,7 +583,7 @@ class MlmAdminApiController extends AccountBaseController
 
     public function updateAgentCommissionProfile(Request $request, int $agentId): JsonResponse
     {
-        if (!config('features.sales.per-agent-commission-override')) {
+        if (!FeatureFlags::enabled('sales.per-agent-commission-override')) {
             abort(404);
         }
 
