@@ -9,10 +9,19 @@ use App\Models\ProjectMilestone;
 use App\Http\Requests\CoreRequest;
 use App\Models\TaskSetting;
 use App\Traits\CustomFieldsRequestTrait;
+use App\Services\TaskService;
 
 class UpdateTask extends CoreRequest
 {
     use CustomFieldsRequestTrait;
+
+    protected function prepareForValidation()
+    {
+        $assigneeIds = TaskService::normalizeAssigneeIds($this->all());
+        if (!is_null($assigneeIds)) {
+            $this->merge(['user_id' => $assigneeIds]);
+        }
+    }
 
     /**
      * Determine if the user is authorized to make this request.
