@@ -62,6 +62,19 @@ class CrmEventController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
+        $params = array_merge($validator->validated(), [
+            'company_id' => $companyId,
+            'source' => CrmEventSource::API->value,
+            'ip_address' => $request->ip(),
+            'user_agent' => $request->userAgent(),
+        ]);
+
+        // Normalize model_type — the Froiden XSS middleware double-escapes
+        // backslashes in FQCN strings (App\\Models\\Deal → App\\\\Models\\\\Deal)
+        if (!empty($params['model_type'])) {
+            $params['model_type'] = stripslashes($params['model_type']);
+        }
+
         // Resolve business rule slug to metadata if provided
         if (!empty($params['business_rule_slug'])) {
             $rule = CrmBusinessRule::withoutGlobalScopes()
