@@ -147,7 +147,19 @@ export default function LogActionModal({
                     : dayjs().utc().toISOString(),
             };
 
-            mutation.mutate(payload);
+            mutation.mutate(payload, {
+                onSuccess: () => {
+                    form.resetFields();
+                    setSelectedSlug(null);
+                    onSuccess();
+                    onClose();
+                },
+
+                onError: (error) => {
+                    console.error("Error logging event:", error);
+                    onClose();
+                },
+            });
         } catch {
             // validation error — form will show inline messages
         }
