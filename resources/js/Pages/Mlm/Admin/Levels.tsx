@@ -151,32 +151,32 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                 <span className="font-semibold text-green-600">{val}%</span>
             ),
         },
-        ...(commissionOverrideEnabled
-            ? [
-                  {
-                      title: "Direct %",
-                      dataIndex: "direct_rate",
-                      key: "direct_rate",
-                      align: "right" as const,
-                      render: (val: number, record: MlmLevel) => (
-                          <span className="text-blue-600">
-                              {val ?? record.commission_percentage}%
-                          </span>
-                      ),
-                  },
-                  {
-                      title: "Override %",
-                      dataIndex: "override_rate",
-                      key: "override_rate",
-                      align: "right" as const,
-                      render: (val: number, record: MlmLevel) => (
-                          <span className="text-purple-600">
-                              {val ?? record.commission_percentage}%
-                          </span>
-                      ),
-                  },
-              ]
-            : []),
+        // ...(commissionOverrideEnabled
+        //     ? [
+        //           {
+        //               title: "Direct %",
+        //               dataIndex: "direct_rate",
+        //               key: "direct_rate",
+        //               align: "right" as const,
+        //               render: (val: number, record: MlmLevel) => (
+        //                   <span className="text-blue-600">
+        //                       {val ?? record.commission_percentage}%
+        //                   </span>
+        //               ),
+        //           },
+        //           {
+        //               title: "Override %",
+        //               dataIndex: "override_rate",
+        //               key: "override_rate",
+        //               align: "right" as const,
+        //               render: (val: number, record: MlmLevel) => (
+        //                   <span className="text-purple-600">
+        //                       {val ?? record.commission_percentage}%
+        //                   </span>
+        //               ),
+        //           },
+        //       ]
+        //     : []),
         {
             title: "Hidden",
             dataIndex: "is_hidden",
@@ -282,7 +282,10 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                 rowKey="id"
                                 loading={isLoading}
                                 size="middle"
-                                emptyState={{ description: "No levels defined yet. Create one to get started." }}
+                                emptyState={{
+                                    description:
+                                        "No levels defined yet. Create one to get started.",
+                                }}
                                 scroll={{ y: "calc(100vh - 360px)" }}
                             />
                         </Card>
@@ -363,7 +366,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                 </Form.Item>
                             </div>
 
-                            {commissionOverrideEnabled && (
+                            {/* {commissionOverrideEnabled && (
                                 <div className="grid grid-cols-2 gap-4">
                                     <Form.Item
                                         label="Direct Rate %"
@@ -390,7 +393,7 @@ const MlmLevels: React.FC<Props> = ({ levels: initialLevels }) => {
                                         />
                                     </Form.Item>
                                 </div>
-                            )}
+                            )} */}
 
                             <Form.Item
                                 label="Hidden Level"

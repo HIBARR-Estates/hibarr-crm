@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\CustomField;
 use App\Models\LanguageSetting;
 use App\Models\Lead;
+use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -24,7 +25,7 @@ class LeadCoreFieldsService
 
     public function useCoreFields(): bool
     {
-        return (bool) config('features.crm.lead-language-core-field');
+        return FeatureFlags::enabled('crm.lead-language-core-field');
     }
 
     public function read(Lead $lead): array
