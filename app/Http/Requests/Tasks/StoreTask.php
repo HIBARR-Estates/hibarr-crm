@@ -19,7 +19,7 @@ class StoreTask extends CoreRequest
     protected function prepareForValidation()
     {
         $assigneeIds = TaskService::normalizeAssigneeIds($this->all());
-        if (! is_null($assigneeIds)) {
+        if (!is_null($assigneeIds)) {
             $this->merge(['user_id' => $assigneeIds]);
         }
     }
