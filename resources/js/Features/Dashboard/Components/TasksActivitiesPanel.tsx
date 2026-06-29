@@ -1,38 +1,29 @@
 import React, { useState, useMemo, useEffect } from "react";
 import {
     Card,
-    List,
-    Tag,
     Button,
     Dropdown,
-    Progress,
-    Avatar,
-    Tooltip,
-    Space,
-    DatePicker,
     message,
-    Modal,
     MenuProps,
     Drawer,
 } from "antd";
 import {
     CheckOutlined,
     ClockCircleOutlined,
-    ExclamationCircleOutlined,
-    CalendarOutlined,
+    AlertOutlined,
     EditOutlined,
     MoreOutlined,
-    UserOutlined,
-    ProjectOutlined,
     CopyOutlined,
     DeleteOutlined,
     EyeOutlined,
     PlusOutlined,
+    DownOutlined,
+    RightOutlined,
 } from "@ant-design/icons";
 import { motion } from "framer-motion";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { router, usePage } from "@inertiajs/react";
+import { Link, router, usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
@@ -40,6 +31,7 @@ import { TasksIndexProps } from "@/Pages/Tasks/Index";
 import TaskStatusDropdownPill, {
     isCompletedColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { taskApi } from "@/lib/api/tasks";
 import { usePermission } from "@/lib/permissionUtils";
 import { PermissionKey } from "@/Types/permission";
@@ -71,6 +63,15 @@ interface Task {
         id: number;
         category_name: string;
     };
+    deal?: {
+        id: number;
+        name: string;
+    };
+    lead?: {
+        id: number;
+        client_name: string;
+        company_name?: string;
+    };
     users?: Array<{
         id: number;
         name: string;
@@ -95,6 +96,61 @@ interface Task {
     updated_at?: string;
 }
 
+function GroupHeader({
+    label,
+    count,
+    open,
+    onToggle,
+    variant,
+}: {
+    label: string;
+    count: number;
+    open: boolean;
+    onToggle: () => void;
+    variant: "danger" | "neutral";
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onToggle}
+            className={`flex w-full items-center gap-2 border-b px-3 py-1.5 text-left transition-colors ${
+                variant === "danger"
+                    ? "border-red-100 bg-red-50/70 hover:bg-red-100/60"
+                    : "border-slate-100 bg-slate-50 hover:bg-slate-100/60"
+            }`}
+        >
+            {open ? (
+                <DownOutlined
+                    className={`text-[10px] ${variant === "danger" ? "text-red-400" : "text-slate-400"}`}
+                />
+            ) : (
+                <RightOutlined
+                    className={`text-[10px] ${variant === "danger" ? "text-red-400" : "text-slate-400"}`}
+                />
+            )}
+            {variant === "danger" ? (
+                <AlertOutlined className="text-xs text-red-500" />
+            ) : (
+                <ClockCircleOutlined className="text-xs text-slate-400" />
+            )}
+            <span
+                className={`text-xs font-semibold ${variant === "danger" ? "text-red-600" : "text-slate-600"}`}
+            >
+                {label}
+            </span>
+            <span
+                className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none ${
+                    variant === "danger"
+                        ? "bg-red-100 text-red-600"
+                        : "bg-slate-200 text-slate-600"
+                }`}
+            >
+                {count}
+            </span>
+        </button>
+    );
+}
+
 interface TasksActivitiesPanelProps {
     tasks: Task[];
 }
@@ -108,6 +164,8 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     const [statusOverrides, setStatusOverrides] = useState<
         Record<number, string>
     >({});
+    const [overdueOpen, setOverdueOpen] = useState(true);
+    const [upcomingOpen, setUpcomingOpen] = useState(true);
 
     useEffect(() => {
         setStatusOverrides({});
@@ -157,17 +215,10 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         return dayjs(dueDate).isSame(dayjs(), "day");
     };
 
-    const getPriorityIcon = (priority: string) => {
-        switch (priority) {
-            case "high":
-                return "🔴";
-            case "medium":
-                return "🔵";
-            case "low":
-                return "🟢";
-            default:
-                return "⚪";
-        }
+    const PRIORITY_COLORS: Record<Task["priority"], string> = {
+        high: "#ef4444",
+        medium: "#f59e0b",
+        low: "#94a3b8",
     };
 
     const {
@@ -302,6 +353,44 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         return Math.round((completedCount / tasks.length) * 100);
     }, [tasks, statusOverrides, columns]);
 
+    // Linked deal takes priority over lead; if neither exists, fall back to
+    // the task description (clipped to one line) — never show deal + lead together.
+    const renderEntityLink = (task: Task) => {
+        if (task.deal) {
+            return (
+                <Link
+                    href={route("deals.show", task.deal.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="truncate text-[11px] text-blue-600 hover:underline"
+                >
+                    {task.deal.name}
+                </Link>
+            );
+        }
+
+        if (task.lead) {
+            return (
+                <Link
+                    href={route("lead-contact.show", task.lead.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    className="truncate text-[11px] text-blue-600 hover:underline"
+                >
+                    {task.lead.client_name}
+                </Link>
+            );
+        }
+
+        if (task.description) {
+            return (
+                <span className="truncate text-[11px] text-gray-400">
+                    {task.description}
+                </span>
+            );
+        }
+
+        return null;
+    };
+
     const renderTask = (task: Task) => {
         const effectiveStatus = getEffectiveStatus(task);
         const isTaskOverdue =
@@ -314,168 +403,104 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
             <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                className="mb-3"
                 key={task.id}
+                className={`group flex min-h-[46px] items-center border-b border-slate-100 transition-colors last:border-0 hover:bg-slate-50/60 ${
+                    isProcessing ? "opacity-60" : ""
+                }`}
             >
-                <Card
-                    size="small"
-                    className={`${
-                        isTaskOverdue
-                            ? "border-red-200 bg-red-50"
-                            : isTaskToday
-                              ? "border-amber-200 bg-amber-50"
-                              : "border-gray-200 hover:border-blue-300"
-                    }`}
-                    loading={isProcessing}
-                    variant="outlined"
-                >
-                    <div className="space-y-2">
-                        <div className="flex min-w-0 items-center gap-2">
-                            <span className="shrink-0 text-xs">
-                                {getPriorityIcon(task.priority)}
-                            </span>
-                            <div className="min-w-0 flex-1 truncate font-medium text-gray-900">
-                                {task.heading}
-                            </div>
-                            <TaskStatusDropdownPill
-                                status={effectiveStatus}
-                                columns={columns}
-                                disabled={
-                                    !hasTaskPermission(task, "change_status") ||
-                                    isProcessing
-                                }
-                                onChange={(newStatus, columnId) =>
-                                    handleStatusChange(task, newStatus, columnId)
-                                }
-                            />
-                            {isTaskOverdue && (
-                                <Tag
-                                    color="error"
-                                    className="!m-0 shrink-0"
-                                    icon={<ExclamationCircleOutlined />}
-                                >
-                                    Overdue
-                                </Tag>
-                            )}
-                            {isTaskToday && (
-                                <Tag
-                                    color="warning"
-                                    className="!m-0 shrink-0"
-                                    icon={<ClockCircleOutlined />}
-                                >
-                                    Due Today
-                                </Tag>
-                            )}
-                            <Dropdown
-                                menu={{ items: getTaskActions(task) }}
-                                trigger={["click"]}
-                                placement="bottomRight"
-                                overlayClassName="z-[1050]"
-                            >
-                                <Button
-                                    size="small"
-                                    icon={<MoreOutlined />}
-                                    className="ml-auto shrink-0"
-                                    type="text"
-                                />
-                            </Dropdown>
+                {/* Priority stripe */}
+                <div
+                    className="w-[3px] shrink-0 self-stretch rounded-r"
+                    style={{ backgroundColor: PRIORITY_COLORS[task.priority] }}
+                />
+
+                {/* Task name + linked deal/lead/description */}
+                <div className="min-w-0 flex-1 px-3 py-2.5">
+                    <p className="truncate text-[13px] font-semibold leading-tight text-slate-800">
+                        {task.heading}
+                    </p>
+                    {renderEntityLink(task) && (
+                        <div className="mt-0.5 truncate">
+                            {renderEntityLink(task)}
                         </div>
+                    )}
+                </div>
 
-                        {(task.due_date ||
-                            task.project ||
-                            task.assigner ||
-                            (task.users && task.users.length > 0)) && (
-                            <div className="flex items-center gap-x-4 text-sm text-gray-600">
-                                    {task.due_date && (
-                                        <span className="flex items-center">
-                                            <CalendarOutlined className="mr-1" />
-                                            {dayjs(task.due_date).format(
-                                                "MMM DD, h:mm A",
-                                            )}
-                                            <span className="ml-1 text-gray-500">
-                                                (
-                                                {dayjs(task.due_date).fromNow()}
-                                                )
-                                            </span>
-                                        </span>
-                                    )}
+                {/* Due date */}
+                <div className="w-[110px] shrink-0 px-1 text-center">
+                    {task.due_date ? (
+                        <>
+                            <span
+                                className={`text-[11px] font-semibold tabular-nums ${
+                                    isTaskOverdue
+                                        ? "text-red-500"
+                                        : isTaskToday
+                                          ? "text-amber-500"
+                                          : "text-slate-500"
+                                }`}
+                            >
+                                {dayjs(task.due_date).format("MMM D, h:mm A")}
+                            </span>
+                            <p
+                                className={`text-[10px] leading-tight ${
+                                    isTaskOverdue
+                                        ? "text-red-400"
+                                        : "text-slate-400"
+                                }`}
+                            >
+                                {dayjs(task.due_date).fromNow()}
+                            </p>
+                        </>
+                    ) : (
+                        <span className="text-[11px] text-slate-300">—</span>
+                    )}
+                </div>
 
-                                    {task.project && (
-                                        <span className="flex items-center">
-                                            <ProjectOutlined className="mr-1" />
-                                            {task.project.project_name}
-                                        </span>
-                                    )}
+                {/* Assignee avatars */}
+                <div className="flex w-[80px] shrink-0 justify-center px-1">
+                    {task.users && task.users.length > 0 && (
+                        <MultiUserIndicator
+                            users={task.users}
+                            size="sm"
+                            maxCount={3}
+                            showNames={false}
+                            colorful
+                        />
+                    )}
+                </div>
 
-                                    {task.assigner && (
-                                        <div className="flex items-center">
-                                            <UserOutlined className="mr-1" />
-                                            <Tooltip title={`Assigner: ${task.assigner.name}`}>
-                                                <Avatar
-                                                    size="small"
-                                                    src={task.assigner.image}
-                                                    icon={<UserOutlined />}
-                                                >
-                                                    {!task.assigner.image &&
-                                                        task.assigner.name?.charAt(0)}
-                                                </Avatar>
-                                            </Tooltip>
-                                        </div>
-                                    )}
+                {/* Status */}
+                <div className="flex w-[140px] shrink-0 justify-end pr-2">
+                    <TaskStatusDropdownPill
+                        status={effectiveStatus}
+                        columns={columns}
+                        disabled={
+                            !hasTaskPermission(task, "change_status") ||
+                            isProcessing
+                        }
+                        onChange={(newStatus, columnId) =>
+                            handleStatusChange(task, newStatus, columnId)
+                        }
+                    />
+                </div>
 
-                                    {task.users && task.users.length > 0 && (
-                                        <div className="flex items-center">
-                                            <UserOutlined className="mr-1" />
-                                            <Avatar.Group
-                                                size="small"
-                                                maxCount={3}
-                                            >
-                                                {task.users.map((user) => (
-                                                    <Tooltip
-                                                        key={user.id}
-                                                        title={user.name}
-                                                    >
-                                                        <Avatar
-                                                            size="small"
-                                                            src={user.image}
-                                                            icon={
-                                                                <UserOutlined />
-                                                            }
-                                                        >
-                                                            {!user.image &&
-                                                                user.name?.charAt(
-                                                                    0,
-                                                                )}
-                                                        </Avatar>
-                                                    </Tooltip>
-                                                ))}
-                                            </Avatar.Group>
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
-                            {task.description && (
-                                <div className="text-sm text-gray-600 line-clamp-2">
-                                    {task.description}
-                                </div>
-                            )}
-
-                            {task.labels && task.labels.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                    {task.labels.map((label) => (
-                                        <Tag
-                                            key={label.id}
-                                            color={label.label_color}
-                                        >
-                                            {label.label_name}
-                                        </Tag>
-                                    ))}
-                                </div>
-                            )}
-                    </div>
-                </Card>
+                {/* Menu */}
+                <div className="flex w-8 shrink-0 justify-center pr-1">
+                    <Dropdown
+                        menu={{ items: getTaskActions(task) }}
+                        trigger={["click"]}
+                        placement="bottomRight"
+                        overlayClassName="z-[1050]"
+                    >
+                        <Button
+                            size="small"
+                            icon={<MoreOutlined />}
+                            className="opacity-0 group-hover:opacity-100"
+                            type="text"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </Dropdown>
+                </div>
             </motion.div>
         );
     };
@@ -485,8 +510,22 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
             <Card
                 title={
                     <div className="flex items-center justify-between gap-4">
-                        <span>Tasks & Activities</span>
-                        <div className="flex items-center gap-x-4">
+                        <span>Tasks</span>
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                        style={{ width: `${completionRate}%` }}
+                                    />
+                                </div>
+                                <span className="whitespace-nowrap text-[11px] tabular-nums text-slate-500">
+                                    {completionRate}% done
+                                </span>
+                            </div>
+                            <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                                {allTasks.length} tasks
+                            </span>
                             <Button
                                 type="primary"
                                 size="small"
@@ -495,25 +534,12 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                             >
                                 Add Task
                             </Button>
-                            <div className="text-sm font-normal">
-                                <Progress
-                                    percent={completionRate}
-                                    size="small"
-                                    strokeColor="#10b981"
-                                    trailColor="#e5e7eb"
-                                    className="!m-0"
-                                    format={(percent) => `${percent}% Complete`}
-                                />
-                            </div>
-                            <Tag color="blue" className="!m-0">
-                                {allTasks.length} tasks
-                            </Tag>
                         </div>
                     </div>
                 }
                 className="flex flex-col"
                 style={{ height: "60vh" }}
-                styles={{ body: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 } }}
+                styles={{ body: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0, padding: 0 } }}
                 variant="outlined"
             >
                 {allTasks.length === 0 ? (
@@ -525,53 +551,88 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto">
-                        {overdueTasks.length > 0 && (
-                            <div className="mb-4">
-                                <div className="text-red-600 font-medium text-sm mb-3 flex items-center">
-                                    <ExclamationCircleOutlined className="mr-2" />
-                                    Overdue ({overdueTasks.length})
-                                </div>
-                                {overdueTasks.map(renderTask)}
+                    <>
+                        {/* Column header bar */}
+                        <div className="flex items-center border-b border-slate-100 bg-slate-50 px-2 py-1.5">
+                            <div className="w-[3px] shrink-0" />
+                            <div className="flex-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Task
                             </div>
-                        )}
+                            <div className="w-[110px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Due
+                            </div>
+                            <div className="w-[80px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Assignee
+                            </div>
+                            <div className="w-[140px] shrink-0 text-right pr-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                Status
+                            </div>
+                            <div className="w-8 shrink-0" />
+                        </div>
 
-                        {todayTasks.length > 0 && (
-                            <div className="mb-4">
-                                <div className="text-amber-600 font-medium text-sm mb-3 flex items-center">
-                                    <ClockCircleOutlined className="mr-2" />
-                                    Due Today ({todayTasks.length})
+                        <div className="flex-1 overflow-y-auto">
+                            {overdueTasks.length > 0 && (
+                                <div>
+                                    <GroupHeader
+                                        label="Overdue"
+                                        count={overdueTasks.length}
+                                        open={overdueOpen}
+                                        onToggle={() =>
+                                            setOverdueOpen((o) => !o)
+                                        }
+                                        variant="danger"
+                                    />
+                                    {overdueOpen && overdueTasks.map(renderTask)}
                                 </div>
-                                {todayTasks.map(renderTask)}
-                            </div>
-                        )}
+                            )}
 
-                        {upcomingTasks.length > 0 && (
-                            <div className="mb-4">
-                                <div className="text-gray-600 font-medium text-sm mb-3 flex items-center">
-                                    <CalendarOutlined className="mr-2" />
-                                    Upcoming ({upcomingTasks.length})
+                            {(todayTasks.length > 0 ||
+                                upcomingTasks.length > 0) && (
+                                <div>
+                                    <GroupHeader
+                                        label="Upcoming"
+                                        count={
+                                            todayTasks.length +
+                                            upcomingTasks.length
+                                        }
+                                        open={upcomingOpen}
+                                        onToggle={() =>
+                                            setUpcomingOpen((o) => !o)
+                                        }
+                                        variant="neutral"
+                                    />
+                                    {upcomingOpen && (
+                                        <>
+                                            {todayTasks.map(renderTask)}
+                                            {upcomingTasks
+                                                .slice(0, 5)
+                                                .map(renderTask)}
+                                            {upcomingTasks.length > 5 && (
+                                                <div className="text-center py-2">
+                                                    <Button
+                                                        type="link"
+                                                        size="small"
+                                                        onClick={() =>
+                                                            router.visit(
+                                                                route(
+                                                                    "tasks.index",
+                                                                ),
+                                                            )
+                                                        }
+                                                    >
+                                                        View{" "}
+                                                        {upcomingTasks.length -
+                                                            5}{" "}
+                                                        more tasks
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </>
+                                    )}
                                 </div>
-                                {upcomingTasks.slice(0, 5).map(renderTask)}
-                                {upcomingTasks.length > 5 && (
-                                    <div className="text-center py-2">
-                                        <Button
-                                            type="link"
-                                            size="small"
-                                            onClick={() =>
-                                                router.visit(
-                                                    route("tasks.index"),
-                                                )
-                                            }
-                                        >
-                                            View {upcomingTasks.length - 5} more
-                                            tasks
-                                        </Button>
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </div>
+                            )}
+                        </div>
+                    </>
                 )}
             </Card>
 

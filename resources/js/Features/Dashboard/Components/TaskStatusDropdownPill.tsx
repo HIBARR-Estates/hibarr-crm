@@ -3,6 +3,14 @@ import { Dropdown, MenuProps } from "antd";
 import { DownOutlined } from "@ant-design/icons";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
+const darkenHex = (hex: string, factor = 0.75): string => {
+    const h = hex.replace("#", "");
+    const r = Math.round(parseInt(h.slice(0, 2), 16) * factor);
+    const g = Math.round(parseInt(h.slice(2, 4), 16) * factor);
+    const b = Math.round(parseInt(h.slice(4, 6), 16) * factor);
+    return `rgb(${r},${g},${b})`;
+};
+
 export interface TaskboardColumn {
     id: number;
     column_name: string;
@@ -76,20 +84,26 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
             <button
                 type="button"
                 disabled={disabled}
-                className={`inline-flex shrink-0 items-center gap-1 rounded border px-2 py-0.5 text-xs font-medium capitalize transition-opacity ${
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-opacity ${
                     disabled
                         ? "cursor-not-allowed opacity-60"
                         : "cursor-pointer hover:opacity-80"
                 }`}
                 style={{
-                    borderColor: currentColumn?.label_color || "#d9d9d9",
-                    color: currentColumn?.label_color || "#666",
-                    backgroundColor: "white",
+                    backgroundColor: `${currentColumn?.label_color || "#999"}0d`,
+                    color: currentColumn?.label_color ? darkenHex(currentColumn.label_color) : "#555",
+                    borderColor: currentColumn?.label_color || "#999",
+                    borderWidth: "1px",
+                    borderStyle: "solid",
                 }}
                 onClick={(event) => event.stopPropagation()}
             >
+                <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full"
+                    style={{ backgroundColor: currentColumn?.label_color || "#999" }}
+                />
                 {currentLabel}
-                <DownOutlined style={{ fontSize: "10px" }} />
+                <DownOutlined style={{ fontSize: "9px", opacity: 0.7 }} />
             </button>
         </Dropdown>
     );
