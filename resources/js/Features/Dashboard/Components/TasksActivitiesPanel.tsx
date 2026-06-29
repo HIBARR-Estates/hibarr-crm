@@ -391,7 +391,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                                         <span className="flex items-center">
                                             <CalendarOutlined className="mr-1" />
                                             {dayjs(task.due_date).format(
-                                                "MMM DD",
+                                                "MMM DD, h:mm A",
                                             )}
                                             <span className="ml-1 text-gray-500">
                                                 (
@@ -511,11 +511,13 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                         </div>
                     </div>
                 }
-                className="h-full"
+                className="flex flex-col"
+                style={{ height: "60vh" }}
+                styles={{ body: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 } }}
                 variant="outlined"
             >
                 {allTasks.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[500px] overflow-hidden">
+                    <div className="flex flex-col items-center justify-center flex-1 overflow-hidden">
                         <div className="text-center py-8 text-gray-500">
                             <CheckOutlined className="text-4xl text-gray-300 mb-2" />
                             <div>No pending tasks</div>
@@ -523,7 +525,7 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto">
                         {overdueTasks.length > 0 && (
                             <div className="mb-4">
                                 <div className="text-red-600 font-medium text-sm mb-3 flex items-center">

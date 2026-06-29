@@ -212,18 +212,20 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                         )}
                     </div>
                 }
-                className="h-full"
+                className="flex flex-col"
+                style={{ height: "60vh" }}
+                styles={{ body: { flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", minHeight: 0 } }}
                 variant="outlined"
             >
                 {meetings.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-[500px] overflow-hidden">
+                    <div className="flex flex-col items-center justify-center flex-1 overflow-hidden">
                         <div className="text-center py-8 text-gray-500">
                             <CalendarOutlined className="text-4xl text-gray-300 mb-2" />
                             <div>{t("app.meetings.empty.upcoming")}</div>
                         </div>
                     </div>
                 ) : (
-                    <div className="max-h-96 overflow-y-auto">
+                    <div className="flex-1 overflow-y-auto">
                         <List
                             dataSource={meetings}
                             renderItem={(meeting) => (

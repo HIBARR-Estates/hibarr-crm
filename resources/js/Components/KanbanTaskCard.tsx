@@ -67,12 +67,10 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
     const priorityInfo = priorityConfig[priority] || priorityConfig.medium;
 
     const formattedDueDate = dueDate
-        ? dayjs(dueDate).format("MMM D, YYYY")
-        : null;
-
-    const fullDueDate = dueDate
         ? dayjs(dueDate).format("MMM D, YYYY h:mm A")
         : null;
+
+    const fullDueDate = formattedDueDate;
 
     return (
         <Card

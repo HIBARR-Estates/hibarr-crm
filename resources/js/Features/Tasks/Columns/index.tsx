@@ -236,7 +236,7 @@ export const useTasksTableColumns = ({
                                     : "inherit",
                             }}
                         >
-                            {dueDate.format("MMM D, YYYY")}
+                            {dueDate.format("MMM D, YYYY h:mm A")}
                         </Text>
                         {isOverdue && <Tag color="error">Overdue</Tag>}
                         {isDueToday && <Tag color="warning">Due Today</Tag>}
