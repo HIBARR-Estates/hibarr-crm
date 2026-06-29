@@ -355,7 +355,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
             {selectedMeeting && (meetingDeal || meetingLead) && (
                 <ViewFollowup
                     open={action === "view"}
-                    onClose={handleClose}
+                    onClose={() => handleClose(undefined)}
                     followup={selectedMeeting}
                     deal={meetingDeal}
                     lead={meetingLead as any}
@@ -366,7 +366,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
             {selectedMeeting && meetingDeal && (
                 <EditFollowup
                     open={action === "edit"}
-                    onClose={handleClose}
+                    onClose={() => handleClose()}
                     deal={meetingDeal}
                     followup={selectedMeeting}
                 />
@@ -374,7 +374,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
 
             <DeleteFollowup
                 open={action === "delete"}
-                onClose={handleClose}
+                onClose={() => handleClose()}
                 followup={selectedMeeting}
             />
         </>
