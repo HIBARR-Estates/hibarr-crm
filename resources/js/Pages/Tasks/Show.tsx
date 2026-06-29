@@ -44,6 +44,7 @@ import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { Task } from "@/Types/Task";
 import { getStatusColor } from "@/lib/utils";
+import { getPriorityConfig } from "@/lib/priority";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 
@@ -135,12 +136,6 @@ interface TaskShowProps extends PageProps {
     pageTitle: string;
 }
 
-// Priority configuration
-const priorityConfig = {
-    low: { color: "#52c41a", icon: "🟢", bg: "#f6ffed", label: "Low" },
-    medium: { color: "#1890ff", icon: "🔵", bg: "#e6f7ff", label: "Medium" },
-    high: { color: "#ff4d4f", icon: "🔴", bg: "#fff1f0", label: "High" },
-};
 
 const TaskShow = ({
     task,
@@ -180,12 +175,6 @@ const TaskShow = ({
         );
     }
 
-    const getPriorityConfig = (priority: string) => {
-        return (
-            priorityConfig[priority as keyof typeof priorityConfig] ||
-            priorityConfig.medium
-        );
-    };
 
     const calculateTimeSpent = () => {
         if (task.time_logs && Array.isArray(task.time_logs)) {

@@ -48,8 +48,8 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
     const currentColumn =
         sortedColumns.find((col) => col.slug === status) ?? sortedColumns[0];
     const currentLabel = currentColumn
-        ? td(currentColumn.column_name)
-        : td(status.split("_").join(" "));
+        ? td(currentColumn.column_name).toLowerCase()
+        : td(status.split("_").join(" ")).toLowerCase();
 
     const menuItems: MenuProps["items"] = sortedColumns.map((column) => ({
         key: column.slug,

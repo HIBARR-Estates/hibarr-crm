@@ -149,6 +149,7 @@ const MultiUserIndicator: React.FC<MultiUserIndicatorProps> = ({
         <Avatar.Group
             max={{
                 count: maxCount,
+                popover: {},
                 style: {
                     color: "#1890ff",
                     backgroundColor: "#e6f4ff",

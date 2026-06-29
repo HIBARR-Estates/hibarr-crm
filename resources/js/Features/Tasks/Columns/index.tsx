@@ -1,33 +1,27 @@
 import { getStatusColor } from "@/lib/utils";
+import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import {
-    Space,
     Tag,
-    Typography,
-    Progress,
     Tooltip,
     Dropdown,
     Button,
-    Avatar,
 } from "antd";
 import type { TableColumnsType } from "antd";
 import {
-    CalendarOutlined,
     EyeOutlined,
     EditOutlined,
     DeleteOutlined,
     MoreOutlined,
     CheckSquareOutlined,
-    DownOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
-import { Link, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 
 import PageDataSorter from "@/Components/PageDataSorter";
+import { getPriorityConfig } from "@/lib/priority";
 import { Task } from "@/Types/Task";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
-
-const { Text, Title } = Typography;
 
 // Types based on Laravel Task model
 
@@ -67,12 +61,6 @@ export const useTasksTableColumns = ({
     const { props } = usePage();
     const userId = props.auth.user.id;
 
-    // Priority colors and icons
-    const priorityConfig = {
-        low: { color: "#52c41a", icon: "🟢", bg: "#f6ffed" },
-        medium: { color: "#1890ff", icon: "🔵", bg: "#e6f7ff" },
-        high: { color: "#ff4d4f", icon: "🔴", bg: "#fff1f0" },
-    };
 
     const tableColumns: TableColumnsType<Task> = [
         {
@@ -84,39 +72,51 @@ export const useTasksTableColumns = ({
             ),
             dataIndex: "heading",
             key: "heading",
-            render: (_: string, record: Task) => (
-                <div className="space-y-2 max-w-full">
-                    <div>
+            width: 340,
+            render: (_: string, record: Task) => {
+                const priority = record.priority as "low" | "medium" | "high";
+                const priorityColor = getPriorityConfig(priority).color;
+                return (
+                    <div className="py-1">
                         <Tooltip title={record.heading}>
                             <span
-                                className="cursor-pointer hover:underline"
+                                className="cursor-pointer font-medium hover:underline"
                                 onClick={() => onView(record)}
                             >
                                 {record.heading}
                             </span>
                         </Tooltip>
-                    </div>
-                    {record.labels && record.labels.length > 0 && (
-                        <div className="flex flex-wrap gap-1">
-                            {record.labels.slice(0, 2).map((label) => (
-                                <Tag key={label.id} color={label.label_color}>
-                                    {label.label_name}
-                                </Tag>
-                            ))}
-                            {record.labels.length > 2 && (
-                                <Tooltip
-                                    title={record.labels
-                                        .slice(2)
-                                        .map((l) => l.label_name)
-                                        .join(", ")}
-                                >
-                                    <Tag>+{record.labels.length - 2}</Tag>
-                                </Tooltip>
+                        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                            <span
+                                className="text-[10px] font-semibold uppercase tracking-wide"
+                                style={{ color: priorityColor }}
+                            >
+                                {priority}
+                            </span>
+                            {record.labels && record.labels.length > 0 && (
+                                <>
+                                    <span className="text-gray-300">·</span>
+                                    {record.labels.slice(0, 2).map((label) => (
+                                        <Tag key={label.id} color={label.label_color} style={{ margin: 0 }}>
+                                            {label.label_name}
+                                        </Tag>
+                                    ))}
+                                    {record.labels.length > 2 && (
+                                        <Tooltip
+                                            title={record.labels
+                                                .slice(2)
+                                                .map((l) => l.label_name)
+                                                .join(", ")}
+                                        >
+                                            <Tag style={{ margin: 0 }}>+{record.labels.length - 2}</Tag>
+                                        </Tooltip>
+                                    )}
+                                </>
                             )}
                         </div>
-                    )}
-                </div>
-            ),
+                    </div>
+                );
+            },
         },
 
         {
@@ -142,58 +142,13 @@ export const useTasksTableColumns = ({
                     );
                 }
                 return (
-                    <Dropdown
-                        menu={{
-                            items: columns.map((col) => ({
-                                key: col.id,
-                                label: (
-                                    <div className="flex items-center gap-2">
-                                        <div
-                                            className="w-2 h-2 rounded-full"
-                                            style={{ backgroundColor: col.label_color }}
-                                        />
-                                        <span>{col.column_name}</span>
-                                    </div>
-                                ),
-                                onClick: () => onStatusChange(record, col.slug, col.id),
-                            })),
-                        }}
-                        trigger={["click"]}
-                    >
-                        <span
-                            className="px-2 py-0.5 rounded text-xs font-medium border capitalize cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1"
-                            style={{
-                                borderColor: boardColumn?.label_color || "#d9d9d9",
-                                color: boardColumn?.label_color || "#666",
-                                backgroundColor: "white",
-                            }}
-                        >
-                            {(boardColumn?.column_name || status).split("_").join(" ")}
-                            <DownOutlined style={{ fontSize: "10px" }} />
-                        </span>
-                    </Dropdown>
+                    <TaskStatusDropdownPill
+                        status={status}
+                        columns={columns}
+                        onChange={(slug, id) => onStatusChange!(record, slug, id)}
+                    />
                 );
             },
-        },
-        {
-            title: (
-                <span className="flex items-center">
-                    Priority
-                    <PageDataSorter
-                        label="Priority"
-                        field="priority"
-                        routeName="tasks.index"
-                    />
-                </span>
-            ),
-            dataIndex: "priority",
-            key: "priority",
-            width: "10%",
-            render: (priority: "low" | "medium" | "high") => (
-                <Tag color={priorityConfig[priority]?.color}>
-                    {priority.toUpperCase()}
-                </Tag>
-            ),
         },
         {
             title: (
@@ -209,62 +164,63 @@ export const useTasksTableColumns = ({
             dataIndex: "due_date",
             key: "due_date",
             render: (date: string) => {
-                if (!date) return <span className="text-gray-400">--</span>;
+                if (!date) return <span className="text-gray-400">—</span>;
 
                 const dueDate = dayjs(date);
                 const now = dayjs();
                 const isOverdue = dueDate.isBefore(now, "day");
                 const isDueToday = dueDate.isSame(now, "day");
+                const color = isOverdue ? "#ef4444" : isDueToday ? "#f59e0b" : "inherit";
 
                 return (
-                    <Space>
-                        <CalendarOutlined
-                            style={{
-                                color: isOverdue
-                                    ? "#ff4d4f"
-                                    : isDueToday
-                                    ? "#faad14"
-                                    : "#666",
-                            }}
-                        />
-                        <Text
-                            style={{
-                                color: isOverdue
-                                    ? "#ff4d4f"
-                                    : isDueToday
-                                    ? "#faad14"
-                                    : "inherit",
-                            }}
-                        >
-                            {dueDate.format("MMM D, YYYY h:mm A")}
-                        </Text>
-                        {isOverdue && <Tag color="error">Overdue</Tag>}
-                        {isDueToday && <Tag color="warning">Due Today</Tag>}
-                    </Space>
+                    <div className="py-0.5">
+                        <div className="font-medium tabular-nums" style={{ color }}>
+                            {dueDate.format("MMM D, YYYY")}
+                        </div>
+                        <div className="text-xs tabular-nums text-gray-400">
+                            {dueDate.format("h:mm A")}
+                            {isOverdue && (
+                                <span className="ml-1.5 font-semibold text-red-500">· Overdue</span>
+                            )}
+                            {isDueToday && !isOverdue && (
+                                <span className="ml-1.5 font-semibold text-amber-500">· Today</span>
+                            )}
+                        </div>
+                    </div>
                 );
             },
         },
         {
             title: "Assigner",
             key: "assigner",
+            width: 140,
             render: (_: string, record: Task) => {
                 const assigner = record.assigner ?? record.created_by;
                 if (!assigner) {
                     return <span className="text-gray-400">--</span>;
                 }
 
-                return <MultiUserIndicator users={[assigner]} />;
+                return <MultiUserIndicator users={[assigner]} size="sm" showNames colorful />;
             },
         },
         {
-            title: "Assignee",
+            title: "Assignees",
             key: "assignee",
+            width: 120,
             render: (_: string, record: Task) => {
                 if (!record.users || record.users.length === 0) {
                     return <span className="text-gray-400">--</span>;
                 }
 
-                return <MultiUserIndicator users={record.users} />;
+                return (
+                    <MultiUserIndicator
+                        users={record.users}
+                        size="sm"
+                        showNames={false}
+                        maxCount={3}
+                        colorful
+                    />
+                );
             },
         },
         {
@@ -291,8 +247,9 @@ export const useTasksTableColumns = ({
             },
         },
         {
-            title: "Actions",
+            title: "",
             key: "actions",
+            width: 40,
             render: (_: string, record: Task) => {
                 const canEdit =
                     permissions?.edit_tasks === "all" ||
@@ -326,8 +283,7 @@ export const useTasksTableColumns = ({
                         icon: <EditOutlined />,
                         label: "Edit Task",
                         onClick: () => onEdit(record),
-                        //
-                        // disabled: !canEdit,
+                        disabled: !canEdit,
                     },
                     {
                         key: "duplicate",
@@ -345,10 +301,8 @@ export const useTasksTableColumns = ({
                         label: "Delete",
                         danger: true,
                         onClick: () => onDelete(record),
-                        // disabled: !canDelete,
+                        disabled: !canDelete,
                     },
-
-                    ,
                 ].filter(Boolean) as MenuProps["items"];
 
                 return (

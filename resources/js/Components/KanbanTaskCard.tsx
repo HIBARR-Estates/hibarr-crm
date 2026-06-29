@@ -4,6 +4,7 @@ import { MoreOutlined, CalendarOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
 import MultiUserIndicator from "./MultiUserIndicator";
+import { getPriorityConfig } from "@/lib/priority";
 
 const { Text, Paragraph } = Typography;
 
@@ -30,26 +31,6 @@ export interface KanbanTaskCardProps {
     className?: string;
 }
 
-const priorityConfig: Record<
-    Priority,
-    { color: string; textColor: string; label: string }
-> = {
-    low: {
-        color: "#52c41a",
-        textColor: "text-green-600",
-        label: "Low",
-    },
-    medium: {
-        color: "#1890ff",
-        textColor: "text-blue-600",
-        label: "Medium",
-    },
-    high: {
-        color: "#ff4d4f",
-        textColor: "text-red-600",
-        label: "High",
-    },
-};
 
 const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
     users = [],
@@ -64,7 +45,7 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
     onClick,
     className = "",
 }) => {
-    const priorityInfo = priorityConfig[priority] || priorityConfig.medium;
+    const priorityInfo = getPriorityConfig(priority);
 
     const formattedDueDate = dueDate
         ? dayjs(dueDate).format("MMM D, YYYY h:mm A")
