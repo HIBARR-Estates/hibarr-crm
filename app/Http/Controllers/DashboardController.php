@@ -129,16 +129,42 @@ class DashboardController extends AccountBaseController
         $meetingsQuery->visibleToUser($userId);
 
         $upcomingMeetings = $meetingsQuery->take(5)->get();
-        
+
+        $participantIds = $upcomingMeetings->flatMap(fn ($m) => $m->participants ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        $participantUsers = $participantIds->isEmpty()
+            ? collect()
+            : \App\Models\User::whereIn('id', $participantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+        $upcomingMeetings = $upcomingMeetings->map(function ($meeting) use ($participantUsers) {
+            $ids = collect($meeting->participants ?? [])->map(fn ($id) => (int) $id)->unique();
+
+            $meeting->participant_users = $ids->map(fn ($id) => $participantUsers->get($id))
+                ->filter()
+                ->map(fn ($user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'image' => $user->image ? $user->image_url : null,
+                ])
+                ->values();
+
+            return $meeting;
+        });
+
         // Get upcoming tasks ordered by due date
         $tasksQuery = Task::with([
-            'project:id,project_name,project_short_code', 
+            'project:id,project_name,project_short_code',
             'users:id,name,image',
             'createBy:id,name,image',
             'addedByUser:id,name,image',
-            'boardColumn:id,column_name,slug,label_color', 
+            'boardColumn:id,column_name,slug,label_color',
             'category:id,category_name',
-            'labels'
+            'labels',
+            'deals:id,name',
+            'leads:id,client_name,company_name'
         ])
             ->pending();
 
@@ -161,7 +187,7 @@ class DashboardController extends AccountBaseController
                     'heading' => $task->heading,
                     'added_by' => $task->added_by,
                     'description' => $task->description,
-                    'due_date' => $task->due_date?->toDateString(),
+                    'due_date' => $task->due_date?->format('Y-m-d H:i:s'),
                     'start_date' => $task->start_date?->toDateString(),
                     'priority' => $task->priority,
                     'status' => $task->boardColumn->slug ?? 'incomplete',
@@ -185,10 +211,19 @@ class DashboardController extends AccountBaseController
                         return [
                             'id' => $user->id,
                             'name' => $user->name,
-                            'image' => $user->image_url,
+                            'image' => $user->image ? $user->image_url : null,
                         ];
                     })->toArray(),
                     'assigner' => TaskVisibilityService::formatAssigner($task),
+                    'deal' => $task->deals->first() ? [
+                        'id' => $task->deals->first()->id,
+                        'name' => $task->deals->first()->name,
+                    ] : null,
+                    'lead' => !$task->deals->first() && $task->leads->first() ? [
+                        'id' => $task->leads->first()->id,
+                        'client_name' => $task->leads->first()->client_name,
+                        'company_name' => $task->leads->first()->company_name,
+                    ] : null,
                     'labels' => $task->labels->map(function ($label) {
                         return [
                             'id' => $label->id,
