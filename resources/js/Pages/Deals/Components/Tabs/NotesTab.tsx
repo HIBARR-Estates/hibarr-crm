@@ -128,7 +128,7 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
     };
 
     return (
-        <div className="bg-gray-50 p-6 flex flex-col gap-y-6">
+        <div className="bg-gray-50 p-6 flex flex-col gap-y-6 h-full">
             {/* Breadcrumb Navigation */}
             {currentView !== "list" && (
                 <NotesBreadcrumb

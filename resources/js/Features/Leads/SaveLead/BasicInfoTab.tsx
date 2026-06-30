@@ -204,6 +204,17 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Col>
                         )}
 
+                        {permissions?.view_lead_categories !== "none" && (
+                            <Col xs={24} md={8}>
+                                <Form.Item label="Lead category" name="category_id">
+                                    <FormDataSelector
+                                        type="categories"
+                                        placeholder="Lead category"
+                                    />
+                                </Form.Item>
+                            </Col>
+                        )}
+
                         {permissions?.add_lead === "all" && (
                             <Col xs={24} md={8}>
                                 <Form.Item label="Added By" name="added_by">
@@ -230,14 +241,14 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             {["all", "added"].includes(
                                 permissions?.add_deals,
                             ) && (
-                                <Row gutter={[24, 16]} className="mt-2">
-                                    <Col span={24}>
-                                        <Form.Item name="create_deal">
-                                            <Checkbox>Create Deal</Checkbox>
-                                        </Form.Item>
-                                    </Col>
-                                </Row>
-                            )}
+                                    <Row gutter={[24, 16]} className="mt-2">
+                                        <Col span={24}>
+                                            <Form.Item name="create_deal">
+                                                <Checkbox>Create Deal</Checkbox>
+                                            </Form.Item>
+                                        </Col>
+                                    </Row>
+                                )}
 
                             <div className="save-lead-form__auto-convert">
                                 <Form.Item name="create_client">

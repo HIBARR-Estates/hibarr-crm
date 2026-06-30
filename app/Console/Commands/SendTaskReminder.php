@@ -35,7 +35,7 @@ class SendTaskReminder extends Command
                 $now = now($company->timezone);
 
                 $completedTaskColumn = TaskboardColumn::where('company_id', $company->id)
-                    ->where('slug', 'completed')
+                    ->where('slug', 'done')
                     ->first();
 
                 if (!$completedTaskColumn) {
