@@ -31,6 +31,7 @@ use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EstimateController;
 use App\Http\Controllers\LeadFileController;
 use App\Http\Controllers\LeadNoteController;
+use App\Http\Controllers\LeadFlightItineraryController;
 use App\Http\Controllers\PassportController;
 use App\Http\Controllers\ProposalController;
 use App\Http\Controllers\SettingsController;
@@ -543,6 +544,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-notes/apply-quick-action', [LeadNoteController::class, 'applyQuickAction'])->name('lead-notes.apply_quick_action');
 
     Route::resource('lead-notes', LeadNoteController::class);
+
+    Route::resource('lead-flight-itineraries', LeadFlightItineraryController::class)->only(['store', 'update', 'destroy']);
 
     // Deal Note
     Route::post('deal-notes/apply-quick-action', [DealNoteController::class, 'applyQuickAction'])->name('deal-notes.apply_quick_action');

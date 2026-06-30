@@ -542,7 +542,8 @@ class DealController extends AccountBaseController
                       ->with('employeeDetail.designation:id,name')
                       ->where('users.status', '!=', 'deactive')
                       ->orderBy('users.name');
-            }
+            },
+            'leadFlightItineraries'
         ])->findOrFail($id);
         $this->loadDataForView();
 

@@ -143,6 +143,11 @@ class Lead extends BaseModel
         'languages' => 'array',
     ];
 
+    public function leadFlightItineraries()
+    {
+        return $this->hasMany(LeadFlightItinerary::class);
+    }
+
     public function getImageUrlAttribute()
     {
         $gravatarHash = !is_null($this->client_email) ? md5(strtolower(trim($this->client_email))) : '';

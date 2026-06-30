@@ -16,6 +16,7 @@ import LeadNotesTab from "./Components/LeadNotesTab";
 import LeadDealsTab from "./Components/LeadDealsTab";
 import LeadMarketingTab from "./Components/LeadMarketingTab";
 import LeadQualificationTab from "./Components/Qualification/LeadQualificationTab";
+import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
 import { Task } from "@/Types/api/tasks";
 import TasksTab from "@/Components/TasksTab";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
@@ -173,6 +174,27 @@ const Show = ({
             key: "marketing",
             label: t("pages.leads.tabs.marketing"),
             children: <LeadMarketingTab lead={lead} />,
+        },
+        {
+            key: "itinerary",
+            label: t("pages.flight_itinerary.tab"),
+            children: (
+                <LeadFlightItineraryTab
+                    itineraryLegs={lead.lead_flight_itineraries || []}
+                    leadId={lead.id}
+                    permissions={{
+                        canAdd: ["all", "added", "owned", "both"].includes(
+                            editLeadPermission,
+                        ),
+                        canEdit: ["all", "added", "owned", "both"].includes(
+                            editLeadPermission,
+                        ),
+                        canDelete: ["all", "added", "owned", "both"].includes(
+                            editLeadPermission,
+                        ),
+                    }}
+                />
+            ),
         },
         ...(showQualificationTab
             ? [
