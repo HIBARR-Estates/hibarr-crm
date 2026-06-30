@@ -193,23 +193,22 @@ export const Show = ({
                                                             <div
                                                                 className={`
                                                                 flex items-center px-4 py-1.5 rounded-md text-sm font-bold transition-all duration-200
-                                                                ${
-                                                                    isCurrent
+                                                                ${isCurrent
                                                                         ? "scale-105"
                                                                         : isCompleted
-                                                                          ? ""
-                                                                          : "opacity-60"
-                                                                }
+                                                                            ? ""
+                                                                            : "opacity-60"
+                                                                    }
                                                             `}
                                                                 style={{
                                                                     backgroundColor:
                                                                         isCurrent ||
-                                                                        isCompleted
+                                                                            isCompleted
                                                                             ? `${stage.label_color}8C`
                                                                             : "#e5e7eb",
                                                                     color:
                                                                         isCurrent ||
-                                                                        isCompleted
+                                                                            isCompleted
                                                                             ? "#0000008F"
                                                                             : "#4b5563",
                                                                 }}
@@ -222,9 +221,9 @@ export const Show = ({
                                                                     ?.stages
                                                                     ?.length ||
                                                                     0) -
-                                                                    1 && (
-                                                                <div className="w-6 h-0.5 bg-gray-300 mx-1" />
-                                                            )}
+                                                                1 && (
+                                                                    <div className="w-6 h-0.5 bg-gray-300 mx-1" />
+                                                                )}
                                                         </div>
                                                     );
                                                 },
@@ -232,21 +231,21 @@ export const Show = ({
 
                                             {(!deal.pipeline?.stages ||
                                                 deal.pipeline.stages.length ===
-                                                    0) && (
-                                                <div
-                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
-                                                    style={{
-                                                        backgroundColor: `${deal.lead_stage?.label_color}25`,
-                                                        color: deal.lead_stage
-                                                            ?.label_color,
-                                                    }}
-                                                >
-                                                    <span className="mr-1.5">
-                                                        •
-                                                    </span>
-                                                    {deal.lead_stage?.name}
-                                                </div>
-                                            )}
+                                                0) && (
+                                                    <div
+                                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
+                                                        style={{
+                                                            backgroundColor: `${deal.lead_stage?.label_color}25`,
+                                                            color: deal.lead_stage
+                                                                ?.label_color,
+                                                        }}
+                                                    >
+                                                        <span className="mr-1.5">
+                                                            •
+                                                        </span>
+                                                        {deal.lead_stage?.name}
+                                                    </div>
+                                                )}
                                         </div>
                                     </div>
                                 </div>
@@ -259,8 +258,8 @@ export const Show = ({
                                     title={
                                         isDealEditMode
                                             ? t(
-                                                  "pages.deals.refresh_tooltip_disabled",
-                                              )
+                                                "pages.deals.refresh_tooltip_disabled",
+                                            )
                                             : t("app.common.actions.refresh")
                                     }
                                 >
@@ -286,58 +285,32 @@ export const Show = ({
                         <Row gutter={[30, 40]} className="">
                             {/* Left Column - Main Content */}
                             <Col xs={24} lg={14} xl={14}>
-                                <div className="flex flex-col gap-y-4 sm:gap-y-6">
-                                    {/* Deal Information Card */}
-                                    <Card
-                                        className="border-0 rounded-lg overflow-hidden deal-card"
-                                        bodyStyle={{ padding: 0 }}
-                                        variant="outlined"
-                                    >
-                                        <DealInfoSection
-                                            deal={deal}
-                                            productNames={productNames}
-                                            customFieldCategories={
-                                                customFieldCategories
-                                            }
-                                            fields={fields}
-                                            permissions={permissions}
-                                            tasks={tasks}
-                                            taskCategories={taskCategories}
-                                            taskLabels={taskLabels}
-                                            taskBoardColumns={taskBoardColumns}
-                                            employees={employees}
-                                            projects={projects}
-                                            isEditMode={isDealEditMode}
-                                            onEditModeChange={setIsDealEditMode}
-                                        />
-                                    </Card>
-
-                                    {/* Tabs Section */}
-                                    <Card
-                                        className="border-0 rounded-lg overflow-hidden deal-card"
-                                        bodyStyle={{ padding: 0 }}
-                                        variant="outlined"
-                                    >
-                                        <DealTabs
-                                            deal={deal}
-                                            notes={notes}
-                                            dealFollowUps={dealFollowUps}
-                                            meetingTypes={meetingTypes}
-                                            files={files}
-                                            proposals={proposals}
-                                            histories={histories}
-                                            consents={consents}
-                                            gdprSetting={gdprSetting}
-                                            permissions={permissions}
-                                            tasks={tasks}
-                                            taskCategories={taskCategories}
-                                            taskLabels={taskLabels}
-                                            taskBoardColumns={taskBoardColumns}
-                                            employees={employees}
-                                            projects={projects}
-                                        />
-                                    </Card>
-                                </div>
+                                {/* <div className="flex flex-col gap-y-4 sm:gap-y-6"> */}
+                                {/* Deal Information Card */}
+                                <Card
+                                    className="border-0 rounded-lg overflow-hidden deal-card"
+                                    bodyStyle={{ padding: 0 }}
+                                    variant="outlined"
+                                >
+                                    <DealInfoSection
+                                        deal={deal}
+                                        productNames={productNames}
+                                        customFieldCategories={
+                                            customFieldCategories
+                                        }
+                                        fields={fields}
+                                        permissions={permissions}
+                                        tasks={tasks}
+                                        taskCategories={taskCategories}
+                                        taskLabels={taskLabels}
+                                        taskBoardColumns={taskBoardColumns}
+                                        employees={employees}
+                                        projects={projects}
+                                        isEditMode={isDealEditMode}
+                                        onEditModeChange={setIsDealEditMode}
+                                    />
+                                </Card>
+                                {/* </div> */}
                             </Col>
 
                             {/* Right Column - Activities Sidebar */}
@@ -356,6 +329,35 @@ export const Show = ({
                                     />
                                 </div>
                             </Col>
+                        </Row>
+                        <Row gutter={[30, 40]} className="mt-8">
+                            <Col xs={48} lg={24} xl={24}>
+                                <Card
+                                    className="border-0 rounded-lg overflow-hidden deal-card"
+                                    bodyStyle={{ padding: 0 }}
+                                    variant="outlined"
+                                >
+                                    <DealTabs
+                                        deal={deal}
+                                        notes={notes}
+                                        dealFollowUps={dealFollowUps}
+                                        meetingTypes={meetingTypes}
+                                        files={files}
+                                        proposals={proposals}
+                                        histories={histories}
+                                        consents={consents}
+                                        gdprSetting={gdprSetting}
+                                        permissions={permissions}
+                                        tasks={tasks}
+                                        taskCategories={taskCategories}
+                                        taskLabels={taskLabels}
+                                        taskBoardColumns={taskBoardColumns}
+                                        employees={employees}
+                                        projects={projects}
+                                    />
+                                </Card>
+                            </Col>
+                            {/* Tabs Section */}
                         </Row>
                     </div>
                 </div>

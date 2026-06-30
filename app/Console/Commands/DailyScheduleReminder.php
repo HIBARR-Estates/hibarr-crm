@@ -43,7 +43,7 @@ class DailyScheduleReminder extends Command
 
         foreach ($companyIds as $companyId) {
 
-            $completedTaskColumn = TaskboardColumn::where('slug', 'completed')
+            $completedTaskColumn = TaskboardColumn::where('slug', 'done')
                 ->where('company_id', $companyId)
                 ->first();
 

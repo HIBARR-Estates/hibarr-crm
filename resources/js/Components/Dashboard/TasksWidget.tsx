@@ -159,7 +159,7 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                                         Due:{" "}
                                                         {dayjs(
                                                             task.due_date
-                                                        ).format("MMM D, YYYY")}
+                                                        ).format("MMM D, YYYY h:mm A")}
                                                     </span>
                                                     {dayjs(
                                                         task.due_date

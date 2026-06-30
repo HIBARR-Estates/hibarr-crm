@@ -27,6 +27,9 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
     const { current_page, last_page, per_page, total, from, to } = meta;
     const selectId = useId();
 
+    const displayFrom = from ?? (total > 0 ? (current_page - 1) * per_page + 1 : 0);
+    const displayTo = to ?? Math.min(current_page * per_page, total);
+
     // Memoize page range so it only recalculates when the current page or total changes
     const pages = useMemo(
         () => buildPageRange(current_page, last_page),
@@ -46,9 +49,9 @@ const DataTablePagination: React.FC<DataTablePaginationProps> = ({
             <div className="flex items-center gap-3 text-sm text-gray-500">
                 <span aria-live="polite" aria-atomic="true">
                     Showing{" "}
-                    <span className="font-medium text-gray-700">{from ?? 0}</span>
+                    <span className="font-medium text-gray-700">{displayFrom}</span>
                     {"–"}
-                    <span className="font-medium text-gray-700">{to ?? 0}</span>
+                    <span className="font-medium text-gray-700">{displayTo}</span>
                     {" of "}
                     <span className="font-medium text-gray-700">{total}</span>
                 </span>
