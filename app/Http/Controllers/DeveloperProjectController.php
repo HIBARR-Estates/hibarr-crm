@@ -212,6 +212,12 @@ class DeveloperProjectController extends AccountBaseController
             case 'properties_desc':
                 $query->orderByDesc('properties_count');
                 break;
+            case 'cheapest':
+                $query->orderBy('starting_price', 'asc');
+                break;
+            case 'most_expensive':
+                $query->orderBy('starting_price', 'desc');
+                break;
             default: // newest
                 $query->orderBy('created_at', 'desc');
                 break;
