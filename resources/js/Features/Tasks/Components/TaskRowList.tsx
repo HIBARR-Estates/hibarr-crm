@@ -14,8 +14,6 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { motion } from "framer-motion";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { clsx } from "clsx";
-import { usePermission } from "@/lib/permissionUtils";
-import { PermissionKey } from "@/Types/permission";
 
 dayjs.extend(relativeTime);
 
@@ -27,91 +25,86 @@ interface TaskboardColumn {
     priority: number;
 }
 
-interface TaskListViewProps {
+interface TaskRowListProps {
     tasks: Task[];
     columns: TaskboardColumn[];
-    selectedIds: number[];
-    onSelectionChange: (selectedIds: number[], selectedTasks: Task[]) => void;
-    onEdit: (task: Task) => void;
     onView: (task: Task) => void;
-    onDelete: (task: Task) => void;
+    onEdit: (task: Task) => void;
     onDuplicate: (task: Task) => void;
-    onStatusChange: (task: Task, newStatus: string, newColumnId: number) => void;
+    onDelete: (task: Task) => void;
+    onStatusChange: (task: Task, newStatus: string, columnId: number) => void;
+    /** Returns the effective status for a task (used for optimistic dashboard updates). Defaults to task.status. */
+    effectiveStatus?: (task: Task) => string;
+    /** Returns true while a status update is in-flight (disables the pill). */
+    isProcessing?: (task: Task) => boolean;
+    /** Per-task edit permission. Defaults to true. */
+    canEdit?: (task: Task) => boolean;
+    /** Per-task delete permission. Defaults to true. */
+    canDelete?: (task: Task) => boolean;
+    /** Per-task status-change permission. Defaults to canEdit. */
+    canChangeStatus?: (task: Task) => boolean;
+    /** When provided, checkbox column is rendered and bulk-select is active. */
+    selectedIds?: number[];
+    onSelectionChange?: (ids: number[], tasks: Task[]) => void;
+    /** Set false when the component is used as one group inside a larger list that already shows the header. */
+    showHeader?: boolean;
+    /** Renders content below the task title (e.g. entity links on the dashboard, label dots in entity tabs). */
+    renderSubtitle?: (task: Task) => React.ReactNode;
     td?: (key: string) => string;
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-    high: "#ef4444",
-    medium: "#f59e0b",
-    low: "#94a3b8",
-};
+import { getPriorityConfig } from "@/lib/priority";
 
-const TaskListView: React.FC<TaskListViewProps> = ({
+const TaskRowList: React.FC<TaskRowListProps> = ({
     tasks,
     columns,
+    onView,
+    onEdit,
+    onDuplicate,
+    onDelete,
+    onStatusChange,
+    effectiveStatus,
+    isProcessing,
+    canEdit = () => true,
+    canDelete = () => true,
+    canChangeStatus,
     selectedIds,
     onSelectionChange,
-    onEdit,
-    onView,
-    onDelete,
-    onDuplicate,
-    onStatusChange,
-    td = (key) => key,
+    showHeader = true,
+    renderSubtitle,
+    td = (k) => k,
 }) => {
-    const { user, permissions } = usePermission();
+    const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
 
-    const hasTaskPermission = (task: Task, permissionName: PermissionKey) => {
-        const perm = permissions?.[permissionName];
-        if (perm === "all") return true;
-        if (!perm || perm === "none") return false;
-        const isAdded = task.added_by === user?.id;
-        const isOwned = task.users?.some((u) => u.id === user?.id);
-        if (perm === "added" && isAdded) return true;
-        if (perm === "owned" && isOwned) return true;
-        if (perm === "both" && (isAdded || isOwned)) return true;
-        return false;
-    };
-
-    const handleToggleSelect = (task: Task) => {
-        const isSelected = selectedIds.includes(task.id);
+    const handleToggle = (task: Task) => {
+        if (!selectable) return;
+        const isSelected = selectedIds!.includes(task.id);
         const newIds = isSelected
-            ? selectedIds.filter((id) => id !== task.id)
-            : [...selectedIds, task.id];
-        onSelectionChange(newIds, tasks.filter((t) => newIds.includes(t.id)));
+            ? selectedIds!.filter((id) => id !== task.id)
+            : [...selectedIds!, task.id];
+        onSelectionChange!(newIds, tasks.filter((t) => newIds.includes(t.id)));
     };
-
-    const handleSelectAll = (e: any) => {
-        if (e.target.checked) {
-            onSelectionChange(tasks.map((t) => t.id), tasks);
-        } else {
-            onSelectionChange([], []);
-        }
-    };
-
-    const isAllSelected = tasks.length > 0 && selectedIds.length === tasks.length;
-    const isIndeterminate = selectedIds.length > 0 && selectedIds.length < tasks.length;
-
-    if (tasks.length === 0) {
-        return (
-            <div className="py-10 text-center text-slate-400 text-sm">
-                {td("No tasks found.")}
-            </div>
-        );
-    }
 
     return (
         <div>
             {/* Column header */}
-            <div className="flex items-center border-b border-slate-100 bg-slate-50 px-2 py-1.5">
-                {/* Checkbox */}
-                <div className="w-8 shrink-0 flex items-center justify-center">
-                    <Checkbox
-                        checked={isAllSelected}
-                        indeterminate={isIndeterminate}
-                        onChange={handleSelectAll}
-                    />
-                </div>
-                {/* Stripe placeholder */}
+            {showHeader && <div className="flex items-center border-b border-slate-100 bg-slate-50 px-2 py-1.5">
+                {selectable && (
+                    <div className="w-8 shrink-0 flex items-center justify-center">
+                        <Checkbox
+                            checked={selectable && tasks.length > 0 && selectedIds!.length === tasks.length}
+                            indeterminate={selectable && selectedIds!.length > 0 && selectedIds!.length < tasks.length}
+                            onChange={(e) => {
+                                if (!selectable) return;
+                                if (e.target.checked) {
+                                    onSelectionChange!(tasks.map((t) => t.id), tasks);
+                                } else {
+                                    onSelectionChange!([], []);
+                                }
+                            }}
+                        />
+                    </div>
+                )}
                 <div className="w-[3px] shrink-0" />
                 <div className="flex-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     {td("Task")}
@@ -126,18 +119,20 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                     {td("Status")}
                 </div>
                 <div className="w-8 shrink-0" />
-            </div>
+            </div>}
 
             {tasks.map((task) => {
-                const canEdit = hasTaskPermission(task, "edit_tasks");
-                const canDelete = hasTaskPermission(task, "delete_tasks");
-                const canSelect = canEdit || canDelete;
-                const isSelected = selectedIds.includes(task.id);
+                const status = effectiveStatus ? effectiveStatus(task) : (task.board_column?.slug || task.status);
+                const processing = isProcessing ? isProcessing(task) : false;
+                const editable = canEdit(task);
+                const deletable = canDelete(task);
+                const statusChangeable = canChangeStatus ? canChangeStatus(task) : editable;
+                const isSelected = selectable && selectedIds!.includes(task.id);
 
                 const isOverdue =
                     !!task.due_date &&
                     dayjs(task.due_date).isBefore(dayjs(), "day") &&
-                    task.status !== "done";
+                    status !== "done";
                 const isToday =
                     !!task.due_date && dayjs(task.due_date).isSame(dayjs(), "day");
 
@@ -153,14 +148,13 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         label: td("Edit"),
                         icon: <EditOutlined />,
                         onClick: () => onEdit(task),
-                        disabled: !canEdit,
+                        disabled: !editable,
                     },
                     {
                         key: "duplicate",
                         label: td("Duplicate"),
                         icon: <CopyOutlined />,
                         onClick: () => onDuplicate(task),
-                        disabled: permissions["add_tasks"] === "none",
                     },
                     { type: "divider" },
                     {
@@ -169,7 +163,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         icon: <DeleteOutlined />,
                         danger: true,
                         onClick: () => onDelete(task),
-                        disabled: !canDelete,
+                        disabled: !deletable,
                     },
                 ];
 
@@ -180,50 +174,57 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         animate={{ opacity: 1, y: 0 }}
                         className={clsx(
                             "group flex min-h-[46px] items-center border-b border-slate-100 px-2 transition-colors last:border-0 hover:bg-slate-50/60",
+                            processing && "opacity-60",
                             isSelected && "bg-blue-50 hover:bg-blue-50",
                         )}
                     >
-                        {/* Checkbox */}
-                        <div className="w-8 shrink-0 flex items-center justify-center">
-                            <Checkbox
-                                checked={isSelected}
-                                disabled={!canSelect}
-                                onChange={() => handleToggleSelect(task)}
-                                className={clsx(
-                                    "opacity-0 group-hover:opacity-100 transition-opacity",
-                                    isSelected && "opacity-100",
-                                )}
-                            />
-                        </div>
+                        {/* Checkbox — only when selection is enabled */}
+                        {selectable && (
+                            <div className="w-8 shrink-0 flex items-center justify-center">
+                                <Checkbox
+                                    checked={isSelected}
+                                    disabled={!editable && !deletable}
+                                    onChange={() => handleToggle(task)}
+                                    className={clsx(
+                                        "opacity-0 group-hover:opacity-100 transition-opacity",
+                                        isSelected && "opacity-100",
+                                    )}
+                                />
+                            </div>
+                        )}
 
                         {/* Priority stripe */}
                         <div
                             className="w-[3px] shrink-0 self-stretch rounded-r"
-                            style={{
-                                backgroundColor:
-                                    PRIORITY_COLORS[task.priority] ?? "#e2e8f0",
-                            }}
+                            style={{ backgroundColor: getPriorityConfig(task.priority).color }}
                         />
 
-                        {/* Title + labels */}
+                        {/* Title + subtitle */}
                         <div className="min-w-0 flex-1 px-3 py-2.5">
                             <p
                                 className="truncate text-sm font-semibold leading-tight text-slate-800 cursor-pointer hover:underline"
                                 onClick={() => onView(task)}
                             >
-                                {td(task.heading)}
+                                {task.heading}
                             </p>
-                            {task.labels && task.labels.length > 0 && (
-                                <div className="mt-0.5 flex gap-1">
-                                    {task.labels.slice(0, 3).map((label) => (
-                                        <Tooltip key={label.id} title={td(label.label_name)}>
-                                            <div
-                                                className="w-2 h-2 rounded-full shrink-0"
-                                                style={{ backgroundColor: label.label_color }}
-                                            />
-                                        </Tooltip>
-                                    ))}
-                                </div>
+                            {renderSubtitle ? (
+                                (() => {
+                                    const sub = renderSubtitle(task);
+                                    return sub ? <div className="mt-0.5 truncate">{sub}</div> : null;
+                                })()
+                            ) : (
+                                task.labels && task.labels.length > 0 && (
+                                    <div className="mt-0.5 flex gap-1">
+                                        {task.labels.slice(0, 3).map((label) => (
+                                            <Tooltip key={label.id} title={label.label_name}>
+                                                <div
+                                                    className="w-2 h-2 rounded-full shrink-0"
+                                                    style={{ backgroundColor: label.label_color }}
+                                                />
+                                            </Tooltip>
+                                        ))}
+                                    </div>
+                                )
                             )}
                         </div>
 
@@ -273,19 +274,20 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                         {/* Status */}
                         <div className="w-[140px] shrink-0 flex justify-end pr-2">
                             <TaskStatusDropdownPill
-                                status={task.board_column?.slug || task.status}
+                                status={status}
                                 columns={columns}
-                                disabled={!canEdit}
+                                disabled={!statusChangeable || processing}
                                 onChange={(slug, id) => onStatusChange(task, slug, id)}
                             />
                         </div>
 
                         {/* Actions */}
-                        <div className="w-8 shrink-0 flex justify-center">
+                        <div className="w-8 shrink-0 flex justify-center pr-1">
                             <Dropdown
                                 menu={{ items: actions }}
                                 trigger={["click"]}
                                 placement="bottomRight"
+                                overlayClassName="z-[1050]"
                             >
                                 <Button
                                     size="small"
@@ -303,4 +305,4 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     );
 };
 
-export default TaskListView;
+export default TaskRowList;

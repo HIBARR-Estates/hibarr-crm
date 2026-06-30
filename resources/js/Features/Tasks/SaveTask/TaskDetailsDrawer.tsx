@@ -30,6 +30,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { getStatusColor } from "@/lib/utils";
+import { getPriorityConfig } from "@/lib/priority";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { Link } from "@inertiajs/react";
 
@@ -151,26 +152,6 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
         );
     }
 
-    // Priority configuration matching table columns
-    const priorityConfig = {
-        low: { color: "#52c41a", icon: "🟢", bg: "#f6ffed" },
-        medium: { color: "#1890ff", icon: "🔵", bg: "#e6f7ff" },
-        high: { color: "#ff4d4f", icon: "🔴", bg: "#fff1f0" },
-    };
-
-    const getPriorityColor = (priority: string) => {
-        return (
-            priorityConfig[priority as keyof typeof priorityConfig]?.color ||
-            "default"
-        );
-    };
-
-    const getPriorityIcon = (priority: string) => {
-        return (
-            priorityConfig[priority as keyof typeof priorityConfig]?.icon ||
-            "⚪"
-        );
-    };
 
     const calculateTimeSpent = () => {
         if (task.time_logs && Array.isArray(task.time_logs)) {
@@ -279,7 +260,7 @@ const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
                         <Space direction="vertical" size="small">
                             <Text strong>Priority</Text>
                             <Tag
-                                color={getPriorityColor(task.priority)}
+                                color={getPriorityConfig(task.priority).color}
                                 icon={<FlagOutlined />}
                                 className="uppercase"
                             >
