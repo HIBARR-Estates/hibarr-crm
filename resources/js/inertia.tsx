@@ -18,57 +18,29 @@ declare global {
 // You can safely remove this line.
 window.route = route;
 
-// createInertiaApp({
-//     resolve: async (name) => {
-//         const pages = import.meta.glob("./Pages/**/*.tsx");
-//         const importPage = pages[`./Pages/${name}.tsx`];
-//         if (!importPage) {
-//             throw new Error(`❌ Page not found: ./Pages/${name}.tsx`);
-//         }
-//         const module = await importPage();
-//         return (module as any).default;
-//     },
-//     setup({ el, App, props }) {
-//         const root = createRoot(el);
-//         root.render(
-//             <Providers>
-//                 <App {...props} />
-//             </Providers>,
-//         );
-//     },
-// });
+const pages = import.meta.glob<{ default: React.ComponentType & { layout?: (page: React.ReactNode) => React.ReactNode } }>(
+    "./Pages/**/*.tsx",
+);
 
 createInertiaApp({
-    resolve: (name) => {
-        try {
-            // console.log(
-            //     "Attempting to load page:",
-            //     name,
-            //     "from URL:",
-            //     window.location.href
-            // );
-            const component = require(`./Pages/${name}`).default;
-            // console.log("Successfully loaded component:", component);
-
-            // Always wrap with InnerProviders (which need Inertia context)
-            // This ensures TranslationProvider has access to usePage()
-            const existingLayout = component.layout;
-            component.layout = (page: React.ReactNode) => (
-                <InnerProviders>
-                    {existingLayout ? existingLayout(page) : page}
-                </InnerProviders>
-            );
-
-            return component;
-        } catch (e) {
-            // console.error("Could not load page:", name, e);
-            // console.error(
-            //     "Full error details:",
-            //     e instanceof Error ? e.message : "Unknown error",
-            //     e instanceof Error ? e.stack : ""
-            // );
-            throw e;
+    resolve: async (name) => {
+        const importPage = pages[`./Pages/${name}.tsx`];
+        if (!importPage) {
+            throw new Error(`Page not found: ./Pages/${name}.tsx`);
         }
+
+        const module = await importPage();
+        const component = module.default;
+
+        // Always wrap with InnerProviders (which need Inertia context)
+        const existingLayout = component.layout;
+        component.layout = (page: React.ReactNode) => (
+            <InnerProviders>
+                {existingLayout ? existingLayout(page) : page}
+            </InnerProviders>
+        );
+
+        return component;
     },
     setup({ App, props, el: og }) {
         // console.log("Setting up Inertia app with element:", og);

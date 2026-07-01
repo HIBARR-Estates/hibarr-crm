@@ -10,13 +10,15 @@ use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
+use App\Services\PipelineScopeResolverService;
 use Illuminate\Support\Facades\DB;
 
 class LeadPipelineSettingController extends AccountBaseController
 {
 
-    public function __construct()
-    {
+    public function __construct(
+        protected PipelineScopeResolverService $scopeResolver
+    ) {
         parent::__construct();
         $this->middleware(function ($request, $next) {
             abort_403(!(user()->permission('manage_lead_setting') == 'all' && in_array('leads', $this->user->modules)));
@@ -24,9 +26,6 @@ class LeadPipelineSettingController extends AccountBaseController
         });
     }
 
-    /**
-     * @return \Illuminate\Contracts\Foundation\Application|\Illuminate\Contracts\View\Factory|\Illuminate\Contracts\View\View
-     */
     public function create()
     {
         $this->pipelines = LeadPipeline::all();
@@ -34,15 +33,8 @@ class LeadPipelineSettingController extends AccountBaseController
         return view('lead-settings.create-pipeline-modal', $this->data);
     }
 
-    /**
-     * @param StoreLeadStatus $request
-     * @return array
-     * @throws \Froiden\RestAPI\Exceptions\RelatedResourceNotFoundException
-     */
     public function store(StoreLeadPipeline $request)
     {
-        $maxPriority = LeadPipeline::max('priority');
-
         $pipeline = new LeadPipeline();
         $pipeline->name = $request->name;
         $pipeline->label_color = $request->label_color;
@@ -52,19 +44,13 @@ class LeadPipelineSettingController extends AccountBaseController
         return Reply::success(__('messages.recordSaved'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function edit($id)
     {
-        $this->pipeline = LeadPipeline::with('customFieldCategories')
+        $this->pipeline = LeadPipeline::with(['customFieldCategoryScopes', 'stages'])
             ->where('company_id', company()->id)
             ->where('id', $id)
             ->firstOrFail();
-          $this->maxPriority = LeadPipeline::max('priority');
+        $this->maxPriority = LeadPipeline::max('priority');
 
         $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
         $this->customFieldCategories = collect();
@@ -75,17 +61,15 @@ class LeadPipelineSettingController extends AccountBaseController
                 ->orderBy('id', 'asc')
                 ->get();
         }
-        $this->pipelineCategoryIds = $this->pipeline->customFieldCategories->pluck('id')->toArray();
+
+        $this->categoryScopes = $this->scopeResolver->getCategoryScopesForPipeline($this->pipeline);
+        $this->scopeableFieldsCatalog = $this->scopeResolver->getScopeableFieldsCatalog();
+        $this->pipelineFieldScopes = \App\Models\PipelineFieldScope::where('pipeline_id', $this->pipeline->id)->get();
+        $this->pipelineFieldScopeMap = $this->buildFieldScopeMap($this->pipelineFieldScopes);
 
         return view('lead-settings.edit-pipeline-modal', $this->data);
     }
 
-    /**
-     * @param UpdateLeadStatus $request
-     * @param int $id
-     * @return array
-     * @throws \Froiden\RestAPI\Exceptions\RelatedResourceNotFoundException
-     */
     public function update(UpdateLeadPipeline $request, $id)
     {
         $pipeline = LeadPipeline::where('company_id', company()->id)
@@ -96,9 +80,18 @@ class LeadPipelineSettingController extends AccountBaseController
         $pipeline->save();
 
         $validated = $request->validated();
-        $categoryIds = $validated['category_ids'] ?? [];
+        $categoryScopes = $validated['category_scopes'] ?? [];
 
-        $pipeline->customFieldCategories()->sync($categoryIds);
+        if (empty($categoryScopes) && isset($validated['category_ids'])) {
+            $categoryScopes = [
+                '__pipeline__' => $validated['category_ids'],
+            ];
+        }
+
+        $this->scopeResolver->syncCategoryScopes($pipeline, $categoryScopes);
+
+        $fieldScopes = $validated['field_scopes'] ?? $request->input('field_scopes', []);
+        $this->syncFieldScopes($pipeline, is_array($fieldScopes) ? $fieldScopes : []);
 
         return Reply::success(__('messages.updateSuccess'));
     }
@@ -107,11 +100,10 @@ class LeadPipelineSettingController extends AccountBaseController
     {
         $allLeadSPipelines = LeadPipeline::select('id', 'default')->get();
 
-        foreach($allLeadSPipelines as $pipeline){
-            if($pipeline->id == $id){
+        foreach ($allLeadSPipelines as $pipeline) {
+            if ($pipeline->id == $id) {
                 $pipeline->default = '1';
-            }
-            else{
+            } else {
                 $pipeline->default = '0';
             }
 
@@ -121,15 +113,9 @@ class LeadPipelineSettingController extends AccountBaseController
         return Reply::success(__('messages.updateSuccess'));
     }
 
-    /**
-     * Remove the specified resource from storage.
-     *
-     * @param  int  $id
-     * @return \Illuminate\Http\Response
-     */
     public function destroy($id)
     {
-        Deal::where('lead_pipeline_id', $id)->where('is_locked', false)->delete();
+        \App\Models\Deal::where('lead_pipeline_id', $id)->where('is_locked', false)->delete();
         PipelineStage::where('lead_pipeline_id', $id)->delete();
 
         LeadPipeline::destroy($id);
@@ -137,4 +123,76 @@ class LeadPipelineSettingController extends AccountBaseController
         return Reply::success(__('messages.deleteSuccess'));
     }
 
+    protected function buildFieldScopeMap($scopes): array
+    {
+        $map = [
+            '__pipeline__' => [],
+            'stages' => [],
+        ];
+
+        foreach ($scopes as $scope) {
+            $displayKey = $scope->scopeable_key;
+            if ($scope->scopeable_type === \App\Models\PipelineFieldScope::TYPE_CUSTOM_FIELD) {
+                $displayKey = 'custom_field_' . $scope->scopeable_key;
+            }
+
+            $key = $scope->model . '|native_field|' . $displayKey;
+
+            if ($scope->pipeline_stage_id === null) {
+                $map['__pipeline__'][] = $key;
+            } else {
+                $map['stages'][(int) $scope->pipeline_stage_id][] = $key;
+            }
+        }
+
+        return $map;
+    }
+
+    protected function syncFieldScopes(LeadPipeline $pipeline, array $fieldScopes): void
+    {
+        \App\Models\PipelineFieldScope::where('pipeline_id', $pipeline->id)->delete();
+
+        $rows = [];
+
+        foreach ($fieldScopes as $stageKey => $fieldKeys) {
+            if (!is_array($fieldKeys)) {
+                continue;
+            }
+
+            $stageId = $stageKey === '__pipeline__' ? null : (int) $stageKey;
+
+            foreach (array_unique(array_filter($fieldKeys)) as $fieldKey) {
+                $parts = explode('|', $fieldKey, 3);
+                if (count($parts) !== 3) {
+                    continue;
+                }
+
+                [$model, $scopeableType, $scopeableKey] = $parts;
+
+                if (str_starts_with($scopeableKey, 'custom_field_')) {
+                    $scopeableType = \App\Models\PipelineFieldScope::TYPE_CUSTOM_FIELD;
+                    $scopeableKey = str_replace('custom_field_', '', $scopeableKey);
+                } elseif (in_array($scopeableKey, array_keys(PipelineScopeResolverService::HIBARR_FIELDS), true)) {
+                    $scopeableType = \App\Models\PipelineFieldScope::TYPE_HIBARR_FIELD;
+                } else {
+                    $scopeableType = \App\Models\PipelineFieldScope::TYPE_NATIVE_FIELD;
+                }
+
+                $rows[] = [
+                    'company_id' => company()->id,
+                    'scopeable_type' => $scopeableType,
+                    'scopeable_key' => $scopeableKey,
+                    'model' => $model,
+                    'pipeline_id' => $pipeline->id,
+                    'pipeline_stage_id' => $stageId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+            }
+        }
+
+        if (!empty($rows)) {
+            \App\Models\PipelineFieldScope::insert($rows);
+        }
+    }
 }

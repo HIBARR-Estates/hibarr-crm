@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
 /**
  * App\Models\LeadCategory
@@ -61,9 +62,39 @@ class LeadPipeline extends BaseModel
         return $this->hasMany(Deal::class, 'lead_pipeline_id', 'id');
     }
 
+    public function customFieldCategoryScopes(): HasMany
+    {
+        return $this->hasMany(CustomFieldCategoryScope::class, 'pipeline_id');
+    }
+
+    /**
+     * Pipeline-wide custom field categories (no stage assigned).
+     */
     public function customFieldCategories(): BelongsToMany
     {
-        return $this->belongsToMany(CustomFieldCategory::class, 'custom_field_category_pipeline', 'pipeline_id', 'category_id');
+        return $this->belongsToMany(
+            CustomFieldCategory::class,
+            'custom_field_category_scopes',
+            'pipeline_id',
+            'category_id'
+        )->whereNull('custom_field_category_scopes.pipeline_stage_id');
+    }
+
+    public function packages(): BelongsToMany
+    {
+        return $this->belongsToMany(Package::class, 'package_pipeline', 'pipeline_id', 'package_id')
+            ->withPivot('default_stage_id')
+            ->withTimestamps();
+    }
+
+    /**
+     * Category IDs assigned to this pipeline (pipeline-wide scopes only).
+     */
+    public function pipelineWideCategoryIds(): Collection
+    {
+        return $this->customFieldCategoryScopes()
+            ->whereNull('pipeline_stage_id')
+            ->pluck('category_id');
     }
 
 }

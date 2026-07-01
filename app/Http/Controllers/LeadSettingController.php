@@ -11,6 +11,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use App\Models\LeadSetting;
 use App\Services\LeadLifecycleStatusService;
+use App\Services\PackageRoutingFieldCatalog;
 
 class LeadSettingController extends AccountBaseController
 {
@@ -57,10 +58,21 @@ class LeadSettingController extends AccountBaseController
             'category' => 'lead-settings.ajax.category',
             'method' => 'lead-settings.ajax.method',
             'lifecycle' => 'lead-settings.ajax.lifecycle',
+            'deal-packages' => 'lead-settings.ajax.deal-packages',
             default => 'lead-settings.ajax.source',
         };
 
         $this->activeTab = $tab ?: 'source';
+
+        if ($this->activeTab === 'deal-packages') {
+            $catalog = app(PackageRoutingFieldCatalog::class);
+            $this->routingFieldOptions = $catalog->allFieldOptions((int) company()->id);
+            $selected = company()->package_pipeline_routing_trigger_fields;
+            if (is_string($selected)) {
+                $selected = json_decode($selected, true);
+            }
+            $this->selectedRoutingTriggerFields = is_array($selected) ? $selected : array_keys($this->routingFieldOptions);
+        }
 
         if (request()->ajax()) {
             $html = view($this->view, $this->data)->render();
@@ -92,6 +104,26 @@ class LeadSettingController extends AccountBaseController
         $leadSetting->save();
 
         return reply::success(__('messages.updateSuccess'));
+    }
+
+    public function updateDealPackageSettings(Request $request)
+    {
+        $request->validate([
+            'deal_package_mode' => 'required|in:single,multiple',
+            'package_pipeline_routing_trigger_fields' => 'nullable|array',
+            'package_pipeline_routing_trigger_fields.*' => 'string|max:100',
+        ]);
+
+        $company = company();
+        $company->package_pipeline_routing_enabled = $request->has('package_pipeline_routing_enabled') ? 1 : 0;
+        $company->deal_package_mode = $request->deal_package_mode;
+        $company->package_pipeline_routing_trigger_fields = $request->input(
+            'package_pipeline_routing_trigger_fields',
+            [],
+        );
+        $company->save();
+
+        return Reply::success(__('messages.updateSuccess'));
     }
 
 }

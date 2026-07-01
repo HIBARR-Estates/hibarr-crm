@@ -16,6 +16,8 @@ use App\Models\Package;
 use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\PackagePipelineRouterService;
+use App\Services\PipelineScopeResolverService;
 
 trait DealFormDataTrait
 {
@@ -26,18 +28,19 @@ trait DealFormDataTrait
      */
     public function getDealFormData()
     {
+        $scopeResolver = app(PipelineScopeResolverService::class);
+        $packageRouter = app(PackagePipelineRouterService::class);
+
         $pipelines = LeadPipeline::query()
-            ->with('customFieldCategories:id')
+            ->with(['customFieldCategoryScopes', 'stages'])
             ->get();
         $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $stages = PipelineStage::all();
         
-        // Get custom fields
         $deal = new Deal();
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
-        // Get custom field categories
         $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
         $customFieldCategories = collect();
         if ($dealCustomFieldGroup) {
@@ -48,13 +51,22 @@ trait DealFormDataTrait
                 ->get();
         }
 
-        $pipelineCustomFieldCategoryIdsByPipeline = $pipelines
-            ->mapWithKeys(function (LeadPipeline $pipeline) {
-                return [
-                    (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
-                ];
+        $pipelineCategoryScopeMap = $scopeResolver->buildCategoryScopeMapForCompany(
+            company()->id
+        );
+
+        // Backward-compatible flat map (pipeline-wide only)
+        $pipelineCustomFieldCategoryIdsByPipeline = collect($pipelineCategoryScopeMap)
+            ->mapWithKeys(function ($scope, $pipelineId) {
+                return [(string) $pipelineId => $scope['pipelineWide'] ?? []];
             })
             ->toArray();
+
+        $pipelineFieldScopeMap = $scopeResolver->buildFieldScopeMapForCompany(
+            company()->id
+        );
+
+        $packageSettings = $packageRouter->getDealPackageSettings();
 
         return [
             'leadPipelines' => $pipelines,
@@ -81,6 +93,10 @@ trait DealFormDataTrait
             'customFields' => $fields,
             'customFieldCategories' => $customFieldCategories,
             'pipelineCustomFieldCategoryIdsByPipeline' => $pipelineCustomFieldCategoryIdsByPipeline,
+            'pipelineCategoryScopeMap' => $pipelineCategoryScopeMap,
+            'pipelineFieldScopeMap' => $pipelineFieldScopeMap,
+            'packagePipelineRoutingEnabled' => $packageSettings['packagePipelineRoutingEnabled'],
+            'dealPackageMode' => $packageSettings['dealPackageMode'],
         ];
     }
 }

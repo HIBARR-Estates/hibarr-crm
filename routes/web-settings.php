@@ -216,6 +216,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('social-auth-settings', SocialAuthSettingController::class, ['only' => ['index', 'update']]);
 
     /* Lead Settings */
+    Route::put('lead-settings/deal-package-settings', [LeadSettingController::class, 'updateDealPackageSettings'])->name('lead-settings.deal-package-settings');
     Route::resource('lead-settings', LeadSettingController::class);
     Route::post('lead-settings-status/update-status/{companyId}', [LeadSettingController::class, 'updateLeadSettingStatus'])->name('lead-setting.update_status');
     Route::post('lead-sources/reorder', [LeadSourceSettingController::class, 'reorder'])->name('lead-sources.reorder');

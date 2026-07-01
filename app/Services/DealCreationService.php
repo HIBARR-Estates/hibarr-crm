@@ -397,7 +397,25 @@ class DealCreationService
                 // Attach packages using pivot table relationship (package_id column was removed in migration 2025_12_26_000002)
                 if (!empty($packageIds)) {
                     $deal->packages()->syncWithoutDetaching($packageIds);
+                    app(\App\Services\PackagePipelineRouterService::class)
+                        ->routeDeal($deal->fresh(['packages']));
                 }
+
+                $packageRouter = app(\App\Services\PackagePipelineRouterService::class);
+                $customFieldPayload = collect($request->input('custom_fields', []))
+                    ->mapWithKeys(fn ($value, $fieldId) => ['field_' . $fieldId => $value])
+                    ->all();
+                $packageRouter->attemptRoutingFromFieldUpdates(
+                    $deal->fresh(['packages', 'company']),
+                    $packageRouter->extractTriggerFieldsFromPayload(
+                        array_merge(
+                            $request->only(['category_id', 'product_id']),
+                            $request->input('custom_fields_data', []),
+                            $customFieldPayload,
+                        ),
+                        $companyId,
+                    ),
+                );
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
                 // Use lockForUpdate() to prevent race conditions with concurrent requests

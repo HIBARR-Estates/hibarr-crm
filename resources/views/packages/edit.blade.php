@@ -1,3 +1,8 @@
+@php
+    $linkedPipelineId = $package->packagePipeline?->pipeline_id;
+    $linkedStageId = $package->packagePipeline?->default_stage_id;
+@endphp
+
 <div class="modal-header">
     <h5 class="modal-title">@lang('app.edit') @lang('app.menu.packages')</h5>
     <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
@@ -15,29 +20,55 @@
 
                 <div class="col-sm-12">
                     <x-forms.number class="mr-0 mr-lg-2 mr-md-2" :fieldLabel="__('app.value')"
-                        fieldName="value" fieldId="value" :fieldPlaceholder="__('placeholders.price')" 
+                        fieldName="value" fieldId="value" :fieldPlaceholder="__('placeholders.price')"
                         fieldRequired="true" :fieldValue="$package->value" />
                 </div>
 
                 <div class="col-sm-12">
-                    <x-forms.textarea :fieldLabel="__('app.description')" 
+                    <x-forms.textarea :fieldLabel="__('app.description')"
                         :fieldPlaceholder="__('placeholders.description')"
                         fieldName="description" fieldId="description" :fieldValue="$package->description" />
                 </div>
 
                 <div class="col-sm-12">
-                    <x-forms.text fieldId="customer_type_name" :fieldLabel="__('app.customerTypeName')" 
+                    <x-forms.text fieldId="customer_type_name" :fieldLabel="__('app.customerTypeName')"
                         fieldName="customer_type_name" :fieldPlaceholder="__('app.customerTypeName')"
                         :fieldValue="$package->customer_type_name">
                     </x-forms.text>
                 </div>
 
                 <div class="col-sm-12">
-                    <x-forms.textarea :fieldLabel="__('app.customerTypeDescription')" 
+                    <x-forms.textarea :fieldLabel="__('app.customerTypeDescription')"
                         :fieldPlaceholder="__('app.customerTypeDescription')"
-                        fieldName="customer_type_description" fieldId="customer_type_description" 
+                        fieldName="customer_type_description" fieldId="customer_type_description"
                         :fieldValue="$package->customer_type_description" />
                 </div>
+
+                <div class="col-sm-12">
+                    <hr class="my-3">
+                    <h4 class="mb-3 f-16 font-weight-normal">@lang('modules.deal.packagePipelineLinkage')</h4>
+                    <p class="f-11 text-lightest mb-3">@lang('modules.deal.packagePipelineLinkageHint')</p>
+                </div>
+
+                <div class="col-sm-12">
+                    <x-forms.select fieldId="pipeline_id" :fieldLabel="__('modules.deal.pipeline')" fieldName="pipeline_id" search="true">
+                        <option value="">@lang('app.none')</option>
+                        @foreach($pipelines as $pipeline)
+                            <option value="{{ $pipeline->id }}" @selected($linkedPipelineId == $pipeline->id)>{{ $pipeline->name }}</option>
+                        @endforeach
+                    </x-forms.select>
+                </div>
+
+                <div class="col-sm-12">
+                    <x-forms.select fieldId="default_stage_id" :fieldLabel="__('modules.deal.defaultLeadStage')" fieldName="default_stage_id" search="true">
+                        <option value="">@lang('modules.deal.firstStageDefault')</option>
+                        @foreach($stages as $stage)
+                            <option value="{{ $stage->id }}" data-pipeline-id="{{ $stage->lead_pipeline_id }}" data-priority="{{ $stage->priority }}" @selected($linkedStageId == $stage->id)>{{ $stage->name }}</option>
+                        @endforeach
+                    </x-forms.select>
+                </div>
+
+                @include('packages.partials.routing-triggers-fields')
             </div>
         </div>
     </div>
@@ -47,11 +78,13 @@
     </div>
 </x-form>
 
+@include('packages.partials.pipeline-stage-filter-script', ['preserveStageOnInit' => (bool) $linkedPipelineId])
+
 <script>
     $('#save-package-setting').click(function () {
         var formData = $('#editPackage').serialize();
         formData += '&_method=PUT';
-        
+
         $.easyAjax({
             container: '#editPackage',
             type: "POST",

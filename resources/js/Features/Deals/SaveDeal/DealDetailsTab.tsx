@@ -34,6 +34,7 @@ interface DealDetailsTabProps extends Pick<
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
     onPipelineChange?: (pipelineId: number | undefined) => void;
+    onStageChange?: (stageId: number | undefined) => void;
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -46,8 +47,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onErrorsClear,
     setErrors,
     setDeal,
-    disableFields = [], // prop to disable fields
+    disableFields = [],
     onPipelineChange,
+    onStageChange,
 }) => {
     const [form] = Form.useForm();
     const selectedValueSource = Form.useWatch("value_source", form) || "manual";
@@ -68,6 +70,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         company = {},
         stages = [],
         packages = [],
+        dealPackageMode = "multiple",
     } = props;
 
     const [pipelineId, setPipelineId] = useState<number>();
@@ -395,14 +398,22 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
+                                onChange={(value) => onStageChange?.(value)}
                             >
                                 {stages
-                                    .filter((stage: any) =>
-                                        pipelineId
-                                            ? stage.lead_pipeline_id ===
-                                              pipelineId
-                                            : false,
-                                    )
+                                    .filter((stage: any) => {
+                                        const stagePipelineId = Number(
+                                            stage.lead_pipeline_id,
+                                        );
+                                        const selectedPipeline = Number(
+                                            pipelineId,
+                                        );
+                                        return (
+                                            Number.isFinite(stagePipelineId) &&
+                                            Number.isFinite(selectedPipeline) &&
+                                            stagePipelineId === selectedPipeline
+                                        );
+                                    })
                                     .map((stage: any) => (
                                         <Select.Option
                                             key={stage.id}
@@ -562,7 +573,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={24}>
                         <Form.Item name="package_id" label="Packages">
                             <Select
-                                mode="multiple"
+                                mode={
+                                    dealPackageMode === "single"
+                                        ? undefined
+                                        : "multiple"
+                                }
                                 placeholder="Select Packages"
                                 allowClear
                                 showSearch

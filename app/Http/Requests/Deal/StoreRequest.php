@@ -2,28 +2,19 @@
 
 namespace App\Http\Requests\Deal;
 
+use App\Enums\DealPackageMode;
 use App\Http\Requests\CoreRequest;
 use App\Traits\CustomFieldsRequestTrait;
+use Illuminate\Validation\Rule;
 
 class StoreRequest extends CoreRequest
 {
     use CustomFieldsRequestTrait;
 
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
-
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
 
     public function rules()
     {
@@ -39,8 +30,16 @@ class StoreRequest extends CoreRequest
         $rules['value_source'] = 'nullable|in:manual,calculated';
         $rules['deal_watcher'] = 'nullable|array';
         $rules['deal_watcher.*'] = 'exists:users,id';
-        $rules['package_id'] = 'nullable|array';
-        $rules['package_id.*'] = 'exists:packages,id';
+
+        $packageMode = DealPackageMode::tryFrom(company()->deal_package_mode ?? DealPackageMode::Multiple->value)
+            ?? DealPackageMode::Multiple;
+
+        if ($packageMode === DealPackageMode::Single) {
+            $rules['package_id'] = ['nullable', Rule::exists('packages', 'id')];
+        } else {
+            $rules['package_id'] = 'nullable|array';
+            $rules['package_id.*'] = 'exists:packages,id';
+        }
 
         $rules = $this->customFieldRules($rules);
 

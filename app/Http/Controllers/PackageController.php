@@ -4,13 +4,20 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Http\Requests\StorePackageRequest;
+use App\Models\LeadPipeline;
 use App\Models\Package;
+use App\Models\PackagePipeline;
+use App\Models\PipelineStage;
+use App\Services\PackagePipelineRouterService;
+use App\Services\PackageRoutingFieldCatalog;
 use Illuminate\Http\Request;
 
 class PackageController extends AccountBaseController
 {
-    public function __construct()
-    {
+    public function __construct(
+        protected PackageRoutingFieldCatalog $routingFieldCatalog,
+        protected PackagePipelineRouterService $packageRouter,
+    ) {
         parent::__construct();
         $this->pageTitle = 'app.menu.packages';
         $this->activeSettingMenu = 'packages';
@@ -23,19 +30,31 @@ class PackageController extends AccountBaseController
 
     public function index()
     {
-        $this->packages = Package::orderBy('id', 'asc')->get();
+        $this->packages = Package::with('packagePipeline.pipeline')->orderBy('id', 'asc')->get();
 
         return view('packages.index', $this->data);
     }
 
     public function create()
     {
+        $this->pipelines = LeadPipeline::where('company_id', company()->id)->get();
+        $this->stages = PipelineStage::where('company_id', company()->id)
+            ->orderBy('lead_pipeline_id')
+            ->orderBy('priority')
+            ->get();
+        $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions(company()->id);
+        $this->routingMatchModeOptions = [
+            PackageRoutingFieldCatalog::MATCH_MODE_EXACT => __('modules.deal.routingTriggerMatchModeExact'),
+            PackageRoutingFieldCatalog::MATCH_MODE_PRESENT => __('modules.deal.routingTriggerMatchModePresent'),
+        ];
+        $this->routingTriggers = [];
+
         return view('packages.create', $this->data);
     }
 
     public function store(StorePackageRequest $request)
     {
-        Package::create([
+        $package = Package::create([
             'name' => $request->name,
             'value' => $request->value,
             'description' => $request->description,
@@ -43,12 +62,35 @@ class PackageController extends AccountBaseController
             'customer_type_description' => $request->customer_type_description,
         ]);
 
+        $this->syncPackagePipeline($package, $request);
+        $this->packageRouter->syncPackageRoutingTriggers(
+            $package,
+            $request->input('routing_triggers', []),
+        );
+
         return Reply::success(__('messages.recordSaved'));
     }
 
     public function edit($id)
     {
-        $this->package = Package::findOrFail($id);
+        $this->package = Package::with(['packagePipeline', 'routingTriggers'])->findOrFail($id);
+        $this->pipelines = LeadPipeline::where('company_id', company()->id)->get();
+        $this->stages = PipelineStage::where('company_id', company()->id)
+            ->orderBy('lead_pipeline_id')
+            ->orderBy('priority')
+            ->get();
+        $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions(company()->id);
+        $this->routingMatchModeOptions = [
+            PackageRoutingFieldCatalog::MATCH_MODE_EXACT => __('modules.deal.routingTriggerMatchModeExact'),
+            PackageRoutingFieldCatalog::MATCH_MODE_PRESENT => __('modules.deal.routingTriggerMatchModePresent'),
+        ];
+        $this->routingTriggers = $this->package->routingTriggers
+            ->map(fn ($trigger) => [
+                'field_key' => $trigger->field_key,
+                'match_mode' => $trigger->match_mode ?: PackageRoutingFieldCatalog::MATCH_MODE_EXACT,
+                'match_value' => $trigger->match_value,
+            ])
+            ->all();
 
         return view('packages.edit', $this->data);
     }
@@ -63,21 +105,42 @@ class PackageController extends AccountBaseController
         $package->customer_type_description = $request->customer_type_description;
         $package->save();
 
-        return Reply::success(__('messages.recordSaved'));
+        $this->syncPackagePipeline($package, $request);
+        $this->packageRouter->syncPackageRoutingTriggers(
+            $package,
+            $request->input('routing_triggers', []),
+        );
+
+        return Reply::success(__('messages.updateSuccess'));
     }
 
     public function destroy($id)
     {
-        // Find the package - return error if not found
         $package = Package::find($id);
-        
+
         if (!$package) {
             return Reply::error('Package not found.');
         }
 
-        // Soft delete the package
+        PackagePipeline::where('package_id', $package->id)->delete();
         $package->delete();
 
         return Reply::success(__('messages.deleteSuccess'));
+    }
+
+    protected function syncPackagePipeline(Package $package, Request $request): void
+    {
+        PackagePipeline::where('package_id', $package->id)->delete();
+
+        if (!$request->filled('pipeline_id')) {
+            return;
+        }
+
+        PackagePipeline::create([
+            'company_id' => company()->id,
+            'package_id' => $package->id,
+            'pipeline_id' => $request->pipeline_id,
+            'default_stage_id' => $request->default_stage_id ?: null,
+        ]);
     }
 }

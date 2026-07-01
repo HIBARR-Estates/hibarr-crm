@@ -9,6 +9,7 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { isFieldVisible as isPipelineFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
 import { formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
@@ -492,6 +493,8 @@ interface Props {
     sectionId?: string;
     isOpen?: boolean;
     onToggle?: () => void;
+    /** When set, only custom fields allowed by pipeline scope are shown. null = show all. */
+    visibleFieldKeys?: string[] | null;
 }
 
 export default function CustomFieldDisplay({
@@ -512,6 +515,7 @@ export default function CustomFieldDisplay({
     sectionId,
     isOpen = false,
     onToggle,
+    visibleFieldKeys,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies = [], default_currency_code } = props;
@@ -564,6 +568,12 @@ export default function CustomFieldDisplay({
               (field) => field.custom_field_category_id === categoryId,
           )
         : fields;
+
+    if (visibleFieldKeys != null) {
+        filteredFields = filteredFields.filter((field) =>
+            isPipelineFieldVisible(visibleFieldKeys, String(field.id)),
+        );
+    }
 
     // Apply visibility rules if customFieldsData is provided
     // Convert customFieldsData to the format expected by visibility evaluator

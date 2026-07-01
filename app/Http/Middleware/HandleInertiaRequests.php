@@ -28,8 +28,8 @@ class HandleInertiaRequests extends Middleware
     /**
      * The root template that's loaded on the first page visit.
      */
-    // protected $rootView = 'layouts.inertia_vite';
-    protected $rootView = 'layouts.inertia_alt';
+    protected $rootView = 'layouts.inertia_vite';
+   // protected $rootView = 'layouts.inertia_alt';
 
     /**
      * Get the root view based on the bundler configuration.
@@ -98,7 +98,56 @@ class HandleInertiaRequests extends Middleware
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => $this->getAvailableLocales(),
             'featureFlags' => fn () => FeatureFlags::forInertia(),
+            'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap(),
+            'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap(),
+            'stages' => fn () => $this->getPipelineStages(),
         ]);
+    }
+
+    private function getPipelineCategoryScopeMap(): array
+    {
+        try {
+            if (!function_exists('company') || !company()) {
+                return [];
+            }
+
+            return app(\App\Services\PipelineScopeResolverService::class)
+                ->buildCategoryScopeMapForCompany(company()->id);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function getPipelineFieldScopeMap(): array
+    {
+        try {
+            if (!function_exists('company') || !company()) {
+                return [];
+            }
+
+            return app(\App\Services\PipelineScopeResolverService::class)
+                ->buildFieldScopeMapForCompany(company()->id);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    private function getPipelineStages(): array
+    {
+        try {
+            if (!function_exists('company') || !company()) {
+                return [];
+            }
+
+            return \App\Models\PipelineStage::query()
+                ->select('id', 'name', 'priority', 'lead_pipeline_id', 'label_color')
+                ->orderBy('priority')
+                ->orderBy('id')
+                ->get()
+                ->toArray();
+        } catch (\Exception $e) {
+            return [];
+        }
     }
      /**
      * Get default currency symbol safely

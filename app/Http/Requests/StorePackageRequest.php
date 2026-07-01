@@ -3,24 +3,15 @@
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class StorePackageRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array
-     */
     public function rules()
     {
         return [
@@ -29,6 +20,23 @@ class StorePackageRequest extends FormRequest
             'description' => 'nullable|string',
             'customer_type_name' => 'nullable|string|max:255',
             'customer_type_description' => 'nullable|string',
+            'pipeline_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('lead_pipelines', 'id')->where('company_id', company()->id),
+            ],
+            'default_stage_id' => [
+                Rule::excludeIf(fn () => !$this->filled('pipeline_id')),
+                'nullable',
+                'integer',
+                Rule::exists('pipeline_stages', 'id')
+                    ->where('company_id', company()->id)
+                    ->where('lead_pipeline_id', $this->input('pipeline_id')),
+            ],
+            'routing_triggers' => 'nullable|array',
+            'routing_triggers.*.field_key' => 'nullable|string|max:100',
+            'routing_triggers.*.match_mode' => 'nullable|in:exact,present',
+            'routing_triggers.*.match_value' => 'nullable|string|max:500',
         ];
     }
 }
