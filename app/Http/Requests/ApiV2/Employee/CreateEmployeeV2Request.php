@@ -94,8 +94,10 @@ class CreateEmployeeV2Request extends CoreRequest
                 Rule::exists('lead_agents', 'id')->where(fn ($q) => $q->where('company_id', $companyId)->whereNull('lead_category_id')),
             ],
 
-            // Optional: ignored. We always send "set password" email.
+            // Optional: presence + non-empty triggers setup email unless sendOnboardingEmail is false.
             'password' => 'nullable|string',
+            'sendOnboardingEmail' => 'nullable|boolean',
+            'send_onboarding_email' => 'nullable|boolean',
             'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+\d{8,15}$/'],
         ];
     }
