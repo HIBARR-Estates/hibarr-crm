@@ -80,6 +80,9 @@ export default function LeadInfoSection({
         value: lang.language_code,
         label: lang.language_name,
     }));
+    const salutationOptions = (
+        (props.salutations as Array<{ value: string; label: string }>) || []
+    );
 
     const resolveLanguageLabel = useCallback(
         (code: string) =>
@@ -240,6 +243,7 @@ export default function LeadInfoSection({
                     }
                     return updated as Lead;
                 });
+                router.reload({ only: ['lead'] });
             }
             // Clear the updating field after completion
             setUpdatingField(null);
@@ -461,6 +465,7 @@ export default function LeadInfoSection({
                         return updated as Lead;
                     });
                     message.success(t("pages.leads.info.file_upload_success"));
+                    router.reload({ only: ['lead'] });
                 }
                 setUpdatingField(null);
                 return;
@@ -630,12 +635,31 @@ export default function LeadInfoSection({
                         isOpen={openSections["lead-contact"] ?? false}
                         onToggle={() => toggleSection("lead-contact")}
                     >
+                        <DetailField label={t("pages.leads.info.fields.salutation", { defaultValue: "Salutation" })}>
+                            <EditableField
+                                value={currentLeadState.salutation_value ?? currentLeadState.salutation ?? ""}
+                                fieldName="salutation"
+                                fieldType="select"
+                                options={salutationOptions}
+                                onSave={(value) =>
+                                    handleFieldUpdate("salutation", value)
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    (currentLeadState.salutation_value || currentLeadState.salutation) ? (
+                                        <span className="capitalize">{currentLeadState.salutation_value ?? currentLeadState.salutation}</span>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("salutation")}
+                            />
+                        </DetailField>
+
                         <DetailField label={t("pages.leads.info.fields.name")}>
                             <EditableField
-                                value={
-                                    currentLeadState.client_name_salutation ||
-                                    currentLeadState.client_name
-                                }
+                                value={currentLeadState.client_name || ""}
                                 fieldName="client_name"
                                 fieldType="text"
                                 onSave={(value) =>
@@ -1271,7 +1295,7 @@ export default function LeadInfoSection({
                 </div>
 
                 {/* Sidebar + Content */}
-                <div className="flex overflow-hidden max-h-[70vh]">
+                <div className="flex overflow-hidden h-[70vh]">
                     <SideNavTabs
                         items={sideNavItems}
                         activeKey={activeSection}
