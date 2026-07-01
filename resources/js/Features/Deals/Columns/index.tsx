@@ -219,6 +219,30 @@ export const DEAL_TABLE_COLUMNS = (
             },
         },
         {
+            title: (
+                <span className="flex items-center">
+                    {t("pages.deals.table.columns.deal_value")}
+                    <PageDataSorter field="value" routeName="deals.index" />
+                </span>
+            ),
+            dataIndex: "value",
+            key: "value",
+            width: 130,
+            render: (_, record) => {
+                if (!record.value)
+                    return <span className="text-gray-400">--</span>;
+
+                const symbol = record.currency?.currency_symbol || "£";
+
+                return (
+                    <span className="text-gray-900 font-medium">
+                        {symbol}
+                        {record.value.toLocaleString()}
+                    </span>
+                );
+            },
+        },
+        {
             title: t("pages.deals.table.columns.assigned_agent"),
             dataIndex: "agent_name",
             key: "agent_name",
