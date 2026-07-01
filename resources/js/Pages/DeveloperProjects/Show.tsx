@@ -49,6 +49,7 @@ export interface Statistics {
     under_offer_properties: number;
     starting_price: number | null;
     starting_price_formatted: string | null;
+    starting_price_currency: string;
 }
 
 export interface ImageItem {
