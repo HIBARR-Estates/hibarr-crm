@@ -402,7 +402,7 @@ export default function DealTabs({
                         activeKey={activeTab}
                         onChange={setActiveTab}
                     />
-                    <div className="flex-1 min-w-0 overflow-hidden">
+                    <div className="flex-1 min-w-0 overflow-hidden h-[40vh]">
                         {dealTabActiveContent}
                     </div>
                 </div>

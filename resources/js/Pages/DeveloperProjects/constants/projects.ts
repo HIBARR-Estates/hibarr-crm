@@ -1,6 +1,8 @@
 export const SORT_OPTIONS = [
     { value: "newest", label: "Newest First" },
     { value: "oldest", label: "Oldest First" },
+    { value: "cheapest", label: "Cheapest First" },
+    { value: "most_expensive", label: "Most Expensive" },
     { value: "name_asc", label: "Name: A → Z" },
     { value: "name_desc", label: "Name: Z → A" },
     { value: "properties_desc", label: "Most Properties" },

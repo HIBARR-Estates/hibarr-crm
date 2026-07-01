@@ -148,13 +148,22 @@ class DeveloperProjectController extends AccountBaseController
 
         // Search by name or description
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
+
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%");
             });
-        }
 
+            // raw ordering to rank name matches higher than description-only matches
+            $query->orderByRaw("
+                CASE 
+                    WHEN name LIKE ? THEN 2
+                    WHEN description LIKE ? THEN 1
+                    ELSE 0
+                END DESC
+            ", ["%{$search}%", "%{$search}%"]);
+        }
         // Filter by location if provided
         if ($request->filled('location_id')) {
             $query->where('project_location_id', $request->location_id);
@@ -210,6 +219,12 @@ class DeveloperProjectController extends AccountBaseController
                 break;
             case 'properties_desc':
                 $query->orderByDesc('properties_count');
+                break;
+            case 'cheapest':
+                $query->orderBy('starting_price', 'asc');
+                break;
+            case 'most_expensive':
+                $query->orderBy('starting_price', 'desc');
                 break;
             default: // newest
                 $query->orderBy('created_at', 'desc');
