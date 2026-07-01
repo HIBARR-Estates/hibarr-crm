@@ -300,7 +300,10 @@ class DeveloperProjectController extends AccountBaseController
         // Find lowest starting price across unit types
         $lowestPriceUnit = $project->unitTypes->whereNotNull('starting_price')->sortBy('starting_price')->first();
         $startingPrice = $project->starting_price ?? ($lowestPriceUnit ? (float) $lowestPriceUnit->starting_price : null);
-        $startingPriceFormatted = $project->formatted_starting_price ?? ($lowestPriceUnit ? $lowestPriceUnit->formatted_starting_price : null);
+        $startingPriceCurrency = $lowestPriceUnit->currency ?? 'GBP';
+        $startingPriceFormatted = $startingPrice !== null
+            ? (DeveloperProjectUnitType::CURRENCIES[$startingPriceCurrency]['symbol'] ?? '£') . number_format($startingPrice, 0)
+            : null;
 
         // Build unit types summary (grouped by property_type)
         $unitTypesSummary = $this->getUnitTypesSummary($project->unitTypes);
@@ -349,6 +352,7 @@ class DeveloperProjectController extends AccountBaseController
                 'under_offer_properties' => $underOfferProperties,
                 'starting_price' => $startingPrice,
                 'starting_price_formatted' => $startingPriceFormatted,
+                'starting_price_currency' => $startingPriceCurrency,
             ],
             'unitTypesSummary' => $unitTypesSummary,
             'facilities' => $facilities,
