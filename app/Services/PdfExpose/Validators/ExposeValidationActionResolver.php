@@ -142,6 +142,12 @@ class ExposeValidationActionResolver
         $locationId = $context['location_id'] ?? null;
 
         if (!$locationId) {
+
+            return $this->linkAction(
+                'Edit location',
+                route('project-locations.show', $locationId)
+            );
+            
             $projectId = $context['project_id'] ?? null;
 
             if (!$projectId) {
@@ -154,10 +160,7 @@ class ExposeValidationActionResolver
             );
         }
 
-        return $this->linkAction(
-            'Edit location',
-            route('project-locations.show', $locationId)
-        );
+        return null;
     }
 
     private function projectOverviewAction(array $context, string $exposeContext): ?array
