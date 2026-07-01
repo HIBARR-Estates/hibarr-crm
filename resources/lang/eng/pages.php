@@ -289,6 +289,7 @@ return [
                 'lead_source'     => 'Lead Source',
                 'lead_name'       => 'Lead Name',
                 'stage'           => 'Stage',
+                'deal_value'      => 'Deal Value',
                 'assigned_agent'  => 'Assigned Agent',
                 'created'         => 'Created',
                 'updated'         => 'Updated',

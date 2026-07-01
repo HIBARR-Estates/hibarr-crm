@@ -281,6 +281,7 @@ return [
                 'lead_source'     => 'Müşteri Adayı Kaynağı',
                 'lead_name'       => 'Müşteri Adayı Adı',
                 'stage'           => 'Aşama',
+                'deal_value'      => 'Anlaşma Değeri',
                 'assigned_agent'  => 'Atanan Temsilci',
                 'created'         => 'Oluşturulma',
                 'updated'         => 'Güncellenme',

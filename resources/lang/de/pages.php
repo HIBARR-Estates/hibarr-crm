@@ -281,6 +281,7 @@ return [
                 'lead_source'     => 'Lead-Quelle',
                 'lead_name'       => 'Lead-Name',
                 'stage'           => 'Phase',
+                'deal_value'      => 'Deal-Wert',
                 'assigned_agent'  => 'Zugewiesener Agent',
                 'created'         => 'Erstellt',
                 'updated'         => 'Aktualisiert',
