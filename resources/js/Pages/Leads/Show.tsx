@@ -79,7 +79,9 @@ const Show = ({
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
 
-    const [activeTab, setActiveTab] = useState("profile");
+    const [activeTab, setActiveTab] = useState(
+        () => new URLSearchParams(window.location.search).get("tab") || "profile",
+    );
     const [isEditMode, setIsEditMode] = useState(false);
     const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
 
@@ -102,6 +104,9 @@ const Show = ({
             return;
         }
         setActiveTab(key);
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", key);
+        window.history.replaceState({}, "", url.toString());
     };
 
     const tabItems = [
@@ -139,24 +144,24 @@ const Show = ({
         },
         ...(showFollowUpTab
             ? [
-                  {
-                      key: "follow-up",
-                      label: t("modules.lead.followUp"),
-                      children: (
-                          <LeadFollowUpTab
-                              lead={lead}
-                              followUps={leadFollowUps}
-                              permissions={followUpPermissions}
-                              deals={deals}
-                              onScheduleMeeting={
-                                  canAddFollowUp
-                                      ? () => setScheduleMeetingOpen(true)
-                                      : undefined
-                              }
-                          />
-                      ),
-                  },
-              ]
+                {
+                    key: "follow-up",
+                    label: t("modules.lead.followUp"),
+                    children: (
+                        <LeadFollowUpTab
+                            lead={lead}
+                            followUps={leadFollowUps}
+                            permissions={followUpPermissions}
+                            deals={deals}
+                            onScheduleMeeting={
+                                canAddFollowUp
+                                    ? () => setScheduleMeetingOpen(true)
+                                    : undefined
+                            }
+                        />
+                    ),
+                },
+            ]
             : []),
         {
             key: "notes",
@@ -176,17 +181,18 @@ const Show = ({
         },
         ...(showQualificationTab
             ? [
-                  {
-                      key: "qualification",
-                      label: t("pages.leads.tabs.qualification"),
-                      children: <LeadQualificationTab lead={lead} />,
-                      wide: true,
-                  },
-              ]
+                {
+                    key: "qualification",
+                    label: t("pages.leads.tabs.qualification"),
+                    children: <LeadQualificationTab lead={lead} />,
+                    wide: true,
+                },
+            ]
             : []),
         {
             key: "tasks",
             label: t("pages.leads.tabs.tasks"),
+            tall: true,
             children: (
                 <TasksTab
                     tasks={tasks}
@@ -217,15 +223,14 @@ const Show = ({
         ...item,
         children: (
             <div
-                className={`${
-                    (item as { wide?: boolean }).wide
-                        ? "max-w-6xl"
-                        : "max-w-4xl"
-                } mx-auto mt-8 mb-12`}
+                className={`${(item as { wide?: boolean }).wide
+                    ? "max-w-6xl"
+                    : "max-w-4xl"
+                    } mx-auto mt-8 mb-12`}
             >
                 <Card
                     variant="outlined"
-                    className="border-0 rounded-lg overflow-hidden"
+                    className={`border-0 rounded-lg overflow-hidden${(item as { tall?: boolean }).tall ? " min-h-[65vh]" : ""}`}
                     bodyStyle={{ padding: 0 }}
                 >
                     {item.children}
@@ -234,37 +239,26 @@ const Show = ({
         ),
     }));
 
+    const leadName = [
+        lead?.salutation_value
+            ? lead.salutation_value.charAt(0).toUpperCase() + lead.salutation_value.slice(1)
+            : null,
+        lead?.client_name,
+    ].filter(Boolean).join(" ");
+
     return (
         <PageLayout
-            title={lead?.client_name_salutation}
+            title={leadName}
             breadcrumbs={[
                 {
                     name: t("pages.leads.contacts"),
                     url: route("lead-contact.index"),
                 },
-                { name: lead?.client_name || "" },
+                { name: leadName },
             ]}
             mainContentClassName=""
         >
             <div>
-                <div className="flex items-center justify-end px-6 py-3 bg-gray-50 border-b border-gray-200">
-                    <Tooltip
-                        title={
-                            isEditMode
-                                ? t("pages.leads.refresh_tooltip_disabled")
-                                : t("app.common.actions.refresh")
-                        }
-                    >
-                        <Button
-                            icon={<ReloadOutlined spin={isRefreshing} />}
-                            onClick={refresh}
-                            disabled={isRefreshing || isEditMode}
-                            type="text"
-                        >
-                            {t("app.common.actions.refresh")}
-                        </Button>
-                    </Tooltip>
-                </div>
                 <Tabs
                     items={tabItems}
                     activeKey={activeTab}
@@ -277,17 +271,24 @@ const Show = ({
                         backgroundColor: "#fafafa",
                         borderBottom: "1px solid #f0f0f0",
                     }}
-                    tabBarExtraContent={
-                        activeTab === "follow-up" && canAddFollowUp ? (
+                    tabBarExtraContent={(
+                        <Tooltip
+                            title={
+                                isEditMode
+                                    ? t("pages.leads.refresh_tooltip_disabled")
+                                    : t("app.common.actions.refresh")
+                            }
+                        >
                             <Button
-                                type="primary"
-                                icon={<PlusOutlined />}
-                                onClick={() => setScheduleMeetingOpen(true)}
+                                icon={<ReloadOutlined spin={isRefreshing} />}
+                                onClick={refresh}
+                                disabled={isRefreshing || isEditMode}
+                                type="text"
                             >
-                                {t("pages.deals.actions.add_meeting")}
+                                {t("app.common.actions.refresh")}
                             </Button>
-                        ) : null
-                    }
+                        </Tooltip>
+                    )}
                 />
             </div>
 

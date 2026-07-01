@@ -52,12 +52,26 @@ export const capitalizeFirstLetter = (text: string | null = ""): string => {
     return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+const TITLE_CASE_LOCALE = "tr-TR";
+
+/** Title-case a single word using locale-aware casing (handles Turkish i/ı, ç, ğ, etc.). */
+const titleCaseWord = (word: string): string => {
+    const lower = word.toLocaleLowerCase(TITLE_CASE_LOCALE);
+    if (!lower) return lower;
+    return lower.charAt(0).toLocaleUpperCase(TITLE_CASE_LOCALE) + lower.slice(1);
+};
+
 /** Convert snake_case (or kebab-case) to Title Case readable text.
  *  e.g. "semi_detached_villa" → "Semi Detached Villa"
  */
 export const snakeToReadable = (str: string | null | undefined): string => {
     if (!str) return "";
-    return str.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return str
+        .replace(/[-_]/g, " ")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(titleCaseWord)
+        .join(" ");
 };
 
 export const getPropertyTypeColor = (type: string): string => {
@@ -454,6 +468,23 @@ const resolveLocation = (record: SubtitleableRecord): string | null => {
     if (city && area) return `${area}, ${city}`;
     return city || area || null;
 };
+
+/**
+ * Format a project location name for display (title case per word/segment).
+ * Display-only — does not mutate stored values.
+ * Handles "area, city" comma-separated names and snake_case segments.
+ * e.g. "belek, antalya" → "Belek, Antalya"
+ */
+export function formatLocationNameForDisplay(
+    name: string | null | undefined,
+): string {
+    if (name == null || name === "") return "";
+    return name
+        .split(",")
+        .map((segment) => snakeToReadable(segment.trim()))
+        .filter(Boolean)
+        .join(", ");
+}
 
 /**
  * Format country for display in tables/cards. Handles both string (e.g. "United States")

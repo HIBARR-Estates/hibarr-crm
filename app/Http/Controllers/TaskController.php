@@ -737,13 +737,14 @@ class TaskController extends AccountBaseController
     public function data($id)
     {
         $task = Task::with([
-            'users', 
-            'label', 
-            'project', 
-            'category', 
-            'deals', 
-            'leads', 
-            'properties'
+            'users',
+            'label',
+            'project',
+            'category',
+            'deals',
+            'leads',
+            'properties',
+            'addedByUser:id,name,image',
         ])->find($id);
 
         if ($task) {

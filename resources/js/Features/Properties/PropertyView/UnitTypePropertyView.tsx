@@ -29,7 +29,7 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
-import { capitalizeFirstLetter } from "@/lib/utils";
+import { capitalizeFirstLetter, formatLocationNameForDisplay } from "@/lib/utils";
 import dayjs from "dayjs";
 // import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 
@@ -774,7 +774,7 @@ export default function UnitTypePropertyView({
                             {location ? (
                                 <div>
                                     <div className="font-semibold text-gray-900">
-                                        {location.name}
+                                        {formatLocationNameForDisplay(location.name)}
                                     </div>
                                     {location.address && (
                                         <div className="text-sm text-gray-500 mt-1">

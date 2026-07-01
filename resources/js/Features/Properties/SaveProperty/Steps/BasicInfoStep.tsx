@@ -13,6 +13,7 @@ import { FormInstance } from "antd/lib/form";
 import { Property, PropertyEnumValues, PrimaryCategory } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "@/Components/CurrencyInput";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -410,8 +411,11 @@ export default function BasicInfoStep({
                                                         <span className="text-gray-400 ml-2">
                                                             (
                                                             {
-                                                                project.location
-                                                                    .name
+                                                                formatLocationNameForDisplay(
+                                                                    project
+                                                                        .location
+                                                                        .name,
+                                                                )
                                                             }
                                                             )
                                                         </span>

@@ -1,7 +1,9 @@
 import { Deal } from "@/Types/api/deals";
+import { Lead } from "@/Types/api/leads";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { IModalProps } from "@/Types/common";
-import { Drawer } from "antd";
+import { Modal } from "antd";
+import "./followup-modal.css";
 import { useState } from "react";
 import SaveFollowup from "./SaveFollowup";
 import { useApiMutate } from "@/lib/api/client";
@@ -27,11 +29,12 @@ interface SaveFollowupFormData {
 }
 
 interface Props extends IModalProps {
-    deal: Deal;
+    deal?: Deal;
+    lead?: Lead;
     followup: DealFollowup;
 }
 
-const EditFollowup: React.FC<Props> = ({ deal, followup, onClose, open }) => {
+const EditFollowup: React.FC<Props> = ({ deal, lead, followup, onClose, open }) => {
     const [errors, setErrors] = useState<string[]>([]);
 
     const handleCancel = () => {
@@ -69,23 +72,42 @@ const EditFollowup: React.FC<Props> = ({ deal, followup, onClose, open }) => {
     };
 
     return (
-        <Drawer
-            title="Edit Follow-up"
-            placement="right"
-            size="large"
+        <Modal
+            className="followup-modal"
+            title={null}
             open={open}
-            onClose={handleCancel}
+            onCancel={handleCancel}
+            footer={null}
+            width={780}
+            centered
+            destroyOnHidden
+            maskClosable={false}
+            closable
         >
-            <SaveFollowup
-                context="deal"
-                deal={deal}
-                followup={followup}
-                onSubmit={onSubmit}
-                onCancel={handleCancel}
-                loading={isLoading({ status })}
-                errors={errors}
-            />
-        </Drawer>
+            {/* Header */}
+            <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
+                <h2 className="text-xl font-semibold text-gray-900 leading-tight">
+                    Edit Meeting
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                    Update the meeting details below.
+                </p>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
+                <SaveFollowup
+                    context={deal ? "deal" : "lead"}
+                    deal={deal}
+                    lead={lead}
+                    followup={followup}
+                    onSubmit={onSubmit}
+                    onCancel={handleCancel}
+                    loading={isLoading({ status })}
+                    errors={errors}
+                />
+            </div>
+        </Modal>
     );
 };
 

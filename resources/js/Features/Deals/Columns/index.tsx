@@ -81,7 +81,8 @@ export const DEAL_TABLE_COLUMNS = (
                 const hasContact = !!record.contact;
                 let displayName = hasContact ? record.contact.client_name : null;
                 if (hasContact && record.contact.salutation) {
-                    displayName = `${record.contact.salutation} ${displayName}`;
+                    const sal = record.contact.salutation;
+                    displayName = `${sal.charAt(0).toUpperCase() + sal.slice(1)} ${displayName}`;
                 }
                 const translatedName = displayName ? displayName : null;
 
@@ -214,6 +215,30 @@ export const DEAL_TABLE_COLUMNS = (
                             </span>
                         </Tooltip>
                     </div>
+                );
+            },
+        },
+        {
+            title: (
+                <span className="flex items-center">
+                    {t("pages.deals.table.columns.deal_value")}
+                    <PageDataSorter field="value" routeName="deals.index" />
+                </span>
+            ),
+            dataIndex: "value",
+            key: "value",
+            width: 130,
+            render: (_, record) => {
+                if (!record.value)
+                    return <span className="text-gray-400">--</span>;
+
+                const symbol = record.currency?.currency_symbol || "£";
+
+                return (
+                    <span className="text-gray-900 font-medium">
+                        {symbol}
+                        {record.value.toLocaleString()}
+                    </span>
                 );
             },
         },

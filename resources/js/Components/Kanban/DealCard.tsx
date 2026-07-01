@@ -194,11 +194,11 @@ const DealCard: React.FC<DealCardProps> = ({
                         <Text
                             className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{
-                                tooltip: `${deal.contact.salutation ? deal.contact.salutation + " " : ""}${td(deal.contact.client_name)}`,
+                                tooltip: `${deal.contact.salutation ? (deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)) + " " : ""}${td(deal.contact.client_name)}`,
                             }}
                         >
                             {deal.contact.salutation &&
-                                `${deal.contact.salutation} `}
+                                `${deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)} `}
                             {deal.contact.client_name}
                         </Text>
                     </div>

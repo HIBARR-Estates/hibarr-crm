@@ -18,6 +18,8 @@ interface Props {
     disabled?: boolean;
     className?: string;
     showPlatform?: boolean;
+    renderAsChips?: boolean;
+    onNameChange?: (name: string) => void;
 }
 
 export default function MeetingTypeSelector({
@@ -29,8 +31,9 @@ export default function MeetingTypeSelector({
     disabled = false,
     className,
     showPlatform = true,
+    renderAsChips = false,
+    onNameChange,
 }: Props) {
-    // Platform options: zoho or in the office
     const platformOptions = [
         { value: "zoho", label: "Video Meeting" },
         { value: "office", label: "HIBARR Office" },
@@ -38,40 +41,83 @@ export default function MeetingTypeSelector({
         { value: "physical", label: "Physical Meeting" },
     ];
 
-    // Fetch meeting types from API
-    const {
-        data: meetingTypesResponse,
-        isLoading,
-    } = useApiQuery<{
+    const { data: meetingTypesResponse, isLoading } = useApiQuery<{
         meeting_types: MeetingType[];
     }>({
         path: route("meeting-types.index"),
     });
 
-    // Filter only active meeting types
     const meetingTypes = (meetingTypesResponse?.meeting_types || []).filter(
-        (type) => type.is_active === true
+        (type) => type.is_active === true,
     );
+
+    const handleChange = (id: number) => {
+        onChange?.(id);
+        const type = meetingTypes.find((t) => t.id === id);
+        if (type) onNameChange?.(type.name);
+    };
+
+    if (renderAsChips) {
+        if (isLoading) {
+            return (
+                <div className="flex items-center gap-2 py-1">
+                    <Spin size="small" />
+                    <span className="text-sm text-gray-400">Loading types…</span>
+                </div>
+            );
+        }
+        return (
+            <div className="flex flex-wrap gap-2">
+                {meetingTypes.map((type) => {
+                    const active = value === type.id;
+                    return (
+                        <button
+                            key={type.id}
+                            type="button"
+                            disabled={disabled}
+                            onClick={() => handleChange(type.id)}
+                            className={`px-3 py-1.5 rounded-md text-[13px] font-medium border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                                active
+                                    ? "bg-blue-500 border-blue-500 text-white"
+                                    : "border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-500"
+                            }`}
+                        >
+                            {type.name}
+                        </button>
+                    );
+                })}
+                {meetingTypes.length === 0 && (
+                    <p className="text-sm text-gray-400 italic">
+                        No meeting types available
+                    </p>
+                )}
+            </div>
+        );
+    }
 
     return (
         <>
             <Space.Compact className="w-full" block>
                 <Select
                     value={value}
-                    onChange={onChange}
+                    onChange={handleChange}
                     placeholder={placeholder}
                     disabled={disabled || isLoading}
                     className={`flex-1 ${className || ""}`}
                     showSearch
                     notFoundContent={
-                        isLoading ? <Spin size="small" /> : "No meeting types found"
+                        isLoading ? (
+                            <Spin size="small" />
+                        ) : (
+                            "No meeting types found"
+                        )
                     }
                     options={meetingTypes.map((m) => ({
                         label: m.name,
                         value: m.id,
                     }))}
                 />
-                
+
                 {showPlatform && (
                     <Select
                         value={platformValue}

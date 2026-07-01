@@ -43,7 +43,7 @@ class AvailabilityEscalation extends BaseNotification
             })
             ->line('')
             ->line('Please review and respond to this request as an administrator.')
-            ->action('View Request', url("/account/availability-requests/{$this->availabilityRequest->id}"));
+            ->action('View Request', $this->modifyUrl(route('availability-requests.show', $this->availabilityRequest->id)));
     }
 
     public function toArray($notifiable): array

@@ -46,10 +46,10 @@ class PublishRequestReviewed extends BaseNotification
 
         if ($isApproved) {
             $mail->line('Your property is now published and visible to the public.')
-                ->action('View Property', url("/account/properties/{$property->id}"));
+                ->action('View Property', $this->modifyUrl(route('properties.show', $property->id)));
         } else {
             $mail->line('Please review the feedback and update your property before requesting again.')
-                ->action('View Property', url("/account/properties/{$property->id}"));
+                ->action('View Property', $this->modifyUrl(route('properties.show', $property->id)));
         }
 
         return $mail;

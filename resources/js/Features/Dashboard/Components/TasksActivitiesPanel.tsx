@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
-import { Card, Button, message, Drawer } from "antd";
+import { Card, Button, message } from "antd";
+import "./task-view-modal.css";
 import {
     CheckOutlined,
     ClockCircleOutlined,
@@ -13,7 +14,7 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import { Link, router, usePage } from "@inertiajs/react";
 import TaskRowList from "@/Features/Tasks/Components/TaskRowList";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
-import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
+import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import { TasksIndexProps } from "@/Pages/Tasks/Index";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -515,19 +516,12 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
                 projects={projects}
             />
 
-            {/* Task Details Drawer */}
-            {selectedTask && (
-                <Drawer
-                    title={`Task: ${selectedTask?.heading || ""}`}
-                    placement="right"
-                    size="large"
-                    open={action === "view"}
-                    onClose={() => handleClose()}
-                    destroyOnClose
-                >
-                    <TaskDetailsDrawer task={selectedTask} loading={false} />
-                </Drawer>
-            )}
+            <TaskDetailsModal
+                task={selectedTask}
+                open={action === "view"}
+                onClose={() => handleClose()}
+                columns={columns}
+            />
 
             {/* Delete Task Modal */}
             <DeleteTask

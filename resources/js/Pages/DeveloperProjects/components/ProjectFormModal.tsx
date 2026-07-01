@@ -4,6 +4,7 @@ import type { DeveloperProject, ProjectLocationOption } from "@/Types/developerP
 import type { CreateDeveloperProjectInput } from "@/Types/developerProject";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 export interface ProjectFormModalProps {
     open: boolean;
@@ -127,7 +128,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                         loading={locationsLoading}
                         options={locations.map((loc) => ({
                             value: loc.id,
-                            label: `${loc.name}${loc.city ? ` (${loc.city})` : ""}`,
+                            label: `${formatLocationNameForDisplay(loc.name)}${loc.city ? ` (${loc.city})` : ""}`,
                         }))}
                     />
                 </Form.Item>
