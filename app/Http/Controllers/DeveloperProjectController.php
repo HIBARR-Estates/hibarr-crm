@@ -154,8 +154,16 @@ class DeveloperProjectController extends AccountBaseController
                 $q->where('name', 'like', "%{$search}%")
                 ->orWhere('description', 'like', "%{$search}%");
             });
-        }
 
+            // raw ordering to rank name matches higher than description-only matches
+            $query->orderByRaw("
+                CASE 
+                    WHEN name LIKE ? THEN 2
+                    WHEN description LIKE ? THEN 1
+                    ELSE 0
+                END DESC
+            ", ["%{$search}%", "%{$search}%"]);
+        }
         // Filter by location if provided
         if ($request->filled('location_id')) {
             $query->where('project_location_id', $request->location_id);
