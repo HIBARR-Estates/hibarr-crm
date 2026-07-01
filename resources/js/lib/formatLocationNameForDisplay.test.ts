@@ -10,6 +10,9 @@ describe("Location name display formatting", () => {
         expect(formatLocationNameForDisplay("kyrenia_north")).toBe(
             "Kyrenia North",
         );
+        expect(formatLocationNameForDisplay("çeşme, muğla")).toBe(
+            "Çeşme, Muğla",
+        );
     });
 
     it("[unit] should not mutate the underlying stored location name value", () => {
