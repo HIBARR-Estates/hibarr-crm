@@ -624,6 +624,8 @@ return [
         'filter_transfer_needed'         => 'Нужен трансфер',
         'sorted_by_date'                 => 'Сортировка по дате',
         'flight'                         => 'Рейс',
+        'pending_arrivals_count'         => '{{count}} не прибыл',
+        'pending_departures_count'       => '{{count}} не вылетел',
         'transfer'                       => 'Трансфер',
         'transfer_required'              => 'Требуется',
         'delete_flight'                  => 'Удалить рейс',

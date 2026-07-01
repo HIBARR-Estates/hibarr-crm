@@ -624,6 +624,8 @@ return [
         'filter_transfer_needed'         => 'Transfer erforderlich',
         'sorted_by_date'                 => 'Sortiert nach Datum',
         'flight'                         => 'Flug',
+        'pending_arrivals_count'         => '{{count}} nicht angekommen',
+        'pending_departures_count'       => '{{count}} nicht abgereist',
         'transfer'                       => 'Transfer',
         'transfer_required'              => 'Erforderlich',
         'delete_flight'                  => 'Flug löschen',

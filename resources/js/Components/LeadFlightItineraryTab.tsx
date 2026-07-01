@@ -8,6 +8,7 @@ import {
     Select,
     DatePicker,
     Switch,
+    Segmented,
     message,
     Dropdown,
     Descriptions,
@@ -123,22 +124,22 @@ const STATUS_STYLES: Record<
 > = {
     "not arrived": {
         dot: "bg-blue-600",
-        pill: "bg-blue-50 text-blue-700",
+        pill: "bg-blue-50 text-blue-700 border-blue-200",
         label: "status_not_arrived",
     },
     arrived: {
         dot: "bg-green-700",
-        pill: "bg-green-50 text-green-700",
+        pill: "bg-green-50 text-green-700 border-green-200",
         label: "status_arrived",
     },
     "not departed": {
         dot: "bg-blue-600",
-        pill: "bg-blue-50 text-blue-700",
+        pill: "bg-blue-50 text-blue-700 border-blue-200",
         label: "status_not_departed",
     },
     departed: {
         dot: "bg-gray-500",
-        pill: "bg-gray-100 text-gray-600",
+        pill: "bg-gray-100 text-gray-600 border-gray-200",
         label: "status_departed",
     },
 };
@@ -191,11 +192,11 @@ function StatusBadge({
 }) {
     const style = STATUS_STYLES[status] ?? {
         dot: "bg-gray-400",
-        pill: "bg-gray-100 text-gray-600",
+        pill: "bg-gray-100 text-gray-600 border-gray-200",
     };
     return (
         <span
-            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${style.pill}`}
+            className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md border whitespace-nowrap ${style.pill}`}
         >
             <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${style.dot}`} />
             {label}
@@ -380,6 +381,21 @@ export default function LeadFlightItineraryTab({
         return key ? ft(key) : status;
     };
 
+    const pendingFlightCounts = useMemo(() => {
+        return {
+            arrivals: itineraryLegs.filter(
+                (leg) =>
+                    leg.direction === FlightDirection.ARRIVAL &&
+                    leg.status === "not arrived",
+            ).length,
+            departures: itineraryLegs.filter(
+                (leg) =>
+                    leg.direction === FlightDirection.DEPARTURE &&
+                    leg.status === "not departed",
+            ).length,
+        };
+    }, [itineraryLegs]);
+
     const filteredLegs = useMemo(() => {
         let items = [...itineraryLegs];
 
@@ -404,12 +420,18 @@ export default function LeadFlightItineraryTab({
         return items;
     }, [itineraryLegs, activeFilter, sortAsc]);
 
-    const filterChips: { key: FilterKey; label: string }[] = [
-        { key: "all", label: ft("filter_all") },
-        { key: "arrival", label: ft("filter_arrivals") },
-        { key: "departure", label: ft("filter_departures") },
-        { key: "transfer", label: ft("filter_transfer_needed") },
-    ];
+    const filterOptions = useMemo(
+        () => [
+            { value: "all" as FilterKey, label: ft("filter_all") },
+            { value: "arrival" as FilterKey, label: ft("filter_arrivals") },
+            { value: "departure" as FilterKey, label: ft("filter_departures") },
+            {
+                value: "transfer" as FilterKey,
+                label: ft("filter_transfer_needed"),
+            },
+        ],
+        [t, locale],
+    );
 
     const handleOpenModal = (leg?: ILeadFlightItinerary) => {
         if (leg ? !canEdit : !canAdd) {
@@ -848,9 +870,25 @@ export default function LeadFlightItineraryTab({
     return (
         <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
             <div className="flex items-center justify-between px-6 py-5 border-b border-gray-200">
-                <h2 className="text-base font-bold text-gray-900 m-0 tracking-tight">
-                    {ft("title")}
-                </h2>
+                <div className="flex items-center gap-3 flex-wrap">
+                    <h2 className="text-base font-bold text-gray-900 m-0 tracking-tight">
+                        {ft("flight")}
+                    </h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md border bg-blue-50 text-blue-700 border-blue-200 whitespace-nowrap">
+                            <ArrowDownOutlined className="text-[11px]" />
+                            {ft("pending_arrivals_count", {
+                                count: pendingFlightCounts.arrivals,
+                            })}
+                        </span>
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-md border bg-green-50 text-green-700 border-green-200 whitespace-nowrap">
+                            <ArrowUpOutlined className="text-[11px]" />
+                            {ft("pending_departures_count", {
+                                count: pendingFlightCounts.departures,
+                            })}
+                        </span>
+                    </div>
+                </div>
                 {canAdd && (
                     <Button
                         type="primary"
@@ -863,23 +901,15 @@ export default function LeadFlightItineraryTab({
             </div>
 
             {itineraryLegs.length > 0 && (
-                <div className="flex items-center gap-2 px-6 py-3.5 border-b border-gray-200 flex-wrap">
-                    {filterChips.map((chip) => (
-                        <button
-                            key={chip.key}
-                            type="button"
-                            onClick={() => setActiveFilter(chip.key)}
-                            className={`text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors ${
-                                activeFilter === chip.key
-                                    ? "bg-gray-900 text-white border-gray-900"
-                                    : "bg-white text-gray-500 border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                            }`}
-                        >
-                            {chip.label}
-                        </button>
-                    ))}
-                    <div className="flex-1" />
-                    <span className="text-xs text-gray-400 flex items-center gap-1.5">
+                <div className="flex items-center justify-between gap-4 px-6 py-3.5 border-b border-gray-200 flex-wrap">
+                    <Segmented
+                        options={filterOptions}
+                        value={activeFilter}
+                        onChange={(value) =>
+                            setActiveFilter(value as FilterKey)
+                        }
+                    />
+                    <span className="text-xs text-gray-400 flex items-center gap-1.5 shrink-0">
                         {ft("sorted_by_date")}
                         {sortAsc ? (
                             <CaretUpOutlined className="text-[10px]" />

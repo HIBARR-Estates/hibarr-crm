@@ -624,6 +624,8 @@ return [
         'filter_transfer_needed'         => 'Transfer gerekli',
         'sorted_by_date'                 => 'Tarihe göre sıralı',
         'flight'                         => 'Uçuş',
+        'pending_arrivals_count'         => '{{count}} varmadı',
+        'pending_departures_count'       => '{{count}} ayrılmadı',
         'transfer'                       => 'Transfer',
         'transfer_required'              => 'Gerekli',
         'delete_flight'                  => 'Uçuşu sil',

@@ -705,6 +705,8 @@ return [
         'filter_transfer_needed'         => 'Transfer needed',
         'sorted_by_date'                 => 'Sorted by date',
         'flight'                         => 'Flight',
+        'pending_arrivals_count'         => '{{count}} not arrived',
+        'pending_departures_count'       => '{{count}} not departed',
         'transfer'                       => 'Transfer',
         'transfer_required'              => 'Required',
         'delete_flight'                  => 'Delete flight',
