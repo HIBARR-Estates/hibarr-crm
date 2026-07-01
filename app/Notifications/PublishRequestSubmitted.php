@@ -39,7 +39,7 @@ class PublishRequestSubmitted extends BaseNotification
             ->when($this->publishRequest->message, function ($mail) {
                 return $mail->line("**Agent's Note:** {$this->publishRequest->message}");
             })
-            ->action('Review Publish Requests', url('/account/publish-requests'))
+            ->action('Review Publish Requests', $this->modifyUrl(route('publish-requests.index')))
             ->line('Please review and approve or reject this request.');
     }
 

@@ -5,19 +5,14 @@ namespace App\Notifications;
 use App\Models\MeetingSummary;
 use App\Models\DealFollowUp;
 use App\Models\Deal;
-use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
-class MeetingSummaryNotification extends Notification
+class MeetingSummaryNotification extends BaseNotification
 {
-    use Queueable;
-
-    protected $meetingSummary;
-    protected $dealFollowUp;
-    protected $deal;
-    protected $action;
+    protected MeetingSummary $meetingSummary;
+    protected DealFollowUp $dealFollowUp;
+    protected Deal $deal;
+    protected string $action;
 
     /**
      * Create a new notification instance.
@@ -28,6 +23,7 @@ class MeetingSummaryNotification extends Notification
         $this->dealFollowUp = $dealFollowUp;
         $this->deal = $deal;
         $this->action = $action;
+        $this->company = $deal->company;
     }
 
     /**
@@ -45,38 +41,40 @@ class MeetingSummaryNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $subject = $this->action === 'created' 
-            ? 'New Meeting Summary Available' 
+        $subject = $this->action === 'created'
+            ? 'New Meeting Summary Available'
             : 'Meeting Summary Updated';
-            
-        $summaryLink = url('/deals/' . $this->deal->id . '/meeting-summary/' . $this->meetingSummary->id);
-        
-        $mailMessage = (new MailMessage)
-                    ->subject($subject)
-                    ->greeting('Hello ' . $notifiable->name . '!')
-                    ->line($this->action === 'created' 
-                        ? 'A new meeting summary has been created for the following deal:'
-                        : 'A meeting summary has been updated for the following deal:')
-                    ->line('**Deal:** ' . $this->deal->name);
-        
+
+        $summaryLink = $this->modifyUrl(route('meeting-summary.show', $this->meetingSummary->id));
+
+        $mailMessage = parent::build($notifiable)
+            ->subject($subject)
+            ->greeting('Hello ' . $notifiable->name . '!')
+            ->line($this->action === 'created'
+                ? 'A new meeting summary has been created for the following deal:'
+                : 'A meeting summary has been updated for the following deal:')
+            ->line('**Deal:** ' . $this->deal->name);
+
         // Safely format meeting date
         if ($this->dealFollowUp->next_follow_up_date) {
             $mailMessage->line('**Meeting Date:** ' . $this->dealFollowUp->next_follow_up_date->format('M d, Y H:i'));
         } else {
             $mailMessage->line('**Meeting Date:** Not specified');
         }
-        
+
         // Safely format platform
         if ($this->dealFollowUp->location) {
             $mailMessage->line('**Platform:** ' . ucfirst($this->dealFollowUp->location));
         } else {
             $mailMessage->line('**Platform:** Not specified');
         }
-        
+
+        parent::resetLocale();
+
         return $mailMessage
-                    ->line('Click the button below to view the meeting summary:')
-                    ->action('View Meeting Summary', $summaryLink)
-                    ->line('Thank you for using our CRM system!');
+            ->line('Click the button below to view the meeting summary:')
+            ->action('View Meeting Summary', $summaryLink)
+            ->line('Thank you for using our CRM system!');
     }
 
     /**

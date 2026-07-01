@@ -52,7 +52,7 @@ class ProjectTimelogCreateNotification extends BaseNotification
             ->subject(__('email.createProjectTimeLog.subject'))
             ->greeting(__('email.hello') . ' ' . $notifiable->name . '!')
             ->line(__('email.createProjectTimeLog.text') . user()->name . '.')
-            ->action(__('email.createProjectTimeLog.action'), route('timelogs.show', $this->timelog->id));
+            ->action(__('email.createProjectTimeLog.action'), $this->modifyUrl(route('timelogs.show', $this->timelog->id)));
 
         return $build;
     }
