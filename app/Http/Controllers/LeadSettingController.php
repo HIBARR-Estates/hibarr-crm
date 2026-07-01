@@ -9,6 +9,7 @@ use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Models\LeadSetting;
 use App\Services\LeadLifecycleStatusService;
 use App\Services\PackageRoutingFieldCatalog;
@@ -108,18 +109,24 @@ class LeadSettingController extends AccountBaseController
 
     public function updateDealPackageSettings(Request $request)
     {
+        $allowedFieldKeys = array_keys(
+            app(\App\Services\PackageRoutingFieldCatalog::class)->allFieldOptions(company()->id),
+        );
+
         $request->validate([
             'deal_package_mode' => 'required|in:single,multiple',
             'package_pipeline_routing_trigger_fields' => 'nullable|array',
-            'package_pipeline_routing_trigger_fields.*' => 'string|max:100',
+            'package_pipeline_routing_trigger_fields.*' => ['string', 'max:100', Rule::in($allowedFieldKeys)],
         ]);
 
         $company = company();
         $company->package_pipeline_routing_enabled = $request->has('package_pipeline_routing_enabled') ? 1 : 0;
         $company->deal_package_mode = $request->deal_package_mode;
-        $company->package_pipeline_routing_trigger_fields = $request->input(
-            'package_pipeline_routing_trigger_fields',
-            [],
+        $company->package_pipeline_routing_trigger_fields = array_values(
+            array_intersect(
+                $request->input('package_pipeline_routing_trigger_fields', []),
+                $allowedFieldKeys,
+            ),
         );
         $company->save();
 

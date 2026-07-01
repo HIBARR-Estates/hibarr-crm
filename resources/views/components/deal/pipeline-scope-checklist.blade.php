@@ -22,7 +22,7 @@
                     :fieldName="$inputName"
                     :fieldId="$inputId"
                     :fieldValue="$value"
-                    :checked="in_array($value, $selected, true)" />
+                    :checked="in_array((string) $value, array_map('strval', $selected), true)" />
             </div>
         @endforeach
     </div>

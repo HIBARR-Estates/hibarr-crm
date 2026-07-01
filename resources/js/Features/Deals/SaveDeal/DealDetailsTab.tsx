@@ -132,9 +132,16 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 deal_watcher: data.deal_watcher || [],
                 deal_participant: data.deal_participant || [],
                 product_id: data.product_id || [],
-                package_id: data.packages
-                    ? data.packages.map((p: any) => p.id)
-                    : data.package_id || [],
+                package_id:
+                    dealPackageMode === "single"
+                        ? (data.packages?.[0]?.id ??
+                          (Array.isArray(data.package_id)
+                              ? data.package_id[0]
+                              : data.package_id) ??
+                          undefined)
+                        : data.packages
+                          ? data.packages.map((p: any) => p.id)
+                          : data.package_id || [],
             };
             setPipelineId(formData.pipeline);
             setSelectedCategoryId(formData.category_id);
@@ -186,6 +193,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         form.setFieldValue("stage_id", undefined); // Reset stage when pipeline changes
         setPipelineId(pipelineId);
         onPipelineChange?.(pipelineId);
+        onStageChange?.(undefined);
     };
 
     // Fetch agents when category changes
@@ -234,7 +242,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         // form.setFieldValue("value", total);
     };
 
-    const handlePackageChange = (packageIds: number[]) => {
+    const handlePackageChange = (value: number | number[] | undefined) => {
+        const packageIds = Array.isArray(value)
+            ? value
+            : value != null
+              ? [value]
+              : [];
         calculateTotalValue(packageIds);
     };
 
@@ -281,6 +294,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             product_id: values.product_id || [],
             strategy_accepted: values.strategy_accepted || false,
             downpayment_confirmed: values.downpayment_confirmed || false,
+            package_id:
+                dealPackageMode === "single"
+                    ? values.package_id != null
+                        ? [values.package_id]
+                        : []
+                    : values.package_id || [],
         };
 
         onSubmit(formData);

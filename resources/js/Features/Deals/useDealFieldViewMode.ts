@@ -12,7 +12,13 @@ export function useDealFieldViewMode(
             return defaultMode;
         }
         const stored = localStorage.getItem(STORAGE_KEY);
-        return stored === "all" ? "all" : "scoped";
+        if (stored === "all") {
+            return "all";
+        }
+        if (stored === "scoped") {
+            return "scoped";
+        }
+        return defaultMode;
     });
 
     const setMode = useCallback((next: DealFieldViewMode) => {

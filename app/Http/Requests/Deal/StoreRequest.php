@@ -34,11 +34,14 @@ class StoreRequest extends CoreRequest
         $packageMode = DealPackageMode::tryFrom(company()->deal_package_mode ?? DealPackageMode::Multiple->value)
             ?? DealPackageMode::Multiple;
 
+        $companyId = company()->id;
+        $packageExistsRule = Rule::exists('packages', 'id')->where('company_id', $companyId);
+
         if ($packageMode === DealPackageMode::Single) {
-            $rules['package_id'] = ['nullable', Rule::exists('packages', 'id')];
+            $rules['package_id'] = ['nullable', $packageExistsRule];
         } else {
             $rules['package_id'] = 'nullable|array';
-            $rules['package_id.*'] = 'exists:packages,id';
+            $rules['package_id.*'] = $packageExistsRule;
         }
 
         $rules = $this->customFieldRules($rules);

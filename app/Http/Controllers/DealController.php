@@ -880,8 +880,8 @@ class DealController extends AccountBaseController
         $deal->save();
 
         // Handle packages
+        $packageRouter = app(PackagePipelineRouterService::class);
         if ($request->has('package_id') && $request->package_id) {
-            $packageRouter = app(PackagePipelineRouterService::class);
             $packageIds = $packageRouter->normalizePackageIds($request->package_id);
             $packageRouter->syncDealPackages($deal, $packageIds);
 
@@ -1187,7 +1187,12 @@ class DealController extends AccountBaseController
 
             $packageRouter->syncDealPackages($deal, $newPackageIds);
 
-            if ($newPackageIds !== $currentPackageIds) {
+            $sortedNew = $newPackageIds;
+            $sortedCurrent = $currentPackageIds;
+            sort($sortedNew);
+            sort($sortedCurrent);
+
+            if ($sortedNew !== $sortedCurrent) {
                 app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
                     $deal,
                     $currentPackageIds,

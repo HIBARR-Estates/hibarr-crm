@@ -162,6 +162,17 @@ const DealForm: React.FC<DealFormProps> = ({
         })),
     ];
 
+    const tabKeys = useMemo(
+        () => tabItems.map((item) => item?.key).filter(Boolean) as string[],
+        [tabItems],
+    );
+
+    useEffect(() => {
+        if (!tabKeys.includes(activeTab)) {
+            setActiveTab(tabKeys[0] ?? "deal");
+        }
+    }, [tabKeys, activeTab]);
+
     return (
         <>
             {errors.length > 0 && (

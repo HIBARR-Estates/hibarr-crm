@@ -232,7 +232,7 @@
         })
     });
 
-    $('body').on('click', '.delete-pipeline', function() {
+    $('body').off('click.deletePipeline', '.delete-pipeline').on('click.deletePipeline', '.delete-pipeline', function() {
         var id = {{ $pipeline->id }};
         Swal.fire({
             title: "@lang('messages.sweetAlertTitle')",

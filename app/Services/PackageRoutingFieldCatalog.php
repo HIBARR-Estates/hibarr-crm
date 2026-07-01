@@ -45,14 +45,25 @@ class PackageRoutingFieldCatalog
      */
     public function customFieldOptions(?int $companyId = null): array
     {
-        $group = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+        $resolvedCompanyId = $companyId ?? company()?->id;
+
+        $groupQuery = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL);
+        if ($resolvedCompanyId) {
+            $groupQuery->where('company_id', $resolvedCompanyId);
+        }
+        $group = $groupQuery->first();
 
         if (!$group) {
             return [];
         }
 
-        return CustomField::query()
-            ->where('custom_field_group_id', $group->id)
+        $fieldsQuery = CustomField::query()
+            ->where('custom_field_group_id', $group->id);
+        if ($resolvedCompanyId) {
+            $fieldsQuery->where('company_id', $resolvedCompanyId);
+        }
+
+        return $fieldsQuery
             ->orderBy('label')
             ->get()
             ->mapWithKeys(fn (CustomField $field) => [

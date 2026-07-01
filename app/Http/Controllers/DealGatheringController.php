@@ -236,9 +236,11 @@ class DealGatheringController extends AccountBaseController
                 $data = [];
             }
 
-            // Files from data.fieldName dot notation (FormData)
+            // Files from data.fieldName (FormData) — Laravel may normalize dots to underscores
             foreach ($request->allFiles() as $key => $file) {
                 if (str_starts_with($key, 'data.')) {
+                    $data[substr($key, 5)] = $file;
+                } elseif (str_starts_with($key, 'data_')) {
                     $data[substr($key, 5)] = $file;
                 }
             }

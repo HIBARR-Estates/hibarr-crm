@@ -161,6 +161,10 @@ class PackagePipelineRouterService
 
         $targetStageId = $this->resolveTargetStageId($package, $targetPipeline->id, $deal->company_id);
 
+        if ($targetStageId === null) {
+            return false;
+        }
+
         $previousPipelineId = (int) $deal->lead_pipeline_id;
         $previousStageId = (int) $deal->pipeline_stage_id;
         $pipelineChanged = $previousPipelineId !== (int) $targetPipeline->id;
@@ -272,19 +276,21 @@ class PackagePipelineRouterService
      */
     public function syncPackageRoutingTriggers(Package $package, array $rows): void
     {
-        PackageRoutingTrigger::where('package_id', $package->id)->delete();
-
         $normalized = $this->fieldCatalog->normalizeTriggerRows($rows, $package->company_id);
 
-        foreach ($normalized as $row) {
-            PackageRoutingTrigger::create([
-                'company_id' => $package->company_id,
-                'package_id' => $package->id,
-                'field_key' => $row['field_key'],
-                'match_mode' => $row['match_mode'],
-                'match_value' => $row['match_value'],
-            ]);
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($package, $normalized) {
+            PackageRoutingTrigger::where('package_id', $package->id)->delete();
+
+            foreach ($normalized as $row) {
+                PackageRoutingTrigger::create([
+                    'company_id' => $package->company_id,
+                    'package_id' => $package->id,
+                    'field_key' => $row['field_key'],
+                    'match_mode' => $row['match_mode'],
+                    'match_value' => $row['match_value'],
+                ]);
+            }
+        });
     }
 
     /**
@@ -310,7 +316,7 @@ class PackagePipelineRouterService
         }
 
         $ids = is_array($packageIds) ? $packageIds : [$packageIds];
-        $ids = array_values(array_filter(array_map('intval', $ids)));
+        $ids = array_values(array_filter(array_map('intval', $ids), fn ($id) => $id > 0));
 
         $company = $companyId
             ? Company::find($companyId)

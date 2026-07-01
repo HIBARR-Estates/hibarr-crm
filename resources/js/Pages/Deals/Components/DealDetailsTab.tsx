@@ -62,6 +62,7 @@ const DealDetailsTab: React.FC<Props> = ({
 
     const interestBudgetFields = [
         show("interested_in"),
+        show("budget_range"),
         show("purchase_timeline"),
         show("motivation"),
     ].some(Boolean);
@@ -102,6 +103,23 @@ const DealDetailsTab: React.FC<Props> = ({
                                 alwaysEditing={editable}
                                 onChange={onChange}
                                 loading={isFieldLoading("interested_in")}
+                                disabled={disabled}
+                            />
+                        </DetailField>
+                    )}
+
+                    {show("budget_range") && (
+                        <DetailField label="Budget Range">
+                            <EditableField
+                                value={fields.budget_range}
+                                fieldName="budget_range"
+                                fieldType="text"
+                                onSave={(value) =>
+                                    handleSave("budget_range", value)
+                                }
+                                alwaysEditing={editable}
+                                onChange={onChange}
+                                loading={isFieldLoading("budget_range")}
                                 disabled={disabled}
                             />
                         </DetailField>

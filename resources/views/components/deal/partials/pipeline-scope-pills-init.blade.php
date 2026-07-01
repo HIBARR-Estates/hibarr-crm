@@ -56,6 +56,10 @@
         background: #f2f4f7;
     }
 
+    .pipeline-scope-pills__dropdown-item.is-active {
+        background: #e8f5ee;
+    }
+
     .pipeline-scope-pills__dropdown-empty {
         padding: 10px 12px;
         font-size: 13px;
@@ -85,6 +89,8 @@
             var $dropdown = $root.find('.pipeline-scope-pills__dropdown');
             var $hiddenInputs = $root.find('.pipeline-scope-pills__hidden-inputs');
             var $count = $root.find('.pipeline-scope-pills__count');
+            var highlightedIndex = -1;
+            var currentRemaining = [];
 
             function isSelected(value) {
                 return selected.some(function (item) {
@@ -148,6 +154,15 @@
                 updateCount();
             }
 
+            function selectOption(option) {
+                selected.push(String(option.value));
+                $search.val('');
+                highlightedIndex = -1;
+                renderPills();
+                renderDropdown();
+                openDropdown();
+            }
+
             function renderDropdown() {
                 var query = ($search.val() || '').trim().toLowerCase();
                 $dropdown.empty();
@@ -158,7 +173,10 @@
                     return !query || option.label.toLowerCase().indexOf(query) !== -1;
                 });
 
+                currentRemaining = remaining;
+
                 if (remaining.length === 0) {
+                    highlightedIndex = -1;
                     $dropdown.append(
                         $('<div>', { class: 'pipeline-scope-pills__dropdown-empty' })
                             .text(query ? noMatchesLabel : allSelectedLabel)
@@ -166,19 +184,29 @@
                     return;
                 }
 
-                remaining.forEach(function (option) {
-                    $('<div>', { class: 'pipeline-scope-pills__dropdown-item', text: option.label })
+                if (highlightedIndex >= remaining.length) {
+                    highlightedIndex = remaining.length - 1;
+                }
+                if (highlightedIndex < 0) {
+                    highlightedIndex = 0;
+                }
+
+                remaining.forEach(function (option, index) {
+                    var isActive = index === highlightedIndex;
+                    $('<div>', {
+                        class: 'pipeline-scope-pills__dropdown-item' + (isActive ? ' is-active' : ''),
+                        text: option.label,
+                        tabindex: -1,
+                        role: 'option',
+                        'aria-selected': isActive ? 'true' : 'false',
+                    })
                         .on('mousedown', function (event) {
                             // Keep focus in the search input so the dropdown stays usable.
                             event.preventDefault();
                         })
                         .on('click', function (event) {
                             event.stopPropagation();
-                            selected.push(String(option.value));
-                            $search.val('');
-                            renderPills();
-                            renderDropdown();
-                            openDropdown();
+                            selectOption(option);
                         })
                         .appendTo($dropdown);
                 });
@@ -196,6 +224,9 @@
 
             $search.on('click focus input', function (event) {
                 event.stopPropagation();
+                if (event.type === 'input') {
+                    highlightedIndex = 0;
+                }
                 openDropdown();
             });
 
@@ -210,6 +241,25 @@
                 }
                 if (event.key === 'Escape') {
                     closeDropdown();
+                }
+                if (event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    openDropdown();
+                    if (currentRemaining.length > 0) {
+                        highlightedIndex = Math.min(highlightedIndex + 1, currentRemaining.length - 1);
+                        renderDropdown();
+                    }
+                }
+                if (event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    if (currentRemaining.length > 0) {
+                        highlightedIndex = Math.max(highlightedIndex - 1, 0);
+                        renderDropdown();
+                    }
+                }
+                if (event.key === 'Enter' && highlightedIndex >= 0 && currentRemaining[highlightedIndex]) {
+                    event.preventDefault();
+                    selectOption(currentRemaining[highlightedIndex]);
                 }
             });
 

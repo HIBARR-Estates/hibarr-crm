@@ -150,13 +150,18 @@ class LeadPipelineSettingController extends AccountBaseController
 
     protected function syncFieldScopes(LeadPipeline $pipeline, array $fieldScopes): void
     {
-        \App\Models\PipelineFieldScope::where('pipeline_id', $pipeline->id)->delete();
-
+        $validStageIds = $pipeline->stages()->pluck('id')->map(fn ($stageId) => (int) $stageId)->all();
         $rows = [];
 
         foreach ($fieldScopes as $stageKey => $fieldKeys) {
             if (!is_array($fieldKeys)) {
                 continue;
+            }
+
+            if ($stageKey !== '__pipeline__' && !in_array((int) $stageKey, $validStageIds, true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'field_scopes' => __('validation.exists', ['attribute' => 'field_scopes']),
+                ]);
             }
 
             $stageId = $stageKey === '__pipeline__' ? null : (int) $stageKey;
@@ -191,8 +196,12 @@ class LeadPipelineSettingController extends AccountBaseController
             }
         }
 
-        if (!empty($rows)) {
-            \App\Models\PipelineFieldScope::insert($rows);
-        }
+        DB::transaction(function () use ($pipeline, $rows) {
+            \App\Models\PipelineFieldScope::where('pipeline_id', $pipeline->id)->delete();
+
+            if (!empty($rows)) {
+                \App\Models\PipelineFieldScope::insert($rows);
+            }
+        });
     }
 }

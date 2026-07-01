@@ -21,9 +21,18 @@ return new class extends Migration
             $table->foreign('category_id')->references('id')->on('custom_field_categories')->onDelete('cascade')->onUpdate('cascade');
             $table->foreign('pipeline_id')->references('id')->on('lead_pipelines')->onDelete('cascade')->onUpdate('cascade');
             $table->foreign('pipeline_stage_id')->references('id')->on('pipeline_stages')->onDelete('cascade')->onUpdate('cascade');
-
-            $table->unique(['category_id', 'pipeline_id', 'pipeline_stage_id'], 'cfc_scope_unique');
         });
+
+        if (Schema::getConnection()->getDriverName() === 'mysql') {
+            DB::statement(
+                'CREATE UNIQUE INDEX cfc_scope_unique ON custom_field_category_scopes '
+                . '(category_id, pipeline_id, (COALESCE(pipeline_stage_id, 0)))'
+            );
+        } else {
+            Schema::table('custom_field_category_scopes', function (Blueprint $table) {
+                $table->unique(['category_id', 'pipeline_id', 'pipeline_stage_id'], 'cfc_scope_unique');
+            });
+        }
 
         if (Schema::hasTable('custom_field_category_pipeline')) {
             $rows = DB::table('custom_field_category_pipeline')->get();

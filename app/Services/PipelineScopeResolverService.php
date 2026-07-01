@@ -482,8 +482,6 @@ class PipelineScopeResolverService
     {
         $companyId = $companyId ?? company()->id;
 
-        CustomFieldCategoryScope::where('pipeline_id', $pipeline->id)->delete();
-
         $rows = [];
 
         foreach ($categoryScopes as $stageKey => $categoryIds) {
@@ -505,9 +503,13 @@ class PipelineScopeResolverService
             }
         }
 
-        if (!empty($rows)) {
-            CustomFieldCategoryScope::insert($rows);
-        }
+        \Illuminate\Support\Facades\DB::transaction(function () use ($pipeline, $rows) {
+            CustomFieldCategoryScope::where('pipeline_id', $pipeline->id)->delete();
+
+            if (!empty($rows)) {
+                CustomFieldCategoryScope::insert($rows);
+            }
+        });
     }
 
     /**
