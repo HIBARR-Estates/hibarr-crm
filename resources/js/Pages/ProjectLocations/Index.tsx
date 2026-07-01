@@ -16,13 +16,13 @@ import {
     Space,
     InputNumber,
     Upload,
-    Tag,
     Tooltip,
     Empty,
     Divider,
     Progress,
     Typography,
     Image,
+    Avatar,
     Badge,
     Tabs,
     Alert,
@@ -70,6 +70,7 @@ import type { CityLookupValue, PropertyEnumValues } from "@/Types";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import dayjs from "dayjs";
 
 const { Text, Title } = Typography;
 
@@ -97,6 +98,23 @@ interface LocationInfrastructureOption {
 interface LocationInfrastructuresResponse {
     status: string;
     infrastructures: LocationInfrastructureOption[];
+}
+
+interface LocationSummary {
+    id: number;
+    name: string;
+    full_address?: string | null;
+    state?: string | null;
+}
+
+interface LocationsListResponse {
+    status: string;
+    locations: LocationSummary[];
+}
+
+interface LocationDetailResponse {
+    status: string;
+    location: ProjectLocation;
 }
 
 const humanizeConfigName = (value: string) =>
@@ -172,6 +190,11 @@ const getMeaningfulText = (value?: string | null) => {
         .replace(/&nbsp;/gi, " ")
         .trim();
 };
+
+const truncateText = (value: string, maxLength: number) =>
+    value.length > maxLength
+        ? `${value.slice(0, maxLength).trimEnd()}…`
+        : value;
 
 // ============================================
 // Types
@@ -270,6 +293,23 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
 // Form Drawer Component
 // ============================================
 
+// Maps a Form.List/Form.Item's root field name (first segment of an
+// errorFields[i].name path from Ant's validation error) to the Tabs key
+// that field lives under, for cross-tab validation-error indicators.
+const FIELD_TO_TAB: Record<string, string> = {
+    name: "basic",
+    description: "basic",
+    address_city: "basic",
+    address_state: "basic",
+    address_street: "basic",
+    address_country: "basic",
+    address_postalCode: "basic",
+    map_image: "basic",
+    attractions: "attractions",
+    infrastructure: "infrastructure",
+    airports: "airports",
+};
+
 interface LocationFormDrawerProps {
     open: boolean;
     onClose: () => void;
@@ -288,15 +328,45 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const [form] = Form.useForm<LocationFormValues>();
     const { modal } = App.useApp();
     const [activeTab, setActiveTab] = useState("basic");
+    const [tabErrors, setTabErrors] = useState<Set<string>>(new Set());
     const isEditing = !!location;
     const selectedCity = Form.useWatch("address_city", form);
     const selectedArea = Form.useWatch("address_state", form);
     const previousCityRef = useRef<string | undefined>(undefined);
+    const populatedEditListsRef = useRef<number | null>(null);
+    const populatedCopyAttractionsRef = useRef<number | undefined>(undefined);
+    const populatedCopyListsRef = useRef<number | undefined>(undefined);
+    const [copySourceId, setCopySourceId] = useState<number | undefined>(
+        undefined,
+    );
 
     const { data: enumValues } = useApiQuery<PropertyEnumValues>({
         path: route("properties.enum_values"),
         options: { enabled: open },
     });
+
+    const { data: copyFromListData } = useApiQuery<LocationsListResponse>({
+        path: route("project-locations.all"),
+        options: { enabled: open && !isEditing },
+    });
+
+    const { data: copySourceData } = useApiQuery<LocationDetailResponse>({
+        path: copySourceId
+            ? route("project-locations.show", copySourceId)
+            : "",
+        options: { enabled: open && !isEditing && !!copySourceId },
+    });
+
+    const copyFromOptions = useMemo(
+        () =>
+            (copyFromListData?.locations || []).map((loc) => ({
+                value: loc.id,
+                label: [loc.name, loc.full_address]
+                    .filter(Boolean)
+                    .join(" — "),
+            })),
+        [copyFromListData?.locations],
+    );
 
     const { data: airportData } = useApiQuery<LocationAirportsResponse>({
         path: route("project-locations.airports"),
@@ -509,6 +579,10 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     const { isUploading, uploadProgress, processAndSubmit } =
         useLocationFormUpload();
 
+    // Source of truth for "already uploaded" URLs to fall back to:
+    // the location being edited, or (on create) the location being copied from.
+    const referenceLocation = location ?? copySourceData?.location;
+
     // API mutations
     const createMutation = useApiMutate<
         CreateProjectLocationInput,
@@ -538,11 +612,13 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         isUploading || createMutation.isPending || updateMutation.isPending;
 
     const handleSubmit = async () => {
+        setTabErrors(new Set());
+
         try {
             const values = await form.validateFields();
 
             // Process files and transform to API payload
-            const payload = await processAndSubmit(values, location);
+            const payload = await processAndSubmit(values, referenceLocation);
 
             // Submit via API
             if (isEditing && location) {
@@ -551,7 +627,36 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 createMutation.mutate(payload);
             }
         } catch (error) {
-            console.error("Validation failed:", error);
+            const errorFields = (
+                error as { errorFields?: { name: (string | number)[] }[] }
+            )?.errorFields;
+
+            if (!errorFields?.length) {
+                console.error("Validation failed:", error);
+                return;
+            }
+
+            const failedTabs = new Set(
+                errorFields
+                    .map((field) => FIELD_TO_TAB[String(field.name[0])])
+                    .filter((tab): tab is string => Boolean(tab)),
+            );
+            setTabErrors(failedTabs);
+
+            if (failedTabs.size > 0 && !failedTabs.has(activeTab)) {
+                const tabOrder = [
+                    "basic",
+                    "attractions",
+                    "infrastructure",
+                    "airports",
+                ];
+                const firstFailedTab = tabOrder.find((tab) =>
+                    failedTabs.has(tab),
+                );
+                if (firstFailedTab) {
+                    setActiveTab(firstFailedTab);
+                }
+            }
         }
     };
 
@@ -638,16 +743,22 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 
     // Reset form when drawer opens/closes or location changes
     useEffect(() => {
+        setTabErrors(new Set());
+
         if (!open) {
             return;
         }
 
         if (!location) {
             previousCityRef.current = undefined;
+            populatedEditListsRef.current = null;
+            populatedCopyAttractionsRef.current = undefined;
+            populatedCopyListsRef.current = undefined;
             form.resetFields();
             form.setFieldValue("airports", []);
             form.setFieldValue("infrastructure", []);
             setActiveTab("basic");
+            setCopySourceId(undefined);
             return;
         }
 
@@ -694,13 +805,20 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         });
     }, [open, location, form, enumValues]);
 
-    // Populate airport/infrastructure selects after lookup options are loaded
+    // Populate airport/infrastructure selects after lookup options are loaded.
+    // Guarded by a ref so a query refetch (e.g. window refocus changing
+    // airportData/infrastructureData identity) doesn't clobber user edits —
+    // this only runs once per distinct location id.
     useEffect(() => {
         if (!open || !location) {
             return;
         }
 
         if (!airportData?.airports || !infrastructureData?.infrastructures) {
+            return;
+        }
+
+        if (populatedEditListsRef.current === location.id) {
             return;
         }
 
@@ -716,10 +834,96 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     travelTimeInMin: airport.travelTimeInMin,
                 })) || [],
         });
+        populatedEditListsRef.current = location.id;
     }, [
         open,
         location,
         form,
+        airportData?.airports,
+        infrastructureData?.infrastructures,
+        resolveAirportId,
+        resolveInfrastructureId,
+    ]);
+
+    // "Copy from" — prefill the create form from a selected source location.
+    // Name and city/area are intentionally left out here: name is left blank
+    // for the user to fill in, and city/area must be picked fresh. Photo URLs
+    // carry through the submit payload via the `referenceLocation` fallback
+    // and preview via the ImageUploader `existingUrl` props above.
+    // Guarded by a ref keyed on copySourceId so a copySourceData refetch
+    // (e.g. window refocus) doesn't wipe attractions the user already edited.
+    useEffect(() => {
+        if (!open || isEditing) {
+            return;
+        }
+
+        const source = copySourceData?.location;
+        if (!source) {
+            return;
+        }
+
+        if (populatedCopyAttractionsRef.current === copySourceId) {
+            return;
+        }
+
+        form.setFieldsValue({
+            description: source.description || undefined,
+            address_street: source.address?.street,
+            address_country: source.address?.country,
+            address_postalCode: source.address?.postalCode,
+            attractions:
+                source.attractions?.map((a) => ({
+                    name: a.name,
+                    content: Array.isArray(a.content)
+                        ? a.content.length === 1
+                            ? a.content[0]
+                            : a.content.join("")
+                        : typeof a.content === "string"
+                          ? a.content
+                          : "",
+                })) || [],
+        });
+        populatedCopyAttractionsRef.current = copySourceId;
+    }, [open, isEditing, copySourceData, copySourceId, form]);
+
+    // Guarded by a ref keyed on copySourceId — see the attractions copy
+    // effect above for why (refetch-triggered clobbering of user edits).
+    useEffect(() => {
+        if (!open || isEditing) {
+            return;
+        }
+
+        const source = copySourceData?.location;
+        if (!source) {
+            return;
+        }
+
+        if (!airportData?.airports || !infrastructureData?.infrastructures) {
+            return;
+        }
+
+        if (populatedCopyListsRef.current === copySourceId) {
+            return;
+        }
+
+        form.setFieldsValue({
+            infrastructure:
+                source.infrastructure?.map((item) => ({
+                    infrastructure_id: resolveInfrastructureId(item),
+                    travelTimeInMin: item.travelTimeInMin,
+                })) || [],
+            airports:
+                source.airports?.map((airport) => ({
+                    airport_id: resolveAirportId(airport),
+                    travelTimeInMin: airport.travelTimeInMin,
+                })) || [],
+        });
+        populatedCopyListsRef.current = copySourceId;
+    }, [
+        open,
+        isEditing,
+        copySourceData,
+        copySourceId,
         airportData?.airports,
         infrastructureData?.infrastructures,
         resolveAirportId,
@@ -747,6 +951,8 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         }
     }, [selectedCity, form, open]);
 
+    // Name is a hidden, fully computed field (not user-editable) — always
+    // kept in sync with the current city/area selection.
     useEffect(() => {
         if (!open) {
             return;
@@ -776,13 +982,43 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         {
             key: "basic",
             label: (
-                <span className="flex items-center gap-2">
-                    <InfoCircleOutlined />
-                    {td("Basic Info")}
-                </span>
+                <Badge dot={tabErrors.has("basic")} offset={[4, 2]}>
+                    <span className="flex items-center gap-2">
+                        <InfoCircleOutlined />
+                        {td("Basic Info")}
+                    </span>
+                </Badge>
             ),
             children: (
                 <div className="flex flex-col gap-y-4">
+                    {!isEditing && (
+                        <Form.Item label={td("Copy From Existing Location")}>
+                            <Select
+                                allowClear
+                                showSearch
+                                placeholder={td(
+                                    "Search a location to copy details from",
+                                )}
+                                optionFilterProp="label"
+                                options={copyFromOptions}
+                                value={copySourceId}
+                                onChange={(value) => {
+                                    setCopySourceId(value);
+                                    populatedCopyAttractionsRef.current =
+                                        undefined;
+                                    populatedCopyListsRef.current = undefined;
+                                }}
+                            />
+                            {copySourceId && (
+                                <div className="text-xs text-gray-500 mt-1">
+                                    {td(
+                                        "Details are copied except city, area, and name — edit anything before saving.",
+                                    )}
+                                </div>
+                            )}
+                        </Form.Item>
+                    )}
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Form.Item
                             name="address_city"
@@ -820,22 +1056,20 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         </Form.Item>
                     </div>
 
-                    {/* <Form.Item
+                    <Form.Item
                         name="name"
-                        label="Location Name"
+                        hidden
                         rules={[
                             {
                                 required: true,
-                                message:
-                                    "Location name is generated from area and city",
+                                message: td(
+                                    "Please select a city so the location name can be generated",
+                                ),
                             },
                         ]}
                     >
-                        <Input
-                            placeholder="Auto-generated from area and city"
-                            disabled
-                        />
-                    </Form.Item> */}
+                        <Input />
+                    </Form.Item>
 
                     <div className="flex items-center justify-between gap-3">
                         <label className="ant-form-item-label">
@@ -934,10 +1168,12 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             key: "attractions",
             forceRender: true,
             label: (
-                <span className="flex items-center gap-2">
-                    <CameraOutlined />
-                    Attractions
-                </span>
+                <Badge dot={tabErrors.has("attractions")} offset={[4, 2]}>
+                    <span className="flex items-center gap-2">
+                        <CameraOutlined />
+                        Attractions
+                    </span>
+                </Badge>
             ),
             children: (
                 <div>
@@ -1044,7 +1280,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                         >
                                                             <ImageUploader
                                                                 existingUrl={
-                                                                    location
+                                                                    referenceLocation
                                                                         ?.attractions?.[
                                                                         name
                                                                     ]?.images
@@ -1072,7 +1308,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                         >
                                                             <ImageUploader
                                                                 existingUrl={
-                                                                    location
+                                                                    referenceLocation
                                                                         ?.attractions?.[
                                                                         name
                                                                     ]?.images
@@ -1107,10 +1343,12 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         {
             key: "infrastructure",
             label: (
-                <span className="flex items-center gap-2">
-                    <CarOutlined />
-                    Infrastructure
-                </span>
+                <Badge dot={tabErrors.has("infrastructure")} offset={[4, 2]}>
+                    <span className="flex items-center gap-2">
+                        <CarOutlined />
+                        Infrastructure
+                    </span>
+                </Badge>
             ),
             children: (
                 <div>
@@ -1232,7 +1470,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                     >
                                                         <ImageUploader
                                                             existingUrl={
-                                                                location
+                                                                referenceLocation
                                                                     ?.infrastructure?.[
                                                                     name
                                                                 ]?.image ||
@@ -1279,10 +1517,12 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         {
             key: "airports",
             label: (
-                <span className="flex items-center gap-2">
-                    <RocketOutlined />
-                    Airports
-                </span>
+                <Badge dot={tabErrors.has("airports")} offset={[4, 2]}>
+                    <span className="flex items-center gap-2">
+                        <RocketOutlined />
+                        Airports
+                    </span>
+                </Badge>
             ),
             children: (
                 <div>
@@ -1401,7 +1641,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                                                     >
                                                         <ImageUploader
                                                             existingUrl={
-                                                                location
+                                                                referenceLocation
                                                                     ?.airports?.[
                                                                     name
                                                                 ]?.image ||
@@ -1506,6 +1746,16 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 requiredMark="optional"
                 className="location-form"
             >
+                {tabErrors.size > 0 && (
+                    <Alert
+                        message={td("Please fix the highlighted fields")}
+                        type="error"
+                        showIcon
+                        closable
+                        onClose={() => setTabErrors(new Set())}
+                        className="mb-4"
+                    />
+                )}
                 <Tabs
                     activeKey={activeTab}
                     onChange={setActiveTab}
@@ -1529,6 +1779,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
         useState<ProjectLocation | null>(null);
     const [locationToDelete, setLocationToDelete] =
         useState<ProjectLocation | null>(null);
+    const [searchValue, setSearchValue] = useState(filters.search || "");
 
     // Delete mutation - path updates when locationToDelete changes
     const deleteMutation = useApiMutate<
@@ -1577,6 +1828,14 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
         setLocationToDelete(location);
     }, []);
 
+    const handleSearch = useCallback((value: string) => {
+        router.get(
+            route("project-locations.index"),
+            { search: value || undefined },
+            { preserveState: true, preserveScroll: true },
+        );
+    }, []);
+
     // Table columns
     const columns: TableColumnsType<ProjectLocation> = useMemo(
         () => [
@@ -1584,99 +1843,119 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 title: td("Location"),
                 dataIndex: "name",
                 key: "name",
-                render: (name: string, record) => (
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center flex-shrink-0">
-                            <EnvironmentOutlined className="text-white text-lg" />
-                        </div>
-                        <div>
-                            <div className="font-medium text-gray-900">
-                                {formatLocationNameForDisplay(name)}
+                render: (name: string, record) => {
+                    const descriptionSnippet = truncateText(
+                        getMeaningfulText(record.description),
+                        90,
+                    );
+                    return (
+                        <div className="flex items-center gap-3">
+                            <Avatar
+                                shape="square"
+                                size={40}
+                                src={record.image_url || undefined}
+                                icon={<EnvironmentOutlined />}
+                                className={
+                                    record.image_url
+                                        ? "flex-shrink-0"
+                                        : "flex-shrink-0 bg-gradient-to-br from-blue-500 to-blue-600"
+                                }
+                            />
+                            <div className="min-w-0">
+                                <div className="font-medium text-gray-900 truncate">
+                                    {formatLocationNameForDisplay(name)}
+                                </div>
+                                {descriptionSnippet && (
+                                    <Tooltip
+                                        title={getMeaningfulText(
+                                            record.description,
+                                        )}
+                                    >
+                                        <div className="text-xs text-gray-500 truncate max-w-[280px]">
+                                            {descriptionSnippet}
+                                        </div>
+                                    </Tooltip>
+                                )}
                             </div>
                         </div>
-                    </div>
-                ),
-            },
-            {
-                title: td("Address"),
-                key: "address",
-                render: (_, record) => {
-                    const parts = [
-                        record.address?.city,
-                        record.address?.country,
-                    ].filter(Boolean);
-                    return parts.length > 0 ? (
-                        <span className="text-gray-600">
-                            {parts.join(", ")}
-                        </span>
-                    ) : (
-                        <span className="text-gray-400 italic">Not set</span>
                     );
                 },
             },
             {
-                title: td("Details"),
-                key: "details",
+                title: td("Country"),
+                key: "country",
+                width: 130,
+                render: (_, record) =>
+                    record.address?.country ? (
+                        <span className="text-gray-700 text-sm">
+                            {record.address.country}
+                        </span>
+                    ) : (
+                        <span className="text-gray-400 italic text-sm">
+                            {td("Not set")}
+                        </span>
+                    ),
+            },
+            {
+                title: (
+                    <span className="flex items-center justify-center gap-1.5">
+                        <CameraOutlined />
+                        {td("Attractions")}
+                    </span>
+                ),
+                key: "attractions_count",
+                align: "center",
+                width: 110,
                 render: (_, record) => (
-                    <div className="flex items-center gap-2">
-                        {(record.attractions?.length || 0) > 0 && (
-                            <Tooltip title={td("Attractions")}>
-                                <Tag
-                                    icon={<CameraOutlined />}
-                                    color="blue"
-                                    className="m-0"
-                                >
-                                    {record.attractions?.length}
-                                </Tag>
-                            </Tooltip>
-                        )}
-                        {(record.infrastructure?.length || 0) > 0 && (
-                            <Tooltip title={td("Infrastructure")}>
-                                <Tag
-                                    icon={<CarOutlined />}
-                                    color="green"
-                                    className="m-0"
-                                >
-                                    {record.infrastructure?.length}
-                                </Tag>
-                            </Tooltip>
-                        )}
-                        {(record.airports?.length || 0) > 0 && (
-                            <Tooltip title={td("Airports")}>
-                                <Tag
-                                    icon={<RocketOutlined />}
-                                    color="orange"
-                                    className="m-0"
-                                >
-                                    {record.airports?.length}
-                                </Tag>
-                            </Tooltip>
-                        )}
-                        {!record.attractions?.length &&
-                            !record.infrastructure?.length &&
-                            !record.airports?.length && (
-                                <span className="text-gray-400 italic text-sm">
-                                    {td("No details")}
-                                </span>
-                            )}
-                    </div>
+                    <span className="text-gray-700 text-sm">
+                        {record.attractions?.length || 0}
+                    </span>
                 ),
             },
             {
-                title: td("Map"),
-                key: "map",
+                title: (
+                    <span className="flex items-center justify-center gap-1.5">
+                        <CarOutlined />
+                        {td("Infrastructure")}
+                    </span>
+                ),
+                key: "infrastructure_count",
                 align: "center",
-                width: 80,
-                render: (_, record) =>
-                    record.map_url ? (
-                        <Tooltip title={td("Map image available")}>
-                            <Badge status="success" />
-                        </Tooltip>
-                    ) : (
-                        <Tooltip title={td("No map image")}>
-                            <Badge status="default" />
-                        </Tooltip>
-                    ),
+                width: 130,
+                render: (_, record) => (
+                    <span className="text-gray-700 text-sm">
+                        {record.infrastructure?.length || 0}
+                    </span>
+                ),
+            },
+            {
+                title: (
+                    <span className="flex items-center justify-center gap-1.5">
+                        <RocketOutlined />
+                        {td("Airports")}
+                    </span>
+                ),
+                key: "airports_count",
+                align: "center",
+                width: 100,
+                render: (_, record) => (
+                    <span className="text-gray-700 text-sm">
+                        {record.airports?.length || 0}
+                    </span>
+                ),
+            },
+            {
+                title: td("Updated"),
+                dataIndex: "updated_at",
+                key: "updated_at",
+                width: 120,
+                render: (updated_at: string) => (
+                    <span className="text-gray-500 text-sm">
+                        {updated_at
+                            ? dayjs(updated_at).format("MMM D, YYYY")
+                            : "--"}
+                    </span>
+                ),
             },
             {
                 title: "",
@@ -1727,17 +2006,19 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                     ];
 
                     return (
-                        <Dropdown
-                            menu={{ items }}
-                            trigger={["click"]}
-                            placement="bottomRight"
-                        >
-                            <Button
-                                type="text"
-                                icon={<MoreOutlined />}
-                                className="text-gray-400 hover:text-gray-600"
-                            />
-                        </Dropdown>
+                        <div onClick={(e) => e.stopPropagation()}>
+                            <Dropdown
+                                menu={{ items }}
+                                trigger={["click"]}
+                                placement="bottomRight"
+                            >
+                                <Button
+                                    type="text"
+                                    icon={<MoreOutlined />}
+                                    className="text-gray-400 hover:text-gray-600"
+                                />
+                            </Dropdown>
+                        </div>
                     );
                 },
             },
@@ -1757,20 +2038,30 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                     { name: t("app.project_locations.locations") },
                 ]}
             >
-                <div className="max-w-7xl mx-auto flex flex-col gap-y-6">
-                    {/* Header Card */}
-                    <Card className="border-0 shadow-sm">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                            <div>
-                                <Title level={4} className="!mb-1">
-                                    {td("Project Locations")}
-                                </Title>
-                                <Text type="secondary">
-                                    {td(
-                                        "Manage locations for your developer projects and expose configurations",
-                                    )}
-                                </Text>
-                            </div>
+                <div className="max-w-7xl mx-auto flex flex-col gap-y-4">
+                    {/* Toolbar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div>
+                            <Title level={4} className="!mb-1">
+                                {td("Project Locations")}
+                            </Title>
+                            <Text type="secondary">
+                                {td(
+                                    "Manage locations for your developer projects and expose configurations",
+                                )}
+                            </Text>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <Input.Search
+                                placeholder={td("Search locations...")}
+                                allowClear
+                                value={searchValue}
+                                onChange={(e) =>
+                                    setSearchValue(e.target.value)
+                                }
+                                onSearch={handleSearch}
+                                style={{ width: 260 }}
+                            />
                             <Button
                                 type="primary"
                                 icon={<PlusOutlined />}
@@ -1779,55 +2070,74 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                 {td("New Location")}
                             </Button>
                         </div>
-                    </Card>
+                    </div>
 
                     {/* Table */}
-                    <Card className="border-0 shadow-sm">
-                        {locations.total === 0 ? (
+                    {locations.total === 0 ? (
+                        <div className="bg-white rounded-lg border border-gray-200 py-12">
                             <Empty
                                 image={Empty.PRESENTED_IMAGE_SIMPLE}
                                 description={
                                     <span className="text-gray-500">
-                                        {td("No locations created yet")}
+                                        {filters.search
+                                            ? td(
+                                                  "No locations match your search",
+                                              )
+                                            : td("No locations created yet")}
                                     </span>
                                 }
                             >
-                                <Button
-                                    type="primary"
-                                    icon={<PlusOutlined />}
-                                    onClick={handleAdd}
-                                >
-                                    Create Your First Location
-                                </Button>
+                                {filters.search ? (
+                                    <Button
+                                        onClick={() => {
+                                            setSearchValue("");
+                                            handleSearch("");
+                                        }}
+                                    >
+                                        {td("Clear search")}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        type="primary"
+                                        icon={<PlusOutlined />}
+                                        onClick={handleAdd}
+                                    >
+                                        Create Your First Location
+                                    </Button>
+                                )}
                             </Empty>
-                        ) : (
-                            <DataTable
-                                columns={columns}
-                                dataSource={locations.data}
-                                rowKey="id"
-                                paginationData={{
-                                    current_page: locations.current_page,
-                                    last_page: locations.last_page,
-                                    per_page: locations.per_page,
-                                    total: locations.total,
-                                    from: null,
-                                    to: null,
-                                }}
-                                onPageChange={(page) => {
-                                    router.get(
-                                        route("project-locations.index"),
-                                        { ...filters, page },
-                                        {
-                                            preserveState: true,
-                                            preserveScroll: true,
-                                        },
-                                    );
-                                }}
-                                size="middle"
-                                scroll={{ x: 800, y: "calc(100vh - 320px)" }}
-                            />
-                        )}
-                    </Card>
+                        </div>
+                    ) : (
+                        <DataTable
+                            columns={columns}
+                            dataSource={locations.data}
+                            rowKey="id"
+                            onRow={(record) => ({
+                                onClick: () => handleEdit(record),
+                                className: "cursor-pointer",
+                            })}
+                            paginationData={{
+                                current_page: locations.current_page,
+                                last_page: locations.last_page,
+                                per_page: locations.per_page,
+                                total: locations.total,
+                                from: null,
+                                to: null,
+                            }}
+                            onPageChange={(page) => {
+                                router.get(
+                                    route("project-locations.index"),
+                                    { ...filters, page },
+                                    {
+                                        preserveState: true,
+                                        preserveScroll: true,
+                                    },
+                                );
+                            }}
+                            size="middle"
+                            scroll={{ x: 800, y: "calc(100vh - 320px)" }}
+                        />
+                    )}
                 </div>
             </PageLayout>
 
