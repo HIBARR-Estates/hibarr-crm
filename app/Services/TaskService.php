@@ -258,6 +258,8 @@ class TaskService
                 $task->updateCustomFieldData($data['custom_fields_data']);
             }
 
+            $this->handlePolymorphicRelations($task, $data, false);
+
             DB::commit();
             return $task;
         } catch (\Exception $e) {

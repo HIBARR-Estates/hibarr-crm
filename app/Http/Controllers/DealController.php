@@ -681,6 +681,10 @@ class DealController extends AccountBaseController
             'view_lead_files' => user()->permission('view_lead_files'),
             'add_lead_files' => user()->permission('add_lead_files'),
             'delete_deals' => user()->permission('delete_deals'),
+            'view_tasks' => user()->permission('view_tasks'),
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
         ];
 
         // Prepare deal with custom fields data
