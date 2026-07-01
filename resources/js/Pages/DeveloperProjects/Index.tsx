@@ -26,6 +26,7 @@ import ProjectFormModal from "./components/ProjectFormModal";
 import SortDropdown from "./components/SortDropdown";
 import { usePermission } from "@/lib/permissionUtils";
 import { PROJECT_CONSTRUCTION_STATUSES } from "@/Features/Properties/SaveProperty/constructionProjectConfig";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 // ============================================
 // Types
@@ -435,7 +436,9 @@ const Index = ({
                                         .filter((l) => Boolean(l.name?.trim()))
                                         .map((l) => ({
                                             value: String(l.id),
-                                            label: l.name,
+                                            label: formatLocationNameForDisplay(
+                                                l.name,
+                                            ),
                                         }))}
                                     style={{ width: 160 }}
                                     size="small"
