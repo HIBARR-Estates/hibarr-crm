@@ -34,6 +34,7 @@ import type {
 } from "@/Types/developerProject";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Text } = Typography;
 
@@ -172,7 +173,9 @@ const ConstructionProjectsTable: React.FC<ConstructionProjectsTableProps> = ({
                 width: 150,
                 render: (location: ProjectLocation | undefined) =>
                     location ? (
-                        <Tag color="blue">{location.name}</Tag>
+                        <Tag color="blue">
+                            {formatLocationNameForDisplay(location.name)}
+                        </Tag>
                     ) : (
                         <span className="text-gray-400">Not assigned</span>
                     ),

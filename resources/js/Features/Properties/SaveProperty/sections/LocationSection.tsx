@@ -17,6 +17,7 @@ import type {
 } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { DISTANCE_FIELDS } from "../constructionProjectConfig";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 const { TextArea } = Input;
 
@@ -119,7 +120,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
             {hasProjectLocation && (
                 <Col span={24}>
                     <Alert
-                        message={`Location inherited from project: ${selectedProject?.location?.name}`}
+                        message={`Location inherited from project: ${formatLocationNameForDisplay(selectedProject?.location?.name)}`}
                         type="info"
                         showIcon
                         className="mb-3"
@@ -142,7 +143,7 @@ const LocationSection: React.FC<LocationSectionProps> = ({
                         >
                             {projectLocations.map((loc) => (
                                 <Select.Option key={loc.id} value={loc.id}>
-                                    {loc.name}
+                                    {formatLocationNameForDisplay(loc.name)}
                                 </Select.Option>
                             ))}
                         </Select>

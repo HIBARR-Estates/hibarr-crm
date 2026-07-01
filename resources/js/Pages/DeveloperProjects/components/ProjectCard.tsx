@@ -11,6 +11,7 @@ import {
 import type { MenuProps } from "antd";
 import type { DeveloperProject } from "@/Types/developerProject";
 import { usePermission } from "@/lib/permissionUtils";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 function formatCompletionDate(
     dateStr: string | null | undefined,
@@ -175,7 +176,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                 {project.location?.name ? (
                     <p className="flex items-center gap-1 text-xs text-gray-400 mb-3">
                         <MapPin size={11} className="text-gray-300 shrink-0" />
-                        {project.location.name}
+                        {formatLocationNameForDisplay(project.location.name)}
                     </p>
                 ) : (
                     <p className="text-xs text-gray-400 mb-3">No location</p>

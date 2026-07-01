@@ -69,6 +69,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { CityLookupValue, PropertyEnumValues } from "@/Types";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Text, Title } = Typography;
 
@@ -1589,8 +1590,8 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             <EnvironmentOutlined className="text-white text-lg" />
                         </div>
                         <div>
-                            <div className="font-medium text-gray-900 capitalize">
-                                {name}
+                            <div className="font-medium text-gray-900">
+                                {formatLocationNameForDisplay(name)}
                             </div>
                         </div>
                     </div>
@@ -1702,7 +1703,11 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                             {td(
                                                 "Are you sure you want to delete",
                                             )}{" "}
-                                            <strong>{record.name}</strong>?{" "}
+                                            <strong>
+                                                {formatLocationNameForDisplay(
+                                                    record.name,
+                                                )}
+                                            </strong>?{" "}
                                             {td("This cannot be undone.")}
                                         </span>
                                     }

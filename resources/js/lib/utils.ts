@@ -456,6 +456,29 @@ const resolveLocation = (record: SubtitleableRecord): string | null => {
 };
 
 /**
+ * Format a project location name for display (title case per word/segment).
+ * Display-only — does not mutate stored values.
+ * Handles "area, city" comma-separated names and snake_case segments.
+ * e.g. "belek, antalya" → "Belek, Antalya"
+ */
+export function formatLocationNameForDisplay(
+    name: string | null | undefined,
+): string {
+    if (name == null || name === "") return "";
+    return name
+        .split(",")
+        .map((segment) =>
+            segment
+                .trim()
+                .replace(/[-_]/g, " ")
+                .toLowerCase()
+                .replace(/\b\w/g, (char) => char.toUpperCase()),
+        )
+        .filter(Boolean)
+        .join(", ");
+}
+
+/**
  * Format country for display in tables/cards. Handles both string (e.g. "United States")
  * and object from API (e.g. { id, nicename, name }) so it never renders as [object Object].
  */
