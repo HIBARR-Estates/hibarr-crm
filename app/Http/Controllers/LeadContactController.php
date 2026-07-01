@@ -987,7 +987,17 @@ class LeadContactController extends AccountBaseController
                     $leadContact->withCustomFields();
                     $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
                 }
-                
+
+                // Always refresh the computed display name so the frontend doesn't revert to the
+                // stale salutation+name combo it had before the edit.
+                if ($request->has('client_name') || $request->has('salutation')) {
+                    $responseData['client_name_salutation'] = $leadContact->client_name_salutation;
+                    $responseData['salutation_value'] = $leadContact->salutation instanceof \App\Enums\Salutation
+                        ? $leadContact->salutation->value
+                        : $leadContact->salutation;
+                    $responseData['salutation'] = $responseData['salutation_value'];
+                }
+
                 return response()->json([
                     'status' => 'success',
                     'data' => [

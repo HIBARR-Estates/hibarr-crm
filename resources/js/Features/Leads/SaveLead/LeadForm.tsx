@@ -78,6 +78,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
             }),
         );
     }, [pageLanguages, fetchedLanguages]);
+    
     const markUserEdited = useCallback(() => {
         userEditedRef.current = true;
     }, []);
@@ -198,11 +199,11 @@ const LeadForm: React.FC<LeadFormProps> = ({
                 </Button>
 
                 <div className="save-lead-form__footer-actions">
-                    {!isEditing && (
+                    {/* {!isEditing && (
                         <Button className="save-lead-form__draft-btn" disabled>
                             Save as draft
                         </Button>
-                    )}
+                    )} */}
                     <Button
                         type="primary"
                         htmlType="submit"
