@@ -8,5 +8,6 @@ return [
         'crm.lead-language-core-field',
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
+        'sally.crm-write-client',
     ],
 ];
