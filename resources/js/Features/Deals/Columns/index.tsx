@@ -81,7 +81,8 @@ export const DEAL_TABLE_COLUMNS = (
                 const hasContact = !!record.contact;
                 let displayName = hasContact ? record.contact.client_name : null;
                 if (hasContact && record.contact.salutation) {
-                    displayName = `${record.contact.salutation} ${displayName}`;
+                    const sal = record.contact.salutation;
+                    displayName = `${sal.charAt(0).toUpperCase() + sal.slice(1)} ${displayName}`;
                 }
                 const translatedName = displayName ? displayName : null;
 
