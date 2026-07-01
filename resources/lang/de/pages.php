@@ -629,7 +629,7 @@ return [
         'delete_flight'                  => 'Flug löschen',
         'view_details'                   => 'Details anzeigen',
         'open_actions_menu'              => 'Aktionsmenü öffnen',
-        'flights_count'                  => '{{count}} Flüge',
+        'flights_count'                  => '{{count}} Flug{{count_plural}}',
         'flight_plan_image'              => 'Flugplan-Bild',
         'upload_flight_plan'             => 'Klicken oder ziehen, um ein Flugplan-Bild hochzuladen',
         'remove_flight_plan'             => 'Bild entfernen',

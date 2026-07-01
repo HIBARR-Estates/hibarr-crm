@@ -629,7 +629,7 @@ return [
         'delete_flight'                  => 'Удалить рейс',
         'view_details'                   => 'Просмотр деталей',
         'open_actions_menu'              => 'Открыть меню действий',
-        'flights_count'                  => '{{count}} рейс(ов)',
+        'flights_count'                  => '{{count}} рейс{{count_plural}}',
         'flight_plan_image'              => 'Изображение плана полёта',
         'upload_flight_plan'             => 'Нажмите или перетащите изображение плана полёта',
         'remove_flight_plan'             => 'Удалить изображение',

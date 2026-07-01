@@ -190,7 +190,7 @@ const Show = ({
                             editLeadPermission,
                         ),
                         canDelete: ["all", "added", "owned", "both"].includes(
-                            editLeadPermission,
+                            deleteLeadPermission,
                         ),
                     }}
                 />

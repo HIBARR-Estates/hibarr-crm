@@ -78,7 +78,11 @@ function createFlightDateFormatters(locale: string) {
     });
 
     const parseDate = (value: string) => {
-        const parsed = new Date(value);
+        const normalized =
+            value.includes(" ") && !value.includes("T")
+                ? value.replace(" ", "T")
+                : value;
+        const parsed = new Date(normalized);
         return Number.isNaN(parsed.getTime()) ? null : parsed;
     };
 
@@ -96,6 +100,21 @@ function createFlightDateFormatters(locale: string) {
             return parsed ? dateTimeFormatter.format(parsed) : null;
         },
     };
+}
+
+function countPluralSuffix(locale: string, count: number): string {
+    if (count === 1) {
+        return "";
+    }
+
+    switch (locale) {
+        case "de":
+            return "e";
+        case "ru":
+            return "ов";
+        default:
+            return "s";
+    }
 }
 
 const STATUS_STYLES: Record<
@@ -456,6 +475,11 @@ export default function LeadFlightItineraryTab({
     };
 
     const handleSubmit = async () => {
+        if (uploadingImageField) {
+            message.warning(ft("uploading_flight_plan"));
+            return;
+        }
+
         try {
             const values = await form.validateFields();
 
@@ -893,7 +917,15 @@ export default function LeadFlightItineraryTab({
 
             {filteredLegs.length > 0 && (
                 <div className="flex items-center justify-between px-6 py-3 border-t border-gray-200 text-xs text-gray-400">
-                    <span>{ft("flights_count", { count: filteredLegs.length })}</span>
+                    <span>
+                        {ft("flights_count", {
+                            count: filteredLegs.length,
+                            count_plural: countPluralSuffix(
+                                locale,
+                                filteredLegs.length,
+                            ),
+                        })}
+                    </span>
                 </div>
             )}
 
@@ -902,6 +934,7 @@ export default function LeadFlightItineraryTab({
                 open={isModalVisible}
                 onOk={handleSubmit}
                 onCancel={handleCloseModal}
+                okButtonProps={{ disabled: !!uploadingImageField }}
                 width={520}
                 destroyOnClose
             >
@@ -1026,13 +1059,56 @@ export default function LeadFlightItineraryTab({
                                         onClick={() => {
                                             const next = !isRoundtrip;
                                             setIsRoundtrip(next);
-                                            form.setFieldsValue({
-                                                is_roundtrip: next,
-                                                direction:
-                                                    FlightDirection.ARRIVAL,
-                                                status: "not arrived",
-                                                return_status: "not departed",
-                                            });
+
+                                            if (next) {
+                                                const values =
+                                                    form.getFieldsValue();
+                                                const wasDeparture =
+                                                    values.direction ===
+                                                    FlightDirection.DEPARTURE;
+
+                                                if (wasDeparture) {
+                                                    form.setFieldsValue({
+                                                        is_roundtrip: next,
+                                                        direction:
+                                                            FlightDirection.ARRIVAL,
+                                                        return_airport_name:
+                                                            values.airport_name,
+                                                        return_flight_number:
+                                                            values.flight_number,
+                                                        return_flight_date:
+                                                            values.flight_date,
+                                                        return_status:
+                                                            values.status ||
+                                                            "not departed",
+                                                        return_ticket_image_url:
+                                                            values.ticket_image_url,
+                                                        airport_name: undefined,
+                                                        flight_number:
+                                                            undefined,
+                                                        flight_date: undefined,
+                                                        status: "not arrived",
+                                                        ticket_image_url:
+                                                            undefined,
+                                                    });
+                                                } else {
+                                                    form.setFieldsValue({
+                                                        is_roundtrip: next,
+                                                        direction:
+                                                            FlightDirection.ARRIVAL,
+                                                        status:
+                                                            values.status ||
+                                                            "not arrived",
+                                                        return_status:
+                                                            "not departed",
+                                                    });
+                                                }
+                                            } else {
+                                                form.setFieldsValue({
+                                                    is_roundtrip: next,
+                                                });
+                                            }
+
                                             setDirection(
                                                 FlightDirection.ARRIVAL,
                                             );

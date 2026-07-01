@@ -710,7 +710,7 @@ return [
         'delete_flight'                  => 'Delete flight',
         'view_details'                   => 'View details',
         'open_actions_menu'              => 'Open actions menu',
-        'flights_count'                  => '{{count}} flights',
+        'flights_count'                  => '{{count}} flight{{count_plural}}',
         'flight_plan_image'              => 'Flight Plan Image',
         'upload_flight_plan'             => 'Click or drag to upload flight plan image',
         'remove_flight_plan'             => 'Remove image',

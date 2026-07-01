@@ -18,6 +18,10 @@ use Illuminate\Http\RedirectResponse;
 
 use Illuminate\Http\Request;
 
+use Illuminate\Support\Facades\DB;
+
+use Illuminate\Validation\Rule;
+
 use Illuminate\Validation\ValidationException;
 
 use Carbon\Carbon;
@@ -27,6 +31,18 @@ use Carbon\Carbon;
 class LeadFlightItineraryController extends Controller
 
 {
+
+    private const ITINERARY_STATUSES = [
+        'not arrived',
+        'arrived',
+        'not departed',
+        'departed',
+    ];
+
+    private const DEPARTURE_STATUSES = [
+        'not departed',
+        'departed',
+    ];
 
     public function store(Request $request)
 
@@ -46,7 +62,7 @@ class LeadFlightItineraryController extends Controller
 
             'flight_date' => 'nullable|date',
 
-            'status' => 'nullable|string',
+            'status' => ['nullable', Rule::in(self::ITINERARY_STATUSES)],
 
             'is_transfer_required' => 'boolean',
 
@@ -58,7 +74,7 @@ class LeadFlightItineraryController extends Controller
 
             'return_flight_date' => 'required_if:is_roundtrip,true|nullable|date',
 
-            'return_status' => 'nullable|string',
+            'return_status' => ['nullable', Rule::in(self::DEPARTURE_STATUSES)],
 
             'ticket_image_url' => 'nullable|string',
 
@@ -158,45 +174,28 @@ class LeadFlightItineraryController extends Controller
 
 
 
-        LeadFlightItinerary::create($data);
+        DB::transaction(function () use ($request, $data) {
+            LeadFlightItinerary::create($data);
 
+            if ($request->input('is_roundtrip')) {
+                $returnLeg = [
+                    'lead_id' => $data['lead_id'],
+                    'deal_id' => $data['deal_id'] ?? null,
+                    'direction' => 'departure',
+                    'airport_name' => $request->input('return_airport_name'),
+                    'flight_number' => $request->input('return_flight_number'),
+                    'status' => $request->input('return_status', 'not departed'),
+                    'is_transfer_required' => (bool) $request->input('is_transfer_required', false),
+                    'ticket_image_url' => $request->input('return_ticket_image_url'),
+                ];
 
+                if ($request->filled('return_flight_date')) {
+                    $returnLeg['flight_date'] = Carbon::parse($request->return_flight_date)->toDateTimeString();
+                }
 
-        if ($request->input('is_roundtrip')) {
-
-            $returnLeg = [
-
-                'lead_id' => $data['lead_id'],
-
-                'deal_id' => $data['deal_id'] ?? null,
-
-                'direction' => 'departure',
-
-                'airport_name' => $request->input('return_airport_name'),
-
-                'flight_number' => $request->input('return_flight_number'),
-
-                'status' => $request->input('return_status', 'not departed'),
-
-                'is_transfer_required' => (bool) $request->input('is_transfer_required', false),
-
-                'ticket_image_url' => $request->input('return_ticket_image_url'),
-
-            ];
-
-
-
-            if ($request->filled('return_flight_date')) {
-
-                $returnLeg['flight_date'] = Carbon::parse($request->return_flight_date)->toDateTimeString();
-
+                LeadFlightItinerary::create($returnLeg);
             }
-
-
-
-            LeadFlightItinerary::create($returnLeg);
-
-        }
+        });
 
 
 
@@ -228,7 +227,7 @@ class LeadFlightItineraryController extends Controller
 
             'flight_date' => 'nullable|date',
 
-            'status' => 'nullable|string',
+            'status' => ['nullable', Rule::in(self::ITINERARY_STATUSES)],
 
             'is_transfer_required' => 'boolean',
 

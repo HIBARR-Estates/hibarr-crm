@@ -629,7 +629,7 @@ return [
         'delete_flight'                  => 'Uçuşu sil',
         'view_details'                   => 'Detayları görüntüle',
         'open_actions_menu'              => 'İşlem menüsünü aç',
-        'flights_count'                  => '{{count}} uçuş',
+        'flights_count'                  => '{{count}} uçuş{{count_plural}}',
         'flight_plan_image'              => 'Uçuş Planı Görseli',
         'upload_flight_plan'             => 'Uçuş planı görselini yüklemek için tıklayın veya sürükleyin',
         'remove_flight_plan'             => 'Görseli kaldır',
