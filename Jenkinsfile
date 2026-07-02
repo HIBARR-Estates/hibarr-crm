@@ -73,8 +73,11 @@ pipeline {
                         echo "Step 0b: Exporting secrets from Infisical (${ENV_NAME})..."
                         export INFISICAL_TOKEN
                         export INFISICAL_DOMAIN
+                        export INFISICAL_API_URL="$INFISICAL_DOMAIN"
+                        echo "Using Infisical domain: $INFISICAL_DOMAIN"
                         "$INFISICAL_BIN" export \
                             --env="$ENV_NAME" \
+                            --domain="$INFISICAL_DOMAIN" \
                             --format=dotenv \
                             --output-file="$ENV_FILE_LOCAL"
 
