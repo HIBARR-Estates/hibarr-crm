@@ -746,6 +746,9 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
         setTabErrors(new Set());
 
         if (!open) {
+            populatedEditListsRef.current = null;
+            populatedCopyAttractionsRef.current = undefined;
+            populatedCopyListsRef.current = undefined;
             return;
         }
 
