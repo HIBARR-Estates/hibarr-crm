@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Services\ApiTokenScopeService;
 
 class ApiTokenAuth
 {
@@ -65,6 +66,13 @@ class ApiTokenAuth
 
         // Ensure downstream code/controllers can continue reading X-COMPANY-ID.
         $request->headers->set('X-COMPANY-ID', (string) $resolvedCompanyId);
+
+        $routeName = $request->route()?->getName();
+        if (!ApiTokenScopeService::routeAllowed($routeName, $tokenData->permissions ?? null)) {
+            return response()->json([
+                'message' => __('messages.apiTokenEndpointForbidden'),
+            ], 403);
+        }
 
         return $next($request);
     }
