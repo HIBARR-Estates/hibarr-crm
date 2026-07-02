@@ -184,7 +184,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             </div>
 
             {/* ── Card body ── */}
-            <div className="px-4 pt-3 pb-4">
+            <div className="px-4 pt-3 pb-4 bg-white">
                 <p className="font-bold text-sm text-slate-900 truncate mb-0.5">
                     {project.name}
                 </p>
