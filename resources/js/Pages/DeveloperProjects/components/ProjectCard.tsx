@@ -1,7 +1,8 @@
-import { Link, router } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import { Dropdown, Popconfirm } from "antd";
 import {
     Eye,
+    ExternalLink,
     Pencil,
     Trash2,
     MoreHorizontal,
@@ -61,6 +62,20 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                 </Link>
             ),
         },
+        {
+            key: "open-new-tab",
+            label: (
+                <a
+                    href={route("developer-projects.show", project.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                >
+                    <ExternalLink size={13} />
+                    Open in new tab
+                </a>
+            ),
+        },
         ...(canEdit
             ? [
                   {
@@ -103,11 +118,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     ];
 
     return (
-        <div
-            onClick={() =>
-                router.visit(route("developer-projects.show", project.id))
-            }
-            className="group relative bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+        <Link
+            href={route("developer-projects.show", project.id)}
+            className="group relative block bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
         >
             {/* ── Developer logo strip ── */}
             <div className="p-2 flex justify-center items-center h-10 border-b border-gray-100 bg-white">
@@ -129,7 +142,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                 {/* Context menu — always visible on hover */}
                 <div
                     className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
                 >
                     <Dropdown
                         menu={{ items: menuItems }}
@@ -168,7 +184,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
             </div>
 
             {/* ── Card body ── */}
-            <div className="px-4 pt-3 pb-4">
+            <div className="px-4 pt-3 pb-4 bg-white">
                 <p className="font-bold text-sm text-slate-900 truncate mb-0.5">
                     {project.name}
                 </p>
@@ -233,7 +249,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 };
 
