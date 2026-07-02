@@ -35,6 +35,7 @@ import { usePage } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import DealViewRedesign from "./Redesign/DealViewRedesign";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -60,7 +61,7 @@ interface Props extends PageProps {
 }
 const { Title } = Typography;
 
-export const Show = ({
+export const LegacyDealShow = ({
     deal,
     productNames,
     customFieldCategories,
@@ -143,7 +144,9 @@ export const Show = ({
                                                     :
                                                 </span>
                                                 {deal.created_at ? (
-                                                    dayjs(deal.created_at).format(
+                                                    dayjs(
+                                                        deal.created_at,
+                                                    ).format(
                                                         "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
@@ -161,7 +164,9 @@ export const Show = ({
                                                     :
                                                 </span>
                                                 {deal.updated_at ? (
-                                                    dayjs(deal.updated_at).format(
+                                                    dayjs(
+                                                        deal.updated_at,
+                                                    ).format(
                                                         "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
@@ -193,22 +198,23 @@ export const Show = ({
                                                             <div
                                                                 className={`
                                                                 flex items-center px-4 py-1.5 rounded-md text-sm font-bold transition-all duration-200
-                                                                ${isCurrent
+                                                                ${
+                                                                    isCurrent
                                                                         ? "scale-105"
                                                                         : isCompleted
-                                                                            ? ""
-                                                                            : "opacity-60"
-                                                                    }
+                                                                          ? ""
+                                                                          : "opacity-60"
+                                                                }
                                                             `}
                                                                 style={{
                                                                     backgroundColor:
                                                                         isCurrent ||
-                                                                            isCompleted
+                                                                        isCompleted
                                                                             ? `${stage.label_color}8C`
                                                                             : "#e5e7eb",
                                                                     color:
                                                                         isCurrent ||
-                                                                            isCompleted
+                                                                        isCompleted
                                                                             ? "#0000008F"
                                                                             : "#4b5563",
                                                                 }}
@@ -221,9 +227,9 @@ export const Show = ({
                                                                     ?.stages
                                                                     ?.length ||
                                                                     0) -
-                                                                1 && (
-                                                                    <div className="w-6 h-0.5 bg-gray-300 mx-1" />
-                                                                )}
+                                                                    1 && (
+                                                                <div className="w-6 h-0.5 bg-gray-300 mx-1" />
+                                                            )}
                                                         </div>
                                                     );
                                                 },
@@ -231,21 +237,21 @@ export const Show = ({
 
                                             {(!deal.pipeline?.stages ||
                                                 deal.pipeline.stages.length ===
-                                                0) && (
-                                                    <div
-                                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
-                                                        style={{
-                                                            backgroundColor: `${deal.lead_stage?.label_color}25`,
-                                                            color: deal.lead_stage
-                                                                ?.label_color,
-                                                        }}
-                                                    >
-                                                        <span className="mr-1.5">
-                                                            •
-                                                        </span>
-                                                        {deal.lead_stage?.name}
-                                                    </div>
-                                                )}
+                                                    0) && (
+                                                <div
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
+                                                    style={{
+                                                        backgroundColor: `${deal.lead_stage?.label_color}25`,
+                                                        color: deal.lead_stage
+                                                            ?.label_color,
+                                                    }}
+                                                >
+                                                    <span className="mr-1.5">
+                                                        •
+                                                    </span>
+                                                    {deal.lead_stage?.name}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -258,8 +264,8 @@ export const Show = ({
                                     title={
                                         isDealEditMode
                                             ? t(
-                                                "pages.deals.refresh_tooltip_disabled",
-                                            )
+                                                  "pages.deals.refresh_tooltip_disabled",
+                                              )
                                             : t("app.common.actions.refresh")
                                     }
                                 >
@@ -363,6 +369,18 @@ export const Show = ({
                 </div>
             </PageLayout>
         </>
+    );
+};
+
+export const Show = (props: Props) => {
+    const page = usePage<PageProps>();
+    // const useRedesign = page.props.featureFlags?.["crm.deal-view-redesign"] === true;
+    const useRedesign = true;
+
+    return useRedesign ? (
+        <DealViewRedesign {...props} />
+    ) : (
+        <LegacyDealShow {...props} />
     );
 };
 
