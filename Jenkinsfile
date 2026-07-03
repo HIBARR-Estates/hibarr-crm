@@ -8,6 +8,8 @@ pipeline {
         SSH_CREDS = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'PRODUCTION_SSH_PRIVATE_KEY' : 'STAGIN_SSH_PRIVATE_KEY'}"
         INFISICAL_CLI_VERSION = '0.43.78'
         INFISICAL_DOMAIN = 'https://infisical.hibarr.org'
+        // Must match workspaceId in .infisical.json (machine identity is org-scoped, not project-scoped)
+        INFISICAL_PROJECT_ID = '5f972011-7743-4ff2-aa39-9ee0ac8b14a8'
     }
 
     stages {
@@ -74,7 +76,7 @@ pipeline {
                         echo "Step 0b: Authenticating to Infisical via machine identity (${ENV_NAME})..."
                         export INFISICAL_DOMAIN
                         export INFISICAL_API_URL="$INFISICAL_DOMAIN"
-                        echo "Using Infisical domain: $INFISICAL_DOMAIN"
+                        echo "Using Infisical domain: $INFISICAL_DOMAIN (project: $INFISICAL_PROJECT_ID)"
                         export INFISICAL_TOKEN=$("$INFISICAL_BIN" login \
                             --method=universal-auth \
                             --client-id="$INFISICAL_CLIENT_ID" \
@@ -82,6 +84,7 @@ pipeline {
                             --domain="$INFISICAL_DOMAIN" \
                             --silent --plain)
                         "$INFISICAL_BIN" export \
+                            --projectId="$INFISICAL_PROJECT_ID" \
                             --env="$ENV_NAME" \
                             --domain="$INFISICAL_DOMAIN" \
                             --format=dotenv \
