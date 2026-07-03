@@ -1,6 +1,7 @@
 import { Skeleton } from "antd";
 import useEntityAiSummary from "@/Hooks/useEntityAiSummary";
 import type { EntityAiSummaryCardProps } from "@/Types/entity-summary";
+import { isLeadSummaryPayload } from "@/Types/entity-summary";
 import EntityAiSummaryChipGrid from "./EntityAiSummaryChipGrid";
 import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
@@ -20,6 +21,11 @@ export default function EntityAiSummaryCard({
     className = "",
     leadPhone,
     onQualifyLead,
+    onCreateTask,
+    onScheduleCall,
+    onRequestDocuments,
+    onAdvanceStage,
+    onReviewStaleDeal,
 }: EntityAiSummaryCardProps) {
     const { summary, loading, error, generate, regenerate } = useEntityAiSummary({
         entityType,
@@ -29,9 +35,10 @@ export default function EntityAiSummaryCard({
 
     const showRiskHighlight =
         summary &&
-        (summary.risk_level === "high" ||
-            summary.risk_level === "medium") &&
-        summary.primary_risk_source === "linked_deal";
+        (summary.risk_level === "high" || summary.risk_level === "medium") &&
+        (entityType === "deal" ||
+            (isLeadSummaryPayload(summary) &&
+                summary.primary_risk_source === "linked_deal"));
 
     const handleAction = () => {
         if (!summary) return;
@@ -41,13 +48,25 @@ export default function EntityAiSummaryCard({
             entityId,
             leadPhone,
             onQualifyLead,
+            onCreateTask,
+            onScheduleCall,
+            onRequestDocuments,
+            onAdvanceStage,
+            onReviewStaleDeal,
         });
     };
 
+    const cardClassName = [
+        "entity-ai-summary-card",
+        `entity-ai-summary-card--${variant}`,
+        entityType === "deal" ? "entity-ai-summary-card--deal" : "",
+        className,
+    ]
+        .filter(Boolean)
+        .join(" ");
+
     return (
-        <section
-            className={`entity-ai-summary-card entity-ai-summary-card--${variant} ${className}`.trim()}
-        >
+        <section className={cardClassName}>
             <EntityAiSummaryHeader
                 title={TITLES[entityType]}
                 generatedAt={summary?.meta?.generated_at}

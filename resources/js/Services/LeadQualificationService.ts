@@ -45,7 +45,7 @@ export class LeadQualificationService {
         return crmRequest<LeadQualificationsResponse>(
             {
                 method: "GET",
-                url: `/lead-contact/${leadId}/qualifications`,
+                url: `/account/lead-contact/${leadId}/qualifications`,
             },
             this.auth,
         );
@@ -58,7 +58,7 @@ export class LeadQualificationService {
         return crmRequest<LeadQualification>(
             {
                 method: "POST",
-                url: `/lead-contact/${leadId}/qualifications`,
+                url: `/account/lead-contact/${leadId}/qualifications`,
                 data: payload,
             },
             this.auth,
@@ -72,7 +72,7 @@ export class LeadQualificationService {
         await crmRequest(
             {
                 method: "PATCH",
-                url: `/lead-qualifications/${qualificationId}/answers`,
+                url: `/account/lead-qualifications/${qualificationId}/answers`,
                 data: payload,
             },
             this.auth,
@@ -86,7 +86,7 @@ export class LeadQualificationService {
         await crmRequest(
             {
                 method: "PATCH",
-                url: `/lead-qualifications/${qualificationId}/navigation`,
+                url: `/account/lead-qualifications/${qualificationId}/navigation`,
                 data: payload,
             },
             this.auth,
@@ -100,7 +100,7 @@ export class LeadQualificationService {
         return crmRequest<LeadQualification>(
             {
                 method: "POST",
-                url: `/lead-qualifications/${qualificationId}/complete`,
+                url: `/account/lead-qualifications/${qualificationId}/complete`,
                 data: payload,
             },
             this.auth,
@@ -111,7 +111,7 @@ export class LeadQualificationService {
         await crmRequest(
             {
                 method: "POST",
-                url: `/lead-qualifications/${qualificationId}/abandon`,
+                url: `/account/lead-qualifications/${qualificationId}/abandon`,
             },
             this.auth,
         );
@@ -121,7 +121,7 @@ export class LeadQualificationService {
         await crmRequest(
             {
                 method: "DELETE",
-                url: `/lead-qualifications/${qualificationId}/branch-answers`,
+                url: `/account/lead-qualifications/${qualificationId}/branch-answers`,
             },
             this.auth,
         );

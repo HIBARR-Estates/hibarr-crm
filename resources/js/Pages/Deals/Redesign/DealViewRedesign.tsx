@@ -1,6 +1,9 @@
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import { useState } from "react";
+import { usePage } from "@inertiajs/react";
+import type { PageProps } from "@/Components/DashboardLayout";
+import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import DealStickyHeader from "./components/header/DealStickyHeader";
 import DealMainTabs from "./components/tabs/DealMainTabs";
 import DealInfoTab from "./components/tabs/DealInfoTab";
@@ -13,6 +16,9 @@ import "./deal-redesign.css";
 export default function DealViewRedesign(props: DealShowProps) {
     const [isDealEditMode] = useState(false);
     const nav = useDealViewNavigation();
+    const { props: pageProps } = usePage<PageProps>();
+    const featureFlags = props.featureFlags ?? pageProps.featureFlags;
+    const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -28,6 +34,18 @@ export default function DealViewRedesign(props: DealShowProps) {
                         isRefreshing={isRefreshing}
                         onRefresh={refresh}
                     />
+                    {showAiSummary && (
+                        <EntityAiSummaryCard
+                            entityType="deal"
+                            entityId={props.deal.id}
+                            initialSummary={props.dealAiSummary}
+                            variant="redesign"
+                            onCreateTask={() => nav.setWorkspaceSubTab("tasks")}
+                            onScheduleCall={() => nav.setWorkspaceSubTab("meetings")}
+                            onRequestDocuments={() => nav.setWorkspaceSubTab("files")}
+                            onReviewStaleDeal={() => nav.setMainTab("timeline")}
+                        />
+                    )}
                     <DealMainTabs mainTab={nav.mainTab} onChange={nav.setMainTab} />
 
                     <div className="p-[26px]">

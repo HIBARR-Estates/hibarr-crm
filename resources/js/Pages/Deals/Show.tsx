@@ -36,6 +36,8 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import DealViewRedesign from "./Redesign/DealViewRedesign";
+import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
+import type { DealSummaryPayload } from "@/Types/entity-summary";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -58,6 +60,7 @@ interface Props extends PageProps {
     taskBoardColumns: any[];
     employees: any[];
     projects: any[];
+    dealAiSummary?: DealSummaryPayload | null;
 }
 const { Title } = Typography;
 
@@ -82,8 +85,12 @@ export const LegacyDealShow = ({
     taskBoardColumns,
     employees,
     projects,
+    featureFlags: pageFeatureFlags,
+    dealAiSummary,
 }: Props) => {
     const { props } = usePage<PageProps>();
+    const featureFlags = pageFeatureFlags ?? props.featureFlags;
+    const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh({
@@ -338,6 +345,16 @@ export const LegacyDealShow = ({
                         </Row>
                         <Row gutter={[30, 40]} className="mt-8">
                             <Col xs={48} lg={24} xl={24}>
+                                {showAiSummary && (
+                                    <div className="mb-6">
+                                        <EntityAiSummaryCard
+                                            entityType="deal"
+                                            entityId={deal.id}
+                                            initialSummary={dealAiSummary}
+                                            variant="legacy"
+                                        />
+                                    </div>
+                                )}
                                 <Card
                                     className="border-0 rounded-lg overflow-hidden deal-card"
                                     bodyStyle={{ padding: 0 }}
@@ -374,8 +391,9 @@ export const LegacyDealShow = ({
 
 export const Show = (props: Props) => {
     const page = usePage<PageProps>();
-    // const useRedesign = page.props.featureFlags?.["crm.deal-view-redesign"] === true;
-    const useRedesign = true;
+    const useRedesign =
+        page.props.featureFlags?.["crm.deal-view-redesign"] === true;
+    // const useRedesign = true;
 
     return useRedesign ? (
         <DealViewRedesign {...props} />
