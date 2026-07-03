@@ -265,69 +265,67 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                     {createDeal && <LeadDealCreation />}
                 </section>
 
-                {useLeadCoreFields && (
-                    <section className="save-lead-form__section">
-                        <h3 className="save-lead-form__section-title">
-                            Personal information
-                        </h3>
-                        <Row gutter={[24, 16]}>
-                            <Col span={12}>
-                                <Form.Item label="Languages" name="languages">
-                                    <Select
-                                        mode="multiple"
-                                        allowClear
-                                        placeholder="Select languages"
-                                        options={languageOptions}
-                                        loading={languagesLoading}
-                                        showSearch
-                                        optionFilterProp="label"
-                                    />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="Date of Birth"
-                                    name="date_of_birth"
+                <section className="save-lead-form__section">
+                    <h3 className="save-lead-form__section-title">
+                        Personal information
+                    </h3>
+                    <Row gutter={[24, 16]}>
+                        <Col span={12}>
+                            <Form.Item label="Languages" name="languages">
+                                <Select
+                                    mode="multiple"
+                                    allowClear
+                                    placeholder="Select languages"
+                                    options={languageOptions}
+                                    loading={languagesLoading}
+                                    showSearch
+                                    optionFilterProp="label"
+                                />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item
+                                label="Date of Birth"
+                                name="date_of_birth"
+                            >
+                                <DatePicker className="w-full" />
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item
+                                label="Nationality"
+                                name="nationality"
+                            >
+                                <Select
+                                    placeholder="Select nationality"
+                                    allowClear
+                                    showSearch
+                                    optionFilterProp="label"
                                 >
-                                    <DatePicker className="w-full" />
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="Nationality"
-                                    name="nationality"
-                                >
-                                    <Select
-                                        placeholder="Select nationality"
-                                        allowClear
-                                        showSearch
-                                        optionFilterProp="label"
-                                    >
-                                        {(countries || []).map(
-                                            (country: {
-                                                iso: string;
-                                                nicename: string;
-                                            }) => (
-                                                <Select.Option
-                                                    key={country.iso}
-                                                    value={country.nicename}
-                                                    label={country.nicename}
-                                                >
-                                                    {country.nicename}
-                                                </Select.Option>
-                                            ),
-                                        )}
-                                    </Select>
-                                </Form.Item>
-                            </Col>
-                            <Col span={12}>
-                                <Form.Item label="Occupation" name="occupation">
-                                    <Input placeholder="Enter occupation" />
-                                </Form.Item>
-                            </Col>
-                        </Row>
-                    </section>
-                )}
+                                    {(countries || []).map(
+                                        (country: {
+                                            iso: string;
+                                            nicename: string;
+                                        }) => (
+                                            <Select.Option
+                                                key={country.iso}
+                                                value={country.nicename}
+                                                label={country.nicename}
+                                            >
+                                                {country.nicename}
+                                            </Select.Option>
+                                        ),
+                                    )}
+                                </Select>
+                            </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                            <Form.Item label="Occupation" name="occupation">
+                                <Input placeholder="Enter occupation" />
+                            </Form.Item>
+                        </Col>
+                    </Row>
+                </section>
 
                 <section className="save-lead-form__section">
                     <h3 className="save-lead-form__section-title">

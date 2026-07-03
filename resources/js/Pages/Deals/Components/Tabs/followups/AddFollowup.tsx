@@ -1,7 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import { IModalProps } from "@/Types/common";
-import { App, Drawer } from "antd";
+import { App, Modal } from "antd";
 import { useState, useEffect, useCallback } from "react";
 import SaveFollowup, { SaveFollowupFormData } from "./SaveFollowup";
 import MeetingSuccessStep from "./MeetingSuccessStep";
@@ -13,6 +13,15 @@ import { router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 
 export type MeetingDrawerContext = "lead" | "deal";
+
+interface SuccessData {
+    entityName: string;
+    typeName: string;
+    date: string;
+    time: string;
+    duration?: number | null;
+    location: string;
+}
 
 interface Props extends IModalProps {
     context: MeetingDrawerContext;
@@ -35,12 +44,16 @@ const AddFollowup: React.FC<Props> = ({
     const [formKey, setFormKey] = useState(0);
     const [step, setStep] = useState<"form" | "success">("form");
     const [blankForm, setBlankForm] = useState(false);
+    const [meetingTypeName, setMeetingTypeName] = useState("");
+    const [successData, setSuccessData] = useState<SuccessData | null>(null);
 
     useEffect(() => {
         if (open) {
             setStep("form");
             setBlankForm(false);
             setErrors([]);
+            setMeetingTypeName("");
+            setSuccessData(null);
             setFormKey((prev) => prev + 1);
         }
     }, [open]);
@@ -49,6 +62,7 @@ const AddFollowup: React.FC<Props> = ({
         setErrors([]);
         setStep("form");
         setBlankForm(false);
+        setSuccessData(null);
         onClose();
     };
 
@@ -61,6 +75,7 @@ const AddFollowup: React.FC<Props> = ({
         setStep("form");
         setBlankForm(true);
         setErrors([]);
+        setSuccessData(null);
         setFormKey((prev) => prev + 1);
     };
 
@@ -84,9 +99,22 @@ const AddFollowup: React.FC<Props> = ({
                 }
             }
 
+            const entityName =
+                context === "deal"
+                    ? (deal?.name || "")
+                    : (lead as any)?.client_name_salutation || (lead as any)?.client_name || "";
+
             mutate(data, {
                 onSuccess: () => {
                     setErrors([]);
+                    setSuccessData({
+                        entityName,
+                        typeName: meetingTypeName,
+                        date: data.next_follow_up_date,
+                        time: data.start_time,
+                        duration: data.duration,
+                        location: data.location,
+                    });
                     setStep("success");
                 },
                 onError: (errorResponse) => {
@@ -96,25 +124,31 @@ const AddFollowup: React.FC<Props> = ({
                 },
             });
         },
-        [context, deal, message, mutate],
+        [context, deal, lead, message, meetingTypeName, mutate],
     );
 
     const canShowForm =
         (context === "deal" && deal) || (context === "lead" && lead);
 
     return (
-        <Drawer
+        <Modal
             title={t("app.meetings.schedule_drawer_title")}
-            placement="right"
-            size="large"
             open={open}
-            onClose={handleCancel}
+            onCancel={handleCancel}
+            footer={null}
+            width={720}
             destroyOnClose
         >
             {step === "success" ? (
                 <MeetingSuccessStep
                     onDone={handleDone}
                     onBookAnother={handleBookAnother}
+                    entityName={successData?.entityName}
+                    typeName={successData?.typeName}
+                    date={successData?.date}
+                    time={successData?.time}
+                    duration={successData?.duration}
+                    location={successData?.location}
                 />
             ) : canShowForm ? (
                 <SaveFollowup
@@ -129,9 +163,10 @@ const AddFollowup: React.FC<Props> = ({
                     onCancel={handleCancel}
                     loading={isLoading({ status })}
                     errors={errors}
+                    onMeetingTypeNameChange={setMeetingTypeName}
                 />
             ) : null}
-        </Drawer>
+        </Modal>
     );
 };
 

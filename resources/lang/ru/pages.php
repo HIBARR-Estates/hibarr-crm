@@ -281,6 +281,7 @@ return [
                 'lead_source'     => 'Источник лида',
                 'lead_name'       => 'Имя лида',
                 'stage'           => 'Стадия',
+                'deal_value'      => 'Сумма сделки',
                 'assigned_agent'  => 'Назначенный агент',
                 'created'         => 'Создано',
                 'updated'         => 'Обновлено',

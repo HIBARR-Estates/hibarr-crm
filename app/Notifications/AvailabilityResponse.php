@@ -43,7 +43,7 @@ class AvailabilityResponse extends BaseNotification
 
             $mail->line('')
                 ->line('You may now proceed with presenting this property to your customer.')
-                ->action('View Property', url("/account/properties/{$property->id}"));
+                ->action('View Property', $this->modifyUrl(route('properties.show', $property->id)));
         } else {
             $mail->line("Your availability request for the following property has been **denied**.")
                 ->line("**Property:** {$property->display_title}")

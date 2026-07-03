@@ -5,9 +5,12 @@ import type { TableColumnsType } from "antd";
 import {
     Building2,
     CheckCircle2,
-    Clock,
+    DollarSign,
+    Euro,
     MapPin,
+    PoundSterling,
     TrendingUp,
+    TurkishLira,
 } from "lucide-react";
 import type {
     ShowProps,
@@ -17,6 +20,14 @@ import type {
 } from "../Show";
 import { generatePropertySubtitle, snakeToReadable } from "../../../lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+
+// ── Currency icon ─────────────────────────────────────────────────────────
+const CURRENCY_ICONS: Record<string, React.ReactNode> = {
+    EUR: <Euro size={22} />,
+    GBP: <PoundSterling size={22} />,
+    USD: <DollarSign size={22} />,
+    TRY: <TurkishLira size={22} />,
+};
 
 // ── Stat Card ─────────────────────────────────────────────────────────────
 const StatCard: React.FC<{
@@ -167,7 +178,11 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                         label={td("Sold %")}
                     />
                     <StatCard
-                        icon={<Clock size={22} />}
+                        icon={
+                            CURRENCY_ICONS[statistics.starting_price_currency] ?? (
+                                <PoundSterling size={22} />
+                            )
+                        }
                         value={statistics.starting_price_formatted ?? "-"}
                         label={td("Starting Price")}
                     />

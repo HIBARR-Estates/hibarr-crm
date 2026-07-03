@@ -97,7 +97,8 @@ class ResolveCommunicationActivityJob implements ShouldQueue
             $activity->refresh();
                 
             if($this->can_create_deal && empty($activity->deal_id) && isset($activity->lead_id)) {
-                $resolver->createDealIfNeeded($activity);
+                $leadAgent = $resolver->resolveLinkedLeadAgent($activity);
+                $resolver->createDealIfNeeded($activity, $leadAgent);
                 $activity->refresh(); // Refresh again after deal creation
             }
 

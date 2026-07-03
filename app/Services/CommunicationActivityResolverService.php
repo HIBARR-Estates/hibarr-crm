@@ -23,11 +23,7 @@ class CommunicationActivityResolverService
         $dealOrLead = null;
 
         $senderInfo = $activity->sender_info;
-        // Attach Deal Agent based on sender_info contact details
-        // Check for a LeadAgent that is a user matching the email of the sender_info
-        // This can be found in $senderInfo['contact'] if available
-        // once found we attach the agent to the deal
-        $leadAgentLocated = $this->findLeadAgentByContactDetails($senderInfo, $activity->channel_type); 
+        $leadAgentLocated = $this->resolveLinkedLeadAgent($activity);
 
 
         // General rule of thumb:
@@ -67,13 +63,10 @@ class CommunicationActivityResolverService
                     $activity->lead_id = $dealOrLead->lead_id;
                 }
                 
-                // Attach the located agent to the deal if found and deal doesn't have an agent
-                if ($leadAgentLocated && !$dealOrLead->agent_id) {
-                    $dealOrLead->agent_id = $leadAgentLocated->id;
-                    $dealOrLead->save();
-                }
+                $this->assignLinkedAgent($dealOrLead, $leadAgentLocated);
             } elseif ($dealOrLead instanceof Lead) {
                 $activity->lead_id = $dealOrLead->id;
+                $this->assignLinkedAgent($dealOrLead, $leadAgentLocated);
             }
 
             $activity->save();
@@ -105,11 +98,12 @@ class CommunicationActivityResolverService
                 'cell' => $activity->phone_number,
                 'company_id' => $activity->company_id,
                 'mobile' => null, //TODO: TThis is a json so it ought to have a helper function to ensure that json format is maintained
-                'added_by' => $company?->default_lead_creator_id,
-                'lead_owner' => $company?->default_lead_creator_id, // Optionally assign to a default owner
+                'added_by' => $leadAgentLocated?->user_id ?? $company?->default_lead_creator_id,
+                'lead_owner' => $leadAgentLocated?->user_id ?? $company?->default_lead_creator_id,
+                'agent_id' => $leadAgentLocated?->id,
             ];
             $newLead = $this->createLead($newLeadData);
-        
+
             if ($newLead) {
                 $activity->lead_id = $newLead->id;
                 $activity->save();
@@ -225,9 +219,10 @@ class CommunicationActivityResolverService
         // populate {channel_type}_chat_id if there is ever a need, similar to what is being done for telegram above
         $lead->mobile = $data['mobile'];
         $lead->cell = $data['cell'];
-     
+        $lead->added_by = $data['added_by'] ?? null;
+        $lead->lead_owner = $data['lead_owner'] ?? null;
+        $lead->agent_id = $data['agent_id'] ?? null;
 
-        
         $lead->save();
 
         return $lead;
@@ -391,6 +386,7 @@ class CommunicationActivityResolverService
         if ($existingDeal) {
             $activity->deal_id = $existingDeal->id;
             $activity->save();
+            $this->assignLinkedAgent($existingDeal, $leadAgent);
             Log::info('No new deal created: Existing open deal found for lead ID ' . $lead->id);
             return $existingDeal; // Return existing open deal
         }
@@ -429,93 +425,133 @@ class CommunicationActivityResolverService
     }
 
     /**
-     * Find a LeadAgent based on sender contact details
-     * 
-     * @param array $senderInfo
-     * @param string $channelType
-     * @return LeadAgent|null
+     * Resolve the lead agent linked to the employee mailbox/account on this activity.
      */
-    private function findLeadAgentByContactDetails(array $senderInfo, string $channelType): ?LeadAgent
+    public function resolveLinkedLeadAgent(CommunicationActivity $activity): ?LeadAgent
     {
-        if (empty($senderInfo)) {
-            Log::info('No sender_info provided for agent lookup');
-            return null;
-        }
-
+        $senderInfo = $activity->sender_info ?? [];
         $contactInfo = $senderInfo['contact'] ?? null;
-        
+
         if (empty($contactInfo)) {
-            Log::info('No contact information found in sender_info');
+            Log::info('No contact information found in sender_info for agent lookup', [
+                'activity_id' => $activity->id,
+            ]);
             return null;
         }
 
-        Log::info('Searching for LeadAgent with contact: ' . $contactInfo . ' for channel: ' . $channelType);
-
-        $user = null;
+        Log::info('Searching for LeadAgent with contact for email listener', [
+            'activity_id' => $activity->id,
+            'contact' => $contactInfo,
+            'channel_type' => $activity->channel_type,
+            'company_id' => $activity->company_id,
+        ]);
 
         try {
-            // Try to find user based on channel type and contact info
-            switch ($channelType) {
-                case 'email':
-                    // For email, the contact should be an email address
-                    if (filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
-                        $user = User::where('email', $contactInfo)->first();
-                    } else {
-                        Log::info('Invalid email format for contact');
-                    }
-                    break;
-                    
-                case 'whatsapp':
-                    // For WhatsApp, contact might be phone number or username
-                    $user = User::where('mobile', $contactInfo)
-                        ->orWhere('phone', $contactInfo)
-                        ->first();
-                    break;
-                    
-                case 'telegram':
-                case 'instagram':
-                    // For social platforms, we might need to check custom fields or additional tables
-                    // This could be extended based on how contact details are stored
-                    $user = User::where('email', $contactInfo)->first();
-                    break;
-                    
-                default:
-                    // Fallback: try email format first, then phone
-                    if (filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
-                        $user = User::where('email', $contactInfo)->first();
-                    } else {
-                        $user = User::where('mobile', $contactInfo)
-                            ->orWhere('phone', $contactInfo)
-                            ->first();
-                    }
-            }
+            $user = $this->findUserBySenderContact($contactInfo, $activity->channel_type, $activity->company_id);
 
             if (!$user) {
-                Log::info('No user found with contact: ' . $contactInfo . ' for channel: ' . $channelType);
+                Log::info('No active user found for linked mailbox contact', [
+                    'activity_id' => $activity->id,
+                    'contact' => $contactInfo,
+                    'company_id' => $activity->company_id,
+                ]);
                 return null;
             }
 
-            // Find LeadAgent for this user
-            $leadAgent = LeadAgent::where('user_id', $user->id)->first();
+            $leadAgentQuery = LeadAgent::withoutGlobalScopes()
+                ->where('user_id', $user->id)
+                ->where('status', 'enabled');
+
+            if ($activity->company_id) {
+                $leadAgentQuery->where('company_id', $activity->company_id);
+            }
+
+            $leadAgent = $leadAgentQuery->first();
 
             if ($leadAgent) {
-                Log::info('Found LeadAgent', [
+                Log::info('Resolved LeadAgent for email listener activity', [
+                    'activity_id' => $activity->id,
                     'lead_agent_id' => $leadAgent->id,
                     'user_id' => $user->id,
                 ]);
             } else {
-                Log::info('No active LeadAgent found', [
+                Log::info('User found but no enabled LeadAgent for linked mailbox contact', [
+                    'activity_id' => $activity->id,
                     'user_id' => $user->id,
+                    'contact' => $contactInfo,
                 ]);
             }
 
             return $leadAgent;
-
         } catch (\Exception $e) {
-            Log::error('Error finding LeadAgent by contact details: ' . $e->getMessage());
+            Log::error('Error resolving linked LeadAgent: ' . $e->getMessage(), [
+                'activity_id' => $activity->id,
+            ]);
             return null;
         }
     }
 
+    private function findUserBySenderContact(string $contactInfo, string $channelType, ?int $companyId): ?User
+    {
+        $userQuery = User::query()
+            ->without(['session', 'clientContact'])
+            ->where('status', 'active');
 
+        if ($companyId) {
+            $userQuery->where('company_id', $companyId);
+        }
+
+        switch ($channelType) {
+            case 'email':
+                if (!filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
+                    Log::info('Invalid email format for sender_info contact');
+                    return null;
+                }
+                return $userQuery->where('email', $contactInfo)->first();
+
+            case 'whatsapp':
+                return $userQuery->where(function ($query) use ($contactInfo) {
+                    $query->where('mobile', $contactInfo)
+                        ->orWhere('phone', $contactInfo);
+                })->first();
+
+            case 'telegram':
+            case 'instagram':
+                return $userQuery->where('email', $contactInfo)->first();
+
+            default:
+                if (filter_var($contactInfo, FILTER_VALIDATE_EMAIL)) {
+                    return $userQuery->where('email', $contactInfo)->first();
+                }
+
+                return $userQuery->where(function ($query) use ($contactInfo) {
+                    $query->where('mobile', $contactInfo)
+                        ->orWhere('phone', $contactInfo);
+                })->first();
+        }
+    }
+
+    private function assignLinkedAgent(Lead|Deal $record, ?LeadAgent $leadAgent): void
+    {
+        if (!$leadAgent) {
+            return;
+        }
+
+        if ($record instanceof Lead) {
+            if (!$record->lead_owner) {
+                $record->lead_owner = $leadAgent->user_id;
+            }
+            if (!$record->agent_id) {
+                $record->agent_id = $leadAgent->id;
+            }
+        }
+
+        if ($record instanceof Deal && !$record->agent_id) {
+            $record->agent_id = $leadAgent->id;
+        }
+
+        if ($record->isDirty()) {
+            $record->save();
+        }
+    }
 }

@@ -1,8 +1,8 @@
-import { Drawer, Empty, Button } from "antd";
+import { Empty, Button } from "antd";
 import { useMemo } from "react";
 import { Task } from "@/Types/api/tasks";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
-import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
+import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import BulkTaskActionSelector from "@/Features/Tasks/BulkActions/BulkTaskActionSelector";
 import TaskRowList from "@/Features/Tasks/Components/TaskRowList";
@@ -180,14 +180,16 @@ export default function TasksTab({
                                 {task.label}
                             </Button>
                         ))}
-                    <Button
-                        type="primary"
-                        size="small"
-                        icon={<PlusOutlined />}
-                        onClick={() => handleAction("add")}
-                    >
-                        {td("Add Task")}
-                    </Button>
+                    {relatedEntity.type !== "deal" && (
+                        <Button
+                            type="primary"
+                            size="small"
+                            icon={<PlusOutlined />}
+                            onClick={() => handleAction("add")}
+                        >
+                            {td("Add Task")}
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -232,21 +234,13 @@ export default function TasksTab({
                 td={td}
             />
 
-            {/* Task Details Drawer */}
-            <Drawer
-                title={td(`Task: ${selectedTask?.heading || ""}`)}
-                placement="right"
-                size="large"
+            <TaskDetailsModal
+                task={selectedTask}
                 open={action === "view"}
                 onClose={() => handleClose()}
-                destroyOnHidden
-            >
-                <TaskDetailsDrawer
-                    task={selectedTask}
-                    loading={false}
-                    td={td}
-                />
-            </Drawer>
+                columns={taskBoardColumns}
+                td={td}
+            />
         </>
     );
 }

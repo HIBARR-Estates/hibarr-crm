@@ -26,6 +26,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 const { Title } = Typography;
 
 type FilterMode = "all" | "agent" | "system" | "external";
+type TimelineVariant = "default" | "deal-redesign";
 
 interface Props {
     /** Fully-qualified model class, e.g. "App\\Models\\Deal" */
@@ -36,6 +37,8 @@ interface Props {
     compact?: boolean;
     /** Label for the modal context (e.g. deal name). */
     entityName?: string;
+    /** Visual style variant; default preserves legacy callers. */
+    variant?: TimelineVariant;
 }
 
 export default function CrmEventTimeline({
@@ -44,6 +47,7 @@ export default function CrmEventTimeline({
     userId,
     compact = true,
     entityName,
+    variant = "default",
 }: Props) {
     const [filter, setFilter] = useState<FilterMode>("all");
     const [drawerOpen, setDrawerOpen] = useState(false);
@@ -137,8 +141,12 @@ export default function CrmEventTimeline({
         { label: "External", value: "external", icon: <ApiOutlined /> },
     ];
 
+    const isDealRedesign = variant === "deal-redesign";
+
     const filterBar = (
-        <div className="mb-4 flex items-center gap-2 flex-wrap">
+        <div
+            className={`mb-4 flex items-center gap-2 flex-wrap ${isDealRedesign ? "mb-0" : ""}`}
+        >
             {pillOptions.map((opt) => {
                 const isActive = filter === opt.value;
                 return (
@@ -146,7 +154,18 @@ export default function CrmEventTimeline({
                         key={opt.value}
                         type="button"
                         onClick={() => setFilter(opt.value)}
-                        className={`
+                        className={
+                            isDealRedesign
+                                ? `
+                            inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium
+                            transition-all duration-150 cursor-pointer
+                            ${
+                                isActive
+                                    ? "bg-[#1a6bb5] text-white border-[#1a6bb5]"
+                                    : "bg-white text-[#5b6474] border-[#d8dce3] hover:bg-[#f6f8fb] hover:text-[#2f3747]"
+                            }
+                        `
+                                : `
                             inline-flex items-center gap-1.5 px-3 py-1 rounded-md text-xs font-medium
                             transition-all duration-150 cursor-pointer border
                             ${
@@ -154,7 +173,8 @@ export default function CrmEventTimeline({
                                     ? "bg-gray-800 text-white border-gray-800"
                                     : "bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100 hover:text-gray-700"
                             }
-                        `}
+                        `
+                        }
                     >
                         {opt.icon && (
                             <span className="text-[11px]">{opt.icon}</span>
@@ -169,7 +189,16 @@ export default function CrmEventTimeline({
     /* ---- Body (shared between sidebar & drawer) --------------------------- */
     const renderBody = (isCompact: boolean) => (
         <>
-            {filterBar}
+            {isDealRedesign ? (
+                <div className="mb-4 flex items-center justify-between gap-3 flex-wrap border-b border-[#edf0f4] pb-3">
+                    {filterBar}
+                    <Button size="small" disabled>
+                        {td("Date range")}
+                    </Button>
+                </div>
+            ) : (
+                filterBar
+            )}
             {isLoadingData ? (
                 <Skeleton active paragraph={{ rows: isCompact ? 4 : 10 }} />
             ) : events.length === 0 ? (
@@ -184,9 +213,21 @@ export default function CrmEventTimeline({
     );
 
     return (
-        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div
+            className={
+                isDealRedesign
+                    ? "bg-white rounded-xl border border-[#e2e5ea] overflow-hidden shadow-[0_1px_2px_rgba(17,24,39,0.04)]"
+                    : "bg-white rounded-lg border border-gray-200 overflow-hidden"
+            }
+        >
             {/* Card header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50">
+            <div
+                className={
+                    isDealRedesign
+                        ? "flex items-center justify-between px-4 py-3.5 border-b border-[#edf0f4] bg-white"
+                        : "flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gray-50/50"
+                }
+            >
                 <Title level={5} className="!mb-0 !text-sm">
                     {td("Activity Timeline")}
                 </Title>
@@ -194,7 +235,13 @@ export default function CrmEventTimeline({
             </div>
 
             {/* Card body */}
-            <div className="p-4 max-h-[560px] overflow-y-auto">
+            <div
+                className={
+                    isDealRedesign
+                        ? "p-4 max-h-[620px] overflow-y-auto"
+                        : "p-4 max-h-[560px] overflow-y-auto"
+                }
+            >
                 {renderBody(compact)}
             </div>
 

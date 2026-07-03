@@ -13,9 +13,9 @@ return [
     |
     */
 
-    'base_url' => env('FILE_UPLOAD_BASE_URL', 'https://staging-api.hibarr.org/v1'),
+    'base_url' => env('FILE_UPLOAD_BASE_URL', 'https://develop-api.hibarr.org/v1'),
 
-    'api_key' => env('FILE_UPLOAD_API_KEY', '363769e1290c4d5ea6d351ef8c23dc6e'),
+    'api_key' => env('FILE_UPLOAD_API_KEY', ''),
 
     /*
     |--------------------------------------------------------------------------
