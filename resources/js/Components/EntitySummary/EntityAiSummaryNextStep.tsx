@@ -1,4 +1,5 @@
 import type { EntitySummaryNextStep } from "@/Types/entity-summary";
+import { nextStepButtonLabel } from "./summaryActions";
 
 interface EntityAiSummaryNextStepProps {
     nextStep: EntitySummaryNextStep;
@@ -27,11 +28,7 @@ export default function EntityAiSummaryNextStep({
                 className="entity-ai-summary-next-step__button"
                 onClick={onAction}
             >
-                {nextStep.action_type === "OPEN_DEAL"
-                    ? "Open deal"
-                    : nextStep.action_type === "REVIEW_DEALS"
-                      ? "Review deals"
-                      : nextStep.label}
+                {nextStepButtonLabel(nextStep)}
             </button>
         </footer>
     );

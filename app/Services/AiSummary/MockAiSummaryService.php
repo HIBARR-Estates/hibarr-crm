@@ -40,17 +40,30 @@ class MockAiSummaryService implements AiSummaryInterface, EntitySummaryAgentInte
             $deal = $inputPayload['deal'] ?? [];
 
             return [
-                'deal_id' => (string) ($deal['deal_id'] ?? ''),
-                'deal_name' => (string) ($deal['deal_name'] ?? 'Deal'),
-                'value' => (float) ($deal['value'] ?? 0),
-                'currency' => (string) ($deal['currency'] ?? 'USD'),
-                'stage_label' => (string) ($deal['stage_label'] ?? 'Unknown'),
+                'status_line' => 'Mock deal summary for ' . ($deal['name'] ?? 'deal') . ' — connect AI provider for real analysis.',
                 'risk_level' => 'medium',
-                'status_line' => 'Mock deal summary — connect AI provider for real analysis.',
-                'next_step_label' => 'Review deal activity',
+                'chips' => [
+                    [
+                        'id' => 'momentum',
+                        'label' => 'Momentum',
+                        'value' => 'Slowing',
+                        'tone' => 'amber',
+                        'sublabel' => 'Mock chip',
+                    ],
+                ],
+                'bullets' => [
+                    'This is a placeholder AI deal summary.',
+                ],
+                'next_step' => [
+                    'action_type' => 'CREATE_TASK',
+                    'label' => 'Review deal activity',
+                    'rationale' => 'Mock next step for development.',
+                    'urgency' => 'this_week',
+                ],
                 'meta' => [
                     'generated_at' => $now,
                     'data_confidence' => 'low',
+                    'stale_data_warning' => false,
                 ],
             ];
         }

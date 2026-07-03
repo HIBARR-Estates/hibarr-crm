@@ -2,6 +2,8 @@
 
 namespace App\Services\EntitySummary;
 
+use App\Models\Deal;
+
 class EntitySummaryValidator
 {
     /**
@@ -40,10 +42,7 @@ class EntitySummaryValidator
      */
     public function validateDealSummary(array $payload): void
     {
-        $required = [
-            'deal_id', 'deal_name', 'value', 'currency', 'stage_label',
-            'risk_level', 'status_line', 'next_step_label', 'meta',
-        ];
+        $required = ['status_line', 'risk_level', 'chips', 'bullets', 'next_step', 'meta'];
 
         foreach ($required as $key) {
             if (! array_key_exists($key, $payload)) {
@@ -54,22 +53,40 @@ class EntitySummaryValidator
         if (! in_array($payload['risk_level'], ['none', 'low', 'medium', 'high'], true)) {
             throw new \InvalidArgumentException('Invalid deal summary risk_level');
         }
+
+        if (! is_array($payload['chips']) || count($payload['chips']) < 1) {
+            throw new \InvalidArgumentException('Deal summary must include at least one chip');
+        }
+
+        if (! is_array($payload['bullets'])) {
+            throw new \InvalidArgumentException('Deal summary bullets must be an array');
+        }
+
+        $nextStep = $payload['next_step'];
+        if (! is_array($nextStep) || empty($nextStep['action_type'])) {
+            throw new \InvalidArgumentException('Deal summary next_step is invalid');
+        }
     }
 
     /**
+     * @param  array<string, mixed>  $dealSummary
      * @return array<string, mixed>
      */
-    public function toLeadConsumerShape(array $dealSummary): array
+    public function toLeadConsumerShape(array $dealSummary, Deal $deal): array
     {
+        $nextStep = $dealSummary['next_step'] ?? null;
+        $nextStepLabel = $dealSummary['next_step_label']
+            ?? (is_array($nextStep) ? ($nextStep['label'] ?? null) : null);
+
         return [
-            'deal_id' => (string) ($dealSummary['deal_id'] ?? ''),
-            'deal_name' => (string) ($dealSummary['deal_name'] ?? ''),
-            'value' => (float) ($dealSummary['value'] ?? 0),
-            'currency' => (string) ($dealSummary['currency'] ?? 'USD'),
-            'stage_label' => (string) ($dealSummary['stage_label'] ?? ''),
+            'deal_id' => (string) $deal->id,
+            'deal_name' => (string) $deal->name,
+            'value' => (float) ($deal->value ?? 0),
+            'currency' => (string) ($deal->currency?->currency_code ?? 'USD'),
+            'stage_label' => (string) ($deal->leadStage?->name ?? 'Unknown'),
             'risk_level' => (string) ($dealSummary['risk_level'] ?? 'none'),
             'status_line' => (string) ($dealSummary['status_line'] ?? ''),
-            'next_step_label' => $dealSummary['next_step_label'] ?? null,
+            'next_step_label' => $nextStepLabel,
         ];
     }
 }

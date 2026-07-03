@@ -55,37 +55,73 @@ class DealSummaryAgentService
     private function heuristicFallback(Deal $deal, array $input): array
     {
         $dealData = $input['deal'];
+        $stageLabel = 'Unknown';
+        $currentKey = $input['pipeline']['current_stage_key'] ?? null;
+        foreach ($input['pipeline']['stages'] ?? [] as $stage) {
+            if (($stage['key'] ?? null) === $currentKey) {
+                $stageLabel = $stage['label'] ?? $stageLabel;
+                break;
+            }
+        }
+
         $daysSinceUpdate = $deal->updated_at
             ? $deal->updated_at->diffInDays(now())
             : 0;
 
         $riskLevel = 'low';
-        $statusLine = "Deal \"{$deal->name}\" is in {$dealData['stage_label']} with value {$dealData['currency']} " . number_format((float) $dealData['value'], 0) . '.';
+        $statusLine = "Deal \"{$deal->name}\" is in {$stageLabel} with value {$dealData['currency']} "
+            . number_format((float) $dealData['value'], 0) . '.';
 
         if ($daysSinceUpdate >= 14) {
             $riskLevel = 'high';
-            $statusLine = "Deal \"{$deal->name}\" has had no recorded activity in {$daysSinceUpdate} days while sitting in {$dealData['stage_label']}.";
+            $statusLine = "Deal \"{$deal->name}\" has had no recorded activity in {$daysSinceUpdate} days while sitting in {$stageLabel}.";
         } elseif ($daysSinceUpdate >= 7) {
             $riskLevel = 'medium';
-            $statusLine = "Deal \"{$deal->name}\" may be stalling in {$dealData['stage_label']} — last update was {$daysSinceUpdate} days ago.";
+            $statusLine = "Deal \"{$deal->name}\" may be stalling in {$stageLabel} — last update was {$daysSinceUpdate} days ago.";
         }
 
-        $nextStepLabel = $riskLevel === 'none' || $riskLevel === 'low'
-            ? null
+        $chips = [
+            [
+                'id' => 'momentum',
+                'label' => 'Momentum',
+                'value' => $riskLevel === 'low' ? 'On track' : 'Slowing',
+                'tone' => $riskLevel === 'low' ? 'green' : ($riskLevel === 'high' ? 'red' : 'amber'),
+                'sublabel' => "Last update {$daysSinceUpdate} day(s) ago",
+            ],
+        ];
+
+        if (! empty($input['sections']['properties'])) {
+            $chips[] = [
+                'id' => 'property_fit',
+                'label' => 'Property fit',
+                'value' => 'Linked',
+                'tone' => 'neutral',
+                'sublabel' => count($input['sections']['properties']) . ' linked item(s)',
+            ];
+        }
+
+        $actionType = $riskLevel === 'low' ? 'NO_ACTION_NEEDED' : 'CREATE_TASK';
+        $actionLabel = $riskLevel === 'low'
+            ? 'No action needed'
             : 'Review deal activity and schedule follow-up';
 
         return [
-            'deal_id' => (string) $deal->id,
-            'deal_name' => $deal->name,
-            'value' => (float) ($deal->value ?? 0),
-            'currency' => $dealData['currency'],
-            'stage_label' => $dealData['stage_label'],
-            'risk_level' => $riskLevel,
             'status_line' => $statusLine,
-            'next_step_label' => $nextStepLabel,
+            'risk_level' => $riskLevel,
+            'chips' => $chips,
+            'bullets' => [
+                'This is a heuristic summary generated while the AI service was unavailable.',
+            ],
+            'next_step' => [
+                'action_type' => $actionType,
+                'label' => $actionLabel,
+                'rationale' => 'Based on deal recency and current stage.',
+                'urgency' => $riskLevel === 'high' ? 'immediate' : 'this_week',
+            ],
             'meta' => [
                 'generated_at' => $input['now'],
                 'data_confidence' => 'low',
+                'stale_data_warning' => $daysSinceUpdate >= 14,
             ],
         ];
     }
