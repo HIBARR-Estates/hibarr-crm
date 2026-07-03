@@ -21,7 +21,7 @@ class FeatureFlagService
     public function __construct()
     {
         $this->baseUrl = rtrim(
-            (string) config('services.dynamic_translation.base_url', config('services.ai.base_url', 'https://staging-api.hibarr.org/v1')),
+            (string) config('services.dynamic_translation.base_url', config('services.ai.base_url', '')),
             '/'
         );
         $this->timeout = (int) config('services.dynamic_translation.timeout', config('services.ai.timeout', 30));

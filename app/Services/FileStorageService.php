@@ -29,7 +29,7 @@ class FileStorageService
 
     public function __construct()
     {
-        $this->baseUrl = rtrim(config('file_storage.base_url', 'https://staging-api.hibarr.org/v1'), '/');
+        $this->baseUrl = rtrim(config('file_storage.base_url', ''), '/');
         $this->apiKey = config('file_storage.api_key', '');
         $this->defaultTargetFolder = config('file_storage.default_target_folder', 'backend-uploads');
         $this->timeout = config('file_storage.timeout', 120);
