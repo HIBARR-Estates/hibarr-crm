@@ -1,4 +1,5 @@
 import type { PageProps } from "@/Components/DashboardLayout";
+import type { DealSummaryPayload } from "@/Types/entity-summary";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
 import type { DealFollowup } from "@/Types/api/deal-followup";
@@ -55,4 +56,5 @@ export interface DealShowProps extends PageProps {
     taskBoardColumns: any[];
     employees: any[];
     projects: any[];
+    dealAiSummary?: DealSummaryPayload | null;
 }

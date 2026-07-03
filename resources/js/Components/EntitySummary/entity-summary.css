@@ -14,6 +14,11 @@
     margin: 0 26px 16px;
 }
 
+.entity-ai-summary-card--deal {
+    background: #faf8ff;
+}
+
+
 .entity-ai-summary-header {
     display: flex;
     align-items: center;
