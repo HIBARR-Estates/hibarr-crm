@@ -1,0 +1,213 @@
+.entity-ai-summary-card {
+    border: 1px solid #e8e0f4;
+    border-left: 4px solid #7c3aed;
+    border-radius: 10px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.entity-ai-summary-card--legacy {
+    margin-bottom: 0;
+}
+
+.entity-ai-summary-card--redesign {
+    margin: 0 26px 16px;
+}
+
+.entity-ai-summary-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #f0ebf8;
+}
+
+.entity-ai-summary-header__title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1f2e;
+}
+
+.entity-ai-summary-header__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: #f3e8ff;
+    color: #7c3aed;
+}
+
+.entity-ai-summary-header__timestamp {
+    font-size: 12px;
+    font-weight: 400;
+    color: #9ca3af;
+}
+
+.entity-ai-summary-body {
+    padding: 16px;
+}
+
+.entity-ai-summary-status-line {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #374151;
+    margin-bottom: 16px;
+}
+
+.entity-ai-summary-status-line--risk {
+    color: #b45309;
+    font-weight: 600;
+}
+
+.entity-ai-summary-chip-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+@media (min-width: 768px) {
+    .entity-ai-summary-chip-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+.entity-ai-summary-chip {
+    border: 1px solid #e2e5ea;
+    border-radius: 8px;
+    padding: 12px;
+    background: #fbfcfd;
+}
+
+.entity-ai-summary-chip__label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #9ca3af;
+    margin-bottom: 6px;
+}
+
+.entity-ai-summary-chip__value {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #111827;
+}
+
+.entity-ai-summary-chip__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.entity-ai-summary-chip__dot--green { background: #22c55e; }
+.entity-ai-summary-chip__dot--amber { background: #f59e0b; }
+.entity-ai-summary-chip__dot--red { background: #ef4444; }
+.entity-ai-summary-chip__dot--neutral { background: #9ca3af; }
+
+.entity-ai-summary-chip__sublabel {
+    margin-top: 4px;
+    font-size: 11px;
+    color: #6b7280;
+    line-height: 1.4;
+}
+
+.entity-ai-summary-bullets {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px;
+}
+
+.entity-ai-summary-bullets li {
+    position: relative;
+    padding-left: 14px;
+    margin-bottom: 8px;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #4b5563;
+}
+
+.entity-ai-summary-bullets li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #7c3aed;
+}
+
+.entity-ai-summary-next-step {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    background: #1a1f2e;
+    color: #fff;
+}
+
+.entity-ai-summary-next-step__label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #93c5fd;
+    margin-bottom: 4px;
+}
+
+.entity-ai-summary-next-step__text {
+    font-size: 13px;
+    line-height: 1.4;
+    color: #f9fafb;
+}
+
+.entity-ai-summary-next-step__button {
+    flex-shrink: 0;
+    border: none;
+    border-radius: 6px;
+    background: #fff;
+    color: #1a1f2e;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 8px 14px;
+    cursor: pointer;
+}
+
+.entity-ai-summary-next-step__button:hover {
+    background: #f3f4f6;
+}
+
+.entity-ai-summary-empty,
+.entity-ai-summary-error {
+    padding: 20px 16px;
+    font-size: 13px;
+    color: #6b7280;
+}
+
+.entity-ai-summary-error {
+    color: #dc2626;
+}
+
+.entity-ai-summary-confidence {
+    display: inline-block;
+    margin-left: 8px;
+    font-size: 10px;
+    font-weight: 500;
+    color: #d97706;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 4px;
+    padding: 1px 6px;
+}

@@ -8,6 +8,7 @@ import { User } from "@/Types";
 import { Task } from "@/Types/api/tasks";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
+import type { EntitySummaryPayload } from "@/Types/entity-summary";
 import LegacyLeadShow from "./LegacyLeadShow";
 import LeadViewRedesign from "./Redesign/LeadViewRedesign";
 
@@ -36,6 +37,7 @@ export interface LeadShowProps {
     meetingTypes?: { id: number; name: string; color?: string }[];
     followUpPermissions?: Record<string, string>;
     featureFlags?: Record<string, boolean>;
+    leadAiSummary?: EntitySummaryPayload | null;
 }
 
 const Show = (props: LeadShowProps) => {

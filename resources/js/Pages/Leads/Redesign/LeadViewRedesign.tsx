@@ -19,6 +19,9 @@ import LeadContextRail from "./components/rail/LeadContextRail";
 import QualificationScriptCard from "./components/workspace/QualificationScriptCard";
 import QuickNoteCard, { type QuickNoteCardHandle } from "./components/workspace/QuickNoteCard";
 import LeadDrawer from "./components/drawer/LeadDrawer";
+import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
+import { usePage } from "@inertiajs/react";
+import type { PageProps } from "@/Components/DashboardLayout";
 
 export default function LeadViewRedesign(props: LeadRedesignProps) {
     const {
@@ -28,7 +31,13 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         deals,
         leadFollowUps = [],
         editLeadPermission,
+        leadAiSummary,
+        featureFlags: pageFeatureFlags,
     } = props;
+
+    const page = usePage<PageProps>();
+    const featureFlags = pageFeatureFlags ?? page.props.featureFlags;
+    const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
 
     const header = useLeadHeaderData(lead);
     const nav = useLeadViewNavigation();
@@ -119,6 +128,21 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                         canEdit={canEdit}
                         onEditLead={nav.openProfileEdit}
                     />
+                    {showAiSummary && (
+                        <EntityAiSummaryCard
+                            entityType="lead"
+                            entityId={lead.id}
+                            initialSummary={leadAiSummary}
+                            variant="redesign"
+                            leadPhone={lead.mobile || lead.cell}
+                            onQualifyLead={() => {
+                                qualificationRef.current?.scrollIntoView({
+                                    behavior: "smooth",
+                                    block: "start",
+                                });
+                            }}
+                        />
+                    )}
                     <LeadMissionBar
                         mission={mission}
                         leadPhone={lead.mobile || lead.cell}
