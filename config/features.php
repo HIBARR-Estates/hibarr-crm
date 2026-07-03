@@ -7,6 +7,7 @@ return [
         'crm.lead-qualification-tab',
         'crm.lead-language-core-field',
         'crm.deal-view-redesign',
+        'crm.lead-view-redesign',
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
     ],
