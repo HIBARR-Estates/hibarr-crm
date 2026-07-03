@@ -2,12 +2,15 @@
 
 namespace App\Http\Requests\ApiV2\CrmWrite;
 
+use App\Http\Requests\ApiV2\CrmWrite\Concerns\ValidatesCrmWriteTargets;
 use App\Http\Requests\CoreRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
 class UpdateNoteV2Request extends CoreRequest
 {
+    use ValidatesCrmWriteTargets;
+
     public function authorize(): bool
     {
         return true;
@@ -15,9 +18,7 @@ class UpdateNoteV2Request extends CoreRequest
 
     protected function prepareForValidation(): void
     {
-        $companyId = $this->header('X-COMPANY-ID');
-        $companyId = $companyId && is_numeric($companyId) ? (int) $companyId : null;
-        $this->merge(['companyId' => $companyId]);
+        $this->prepareCrmWriteTargetValidation();
     }
 
     public function rules(): array

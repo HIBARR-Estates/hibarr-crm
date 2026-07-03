@@ -37,9 +37,18 @@ class ApiToken extends Model
         return 'hib_' . bin2hex(random_bytes(24));
     }
 
+    public static function hashToken(string $plainToken): string
+    {
+        return hash('sha256', $plainToken);
+    }
+
     public function maskedToken(): string
     {
         $token = (string) $this->token;
+
+        if ($token === '') {
+            return '';
+        }
 
         if (strlen($token) <= 12) {
             return str_repeat('•', strlen($token));

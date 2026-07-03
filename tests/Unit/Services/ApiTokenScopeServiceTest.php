@@ -36,4 +36,21 @@ class ApiTokenScopeServiceTest extends TestCase
 
         $this->assertSame(['scopes' => ['api.v2.tasks.create']], $encoded);
     }
+
+    public function test_malformed_permissions_fail_closed(): void
+    {
+        $this->assertSame([], ApiTokenScopeService::normalizeScopes(''));
+        $this->assertSame([], ApiTokenScopeService::normalizeScopes('not-json'));
+        $this->assertSame([], ApiTokenScopeService::normalizeScopes('{"scopes":"invalid"}'));
+        $this->assertFalse(ApiTokenScopeService::isUnrestricted('not-json'));
+        $this->assertFalse(ApiTokenScopeService::routeAllowed('api.v2.tasks.create', 'not-json'));
+    }
+
+    public function test_empty_route_name_is_allowed(): void
+    {
+        $permissions = ['scopes' => ['api.v2.tasks.create']];
+
+        $this->assertTrue(ApiTokenScopeService::routeAllowed(null, $permissions));
+        $this->assertTrue(ApiTokenScopeService::routeAllowed('', $permissions));
+    }
 }

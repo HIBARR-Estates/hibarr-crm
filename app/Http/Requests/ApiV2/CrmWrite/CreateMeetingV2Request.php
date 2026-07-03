@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ApiV2\CrmWrite;
 
 use App\Http\Requests\ApiV2\CrmWrite\Concerns\ValidatesCrmWriteTargets;
+use App\Http\Requests\ApiV2\CrmWrite\Concerns\ValidatesMeetingLocationRules;
 use App\Http\Requests\CoreRequest;
 use DateTimeZone;
 use Illuminate\Validation\Rule;
@@ -11,6 +12,7 @@ use Illuminate\Validation\Validator;
 class CreateMeetingV2Request extends CoreRequest
 {
     use ValidatesCrmWriteTargets;
+    use ValidatesMeetingLocationRules;
 
     public function authorize(): bool
     {
@@ -24,10 +26,12 @@ class CreateMeetingV2Request extends CoreRequest
 
     public function rules(): array
     {
+        $companyId = (int) $this->input('companyId');
+
         $rules = array_merge($this->crmWriteTargetRules(), [
             'scheduled_at' => 'required|date',
             'remark' => 'nullable|string',
-            'meeting_type_id' => 'nullable|integer|exists:meeting_types,id',
+            'meeting_type_id' => $this->meetingTypeIdRule($companyId),
             'location' => 'required|in:office,zoom,zoho,zoho_meet,google_meet,teams,meet,phone,physical,skype,other',
             'meeting_link' => 'nullable|url',
             'duration' => 'nullable|integer|min:1|max:600',
@@ -35,7 +39,7 @@ class CreateMeetingV2Request extends CoreRequest
             'reminders.*.time' => 'required_with:reminders|integer|min:1|max:1440',
             'reminders.*.type' => 'required_with:reminders|in:minute,hour,day',
             'participants' => 'nullable|array',
-            'participants.*' => 'required_with:participants|integer|exists:users,id',
+            'participants.*' => $this->participantUserRule($companyId),
             'timezone' => [
                 'nullable',
                 'string',
@@ -43,18 +47,7 @@ class CreateMeetingV2Request extends CoreRequest
             ],
         ]);
 
-        if (in_array($this->input('location'), ['zoho', 'office', 'phone', 'physical'], true)) {
-            $rules['meeting_link'] = 'nullable|url';
-        } else {
-            $rules['meeting_link'] = 'required|url';
-        }
-
-        if ($this->input('location') === 'zoho') {
-            $rules['participants'] = 'required|array|min:1';
-            $rules['participants.*'] = 'required|integer|exists:users,id';
-        }
-
-        return $rules;
+        return array_merge($rules, $this->meetingLocationRules($this->input('location'), false, $companyId));
     }
 
     public function withValidator(Validator $validator): void

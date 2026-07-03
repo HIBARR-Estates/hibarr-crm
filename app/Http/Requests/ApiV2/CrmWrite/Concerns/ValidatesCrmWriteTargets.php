@@ -3,6 +3,7 @@
 namespace App\Http\Requests\ApiV2\CrmWrite\Concerns;
 
 use App\Models\Deal;
+use App\Scopes\CompanyScope;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
 
@@ -45,15 +46,16 @@ trait ValidatesCrmWriteTargets
     protected function validateCrmWriteTargets(Validator $validator): void
     {
         if (!$this->filled('lead_id') && !$this->filled('deal_id')) {
-            $validator->errors()->add('lead_id', 'At least one of lead_id or deal_id is required.');
-            $validator->errors()->add('deal_id', 'At least one of lead_id or deal_id is required.');
+            $message = __('messages.crmWriteTargetRequired');
+            $validator->errors()->add('lead_id', $message);
+            $validator->errors()->add('deal_id', $message);
         }
 
         if (!$this->filled('lead_id') || !$this->filled('deal_id')) {
             return;
         }
 
-        $dealBelongsToLead = Deal::withoutGlobalScopes()
+        $dealBelongsToLead = Deal::withoutGlobalScope(CompanyScope::class)
             ->where('id', $this->input('deal_id'))
             ->where('lead_id', $this->input('lead_id'))
             ->exists();

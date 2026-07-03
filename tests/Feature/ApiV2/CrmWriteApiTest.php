@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\ApiV2;
 
+use App\Models\ApiToken;
 use App\Services\FeatureFlagService;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
@@ -112,6 +113,21 @@ class CrmWriteApiTest extends TestCase
         $this->assertArrayHasKey('deal_id', $details);
     }
 
+    public function test_company_mismatch_returns_401(): void
+    {
+        $this->insertApiToken('test-crm-write-token', companyId: 1);
+
+        $response = $this->postJson('/api/v2/tasks', [
+            'heading' => 'Follow up with client',
+            'lead_id' => 1,
+        ], [
+            'X-API-TOKEN' => 'test-crm-write-token',
+            'X-COMPANY-ID' => '2',
+        ]);
+
+        $response->assertStatus(401);
+    }
+
     private function ensureApiTokensTable(): void
     {
         if (Schema::hasTable('api_tokens')) {
@@ -121,22 +137,22 @@ class CrmWriteApiTest extends TestCase
         Schema::create('api_tokens', function (Blueprint $table) {
             $table->id();
             $table->string('token', 64)->unique();
+            $table->unsignedInteger('company_id')->nullable();
             $table->string('name');
             $table->json('permissions')->nullable();
             $table->boolean('revoked')->default(false);
-            $table->unsignedBigInteger('company_id')->nullable();
             $table->timestamps();
         });
     }
 
-    private function insertApiToken(string $token): void
+    private function insertApiToken(string $token, ?int $companyId = 1): void
     {
         DB::table('api_tokens')->insert([
-            'token' => $token,
+            'token' => ApiToken::hashToken($token),
             'name' => 'Test Token',
             'permissions' => json_encode([]),
             'revoked' => false,
-            'company_id' => 1,
+            'company_id' => $companyId,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

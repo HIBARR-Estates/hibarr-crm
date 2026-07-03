@@ -12,6 +12,7 @@ use App\Models\LeadNote;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
+use App\Scopes\CompanyScope;
 use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
 use App\Traits\RecordsCrmEvents;
@@ -75,6 +76,8 @@ class CrmWriteService
                 ]);
             }
 
+            $notifyDeal = null;
+
             if ($deal !== null) {
                 $deal->tasks()->syncWithoutDetaching([$task->id]);
                 app(DealActivityEventService::class)->recordTaskCreated($deal, $task);
@@ -83,7 +86,7 @@ class CrmWriteService
                 if ($assigneeIds !== []) {
                     $task->users()->syncWithoutDetaching($assigneeIds);
                 } elseif ($deal->agent_id) {
-                    $agentUserId = LeadAgent::withoutGlobalScopes()
+                    $agentUserId = LeadAgent::withoutGlobalScope(CompanyScope::class)
                         ->where('id', $deal->agent_id)
                         ->value('user_id');
 
@@ -92,15 +95,22 @@ class CrmWriteService
                     }
                 }
 
-                app(DealNotificationService::class)->notifyTaskAdded(
-                    $deal,
-                    $task->heading,
-                    $task->id
-                );
+                $notifyDeal = $deal;
             } elseif (!empty($data['assignee_user_ids'])) {
                 $task->users()->syncWithoutDetaching(
                     array_values(array_unique(array_map('intval', $data['assignee_user_ids'])))
                 );
+            }
+
+            if ($notifyDeal !== null) {
+                $savedTask = $task;
+                DB::afterCommit(function () use ($notifyDeal, $savedTask) {
+                    app(DealNotificationService::class)->notifyTaskAdded(
+                        $notifyDeal,
+                        $savedTask->heading,
+                        $savedTask->id
+                    );
+                });
             }
 
             return $task->fresh(['users']);
@@ -193,7 +203,7 @@ class CrmWriteService
         }
 
         if ($deal !== null && $lead === null && $deal->lead_id) {
-            $lead = Lead::withoutGlobalScopes()
+            $lead = Lead::withoutGlobalScope(CompanyScope::class)
                 ->where('company_id', $companyId)
                 ->find($deal->lead_id);
         }
@@ -234,7 +244,11 @@ class CrmWriteService
 
         $followUp->save();
 
-        event(new AutoFollowUpReminderEvent($followUp, true));
+        try {
+            event(new AutoFollowUpReminderEvent($followUp, true));
+        } catch (\Throwable $exception) {
+            report($exception);
+        }
 
         return $followUp->fresh(['deal', 'lead', 'meetingType']);
     }
@@ -315,30 +329,66 @@ class CrmWriteService
      */
     public function listNotes(int $companyId, array $filters): array
     {
-        $notes = collect();
+        $queryDeal = $this->shouldQueryDealNotes($filters);
+        $queryLead = $this->shouldQueryLeadNotes($filters);
 
-        if ($this->shouldQueryDealNotes($filters)) {
+        if ($queryDeal && !$queryLead) {
             $dealNotesQuery = DealNote::query()
-                ->whereIn('deal_id', Deal::withoutGlobalScopes()->where('company_id', $companyId)->select('id'));
+                ->whereIn('deal_id', $this->companyDealIdsQuery($companyId));
 
             if (!empty($filters['deal_id'])) {
                 $dealNotesQuery->where('deal_id', (int) $filters['deal_id']);
             }
 
-            foreach ($dealNotesQuery->orderByDesc('id')->get() as $note) {
-                $notes->push($this->serializeNote($note, 'deal'));
-            }
+            return $this->paginateQuery(
+                $dealNotesQuery->orderByDesc('id'),
+                $filters,
+                fn (DealNote $note) => $this->serializeNote($note, 'deal')
+            );
         }
 
-        if ($this->shouldQueryLeadNotes($filters)) {
+        if ($queryLead && !$queryDeal) {
             $leadNotesQuery = LeadNote::query()
-                ->whereIn('lead_id', Lead::withoutGlobalScopes()->where('company_id', $companyId)->select('id'));
+                ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId));
 
             if (!empty($filters['lead_id'])) {
                 $leadNotesQuery->where('lead_id', (int) $filters['lead_id']);
             }
 
-            foreach ($leadNotesQuery->orderByDesc('id')->get() as $note) {
+            return $this->paginateQuery(
+                $leadNotesQuery->orderByDesc('id'),
+                $filters,
+                fn (LeadNote $note) => $this->serializeNote($note, 'lead')
+            );
+        }
+
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $perPage = min(100, max(1, (int) ($filters['per_page'] ?? 20)));
+        $fetchLimit = $page * $perPage;
+        $notes = collect();
+
+        if ($queryDeal) {
+            $dealNotesQuery = DealNote::query()
+                ->whereIn('deal_id', $this->companyDealIdsQuery($companyId));
+
+            if (!empty($filters['deal_id'])) {
+                $dealNotesQuery->where('deal_id', (int) $filters['deal_id']);
+            }
+
+            foreach ($dealNotesQuery->orderByDesc('id')->limit($fetchLimit)->get() as $note) {
+                $notes->push($this->serializeNote($note, 'deal'));
+            }
+        }
+
+        if ($queryLead) {
+            $leadNotesQuery = LeadNote::query()
+                ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId));
+
+            if (!empty($filters['lead_id'])) {
+                $leadNotesQuery->where('lead_id', (int) $filters['lead_id']);
+            }
+
+            foreach ($leadNotesQuery->orderByDesc('id')->limit($fetchLimit)->get() as $note) {
                 $notes->push($this->serializeNote($note, 'lead'));
             }
         }
@@ -394,8 +444,8 @@ class CrmWriteService
      */
     public function listMeetings(int $companyId, array $filters): array
     {
-        $dealIds = Deal::withoutGlobalScopes()->where('company_id', $companyId)->select('id');
-        $leadIds = Lead::withoutGlobalScopes()->where('company_id', $companyId)->select('id');
+        $dealIds = $this->companyDealIdsQuery($companyId);
+        $leadIds = $this->companyLeadIdsQuery($companyId);
 
         $query = DealFollowUp::query()
             ->with(['deal', 'lead', 'meetingType'])
@@ -505,7 +555,7 @@ class CrmWriteService
         if ($type === 'deal') {
             $note = DealNote::query()
                 ->where('id', $noteId)
-                ->whereIn('deal_id', Deal::withoutGlobalScopes()->where('company_id', $companyId)->select('id'))
+                ->whereIn('deal_id', $this->companyDealIdsQuery($companyId))
                 ->first();
 
             if ($note !== null) {
@@ -516,7 +566,7 @@ class CrmWriteService
         if ($type === 'lead') {
             $note = LeadNote::query()
                 ->where('id', $noteId)
-                ->whereIn('lead_id', Lead::withoutGlobalScopes()->where('company_id', $companyId)->select('id'))
+                ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId))
                 ->first();
 
             if ($note !== null) {
@@ -529,8 +579,8 @@ class CrmWriteService
 
     private function findMeeting(int $companyId, int $meetingId): DealFollowUp
     {
-        $dealIds = Deal::withoutGlobalScopes()->where('company_id', $companyId)->select('id');
-        $leadIds = Lead::withoutGlobalScopes()->where('company_id', $companyId)->select('id');
+        $dealIds = $this->companyDealIdsQuery($companyId);
+        $leadIds = $this->companyLeadIdsQuery($companyId);
 
         return DealFollowUp::query()
             ->with(['deal', 'lead', 'meetingType'])
@@ -633,6 +683,26 @@ class CrmWriteService
     }
 
     /**
+     * @return \Illuminate\Database\Eloquent\Builder<Deal>
+     */
+    private function companyDealIdsQuery(int $companyId)
+    {
+        return Deal::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->select('id');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<Lead>
+     */
+    private function companyLeadIdsQuery(int $companyId)
+    {
+        return Lead::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->select('id');
+    }
+
+    /**
      * @param  array<string, mixed>  $data
      */
     private function resolveLead(int $companyId, array $data): ?Lead
@@ -641,7 +711,7 @@ class CrmWriteService
             return null;
         }
 
-        return Lead::withoutGlobalScopes()
+        return Lead::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->findOrFail((int) $data['lead_id']);
     }
@@ -655,7 +725,7 @@ class CrmWriteService
             return null;
         }
 
-        $query = Deal::withoutGlobalScopes()
+        $query = Deal::withoutGlobalScope(CompanyScope::class)
             ->where('company_id', $companyId)
             ->where('id', (int) $data['deal_id']);
 
@@ -676,7 +746,7 @@ class CrmWriteService
         }
 
         if ($deal?->agent_id) {
-            $agentUserId = LeadAgent::withoutGlobalScopes()
+            $agentUserId = LeadAgent::withoutGlobalScope(CompanyScope::class)
                 ->where('id', $deal->agent_id)
                 ->value('user_id');
 
@@ -789,7 +859,7 @@ class CrmWriteService
             'location' => $meeting->location,
             'meeting_link' => $meeting->meeting_link,
             'meeting_type_id' => $meeting->meeting_type_id,
-            'duration' => $meeting->duration,
+            'duration' => $meeting->getEffectiveDuration(),
             'status' => $meeting->status,
             'participants' => $meeting->participants ?? [],
             'created_at' => $meeting->created_at?->toIso8601String(),

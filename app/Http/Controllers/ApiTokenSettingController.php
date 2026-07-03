@@ -47,7 +47,7 @@ class ApiTokenSettingController extends AccountBaseController
         $plainToken = ApiToken::generatePlainToken();
 
         $apiToken = ApiToken::create([
-            'token' => $plainToken,
+            'token' => ApiToken::hashToken($plainToken),
             'name' => $request->name,
             'company_id' => company()->id,
             'permissions' => $this->resolvePermissionsPayload($request),
@@ -100,7 +100,7 @@ class ApiTokenSettingController extends AccountBaseController
         $apiToken = $this->findCompanyToken($id);
         $plainToken = ApiToken::generatePlainToken();
 
-        $apiToken->token = $plainToken;
+        $apiToken->token = ApiToken::hashToken($plainToken);
         $apiToken->revoked = false;
         $apiToken->save();
 
@@ -131,7 +131,9 @@ class ApiTokenSettingController extends AccountBaseController
                 return;
             }
 
-            if (count($request->input('scopes', [])) === 0) {
+            $scopes = $request->input('scopes');
+
+            if (is_array($scopes) && count($scopes) === 0) {
                 $validator->errors()->add('scopes', __('messages.apiTokenScopesRequired'));
             }
         });

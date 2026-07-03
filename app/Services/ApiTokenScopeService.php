@@ -48,12 +48,21 @@ class ApiTokenScopeService
         }
 
         if (is_string($permissions)) {
+            if ($permissions === '') {
+                return [];
+            }
+
             $decoded = json_decode($permissions, true);
-            $permissions = is_array($decoded) ? $decoded : null;
+
+            if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+                return [];
+            }
+
+            $permissions = $decoded;
         }
 
         if (!is_array($permissions)) {
-            return null;
+            return [];
         }
 
         if (array_key_exists('scopes', $permissions)) {
@@ -74,7 +83,7 @@ class ApiTokenScopeService
             return self::sanitizeScopes($permissions);
         }
 
-        return null;
+        return [];
     }
 
     public static function isUnrestricted(mixed $permissions): bool

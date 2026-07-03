@@ -509,6 +509,7 @@ return array(
     'existingShiftOverride' => 'The existing shift will be overridden.',
     'leadFollowUpRestricted' => 'Follow-up is disabled for this user.',
     'invalidDealForLead' => 'The selected deal does not belong to this lead.',
+    'crmWriteTargetRequired' => 'At least one of lead_id or deal_id is required.',
     'leadFollowUpOwnerRequired' => 'This lead has no owner assigned. Please assign a lead owner before booking a meeting.',
     'clockInNotAllowed' => 'Clock In Not Allowed.',
     'roleNotAssigned' => 'Role is not assigned.',

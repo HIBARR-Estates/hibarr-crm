@@ -2,12 +2,13 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ApiToken;
+use App\Services\ApiTokenScopeService;
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Services\ApiTokenScopeService;
+use Symfony\Component\HttpFoundation\Response;
 
 class ApiTokenAuth
 {
@@ -23,15 +24,11 @@ class ApiTokenAuth
 
         Log::info("Company ID: " . $companyId);
 
-        // Check if token is provided
         if (!$token) {
             return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
         }
 
-        // Single query to check token existence and revoked status
-        $tokenData = DB::table('api_tokens')
-            ->where('token', $token)
-            ->first();
+        $tokenData = $this->findTokenRecord($token);
 
         if (!$tokenData || $tokenData->revoked) {
             $message = !$tokenData ? __('messages.unAuthorisedUser') : __('messages.tokenRevoked');
@@ -41,17 +38,8 @@ class ApiTokenAuth
         $tokenCompanyId = $tokenData->company_id ? (int) $tokenData->company_id : null;
         $requestCompanyId = $this->parseCompanyIdHeader($companyId);
 
-        // Prefer request header company id, but fall back to api_tokens->company_id.
         $resolvedCompanyId = $this->resolveCompanyId($requestCompanyId, $tokenCompanyId);
         if (!$resolvedCompanyId) {
-            // v2 fallback: allow integration calls to default to company 1
-            // when company context is not provided via headers or token.
-            if ($this->isV2Route($request)) {
-                $resolvedCompanyId = 1;
-            } else {
-                return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
-            }
-            // when company context is not provided via headers or token.
             if ($this->isV2Route($request)) {
                 $resolvedCompanyId = 1;
             } else {
@@ -59,12 +47,10 @@ class ApiTokenAuth
             }
         }
 
-        // If request provided a different company id, reject.
         if ($this->hasCompanyMismatch($requestCompanyId, $tokenCompanyId)) {
             return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
         }
 
-        // Ensure downstream code/controllers can continue reading X-COMPANY-ID.
         $request->headers->set('X-COMPANY-ID', (string) $resolvedCompanyId);
 
         $routeName = $request->route()?->getName();
@@ -75,6 +61,16 @@ class ApiTokenAuth
         }
 
         return $next($request);
+    }
+
+    private function findTokenRecord(string $token): ?object
+    {
+        $hashed = ApiToken::hashToken($token);
+
+        return DB::table('api_tokens')
+            ->where('token', $hashed)
+            ->orWhere('token', $token)
+            ->first();
     }
 
     /**
@@ -109,10 +105,11 @@ class ApiTokenAuth
     {
         return $requestCompanyId ?? $tokenCompanyId;
     }
+
     private function isV2Route(Request $request): bool
     {
-        // Actual URL pattern: /api/v2/...
         $path = ltrim((string) $request->path(), '/');
+
         return $path === 'api/v2' || str_starts_with($path, 'api/v2/');
     }
 
@@ -120,5 +117,4 @@ class ApiTokenAuth
     {
         return (bool) ($requestCompanyId && $tokenCompanyId && $requestCompanyId !== $tokenCompanyId);
     }
-
 }
