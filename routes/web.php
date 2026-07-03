@@ -128,6 +128,7 @@ use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadQualificationController;
+use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
@@ -604,6 +605,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-qualifications/{qualification}/complete', [LeadQualificationController::class, 'complete'])->name('lead-qualifications.complete');
     Route::post('lead-qualifications/{qualification}/abandon', [LeadQualificationController::class, 'abandon'])->name('lead-qualifications.abandon');
     Route::delete('lead-qualifications/{qualification}/branch-answers', [LeadQualificationController::class, 'clearBranchAnswers'])->name('lead-qualifications.clear-branch-answers');
+
+    Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
+    Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {

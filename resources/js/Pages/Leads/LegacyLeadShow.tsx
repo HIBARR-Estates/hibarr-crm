@@ -22,6 +22,7 @@ import { usePage } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import type { LeadShowProps } from "./Show";
+import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 
 export default function LegacyLeadShow({
     lead,
@@ -43,6 +44,7 @@ export default function LegacyLeadShow({
     leadFollowUps = [],
     followUpPermissions = {},
     featureFlags: pageFeatureFlags,
+    leadAiSummary,
 }: LeadShowProps) {
     const { props } = usePage<PageProps>();
     const { t } = useTranslation();
@@ -51,6 +53,7 @@ export default function LegacyLeadShow({
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
+    const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
 
     const [activeTab, setActiveTab] = useState(
         () => new URLSearchParams(window.location.search).get("tab") || "profile",
@@ -236,6 +239,17 @@ export default function LegacyLeadShow({
             ]}
             mainContentClassName=""
         >
+            {showAiSummary && (
+                <div className="mx-auto max-w-4xl px-6 pt-6">
+                    <EntityAiSummaryCard
+                        entityType="lead"
+                        entityId={lead.id}
+                        initialSummary={leadAiSummary}
+                        variant="legacy"
+                        leadPhone={lead.mobile || lead.cell}
+                    />
+                </div>
+            )}
             <div>
                 <Tabs
                     items={tabItems}
