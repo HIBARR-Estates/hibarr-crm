@@ -341,6 +341,9 @@ class LeadContactController extends AccountBaseController
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
+            'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
+                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($this->leadContact)
+                : null,
         ], $formData, $dealFormData));
     }
 
