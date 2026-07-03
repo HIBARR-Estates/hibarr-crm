@@ -6,6 +6,8 @@ pipeline {
         ENV_NAME = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'production' : 'staging'}"
         SSH_PORT = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? '22' : '2244'}"
         SSH_CREDS = "${BRANCH_NAME == 'main' || BRANCH_NAME == 'master' ? 'PRODUCTION_SSH_PRIVATE_KEY' : 'STAGIN_SSH_PRIVATE_KEY'}"
+        INFISICAL_CLI_VERSION = '0.43.78'
+        INFISICAL_DOMAIN = 'https://infisical.hibarr.org'
     }
 
     stages {
@@ -35,21 +37,73 @@ pipeline {
                 }
             }
             steps {
-                withCredentials([sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE')]) {
+                withCredentials([
+                    sshUserPrivateKey(credentialsId: env.SSH_CREDS, keyFileVariable: 'SSH_KEY_FILE'),
+                    string(credentialsId: 'infisical-crm-client-id', variable: 'INFISICAL_CLIENT_ID'),
+                    string(credentialsId: 'infisical-crm-client-secret', variable: 'INFISICAL_CLIENT_SECRET')
+                ]) {
                     sh '''
-                        chmod 400 $SSH_KEY_FILE
+                        set -e
+                        chmod 400 "$SSH_KEY_FILE"
                         BUILD_PATH="/home/$TARGET_USER/deployments/${ENV_NAME}_build_${BUILD_ID}"
+                        INFISICAL_BIN="${WORKSPACE}/.tools/infisical"
+                        ENV_FILE_LOCAL="${WORKSPACE}/.env.deploy"
+                        REMOTE_ENV_TMP="/tmp/hibarr-crm.env.${BUILD_ID}"
+
+                        echo "Step 0: Bootstrapping Infisical CLI on Jenkins workspace..."
+                        mkdir -p "${WORKSPACE}/.tools"
+                        if [ ! -x "$INFISICAL_BIN" ]; then
+                            ARCH="$(uname -m)"
+                            case "$ARCH" in
+                                x86_64) INFISICAL_ARCH="amd64" ;;
+                                aarch64|arm64) INFISICAL_ARCH="arm64" ;;
+                                *)
+                                    echo "Unsupported Jenkins agent architecture: $ARCH"
+                                    exit 1
+                                    ;;
+                            esac
+
+                            curl -fsSL -o /tmp/infisical-cli.tar.gz \
+                                "https://github.com/Infisical/cli/releases/download/v${INFISICAL_CLI_VERSION}/cli_${INFISICAL_CLI_VERSION}_linux_${INFISICAL_ARCH}.tar.gz"
+                            tar -xzf /tmp/infisical-cli.tar.gz -C "${WORKSPACE}/.tools"
+                            chmod +x "$INFISICAL_BIN"
+                            rm -f /tmp/infisical-cli.tar.gz
+                        fi
+                        "$INFISICAL_BIN" --version
+
+                        echo "Step 0b: Authenticating to Infisical via machine identity (${ENV_NAME})..."
+                        export INFISICAL_DOMAIN
+                        export INFISICAL_API_URL="$INFISICAL_DOMAIN"
+                        echo "Using Infisical domain: $INFISICAL_DOMAIN"
+                        export INFISICAL_TOKEN=$("$INFISICAL_BIN" login \
+                            --method=universal-auth \
+                            --client-id="$INFISICAL_CLIENT_ID" \
+                            --client-secret="$INFISICAL_CLIENT_SECRET" \
+                            --domain="$INFISICAL_DOMAIN" \
+                            --silent --plain)
+                        "$INFISICAL_BIN" export \
+                            --env="$ENV_NAME" \
+                            --domain="$INFISICAL_DOMAIN" \
+                            --format=dotenv \
+                            --output-file="$ENV_FILE_LOCAL"
+
+                        echo "Step 0c: Transferring .env to target server..."
+                        scp -i "$SSH_KEY_FILE" -P "$SSH_PORT" -o StrictHostKeyChecking=no \
+                            "$ENV_FILE_LOCAL" "$TARGET_USER@$TARGET_HOST:$REMOTE_ENV_TMP"
+                        rm -f "$ENV_FILE_LOCAL"
 
                         ssh -i $SSH_KEY_FILE -p $SSH_PORT -o StrictHostKeyChecking=no $TARGET_USER@$TARGET_HOST "
                             set -e
+
+                            echo 'Step 0d: Backing up shared .env (rollback safety)...'
+                            cp -f /home/$TARGET_USER/shared/.env /home/$TARGET_USER/shared/.env.bak 2>/dev/null || true
                             
                             echo 'Step 1: Cloning and Building...'
                             mkdir -p $BUILD_PATH
                             cd $BUILD_PATH
                             git clone --depth 1 --branch $BRANCH_NAME https://github.com/HIBARR-Estates/hibarr-crm.git .
-                            
-                            # Initial environment setup
-                            if [ -f ~/shared/.env ]; then cp ~/shared/.env .env; else touch .env; fi
+
+                            mv $REMOTE_ENV_TMP $BUILD_PATH/.env
 
                             # --- Stationary File Fix ---
                             mkdir -p bootstrap/cache storage/framework/cache/data storage/framework/sessions storage/framework/views storage/logs
@@ -66,7 +120,7 @@ pipeline {
                             chmod +x ./rr
                             
                             echo 'Step 2: Linking Shared Assets...'
-                            # Use absolute paths to ensure the symlink never breaks
+                            mv $BUILD_PATH/.env /home/$TARGET_USER/shared/.env
                             ln -sfn /home/$TARGET_USER/shared/.env $BUILD_PATH/.env
 
                             # Create shared folder if it doesn't exist (safety first)
