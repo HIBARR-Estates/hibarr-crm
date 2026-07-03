@@ -41,7 +41,8 @@ export interface LeadShowProps {
 const Show = (props: LeadShowProps) => {
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
-    const useRedesign = featureFlags?.["crm.lead-view-redesign"] === true;
+    // const useRedesign = featureFlags?.["crm.lead-view-redesign"] === true;
+    const useRedesign = true;
 
     return useRedesign ? (
         <LeadViewRedesign {...props} />
