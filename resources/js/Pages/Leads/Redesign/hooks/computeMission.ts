@@ -16,6 +16,7 @@ interface ComputeMissionInput {
     contactLogged: boolean;
     outcome: QualificationOutcome | null;
     flowActive: boolean;
+    qualificationEnabled?: boolean;
     openTasks: LeadTaskPreview[];
     nextMeeting: LeadMeetingPreview | null;
     captures: BantCaptures;
@@ -32,6 +33,7 @@ export function computeMission({
     contactLogged,
     outcome,
     flowActive,
+    qualificationEnabled = true,
     openTasks,
     nextMeeting,
     captures,
@@ -50,7 +52,7 @@ export function computeMission({
         };
     }
 
-    if (!outcome && !flowActive) {
+    if (!outcome && !flowActive && qualificationEnabled) {
         const missing = ["need", "budget", "timeline"].filter(
             (k) => !captures[k as keyof BantCaptures],
         ).length;
@@ -116,9 +118,11 @@ export function computeMission({
     return {
         phase: "qualify",
         headline: "Qualify this lead",
-        detail: "Start the script.",
-        cta: "Start script",
-        ctaAction: "startFlow",
+        detail: qualificationEnabled
+            ? "Start the script."
+            : "Continue follow-up on this lead.",
+        cta: qualificationEnabled ? "Start script" : null,
+        ctaAction: qualificationEnabled ? "startFlow" : null,
         urgency: "blue",
     };
 }

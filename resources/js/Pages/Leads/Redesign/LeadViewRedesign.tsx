@@ -38,11 +38,15 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     const page = usePage<PageProps>();
     const featureFlags = pageFeatureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
+    const showQualificationTab =
+        featureFlags?.["crm.lead-qualification-tab"] === true;
 
     const header = useLeadHeaderData(lead);
     const nav = useLeadViewNavigation();
     const railData = useLeadContextRail({ tasks, leadFollowUps, deals });
-    const qualificationWorkspace = useLeadQualificationWorkspace(lead);
+    const qualificationWorkspace = useLeadQualificationWorkspace(lead, {
+        enabled: showQualificationTab,
+    });
     const overview = useLeadOverview({ notes, tasks, leadFollowUps });
 
     const [contactLoggedOverride, setContactLoggedOverride] = useState(false);
@@ -54,7 +58,9 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 
     const { checks } = useLeadBantChecks({
         lead,
-        answers: qualificationWorkspace.current?.answers,
+        answers: showQualificationTab
+            ? qualificationWorkspace.current?.answers
+            : undefined,
         contactLogged:
             contactLoggedOverride ||
             notes.length > 0 ||
@@ -71,8 +77,11 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         leadFollowUps,
         flowActive: qualificationWorkspace.flowActive,
         outcome: qualificationWorkspace.outcome,
-        qualificationAnswers: qualificationWorkspace.current?.answers,
+        qualificationAnswers: showQualificationTab
+            ? qualificationWorkspace.current?.answers
+            : undefined,
         contactLoggedOverride,
+        qualificationEnabled: showQualificationTab,
     });
 
     const { refresh, isRefreshing } = usePageRefresh({
@@ -159,12 +168,14 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                             onNavigateDeals={() => nav.setDrawerTab("deals")}
                         />
                         <div className="flex flex-col gap-4">
-                            <QualificationScriptCard
-                                lead={lead}
-                                workspace={qualificationWorkspace}
-                                workspaceRef={qualificationRef}
-                                onOutcomeComplete={handleOutcomeComplete}
-                            />
+                            {showQualificationTab && (
+                                <QualificationScriptCard
+                                    lead={lead}
+                                    workspace={qualificationWorkspace}
+                                    workspaceRef={qualificationRef}
+                                    onOutcomeComplete={handleOutcomeComplete}
+                                />
+                            )}
                             <QuickNoteCard
                                 ref={noteRef}
                                 lead={lead}

@@ -5,6 +5,7 @@ import {
     SegmentAnswerState,
 } from "@/Types/qualification";
 import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
+import { formatAnswerDisplay } from "./qualificationUtils";
 
 interface CaptureSummaryRailProps {
     visibleSegments: Segment[];
@@ -50,7 +51,7 @@ const AnswerChip: React.FC<{
     isActive: boolean;
 }> = ({ segment, answer, isActive }) => {
     const labelTranslated = useDynamicTranslation(segment.label);
-    const display = resolveDisplay(segment, answer);
+    const display = formatAnswerDisplay(segment, answer) || null;
 
     return (
         <div
@@ -72,27 +73,6 @@ const AnswerChip: React.FC<{
             )}
         </div>
     );
-};
-
-const resolveDisplay = (
-    segment: Segment,
-    answer?: SegmentAnswerState,
-): string | null => {
-    if (!answer) return null;
-
-    if (segment.answerType === "text") {
-        return answer.answer_text?.trim() || null;
-    }
-
-    if (segment.answerType === "boolean") {
-        return answer.answer_values[0] === "true" ? "Yes" : "No";
-    }
-
-    const labels = (segment.options ?? [])
-        .filter((o) => answer.answer_values.includes(o.id))
-        .map((o) => o.label);
-
-    return labels.length ? labels.join(", ") : null;
 };
 
 export default CaptureSummaryRail;

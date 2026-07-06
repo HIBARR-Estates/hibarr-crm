@@ -47,6 +47,7 @@ export default function QualificationScriptCard({
             try {
                 const treeResponse = await templateService.getTemplateTree(
                     qualification.template_id,
+                    qualification.template_name,
                 );
                 setTemplateTree(treeResponse.data);
                 setPhase("inProgress");

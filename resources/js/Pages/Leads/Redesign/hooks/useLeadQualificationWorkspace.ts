@@ -9,21 +9,39 @@ export type QualificationWorkspacePhase =
     | "loading"
     | "empty"
     | "inProgress"
-    | "completed";
+    | "completed"
+    | "disabled";
 
-export default function useLeadQualificationWorkspace(lead: Lead) {
+interface UseLeadQualificationWorkspaceOptions {
+    enabled?: boolean;
+}
+
+export default function useLeadQualificationWorkspace(
+    lead: Lead,
+    { enabled = true }: UseLeadQualificationWorkspaceOptions = {},
+) {
     const qualificationService = useLeadQualificationService();
     const templateService = useMemo(
         () => getQualificationTemplateService(),
         [],
     );
 
-    const [phase, setPhase] = useState<QualificationWorkspacePhase>("loading");
+    const [phase, setPhase] = useState<QualificationWorkspacePhase>(
+        enabled ? "loading" : "disabled",
+    );
     const [current, setCurrent] = useState<LeadQualification | null>(null);
     const [history, setHistory] = useState<LeadQualification[]>([]);
     const [templateTree, setTemplateTree] = useState<TemplateTree | null>(null);
 
     const loadQualifications = useCallback(async () => {
+        if (!enabled) {
+            setPhase("disabled");
+            setCurrent(null);
+            setHistory([]);
+            setTemplateTree(null);
+            return;
+        }
+
         setPhase("loading");
         try {
             const response = await qualificationService.getQualifications(lead.id);
@@ -33,6 +51,7 @@ export default function useLeadQualificationWorkspace(lead: Lead) {
             if (response.current?.status === "inProgress") {
                 const treeResponse = await templateService.getTemplateTree(
                     response.current.template_id,
+                    response.current.template_name,
                 );
                 setTemplateTree(treeResponse.data);
                 setPhase("inProgress");
@@ -45,17 +64,20 @@ export default function useLeadQualificationWorkspace(lead: Lead) {
             message.error("Failed to load qualifications");
             setPhase("empty");
         }
-    }, [lead.id, qualificationService, templateService]);
+    }, [enabled, lead.id, qualificationService, templateService]);
 
     useEffect(() => {
         loadQualifications();
     }, [loadQualifications]);
 
-    const flowActive = phase === "inProgress";
+    const flowActive = enabled && phase === "inProgress";
     const outcome =
-        current?.status === "completed" ? current.outcome ?? null : null;
+        enabled && current?.status === "completed"
+            ? current.outcome ?? null
+            : null;
 
     return {
+        enabled,
         phase,
         current,
         history,

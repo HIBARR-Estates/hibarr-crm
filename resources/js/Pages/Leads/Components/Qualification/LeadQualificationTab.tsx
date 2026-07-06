@@ -47,6 +47,7 @@ const LeadQualificationTab: React.FC<LeadQualificationTabProps> = ({
             if (response.current?.status === "inProgress") {
                 const treeResponse = await templateService.getTemplateTree(
                     response.current.template_id,
+                    response.current.template_name,
                 );
                 setTemplateTree(treeResponse.data);
                 setPhase("inProgress");
@@ -70,6 +71,7 @@ const LeadQualificationTab: React.FC<LeadQualificationTabProps> = ({
         try {
             const treeResponse = await templateService.getTemplateTree(
                 qualification.template_id,
+                qualification.template_name,
             );
             setTemplateTree(treeResponse.data);
             setPhase("inProgress");

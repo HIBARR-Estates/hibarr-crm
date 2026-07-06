@@ -13,6 +13,7 @@ interface QuestionSegmentProps {
     segment: Segment;
     answer?: SegmentAnswerState;
     tokenMap: Record<QualificationToken, string>;
+    translateScript: (text: string) => string;
     onChange: (values: string[], text?: string | null) => void;
     disabled?: boolean;
 }
@@ -21,10 +22,11 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
     segment,
     answer,
     tokenMap,
+    translateScript,
     onChange,
     disabled = false,
 }) => {
-    const translated = useDynamicTranslation(segment.label);
+    const translated = translateScript(useDynamicTranslation(segment.label));
     const answerType = segment.answerType ?? "singleSelect";
 
     return (
