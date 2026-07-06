@@ -1,12 +1,11 @@
-import { Spin, message } from "antd";
-import { useCallback } from "react";
+import { Spin } from "antd";
+import { useCallback, useMemo } from "react";
 import type { Lead } from "@/Types/api/leads";
 import { getRegistrationService } from "@/Services/RegistrationService";
 import useTranslation from "@/Hooks/useTranslation";
 import EmptyState from "@/Pages/Leads/Components/Qualification/EmptyState";
 import InProgressView from "@/Pages/Leads/Components/Qualification/InProgressView";
 import CompletedRecap from "@/Pages/Leads/Components/Qualification/CompletedRecap";
-import type { LeadQualification } from "@/Types/qualification";
 import type useLeadQualificationWorkspace from "../../hooks/useLeadQualificationWorkspace";
 import LeadIcon from "../primitives/LeadIcon";
 
@@ -26,7 +25,7 @@ export default function QualificationScriptCard({
     onOutcomeComplete,
 }: QualificationScriptCardProps) {
     const { t } = useTranslation();
-    const registrationService = getRegistrationService();
+    const registrationService = useMemo(() => getRegistrationService(), []);
     const {
         phase,
         current,
@@ -35,47 +34,18 @@ export default function QualificationScriptCard({
         qualificationService,
         templateService,
         loadQualifications,
-        setCurrent,
-        setHistory,
-        setTemplateTree,
-        setPhase,
+        handleStarted,
+        handleQualificationUpdated,
+        handleStartNew,
     } = workspace;
 
-    const handleStarted = useCallback(
-        async (qualification: LeadQualification) => {
-            setCurrent(qualification);
-            try {
-                const treeResponse = await templateService.getTemplateTree(
-                    qualification.template_id,
-                    qualification.template_name,
-                );
-                setTemplateTree(treeResponse.data);
-                setPhase("inProgress");
-            } catch {
-                message.error("Failed to load template");
-            }
-        },
-        [setCurrent, setPhase, setTemplateTree, templateService],
-    );
-
-    const handleQualificationUpdated = useCallback(
-        (qualification: LeadQualification) => {
-            setCurrent(qualification);
-            setHistory((prev) => {
-                const without = prev.filter((h) => h.id !== qualification.id);
-                return [qualification, ...without];
-            });
-            setPhase("completed");
+    const handleQualificationUpdatedWithCallback = useCallback(
+        (qualification: Parameters<typeof handleQualificationUpdated>[0]) => {
+            handleQualificationUpdated(qualification);
             onOutcomeComplete?.();
         },
-        [onOutcomeComplete, setCurrent, setHistory, setPhase],
+        [handleQualificationUpdated, onOutcomeComplete],
     );
-
-    const handleStartNew = useCallback(() => {
-        setCurrent(null);
-        setTemplateTree(null);
-        setPhase("empty");
-    }, [setCurrent, setPhase, setTemplateTree]);
 
     return (
         <div ref={workspaceRef} className="section-card">
@@ -108,7 +78,7 @@ export default function QualificationScriptCard({
                         templateTree={templateTree}
                         qualificationService={qualificationService}
                         registrationService={registrationService}
-                        onQualificationUpdated={handleQualificationUpdated}
+                        onQualificationUpdated={handleQualificationUpdatedWithCallback}
                         onAbandoned={loadQualifications}
                     />
                 )}

@@ -5,6 +5,7 @@
  */
 
 import axios, { AxiosRequestConfig } from "axios";
+import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
 import { AuthType } from "@/Types";
 import type { PageProps } from "@/Components/DashboardLayout";
@@ -16,6 +17,10 @@ import {
     UpdateNavigationPayload,
     UpsertAnswerPayload,
 } from "@/Types/qualification";
+import {
+    isLeadQualification,
+    normalizeQualificationsIndexResponse,
+} from "@/Services/leadQualificationResponse";
 
 interface CrmMutationResponse<T> {
     status?: string;
@@ -48,13 +53,15 @@ export class LeadQualificationService {
     async getQualifications(
         leadId: number,
     ): Promise<LeadQualificationsResponse> {
-        return crmRequest<LeadQualificationsResponse>(
+        const response = await crmRequest<Record<string, unknown>>(
             {
                 method: "GET",
                 url: `/account/lead-contact/${leadId}/qualifications`,
             },
             this.auth,
         );
+
+        return normalizeQualificationsIndexResponse(response);
     }
 
     async startQualification(
@@ -70,7 +77,7 @@ export class LeadQualificationService {
             this.auth,
         );
 
-        if (!response.qualification) {
+        if (!isLeadQualification(response.qualification)) {
             throw new Error("Qualification was not returned by the server");
         }
 
@@ -118,7 +125,7 @@ export class LeadQualificationService {
             this.auth,
         );
 
-        if (!response.qualification) {
+        if (!isLeadQualification(response.qualification)) {
             throw new Error("Completed qualification was not returned by the server");
         }
 
@@ -152,7 +159,13 @@ export class LeadQualificationService {
 
 export const useLeadQualificationService = (): LeadQualificationService => {
     const { props } = usePage<PageProps>();
-    return new LeadQualificationService(props.auth);
+    const userId = props.auth?.user?.id;
+    const companyId = props.auth?.user?.company_id;
+
+    return useMemo(
+        () => new LeadQualificationService(props.auth),
+        [userId, companyId],
+    );
 };
 
 export const createLeadQualificationService = (

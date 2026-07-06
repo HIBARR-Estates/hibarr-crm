@@ -414,7 +414,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {t("app.common.actions.refresh")}
+                                {td("Refresh")}
                             </Button>
                             {/* Advanced Filters Button */}
                             <div className="flex items-center gap-x-2">

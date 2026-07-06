@@ -19,8 +19,9 @@ export default function useDealTeam(deal: Deal) {
         if (!candidate) return null;
         return {
             id: candidate.id,
-            name: candidate.name,
-            initials: initialsFromName(candidate.name),
+            name: candidate.user?.name ?? candidate.name,
+            initials: initialsFromName(candidate.user?.name ?? candidate.name),
+            meta: candidate.user?.email ?? undefined,
         };
     }, [deal.agent, deal.lead_agent]);
 
@@ -30,6 +31,7 @@ export default function useDealTeam(deal: Deal) {
                 id: participant.id,
                 name: participant.name,
                 initials: initialsFromName(participant.name),
+                meta: participant.email ?? undefined,
             })),
         [deal.deal_participants],
     );
@@ -40,6 +42,7 @@ export default function useDealTeam(deal: Deal) {
                 id: watcher.id,
                 name: watcher.name,
                 initials: initialsFromName(watcher.name),
+                meta: watcher.email ?? undefined,
             })),
         [deal.deal_watchers],
     );
