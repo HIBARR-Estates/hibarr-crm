@@ -1,11 +1,11 @@
 import type { Deal } from "@/Types/api/deals";
 import type { Task } from "@/Types/api/tasks";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
-import useWorkspaceOverview from "../../../hooks/useWorkspaceOverview";
-import type { WorkspaceSubTab } from "../../../types";
 import OverviewMeetingsColumn from "./overview/OverviewMeetingsColumn";
 import OverviewNotesColumn from "./overview/OverviewNotesColumn";
 import OverviewTasksColumn from "./overview/OverviewTasksColumn";
+import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
+import { WorkspaceSubTab } from "../../types";
 
 interface WorkspaceOverviewTabProps {
     deal: Deal;
