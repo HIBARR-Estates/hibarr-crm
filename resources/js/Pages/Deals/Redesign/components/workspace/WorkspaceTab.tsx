@@ -5,7 +5,6 @@ import FilesTab from "@/Pages/Deals/Components/Tabs/FilesTab";
 import FollowUpTab from "@/Pages/Deals/Components/Tabs/FollowUpTab";
 import NotesTab from "@/Pages/Deals/Components/Tabs/NotesTab";
 import RecommendationsTab from "@/Pages/Deals/Components/Tabs/RecommendationsTab";
-import AddNote from "@/Pages/Deals/Components/Tabs/notes/AddNote";
 import AddFollowup from "@/Pages/Deals/Components/Tabs/followups/AddFollowup";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -76,7 +75,6 @@ export default function WorkspaceTab({
 }: WorkspaceTabProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
 
@@ -155,11 +153,6 @@ export default function WorkspaceTab({
 
     return (
         <>
-            <AddNote
-                deal={deal}
-                open={addNoteOpen}
-                onClose={() => setAddNoteOpen(false)}
-            />
             <SaveTaskModal
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
@@ -188,39 +181,16 @@ export default function WorkspaceTab({
                 <div className="grid grid-cols-[1fr_340px] gap-[18px]">
                     <div className="space-y-4">
                         {effectiveSubTab === "overview" ? (
-                            <div className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                    <button
-                                        type="button"
-                                        className="rounded-[8px] bg-[#1a6bb5] px-3 py-2 text-xs font-semibold text-white"
-                                        onClick={() => setAddNoteOpen(true)}
-                                    >
-                                        {t("pages.deals.actions.add_note")}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="rounded-[8px] border border-[#d5dce6] bg-white px-3 py-2 text-xs font-semibold text-[#1a1f2e]"
-                                        onClick={() => setAddTaskOpen(true)}
-                                    >
-                                        {t("pages.deals.actions.add_task")}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="rounded-[8px] border border-[#d5dce6] bg-white px-3 py-2 text-xs font-semibold text-[#1a1f2e]"
-                                        onClick={() => setAddMeetingOpen(true)}
-                                    >
-                                        {t("pages.deals.actions.add_meeting")}
-                                    </button>
-                                </div>
-                                <WorkspaceOverviewTab
-                                    notes={overview.notes}
-                                    tasks={overview.tasks.filter(
-                                        (task) => task.isOpen,
-                                    )}
-                                    meetings={overview.meetings}
-                                    onNavigateToSubTab={onChangeSubTab}
-                                />
-                            </div>
+                            <WorkspaceOverviewTab
+                                deal={deal}
+                                notes={notes}
+                                tasks={tasks}
+                                dealFollowUps={dealFollowUps}
+                                taskBoardColumns={taskBoardColumns}
+                                onNavigateToSubTab={onChangeSubTab}
+                                onAddTask={() => setAddTaskOpen(true)}
+                                onAddMeeting={() => setAddMeetingOpen(true)}
+                            />
                         ) : (
                             <>
                                 {effectiveSubTab === "notes" && (

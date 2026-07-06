@@ -1,10 +1,9 @@
-import { router } from "@inertiajs/react";
 import { Alert } from "antd";
 import { LockOutlined } from "@ant-design/icons";
-import axios from "axios";
 import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useDealHeaderData from "../../hooks/useDealHeaderData";
 import useDealPipeline from "../../hooks/useDealPipeline";
 import useDealTeam from "../../hooks/useDealTeam";
@@ -13,7 +12,7 @@ import DealAvatar from "../primitives/DealAvatar";
 import DealBadge from "../primitives/DealBadge";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
-import { DealModal, DealModalField } from "../primitives/DealModal";
+import DealTeamModal from "./DealTeamModal";
 
 interface DealStickyHeaderProps {
     deal: Deal;
@@ -38,28 +37,11 @@ export default function DealStickyHeader({
     const { t } = useTranslation();
     const header = useDealHeaderData(deal);
     const team = useDealTeam(deal);
+    const dealPermissions = useDealPermissions(deal);
     const pipeline = useDealPipeline(
         deal,
         hasAllPermission(permissions, "change_deal_stages"),
     );
-
-    const employeeOptions = employees ?? [];
-
-    const saveTeamField = async (
-        field: "agent_id" | "deal_participant" | "deal_watcher",
-        value: number[],
-    ) => {
-        await axios.patch(
-            route("deals.gathering.inline_update", { id: deal.id }),
-            {
-                type: "details",
-                data: {
-                    [field]: field === "agent_id" ? (value[0] ?? null) : value,
-                },
-            },
-        );
-        router.reload({ only: ["deal"] });
-    };
 
     return (
         <div className="sticky top-0 z-50 border-b border-[#e2e5ea] bg-white">
@@ -283,83 +265,16 @@ export default function DealStickyHeader({
                 </div>
             </div>
 
-            <DealModal
+            <DealTeamModal
                 open={team.teamModalOpen}
                 onClose={() => team.setTeamModalOpen(false)}
-                title={t("pages.deals.info.sections.team")}
-                footer={
-                    <DealButton
-                        variant="ghost"
-                        onClick={() => team.setTeamModalOpen(false)}
-                    >
-                        {td("Close")}
-                    </DealButton>
-                }
-            >
-                <DealModalField label={t("pages.deals.info.fields.deal_agent")}>
-                    <select
-                        value={team.agent?.id ?? ""}
-                        onChange={(event) =>
-                            saveTeamField("agent_id", [
-                                Number(event.target.value),
-                            ])
-                        }
-                    >
-                        <option value="">{td("Unassigned")}</option>
-                        {employeeOptions.map((employee: any) => (
-                            <option key={employee.id} value={employee.id}>
-                                {employee.name}
-                            </option>
-                        ))}
-                    </select>
-                </DealModalField>
-                <DealModalField
-                    label={t("pages.deals.info.fields.deal_participants")}
-                >
-                    <select
-                        multiple
-                        value={team.participants.map((item) =>
-                            item.id.toString(),
-                        )}
-                        onChange={(event) =>
-                            saveTeamField(
-                                "deal_participant",
-                                Array.from(event.target.selectedOptions).map(
-                                    (option) => Number(option.value),
-                                ),
-                            )
-                        }
-                    >
-                        {employeeOptions.map((employee: any) => (
-                            <option key={employee.id} value={employee.id}>
-                                {employee.name}
-                            </option>
-                        ))}
-                    </select>
-                </DealModalField>
-                <DealModalField
-                    label={t("pages.deals.info.fields.deal_watchers")}
-                >
-                    <select
-                        multiple
-                        value={team.watchers.map((item) => item.id.toString())}
-                        onChange={(event) =>
-                            saveTeamField(
-                                "deal_watcher",
-                                Array.from(event.target.selectedOptions).map(
-                                    (option) => Number(option.value),
-                                ),
-                            )
-                        }
-                    >
-                        {employeeOptions.map((employee: any) => (
-                            <option key={employee.id} value={employee.id}>
-                                {employee.name}
-                            </option>
-                        ))}
-                    </select>
-                </DealModalField>
-            </DealModal>
+                dealId={deal.id}
+                agent={team.agent}
+                participants={team.participants}
+                watchers={team.watchers}
+                employees={employees ?? []}
+                canEdit={dealPermissions.canEdit}
+            />
         </div>
     );
 }
