@@ -10,8 +10,6 @@ import NotesTab from "@/Pages/Deals/Components/Tabs/NotesTab";
 
 import RecommendationsTab from "@/Pages/Deals/Components/Tabs/RecommendationsTab";
 
-import AddFollowup from "@/Pages/Deals/Components/Tabs/followups/AddFollowup";
-
 import useTranslation from "@/Hooks/useTranslation";
 
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -28,6 +26,7 @@ import WorkspaceSubTabBar from "./WorkspaceSubTabBar";
 
 import WorkspaceContextRail from "./rail/WorkspaceContextRail";
 import DealAddTaskModal from "./DealAddTaskModal";
+import DealScheduleMeetingModal from "./DealScheduleMeetingModal";
 
 
 
@@ -48,6 +47,8 @@ interface WorkspaceTabProps extends Pick<
     | "proposals"
 
     | "fields"
+
+    | "meetingTypes"
 
     | "taskCategories"
 
@@ -126,6 +127,8 @@ export default function WorkspaceTab({
     proposals,
 
     fields = [],
+
+    meetingTypes = [],
 
     taskCategories,
 
@@ -267,16 +270,11 @@ export default function WorkspaceTab({
                 dealId={deal.id}
             />
 
-            <AddFollowup
-
-                context="deal"
-
-                deal={deal}
-
+            <DealScheduleMeetingModal
                 open={addMeetingOpen}
-
                 onClose={() => setAddMeetingOpen(false)}
-
+                deal={deal}
+                meetingTypes={meetingTypes}
             />
 
 
