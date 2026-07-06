@@ -14,6 +14,7 @@ import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyMo
 import { generatePropertySubtitle } from "@/lib/utils";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface ShowProps {
     pageTitle: string;
@@ -39,6 +40,7 @@ const Show = ({
     projects,
 }: ShowProps) => {
     const { t } = useTranslation();
+    const { td } = useTd();
     // Breadcrumbs for the page
     const breadcrumbs = [
         {
@@ -121,7 +123,7 @@ const Show = ({
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {t("app.common.actions.refresh")}
+                            {td("Refresh")}
                         </Button>
                     </div>
                     <PropertyView

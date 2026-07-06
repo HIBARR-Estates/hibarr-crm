@@ -639,7 +639,7 @@ function MeetingsIndex() {
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {t("app.common.actions.refresh")}
+                            {td("Refresh")}
                         </Button>
                         {canAdd && (
                             <Button

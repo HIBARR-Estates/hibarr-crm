@@ -23,6 +23,7 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import type { LeadShowProps } from "./Show";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export default function LegacyLeadShow({
     lead,
@@ -48,6 +49,7 @@ export default function LegacyLeadShow({
 }: LeadShowProps) {
     const { props } = usePage<PageProps>();
     const { t } = useTranslation();
+    const { td } = useTd();
     const featureFlags = pageFeatureFlags ?? props.featureFlags;
     const showQualificationTab =
         featureFlags?.["crm.lead-qualification-tab"] === true;
@@ -56,7 +58,8 @@ export default function LegacyLeadShow({
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
 
     const [activeTab, setActiveTab] = useState(
-        () => new URLSearchParams(window.location.search).get("tab") || "profile",
+        () =>
+            new URLSearchParams(window.location.search).get("tab") || "profile",
     );
     const [isEditMode, setIsEditMode] = useState(false);
     const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
@@ -119,24 +122,24 @@ export default function LegacyLeadShow({
         },
         ...(showFollowUpTab
             ? [
-                {
-                    key: "follow-up",
-                    label: t("modules.lead.followUp"),
-                    children: (
-                        <LeadFollowUpTab
-                            lead={lead}
-                            followUps={leadFollowUps}
-                            permissions={followUpPermissions}
-                            deals={deals}
-                            onScheduleMeeting={
-                                canAddFollowUp
-                                    ? () => setScheduleMeetingOpen(true)
-                                    : undefined
-                            }
-                        />
-                    ),
-                },
-            ]
+                  {
+                      key: "follow-up",
+                      label: t("modules.lead.followUp"),
+                      children: (
+                          <LeadFollowUpTab
+                              lead={lead}
+                              followUps={leadFollowUps}
+                              permissions={followUpPermissions}
+                              deals={deals}
+                              onScheduleMeeting={
+                                  canAddFollowUp
+                                      ? () => setScheduleMeetingOpen(true)
+                                      : undefined
+                              }
+                          />
+                      ),
+                  },
+              ]
             : []),
         {
             key: "notes",
@@ -156,13 +159,13 @@ export default function LegacyLeadShow({
         },
         ...(showQualificationTab
             ? [
-                {
-                    key: "qualification",
-                    label: t("pages.leads.tabs.qualification"),
-                    children: <LeadQualificationTab lead={lead} />,
-                    wide: true,
-                },
-            ]
+                  {
+                      key: "qualification",
+                      label: t("pages.leads.tabs.qualification"),
+                      children: <LeadQualificationTab lead={lead} />,
+                      wide: true,
+                  },
+              ]
             : []),
         {
             key: "tasks",
@@ -268,7 +271,7 @@ export default function LegacyLeadShow({
                             title={
                                 isEditMode
                                     ? t("pages.leads.refresh_tooltip_disabled")
-                                    : t("app.common.actions.refresh")
+                                    : td("Refresh")
                             }
                         >
                             <Button
@@ -277,7 +280,7 @@ export default function LegacyLeadShow({
                                 disabled={isRefreshing || isEditMode}
                                 type="text"
                             >
-                                {t("app.common.actions.refresh")}
+                                {td("Refresh")}
                             </Button>
                         </Tooltip>
                     }

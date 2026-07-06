@@ -19,8 +19,8 @@ export default function useDealTeam(deal: Deal) {
         if (!candidate) return null;
         return {
             id: candidate.id,
-            name: candidate.name,
-            initials: initialsFromName(candidate.name),
+            name: candidate.user?.name ?? candidate.name,
+            initials: initialsFromName(candidate.user?.name ?? candidate.name),
         };
     }, [deal.agent, deal.lead_agent]);
 

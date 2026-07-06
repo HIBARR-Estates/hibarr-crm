@@ -273,7 +273,7 @@ export const LegacyDealShow = ({
                                             ? t(
                                                   "pages.deals.refresh_tooltip_disabled",
                                               )
-                                            : t("app.common.actions.refresh")
+                                            : td("Refresh")
                                     }
                                 >
                                     <Button
@@ -288,7 +288,7 @@ export const LegacyDealShow = ({
                                         }
                                         type="text"
                                     >
-                                        {t("app.common.actions.refresh")}
+                                        {td("Refresh")}
                                     </Button>
                                 </Tooltip>
                             </div>

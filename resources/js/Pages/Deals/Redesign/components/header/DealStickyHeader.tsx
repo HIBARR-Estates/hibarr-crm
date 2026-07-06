@@ -38,7 +38,10 @@ export default function DealStickyHeader({
     const { t } = useTranslation();
     const header = useDealHeaderData(deal);
     const team = useDealTeam(deal);
-    const pipeline = useDealPipeline(deal, hasAllPermission(permissions, "change_deal_stages"));
+    const pipeline = useDealPipeline(
+        deal,
+        hasAllPermission(permissions, "change_deal_stages"),
+    );
 
     const employeeOptions = employees ?? [];
 
@@ -46,12 +49,15 @@ export default function DealStickyHeader({
         field: "agent_id" | "deal_participant" | "deal_watcher",
         value: number[],
     ) => {
-        await axios.patch(route("deals.gathering.inline_update", { id: deal.id }), {
-            type: "details",
-            data: {
-                [field]: field === "agent_id" ? value[0] ?? null : value,
+        await axios.patch(
+            route("deals.gathering.inline_update", { id: deal.id }),
+            {
+                type: "details",
+                data: {
+                    [field]: field === "agent_id" ? (value[0] ?? null) : value,
+                },
             },
-        });
+        );
         router.reload({ only: ["deal"] });
     };
 
@@ -69,7 +75,7 @@ export default function DealStickyHeader({
                 </div>
             )}
 
-            <div className="flex items-center justify-between px-[26px] py-[14px] text-xs text-[#6b7280]">
+            {/* <div className="flex items-center justify-between px-[26px] py-[14px] text-xs text-[#6b7280]">
                 <div className="flex items-center gap-1.5">
                     <DealIcon name="home" size={12} color={T.TEXT_HINT} />
                     <span>{t("app.menu.dashboard")}</span>
@@ -86,7 +92,7 @@ export default function DealStickyHeader({
                 >
                     {t("app.common.actions.refresh")}
                 </DealButton>
-            </div>
+            </div> */}
 
             <div className="px-[26px] pt-4">
                 <div className="mb-[10px] flex items-start justify-between">
@@ -100,44 +106,86 @@ export default function DealStickyHeader({
                         <div className="mt-1.5 flex items-center gap-3.5 text-[11px] text-[#9ca3af]">
                             <span className="inline-flex items-center gap-1">
                                 <DealIcon name="calendar" size={11} />
-                                {t("pages.deals.info.fields.created_at")}: {header.createdAt}
+                                {t("pages.deals.info.fields.created_at")}:{" "}
+                                {header.createdAt}
                             </span>
                             <span className="inline-flex items-center gap-1">
                                 <DealIcon name="calendar" size={11} />
-                                {t("pages.deals.info.fields.updated_at")}: {header.updatedAt}
+                                {t("pages.deals.info.fields.updated_at")}:{" "}
+                                {header.updatedAt}
                             </span>
                         </div>
                     </div>
                     <div className="flex items-center gap-5">
                         <div className="flex flex-col items-end">
-                            <span className="text-[11px] text-[#9ca3af]">Value</span>
-                            <span className="text-sm font-medium text-[#1a1f2e]">{header.value}</span>
+                            <span className="text-[11px] text-[#9ca3af]">
+                                Value
+                            </span>
+                            <span className="text-sm font-medium text-[#1a1f2e]">
+                                {header.value}
+                            </span>
                         </div>
                         <div className="flex flex-col items-end">
-                            <span className="text-[11px] text-[#9ca3af]">{t("pages.deals.info.fields.close_date")}</span>
-                            <span className="text-sm font-medium text-[#1a1f2e]">{header.closeDate}</span>
+                            <span className="text-[11px] text-[#9ca3af]">
+                                {t("pages.deals.info.fields.close_date")}
+                            </span>
+                            <span className="text-sm font-medium text-[#1a1f2e]">
+                                {header.closeDate}
+                            </span>
                         </div>
+                        <DealButton
+                            variant="ghost"
+                            icon={<DealIcon name="refresh" size={12} />}
+                            onClick={onRefresh}
+                            loading={isRefreshing}
+                            disabled={isRefreshing}
+                        >
+                            {td("Refresh")}
+                        </DealButton>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-4 border-t border-[#e2e5ea] py-2.5">
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[#9ca3af]">{t("pages.deals.info.fields.deal_agent")}</span>
-                        {team.agent && <DealAvatar type="agent" size={26} initials={team.agent.initials} />}
-                        <DealBadge variant="blue">{team.agent?.name ?? "--"}</DealBadge>
+                        <span className="text-[11px] text-[#9ca3af]">
+                            {t("pages.deals.info.fields.deal_agent")}
+                        </span>
+                        {team.agent && (
+                            <DealAvatar
+                                type="agent"
+                                size={26}
+                                initials={team.agent.initials}
+                            />
+                        )}
+                        <DealBadge variant="blue">
+                            {team.agent?.name ?? "--"}
+                        </DealBadge>
                     </div>
                     <div className="h-5 w-px bg-[#e2e5ea]" />
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[#9ca3af]">{t("pages.deals.info.fields.deal_participants")}</span>
+                        <span className="text-[11px] text-[#9ca3af]">
+                            {t("pages.deals.info.fields.deal_participants")}
+                        </span>
                         <div className="flex items-center">
-                            {team.participants.slice(0, 3).map((participant, idx) => (
-                                <div key={participant.id} style={{ marginLeft: idx === 0 ? 0 : -5 }}>
-                                    <DealAvatar type="participant" size={26} initials={participant.initials} />
-                                </div>
-                            ))}
+                            {team.participants
+                                .slice(0, 3)
+                                .map((participant, idx) => (
+                                    <div
+                                        key={participant.id}
+                                        style={{
+                                            marginLeft: idx === 0 ? 0 : -5,
+                                        }}
+                                    >
+                                        <DealAvatar
+                                            type="participant"
+                                            size={26}
+                                            initials={participant.initials}
+                                        />
+                                    </div>
+                                ))}
                             <button
                                 type="button"
-                                className="ml-[-5px] flex h-[26px] w-[26px] items-center justify-center rounded-full border border-dashed border-[#e2e5ea] bg-[#e8eaed] text-sm text-[#9ca3af]"
+                                className="ml-[-5px] flex h-[26px] w-[26px] items-center justify-center rounded-full border border-dashed border-[#e2e5ea] bg-[#e8eaed] text-sm text-[#9ca3af] cursor-pointer"
                                 onClick={() => team.setTeamModalOpen(true)}
                             >
                                 +
@@ -146,11 +194,20 @@ export default function DealStickyHeader({
                     </div>
                     <div className="h-5 w-px bg-[#e2e5ea]" />
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[#9ca3af]">{t("pages.deals.info.fields.deal_watchers")}</span>
+                        <span className="text-[11px] text-[#9ca3af]">
+                            {t("pages.deals.info.fields.deal_watchers")}
+                        </span>
                         <div className="flex items-center">
                             {team.watchers.slice(0, 3).map((watcher, idx) => (
-                                <div key={watcher.id} style={{ marginLeft: idx === 0 ? 0 : -5 }}>
-                                    <DealAvatar type="watcher" size={26} initials={watcher.initials} />
+                                <div
+                                    key={watcher.id}
+                                    style={{ marginLeft: idx === 0 ? 0 : -5 }}
+                                >
+                                    <DealAvatar
+                                        type="watcher"
+                                        size={26}
+                                        initials={watcher.initials}
+                                    />
                                 </div>
                             ))}
                             <button
@@ -176,7 +233,8 @@ export default function DealStickyHeader({
                 <div className="flex items-center overflow-x-auto py-2.5">
                     {pipeline.stages.map((stage, index) => {
                         const isCurrent = stage.id === pipeline.currentStageId;
-                        const isDone = (stage.priority ?? 0) < pipeline.currentPriority;
+                        const isDone =
+                            (stage.priority ?? 0) < pipeline.currentPriority;
                         const isFuture = !isCurrent && !isDone;
                         return (
                             <div key={stage.id} className="flex items-center">
@@ -191,15 +249,26 @@ export default function DealStickyHeader({
                                               ? stage.label_color
                                               : `${stage.label_color}22`,
                                         color: isFuture ? T.TEXT_HINT : T.TEXT,
-                                        borderColor: isFuture ? T.GRAY_MID : stage.label_color,
+                                        borderColor: isFuture
+                                            ? T.GRAY_MID
+                                            : stage.label_color,
                                     }}
-                                    disabled={!hasAllPermission(permissions, "change_deal_stages")}
-                                    onClick={() => pipeline.updateStage(stage.id)}
+                                    disabled={
+                                        !hasAllPermission(
+                                            permissions,
+                                            "change_deal_stages",
+                                        )
+                                    }
+                                    onClick={() =>
+                                        pipeline.updateStage(stage.id)
+                                    }
                                 >
                                     <span
                                         className="step-dot inline-block h-1.5 w-1.5 rounded-full"
                                         style={{
-                                            background: isFuture ? T.GRAY_MID : stage.label_color,
+                                            background: isFuture
+                                                ? T.GRAY_MID
+                                                : stage.label_color,
                                             transition: "transform 0.15s",
                                         }}
                                     />
@@ -219,15 +288,22 @@ export default function DealStickyHeader({
                 onClose={() => team.setTeamModalOpen(false)}
                 title={t("pages.deals.info.sections.team")}
                 footer={
-                    <DealButton variant="ghost" onClick={() => team.setTeamModalOpen(false)}>
-                        {t("app.common.actions.close")}
+                    <DealButton
+                        variant="ghost"
+                        onClick={() => team.setTeamModalOpen(false)}
+                    >
+                        {td("Close")}
                     </DealButton>
                 }
             >
                 <DealModalField label={t("pages.deals.info.fields.deal_agent")}>
                     <select
                         value={team.agent?.id ?? ""}
-                        onChange={(event) => saveTeamField("agent_id", [Number(event.target.value)])}
+                        onChange={(event) =>
+                            saveTeamField("agent_id", [
+                                Number(event.target.value),
+                            ])
+                        }
                     >
                         <option value="">{td("Unassigned")}</option>
                         {employeeOptions.map((employee: any) => (
@@ -237,15 +313,19 @@ export default function DealStickyHeader({
                         ))}
                     </select>
                 </DealModalField>
-                <DealModalField label={t("pages.deals.info.fields.deal_participants")}>
+                <DealModalField
+                    label={t("pages.deals.info.fields.deal_participants")}
+                >
                     <select
                         multiple
-                        value={team.participants.map((item) => item.id.toString())}
+                        value={team.participants.map((item) =>
+                            item.id.toString(),
+                        )}
                         onChange={(event) =>
                             saveTeamField(
                                 "deal_participant",
-                                Array.from(event.target.selectedOptions).map((option) =>
-                                    Number(option.value),
+                                Array.from(event.target.selectedOptions).map(
+                                    (option) => Number(option.value),
                                 ),
                             )
                         }
@@ -257,15 +337,17 @@ export default function DealStickyHeader({
                         ))}
                     </select>
                 </DealModalField>
-                <DealModalField label={t("pages.deals.info.fields.deal_watchers")}>
+                <DealModalField
+                    label={t("pages.deals.info.fields.deal_watchers")}
+                >
                     <select
                         multiple
                         value={team.watchers.map((item) => item.id.toString())}
                         onChange={(event) =>
                             saveTeamField(
                                 "deal_watcher",
-                                Array.from(event.target.selectedOptions).map((option) =>
-                                    Number(option.value),
+                                Array.from(event.target.selectedOptions).map(
+                                    (option) => Number(option.value),
                                 ),
                             )
                         }

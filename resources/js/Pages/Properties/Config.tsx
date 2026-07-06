@@ -48,6 +48,7 @@ import type {
 import { CONFIG_CATEGORIES, CONFIG_TYPE_ORDER } from "@/Types/propertyConfig";
 import { getFacilityIconComponent } from "@/lib/facilityIcons";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const { Text, Title } = Typography;
 
@@ -79,6 +80,7 @@ interface ConfigProps {
 
 const Config = ({ pageTitle }: ConfigProps) => {
     const { t } = useTranslation();
+    const { td } = useTd();
 
     const [activeType, setActiveType] =
         useState<ConfigTypeSlug>("property-types");
@@ -503,7 +505,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         onClick={() => itemsQuery.refetch()}
                                         loading={isLoadingItems}
                                     >
-                                        {t("app.common.actions.refresh")}
+                                        {td("Refresh")}
                                     </Button>
                                     <Button
                                         type="primary"
@@ -702,7 +704,10 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                                 : undefined
                                         }
                                         size="middle"
-                                        scroll={{ x: "max-content", y: "calc(100vh - 420px)" }}
+                                        scroll={{
+                                            x: "max-content",
+                                            y: "calc(100vh - 420px)",
+                                        }}
                                         tableLayout="auto"
                                     />
                                 )}

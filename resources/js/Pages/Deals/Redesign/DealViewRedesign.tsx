@@ -12,6 +12,8 @@ import WorkspaceTab from "./components/workspace/WorkspaceTab";
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import { DealShowProps } from "./types";
 import "./deal-redesign.css";
+import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 export default function DealViewRedesign(props: DealShowProps) {
     const [isDealEditMode] = useState(false);
@@ -22,9 +24,19 @@ export default function DealViewRedesign(props: DealShowProps) {
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
+    const pageTitle = props?.pageTitle || props?.deal?.name;
+    const { t } = useTranslation();
+    const { td } = useTd();
 
     return (
-        <PageLayout title={props.pageTitle} breadcrumbs={[]}>
+        <PageLayout
+            title={pageTitle}
+            breadcrumbs={[
+                { name: t("app.menu.dashboard"), url: route("dashboard") },
+                { name: td("Deals"), url: route("deals.index") },
+                { name: td(pageTitle) },
+            ]}
+        >
             <div className="deal-redesign min-h-screen bg-[#f5f6f8]">
                 <div className="mx-auto w-full max-w-[1320px]">
                     <DealStickyHeader
@@ -41,12 +53,19 @@ export default function DealViewRedesign(props: DealShowProps) {
                             initialSummary={props.dealAiSummary}
                             variant="redesign"
                             onCreateTask={() => nav.setWorkspaceSubTab("tasks")}
-                            onScheduleCall={() => nav.setWorkspaceSubTab("meetings")}
-                            onRequestDocuments={() => nav.setWorkspaceSubTab("files")}
+                            onScheduleCall={() =>
+                                nav.setWorkspaceSubTab("meetings")
+                            }
+                            onRequestDocuments={() =>
+                                nav.setWorkspaceSubTab("files")
+                            }
                             onReviewStaleDeal={() => nav.setMainTab("timeline")}
                         />
                     )}
-                    <DealMainTabs mainTab={nav.mainTab} onChange={nav.setMainTab} />
+                    <DealMainTabs
+                        mainTab={nav.mainTab}
+                        onChange={nav.setMainTab}
+                    />
 
                     <div className="p-[26px]">
                         {nav.mainTab === "workspace" && (
@@ -65,7 +84,9 @@ export default function DealViewRedesign(props: DealShowProps) {
                                 permissions={props.permissions}
                                 activeSubTab={nav.workspaceSubTab}
                                 onChangeSubTab={nav.setWorkspaceSubTab}
-                                onSwitchToDealInfo={() => nav.switchToDealInfo("general")}
+                                onSwitchToDealInfo={() =>
+                                    nav.switchToDealInfo("general")
+                                }
                             />
                         )}
                         {nav.mainTab === "dealinfo" && (

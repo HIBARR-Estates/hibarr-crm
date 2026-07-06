@@ -544,7 +544,7 @@ const Index = ({
                                         disabled={isRefreshing}
                                         type="text"
                                     >
-                                        {t("app.common.actions.refresh")}
+                                        {td("Refresh")}
                                     </Button>
                                     {/* Advanced Filters Button */}
                                     <Button

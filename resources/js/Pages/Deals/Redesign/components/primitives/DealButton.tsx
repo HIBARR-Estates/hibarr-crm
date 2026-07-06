@@ -6,6 +6,7 @@ type Variant = "ghost" | "primary" | "navy";
 interface DealButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: Variant;
     icon?: ReactNode;
+    loading?: boolean;
 }
 
 export default function DealButton({
@@ -13,6 +14,7 @@ export default function DealButton({
     icon,
     children,
     style,
+    loading,
     ...props
 }: DealButtonProps) {
     const common = {
@@ -45,9 +47,19 @@ export default function DealButton({
     };
 
     return (
-        <button type="button" style={{ ...common, ...byVariant[variant], ...style }} {...props}>
+        <button
+            type="button"
+            style={{ ...common, ...byVariant[variant], ...style }}
+            {...props}
+        >
             {icon}
-            {children}
+            {loading ? (
+                <span className="flex h-4 w-4 items-center justify-center">
+                    <span className="animate-spin rounded-full border-2 border-current border-t-transparent" />
+                </span>
+            ) : (
+                children
+            )}
         </button>
     );
 }
