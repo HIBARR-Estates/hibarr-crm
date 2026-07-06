@@ -78,11 +78,7 @@ export default function DealViewRedesign(props: DealShowProps) {
                                 proposals={props.proposals}
                                 fields={props.fields}
                                 meetingTypes={props.meetingTypes}
-                                taskCategories={props.taskCategories}
-                                taskLabels={props.taskLabels}
                                 taskBoardColumns={props.taskBoardColumns}
-                                employees={props.employees}
-                                projects={props.projects}
                                 permissions={props.permissions}
                                 activeSubTab={nav.workspaceSubTab}
                                 onChangeSubTab={nav.setWorkspaceSubTab}
