@@ -1,10 +1,4 @@
-import RecommendationsTab from "@/Pages/Deals/Components/Tabs/RecommendationsTab";
-
-import useTranslation from "@/Hooks/useTranslation";
-
-import { useTd } from "@/Hooks/useDynamicTranslation";
-
-import { ReactNode, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
 
@@ -22,6 +16,7 @@ import WorkspaceTasksTab from "./WorkspaceTasksTab";
 import WorkspaceMeetingsTab from "./WorkspaceMeetingsTab";
 import WorkspaceFilesTab from "./WorkspaceFilesTab";
 import WorkspaceOffersTab from "./WorkspaceOffersTab";
+import WorkspaceRecommendationsTab from "./WorkspaceRecommendationsTab";
 
 
 
@@ -61,44 +56,6 @@ interface WorkspaceTabProps extends Pick<
 
 
 
-function WorkspacePaneCard({
-
-    title,
-
-    children,
-
-}: {
-
-    title: string;
-
-    children: ReactNode;
-
-}) {
-
-    return (
-
-        <section className="overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
-
-            <div className="border-b border-[#eef1f5] px-4 py-3">
-
-                <h3 className="text-sm font-semibold text-[#1a1f2e]">
-
-                    {title}
-
-                </h3>
-
-            </div>
-
-            <div>{children}</div>
-
-        </section>
-
-    );
-
-}
-
-
-
 export default function WorkspaceTab({
 
     deal,
@@ -129,13 +86,11 @@ export default function WorkspaceTab({
 
 }: WorkspaceTabProps) {
 
-    const { t } = useTranslation();
-
-    const { td } = useTd();
-
     const [addTaskOpen, setAddTaskOpen] = useState(false);
 
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+
+    const [recommendationsCount, setRecommendationsCount] = useState(0);
 
 
 
@@ -193,7 +148,7 @@ export default function WorkspaceTab({
 
             offers: proposals.length,
 
-            recommendations: 0,
+            recommendations: recommendationsCount,
 
         }),
 
@@ -208,6 +163,8 @@ export default function WorkspaceTab({
             overview.upcomingMeetingsCount,
 
             proposals.length,
+
+            recommendationsCount,
 
         ],
 
@@ -351,27 +308,11 @@ export default function WorkspaceTab({
                             )}
 
                             {effectiveSubTab === "recommendations" && (
-
-                                <WorkspacePaneCard
-
-                                    title={t(
-
-                                        "pages.deals.tabs.recommendations",
-
-                                    )}
-
-                                >
-
-                                    <RecommendationsTab
-
-                                        deal={deal}
-
-                                        permissions={permissions}
-
-                                    />
-
-                                </WorkspacePaneCard>
-
+                                <WorkspaceRecommendationsTab
+                                    deal={deal}
+                                    permissions={permissions}
+                                    onCountChange={setRecommendationsCount}
+                                />
                             )}
 
                         </>

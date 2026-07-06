@@ -6,7 +6,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
-import type { DealMeetingCreateInput } from "../../hooks/useDealMeetingCreate";
+import type { DealMeetingCreateInput } from "./useDealMeetingCreate";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
