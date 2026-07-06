@@ -17,6 +17,12 @@ import {
     UpsertAnswerPayload,
 } from "@/Types/qualification";
 
+interface CrmMutationResponse<T> {
+    status?: string;
+    message?: string;
+    qualification?: T;
+}
+
 const crmRequest = async <T>(
     config: AxiosRequestConfig,
     auth?: AuthType,
@@ -55,7 +61,7 @@ export class LeadQualificationService {
         leadId: number,
         payload: StartQualificationPayload,
     ): Promise<LeadQualification> {
-        return crmRequest<LeadQualification>(
+        const response = await crmRequest<CrmMutationResponse<LeadQualification>>(
             {
                 method: "POST",
                 url: `/account/lead-contact/${leadId}/qualifications`,
@@ -63,6 +69,12 @@ export class LeadQualificationService {
             },
             this.auth,
         );
+
+        if (!response.qualification) {
+            throw new Error("Qualification was not returned by the server");
+        }
+
+        return response.qualification;
     }
 
     async upsertAnswer(
@@ -97,7 +109,7 @@ export class LeadQualificationService {
         qualificationId: number,
         payload: CompleteQualificationPayload,
     ): Promise<LeadQualification> {
-        return crmRequest<LeadQualification>(
+        const response = await crmRequest<CrmMutationResponse<LeadQualification>>(
             {
                 method: "POST",
                 url: `/account/lead-qualifications/${qualificationId}/complete`,
@@ -105,6 +117,12 @@ export class LeadQualificationService {
             },
             this.auth,
         );
+
+        if (!response.qualification) {
+            throw new Error("Completed qualification was not returned by the server");
+        }
+
+        return response.qualification;
     }
 
     async abandonQualification(qualificationId: number): Promise<void> {
@@ -117,11 +135,15 @@ export class LeadQualificationService {
         );
     }
 
-    async clearBranchAnswers(qualificationId: number): Promise<void> {
+    async clearBranchAnswers(
+        qualificationId: number,
+        segmentKeys: string[],
+    ): Promise<void> {
         await crmRequest(
             {
                 method: "DELETE",
                 url: `/account/lead-qualifications/${qualificationId}/branch-answers`,
+                data: { segment_keys: segmentKeys },
             },
             this.auth,
         );

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, Tag } from "antd";
+import { Alert, Button, Tag } from "antd";
 import {
     CalendarOutlined,
     CloseCircleOutlined,
@@ -18,6 +18,7 @@ interface OutcomeSegmentProps {
     label: string;
     outcomeMetadata?: OutcomeMetadata;
     tokenMap: Record<QualificationToken, string>;
+    translateScript: (text: string) => string;
     onOutcome: (
         outcome: QualificationOutcome,
         metadata?: { webinarSessionId?: string; calendlyUrl?: string },
@@ -59,19 +60,27 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
     label,
     outcomeMetadata,
     tokenMap,
+    translateScript,
     onOutcome,
     onOpenWebinarPicker,
     loading = false,
 }) => {
-    const translated = useDynamicTranslation(label);
+    const translated = translateScript(useDynamicTranslation(label));
     const [acting, setActing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const outcomeType = outcomeMetadata?.type;
     const config = outcomeType ? OUTCOME_CONFIG[outcomeType] : null;
 
     const handleClick = async () => {
         if (!outcomeType) return;
 
-        if (outcomeType === "inviteWebinar" && outcomeMetadata?.webinarId) {
+        setError(null);
+
+        if (outcomeType === "inviteWebinar") {
+            if (!outcomeMetadata?.webinarId) {
+                setError("Webinar is not configured on this template outcome.");
+                return;
+            }
             onOpenWebinarPicker?.(outcomeMetadata.webinarId);
             return;
         }
@@ -81,6 +90,12 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
             await onOutcome(outcomeType, {
                 calendlyUrl: outcomeMetadata?.calendlyUrl,
             });
+        } catch (outcomeError) {
+            setError(
+                outcomeError instanceof Error
+                    ? outcomeError.message
+                    : "Failed to complete outcome",
+            );
         } finally {
             setActing(false);
         }
@@ -94,6 +109,9 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
             <p className="text-xl leading-relaxed text-gray-900 font-medium">
                 <TokenHighlight text={translated} tokenMap={tokenMap} />
             </p>
+            {error && (
+                <Alert type="error" message={error} showIcon className="mb-2" />
+            )}
             {config && outcomeType && (
                 <Button
                     type={config.type ?? "default"}

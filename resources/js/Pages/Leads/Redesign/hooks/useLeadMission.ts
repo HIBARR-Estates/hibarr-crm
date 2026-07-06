@@ -21,6 +21,7 @@ interface UseLeadMissionArgs {
     outcome: QualificationOutcome | null;
     qualificationAnswers?: LeadQualificationAnswer[];
     contactLoggedOverride?: boolean;
+    qualificationEnabled?: boolean;
 }
 
 export default function useLeadMission({
@@ -33,6 +34,7 @@ export default function useLeadMission({
     outcome,
     qualificationAnswers,
     contactLoggedOverride,
+    qualificationEnabled = true,
 }: UseLeadMissionArgs): LeadMission {
     const contactLogged = useMemo(() => {
         if (contactLoggedOverride) return true;
@@ -82,6 +84,7 @@ export default function useLeadMission({
                 contactLogged,
                 outcome,
                 flowActive,
+                qualificationEnabled,
                 openTasks,
                 nextMeeting,
                 captures,
@@ -96,6 +99,7 @@ export default function useLeadMission({
             nextMeeting,
             openTasks,
             outcome,
+            qualificationEnabled,
         ],
     );
 }
