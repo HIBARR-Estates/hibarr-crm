@@ -1,14 +1,15 @@
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
 import LeadIcon from "../primitives/LeadIcon";
-import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import { formatPhoneNumber } from "@/lib/utils";
 
 interface ContactRailPanelProps {
     lead: Lead;
 }
 
 export default function ContactRailPanel({ lead }: ContactRailPanelProps) {
-    const { t } = useTranslation();
+    const { td } = useTd();
 
     const copyToClipboard = async (value: string, label: string) => {
         try {
@@ -20,7 +21,11 @@ export default function ContactRailPanel({ lead }: ContactRailPanelProps) {
     };
 
     const rows = [
-        { label: "Phone", value: lead.mobile || lead.cell, icon: "phone" },
+        {
+            label: "Phone",
+            value: formatPhoneNumber(lead.mobile || lead.cell),
+            icon: "phone",
+        },
         { label: "Email", value: lead.client_email, icon: "mail" },
         { label: "City", value: lead.city, icon: "map-pin" },
         { label: "Nationality", value: lead.nationality, icon: "user" },
@@ -35,7 +40,7 @@ export default function ContactRailPanel({ lead }: ContactRailPanelProps) {
         <section className="rail-panel">
             <header className="border-b border-[#eef1f5] px-3 py-2.5">
                 <h3 className="text-xs font-semibold text-[#1a1f2e]">
-                    {t("pages.leads.contact_details")}
+                    {td("Contact Details")}
                 </h3>
             </header>
             <div className="space-y-2.5 p-3">
@@ -50,10 +55,16 @@ export default function ContactRailPanel({ lead }: ContactRailPanelProps) {
                             <button
                                 type="button"
                                 className="opacity-0 transition-opacity group-hover:opacity-100"
-                                onClick={() => copyToClipboard(row.value!, row.label)}
+                                onClick={() =>
+                                    copyToClipboard(row.value!, row.label)
+                                }
                                 aria-label={`Copy ${row.label}`}
                             >
-                                <LeadIcon name="copy" size={12} color="#9ca3af" />
+                                <LeadIcon
+                                    name="copy"
+                                    size={12}
+                                    color="#9ca3af"
+                                />
                             </button>
                         </div>
                     </div>

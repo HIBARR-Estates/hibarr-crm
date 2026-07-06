@@ -225,7 +225,7 @@ export default function DealStickyHeader({
                             icon={<DealIcon name="users" size={12} />}
                             onClick={() => team.setTeamModalOpen(true)}
                         >
-                            {t("pages.deals.info.sections.team")}
+                            {td("Manage Team")}
                         </DealButton>
                     </div>
                 </div>

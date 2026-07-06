@@ -49,6 +49,7 @@ import ConstructionProjectsTable from "@/Features/DeveloperProjects/Construction
 import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // Legacy Project interface - kept for backwards compatibility
 interface Project {
@@ -115,6 +116,7 @@ const Index = ({
     cities,
 }: IndexProps) => {
     const { t } = useTranslation();
+    const { td } = useTd();
 
     // ── Active tab state ──
     type ActiveTab =
