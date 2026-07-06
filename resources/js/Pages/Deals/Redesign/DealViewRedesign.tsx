@@ -77,6 +77,7 @@ export default function DealViewRedesign(props: DealShowProps) {
                                 files={props.files}
                                 proposals={props.proposals}
                                 fields={props.fields}
+                                meetingTypes={props.meetingTypes}
                                 taskCategories={props.taskCategories}
                                 taskLabels={props.taskLabels}
                                 taskBoardColumns={props.taskBoardColumns}
