@@ -10,6 +10,11 @@ export interface WorkspaceTaskPreview {
     isOpen: boolean;
 }
 
+export interface WorkspaceTaskListItem extends WorkspaceTaskPreview {
+    assigneeName: string;
+    assigneeInitials: string;
+}
+
 const PRIORITY_WEIGHT: Record<WorkspaceTaskPreview["priority"], number> = {
     high: 3,
     medium: 2,
@@ -42,6 +47,16 @@ export function getTaskPriorityWeight(priority: WorkspaceTaskPreview["priority"]
     return PRIORITY_WEIGHT[priority] ?? 0;
 }
 
+function initialsFromName(name?: string): string {
+    if (!name) return "--";
+    return name
+        .split(" ")
+        .map((part) => part[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase();
+}
+
 export function toWorkspaceTaskPreview(task: Task): WorkspaceTaskPreview {
     const dueDate = parseDueDate(task.due_date);
     const priority = (task.priority || "medium") as WorkspaceTaskPreview["priority"];
@@ -54,5 +69,16 @@ export function toWorkspaceTaskPreview(task: Task): WorkspaceTaskPreview {
         dueDate,
         dueDateLabel: formatDueDate(dueDate),
         isOpen: isOpenTask(task),
+    };
+}
+
+export function toWorkspaceTaskListItem(task: Task): WorkspaceTaskListItem {
+    const preview = toWorkspaceTaskPreview(task);
+    const assigneeName = task.users?.[0]?.name?.trim() || "Unassigned";
+
+    return {
+        ...preview,
+        assigneeName,
+        assigneeInitials: initialsFromName(assigneeName),
     };
 }

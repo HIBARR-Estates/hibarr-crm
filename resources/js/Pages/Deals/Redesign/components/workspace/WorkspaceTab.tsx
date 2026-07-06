@@ -1,12 +1,8 @@
 import DealOffersTab from "@/Features/Deals/DealOffersTab";
 
-import TasksTab from "@/Components/TasksTab";
-
 import FilesTab from "@/Pages/Deals/Components/Tabs/FilesTab";
 
 import FollowUpTab from "@/Pages/Deals/Components/Tabs/FollowUpTab";
-
-import NotesTab from "@/Pages/Deals/Components/Tabs/NotesTab";
 
 import RecommendationsTab from "@/Pages/Deals/Components/Tabs/RecommendationsTab";
 
@@ -27,6 +23,8 @@ import WorkspaceSubTabBar from "./WorkspaceSubTabBar";
 import WorkspaceContextRail from "./rail/WorkspaceContextRail";
 import DealAddTaskModal from "./DealAddTaskModal";
 import DealScheduleMeetingModal from "./DealScheduleMeetingModal";
+import WorkspaceNotesTab from "./WorkspaceNotesTab";
+import WorkspaceTasksTab from "./WorkspaceTasksTab";
 
 
 
@@ -50,15 +48,7 @@ interface WorkspaceTabProps extends Pick<
 
     | "meetingTypes"
 
-    | "taskCategories"
-
-    | "taskLabels"
-
     | "taskBoardColumns"
-
-    | "employees"
-
-    | "projects"
 
     | "permissions"
 
@@ -130,15 +120,7 @@ export default function WorkspaceTab({
 
     meetingTypes = [],
 
-    taskCategories,
-
-    taskLabels,
-
     taskBoardColumns,
-
-    employees,
-
-    projects,
 
     permissions,
 
@@ -324,59 +306,23 @@ export default function WorkspaceTab({
                         <>
 
                             {effectiveSubTab === "notes" && (
-
-                                <WorkspacePaneCard
-
-                                    title={t("pages.deals.tabs.notes")}
-
-                                >
-
-                                    <NotesTab
-
-                                        deal={deal}
-
-                                        notes={notes}
-
-                                        permissions={permissions}
-
-                                    />
-
-                                </WorkspacePaneCard>
-
+                                <WorkspaceNotesTab
+                                    deal={deal}
+                                    notes={notes}
+                                    permissions={permissions}
+                                    onAttachFiles={() =>
+                                        onChangeSubTab("files")
+                                    }
+                                />
                             )}
 
                             {effectiveSubTab === "tasks" && (
-
-                                <WorkspacePaneCard title={td("Tasks")}>
-
-                                    <TasksTab
-
-                                        tasks={tasks}
-
-                                        relatedEntity={{
-
-                                            type: "deal",
-
-                                            id: deal.id,
-
-                                        }}
-
-                                        taskCategories={taskCategories}
-
-                                        taskLabels={taskLabels}
-
-                                        taskBoardColumns={taskBoardColumns}
-
-                                        employees={employees}
-
-                                        projects={projects}
-
-                                        permissions={permissions as any}
-
-                                    />
-
-                                </WorkspacePaneCard>
-
+                                <WorkspaceTasksTab
+                                    tasks={tasks}
+                                    taskBoardColumns={taskBoardColumns}
+                                    permissions={permissions}
+                                    onAddTask={() => setAddTaskOpen(true)}
+                                />
                             )}
 
                             {effectiveSubTab === "meetings" && (
