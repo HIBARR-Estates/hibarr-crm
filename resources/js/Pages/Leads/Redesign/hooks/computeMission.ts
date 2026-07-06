@@ -22,7 +22,9 @@ interface ComputeMissionInput {
     captures: BantCaptures;
 }
 
-export function outcomeToLabel(outcome: QualificationOutcome | null | undefined): string | null {
+export function outcomeToLabel(
+    outcome: QualificationOutcome | null | undefined,
+): string | null {
     if (!outcome) return null;
     return OUTCOME_LABELS[outcome] ?? outcome;
 }
@@ -122,7 +124,7 @@ export function computeMission({
             ? "Start the script."
             : "Continue follow-up on this lead.",
         cta: qualificationEnabled ? "Start script" : null,
-        ctaAction: qualificationEnabled ? "startFlow" : null,
+        ctaAction: qualificationEnabled ? "startFlow" : undefined,
         urgency: "blue",
     };
 }
