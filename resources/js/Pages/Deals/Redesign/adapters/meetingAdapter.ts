@@ -12,7 +12,7 @@ export interface WorkspaceMeetingPreview {
     isUpcoming: boolean;
     isPast: boolean;
     location: string;
-    locationType: "video" | "in_person";
+    locationType: "video" | "in_person" | "phone";
     attendeesLabel: string;
 }
 
@@ -39,12 +39,15 @@ function parseDate(value: string | undefined): Date | null {
 
 function resolveLocation(meeting: DealFollowup): {
     location: string;
-    locationType: "video" | "in_person";
+    locationType: "video" | "in_person" | "phone";
 } {
     const link = meeting.meeting_link?.trim();
     const location = meeting.location?.trim();
     if (link && /^https?:\/\//i.test(link)) {
         return { location: link, locationType: "video" };
+    }
+    if (location === "phone") {
+        return { location: "Phone meeting", locationType: "phone" };
     }
     if (location) {
         return { location, locationType: "in_person" };

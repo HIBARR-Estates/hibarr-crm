@@ -1,9 +1,3 @@
-import DealOffersTab from "@/Features/Deals/DealOffersTab";
-
-import FilesTab from "@/Pages/Deals/Components/Tabs/FilesTab";
-
-import FollowUpTab from "@/Pages/Deals/Components/Tabs/FollowUpTab";
-
 import RecommendationsTab from "@/Pages/Deals/Components/Tabs/RecommendationsTab";
 
 import useTranslation from "@/Hooks/useTranslation";
@@ -25,6 +19,9 @@ import DealAddTaskModal from "./DealAddTaskModal";
 import DealScheduleMeetingModal from "./DealScheduleMeetingModal";
 import WorkspaceNotesTab from "./WorkspaceNotesTab";
 import WorkspaceTasksTab from "./WorkspaceTasksTab";
+import WorkspaceMeetingsTab from "./WorkspaceMeetingsTab";
+import WorkspaceFilesTab from "./WorkspaceFilesTab";
+import WorkspaceOffersTab from "./WorkspaceOffersTab";
 
 
 
@@ -326,61 +323,31 @@ export default function WorkspaceTab({
                             )}
 
                             {effectiveSubTab === "meetings" && (
-
-                                <WorkspacePaneCard
-
-                                    title={t("pages.deals.tabs.meeting")}
-
-                                >
-
-                                    <FollowUpTab
-
-                                        deal={deal}
-
-                                        followUps={dealFollowUps}
-
-                                        permissions={permissions}
-
-                                    />
-
-                                </WorkspacePaneCard>
-
+                                <WorkspaceMeetingsTab
+                                    deal={deal}
+                                    followUps={dealFollowUps}
+                                    meetingTypes={meetingTypes}
+                                    permissions={permissions}
+                                    onScheduleMeeting={() =>
+                                        setAddMeetingOpen(true)
+                                    }
+                                />
                             )}
 
                             {effectiveSubTab === "files" && (
-
-                                <WorkspacePaneCard
-
-                                    title={t("pages.deals.tabs.files")}
-
-                                >
-
-                                    <FilesTab
-
-                                        deal={deal}
-
-                                        files={files}
-
-                                        permissions={permissions}
-
-                                    />
-
-                                </WorkspacePaneCard>
-
+                                <WorkspaceFilesTab
+                                    deal={deal}
+                                    files={files}
+                                    permissions={permissions}
+                                />
                             )}
 
                             {effectiveSubTab === "offers" && (
-
-                                <WorkspacePaneCard
-
-                                    title={t("pages.deals.tabs.offers")}
-
-                                >
-
-                                    <DealOffersTab deal={deal} />
-
-                                </WorkspacePaneCard>
-
+                                <WorkspaceOffersTab
+                                    deal={deal}
+                                    proposals={proposals}
+                                    permissions={permissions}
+                                />
                             )}
 
                             {effectiveSubTab === "recommendations" && (
