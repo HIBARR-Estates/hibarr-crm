@@ -6,6 +6,7 @@ import DealAvatar from "../../primitives/DealAvatar";
 import DealIcon from "../../primitives/DealIcon";
 import DealPanelHeader from "../../primitives/DealPanelHeader";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+import { formatPhoneNumber } from "@/lib/utils";
 
 interface WorkspaceLeadCardProps {
     deal: Deal;
@@ -34,7 +35,7 @@ export default function WorkspaceLeadCard({ deal }: WorkspaceLeadCardProps) {
         [contact?.client_name, contact?.client_name_salutation, td],
     );
 
-    const phone = contact?.mobile || contact?.cell || null;
+    const phone = formatPhoneNumber(contact?.mobile || contact?.cell || null);
     const email = contact?.client_email || null;
     const leadUrl = contact?.id ? route("lead-contact.show", contact.id) : null;
 
@@ -65,7 +66,11 @@ export default function WorkspaceLeadCard({ deal }: WorkspaceLeadCardProps) {
                             aria-label={td("Open lead profile")}
                             className="flex text-white/75 hover:text-white"
                         >
-                            <DealIcon name="external-link" size={13} color="currentColor" />
+                            <DealIcon
+                                name="external-link"
+                                size={13}
+                                color="currentColor"
+                            />
                         </a>
                     ) : undefined
                 }
@@ -75,7 +80,10 @@ export default function WorkspaceLeadCard({ deal }: WorkspaceLeadCardProps) {
                     href={leadUrl ?? "#"}
                     className="mb-2.5 flex items-center gap-2.5 text-inherit no-underline"
                 >
-                    <DealAvatar size={34} initials={initialsFromName(leadName)} />
+                    <DealAvatar
+                        size={34}
+                        initials={initialsFromName(leadName)}
+                    />
                     <div>
                         <div className="text-sm font-medium text-[#1a1f2e]">
                             {leadName}
@@ -96,7 +104,9 @@ export default function WorkspaceLeadCard({ deal }: WorkspaceLeadCardProps) {
                         <span className="min-w-0 flex-1 truncate">{email}</span>
                         <span
                             className="ml-auto flex items-center gap-1 text-[10px]"
-                            style={{ color: emailCopied ? T.GREEN : T.TEXT_HINT }}
+                            style={{
+                                color: emailCopied ? T.GREEN : T.TEXT_HINT,
+                            }}
                         >
                             <DealIcon
                                 name={emailCopied ? "check" : "copy"}
