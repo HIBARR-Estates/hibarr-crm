@@ -16,7 +16,9 @@ export interface DealTimelineDateRange {
 
 export default function useDealTimeline(dealId: number) {
     const [filter, setFilter] = useState<TimelineFilter>("all");
-    const [dateRange, setDateRange] = useState<DealTimelineDateRange | null>(null);
+    const [dateRange, setDateRange] = useState<DealTimelineDateRange | null>(
+        null,
+    );
 
     const queryParams = useMemo(
         () => ({
@@ -49,7 +51,8 @@ export default function useDealTimeline(dealId: number) {
         getNextPageParam: (lastPage) =>
             lastPage.meta.has_more ? lastPage.meta.current_page + 1 : undefined,
         options: {
-            refetchInterval: 15000,
+            // refetchInterval: 15000,
+            staleTime: 1000 * 60 * 5, // 5 minutes
         },
     });
 
