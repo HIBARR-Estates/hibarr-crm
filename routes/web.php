@@ -1095,6 +1095,26 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::post('/{id}/approve', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'approve'])->name('approve');
         Route::post('/{id}/deny', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'deny'])->name('deny');
     });
+
+    // Property Edit Access Requests
+    Route::prefix('edit-access-requests')->name('edit-access-requests.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'store'])->name('store');
+        Route::get('/property/{propertyId}', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'forProperty'])->name('for-property');
+        Route::get('/{id}', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::post('/{id}/approve', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'approve'])->name('approve');
+        Route::post('/{id}/deny', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'deny'])->name('deny');
+    });
+
+    // Property collaborators & watchers
+    Route::prefix('properties/{propertyId}')->where(['propertyId' => '[0-9]+'])->group(function () {
+        Route::get('collaborators', [App\Http\Controllers\PropertyCollaboratorController::class, 'index'])->name('properties.collaborators.index');
+        Route::delete('collaborators/{userId}', [App\Http\Controllers\PropertyCollaboratorController::class, 'destroy'])->name('properties.collaborators.destroy')->where('userId', '[0-9]+');
+        Route::get('watchers', [App\Http\Controllers\PropertyWatcherController::class, 'index'])->name('properties.watchers.index');
+        Route::post('watchers/self', [App\Http\Controllers\PropertyWatcherController::class, 'storeSelf'])->name('properties.watchers.store-self');
+        Route::put('watchers', [App\Http\Controllers\PropertyWatcherController::class, 'sync'])->name('properties.watchers.sync');
+        Route::delete('watchers/{userId}', [App\Http\Controllers\PropertyWatcherController::class, 'destroy'])->name('properties.watchers.destroy')->where('userId', '[0-9]+');
+    });
     
     // Property Publish Requests
     Route::prefix('publish-requests')->name('publish-requests.')->group(function () {
