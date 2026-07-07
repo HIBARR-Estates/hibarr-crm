@@ -188,6 +188,7 @@ use App\Models\ContractSign;
 use App\Models\ContractTemplate;
 use App\Models\ContractType;
 use App\Models\CreditNotes;
+use App\Models\CrmEvent;
 use App\Models\Currency;
 use App\Models\CurrencyFormatSetting;
 use App\Models\CustomField;
@@ -342,6 +343,7 @@ use App\Observers\ContractSignObserver;
 use App\Observers\ContractTemplateObserver;
 use App\Observers\ContractTypeObserver;
 use App\Observers\CreditNoteObserver;
+use App\Observers\CrmEventObserver;
 use App\Observers\CurrencyFormatSettingObserver;
 use App\Observers\CurrencyObserver;
 use App\Observers\CustomFieldGroupObserver;
@@ -621,6 +623,7 @@ class EventServiceProvider extends ServiceProvider
         Invoice::class => [InvoiceObserver::class],
         InvoiceSetting::class => [InvoiceSettingObserver::class],
         Issue::class => [IssueObserver::class],
+        CrmEvent::class => [CrmEventObserver::class],
         Deal::class => [DealObserver::class],
         HibarrDealFields::class => [HibarrDealFieldsObserver::class],
         LeadMarketing::class => [LeadMarketingObserver::class],

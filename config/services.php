@@ -108,4 +108,14 @@ return [
         'model'    => env('AI_MODEL', 'gpt-4o'),
         'api_key'  => env('AI_API_KEY'),
     ],
+
+    'ol_webhook' => [
+        'enabled' => (bool) env('OL_WEBHOOK_ENABLED', false),
+        'endpoint' => env('OL_WEBHOOK_ENDPOINT'),
+        'timeout' => (int) env('OL_WEBHOOK_TIMEOUT', 10),
+        'secret' => env('OL_WEBHOOK_SECRET'),
+        'queue' => env('OL_WEBHOOK_QUEUE', 'ol_webhooks'),
+        'tries' => (int) env('OL_WEBHOOK_TRIES', 3),
+        'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '60,300,900'))),
+    ],
 ];

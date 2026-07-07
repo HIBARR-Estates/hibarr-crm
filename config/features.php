@@ -12,5 +12,6 @@ return [
         'sales.ai-entity-summary',
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
+        'sales.crm-lead-deal-sync',
     ],
 ];
