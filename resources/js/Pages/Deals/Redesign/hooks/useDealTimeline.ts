@@ -7,7 +7,8 @@ import {
     crmEventToTimelineViewModel,
 } from "../adapters/timelineAdapter";
 
-const DEAL_MODEL_TYPE = "App\\Models\\Deal";
+// Controller normalizes model_type with stripslashes(); send escaped slashes.
+const DEAL_MODEL_TYPE = "App\\\\Models\\\\Deal";
 
 export interface DealTimelineDateRange {
     from: string;
