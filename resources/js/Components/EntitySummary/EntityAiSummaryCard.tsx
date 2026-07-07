@@ -18,7 +18,7 @@ export default function EntityAiSummaryCard({
     entityId,
     initialSummary = null,
     variant = "legacy",
-    className = "",
+    className = "my-4",
     leadPhone,
     onQualifyLead,
     onCreateTask,
@@ -27,11 +27,12 @@ export default function EntityAiSummaryCard({
     onAdvanceStage,
     onReviewStaleDeal,
 }: EntityAiSummaryCardProps) {
-    const { summary, loading, error, generate, regenerate } = useEntityAiSummary({
-        entityType,
-        entityId,
-        initialSummary,
-    });
+    const { summary, loading, error, generate, regenerate } =
+        useEntityAiSummary({
+            entityType,
+            entityId,
+            initialSummary,
+        });
 
     const showRiskHighlight =
         summary &&
@@ -93,13 +94,17 @@ export default function EntityAiSummaryCard({
             {!summary && !loading && !error && (
                 <div className="entity-ai-summary-empty">
                     <p>
-                        Generate an AI summary to see key facts, risk signals, and a
-                        suggested next step for this {entityType}.
+                        Generate an AI summary to see key facts, risk signals,
+                        and a suggested next step for this {entityType}.
                     </p>
                     <button
                         type="button"
                         className="entity-ai-summary-next-step__button"
-                        style={{ marginTop: 12, background: "#7c3aed", color: "#fff" }}
+                        style={{
+                            marginTop: 12,
+                            background: "#7c3aed",
+                            color: "#fff",
+                        }}
                         onClick={generate}
                     >
                         Generate AI Summary
