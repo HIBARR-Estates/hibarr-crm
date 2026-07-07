@@ -44,19 +44,21 @@ class OlPayloadMapper
 
         return array_merge($base, [
             'entityType' => 'lead',
-            'firstName' => $firstName,
-            'lastName' => $lastName,
-            'email' => $lead->client_email,
-            'phone' => $lead->mobile_with_phonecode,
-            'status' => $lead->lifecycleStatus?->key ?? $lead->status_id,
-            'assignedTo' => $lead->leadOwner ? [
-                'id' => $lead->leadOwner->id,
-                'name' => $lead->leadOwner->name,
-            ] : null,
-            'category' => $lead->category ? [
-                'id' => $lead->category->id,
-                'name' => $lead->category->category_name,
-            ] : null,
+            'entityData' => [
+                'firstName' => $firstName,
+                'lastName' => $lastName,
+                'email' => $lead->client_email,
+                'phone' => $lead->mobile_with_phonecode,
+                'status' => $lead->lifecycleStatus?->key ?? $lead->status_id,
+                'assignedTo' => $lead->leadOwner ? [
+                    'id' => $lead->leadOwner->id,
+                    'name' => $lead->leadOwner->name,
+                ] : null,
+                'category' => $lead->category ? [
+                    'id' => $lead->category->id,
+                    'name' => $lead->category->category_name,
+                ] : null,
+            ],
         ]);
     }
 
@@ -64,14 +66,16 @@ class OlPayloadMapper
     {
         return array_merge($base, [
             'entityType' => 'deal',
-            'title' => $deal->name,
-            'value' => $deal->value,
-            'stage' => $deal->leadStage?->name ?? $deal->pipeline_stage_id,
-            'status' => $deal->outcome_status?->value ?? $deal->status_id,
-            'assignedTo' => $deal->leadAgent?->user ? [
-                'id' => $deal->leadAgent->user->id,
-                'name' => $deal->leadAgent->user->name,
-            ] : null,
+            'entityData' => [
+                'title' => $deal->name,
+                'value' => $deal->value,
+                'stage' => $deal->leadStage?->name ?? $deal->pipeline_stage_id,
+                'status' => $deal->outcome_status?->value ?? $deal->status_id,
+                'assignedTo' => $deal->leadAgent?->user ? [
+                    'id' => $deal->leadAgent->user->id,
+                    'name' => $deal->leadAgent->user->name,
+                ] : null,
+            ],
         ]);
     }
 
