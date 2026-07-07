@@ -22,10 +22,12 @@ import OwnerInfoCard from "./OwnerInfoCard";
 import InternalInfoCard from "./InternalInfoCard";
 import PropertyLocation from "./PropertyLocation";
 import AgentInfoCard from "./AgentInfoCard";
+import PropertyTeamCard from "./PropertyTeamCard";
 
 interface PropertyViewProps {
     property: Property;
     hasPendingPublishRequest?: boolean;
+    hasPendingEditAccessRequest?: boolean;
     onEdit?: () => void;
     onShare?: () => void;
     onGenerateExpose?: () => void;
@@ -41,6 +43,7 @@ interface PropertyViewProps {
 export default function PropertyView({
     property,
     hasPendingPublishRequest = false,
+    hasPendingEditAccessRequest = false,
     onEdit,
     onShare,
     onGenerateExpose,
@@ -53,7 +56,9 @@ export default function PropertyView({
     projects,
 }: PropertyViewProps) {
     // Centralised permission check — passed to children as props
-    const permissions = usePropertyPermissions(property);
+    const permissions = usePropertyPermissions(property, {
+        hasPendingEditAccessRequest,
+    });
 
     // Determine section visibility per category
     const category =
@@ -68,6 +73,7 @@ export default function PropertyView({
                 property={property}
                 permissions={permissions}
                 hasPendingPublishRequest={hasPendingPublishRequest}
+                hasPendingEditAccessRequest={hasPendingEditAccessRequest}
                 onEdit={onEdit}
                 onShare={onShare}
                 onGenerateExpose={onGenerateExpose}
@@ -104,7 +110,7 @@ export default function PropertyView({
                         )}
 
                         {/* Legal & Financial */}
-                        {sections.legalFinancial && (
+                        {sections.legalFinancial && permissions.canViewInternalInfo && (
                             <LegalFinancialInfo property={property} />
                         )}
 
@@ -123,7 +129,6 @@ export default function PropertyView({
                             <OwnerInfoCard
                                 property={property}
                                 canViewOwnerInfo={permissions.canViewOwnerInfo}
-                                canRequestAccess={permissions.canRequestAccess}
                                 isSalesManager={permissions.isSalesManager}
                             />
                         )}
@@ -155,6 +160,11 @@ export default function PropertyView({
                 {/* ─── Sidebar ─── */}
                 <Col xs={24} lg={8}>
                     <div className="flex flex-col gap-4">
+                        <PropertyTeamCard
+                            property={property}
+                            permissions={permissions}
+                            employees={employees}
+                        />
                         <PropertyLocation property={property} />
                         <AgentInfoCard property={property} />
                     </div>

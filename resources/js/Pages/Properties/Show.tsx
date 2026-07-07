@@ -20,6 +20,7 @@ interface ShowProps {
     pageTitle: string;
     property: Property;
     hasPendingPublishRequest?: boolean;
+    hasPendingEditAccessRequest?: boolean;
     tasks: Task[];
     taskCategories: any[];
     taskLabels: any[];
@@ -32,6 +33,7 @@ const Show = ({
     pageTitle,
     property,
     hasPendingPublishRequest = false,
+    hasPendingEditAccessRequest = false,
     tasks,
     taskCategories,
     taskLabels,
@@ -129,6 +131,9 @@ const Show = ({
                     <PropertyView
                         property={currentProperty}
                         hasPendingPublishRequest={hasPendingPublishRequest}
+                        hasPendingEditAccessRequest={
+                            hasPendingEditAccessRequest
+                        }
                         onEdit={handleEdit}
                         onShare={handleShare}
                         onGenerateExpose={() => setShowExposeModal(true)}

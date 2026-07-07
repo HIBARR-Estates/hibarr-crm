@@ -494,6 +494,16 @@ const Index = ({
                                             )}
                                         </Button>
                                     </Link>
+                                    <Link href="/account/edit-access-requests">
+                                        <Button
+                                            type="text"
+                                            icon={<EditOutlined />}
+                                        >
+                                            {t(
+                                                "app.properties.actions.edit_access_requests",
+                                            )}
+                                        </Button>
+                                    </Link>
                                     {isSalesManager ? (
                                         <Link href="/account/publish-requests">
                                             <Button

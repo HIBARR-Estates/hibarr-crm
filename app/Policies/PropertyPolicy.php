@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\Property;
 use App\Models\User;
+use App\Services\PropertyAuthorizationService;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 /**
@@ -78,7 +79,7 @@ class PropertyPolicy
      */
     public function update(User $user, Property $property): bool
     {
-        return $property->canBeEditedBy($user->id);
+        return app(PropertyAuthorizationService::class)->canEditProperty($user, $property);
     }
 
     /**
@@ -88,7 +89,7 @@ class PropertyPolicy
      */
     public function delete(User $user, Property $property): bool
     {
-        return $property->canBeEditedBy($user->id);
+        return app(PropertyAuthorizationService::class)->canDeleteProperty($user, $property);
     }
 
     /**
@@ -119,13 +120,16 @@ class PropertyPolicy
      */
     public function viewOwnerInfo(User $user, Property $property): bool
     {
-        // Creator and responsible agent can always see owner info
-        if ($property->isCreator($user->id) || $property->isResponsibleAgent($user->id)) {
-            return true;
-        }
+        return app(PropertyAuthorizationService::class)->canViewOwnerInfo($user, $property)
+            || $this->hasPermission($user, 'view_property_owner_info');
+    }
 
-        // Check for special permission (to be implemented based on business rules)
-        return $this->hasPermission($user, 'view_property_owner_info');
+    /**
+     * Determine whether the user can request edit access to a property.
+     */
+    public function requestEditAccess(User $user, Property $property): bool
+    {
+        return app(PropertyAuthorizationService::class)->canRequestEditAccess($user, $property);
     }
 
     /**

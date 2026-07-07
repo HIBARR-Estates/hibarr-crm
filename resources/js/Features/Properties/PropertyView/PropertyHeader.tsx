@@ -43,6 +43,7 @@ interface PropertyHeaderProps {
     property: Property;
     permissions: PropertyPermissions;
     hasPendingPublishRequest?: boolean;
+    hasPendingEditAccessRequest?: boolean;
     onEdit?: () => void;
     onShare?: () => void;
     onGenerateExpose?: () => void;
@@ -52,6 +53,7 @@ function PropertyHeader({
     property,
     permissions,
     hasPendingPublishRequest = false,
+    hasPendingEditAccessRequest = false,
     onEdit,
     onShare,
     onGenerateExpose,
@@ -75,6 +77,10 @@ function PropertyHeader({
     // Availability request modal state
     const [availabilityModal, setAvailabilityModal] = useState(false);
     const [availabilityMessage, setAvailabilityMessage] = useState("");
+
+    // Edit access request modal state
+    const [editAccessModal, setEditAccessModal] = useState(false);
+    const [editAccessMessage, setEditAccessMessage] = useState("");
 
     const { amount, currency } = parsePropertyPrice(
         (property as any).price,
@@ -119,6 +125,20 @@ function PropertyHeader({
         >(route("availability-requests.store"), "POST", () => {
             setAvailabilityModal(false);
             setAvailabilityMessage("");
+        });
+
+    const { mutate: requestEditAccess, isPending: isRequestingEditAccess } =
+        useApiMutate<
+            { property_id: number; message?: string },
+            any,
+            ApiSuccessResponse<any>
+        >(route("edit-access-requests.store"), "POST", () => {
+            setEditAccessModal(false);
+            setEditAccessMessage("");
+            message.success("Edit access request sent successfully.");
+            router.reload({
+                only: ["property", "hasPendingEditAccessRequest"],
+            });
         });
 
     // Publish request modal state
@@ -208,6 +228,17 @@ function PropertyHeader({
         });
     };
 
+    const handleRequestEditAccess = () => {
+        setEditAccessModal(true);
+    };
+
+    const handleSubmitEditAccessRequest = () => {
+        requestEditAccess({
+            property_id: property.id,
+            message: editAccessMessage || undefined,
+        });
+    };
+
     return (
         <div className="mb-4">
             <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
@@ -249,6 +280,11 @@ function PropertyHeader({
                         >
                             {property.status}
                         </Tag>
+                        {permissions.isCollaborator && (
+                            <Tag color="blue" className="text-sm px-3 py-1">
+                                Collaborator
+                            </Tag>
+                        )}
                         {/* Publishing Status Badge */}
                         {property.is_published !== undefined && (
                             <Tooltip
@@ -365,6 +401,29 @@ function PropertyHeader({
                             </Button>
                         </Tooltip>
                     )}
+                    {permissions.canRequestEditAccess && (
+                        hasPendingEditAccessRequest ? (
+                            <Tooltip title="Your edit access request is pending review by the responsible agent">
+                                <Tag
+                                    icon={<ClockCircleOutlined />}
+                                    color="orange"
+                                    className="text-sm px-3 py-1 m-0"
+                                >
+                                    Edit Access Pending
+                                </Tag>
+                            </Tooltip>
+                        ) : (
+                            <Tooltip title="Request permission to edit listing content">
+                                <Button
+                                    icon={<EditOutlined />}
+                                    onClick={handleRequestEditAccess}
+                                    loading={isRequestingEditAccess}
+                                >
+                                    Request Edit Access
+                                </Button>
+                            </Tooltip>
+                        )
+                    )}
                     {/* {onShare && (
                         <Button icon={<ShareAltOutlined />} onClick={onShare}>
                             Share
@@ -384,7 +443,9 @@ function PropertyHeader({
                             icon={<EditOutlined />}
                             onClick={onEdit}
                         >
-                            Edit Property
+                            {permissions.canEditPublicFieldsOnly
+                                ? "Edit Listing"
+                                : "Edit Property"}
                         </Button>
                     )}
                 </div>
@@ -456,6 +517,47 @@ function PropertyHeader({
                         placeholder="Optional message to the responsible agent (e.g., customer details, urgency)"
                         value={availabilityMessage}
                         onChange={(e) => setAvailabilityMessage(e.target.value)}
+                        rows={3}
+                        maxLength={1000}
+                        showCount
+                    />
+                </div>
+            </Modal>
+
+            {/* Request Edit Access Modal */}
+            <Modal
+                title="Request Edit Access"
+                open={editAccessModal}
+                onOk={handleSubmitEditAccessRequest}
+                onCancel={() => {
+                    if (!isRequestingEditAccess) {
+                        setEditAccessModal(false);
+                        setEditAccessMessage("");
+                    }
+                }}
+                confirmLoading={isRequestingEditAccess}
+                okText="Send Request"
+                cancelText="Cancel"
+            >
+                <div className="py-2">
+                    <p className="mb-3 text-gray-600">
+                        Use this when you need to update the property listing
+                        (description, photos, features, or price). This is
+                        different from an availability check before showing the
+                        property to a client.
+                    </p>
+                    <p className="mb-2 font-medium">
+                        Property: {property.display_title || property.title}
+                    </p>
+                    {property.reference_code && (
+                        <p className="mb-3 text-gray-500 text-sm">
+                            Reference: {property.reference_code}
+                        </p>
+                    )}
+                    <Input.TextArea
+                        placeholder="Optional message explaining why you need edit access"
+                        value={editAccessMessage}
+                        onChange={(e) => setEditAccessMessage(e.target.value)}
                         rows={3}
                         maxLength={1000}
                         showCount
