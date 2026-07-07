@@ -6,7 +6,6 @@ use App\Models\CrmEvent;
 use App\Services\OlWebhook\OlDeliveryDecision;
 use App\Services\OlWebhook\OlPayloadMapper;
 use App\Services\OlWebhook\OlWebhookClient;
-use App\Services\OlWebhook\WebhookSignatureService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -45,7 +44,6 @@ class DispatchOlWebhookJob implements ShouldQueue
     public function handle(
         OlPayloadMapper $payloadMapper,
         OlWebhookClient $client,
-        WebhookSignatureService $signatureService,
         OlDeliveryDecision $decision
     ): void {
         $event = CrmEvent::withoutGlobalScopes()->with(['eventType', 'model'])->find($this->crmEventId);
@@ -65,23 +63,18 @@ class DispatchOlWebhookJob implements ShouldQueue
             return;
         }
 
-        $secret = (string) config('services.ol_webhook.secret', '');
-        if ($secret === '') {
-            Log::error('DispatchOlWebhookJob: OL webhook secret missing', [
+        $apiKey = (string) config('services.ol_webhook.api_key', '');
+        if ($apiKey === '') {
+            Log::error('DispatchOlWebhookJob: OL webhook API key missing', [
                 'crm_event_id' => $this->crmEventId,
             ]);
             return;
         }
 
-        $timestamp = (string) now()->timestamp;
-        $signature = $signatureService->sign(
-            (string) json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-            $timestamp,
-            $secret
-        );
+        $apiKeyHeader = (string) config('services.ol_webhook.api_key_header', 'X-API-KEY');
 
         try {
-            $response = $client->send($payload, $timestamp, $signature);
+            $response = $client->send($payload, $apiKey, $apiKeyHeader);
             $statusCode = $response->status();
 
             if ($decision->isSuccess($statusCode)) {
