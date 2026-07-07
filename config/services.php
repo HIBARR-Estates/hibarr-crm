@@ -93,6 +93,13 @@ return [
         'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
     ],
 
+    'notification_service' => [
+        'base_url' => env('NOTIFICATION_SERVICE_BASE_URL', ''),
+        'timeout' => (int) env('NOTIFICATION_SERVICE_TIMEOUT', 15),
+        'internal_api_key' => env('NOTIFICATION_SERVICE_INTERNAL_API_KEY'),
+        'default_user_id' => (int) env('NOTIFICATION_SERVICE_DEFAULT_USER_ID', 1),
+    ],
+
     'keycloak' => [
         'client_id'     => env('KEYCLOAK_CLIENT_ID'),
         'client_secret' => env('KEYCLOAK_CLIENT_SECRET'),

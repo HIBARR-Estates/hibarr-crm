@@ -9,6 +9,7 @@ return [
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
+        'crm.notification-service-routing',
         'sales.ai-entity-summary',
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
