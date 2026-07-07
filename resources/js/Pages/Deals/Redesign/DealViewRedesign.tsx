@@ -20,8 +20,7 @@ export default function DealViewRedesign(props: DealShowProps) {
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
-    // const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
-    const showAiSummary = true;
+    const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
