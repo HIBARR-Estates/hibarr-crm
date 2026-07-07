@@ -20,7 +20,8 @@ export default function DealViewRedesign(props: DealShowProps) {
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
-    const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
+    // const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
+    const showAiSummary = true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -90,7 +91,9 @@ export default function DealViewRedesign(props: DealShowProps) {
                         {nav.mainTab === "dealinfo" && (
                             <DealInfoTab
                                 deal={props.deal}
-                                customFieldCategories={props.customFieldCategories}
+                                customFieldCategories={
+                                    props.customFieldCategories
+                                }
                                 fields={props.fields}
                                 activeSection={nav.infoSection}
                                 onSectionChange={nav.setInfoSection}
