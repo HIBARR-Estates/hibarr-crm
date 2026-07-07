@@ -32,10 +32,10 @@ export interface DealInfoSectionMeta {
 
 export const DEAL_INFO_CORE_SECTION_ORDER: DealInfoCoreSectionId[] = [
     "general",
-    "experience",
+    // "experience",
     "property",
-    "income",
-    "location",
+    // "income",
+    // "location",
     "preftimeline",
     "funding",
     "support",
