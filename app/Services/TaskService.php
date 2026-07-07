@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Traits\ProjectProgress;
 use App\Traits\RecordsCrmEvents;
 use App\Services\DealNotificationService;
+use App\Services\TaskLifecycleNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -140,6 +141,8 @@ class TaskService
 
             DB::commit();
 
+            app(TaskLifecycleNotificationService::class)->notifyCreated($task, $user?->id);
+
             return $task;
 
         } catch (\Exception $e) {
@@ -162,6 +165,9 @@ class TaskService
         DB::beginTransaction();
 
         try {
+            $previousAssigneeIds = $task->users()->pluck('user_id')->sort()->values()->all();
+            $assigneesChanged = false;
+
             $task->heading = $data['heading'];
             $task->description = isset($data['description']) ? trim_editor($data['description']) : '';
             
@@ -252,6 +258,7 @@ class TaskService
             $assigneeIds = self::normalizeAssigneeIds($data);
             if ($assigneeIds !== null) {
                 $task->users()->sync($assigneeIds);
+                $assigneesChanged = $previousAssigneeIds !== collect($assigneeIds)->sort()->values()->all();
             }
             
             if (isset($data['custom_fields_data'])) {
@@ -261,6 +268,14 @@ class TaskService
             $this->handlePolymorphicRelations($task, $data, false);
 
             DB::commit();
+
+            $lifecycle = app(TaskLifecycleNotificationService::class);
+            if ($lifecycle->wasCompletionTransition($task)) {
+                $lifecycle->notifyCompleted($task, $user?->id);
+            } elseif ($lifecycle->hasMeaningfulChanges($task) || $assigneesChanged) {
+                $lifecycle->notifyUpdated($task, $user?->id);
+            }
+
             return $task;
         } catch (\Exception $e) {
             DB::rollBack();
