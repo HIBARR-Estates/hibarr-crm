@@ -487,6 +487,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
+        $leadContact->category_id = $request->category_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->company_name = $request->company_name;
