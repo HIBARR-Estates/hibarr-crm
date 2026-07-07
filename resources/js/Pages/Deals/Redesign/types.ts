@@ -25,7 +25,7 @@ export interface WorkspaceSubTabCount {
     offers: number;
     recommendations: number;
 }
-export type DealInfoSectionId =
+export type DealInfoCoreSectionId =
     | "general"
     | "experience"
     | "property"
@@ -34,6 +34,10 @@ export type DealInfoSectionId =
     | "preftimeline"
     | "funding"
     | "support";
+
+export type DealInfoSectionId =
+    | DealInfoCoreSectionId
+    | `category-${number}`;
 
 export interface DealShowProps extends PageProps {
     deal: Deal;

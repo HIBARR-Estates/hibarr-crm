@@ -1,8 +1,9 @@
 import { useCallback, useMemo, useState } from "react";
 import { DealInfoSectionId, DealMainTab, WorkspaceSubTab } from "../types";
+import { parseCategorySectionId } from "../config/dealInfoSections";
 
 const VALID_TABS: DealMainTab[] = ["workspace", "dealinfo", "timeline"];
-const VALID_INFO_SECTIONS: DealInfoSectionId[] = [
+const VALID_CORE_INFO_SECTIONS = [
     "general",
     "experience",
     "property",
@@ -11,7 +12,15 @@ const VALID_INFO_SECTIONS: DealInfoSectionId[] = [
     "preftimeline",
     "funding",
     "support",
-];
+] as const;
+
+function isValidInfoSection(section: string): section is DealInfoSectionId {
+    return (
+        VALID_CORE_INFO_SECTIONS.includes(
+            section as (typeof VALID_CORE_INFO_SECTIONS)[number],
+        ) || parseCategorySectionId(section) !== null
+    );
+}
 const VALID_WORKSPACE_SUB_TABS: WorkspaceSubTab[] = [
     "overview",
     "notes",
@@ -25,9 +34,7 @@ const VALID_WORKSPACE_SUB_TABS: WorkspaceSubTab[] = [
 function getInitialSection(): DealInfoSectionId {
     if (typeof window === "undefined") return "general";
     const section = new URLSearchParams(window.location.search).get("section");
-    return VALID_INFO_SECTIONS.includes(section as DealInfoSectionId)
-        ? (section as DealInfoSectionId)
-        : "general";
+    return section && isValidInfoSection(section) ? section : "general";
 }
 
 function getInitialTab(): DealMainTab {

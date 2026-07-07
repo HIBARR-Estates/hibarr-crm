@@ -89,6 +89,9 @@ export default function DealViewRedesign(props: DealShowProps) {
                         )}
                         {nav.mainTab === "dealinfo" && (
                             <DealInfoTab
+                                deal={props.deal}
+                                customFieldCategories={props.customFieldCategories}
+                                fields={props.fields}
                                 activeSection={nav.infoSection}
                                 onSectionChange={nav.setInfoSection}
                             />
