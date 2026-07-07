@@ -10,6 +10,7 @@ return [
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
         'crm.notification-service-routing',
+        'crm.task-lifecycle-notifications',
         'sales.ai-entity-summary',
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
