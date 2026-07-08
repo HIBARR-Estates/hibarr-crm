@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { Button, Space, Typography, Row, Col, Drawer } from "antd";
+import { Button, Space, Typography, Row, Col } from "antd";
 import type { TableRowSelection } from "antd/es/table/interface";
 import {
     PlusOutlined,
@@ -38,7 +38,7 @@ import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { useTasksTableColumns } from "@/Features/Tasks/Columns";
 import { Task } from "@/Types/Task";
-import { SaveTaskModal, TaskDetailsDrawer } from "@/Features/Tasks/SaveTask";
+import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import TasksKanban from "@/Features/Tasks/Components/TasksKanban";
 
 dayjs.extend(isBetween);
@@ -467,7 +467,7 @@ const TasksIndex = ({
                                     disabled={isRefreshing}
                                     type="text"
                                 >
-                                    {t("app.common.actions.refresh")}
+                                    {td("Refresh")}
                                 </Button>
 
                                 {/* 
@@ -586,21 +586,13 @@ const TasksIndex = ({
                         td={td}
                     />
 
-                    {/* Task Details Drawer */}
-                    <Drawer
-                        title={`${t("pages.tasks.drawer_title_prefix")}: ${td(selectedTask?.heading || "")}`}
-                        placement="right"
-                        size="large"
+                    <TaskDetailsModal
+                        task={selectedTask}
                         open={action === "view"}
                         onClose={() => handleClose()}
-                        destroyOnHidden
-                    >
-                        <TaskDetailsDrawer
-                            task={selectedTask}
-                            loading={false}
-                            td={td}
-                        />
-                    </Drawer>
+                        columns={columns}
+                        td={td}
+                    />
 
                     {/* Delete Task Modal */}
                     <DeleteTask

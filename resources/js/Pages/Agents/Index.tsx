@@ -26,6 +26,7 @@ import { useState } from "react";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 const Index = ({
     pageTitle,
@@ -108,6 +109,7 @@ const Index = ({
 
     const { refresh, isRefreshing } = usePageRefresh();
     const { t } = useTranslation();
+    const { td } = useTd();
 
     // Simple inline filters
     const [statusFilter, setStatusFilter] = useState<string | undefined>(
@@ -175,7 +177,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {t("app.common.actions.refresh")}
+                                {td("Refresh")}
                             </Button>
                             <Select
                                 placeholder={t("app.agents.filters.status")}
@@ -188,8 +190,14 @@ const Index = ({
                                 style={{ width: 130 }}
                                 size="small"
                                 options={[
-                                    { label: t("app.agents.status.active"), value: "enabled" },
-                                    { label: t("app.agents.status.disabled"), value: "disabled" },
+                                    {
+                                        label: t("app.agents.status.active"),
+                                        value: "enabled",
+                                    },
+                                    {
+                                        label: t("app.agents.status.disabled"),
+                                        value: "disabled",
+                                    },
                                 ]}
                             />
                             <Select

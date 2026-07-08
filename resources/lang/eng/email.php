@@ -174,6 +174,11 @@ return array(
     'reminder' => array(
         'subject' => 'Reminder for assigned task',
     ),
+    'taskLifecycle' => array(
+        'due' => array(
+            'subject' => 'Task due today',
+        ),
+    ),
     'invoices' => array(
         'paymentReceived' => 'Payment Received: Confirmation',
         'paymentReceivedForInvoice' => 'Payment received for invoice ',

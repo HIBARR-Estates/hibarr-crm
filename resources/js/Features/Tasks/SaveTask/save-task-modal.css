@@ -1,0 +1,45 @@
+.save-task-modal .ant-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 0;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.save-task-modal .ant-modal-body {
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.save-task-modal .ant-modal-close {
+    top: 20px;
+    inset-inline-end: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-task-modal .ant-modal-close:hover {
+    background: #f9fafb;
+}
+
+.save-task-modal .ant-modal-close-x {
+    font-size: 14px;
+    line-height: 1;
+    color: #6b7280;
+}
+
+.save-task-modal .ant-form-item-label > label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}

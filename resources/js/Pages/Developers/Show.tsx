@@ -42,6 +42,7 @@ import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
 import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 import OfferFormModal from "@/Features/Offers/OfferFormModal";
 import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -128,7 +129,7 @@ const Show = ({
                 location ? (
                     <Space>
                         <EnvironmentOutlined className="text-gray-400" />
-                        <span>{location.name}</span>
+                        <span>{formatLocationNameForDisplay(location.name)}</span>
                     </Space>
                 ) : (
                     <Text type="secondary">No location</Text>

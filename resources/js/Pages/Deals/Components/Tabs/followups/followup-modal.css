@@ -1,0 +1,86 @@
+.followup-modal .ant-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 0;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.followup-modal .ant-modal-body {
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.followup-modal .ant-modal-close {
+    top: 20px;
+    inset-inline-end: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.followup-modal .ant-modal-close:hover {
+    background: #f9fafb;
+}
+
+.followup-modal .ant-modal-close-x {
+    font-size: 14px;
+    line-height: 1;
+    color: #6b7280;
+}
+
+.followup-modal .ant-form-item-label > label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #374151;
+}
+
+/* task view modal */
+.task-view-modal .ant-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 0;
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.task-view-modal .ant-modal-body {
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.task-view-modal .ant-modal-close {
+    top: 20px;
+    inset-inline-end: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.task-view-modal .ant-modal-close:hover {
+    background: #f9fafb;
+}
+
+.task-view-modal .ant-modal-close-x {
+    font-size: 14px;
+    line-height: 1;
+    color: #6b7280;
+}

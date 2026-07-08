@@ -16,7 +16,7 @@ import type {
     DeveloperProject,
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
-import { generatePropertySubtitle } from "@/lib/utils";
+import { generatePropertySubtitle, formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Title, Text } = Typography;
 
@@ -137,7 +137,7 @@ export default function UnitTypePropertyHeader({
                 {cityArea && (
                     <span className="flex items-center gap-1">
                         <EnvironmentOutlined />
-                        {cityArea}
+                        {formatLocationNameForDisplay(cityArea)}
                     </span>
                 )}
 

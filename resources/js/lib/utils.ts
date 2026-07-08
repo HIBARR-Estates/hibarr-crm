@@ -52,12 +52,28 @@ export const capitalizeFirstLetter = (text: string | null = ""): string => {
     return text.charAt(0).toUpperCase() + text.slice(1);
 };
 
+const TITLE_CASE_LOCALE = "tr-TR";
+
+/** Title-case a single word using locale-aware casing (handles Turkish i/ı, ç, ğ, etc.). */
+const titleCaseWord = (word: string): string => {
+    const lower = word.toLocaleLowerCase(TITLE_CASE_LOCALE);
+    if (!lower) return lower;
+    return (
+        lower.charAt(0).toLocaleUpperCase(TITLE_CASE_LOCALE) + lower.slice(1)
+    );
+};
+
 /** Convert snake_case (or kebab-case) to Title Case readable text.
  *  e.g. "semi_detached_villa" → "Semi Detached Villa"
  */
 export const snakeToReadable = (str: string | null | undefined): string => {
     if (!str) return "";
-    return str.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    return str
+        .replace(/[-_]/g, " ")
+        .split(/\s+/)
+        .filter(Boolean)
+        .map(titleCaseWord)
+        .join(" ");
 };
 
 export const getPropertyTypeColor = (type: string): string => {
@@ -456,6 +472,23 @@ const resolveLocation = (record: SubtitleableRecord): string | null => {
 };
 
 /**
+ * Format a project location name for display (title case per word/segment).
+ * Display-only — does not mutate stored values.
+ * Handles "area, city" comma-separated names and snake_case segments.
+ * e.g. "belek, antalya" → "Belek, Antalya"
+ */
+export function formatLocationNameForDisplay(
+    name: string | null | undefined,
+): string {
+    if (name == null || name === "") return "";
+    return name
+        .split(",")
+        .map((segment) => snakeToReadable(segment.trim()))
+        .filter(Boolean)
+        .join(", ");
+}
+
+/**
  * Format country for display in tables/cards. Handles both string (e.g. "United States")
  * and object from API (e.g. { id, nicename, name }) so it never renders as [object Object].
  */
@@ -581,3 +614,64 @@ export function serializePhoneInputValue(
 
     return normalizedOriginal || originalRaw;
 }
+
+// --- Format Phone Number
+interface PhoneInput {
+    countryCode?: string;
+    areaCode?: string;
+    phoneNumber: string;
+    isoCode?: string;
+}
+
+/**
+ * Converts various phone number string formats into a readable, formatted phone number.
+ * @param input - A JSON string of a PhoneInput object or a raw phone number string.
+ * @returns A formatted phone number string.
+ */
+export function formatPhoneNumber(
+    input: string | null | undefined = "",
+): string {
+    const cleanedInput = input?.trim();
+    if (!cleanedInput) return "";
+
+    // 1. Try to handle JSON string inputs
+    if (cleanedInput.startsWith("{")) {
+        try {
+            const parsed: PhoneInput = JSON.parse(cleanedInput);
+            const parts: string[] = [];
+
+            if (parsed.countryCode) parts.push(`+${parsed.countryCode}`);
+            if (parsed.areaCode) parts.push(`(${parsed.areaCode})`);
+
+            // Format the local number part for readability (e.g., 877-3001)
+            parts.push(formatRawNumber(parsed.phoneNumber));
+
+            return parts.join(" ");
+        } catch (e) {
+            // If JSON parsing fails, fallback to treating it as a raw string
+        }
+    }
+
+    // 2. Handle raw phone number strings (e.g., "0909090090")
+    return formatRawNumber(cleanedInput);
+}
+
+/**
+ * Helper to format a raw string of digits into a standard readable layout
+ */
+function formatRawNumber(numStr: string): string {
+    // Remove all non-numeric characters
+    const cleaned = numStr.replace(/\D/g, "");
+
+    if (cleaned.length === 7) {
+        return `${cleaned.slice(0, 3)}-${cleaned.slice(3)}`;
+    } else if (cleaned.length === 10) {
+        return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
+    } else if (cleaned.length === 11) {
+        return `+${cleaned.charAt(0)} (${cleaned.slice(1, 4)}) ${cleaned.slice(4, 7)}-${cleaned.slice(7)}`;
+    }
+
+    // Return original or cleaned if it doesn't match standard lengths
+    return numStr;
+}
+// ---

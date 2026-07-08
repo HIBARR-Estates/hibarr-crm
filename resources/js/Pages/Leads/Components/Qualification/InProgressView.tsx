@@ -75,10 +75,11 @@ const InProgressView: React.FC<InProgressViewProps> = ({
               )?.label
             : undefined;
 
-    const handleWebinarSelect = async (sessionId: string) => {
+    const handleWebinarSelect = async (sessionId: string, sessionLabel: string) => {
         setWebinarPickerOpen(false);
         await flow.completeWithOutcome("inviteWebinar", {
             webinarSessionId: sessionId,
+            webinarSessionLabel: sessionLabel,
         });
     };
 
@@ -136,6 +137,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                                 segment={flow.currentSegment}
                                 answer={flow.answers[flow.currentSegment.key]}
                                 tokenMap={flow.tokenMap}
+                                translateScript={flow.translateScript}
                                 onAnswerChange={(values, text) =>
                                     flow.applyAnswerChange(
                                         flow.currentSegment!,

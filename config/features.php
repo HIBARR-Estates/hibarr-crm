@@ -6,8 +6,15 @@ return [
     'known_flags' => [
         'crm.lead-qualification-tab',
         'crm.lead-language-core-field',
+        'crm.deal-view-redesign',
+        'crm.lead-view-redesign',
+        'crm.lead-ai-summary',
+        'crm.notification-service-routing',
+        'crm.task-lifecycle-notifications',
+        'sales.ai-entity-summary',
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
+        'sales.crm-lead-deal-sync',
         'sally.crm-write-client',
     ],
 ];

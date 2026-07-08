@@ -121,17 +121,16 @@ class ProjectLocationController extends AccountBaseController
         $location = ProjectLocation::where('company_id', user()->company_id)
             ->findOrFail($id);
 
-        // For Inertia page render
-        // if (!$request->ajax() && !$request->wantsJson()) {
-            return Inertia::render('ProjectLocations/Show', [
-                'pageTitle' => $location->name,
+        if ($request->wantsJson()) {
+            return Reply::successWithData('Project location fetched successfully', [
                 'location' => $location,
             ]);
-        // }
+        }
 
-        // return Reply::successWithData('Project location fetched successfully', [
-        //     'location' => $location,
-        // ]);
+        return Inertia::render('ProjectLocations/Show', [
+            'pageTitle' => $location->name,
+            'location' => $location,
+        ]);
     }
 
     /**

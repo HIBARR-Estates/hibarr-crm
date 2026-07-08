@@ -119,18 +119,30 @@ export default function PropertyCategoryForm({
     // Section-level permission gating:
     // - Edit mode: use property-specific permissions (SM or creator)
     // - Create mode: only SM can see restricted sections
-    const canSeeOwnerInfo = isEditMode
-        ? propertyPermissions.canViewOwnerInfo
-        : isSalesManagerUser;
-    const canSeeDocuments = isEditMode
-        ? propertyPermissions.canViewDocuments
-        : isSalesManagerUser;
-    const canSeeInternalInfo = isEditMode
-        ? propertyPermissions.canViewInternalInfo
-        : isSalesManagerUser;
     const isSalesManager = isEditMode
         ? propertyPermissions.isSalesManager
         : isSalesManagerUser;
+
+    const isCollaboratorOnly = propertyPermissions.canEditPublicFieldsOnly;
+
+    // Section-level permission gating:
+    const canSeeOwnerInfo =
+        !isCollaboratorOnly &&
+        (isEditMode
+            ? propertyPermissions.canViewOwnerInfo
+            : isSalesManagerUser);
+    const canSeeDocuments =
+        !isCollaboratorOnly &&
+        (isEditMode
+            ? propertyPermissions.canViewDocuments
+            : isSalesManagerUser);
+    const canSeeInternalInfo =
+        !isCollaboratorOnly &&
+        (isEditMode
+            ? propertyPermissions.canViewInternalInfo
+            : isSalesManagerUser);
+    const canSeeLegalFinancial = !isCollaboratorOnly;
+    const canSeeCoreDetails = !isCollaboratorOnly;
 
     // ── Fetch unit types for construction project (edit mode) ──
     const constructionProjectId = data?.id;
@@ -505,6 +517,16 @@ export default function PropertyCategoryForm({
                 />
             )}
 
+            {isCollaboratorOnly && (
+                <Alert
+                    message="Collaborator access"
+                    description="You can edit public listing fields only. Owner information, internal details, and status changes are read-only."
+                    type="info"
+                    showIcon
+                    className="mb-4"
+                />
+            )}
+
             <Form
                 form={form}
                 layout="vertical"
@@ -539,6 +561,7 @@ export default function PropertyCategoryForm({
                                 form={form}
                                 value={primaryCategory || undefined}
                                 onChange={handleCategoryChange}
+                                disabled={isCollaboratorOnly}
                             />
                         </Form.Item>
                     </FormSection>
@@ -549,7 +572,7 @@ export default function PropertyCategoryForm({
                             {/* ================================================================ */}
                             {/* Construction Project Sections — entirely different form */}
                             {/* ================================================================ */}
-                            {isConstructionProject && (
+                            {isConstructionProject && !isCollaboratorOnly && (
                                 <>
                                     {/* Project Info — company & project name */}
                                     <FormSection
@@ -787,7 +810,7 @@ export default function PropertyCategoryForm({
                             {!isConstructionProject && (
                                 <>
                                     {/* Core Details */}
-                                    {sections.coreDetails && (
+                                    {canSeeCoreDetails && sections.coreDetails && (
                                         <FormSection
                                             title="Core Details"
                                             icon={<AppstoreOutlined />}
@@ -941,7 +964,7 @@ export default function PropertyCategoryForm({
                                     )}
 
                                     {/* Legal & Financial */}
-                                    {sections.legalFinancial && (
+                                    {canSeeLegalFinancial && sections.legalFinancial && (
                                         <FormSection
                                             title="Legal & Financial"
                                             icon={<SafetyCertificateOutlined />}

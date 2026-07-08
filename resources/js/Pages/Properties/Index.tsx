@@ -49,6 +49,7 @@ import ConstructionProjectsTable from "@/Features/DeveloperProjects/Construction
 import ConstructionProjectFormModal from "@/Features/DeveloperProjects/ConstructionProjectFormModal";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 // Legacy Project interface - kept for backwards compatibility
 interface Project {
@@ -115,6 +116,7 @@ const Index = ({
     cities,
 }: IndexProps) => {
     const { t } = useTranslation();
+    const { td } = useTd();
 
     // ── Active tab state ──
     type ActiveTab =
@@ -492,6 +494,16 @@ const Index = ({
                                             )}
                                         </Button>
                                     </Link>
+                                    <Link href="/account/edit-access-requests">
+                                        <Button
+                                            type="text"
+                                            icon={<EditOutlined />}
+                                        >
+                                            {t(
+                                                "app.properties.actions.edit_access_requests",
+                                            )}
+                                        </Button>
+                                    </Link>
                                     {isSalesManager ? (
                                         <Link href="/account/publish-requests">
                                             <Button
@@ -544,7 +556,7 @@ const Index = ({
                                         disabled={isRefreshing}
                                         type="text"
                                     >
-                                        {t("app.common.actions.refresh")}
+                                        {td("Refresh")}
                                     </Button>
                                     {/* Advanced Filters Button */}
                                     <Button

@@ -1,0 +1,11 @@
+{
+    "workspaceId": "5f972011-7743-4ff2-aa39-9ee0ac8b14a8",
+    "defaultEnvironment": "dev",
+    "domain": "https://infisical.hibarr.org",
+    "gitBranchToEnvironmentMapping": {
+        "staging": "staging",
+        "develop": "staging",
+        "main": "production",
+        "master": "production"
+    }
+}

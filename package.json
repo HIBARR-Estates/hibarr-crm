@@ -7,11 +7,16 @@
         "watch-poll": "mix watch -- --watch-options-poll=1000",
         "hot": "mix watch --hot",
         "prod": "npm run production",
-        "production": "mix --production",
+        "production": "cross-env NODE_OPTIONS=--max-old-space-size=4096 mix --production",
         "postbuild": "node remove-non-tw-classes.js",
         "v-dev": "vite",
         "v-build": "vite build",
-        "v-preview": "vite preview"
+        "v-preview": "vite preview",
+        "env:pull": "infisical export --env=dev --format=dotenv --output-file=.env",
+        "env:check": "infisical secrets --env=dev",
+        "dev:infisical": "infisical run --env=dev -- npm run development",
+        "v-dev:infisical": "infisical run --env=dev -- npm run v-dev",
+        "build:infisical": "infisical run --env=dev -- npm run production"
     },
     "devDependencies": {
         "@babel/preset-react": "^7.27.1",

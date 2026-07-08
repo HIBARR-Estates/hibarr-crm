@@ -290,6 +290,17 @@ class LeadContactController extends AccountBaseController
 
         $leadFollowUps = $leadFollowUpsQuery->get();
 
+        $allParticipantIds = $leadFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+        $participantUsersMap = $allParticipantIds->isEmpty()
+            ? collect()
+            : \App\Models\User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+        $leadFollowUps->each(function ($f) use ($participantUsersMap) {
+            $f->participant_users = collect($f->participants ?? [])
+                ->map(fn ($id) => $participantUsersMap->get($id))
+                ->filter()->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
+                ->values()->toArray();
+        });
+
         $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
             ->select('id', 'name', 'color')
             ->get();
@@ -330,6 +341,9 @@ class LeadContactController extends AccountBaseController
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
+            'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
+                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($this->leadContact)
+                : null,
         ], $formData, $dealFormData));
     }
 
@@ -473,6 +487,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
+        $leadContact->category_id = $request->category_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->company_name = $request->company_name;

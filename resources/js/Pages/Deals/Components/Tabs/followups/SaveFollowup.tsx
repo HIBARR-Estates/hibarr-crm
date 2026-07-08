@@ -2,6 +2,7 @@ import { Deal } from "@/Types/api/deals";
 import { Lead } from "@/Types/api/leads";
 import { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import useTranslation from "@/Hooks/useTranslation";
+import { usePage } from "@inertiajs/react";
 import {
     App,
     Form,
@@ -9,13 +10,11 @@ import {
     Button,
     DatePicker,
     TimePicker,
-    Select,
-    Switch,
     InputNumber,
-    Card,
     Space,
     Typography,
     Alert,
+    Select,
 } from "antd";
 import {
     CalendarOutlined,
@@ -24,16 +23,16 @@ import {
     LinkOutlined,
     PlusOutlined,
     DeleteOutlined,
+    VideoCameraOutlined,
+    PhoneOutlined,
+    BankOutlined,
+    EnvironmentOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { useState, useEffect } from "react";
 import HtmlEditor from "@/Components/HtmlEditor";
 import MeetingTypeSelector from "./MeetingTypeSelector";
 import FormDataSelector from "@/Components/FormDataSelector";
-
-const { TextArea } = Input;
-const { Option } = Select;
-const { Title } = Typography;
 
 export interface SaveFollowupFormData {
     lead_id?: number;
@@ -64,7 +63,122 @@ interface Props {
     onCancel: () => void;
     loading?: boolean;
     errors?: string[];
+    formId?: string;
+    hideFooter?: boolean;
+    onMeetingTypeNameChange?: (name: string) => void;
 }
+
+// ─── Section divider ──────────────────────────────────────────────────────────
+
+function SectionDivider({ label }: { label: string }) {
+    return (
+        <div className="flex items-center gap-3 py-1">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300">
+                {label}
+            </span>
+            <div className="flex-1 h-px bg-gray-100" />
+        </div>
+    );
+}
+
+// ─── Duration chip selector ────────────────────────────────────────────────────
+
+const DURATION_OPTIONS = [
+    { value: 15,  label: "15 min"  },
+    { value: 30,  label: "30 min"  },
+    { value: 45,  label: "45 min"  },
+    { value: 60,  label: "1 hr"    },
+    { value: 90,  label: "1.5 hrs" },
+    { value: 120, label: "2 hrs"   },
+    { value: 180, label: "3 hrs"   },
+    { value: 240, label: "4 hrs"   },
+    { value: 360, label: "6 hrs"   },
+    { value: 480, label: "8 hrs"   },
+];
+
+function DurationChips({
+    value,
+    onChange,
+    disabled,
+}: {
+    value?: number | null;
+    onChange?: (v: number | undefined) => void;
+    disabled?: boolean;
+}) {
+    return (
+        <div className="flex flex-wrap gap-2">
+            {DURATION_OPTIONS.map((opt) => {
+                const active = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => onChange?.(active ? undefined : opt.value)}
+                        className={`px-3 py-1.5 rounded-md text-[13px] font-medium border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                            active
+                                ? "bg-blue-500 border-blue-500 text-white"
+                                : "border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-500"
+                        }`}
+                    >
+                        {opt.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── Platform chip selector ────────────────────────────────────────────────────
+
+const PLATFORM_OPTIONS = [
+    { value: "zoho",     label: "Video",    icon: <VideoCameraOutlined /> },
+    { value: "office",   label: "Office",   icon: <BankOutlined /> },
+    { value: "phone",    label: "Phone",    icon: <PhoneOutlined /> },
+    { value: "physical", label: "In-Person",icon: <EnvironmentOutlined /> },
+];
+
+function PlatformChips({
+    value,
+    onChange,
+    disabled,
+    onAfterChange,
+}: {
+    value?: string;
+    onChange?: (v: string) => void;
+    disabled?: boolean;
+    onAfterChange?: (v: string) => void;
+}) {
+    return (
+        <div className="flex flex-wrap gap-2">
+            {PLATFORM_OPTIONS.map((opt) => {
+                const active = value === opt.value;
+                return (
+                    <button
+                        key={opt.value}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => {
+                            onChange?.(opt.value);
+                            onAfterChange?.(opt.value);
+                        }}
+                        className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border text-[13px] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                            active
+                                ? "bg-blue-500 border-blue-500 text-white"
+                                : "border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-500"
+                        }`}
+                    >
+                        {opt.icon}
+                        {opt.label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── Main component ────────────────────────────────────────────────────────────
 
 export default function SaveFollowup({
     context,
@@ -78,20 +192,21 @@ export default function SaveFollowup({
     onCancel,
     loading = false,
     errors = [],
+    formId,
+    hideFooter = false,
+    onMeetingTypeNameChange,
 }: Props) {
     const { message } = App.useApp();
     const { t } = useTranslation();
+    const { props } = usePage<any>();
+    const currentUserId: number | undefined = props?.auth?.user?.id;
     const [form] = Form.useForm();
     const [generatingMeetingLink, setGeneratingMeetingLink] = useState(false);
 
-    // Reset form when canceling (only for new meetings, not editing)
     const handleCancel = () => {
         if (!followup) {
             form.resetFields();
-            form.setFieldsValue({
-                location: "zoho",
-                reminders: [],
-            });
+            form.setFieldsValue({ location: "zoho", reminders: [] });
         }
         onCancel();
     };
@@ -102,45 +217,30 @@ export default function SaveFollowup({
         followup.status &&
         ["scheduled", "completed", "cancelled"].includes(followup.status)
     );
-    const needsZohoMeetingLink =
-        form.getFieldValue("location") === "zoho" &&
-        !form.getFieldValue("meeting_link");
 
-    // Default reminders that cannot be edited or deleted
     const DEFAULT_REMINDERS: Reminder[] = [
-        { time: 1, type: "hour", is_default: true },
+        { time: 1,  type: "hour",   is_default: true },
         { time: 30, type: "minute", is_default: true },
         { time: 15, type: "minute", is_default: true },
-        { time: 5, type: "minute", is_default: true },
+        { time: 5,  type: "minute", is_default: true },
     ];
 
-    // Helper function to format default reminder text
-    const formatDefaultReminders = () => {
-        return DEFAULT_REMINDERS.map((reminder) => {
+    const formatDefaultReminders = () =>
+        DEFAULT_REMINDERS.map((r) => {
             const unit =
-                reminder.type === "hour"
-                    ? reminder.time === 1
-                        ? "hour"
-                        : "hours"
-                    : reminder.type === "minute"
-                      ? reminder.time === 1
-                          ? "minute"
-                          : "minutes"
-                      : reminder.type === "day"
-                        ? reminder.time === 1
-                            ? "day"
-                            : "days"
-                        : reminder.type;
-            return `${reminder.time} ${unit}`;
+                r.type === "hour"
+                    ? r.time === 1 ? "hour" : "hours"
+                    : r.type === "minute"
+                    ? r.time === 1 ? "minute" : "minutes"
+                    : r.type === "day"
+                    ? r.time === 1 ? "day" : "days"
+                    : r.type;
+            return `${r.time} ${unit}`;
         }).join(", ");
-    };
 
-    // API mutation for generating meeting links
     const handleGenerateMeetingLink = async () => {
         if (!followup?.id) return;
-
         setGeneratingMeetingLink(true);
-
         try {
             const response = await fetch(route("deals.generate-meeting-link"), {
                 method: "POST",
@@ -153,147 +253,79 @@ export default function SaveFollowup({
                 },
                 body: JSON.stringify({ followup_id: followup.id }),
             });
-
             const data = await response.json();
-
             if (data.status === "success") {
                 form.setFieldValue("meeting_link", data.data.meeting_link);
-            } else {
-                console.error("Failed to generate meeting link:", data);
             }
-        } catch (error) {
-            console.error("Failed to generate meeting link:", error);
+        } catch {
+            // silently fail
         } finally {
             setGeneratingMeetingLink(false);
         }
     };
 
-    // Standard location options
-    const standardLocationOptions = [
-        { value: "zoho", label: "Video Meeting" },
-        { value: "office", label: "HIBARR Office" },
-        { value: "phone", label: "Phone Meeting" },
-        { value: "physical", label: "Physical Meeting" },
-    ];
-
-    // Map old location values to readable labels for backward compatibility
-    const oldLocationLabels: Record<string, string> = {
-        zoom: "Zoom",
-        teams: "Microsoft Teams",
-        meet: "Google Meet",
-        phone: "Phone Call",
-        skype: "Skype",
-        other: "Other",
-        zoho_meet: "Zoho Meet",
-        google_meet: "Google Meet",
-    };
-
-    // Get current location value from form to preserve old values
-    const currentLocation = Form.useWatch("location", form);
-
-    // Build location options including current value if it's not in standard options
-    const locationOptions = (() => {
-        const options = [...standardLocationOptions];
-
-        // If current location exists and is not in standard options, add it
-        if (
-            currentLocation &&
-            !options.find((opt) => opt.value === currentLocation)
-        ) {
-            options.push({
-                value: currentLocation,
-                label:
-                    oldLocationLabels[currentLocation] ||
-                    currentLocation.charAt(0).toUpperCase() +
-                        currentLocation.slice(1),
-            });
-        }
-
-        return options;
-    })();
-
     const reminderTypes = [
         { value: "minute", label: "Minutes" },
-        { value: "hour", label: "Hours" },
-        { value: "day", label: "Days" },
+        { value: "hour",   label: "Hours"   },
+        { value: "day",    label: "Days"    },
     ];
 
     const getDefaultParticipants = (): number[] => {
-        const participantIds: number[] = [];
-
+        const ids: number[] = [];
+        if (currentUserId) ids.push(currentUserId);
         if (deal?.deal_participants?.length) {
-            deal.deal_participants.forEach((participant: { id?: number }) => {
-                if (
-                    participant.id &&
-                    !participantIds.includes(participant.id)
-                ) {
-                    participantIds.push(participant.id);
-                }
+            deal.deal_participants.forEach((p: { id?: number }) => {
+                if (p.id && !ids.includes(p.id)) ids.push(p.id);
             });
         }
-
         if (deal?.deal_watchers?.length) {
-            deal.deal_watchers.forEach((watcher: { id?: number }) => {
-                if (watcher.id && !participantIds.includes(watcher.id)) {
-                    participantIds.push(watcher.id);
-                }
+            deal.deal_watchers.forEach((w: { id?: number }) => {
+                if (w.id && !ids.includes(w.id)) ids.push(w.id);
             });
         }
-
-        if (participantIds.length === 0 && lead?.lead_owner?.id) {
-            participantIds.push(lead.lead_owner.id);
+        if (ids.length === 1 && lead?.lead_owner?.id && !ids.includes(lead.lead_owner.id)) {
+            ids.push(lead.lead_owner.id);
         }
-
-        return participantIds;
+        return ids;
     };
 
-    // Initialize form with followup data if editing
     useEffect(() => {
         if (followup) {
             const followupDate = dayjs(followup.next_follow_up_date);
-
-            // Get existing custom reminders (exclude defaults) or initialize with empty array
             const existingCustomReminders = followup.reminders
                 ? followup.reminders.filter((r: Reminder) => !r.is_default)
                 : [];
-
             form.setFieldsValue({
                 next_follow_up_date: followupDate,
-                start_time: followupDate,
-                meeting_type_id: followup.meeting_type?.id,
-                location: followup.location || "zoho",
-                meeting_link: followup.meeting_link || "",
-                duration: followup.duration ?? undefined,
-                reminders: existingCustomReminders, // Only set custom reminders in form
-                remark: followup.remark || "",
-                participants: followup.participants || [],
+                start_time:          followupDate,
+                meeting_type_id:     followup.meeting_type?.id,
+                location:            followup.location || "zoho",
+                meeting_link:        followup.meeting_link || "",
+                duration:            followup.duration ?? undefined,
+                reminders:           existingCustomReminders,
+                remark:              followup.remark || "",
+                participants:        followup.participants || [],
             });
         } else {
-            // Reset form to default values for new follow-up
-            // Pre-fill participants with deal agent, participants, and watchers
             const defaultParticipants = getDefaultParticipants();
             form.resetFields();
             form.setFieldsValue({
-                location: "zoho",
-                duration: 15,
-                reminders: [], // Start with empty custom reminders array
+                location:     "zoho",
+                duration:     15,
+                reminders:    [],
                 participants: defaultParticipants,
             });
         }
     }, [followup, form, deal, lead]);
 
     const handleLocationChange = (value: string) => {
-        if (value === "office") {
+        if (value !== "zoho") {
             form.setFieldValue("meeting_link", "");
         }
-        // For Zoho, we'll show the generate button if no link exists
     };
 
     const handleSubmit = (values: any) => {
-        // Prevent submission if meeting is already scheduled
-        if (isScheduled) {
-            return;
-        }
+        if (isScheduled) return;
 
         if (context === "deal" && deal) {
             const hasAgent =
@@ -315,7 +347,6 @@ export default function SaveFollowup({
             }
         }
 
-        // Validate participants for video meetings
         const isVideoMeeting = values.location === "zoho";
         const participants = values.participants || [];
 
@@ -323,33 +354,26 @@ export default function SaveFollowup({
             form.setFields([
                 {
                     name: "participants",
-                    errors: [
-                        "At least one participant is required for video meetings",
-                    ],
+                    errors: ["At least one participant is required for video meetings"],
                 },
             ]);
             return;
         }
 
-        // Get custom reminders from form
         const customReminders = values.reminders || [];
-
-        // Get browser timezone
-        const browserTimezone =
-            Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+        const browserTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
 
         const formData: SaveFollowupFormData = {
-            next_follow_up_date:
-                values.next_follow_up_date.format("DD-MM-YYYY"),
-            start_time: values.start_time.format("HH:mm:ss"),
-            meeting_type_id: values.meeting_type_id,
-            location: values.location,
-            meeting_link: values.meeting_link || "",
-            duration: values.duration ?? null,
-            reminders: customReminders,
-            remark: values.remark || "",
-            participants: participants,
-            timezone: browserTimezone,
+            next_follow_up_date: values.next_follow_up_date.format("DD-MM-YYYY"),
+            start_time:          values.start_time.format("HH:mm:ss"),
+            meeting_type_id:     values.meeting_type_id,
+            location:            values.location,
+            meeting_link:        values.meeting_link || "",
+            duration:            values.duration ?? null,
+            reminders:           customReminders,
+            remark:              values.remark || "",
+            participants:        participants,
+            timezone:            browserTimezone,
             ...(values.duration ? { duration: values.duration } : {}),
         };
 
@@ -364,50 +388,35 @@ export default function SaveFollowup({
 
         onSubmit(formData);
 
-        // Reset form after submission if creating new meeting (not editing)
         if (!isEditing) {
             form.resetFields();
             const defaultParticipants = getDefaultParticipants();
             form.setFieldsValue({
-                location: "zoho",
-                reminders: [],
+                location:     "zoho",
+                reminders:    [],
                 participants: defaultParticipants,
             });
         }
     };
 
-    // Custom validator for HTML content
-    const validateContent = (_: any, value: string) => {
-        // Strip HTML tags and check for actual text content
-        const textContent = (value || "")
-            .replace(/<[^>]*>/g, "")
-            .replace(/&nbsp;/g, " ")
-            .trim();
-
-        if (!textContent || textContent === "") {
-            return Promise.reject(new Error("Please enter follow-up details"));
-        }
-        return Promise.resolve();
-    };
-
     return (
         <Form
+            id={formId}
             form={form}
             layout="vertical"
             onFinish={handleSubmit}
             className="flex flex-col gap-y-4"
         >
-            {/* Display errors if any */}
+            {/* Errors */}
             {errors.length > 0 && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-3 mb-4">
-                    {errors.map((error, index) => (
-                        <p key={index} className="text-red-600 text-sm mb-0">
-                            {error}
-                        </p>
+                <div className="bg-red-50 border border-red-200 rounded-md p-3">
+                    {errors.map((error, i) => (
+                        <p key={i} className="text-red-600 text-sm mb-0">{error}</p>
                     ))}
                 </div>
             )}
 
+            {/* Lead entity info */}
             {showLeadEntity && lead && (
                 <div className="rounded-md border border-gray-200 bg-gray-50 px-4 py-3">
                     <p className="text-xs font-medium text-gray-500 mb-1">
@@ -419,6 +428,7 @@ export default function SaveFollowup({
                 </div>
             )}
 
+            {/* Optional deal select */}
             {showOptionalDealSelect && (
                 <Form.Item
                     name="optional_deal_id"
@@ -427,102 +437,61 @@ export default function SaveFollowup({
                     <Select
                         showSearch
                         allowClear
-                        placeholder={t(
-                            "app.meetings.optional_deal_placeholder",
-                        )}
+                        placeholder={t("app.meetings.optional_deal_placeholder")}
                         optionFilterProp="label"
                         className="w-full"
                         disabled={loading || isScheduled}
-                        options={dealsForLead.map((d) => ({
-                            value: d.id,
-                            label: d.name,
-                        }))}
+                        options={dealsForLead.map((d) => ({ value: d.id, label: d.name }))}
                         filterOption={(input, option) =>
-                            (option?.label as string)
-                                ?.toLowerCase()
-                                .includes(input.toLowerCase()) ?? false
+                            (option?.label as string)?.toLowerCase().includes(input.toLowerCase()) ?? false
                         }
                     />
                 </Form.Item>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* Follow-up Date */}
+            {/* ── Date & Time ── */}
+            <SectionDivider label="Date & Time" />
+
+            <div className="grid grid-cols-2 gap-4">
                 <Form.Item
                     name="next_follow_up_date"
                     label="Meeting Date"
-                    rules={[
-                        {
-                            required: true,
-                            message: "Please select a meeting date",
-                        },
-                    ]}
+                    rules={[{ required: true, message: "Please select a meeting date" }]}
+                    className="mb-0"
                 >
                     <DatePicker
                         className="w-full"
                         format="YYYY-MM-DD"
                         disabled={loading || isScheduled}
-                        disabledDate={(current) =>
-                            current && current < dayjs().startOf("day")
-                        }
+                        disabledDate={(current) => current && current < dayjs().startOf("day")}
                         prefix={<CalendarOutlined />}
                         placeholder="Select date"
                     />
                 </Form.Item>
 
-                {/* Start Time */}
                 <Form.Item
                     name="start_time"
                     label="Start Time"
                     rules={[
-                        {
-                            required: true,
-                            message: "Please select a start time",
-                        },
+                        { required: true, message: "Please select a start time" },
                         {
                             validator: (_, value) => {
-                                const selectedDate = form.getFieldValue(
-                                    "next_follow_up_date",
-                                );
-
-                                if (!value || !selectedDate) {
-                                    return Promise.resolve();
-                                }
-
-                                if (
-                                    !dayjs.isDayjs(selectedDate) ||
-                                    !dayjs.isDayjs(value)
-                                ) {
-                                    return Promise.resolve();
-                                }
-
+                                const selectedDate = form.getFieldValue("next_follow_up_date");
+                                if (!value || !selectedDate) return Promise.resolve();
+                                if (!dayjs.isDayjs(selectedDate) || !dayjs.isDayjs(value)) return Promise.resolve();
                                 const selectedDateTime = dayjs(selectedDate)
                                     .hour(value.hour())
                                     .minute(value.minute())
                                     .second(0)
                                     .millisecond(0);
-
-                                const minimumAllowedTime = dayjs().add(
-                                    5,
-                                    "minute",
-                                );
-
-                                if (
-                                    selectedDateTime.isBefore(
-                                        minimumAllowedTime,
-                                    )
-                                ) {
-                                    return Promise.reject(
-                                        new Error(
-                                            "Start time must be at least 5 minutes in the future.",
-                                        ),
-                                    );
+                                if (selectedDateTime.isBefore(dayjs().add(5, "minute"))) {
+                                    return Promise.reject(new Error("Start time must be at least 5 minutes in the future."));
                                 }
-
                                 return Promise.resolve();
                             },
                         },
                     ]}
+                    className="mb-0"
                 >
                     <TimePicker
                         className="w-full"
@@ -532,146 +501,62 @@ export default function SaveFollowup({
                         placeholder="Select time"
                     />
                 </Form.Item>
-
-                {/* Duration (minutes) */}
-                <Form.Item
-                    name="duration"
-                    label="Duration"
-                    tooltip="Meeting duration in minutes"
-                >
-                    <Select
-                        className="w-full"
-                        placeholder="Select duration"
-                        allowClear
-                        disabled={loading || isScheduled}
-                        options={[
-                            { value: 15, label: "15 min" },
-                            { value: 30, label: "30 min" },
-                            { value: 45, label: "45 min" },
-                            { value: 60, label: "1 hour" },
-                            { value: 90, label: "1.5 hours" },
-                            { value: 120, label: "2 hours" },
-                            { value: 180, label: "3 hours" },
-                            { value: 240, label: "4 hours" },
-                            { value: 300, label: "5 hours" },
-                            { value: 360, label: "6 hours" },
-                            { value: 420, label: "7 hours" },
-                            { value: 480, label: "8 hours" },
-                            { value: 540, label: "9 hours" },
-                            { value: 600, label: "10 hours" },
-                        ]}
-                    />
-                </Form.Item>
-
-                {/* Meeting Type */}
-                <Form.Item
-                    name="meeting_type_id"
-                    label="Meeting Type"
-                    rules={[
-                        {
-                            required: true,
-                            message: "Please select a meeting type",
-                        },
-                    ]}
-                >
-                    <MeetingTypeSelector
-                        disabled={loading || isScheduled}
-                        placeholder="Select meeting type"
-                        showPlatform={false}
-                    />
-                </Form.Item>
             </div>
 
-            {/* Location/Platform */}
+            {/* ── Meeting Details ── */}
+            <SectionDivider label="Meeting Details" />
+
+            {/* Duration */}
+            <Form.Item
+                name="duration"
+                label="Duration"
+                tooltip="Meeting duration in minutes"
+                className="mb-0"
+            >
+                <DurationChips disabled={loading || isScheduled} />
+            </Form.Item>
+
+            {/* Meeting Type */}
+            <Form.Item
+                name="meeting_type_id"
+                label="Meeting Type"
+                rules={[{ required: true, message: "Please select a meeting type" }]}
+                className="mb-0"
+            >
+                <MeetingTypeSelector
+                    renderAsChips={true}
+                    disabled={loading || isScheduled}
+                    placeholder="Select meeting type"
+                    showPlatform={false}
+                    onNameChange={onMeetingTypeNameChange}
+                />
+            </Form.Item>
+
+            {/* Platform */}
             <Form.Item
                 name="location"
                 label="Platform"
-                rules={[
-                    {
-                        required: true,
-                        message: "Please select a platform",
-                    },
-                ]}
+                rules={[{ required: true, message: "Please select a platform" }]}
+                className="mb-0"
             >
-                <Select
-                    placeholder="Select platform"
-                    className="w-full"
+                <PlatformChips
                     disabled={loading || isScheduled}
-                    onChange={handleLocationChange}
-                >
-                    {locationOptions.map((option) => (
-                        <Option key={option.value} value={option.value}>
-                            {option.label}
-                        </Option>
-                    ))}
-                </Select>
+                    onAfterChange={handleLocationChange}
+                />
             </Form.Item>
 
-            {/* Participants - shown for video meetings */}
+            {/* Meeting Link — only for video */}
             <Form.Item
-                shouldUpdate={(prevValues, currentValues) =>
-                    prevValues.location !== currentValues.location
+                shouldUpdate={(prev, curr) =>
+                    prev.location !== curr.location || prev.meeting_link !== curr.meeting_link
                 }
                 noStyle
             >
                 {({ getFieldValue }) => {
-                    const location = getFieldValue("location");
-                    const isVideoMeeting = location === "zoho";
-
-                    if (!isVideoMeeting) return null;
-
-                    return (
-                        <Form.Item
-                            name="participants"
-                            label="Meeting Participants"
-                            rules={[
-                                {
-                                    required: true,
-                                    message:
-                                        "At least one participant is required for video meetings",
-                                    validator: (_, value) => {
-                                        if (!value || value.length === 0) {
-                                            return Promise.reject(
-                                                new Error(
-                                                    "At least one participant is required for video meetings",
-                                                ),
-                                            );
-                                        }
-                                        return Promise.resolve();
-                                    },
-                                },
-                            ]}
-                            tooltip="Participants will be invited to the video meeting. Pre-filled with deal agent, participants, and watchers."
-                        >
-                            <FormDataSelector
-                                type="employees"
-                                mode="multiple"
-                                placeholder="Select meeting participants"
-                                disabled={loading || isScheduled}
-                            />
-                        </Form.Item>
-                    );
-                }}
-            </Form.Item>
-
-            {/* Meeting Link - conditionally shown and auto-generated for Zoho */}
-            <Form.Item
-                shouldUpdate={(prevValues, currentValues) =>
-                    prevValues.location !== currentValues.location ||
-                    prevValues.meeting_link !== currentValues.meeting_link
-                }
-                noStyle
-            >
-                {({ getFieldValue }) => {
-                    const location = getFieldValue("location");
-                    const meetingLink = getFieldValue("meeting_link");
-                    const showMeetingLinkField = location === "zoho";
-                    const isZoho = location === "zoho";
-                    const isPhoneOrPhysical =
-                        location === "phone" || location === "physical";
-                    const needsGeneration = isZoho && !meetingLink && isEditing;
-
-                    if (!showMeetingLinkField) return null;
+                    const loc = getFieldValue("location");
+                    if (loc !== "zoho") return null;
+                    const link = getFieldValue("meeting_link");
+                    const showGenerate = loc === "zoho" && !link && isEditing;
 
                     return (
                         <Form.Item
@@ -679,62 +564,31 @@ export default function SaveFollowup({
                             label={
                                 <Space>
                                     Meeting Link
-                                    {isZoho && (
-                                        <Typography.Text
-                                            type="secondary"
-                                            style={{ fontSize: "12px" }}
-                                        >
-                                            (Auto-generated for Zoho)
-                                        </Typography.Text>
-                                    )}
+                                    <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                                        (Auto-generated for video)
+                                    </Typography.Text>
                                 </Space>
                             }
                             rules={[
                                 {
                                     type: "url",
-                                    message: "Please enter a valid URL",
                                     validator: (_, value) => {
-                                        // Don't validate URL format for phone or physical meetings
-                                        if (isPhoneOrPhysical) {
-                                            return Promise.resolve();
-                                        }
-                                        if (!value) {
-                                            return Promise.resolve();
-                                        }
-                                        try {
-                                            new URL(value);
-                                            return Promise.resolve();
-                                        } catch {
-                                            return Promise.reject(
-                                                new Error(
-                                                    "Please enter a valid URL",
-                                                ),
-                                            );
-                                        }
+                                        if (!value) return Promise.resolve();
+                                        try { new URL(value); return Promise.resolve(); }
+                                        catch { return Promise.reject(new Error("Please enter a valid URL")); }
                                     },
                                 },
-                                {
-                                    required: !isZoho && !isPhoneOrPhysical,
-                                    message: "Please enter a meeting link",
-                                },
                             ]}
+                            className="mb-0"
                         >
                             <Space.Compact style={{ display: "flex" }}>
                                 <Input
-                                    placeholder={
-                                        isZoho
-                                            ? "Meeting link will be auto-generated"
-                                            : "Enter meeting link (e.g., https://zoom.us/j/...)"
-                                    }
-                                    disabled={
-                                        loading ||
-                                        (isZoho && !isEditing) ||
-                                        isScheduled
-                                    }
-                                    readOnly={isZoho || isScheduled}
+                                    placeholder="Meeting link will be auto-generated"
+                                    disabled={loading || (loc === "zoho" && !isEditing) || isScheduled}
+                                    readOnly={loc === "zoho" || isScheduled}
                                     style={{ flex: 1 }}
                                 />
-                                {needsGeneration && (
+                                {showGenerate && (
                                     <Button
                                         type="primary"
                                         icon={<LinkOutlined />}
@@ -751,220 +605,176 @@ export default function SaveFollowup({
                 }}
             </Form.Item>
 
-            {/* Remark/Notes */}
-            <Form.Item label="Meeting Agenda" name="remark" className="mb-6">
+            {/* ── People ── (only for video meetings) */}
+            <Form.Item
+                shouldUpdate={(prev, curr) => prev.location !== curr.location}
+                noStyle
+            >
+                {({ getFieldValue }) => {
+                    if (getFieldValue("location") !== "zoho") return null;
+                    return (
+                        <>
+                            <SectionDivider label="People" />
+                            <Form.Item
+                                name="participants"
+                                label="Meeting Participants"
+                                rules={[
+                                    {
+                                        validator: (_, value) => {
+                                            if (!value || value.length === 0) {
+                                                return Promise.reject(
+                                                    new Error("At least one participant is required for video meetings"),
+                                                );
+                                            }
+                                            return Promise.resolve();
+                                        },
+                                    },
+                                ]}
+                                tooltip="Pre-filled with deal agent, participants, and watchers."
+                                className="mb-0"
+                            >
+                                <FormDataSelector
+                                    type="employees"
+                                    mode="multiple"
+                                    placeholder="Select meeting participants"
+                                    disabled={loading || isScheduled}
+                                />
+                            </Form.Item>
+                        </>
+                    );
+                }}
+            </Form.Item>
+
+            {/* ── Optional ── */}
+            <SectionDivider label="Optional" />
+
+            {/* Agenda */}
+            <Form.Item label="Meeting Agenda" name="remark" className="mb-0">
                 <HtmlEditor
                     placeholder="Enter meeting agenda, details, or remarks..."
                     disabled={loading || isScheduled}
-                    height={250}
+                    height={200}
                 />
             </Form.Item>
 
-            {/* Meeting Reminders - Compact Display */}
-            <Card
-                title="Meeting Reminders"
-                size="small"
-                className="mb-4"
-                variant="outlined"
-            >
-                <div className="space-y-4">
-                    {/* Default Reminders Info */}
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <div className="flex items-start gap-2">
-                            <ClockCircleOutlined className="text-blue-600 mt-0.5" />
-                            <div>
-                                <Typography.Text
-                                    strong
-                                    className="text-blue-900"
-                                >
-                                    Automatic Reminders:
-                                </Typography.Text>
-                                <Typography.Text className="text-blue-800 ml-2">
-                                    {formatDefaultReminders()} before the
-                                    meeting
-                                </Typography.Text>
-                                <div className="mt-1">
-                                    <Typography.Text
-                                        type="secondary"
-                                        className="text-xs"
-                                    >
-                                        These reminders are automatically
-                                        included and cannot be modified.
-                                    </Typography.Text>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Custom Reminders */}
+            {/* Reminders — info block + custom */}
+            <div className="space-y-3">
+                <div className="flex items-start gap-3 px-4 py-3 bg-blue-50 border border-blue-100 rounded-xl">
+                    <ClockCircleOutlined className="text-blue-500 mt-0.5 shrink-0" />
                     <div>
-                        <Typography.Text strong className="block mb-2">
-                            Additional Custom Reminders (Optional):
-                        </Typography.Text>
-
-                        <Form.List name="reminders">
-                            {(fields, { add, remove }) => (
-                                <>
-                                    {fields.length > 0 && (
-                                        <div className="flex flex-col gap-y-3 mb-3">
-                                            {fields.map((field) => (
-                                                <div
-                                                    key={field.key}
-                                                    className="p-3 border border-gray-200 rounded-lg bg-white"
-                                                >
-                                                    <Space
-                                                        className="w-full"
-                                                        align="center"
-                                                    >
-                                                        <Form.Item
-                                                            {...field}
-                                                            name={[
-                                                                field.name,
-                                                                "time",
-                                                            ]}
-                                                            className="mb-0"
-                                                            rules={[
-                                                                {
-                                                                    required: true,
-                                                                    message:
-                                                                        "Enter time",
-                                                                },
-                                                                {
-                                                                    type: "number",
-                                                                    min: 1,
-                                                                    max: 1440,
-                                                                    message:
-                                                                        "Time must be between 1 and 1440",
-                                                                },
-                                                            ]}
-                                                        >
-                                                            <InputNumber
-                                                                min={1}
-                                                                max={1440}
-                                                                placeholder="15"
-                                                                disabled={
-                                                                    loading ||
-                                                                    isScheduled
-                                                                }
-                                                                style={{
-                                                                    width: 80,
-                                                                }}
-                                                            />
-                                                        </Form.Item>
-
-                                                        <Form.Item
-                                                            {...field}
-                                                            name={[
-                                                                field.name,
-                                                                "type",
-                                                            ]}
-                                                            className="mb-0"
-                                                            rules={[
-                                                                {
-                                                                    required: true,
-                                                                    message:
-                                                                        "Select unit",
-                                                                },
-                                                            ]}
-                                                        >
-                                                            <Select
-                                                                placeholder="Unit"
-                                                                disabled={
-                                                                    loading ||
-                                                                    isScheduled
-                                                                }
-                                                                style={{
-                                                                    width: 100,
-                                                                }}
-                                                            >
-                                                                {reminderTypes.map(
-                                                                    (type) => (
-                                                                        <Option
-                                                                            key={
-                                                                                type.value
-                                                                            }
-                                                                            value={
-                                                                                type.value
-                                                                            }
-                                                                        >
-                                                                            {
-                                                                                type.label
-                                                                            }
-                                                                        </Option>
-                                                                    ),
-                                                                )}
-                                                            </Select>
-                                                        </Form.Item>
-
-                                                        <Form.Item label={null}>
-                                                            <Typography.Text type="secondary">
-                                                                before meeting
-                                                            </Typography.Text>
-                                                        </Form.Item>
-
-                                                        <Form.Item label={null}>
-                                                            <Button
-                                                                type="text"
-                                                                danger
-                                                                icon={
-                                                                    <DeleteOutlined />
-                                                                }
-                                                                onClick={() =>
-                                                                    remove(
-                                                                        field.name,
-                                                                    )
-                                                                }
-                                                                disabled={
-                                                                    loading ||
-                                                                    isScheduled
-                                                                }
-                                                                size="small"
-                                                            />
-                                                        </Form.Item>
-                                                    </Space>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    <Button
-                                        type="dashed"
-                                        onClick={() =>
-                                            add({ time: 10, type: "minute" })
-                                        }
-                                        icon={<PlusOutlined />}
-                                        className="w-full"
-                                        disabled={loading || isScheduled}
-                                        size="small"
-                                    >
-                                        Add Custom Reminder
-                                    </Button>
-                                </>
-                            )}
-                        </Form.List>
+                        <p className="text-sm font-semibold text-blue-800 mb-0">
+                            Automatic reminders included
+                        </p>
+                        <p className="text-[13px] text-blue-600 mt-0.5 mb-0">
+                            Participants will be notified {formatDefaultReminders()} before the meeting.
+                        </p>
                     </div>
                 </div>
-            </Card>
 
-            {/* Submit Buttons */}
-            <div className="flex items-center justify-end gap-x-3 mt-12 mb-4 pt-4 border-t border-gray-200">
-                <Button
-                    onClick={handleCancel}
-                    disabled={loading || isScheduled}
-                >
-                    Cancel
-                </Button>
-                <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={loading}
-                    disabled={loading || isScheduled}
-                    icon={<SaveOutlined />}
-                    className="bg-blue-600 hover:bg-blue-700"
-                >
-                    {isEditing ? "Update Meeting" : "Schedule Meeting"}
-                </Button>
+                <div>
+                    <Typography.Text strong className="text-sm block mb-2">
+                        Additional Custom Reminders (Optional):
+                    </Typography.Text>
+
+                    <Form.List name="reminders">
+                        {(fields, { add, remove }) => (
+                            <>
+                                {fields.length > 0 && (
+                                    <div className="flex flex-col gap-y-2 mb-2">
+                                        {fields.map((field) => (
+                                            <div
+                                                key={field.key}
+                                                className="p-3 border border-gray-200 rounded-lg bg-white"
+                                            >
+                                                <Space className="w-full" align="center">
+                                                    <Form.Item
+                                                        {...field}
+                                                        name={[field.name, "time"]}
+                                                        className="mb-0"
+                                                        rules={[
+                                                            { required: true, message: "Enter time" },
+                                                            { type: "number", min: 1, max: 1440, message: "1–1440" },
+                                                        ]}
+                                                    >
+                                                        <InputNumber
+                                                            min={1}
+                                                            max={1440}
+                                                            placeholder="15"
+                                                            disabled={loading || isScheduled}
+                                                            style={{ width: 80 }}
+                                                        />
+                                                    </Form.Item>
+
+                                                    <Form.Item
+                                                        {...field}
+                                                        name={[field.name, "type"]}
+                                                        className="mb-0"
+                                                        rules={[{ required: true, message: "Select unit" }]}
+                                                    >
+                                                        <Select
+                                                            placeholder="Unit"
+                                                            disabled={loading || isScheduled}
+                                                            style={{ width: 100 }}
+                                                            options={reminderTypes}
+                                                        />
+                                                    </Form.Item>
+
+                                                    <Form.Item label={null}>
+                                                        <Typography.Text type="secondary">
+                                                            before meeting
+                                                        </Typography.Text>
+                                                    </Form.Item>
+
+                                                    <Form.Item label={null}>
+                                                        <Button
+                                                            type="text"
+                                                            danger
+                                                            icon={<DeleteOutlined />}
+                                                            onClick={() => remove(field.name)}
+                                                            disabled={loading || isScheduled}
+                                                            size="small"
+                                                        />
+                                                    </Form.Item>
+                                                </Space>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+
+                                <Button
+                                    type="dashed"
+                                    onClick={() => add({ time: 10, type: "minute" })}
+                                    icon={<PlusOutlined />}
+                                    className="w-full"
+                                    disabled={loading || isScheduled}
+                                    size="small"
+                                >
+                                    Add Custom Reminder
+                                </Button>
+                            </>
+                        )}
+                    </Form.List>
+                </div>
             </div>
+
+            {/* Footer (hidden when managed externally) */}
+            {!hideFooter && (
+                <div className="flex items-center justify-end gap-x-3 mt-8 mb-4 pt-4 border-t border-gray-200">
+                    <Button onClick={handleCancel} disabled={loading || isScheduled}>
+                        Cancel
+                    </Button>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={loading}
+                        disabled={loading || isScheduled}
+                        icon={<SaveOutlined />}
+                        className="bg-blue-600 hover:bg-blue-700"
+                    >
+                        {isEditing ? "Update Meeting" : "Schedule Meeting"}
+                    </Button>
+                </div>
+            )}
         </Form>
     );
 }
