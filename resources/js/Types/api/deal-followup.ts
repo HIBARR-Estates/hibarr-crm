@@ -39,6 +39,8 @@ export interface DealFollowup {
     participants?: number[]; // Array of user IDs
     meeting_summary?: MeetingSummary;
     deal?: Pick<Deal, "id" | "name"> | Deal;
+    zoho_calendar_job_id?: string | null;
+    zoho_calendar_sync_status?: "pending" | "synced" | "failed" | null;
     lead?: Pick<
         Lead,
         "id" | "client_name" | "client_name_salutation" | "company_name"
