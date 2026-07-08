@@ -30,6 +30,7 @@ import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { ContentRenderer } from "@/Components/ContentRenderer";
+import ZohoCalendarSyncStatus from "@/Features/Meetings/ZohoCalendarSyncStatus";
 
 dayjs.extend(utc);
 
@@ -319,6 +320,17 @@ const ViewFollowup: React.FC<Props> = ({
     const effectiveDuration =
         followup?.effective_duration ?? followup?.duration ?? DEFAULT_DURATION;
     const isCreator = followup?.added_by?.id === currentUserId;
+
+    const featureEnabled =
+        props?.featureFlags?.["integrations.zoho-calendar-sync"] === true;
+    const hasZohoProfile = Boolean(props?.auth?.user?.has_zoho_profile);
+    const shouldShowZohoSync =
+        featureEnabled &&
+        isCreator &&
+        hasZohoProfile &&
+        (followup?.zoho_calendar_job_id ||
+            followup?.zoho_calendar_sync_status);
+
     const hasValidLink =
         followup?.meeting_link &&
         isSafeUrl(followup.meeting_link) &&
@@ -447,6 +459,21 @@ const ViewFollowup: React.FC<Props> = ({
                                 </a>
                             )}
                         </div>
+
+                        {/* Zoho Calendar Sync */}
+                        {shouldShowZohoSync && (
+                            <div className="flex items-center gap-3 px-4 py-3">
+                                <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">
+                                    Calendar Sync
+                                </span>
+                                <ZohoCalendarSyncStatus
+                                    followup={followup}
+                                    featureEnabled={featureEnabled}
+                                    isCreator={isCreator}
+                                    hasZohoProfile={hasZohoProfile}
+                                />
+                            </div>
+                        )}
 
                         {/* Scheduled by */}
                         <div className="flex items-center gap-3 px-4 py-3">
