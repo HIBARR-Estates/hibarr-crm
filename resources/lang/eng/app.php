@@ -1594,6 +1594,7 @@ return array(
         'actions' => [
             'add'                   => 'Add Property',
             'availability_requests' => 'Availability Requests',
+            'edit_access_requests'  => 'Edit Access Requests',
             'publish_requests'      => 'Publish Requests',
             'configuration'         => 'Configuration',
         ],

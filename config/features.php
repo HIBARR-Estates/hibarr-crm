@@ -15,5 +15,6 @@ return [
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
         'sales.crm-lead-deal-sync',
+        'integrations.zoho-calendar-sync',
     ],
 ];
