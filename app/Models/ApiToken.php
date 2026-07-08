@@ -42,6 +42,25 @@ class ApiToken extends Model
         return hash('sha256', $plainToken);
     }
 
+    public static function isStoredPlaintextToken(string $storedToken): bool
+    {
+        return str_starts_with($storedToken, 'hib_');
+    }
+
+    /**
+     * Resolve an API token row from the plaintext credential sent by clients.
+     */
+    public static function findByPlainToken(string $plainToken, ?int $companyId = null): ?self
+    {
+        $query = static::query()->where('token', self::hashToken($plainToken));
+
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+
+        return $query->first();
+    }
+
     public function maskedToken(): string
     {
         $token = (string) $this->token;

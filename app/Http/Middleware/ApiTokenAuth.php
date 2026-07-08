@@ -6,7 +6,6 @@ use App\Models\ApiToken;
 use App\Services\ApiTokenScopeService;
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -28,7 +27,7 @@ class ApiTokenAuth
             return response()->json(['message' => __('messages.unAuthorisedUser')], 401);
         }
 
-        $tokenData = $this->findTokenRecord($token);
+        $tokenData = ApiToken::findByPlainToken($token);
 
         if (!$tokenData || $tokenData->revoked) {
             $message = !$tokenData ? __('messages.unAuthorisedUser') : __('messages.tokenRevoked');
@@ -61,16 +60,6 @@ class ApiTokenAuth
         }
 
         return $next($request);
-    }
-
-    private function findTokenRecord(string $token): ?object
-    {
-        $hashed = ApiToken::hashToken($token);
-
-        return DB::table('api_tokens')
-            ->where('token', $hashed)
-            ->orWhere('token', $token)
-            ->first();
     }
 
     /**
