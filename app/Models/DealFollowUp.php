@@ -67,6 +67,8 @@ class DealFollowUp extends BaseModel
         'event_id',
         'meeting_id',
         'summary_id',
+        'zoho_calendar_job_id',
+        'zoho_calendar_sync_status',
         'send_reminder',
         'remind_time',
         'remind_type',
@@ -86,6 +88,10 @@ class DealFollowUp extends BaseModel
 
     /** Default meeting duration (minutes) when none is set */
     public const DEFAULT_DURATION_MINUTES = 30;
+
+    public const ZOHO_CALENDAR_SYNC_PENDING = 'pending';
+    public const ZOHO_CALENDAR_SYNC_SYNCED = 'synced';
+    public const ZOHO_CALENDAR_SYNC_FAILED = 'failed';
 
     // Default reminders that cannot be edited or deleted
     public const DEFAULT_REMINDERS = [

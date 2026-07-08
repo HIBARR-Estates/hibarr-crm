@@ -217,6 +217,9 @@ class HandleInertiaRequests extends Middleware
         $leadAgent = \App\Models\LeadAgent::where('user_id', $user->id)->first();
         $user->setAttribute('lead_agent_id', $leadAgent?->id);
 
+        // Used by integrations feature UIs to decide whether to show an integration badge.
+        $user->setAttribute('has_zoho_profile', !empty($user->employeeDetail?->zoho_id));
+
         return $user;
     }
 
