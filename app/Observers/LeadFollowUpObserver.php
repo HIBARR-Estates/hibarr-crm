@@ -75,13 +75,13 @@ class LeadFollowUpObserver
 
     public function deleting(DealFollowUp $leadFollowUp)
     {
-        /* Start of deleting event from google calendar */
-        $deletedHistory = new DealHistory();
-        $deletedHistory->deal_id = $leadFollowUp->deal_id;
-        $deletedHistory->event_type = 'followup-deleted';
-        $deletedHistory->created_by = user()->id;
-        $deletedHistory->save();
-
+        if ($leadFollowUp->deal_id) {
+            $deletedHistory = new DealHistory();
+            $deletedHistory->deal_id = $leadFollowUp->deal_id;
+            $deletedHistory->event_type = 'followup-deleted';
+            $deletedHistory->created_by = user()?->id;
+            $deletedHistory->save();
+        }
 
         $google = new Google();
         $googleAccount = company();
@@ -189,10 +189,9 @@ class LeadFollowUpObserver
 
     public function deleted(DealFollowUp $leadFollowUp)
     {
-        if (user()) {
+        if (user() && $leadFollowUp->deal_id) {
             self::createDealHistory($leadFollowUp->deal_id, 'followup-deleted');
             self::createEmployeeActivity(user()->id, 'followUp-deleted');
-
         }
     }
 
