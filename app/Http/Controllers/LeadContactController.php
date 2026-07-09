@@ -520,7 +520,7 @@ class LeadContactController extends AccountBaseController
         Log::info("Create Lead Contact, b4 save");
 
         $this->coreFieldsService->write($leadContact, $request->only([
-            'languages', 'date_of_birth', 'nationality', 'occupation',
+            'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
         $leadContact->save();
 
@@ -688,7 +688,7 @@ class LeadContactController extends AccountBaseController
             $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
         }
         $this->coreFieldsService->write($leadContact, $request->only([
-            'languages', 'date_of_birth', 'nationality', 'occupation',
+            'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
         $leadContact->save();
 
@@ -854,7 +854,7 @@ class LeadContactController extends AccountBaseController
             }
 
             $this->coreFieldsService->write($leadContact, $request->only([
-                'languages', 'date_of_birth', 'nationality', 'occupation',
+                'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
             ]));
 
             // Save the lead contact
@@ -966,12 +966,12 @@ class LeadContactController extends AccountBaseController
                     'company_name', 'website', 'address', 'city', 'state', 'country',
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
-                    'languages', 'date_of_birth', 'nationality', 'occupation',
+                    'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
                 ];
                 
                 foreach ($allowedFields as $field) {
                     if ($request->has($field)) {
-                        if (in_array($field, ['languages', 'date_of_birth', 'nationality', 'occupation'], true)) {
+                        if (in_array($field, ['languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation'], true)) {
                             $responseData[$field] = $this->coreFieldsService->read($leadContact)[$field] ?? null;
                         } else {
                             $responseData[$field] = $leadContact->getAttribute($field);

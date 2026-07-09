@@ -3,6 +3,7 @@
 namespace App\Traits;
 
 use App\Enums\Salutation;
+use App\Enums\AgeRange;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
 use App\Models\Lead;
@@ -54,6 +55,12 @@ trait LeadFormDataTrait
                 return [
                     'value' => $salutation->value,
                     'label' => $salutation->label(),
+                ];
+            }),
+            'ageRanges' => collect(AgeRange::cases())->map(function (AgeRange $ageRange) {
+                return [
+                    'value' => $ageRange->value,
+                    'label' => $ageRange->label(),
                 ];
             }),
             'leadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {

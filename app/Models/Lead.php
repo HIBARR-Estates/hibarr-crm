@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\ContactType;
 use App\Enums\Salutation;
 use App\Enums\Gender;
+use App\Enums\AgeRange;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasDynamicTranslations;
@@ -39,6 +40,8 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $country
  * @property string|null $postal_code
  * @property \Illuminate\Support\Carbon|null $date_of_birth
+ * @property int|null $age
+ * @property string|null $age_range
  * @property string|null $note
  * @property string $next_follow_up
  * @property \Illuminate\Support\Carbon|null $created_at
@@ -140,6 +143,8 @@ class Lead extends BaseModel
         'type' => ContactType::class,
         'gender' => Gender::class,
         'date_of_birth' => 'date',
+        'age' => 'integer',
+        'age_range' => AgeRange::class,
         'languages' => 'array',
     ];
 
