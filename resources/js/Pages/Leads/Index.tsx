@@ -10,7 +10,6 @@ import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
-import usePageSort from "@/Hooks/usePageSort";
 import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
 
@@ -38,6 +37,7 @@ import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 
@@ -109,10 +109,7 @@ const Index = ({
     });
 
     // Extract commonly used values
-    const { openDrawer, filters } = filter;
-
-    // Sort handlers
-    const { sortParams } = usePageSort({ routeName: "lead-contact.index" });
+    const { openDrawer } = filter;
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -276,12 +273,10 @@ const Index = ({
                         onPageChange={(page) => {
                             router.get(
                                 route("lead-contact.index"),
-                                {
-                                    // ...filters,
-                                    ...sortParams,
+                                mergeQueryParams({
                                     page,
                                     per_page: leads.per_page,
-                                },
+                                }),
                                 {
                                     preserveState: true,
                                     preserveScroll: true,
