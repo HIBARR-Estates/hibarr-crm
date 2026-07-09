@@ -120,14 +120,18 @@ class LeadSettingController extends AccountBaseController
         ]);
 
         $company = company();
-        $company->package_pipeline_routing_enabled = $request->has('package_pipeline_routing_enabled') ? 1 : 0;
-        $company->deal_package_mode = $request->deal_package_mode;
-        $company->package_pipeline_routing_trigger_fields = array_values(
-            array_intersect(
+        $dealPackageMode = $request->deal_package_mode;
+        $company->deal_package_mode = $dealPackageMode;
+        $company->package_pipeline_routing_enabled = $dealPackageMode === 'single'
+            && $request->has('package_pipeline_routing_enabled')
+            ? 1
+            : 0;
+        $company->package_pipeline_routing_trigger_fields = $request->has('package_pipeline_routing_trigger_fields')
+            ? array_values(array_intersect(
                 $request->input('package_pipeline_routing_trigger_fields', []),
                 $allowedFieldKeys,
-            ),
-        );
+            ))
+            : [];
         $company->save();
 
         return Reply::success(__('messages.updateSuccess'));

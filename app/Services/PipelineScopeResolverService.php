@@ -111,7 +111,8 @@ class PipelineScopeResolverService
                     ? $scopes->whereIn('pipeline_stage_id', $previousStageIds)->pluck('category_id')
                     : collect();
 
-                return $previousCategoryIds
+                return $pipelineWide
+                    ->merge($previousCategoryIds)
                     ->merge($currentStageCategoryIds)
                     ->unique()
                     ->values()
@@ -325,16 +326,21 @@ class PipelineScopeResolverService
     /**
      * Check whether field scopes exist for a pipeline.
      */
-    public function hasFieldScopes(?int $pipelineId, ?int $companyId = null): bool
+    public function hasFieldScopes(?int $pipelineId, ?string $model = null, ?int $companyId = null): bool
     {
         if (!$pipelineId) {
             return false;
         }
 
-        return PipelineFieldScope::query()
+        $query = PipelineFieldScope::query()
             ->where('pipeline_id', $pipelineId)
-            ->when($companyId ?? company()?->id, fn ($q, $id) => $q->where('company_id', $id))
-            ->exists();
+            ->when($companyId ?? company()?->id, fn ($q, $id) => $q->where('company_id', $id));
+
+        if ($model !== null) {
+            $query->where('model', $model);
+        }
+
+        return $query->exists();
     }
 
     /**
@@ -362,7 +368,7 @@ class PipelineScopeResolverService
         $scopes = $scopesQuery->get();
 
         if ($scopes->isEmpty()) {
-            return $this->hasFieldScopes($pipelineId, $companyId) ? [] : null;
+            return $this->hasFieldScopes($pipelineId, $model, $companyId) ? [] : null;
         }
 
         $stageAssignedKeys = $scopes->whereNotNull('pipeline_stage_id')
@@ -389,7 +395,7 @@ class PipelineScopeResolverService
                     ? $scopes->whereIn('pipeline_stage_id', $previousStageIds)
                     : collect();
 
-                return $previousScopes->merge($currentStageScopes)
+                return $pipelineWide->merge($previousScopes)->merge($currentStageScopes)
                     ->map(fn ($scope) => $scope->scopeable_type . ':' . $scope->scopeable_key)
                     ->unique()
                     ->values()
@@ -432,7 +438,7 @@ class PipelineScopeResolverService
         $scopes = $scopesQuery->get();
 
         if ($scopes->isEmpty()) {
-            return $this->hasFieldScopes($pipelineId, $companyId) ? [] : null;
+            return $this->hasFieldScopes($pipelineId, $model, $companyId) ? [] : null;
         }
 
         $stageAssignedKeys = $scopes->whereNotNull('pipeline_stage_id')

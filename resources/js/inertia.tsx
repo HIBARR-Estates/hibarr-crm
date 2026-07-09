@@ -22,6 +22,8 @@ const pages = import.meta.glob<{ default: React.ComponentType & { layout?: (page
     "./Pages/**/*.tsx",
 );
 
+const INNER_PROVIDERS_WRAPPED = Symbol.for("inertia.innerProvidersWrapped");
+
 createInertiaApp({
     resolve: async (name) => {
         const importPage = pages[`./Pages/${name}.tsx`];
@@ -32,13 +34,15 @@ createInertiaApp({
         const module = await importPage();
         const component = module.default;
 
-        // Always wrap with InnerProviders (which need Inertia context)
-        const existingLayout = component.layout;
-        component.layout = (page: React.ReactNode) => (
-            <InnerProviders>
-                {existingLayout ? existingLayout(page) : page}
-            </InnerProviders>
-        );
+        if (!(component as Record<symbol, boolean>)[INNER_PROVIDERS_WRAPPED]) {
+            const existingLayout = component.layout;
+            component.layout = (page: React.ReactNode) => (
+                <InnerProviders>
+                    {existingLayout ? existingLayout(page) : page}
+                </InnerProviders>
+            );
+            (component as Record<symbol, boolean>)[INNER_PROVIDERS_WRAPPED] = true;
+        }
 
         return component;
     },

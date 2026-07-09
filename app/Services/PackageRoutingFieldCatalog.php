@@ -95,7 +95,7 @@ class PackageRoutingFieldCatalog
             $configured = json_decode($configured, true);
         }
 
-        if (is_array($configured) && !empty($configured)) {
+        if (is_array($configured)) {
             return array_values($configured);
         }
 

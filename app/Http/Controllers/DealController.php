@@ -515,7 +515,6 @@ class DealController extends AccountBaseController
             'contact',
             'category',
             'pipeline.stages',
-            'pipeline.customFieldCategoryScopes',
             'leadStage',
             'currency',
             'products' => function ($query) {

@@ -11,6 +11,7 @@ use App\Models\PipelineStage;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PackageController extends AccountBaseController
 {
@@ -54,19 +55,21 @@ class PackageController extends AccountBaseController
 
     public function store(StorePackageRequest $request)
     {
-        $package = Package::create([
-            'name' => $request->name,
-            'value' => $request->value,
-            'description' => $request->description,
-            'customer_type_name' => $request->customer_type_name,
-            'customer_type_description' => $request->customer_type_description,
-        ]);
+        DB::transaction(function () use ($request, &$package) {
+            $package = Package::create([
+                'name' => $request->name,
+                'value' => $request->value,
+                'description' => $request->description,
+                'customer_type_name' => $request->customer_type_name,
+                'customer_type_description' => $request->customer_type_description,
+            ]);
 
-        $this->syncPackagePipeline($package, $request);
-        $this->packageRouter->syncPackageRoutingTriggers(
-            $package,
-            $request->input('routing_triggers', []),
-        );
+            $this->syncPackagePipeline($package, $request);
+            $this->packageRouter->syncPackageRoutingTriggers(
+                $package,
+                $request->input('routing_triggers', []),
+            );
+        });
 
         return Reply::success(__('messages.recordSaved'));
     }
@@ -98,18 +101,21 @@ class PackageController extends AccountBaseController
     public function update(StorePackageRequest $request, $id)
     {
         $package = Package::findOrFail($id);
-        $package->name = $request->name;
-        $package->value = $request->value;
-        $package->description = $request->description;
-        $package->customer_type_name = $request->customer_type_name;
-        $package->customer_type_description = $request->customer_type_description;
-        $package->save();
 
-        $this->syncPackagePipeline($package, $request);
-        $this->packageRouter->syncPackageRoutingTriggers(
-            $package,
-            $request->input('routing_triggers', []),
-        );
+        DB::transaction(function () use ($request, $package) {
+            $package->name = $request->name;
+            $package->value = $request->value;
+            $package->description = $request->description;
+            $package->customer_type_name = $request->customer_type_name;
+            $package->customer_type_description = $request->customer_type_description;
+            $package->save();
+
+            $this->syncPackagePipeline($package, $request);
+            $this->packageRouter->syncPackageRoutingTriggers(
+                $package,
+                $request->input('routing_triggers', []),
+            );
+        });
 
         return Reply::success(__('messages.updateSuccess'));
     }

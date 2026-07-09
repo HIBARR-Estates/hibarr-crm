@@ -17,7 +17,7 @@
     <div class="col-md-4">
         <x-forms.select
             :fieldId="'routing_trigger_field_' . $rowIndex"
-            :fieldLabel="$showLabels ? __('modules.deal.routingTriggerField') : null"
+            :fieldLabel="__('modules.deal.routingTriggerField')"
             :fieldName="'routing_triggers[' . $rowIndex . '][field_key]'"
             search="true">
             <option value="">@lang('app.select')</option>
@@ -29,7 +29,7 @@
     <div class="col-md-3">
         <x-forms.select
             :fieldId="'routing_trigger_mode_' . $rowIndex"
-            :fieldLabel="$showLabels ? __('modules.deal.routingTriggerMatchMode') : null"
+            :fieldLabel="__('modules.deal.routingTriggerMatchMode')"
             :fieldName="'routing_triggers[' . $rowIndex . '][match_mode]'">
             @foreach($matchModeOptions as $modeKey => $modeLabel)
                 <option value="{{ $modeKey }}" @selected($matchMode === $modeKey)>{{ $modeLabel }}</option>
@@ -39,7 +39,7 @@
     <div class="col-md-3">
         <x-forms.text
             :fieldId="'routing_trigger_match_' . $rowIndex"
-            :fieldLabel="$showLabels ? __('modules.deal.routingTriggerMatchValue') : null"
+            :fieldLabel="__('modules.deal.routingTriggerMatchValue')"
             :fieldName="'routing_triggers[' . $rowIndex . '][match_value]'"
             :fieldPlaceholder="__('modules.deal.routingTriggerMatchValuePlaceholder')"
             :fieldValue="$trigger['match_value'] ?? ''"

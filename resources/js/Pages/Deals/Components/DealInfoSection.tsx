@@ -1228,15 +1228,17 @@ export default function DealInfoSection({
                         </DetailField>
                         )}
 
-                        {showExtraDealField() && (
+                        {showDealField("package_id") && (
                         <DetailField
                             label={t("pages.deals.info.fields.packages")}
                         >
                             <EditableField
                                 value={
-                                    currentDeal.packages?.map(
-                                        (p: any) => p.id,
-                                    ) || []
+                                    dealPackageMode === "single"
+                                        ? currentDeal.packages?.[0]?.id
+                                        : currentDeal.packages?.map(
+                                              (p: any) => p.id,
+                                          ) || []
                                 }
                                 fieldName="package_id"
                                 selectorType="packages"

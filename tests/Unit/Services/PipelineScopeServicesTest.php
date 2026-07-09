@@ -64,7 +64,7 @@ class PipelineScopeServicesTest extends TestCase
     {
         $company = new Company([
             'package_pipeline_routing_enabled' => true,
-            'deal_package_mode' => DealPackageMode::Multiple->value,
+            'deal_package_mode' => DealPackageMode::Single->value,
         ]);
 
         $deal = new Deal([
@@ -80,6 +80,39 @@ class PipelineScopeServicesTest extends TestCase
         $router = app(PackagePipelineRouterService::class);
 
         $this->assertSame('multiple_packages', $router->getRoutingSkipReason($deal));
+    }
+
+    public function test_should_not_route_when_multiple_package_mode(): void
+    {
+        $company = new Company([
+            'package_pipeline_routing_enabled' => true,
+            'deal_package_mode' => DealPackageMode::Multiple->value,
+        ]);
+
+        $deal = new Deal([
+            'company_id' => 1,
+            'is_locked' => false,
+        ]);
+        $deal->setRelation('company', $company);
+        $deal->setRelation('packages', collect([new Package(['id' => 2])]));
+
+        $router = app(PackagePipelineRouterService::class);
+
+        $this->assertSame('multiple_package_mode', $router->getRoutingSkipReason($deal));
+    }
+
+    public function test_enabled_field_keys_treats_empty_array_as_no_fields_enabled(): void
+    {
+        $company = new Company([
+            'id' => 1,
+            'package_pipeline_routing_trigger_fields' => [],
+        ]);
+        session(['company' => $company]);
+
+        $catalog = app(PackageRoutingFieldCatalog::class);
+
+        $this->assertSame([], $catalog->enabledFieldKeys());
+        $this->assertFalse($catalog->isFieldEnabled('category_id'));
     }
 
     public function test_normalize_trigger_rows_allows_present_mode_without_match_value(): void

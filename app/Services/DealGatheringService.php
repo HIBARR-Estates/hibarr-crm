@@ -264,6 +264,12 @@ class DealGatheringService
                     $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
 
                     $newPackageIds = $this->packageRouter->normalizePackageIds($data['package_id'], $deal->company_id);
+                    $newPackageIds = Package::query()
+                        ->where('company_id', $deal->company_id)
+                        ->whereIn('id', $newPackageIds)
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
 
                     // Detect added and removed packages
                     $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
@@ -417,6 +423,7 @@ class DealGatheringService
     {
         $fieldTriggerData = collect($data)
             ->except(['package_id'])
+            ->mapWithKeys(fn ($value, $key) => [$this->normalizeRoutingFieldKey((string) $key) => $value])
             ->filter(fn ($value, $key) => app(PackageRoutingFieldCatalog::class)->isFieldEnabled(
                 (string) $key,
                 $deal->company_id,
@@ -428,5 +435,18 @@ class DealGatheringService
         }
 
         $this->packageRouter->attemptRoutingFromFieldUpdates($deal->fresh(), $fieldTriggerData);
+    }
+
+    protected function normalizeRoutingFieldKey(string $key): string
+    {
+        if (str_starts_with($key, 'field_')) {
+            return $key;
+        }
+
+        if (ctype_digit($key)) {
+            return 'field_' . $key;
+        }
+
+        return $key;
     }
 }

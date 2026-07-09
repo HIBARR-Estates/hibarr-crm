@@ -100,14 +100,18 @@
 
             const rowCount = container.find('.package-routing-trigger-row').length;
             container.find('.remove-routing-trigger').toggle(rowCount > 1);
+            container.find('.package-routing-trigger-row').each(function (rowIndex) {
+                $(this).find('label').toggleClass('d-none', rowIndex !== 0);
+            });
         }
 
         container.on('change', 'select[name*="[match_mode]"]', function () {
             toggleMatchValueInput($(this).closest('.package-routing-trigger-row'));
         });
 
-        container.find('.package-routing-trigger-row').each(function () {
+        container.find('.package-routing-trigger-row').each(function (rowIndex) {
             toggleMatchValueInput($(this));
+            $(this).find('label').toggleClass('d-none', rowIndex !== 0);
         });
 
         $('#add-routing-trigger').on('click', function () {

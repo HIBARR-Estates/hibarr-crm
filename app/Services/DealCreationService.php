@@ -201,7 +201,10 @@ class DealCreationService
             }
         }
         
-        $packageIds = $this->resolvePackageId($request, $companyId);
+        $packageIds = app(\App\Services\PackagePipelineRouterService::class)->normalizePackageIds(
+            $this->resolvePackageId($request, $companyId),
+            $companyId,
+        );
         
         // Wrap in try-catch to ensure locks are released on any error
         // Note: DB transaction starts inside the try block, so rollbacks only occur

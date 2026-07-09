@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\DealPackageMode;
 use App\Models\Company;
 use App\Models\Deal;
 use App\Models\LeadPipeline;
@@ -42,6 +43,13 @@ class PackagePipelineRouterService
 
         if (!$company->package_pipeline_routing_enabled) {
             return 'routing_disabled';
+        }
+
+        $packageMode = DealPackageMode::tryFrom($company->deal_package_mode ?? DealPackageMode::Multiple->value)
+            ?? DealPackageMode::Multiple;
+
+        if (!$packageMode->allowsPipelineRouting()) {
+            return 'multiple_package_mode';
         }
 
         $packageCount = $deal->packages->count();
@@ -231,6 +239,13 @@ class PackagePipelineRouterService
             return false;
         }
 
+        $packageMode = DealPackageMode::tryFrom($company->deal_package_mode ?? DealPackageMode::Multiple->value)
+            ?? DealPackageMode::Multiple;
+
+        if (!$packageMode->allowsPipelineRouting()) {
+            return false;
+        }
+
         $matchingPackages = $this->fieldCatalog->packagesMatchingFieldValue(
             (int) $deal->company_id,
             $fieldKey,
@@ -259,6 +274,19 @@ class PackagePipelineRouterService
                 'field_key' => $fieldKey,
                 'package_id' => $package->id,
                 'reason' => 'no_package_pipeline_mapping',
+            ]);
+
+            return false;
+        }
+
+        $deal->loadMissing('packages');
+
+        if ($deal->packages->count() > 1) {
+            Log::debug('Package pipeline field routing skipped', [
+                'deal_id' => $deal->id,
+                'field_key' => $fieldKey,
+                'reason' => 'multiple_packages',
+                'package_ids' => $deal->packages->pluck('id')->all(),
             ]);
 
             return false;
