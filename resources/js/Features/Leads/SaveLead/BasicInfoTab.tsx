@@ -24,18 +24,37 @@ import {
     getLeadAgeFieldVisibility,
 } from "@/lib/leadAge";
 
-interface BasicInfoTabProps
-    extends Pick
-        LeadFormProps,
-        | "onCancel"
-        | "loading"
-        | "submitText"
-        | "cancelText"
-        | "data"
-        | "onSubmit"
-        | "setErrors"
-        | "onErrorsClear"
-    > {
+// interface BasicInfoTabProps
+//     extends Pick
+//         LeadFormProps,
+//         | "onCancel"
+//         | "loading"
+//         | "submitText"
+//         | "cancelText"
+//         | "data"
+//         | "onSubmit"
+//         | "setErrors"
+//         | "onErrorsClear"
+//     > {
+//     setLead?: (lead: Lead | undefined) => void;
+//     onUserEdit?: () => void;
+//     formId?: string;
+//     hideFooter?: boolean;
+//     languageOptions?: Array<{ value: string; label: string }>;
+//     languagesLoading?: boolean;
+// }
+
+interface BasicInfoTabProps extends Pick<
+    LeadFormProps,
+    | "onCancel"
+    | "loading"
+    | "submitText"
+    | "cancelText"
+    | "data"
+    | "onSubmit"
+    | "setErrors"
+    | "onErrorsClear"
+> {
     setLead?: (lead: Lead | undefined) => void;
     onUserEdit?: () => void;
     formId?: string;
@@ -90,9 +109,12 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             const formData = {
                 ...data,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
-                date_of_birth: data.date_of_birth ? dayjs(data.date_of_birth) : null,
+                date_of_birth: data.date_of_birth
+                    ? dayjs(data.date_of_birth)
+                    : null,
                 age: computedAgeFields.age ?? data.age ?? null,
-                age_range: computedAgeFields.age_range ?? data.age_range ?? null,
+                age_range:
+                    computedAgeFields.age_range ?? data.age_range ?? null,
                 deal_watcher: data.deal_watcher || [],
                 product_id: data.product_id || [],
             };
@@ -115,7 +137,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             getLeadAgeFieldVisibility({
                 dateOfBirth:
                     dateOfBirth === undefined
-                        ? data?.date_of_birth ?? null
+                        ? (data?.date_of_birth ?? null)
                         : dateOfBirth
                           ? dateOfBirth.format("YYYY-MM-DD")
                           : null,
@@ -189,7 +211,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             }}
             onFinishFailed={(errorInfo) => {
                 setErrors?.(
-                    errorInfo.errorFields.map((field) => field.errors).flat()
+                    errorInfo.errorFields.map((field) => field.errors).flat(),
                 );
                 if (onErrorsClear) {
                     onErrorsClear();
@@ -269,7 +291,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         {permissions?.view_lead_categories !== "none" && (
                             <Col xs={24} md={8}>
-                                <Form.Item label="Lead category" name="category_id">
+                                <Form.Item
+                                    label="Lead category"
+                                    name="category_id"
+                                >
                                     <FormDataSelector
                                         type="categories"
                                         placeholder="Lead category"
@@ -304,21 +329,20 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             {["all", "added"].includes(
                                 permissions?.add_deals,
                             ) && (
-                                    <Row gutter={[24, 16]} className="mt-2">
-                                        <Col span={24}>
-                                            <Form.Item name="create_deal">
-                                                <Checkbox>Create Deal</Checkbox>
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
-                                )}
+                                <Row gutter={[24, 16]} className="mt-2">
+                                    <Col span={24}>
+                                        <Form.Item name="create_deal">
+                                            <Checkbox>Create Deal</Checkbox>
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                            )}
 
                             <div className="save-lead-form__auto-convert">
                                 <Form.Item name="create_client">
                                     <Checkbox>
                                         Auto-convert lead to client when deal
-                                        stage is set to{" "}
-                                        <strong>Won</strong>
+                                        stage is set to <strong>Won</strong>
                                     </Checkbox>
                                 </Form.Item>
                             </div>
@@ -442,10 +466,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         </Col>
 
                         <Col xs={24} md={12}>
-                            <Form.Item
-                                label="State / Province"
-                                name="state"
-                            >
+                            <Form.Item label="State / Province" name="state">
                                 <Input placeholder="Enter state or province" />
                             </Form.Item>
                         </Col>
@@ -459,7 +480,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                     optionFilterProp="label"
                                     filterOption={(input, option) => {
                                         const searchText = input.toLowerCase();
-                                        const countryValue = option?.value as string;
+                                        const countryValue =
+                                            option?.value as string;
                                         const country = (countries || []).find(
                                             (c: {
                                                 iso: string;
