@@ -1,12 +1,21 @@
 <?php
 
 return [
-    'crm' => [
-        'lead-qualification-tab' => env('FEATURE_CRM_LEAD_QUALIFICATION_TAB', false),
-        'lead-language-core-field' => env('FEATURE_CRM_LEAD_LANGUAGE_CORE_FIELD', true),
-    ],
-    'sales' => [
-        'per-agent-commission-override' => env('FEATURE_SALES_PER_AGENT_COMMISSION_OVERRIDE', false),
-        'bulk-agent-promotion' => env('FEATURE_SALES_BULK_AGENT_PROMOTION', false),
+    'app_name' => 'crm',
+    'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 60),
+    'known_flags' => [
+        'crm.lead-qualification-tab',
+        'crm.lead-language-core-field',
+        'crm.deal-view-redesign',
+        'crm.lead-view-redesign',
+        'crm.lead-ai-summary',
+        'crm.notification-service-routing',
+        'crm.task-lifecycle-notifications',
+        'sales.ai-entity-summary',
+        'sales.per-agent-commission-override',
+        'sales.bulk-agent-promotion',
+        'sales.crm-lead-deal-sync',
+        'sally.crm-write-client',
+        'integrations.zoho-calendar-sync',
     ],
 ];

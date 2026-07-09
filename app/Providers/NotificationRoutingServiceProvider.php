@@ -1,0 +1,41 @@
+<?php
+
+namespace App\Providers;
+
+use App\Services\Notifications\UnsClient;
+use App\Services\Notifications\UnsEmailPayloadMapper;
+use App\Services\Notifications\UnsRoutingTransport;
+use App\Support\FeatureFlags;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\ServiceProvider;
+
+class NotificationRoutingServiceProvider extends ServiceProvider
+{
+    public function boot(): void
+    {
+        $legacyMailer = (string) config('mail.default', 'smtp');
+
+        if ($legacyMailer !== 'uns-routing') {
+            Config::set('mail.mailers.uns-routing', [
+                'transport' => 'uns-routing',
+                'legacy_mailer' => $legacyMailer,
+            ]);
+        }
+
+        Mail::extend('uns-routing', function (array $config) {
+            $legacyMailer = (string) ($config['legacy_mailer'] ?? 'smtp');
+            $fallbackTransport = app('mail.manager')->mailer($legacyMailer)->getSymfonyTransport();
+
+            return new UnsRoutingTransport(
+                app(UnsClient::class),
+                app(UnsEmailPayloadMapper::class),
+                $fallbackTransport,
+            );
+        });
+
+        if (FeatureFlags::enabled('crm.notification-service-routing')) {
+            Config::set('mail.default', 'uns-routing');
+        }
+    }
+}

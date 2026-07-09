@@ -42,9 +42,16 @@ class AppServiceProvider extends ServiceProvider
         );
 
         $this->app->bind(
+            \App\Contracts\EntitySummaryAgentInterface::class,
+            \App\Services\AiSummary\HibarrAiSummaryService::class,
+        );
+
+        $this->app->bind(
             \App\Contracts\PropertyDescriptionInterface::class,
             \App\Services\AiDescription\HibarrPropertyDescriptionService::class,
         );
+
+        $this->app->singleton(\App\Services\FeatureFlagService::class);
     }
 
     public function boot()

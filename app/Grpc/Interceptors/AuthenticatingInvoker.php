@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Grpc\Interceptors;
 
-use Illuminate\Support\Facades\DB;
+use App\Models\ApiToken;
 use Illuminate\Support\Facades\Log;
 use Spiral\RoadRunner\GRPC\ContextInterface;
 use Spiral\RoadRunner\GRPC\Exception\GRPCException;
@@ -71,10 +71,7 @@ class AuthenticatingInvoker implements InvokerInterface
             );
         }
 
-        $tokenData = DB::table('api_tokens')
-            ->where('token', $token)
-            ->where('company_id', $companyId)
-            ->first();
+        $tokenData = ApiToken::findByPlainToken($token, (int) $companyId);
 
         if ($tokenData === null) {
             throw new GRPCException(

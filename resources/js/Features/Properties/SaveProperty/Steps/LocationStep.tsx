@@ -14,6 +14,7 @@ import { FormInstance } from "antd/lib/form";
 import { Property, PropertyEnumValues } from "@/Types";
 import { usePage } from "@inertiajs/react";
 import { EnvironmentOutlined, GlobalOutlined } from "@ant-design/icons";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Option } = Select;
 const { Text } = Typography;
@@ -111,7 +112,7 @@ export default function LocationStep({
                 {selectedProject && (
                     <Col span={24}>
                         <Alert
-                            message={`Linked to project: ${selectedProject.name}${projectHasLocation ? ` — Location: ${selectedProject.location?.name}` : ""}`}
+                            message={`Linked to project: ${selectedProject.name}${projectHasLocation ? ` — Location: ${formatLocationNameForDisplay(selectedProject.location?.name)}` : ""}`}
                             type="info"
                             showIcon
                             className="mb-4"
@@ -138,7 +139,7 @@ export default function LocationStep({
                                         key={location.id}
                                         value={location.id}
                                     >
-                                        {location.name}
+                                        {formatLocationNameForDisplay(location.name)}
                                     </Option>
                                 ))}
                             </Select>

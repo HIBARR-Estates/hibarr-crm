@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Validation\Rule;
@@ -37,7 +38,7 @@ class PatchRequest extends CoreRequest
             'state' => 'sometimes|string|max:100',
             'country' => 'sometimes|string|max:100',
             'postal_code' => 'sometimes|string|max:20',
-            'salutation' => ['sometimes', 'string', Rule::in(['mr', 'mrs', 'miss', 'ms', 'dr', 'prof'])],
+            'salutation' => ['sometimes', 'nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
             
             // Lead Information (all optional for patch)
@@ -104,7 +105,7 @@ class PatchRequest extends CoreRequest
             'source_id.exists' => 'Selected source is invalid.',
             'status_id.exists' => 'Selected status is invalid.',
             'client_id.exists' => 'Selected client is invalid.',
-            'salutation.in' => 'Salutation must be one of: mr, mrs, miss, ms, dr, prof.',
+            'salutation.in' => 'Salutation must be one of: ' . implode(', ', array_column(Salutation::cases(), 'value')) . '.',
             'column_priority.min' => 'Priority cannot be negative.',
         ];
     }

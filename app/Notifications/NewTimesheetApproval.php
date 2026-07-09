@@ -45,7 +45,7 @@ class NewTimesheetApproval extends BaseNotification
             ->greeting(__('email.newTimesheetApproval.greeting'))
             ->line(__('email.newTimesheetApproval.text'))
             ->line(__('email.newTimesheetApproval.text1', ['startDate' => $this->weeklyTimesheet->week_start_date->copy()->translatedFormat($this->company->date_format), 'endDate' => $this->weeklyTimesheet->week_start_date->copy()->addDays(6)->translatedFormat($this->company->date_format), 'employeeName' => $this->weeklyTimesheet->user->name]))
-            ->action(__('email.newTimesheetApproval.action'), route('weekly-timesheets.index').'?view=pending_approval&id='.$this->weeklyTimesheet->id)
+            ->action(__('email.newTimesheetApproval.action'), $this->modifyUrl(route('weekly-timesheets.index').'?view=pending_approval&id='.$this->weeklyTimesheet->id))
             ->line(__('email.newTimesheetApproval.thankYou'));
 
         return $build;

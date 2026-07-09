@@ -25,6 +25,26 @@ class LeadQualificationService
             ->get();
     }
 
+    public function resolveWorkspaceForLead(Lead $lead): array
+    {
+        $qualifications = $this->listForLead($lead);
+
+        $current = $qualifications->first(
+            fn (LeadQualification $qualification) => $qualification->status === QualificationStatus::InProgress
+        ) ?? $qualifications->first(
+            fn (LeadQualification $qualification) => $qualification->status === QualificationStatus::Completed
+        );
+
+        $history = $qualifications
+            ->filter(fn (LeadQualification $qualification) => !$current || $qualification->id !== $current->id)
+            ->values();
+
+        return [
+            'current' => $current,
+            'history' => $history,
+        ];
+    }
+
     public function start(Lead $lead, array $data): LeadQualification
     {
         $qualifyingStatus = $this->resolveLifecycleStatus($lead->company_id, 'qualifying');
@@ -34,6 +54,7 @@ class LeadQualificationService
             'lead_id' => $lead->id,
             'template_id' => $data['template_id'],
             'template_version' => $data['template_version'],
+            'template_name' => $data['template_name'] ?? null,
             'agent_id' => $data['agent_id'] ?? user()->id,
             'status' => QualificationStatus::InProgress,
             'agent_language' => $data['agent_language'] ?? null,
@@ -96,6 +117,9 @@ class LeadQualificationService
         $qualification->outcome_triggered_at = isset($data['outcome_triggered_at'])
             ? $data['outcome_triggered_at']
             : now();
+        if (array_key_exists('selected_branch_keys', $data)) {
+            $qualification->selected_branch_keys = $data['selected_branch_keys'];
+        }
         $qualification->completed_at = now();
         $qualification->save();
 

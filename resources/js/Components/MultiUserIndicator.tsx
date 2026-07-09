@@ -1,7 +1,6 @@
 import React from "react";
-import { Avatar, Tooltip, Typography } from "antd";
-import { UserOutlined } from "@ant-design/icons";
-import UserIndicator from "./UserIndicator";
+import { Avatar, Tooltip } from "antd";
+import UserIndicator, { monogramColor, getInitials } from "./UserIndicator";
 type AvatarSize = number | "small" | "default" | "large";
 
 export type MultiUserIndicatorSize = "xs" | "sm" | "default" | "lg" | "xl";
@@ -31,38 +30,45 @@ interface MultiUserIndicatorProps {
     showNames?: boolean;
     direction?: "horizontal" | "vertical";
     tooltipContent?: React.ReactNode;
+    colorful?: boolean;
 }
 
 const sizeMap: Record<
     MultiUserIndicatorSize,
     {
         avatar: AvatarSize;
+        fontSize: number;
         nameClass: string;
         spacing: string;
     }
 > = {
     xs: {
         avatar: 16,
+        fontSize: 6,
         nameClass: "text-xs",
         spacing: "-space-x-1",
     },
     sm: {
         avatar: 24,
+        fontSize: 9,
         nameClass: "text-sm",
         spacing: "-space-x-1.5",
     },
     default: {
         avatar: 32,
+        fontSize: 11,
         nameClass: "text-sm",
         spacing: "-space-x-2",
     },
     lg: {
         avatar: 40,
+        fontSize: 13,
         nameClass: "text-base",
         spacing: "-space-x-2.5",
     },
     xl: {
         avatar: 48,
+        fontSize: 16,
         nameClass: "text-lg",
         spacing: "-space-x-3",
     },
@@ -78,6 +84,7 @@ const MultiUserIndicator: React.FC<MultiUserIndicatorProps> = ({
     showNames = true,
     direction = "horizontal",
     tooltipContent,
+    colorful = false,
 }) => {
     const sizeConfig = sizeMap[size];
 
@@ -101,65 +108,48 @@ const MultiUserIndicator: React.FC<MultiUserIndicatorProps> = ({
                 className={className}
                 showTooltip={showTooltip}
                 tooltipContent={tooltipContent}
+                colorful={colorful}
             />
         );
     }
 
-    // Generate tooltip content
-    const generateTooltipContent = () => {
-        if (!showTooltip || users.length === 0) return null;
-
-        const displayUsers = users.slice(0, 10); // Limit to prevent overly large tooltips
-        const remainingCount = Math.max(0, users.length - 10);
-
-        return (
-            <div className="space-y-1 max-w-xs">
-                <div className="font-medium text-white">
-                    {users.length === 1 ? "User" : `${users.length} Users`}
-                </div>
-                <div className="space-y-0.5">
-                    {displayUsers.map((user, index) => (
-                        <div key={user.id || index} className="text-sm">
-                            {user.name || "Unknown User"}
-                        </div>
-                    ))}
-                    {remainingCount > 0 && (
-                        <div className="text-xs text-gray-300">
-                            +{remainingCount} more...
-                        </div>
-                    )}
-                </div>
-            </div>
-        );
-    };
 
     // Generate avatars for Avatar.Group
     const avatarElements = users.map((user, index) => {
         const avatarImage = user.image_url || user.image;
         const userName = user.name || "Unknown User";
 
-        return (
+        const avatar = (
             <Avatar
-                key={user.id || index}
                 size={sizeConfig.avatar}
-                src={avatarImage}
-                icon={<UserOutlined />}
+                src={avatarImage || undefined}
                 style={{
-                    backgroundColor: avatarImage ? undefined : "#1890ff",
+                    backgroundColor: colorful ? monogramColor(userName) : "#1890ff",
                     border: "2px solid white",
+                    color: "#fff",
+                    fontWeight: 700,
+                    fontSize: sizeConfig.fontSize,
                 }}
             >
-                {!avatarImage && userName
-                    ? userName.charAt(0).toUpperCase()
-                    : null}
+                {getInitials(userName)}
             </Avatar>
         );
+
+        if (showTooltip) {
+            return (
+                <Tooltip key={user.id || index} title={userName} placement={tooltipPlacement}>
+                    {avatar}
+                </Tooltip>
+            );
+        }
+        return <React.Fragment key={user.id || index}>{avatar}</React.Fragment>;
     });
 
     const avatarGroup = (
         <Avatar.Group
             max={{
                 count: maxCount,
+                popover: {},
                 style: {
                     color: "#1890ff",
                     backgroundColor: "#e6f4ff",
@@ -214,19 +204,6 @@ const MultiUserIndicator: React.FC<MultiUserIndicatorProps> = ({
             {namesList}
         </div>
     );
-
-    // Wrap with tooltip if enabled
-    if (showTooltip) {
-        return (
-            <Tooltip
-                title={generateTooltipContent()}
-                placement={tooltipPlacement}
-                styles={{ root: { maxWidth: "300px" } }}
-            >
-                {content}
-            </Tooltip>
-        );
-    }
 
     return content;
 };

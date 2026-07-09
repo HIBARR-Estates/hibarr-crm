@@ -1,6 +1,5 @@
 import React from "react";
 import { Avatar, Tooltip } from "antd";
-import { UserOutlined } from "@ant-design/icons";
 type AvatarSize = number | "small" | "default" | "large";
 
 export type UserIndicatorSize = "xs" | "sm" | "default" | "lg" | "xl";
@@ -20,12 +19,39 @@ interface UserIndicatorProps {
     className?: string;
     showTooltip?: boolean;
     tooltipContent?: React.ReactNode;
+    colorful?: boolean;
+}
+
+const MONOGRAM_PALETTE = [
+    "#4338ca",
+    "#be185d",
+    "#0369a1",
+    "#047857",
+    "#b45309",
+    "#b91c1c",
+    "#6d28d9",
+];
+
+export function monogramColor(seed: string): string {
+    let hash = 0;
+    for (let i = 0; i < seed.length; i++) {
+        hash = (hash << 5) - hash + seed.charCodeAt(i);
+        hash |= 0;
+    }
+    return MONOGRAM_PALETTE[Math.abs(hash) % MONOGRAM_PALETTE.length];
+}
+
+export function getInitials(name: string): string {
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return name.slice(0, 2).toUpperCase();
 }
 
 const sizeMap: Record<
     UserIndicatorSize,
     {
         avatar: AvatarSize;
+        fontSize: number;
         nameClass: string;
         containerClass: string;
         maxLength: number;
@@ -33,30 +59,35 @@ const sizeMap: Record<
 > = {
     xs: {
         avatar: 16,
+        fontSize: 6,
         nameClass: "text-xs",
         containerClass: "gap-1",
         maxLength: 8,
     },
     sm: {
         avatar: 28,
+        fontSize: 10,
         nameClass: "text-xs",
         containerClass: "gap-1.5",
         maxLength: 12,
     },
     default: {
         avatar: 32,
+        fontSize: 11,
         nameClass: "text-sm",
         containerClass: "gap-2",
         maxLength: 16,
     },
     lg: {
         avatar: 40,
+        fontSize: 13,
         nameClass: "text-base",
         containerClass: "gap-2.5",
         maxLength: 20,
     },
     xl: {
         avatar: 48,
+        fontSize: 16,
         nameClass: "text-lg",
         containerClass: "gap-3",
         maxLength: 24,
@@ -72,21 +103,19 @@ const UserIndicator: React.FC<UserIndicatorProps> = ({
     className = "",
     showTooltip = true,
     tooltipContent,
+    colorful = false,
 }) => {
     const sizeConfig = sizeMap[size];
     const avatarImage = data?.image_url || data?.image;
     const userName = data?.name || "Unknown User";
 
-    // Calculate max length for name truncation
     const effectiveMaxLength = maxNameLength || sizeConfig.maxLength;
 
-    // Truncate name if needed
     const truncatedName =
         userName.length > effectiveMaxLength
             ? `${userName.substring(0, effectiveMaxLength)}...`
             : userName;
 
-    // Base container classes based on name position
     const containerClasses =
         namePosition === "bottom"
             ? `flex flex-col items-center ${sizeConfig.containerClass}`
@@ -95,20 +124,22 @@ const UserIndicator: React.FC<UserIndicatorProps> = ({
     const avatar = (
         <Avatar
             size={sizeConfig.avatar}
-            src={avatarImage}
-            icon={<UserOutlined />}
+            src={avatarImage || undefined}
             className="flex-shrink-0"
             style={{
-                backgroundColor: avatarImage ? undefined : "#1890ff",
+                backgroundColor: colorful ? monogramColor(userName) : "#1890ff",
+                color: "#fff",
+                fontWeight: 700,
+                fontSize: sizeConfig.fontSize,
             }}
         >
-            {!avatarImage && userName ? userName.charAt(0).toUpperCase() : null}
+            {getInitials(userName)}
         </Avatar>
     );
 
     const nameElement = showName && (
         <span
-            className={`${sizeConfig.nameClass} text-gray-700 font-medium ${
+            className={`${sizeConfig.nameClass} text-gray-700 font-semibold ${
                 namePosition === "bottom" ? "text-center" : "truncate"
             }`}
             style={{
@@ -126,7 +157,6 @@ const UserIndicator: React.FC<UserIndicatorProps> = ({
         </div>
     );
 
-    // Show tooltip if enabled and there's content to show
     if (showTooltip && (tooltipContent || userName !== truncatedName)) {
         return (
             <Tooltip

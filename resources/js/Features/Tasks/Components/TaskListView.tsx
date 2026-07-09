@@ -1,27 +1,23 @@
 import React from "react";
 import { Task } from "@/Types/Task";
-import { Checkbox, Tag, Avatar, Tooltip, Dropdown, MenuProps } from "antd";
+import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import { Checkbox, Tooltip, Dropdown, Button, MenuProps } from "antd";
 import {
     MoreOutlined,
-    CalendarOutlined,
-    UserOutlined,
-    DownOutlined,
     EyeOutlined,
     EditOutlined,
     CopyOutlined,
     DeleteOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { getStatusColor } from "@/lib/utils";
+import relativeTime from "dayjs/plugin/relativeTime";
+import { motion } from "framer-motion";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
-import { Link } from "@inertiajs/react";
 import { clsx } from "clsx";
 import { usePermission } from "@/lib/permissionUtils";
-import {
-    AppPermission,
-    PermissionKey,
-    PermissionScope,
-} from "@/Types/permission";
+import { PermissionKey } from "@/Types/permission";
+
+dayjs.extend(relativeTime);
 
 interface TaskboardColumn {
     id: number;
@@ -40,41 +36,14 @@ interface TaskListViewProps {
     onView: (task: Task) => void;
     onDelete: (task: Task) => void;
     onDuplicate: (task: Task) => void;
-    onStatusChange: (
-        task: Task,
-        newStatus: string,
-        newColumnId: number,
-    ) => void;
-    td?: (key: string) => string; // Optional translation function
+    onStatusChange: (task: Task, newStatus: string, newColumnId: number) => void;
+    td?: (key: string) => string;
 }
 
-const PriorityIcon = ({ priority }: { priority: string }) => {
-    switch (priority) {
-        case "high":
-            return (
-                <Tooltip title="High Priority">
-                    <span className="text-red-500">🔴</span>
-                </Tooltip>
-            );
-        case "medium":
-            return (
-                <Tooltip title="Medium Priority">
-                    <span className="text-orange-400">🟠</span>
-                </Tooltip>
-            );
-        case "low":
-            return (
-                <Tooltip title="Low Priority">
-                    <span className="text-green-500">🟢</span>
-                </Tooltip>
-            );
-        default:
-            return (
-                <Tooltip title="No Priority">
-                    <span className="text-gray-300">⚪</span>
-                </Tooltip>
-            );
-    }
+const PRIORITY_COLORS: Record<string, string> = {
+    high: "#ef4444",
+    medium: "#f59e0b",
+    low: "#94a3b8",
 };
 
 const TaskListView: React.FC<TaskListViewProps> = ({
@@ -87,288 +56,249 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     onDelete,
     onDuplicate,
     onStatusChange,
-    td = (key) => key, // Default to identity function if no translation provided
+    td = (key) => key,
 }) => {
     const { user, permissions } = usePermission();
 
-    // TODO: Refactor permission checks into a utility function in the permissionUtils file, also mock as entitty that has fields like added_by and users
     const hasTaskPermission = (task: Task, permissionName: PermissionKey) => {
         const perm = permissions?.[permissionName];
-
         if (perm === "all") return true;
         if (!perm || perm === "none") return false;
-
-        const isAdded = task.added_by === user?.id; // Safely handle optional user
+        const isAdded = task.added_by === user?.id;
         const isOwned = task.users?.some((u) => u.id === user?.id);
-
         if (perm === "added" && isAdded) return true;
         if (perm === "owned" && isOwned) return true;
         if (perm === "both" && (isAdded || isOwned)) return true;
-
         return false;
     };
 
-    // Helper to handle selection toggle
     const handleToggleSelect = (task: Task) => {
         const isSelected = selectedIds.includes(task.id);
-        let newIds: number[];
-
-        if (isSelected) {
-            newIds = selectedIds.filter((id) => id !== task.id);
-        } else {
-            newIds = [...selectedIds, task.id];
-        }
-
-        // Reconstruct selected tasks efficiently
-        const newTasks = tasks.filter((t) => newIds.includes(t.id));
-        onSelectionChange(newIds, newTasks);
+        const newIds = isSelected
+            ? selectedIds.filter((id) => id !== task.id)
+            : [...selectedIds, task.id];
+        onSelectionChange(newIds, tasks.filter((t) => newIds.includes(t.id)));
     };
 
     const handleSelectAll = (e: any) => {
         if (e.target.checked) {
-            onSelectionChange(
-                tasks.map((t) => t.id),
-                tasks,
-            );
+            onSelectionChange(tasks.map((t) => t.id), tasks);
         } else {
             onSelectionChange([], []);
         }
     };
 
-    const isAllSelected =
-        tasks.length > 0 && selectedIds.length === tasks.length;
-    const isIndeterminate =
-        selectedIds.length > 0 && selectedIds.length < tasks.length;
+    const isAllSelected = tasks.length > 0 && selectedIds.length === tasks.length;
+    const isIndeterminate = selectedIds.length > 0 && selectedIds.length < tasks.length;
+
+    if (tasks.length === 0) {
+        return (
+            <div className="py-10 text-center text-slate-400 text-sm">
+                {td("No tasks found.")}
+            </div>
+        );
+    }
 
     return (
-        <div className="w-full bg-white rounded-lg border border-gray-200 overflow-hidden">
-            {/* Header */}
-            <div className="flex items-center px-4 py-2 border-b border-gray-100 bg-gray-50 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <div className="w-8 flex items-center justify-center">
+        <div>
+            {/* Column header */}
+            <div className="flex items-center border-b border-slate-100 bg-slate-50 px-2 py-1.5">
+                {/* Checkbox */}
+                <div className="w-8 shrink-0 flex items-center justify-center">
                     <Checkbox
                         checked={isAllSelected}
                         indeterminate={isIndeterminate}
                         onChange={handleSelectAll}
                     />
                 </div>
-                <div className="w-8 ml-6 flex items-center justify-center">
-                    {td("Priority")}
+                {/* Stripe placeholder */}
+                <div className="w-[3px] shrink-0" />
+                <div className="flex-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {td("Task")}
                 </div>
-                <div className="flex-1 ml-6">{td("Title")}</div>
-                <div className="w-24 ml-6 flex items-center justify-center">
-                    {td("Status")}
-                </div>
-                <div className="w-32 ml-6 hidden md:flex items-center justify-center">
-                    {td("Assignee")}
-                </div>
-                <div className="w-24 ml-6 hidden lg:flex items-center justify-center">
+                <div className="w-[110px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
                     {td("Due")}
                 </div>
-                <div className="w-10 ml-6"></div>
+                <div className="w-[80px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {td("Assignees")}
+                </div>
+                <div className="w-[140px] shrink-0 text-right pr-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    {td("Status")}
+                </div>
+                <div className="w-8 shrink-0" />
             </div>
 
-            {/* List */}
-            <div className="divide-y divide-gray-100">
-                {tasks.map((task) => {
-                    const canEdit = hasTaskPermission(task, "edit_tasks");
-                    const canDelete = hasTaskPermission(task, "delete_tasks");
+            {tasks.map((task) => {
+                const canEdit = hasTaskPermission(task, "edit_tasks");
+                const canDelete = hasTaskPermission(task, "delete_tasks");
+                const canSelect = canEdit || canDelete;
+                const isSelected = selectedIds.includes(task.id);
 
-                    // Disable checkbox if cannot edit or delete
-                    const canSelect = canEdit || canDelete;
+                const isOverdue =
+                    !!task.due_date &&
+                    dayjs(task.due_date).isBefore(dayjs(), "day") &&
+                    task.status !== "done";
+                const isToday =
+                    !!task.due_date && dayjs(task.due_date).isSame(dayjs(), "day");
 
-                    const actions: MenuProps["items"] = [
-                        {
-                            key: "view",
-                            label: td("View Details"),
-                            icon: <EyeOutlined />,
-                            onClick: () => onView(task),
-                        },
-                        {
-                            key: "edit",
-                            label: td("Edit"),
-                            icon: <EditOutlined />,
-                            onClick: () => onEdit(task),
-                            disabled: !canEdit,
-                        },
-                        {
-                            key: "duplicate",
-                            label: td("Duplicate"),
-                            icon: <CopyOutlined />,
-                            onClick: () => onDuplicate(task),
-                            disabled: permissions["add_tasks"] === "none",
-                        },
-                        {
-                            type: "divider",
-                        },
-                        {
-                            key: "delete",
-                            label: td("Delete"),
-                            icon: <DeleteOutlined />,
-                            danger: true,
-                            onClick: () => onDelete(task),
-                            disabled: !canDelete,
-                        },
-                    ];
+                const actions: MenuProps["items"] = [
+                    {
+                        key: "view",
+                        label: td("View Details"),
+                        icon: <EyeOutlined />,
+                        onClick: () => onView(task),
+                    },
+                    {
+                        key: "edit",
+                        label: td("Edit"),
+                        icon: <EditOutlined />,
+                        onClick: () => onEdit(task),
+                        disabled: !canEdit,
+                    },
+                    {
+                        key: "duplicate",
+                        label: td("Duplicate"),
+                        icon: <CopyOutlined />,
+                        onClick: () => onDuplicate(task),
+                        disabled: permissions["add_tasks"] === "none",
+                    },
+                    { type: "divider" },
+                    {
+                        key: "delete",
+                        label: td("Delete"),
+                        icon: <DeleteOutlined />,
+                        danger: true,
+                        onClick: () => onDelete(task),
+                        disabled: !canDelete,
+                    },
+                ];
 
-                    const isSelected = selectedIds.includes(task.id);
-                    return (
-                        <div
-                            key={task.id}
-                            className={clsx(
-                                "group flex items-center px-4 py-2 hover:bg-gray-50 transition-colors text-sm",
-                                isSelected && "bg-blue-50 hover:bg-blue-50",
-                            )}
-                        >
-                            {/* Checkbox */}
-                            <div className="w-8 flex items-center justify-center">
-                                <Checkbox
-                                    checked={isSelected}
-                                    disabled={!canSelect}
-                                    onChange={() => handleToggleSelect(task)}
-                                    className={clsx(
-                                        "opacity-0 group-hover:opacity-100 transition-opacity",
-                                        isSelected && "opacity-100",
-                                    )}
-                                />
-                            </div>
-
-                            {/* Priority */}
-                            <div className="w-8 ml-6 flex items-center justify-center">
-                                <PriorityIcon priority={task.priority} />
-                            </div>
-
-                            {/* Title & Tags */}
-                            <div className="flex-1 ml-6 min-w-0 flex items-center gap-2">
-                                <span
-                                    className="font-medium text-gray-900 truncate cursor-pointer hover:underline"
-                                    onClick={() => onView(task)}
-                                >
-                                    {td(task.heading)}
-                                </span>
-                                {task.labels && task.labels.length > 0 && (
-                                    <div className="flex gap-1 overflow-hidden">
-                                        {task.labels
-                                            .slice(0, 3)
-                                            .map((label) => (
-                                                <div
-                                                    key={label.id}
-                                                    className="w-2 h-2 rounded-full"
-                                                    style={{
-                                                        backgroundColor:
-                                                            label.label_color,
-                                                    }}
-                                                    title={td(label.label_name)}
-                                                />
-                                            ))}
-                                    </div>
+                return (
+                    <motion.div
+                        key={task.id}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={clsx(
+                            "group flex min-h-[46px] items-center border-b border-slate-100 px-2 transition-colors last:border-0 hover:bg-slate-50/60",
+                            isSelected && "bg-blue-50 hover:bg-blue-50",
+                        )}
+                    >
+                        {/* Checkbox */}
+                        <div className="w-8 shrink-0 flex items-center justify-center">
+                            <Checkbox
+                                checked={isSelected}
+                                disabled={!canSelect}
+                                onChange={() => handleToggleSelect(task)}
+                                className={clsx(
+                                    "opacity-0 group-hover:opacity-100 transition-opacity",
+                                    isSelected && "opacity-100",
                                 )}
-                            </div>
-
-                            {/* Status */}
-                            <div className="w-24 ml-6 flex items-center justify-center">
-                                <Dropdown
-                                    menu={{
-                                        items: columns.map((col) => ({
-                                            key: col.id,
-                                            label: (
-                                                <div className="flex items-center gap-2">
-                                                    <div
-                                                        className="w-2 h-2 rounded-full"
-                                                        style={{
-                                                            backgroundColor:
-                                                                col.label_color,
-                                                        }}
-                                                    />
-                                                    <span>
-                                                        {td(col.column_name)}
-                                                    </span>
-                                                </div>
-                                            ),
-                                            onClick: () =>
-                                                onStatusChange(
-                                                    task,
-                                                    col.slug,
-                                                    col.id,
-                                                ),
-                                        })),
-                                    }}
-                                    trigger={["click"]}
-                                    disabled={!canEdit}
-                                >
-                                    <span
-                                        className="px-2 py-0.5 rounded text-xs font-medium border capitalize cursor-pointer hover:opacity-80 transition-opacity inline-flex items-center gap-1"
-                                        style={{
-                                            borderColor:
-                                                task.board_column
-                                                    ?.label_color || "#d9d9d9",
-                                            color:
-                                                task.board_column
-                                                    ?.label_color || "#666",
-                                            backgroundColor: "white",
-                                        }}
-                                    >
-                                        {td(
-                                            task.board_column?.column_name ||
-                                                task.status,
-                                        )
-                                            .split("_")
-                                            .join(" ")}
-                                        <DownOutlined
-                                            style={{ fontSize: "10px" }}
-                                        />
-                                    </span>
-                                </Dropdown>
-                            </div>
-
-                            {/* Assignee */}
-                            <div className="w-32 ml-6 hidden md:flex items-center justify-center">
-                                <MultiUserIndicator
-                                    users={task?.users}
-                                    size="xs"
-                                />
-                            </div>
-
-                            {/* Due Date */}
-                            <div className="w-24 ml-6 hidden lg:flex items-center justify-center text-gray-500 text-xs">
-                                {task.due_date ? (
-                                    <span
-                                        className={clsx(
-                                            dayjs(task.due_date).isBefore(
-                                                dayjs(),
-                                            ) &&
-                                                task.status !== "done" &&
-                                                "text-red-500",
-                                        )}
-                                    >
-                                        {dayjs(task.due_date).format(
-                                            "MMM D, h:mm A",
-                                        )}
-                                    </span>
-                                ) : (
-                                    <span>-</span>
-                                )}
-                            </div>
-
-                            {/* Actions */}
-                            <div className="w-10 ml-6 flex items-center justify-center">
-                                <Dropdown
-                                    menu={{ items: actions }}
-                                    trigger={["click"]}
-                                >
-                                    <div className="p-1 rounded hover:bg-gray-200 cursor-pointer text-gray-400 group-hover:text-gray-600">
-                                        <MoreOutlined />
-                                    </div>
-                                </Dropdown>
-                            </div>
+                            />
                         </div>
-                    );
-                })}
-                {tasks.length === 0 && (
-                    <div className="p-8 text-center text-gray-400">
-                        {td("No tasks found.")}
-                    </div>
-                )}
-            </div>
+
+                        {/* Priority stripe */}
+                        <div
+                            className="w-[3px] shrink-0 self-stretch rounded-r"
+                            style={{
+                                backgroundColor:
+                                    PRIORITY_COLORS[task.priority] ?? "#e2e8f0",
+                            }}
+                        />
+
+                        {/* Title + labels */}
+                        <div className="min-w-0 flex-1 px-3 py-2.5">
+                            <p
+                                className="truncate text-sm font-semibold leading-tight text-slate-800 cursor-pointer hover:underline"
+                                onClick={() => onView(task)}
+                            >
+                                {td(task.heading)}
+                            </p>
+                            {task.labels && task.labels.length > 0 && (
+                                <div className="mt-0.5 flex gap-1">
+                                    {task.labels.slice(0, 3).map((label) => (
+                                        <Tooltip key={label.id} title={td(label.label_name)}>
+                                            <div
+                                                className="w-2 h-2 rounded-full shrink-0"
+                                                style={{ backgroundColor: label.label_color }}
+                                            />
+                                        </Tooltip>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Due date */}
+                        <div className="w-[110px] shrink-0 px-1 text-center">
+                            {task.due_date ? (
+                                <>
+                                    <p
+                                        className={clsx(
+                                            "text-xs font-semibold tabular-nums leading-tight",
+                                            isOverdue
+                                                ? "text-red-500"
+                                                : isToday
+                                                  ? "text-amber-500"
+                                                  : "text-slate-600",
+                                        )}
+                                    >
+                                        {dayjs(task.due_date).format("MMM D, h:mm A")}
+                                    </p>
+                                    <p
+                                        className={clsx(
+                                            "text-[10px] leading-tight",
+                                            isOverdue ? "text-red-400" : "text-slate-400",
+                                        )}
+                                    >
+                                        {dayjs(task.due_date).fromNow()}
+                                    </p>
+                                </>
+                            ) : (
+                                <span className="text-xs text-slate-300">—</span>
+                            )}
+                        </div>
+
+                        {/* Assignees */}
+                        <div className="w-[80px] shrink-0 flex justify-center px-1">
+                            {task.users && task.users.length > 0 && (
+                                <MultiUserIndicator
+                                    users={task.users}
+                                    size="sm"
+                                    maxCount={3}
+                                    showNames={false}
+                                    colorful
+                                />
+                            )}
+                        </div>
+
+                        {/* Status */}
+                        <div className="w-[140px] shrink-0 flex justify-end pr-2">
+                            <TaskStatusDropdownPill
+                                status={task.board_column?.slug || task.status}
+                                columns={columns}
+                                disabled={!canEdit}
+                                onChange={(slug, id) => onStatusChange(task, slug, id)}
+                            />
+                        </div>
+
+                        {/* Actions */}
+                        <div className="w-8 shrink-0 flex justify-center">
+                            <Dropdown
+                                menu={{ items: actions }}
+                                trigger={["click"]}
+                                placement="bottomRight"
+                            >
+                                <Button
+                                    size="small"
+                                    icon={<MoreOutlined />}
+                                    type="text"
+                                    className="opacity-0 group-hover:opacity-100"
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </Dropdown>
+                        </div>
+                    </motion.div>
+                );
+            })}
         </div>
     );
 };

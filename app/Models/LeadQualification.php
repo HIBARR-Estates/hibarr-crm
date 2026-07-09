@@ -17,6 +17,7 @@ class LeadQualification extends BaseModel
         'lead_id',
         'template_id',
         'template_version',
+        'template_name',
         'agent_id',
         'status',
         'selected_branch_keys',

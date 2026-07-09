@@ -8,6 +8,7 @@ use App\Models\Deal;
 use App\Models\LeadAgent;
 use App\Models\MlmCycle;
 use App\Models\MlmLevel;
+use App\Support\FeatureFlags;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 
@@ -193,7 +194,7 @@ class LevelService
 
         if (
             $level->rank > $oldRank
-            && config('features.sales.per-agent-commission-override')
+            && FeatureFlags::enabled('sales.per-agent-commission-override')
             && ($agent->custom_direct_rate !== null || $agent->custom_override_rate !== null)
         ) {
             app(AgentCommissionProfileService::class)->clearCustomRatesOnPromotion(

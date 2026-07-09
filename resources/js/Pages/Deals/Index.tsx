@@ -5,7 +5,6 @@ import PageLayout from "@/Components/PageLayout";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
-import usePageSort from "@/Hooks/usePageSort";
 import useViewPreference from "@/Hooks/useViewPreference";
 import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PipelineStage } from "@/Types/api/deals";
@@ -47,6 +46,7 @@ import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -190,9 +190,6 @@ const Index = ({
             replace: true,
         });
     };
-
-    // Sort handlers
-    const { sortParams } = usePageSort({ routeName: "deals.index" });
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -414,7 +411,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {t("app.common.actions.refresh")}
+                                {td("Refresh")}
                             </Button>
                             {/* Advanced Filters Button */}
                             <div className="flex items-center gap-x-2">
@@ -462,13 +459,11 @@ const Index = ({
                             onPageChange={(page) => {
                                 router.get(
                                     route("deals.index"),
-                                    {
-                                        ...filters,
+                                    mergeQueryParams({
                                         lead_pipeline_id: valueLeadPipelineId,
-                                        ...sortParams,
                                         page,
                                         per_page: deals.per_page,
-                                    },
+                                    }),
                                     {
                                         preserveState: true,
                                         preserveScroll: true,

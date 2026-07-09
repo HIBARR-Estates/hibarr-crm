@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
-import { Drawer, Skeleton } from "antd";
+import { Modal, Skeleton } from "antd";
+import { SaveOutlined } from "@ant-design/icons";
+import "./save-task-modal.css";
 import { IModalProps } from "@/Types/common";
 import TaskForm from "./TaskForm";
 import { useApiMutate } from "@/lib/api/client";
@@ -343,58 +345,113 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         getLoadingStatus({ status: createStatus }) ||
         getLoadingStatus({ status: updateStatus });
 
+    const FORM_ID = "save-task-modal-form";
+
     return (
-        <Drawer
-            title={getTitle()}
-            placement="right"
-            size="large"
+        <Modal
+            className="save-task-modal"
+            title={null}
             open={open}
-            onClose={handleCancel}
+            onCancel={handleCancel}
+            footer={null}
+            width={900}
+            centered
             destroyOnHidden
+            maskClosable={false}
+            closable
         >
-            {isFetchingTask ? (
-                <Skeleton active paragraph={{ rows: 10 }} />
-            ) : (
-                <>
-                    {/* show errors */}
+            {/* Header */}
+            <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
+                <h2 className="text-xl font-semibold text-gray-900 leading-tight">
+                    {getTitle()}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                    {isEditing
+                        ? "Update the task details below."
+                        : "Fill in the details below to create a new task."}
+                </p>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 pb-2">
+                {isFetchingTask ? (
+                    <div className="py-8">
+                        <Skeleton active paragraph={{ rows: 10 }} />
+                    </div>
+                ) : (
+                    <>
+                        {errors.length > 0 && (
+                            <div className="mt-4 mb-0">
+                                {errors.map((error, index) => (
+                                    <div key={index} className="text-red-600 text-sm">
+                                        {error}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <TaskForm
+                            data={formData || undefined}
+                            visible={open}
+                            onCancel={handleCancel}
+                            onSubmit={handleSubmit}
+                            submitText={td(submitText)}
+                            cancelText={td("Cancel")}
+                            errors={errors}
+                            setErrors={(newErrors) => {
+                                if (Array.isArray(newErrors)) {
+                                    setErrors(newErrors);
+                                }
+                            }}
+                            onErrorsClear={handleErrorsClear}
+                            loading={isLoading}
+                            categories={categories}
+                            labels={labels}
+                            columns={columns}
+                            users={users}
+                            projects={projects}
+                            deals={deals}
+                            leads={leads}
+                            properties={properties}
+                            relatedEntity={relatedEntity}
+                            td={td}
+                            formId={FORM_ID}
+                            hideFooter={true}
+                        />
+                    </>
+                )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between">
+                <button
+                    onClick={handleCancel}
+                    disabled={isLoading}
+                    className="px-4 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                >
+                    {td("Cancel")}
+                </button>
+                <div className="flex items-center gap-3">
                     {errors.length > 0 && (
-                        <div className="mb-4">
-                            {errors.map((error, index) => (
-                                <div key={index} className="text-red-600">
-                                    {error}
-                                </div>
-                            ))}
-                        </div>
+                        <p className="text-[11px] text-red-500 italic">
+                            Please fix the errors above
+                        </p>
                     )}
-                    <TaskForm
-                        data={formData || undefined}
-                        visible={open}
-                        onCancel={handleCancel}
-                        onSubmit={handleSubmit}
-                        submitText={td(submitText)}
-                        cancelText={td("Cancel")}
-                        errors={errors}
-                        setErrors={(newErrors) => {
-                            if (Array.isArray(newErrors)) {
-                                setErrors(newErrors);
-                            }
-                        }}
-                        onErrorsClear={handleErrorsClear}
-                        loading={isLoading}
-                        categories={categories}
-                        labels={labels}
-                        columns={columns}
-                        users={users}
-                        projects={projects}
-                        deals={deals}
-                        leads={leads}
-                        properties={properties}
-                        relatedEntity={relatedEntity}
-                        td={td}
-                    />
-                </>
-            )}
-        </Drawer>
+                    <button
+                        form={FORM_ID}
+                        type="submit"
+                        disabled={isLoading || isFetchingTask}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                            !isLoading && !isFetchingTask
+                                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 active:scale-[0.98]"
+                                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                        }`}
+                    >
+                        <SaveOutlined />
+                        {isLoading ? "Saving…" : td(submitText)}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     );
 };
 

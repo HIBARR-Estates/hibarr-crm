@@ -8,7 +8,29 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // --- Self-heal mlm_cycles to the state this migration expects ---
+        // A prior partial rollback can leave max_overflow_multiplier missing
+        // and cycle_config_id re-added. Normalise before proceeding so this
+        // migration is idempotent regardless of a half-applied boundary.
+        if (! Schema::hasColumn('mlm_cycles', 'max_overflow_multiplier')) {
+            Schema::table('mlm_cycles', function (Blueprint $table) {
+                $table->decimal('max_overflow_multiplier', 3, 2)->default(1.00)->after('status');
+            });
+        }
+
+        // On a fresh DB this column is already dropped by the previous migration,
+        // so the guard skips it. When present here there is no FK on it.
+        if (Schema::hasColumn('mlm_cycles', 'cycle_config_id')) {
+            Schema::table('mlm_cycles', function (Blueprint $table) {
+                $table->dropColumn('cycle_config_id');
+            });
+        }
+
         // 1. Snapshot of levels frozen at cycle activation
+        //    Drop any half-created (empty) remnant first so the create succeeds.
+        Schema::dropIfExists('mlm_cycle_criteria_snapshots');
+        Schema::dropIfExists('mlm_cycle_level_snapshots');
+
         Schema::create('mlm_cycle_level_snapshots', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('company_id');
@@ -44,30 +66,36 @@ return new class extends Migration
         });
 
         // 3. Add max_commission_snapshot to mlm_cycles
-        Schema::table('mlm_cycles', function (Blueprint $table) {
-            $table->unsignedDecimal('max_commission_snapshot', 5, 2)
-                ->nullable()
-                ->after('max_overflow_multiplier');
-        });
+        if (! Schema::hasColumn('mlm_cycles', 'max_commission_snapshot')) {
+            Schema::table('mlm_cycles', function (Blueprint $table) {
+                $table->unsignedDecimal('max_commission_snapshot', 5, 2)
+                    ->nullable()
+                    ->after('max_overflow_multiplier');
+            });
+        }
 
         // 4. Add cycle_level_snapshot_id FK to mlm_commissions and agent_level_history
-        Schema::table('mlm_commissions', function (Blueprint $table) {
-            $table->unsignedBigInteger('cycle_level_snapshot_id')
-                ->nullable()
-                ->after('level_id');
+        if (! Schema::hasColumn('mlm_commissions', 'cycle_level_snapshot_id')) {
+            Schema::table('mlm_commissions', function (Blueprint $table) {
+                $table->unsignedBigInteger('cycle_level_snapshot_id')
+                    ->nullable()
+                    ->after('level_id');
 
-            $table->foreign('cycle_level_snapshot_id', 'comm_cls_fk')
-                ->references('id')->on('mlm_cycle_level_snapshots')->nullOnDelete();
-        });
+                $table->foreign('cycle_level_snapshot_id', 'comm_cls_fk')
+                    ->references('id')->on('mlm_cycle_level_snapshots')->nullOnDelete();
+            });
+        }
 
-        Schema::table('agent_level_history', function (Blueprint $table) {
-            $table->unsignedBigInteger('cycle_level_snapshot_id')
-                ->nullable()
-                ->after('level_id');
+        if (! Schema::hasColumn('agent_level_history', 'cycle_level_snapshot_id')) {
+            Schema::table('agent_level_history', function (Blueprint $table) {
+                $table->unsignedBigInteger('cycle_level_snapshot_id')
+                    ->nullable()
+                    ->after('level_id');
 
-            $table->foreign('cycle_level_snapshot_id', 'alh_cls_fk')
-                ->references('id')->on('mlm_cycle_level_snapshots')->nullOnDelete();
-        });
+                $table->foreign('cycle_level_snapshot_id', 'alh_cls_fk')
+                    ->references('id')->on('mlm_cycle_level_snapshots')->nullOnDelete();
+            });
+        }
     }
 
     public function down(): void

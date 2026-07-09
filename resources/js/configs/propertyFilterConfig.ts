@@ -1,5 +1,6 @@
 import { FilterConfig } from "@/contexts/FilterContext";
 import type { DeveloperProjectOption } from "@/Types/developerProject";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 interface CityOption {
     name: string;
@@ -49,7 +50,9 @@ export const createPropertyFilterConfig = (
                     value: String(project.id),
                     label:
                         project.name +
-                        (project.location ? ` (${project.location.name})` : ""),
+                        (project.location
+                            ? ` (${formatLocationNameForDisplay(project.location.name)})`
+                            : ""),
                 })) || []),
             ],
         },

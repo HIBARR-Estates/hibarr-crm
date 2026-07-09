@@ -58,7 +58,7 @@ class PropertyAccessRequest extends BaseNotification
             ->line("**Request Type:** " . ucfirst($this->requestType))
             ->line("**Message:**")
             ->line($this->message)
-            ->action('View Property', url("/account/properties/{$this->property->id}"))
+            ->action('View Property', $this->modifyUrl(route('properties.show', $this->property->id)))
             ->line('Please respond to this request at your earliest convenience.');
     }
 

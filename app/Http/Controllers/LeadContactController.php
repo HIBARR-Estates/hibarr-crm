@@ -44,8 +44,6 @@ use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
 use App\Services\PermissionService;
 use App\Services\LeadService;
-use App\Support\FeatureFlags;
-
 class LeadContactController extends AccountBaseController
 {
 
@@ -95,7 +93,6 @@ class LeadContactController extends AccountBaseController
 
         return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
-            'featureFlags' => FeatureFlags::forInertia(),
             'leadContacts' => $leadContacts,
             'stages' => $this->leadService->getLeadStages(),
             'filters' => $request->only([
@@ -293,6 +290,17 @@ class LeadContactController extends AccountBaseController
 
         $leadFollowUps = $leadFollowUpsQuery->get();
 
+        $allParticipantIds = $leadFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+        $participantUsersMap = $allParticipantIds->isEmpty()
+            ? collect()
+            : \App\Models\User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+        $leadFollowUps->each(function ($f) use ($participantUsersMap) {
+            $f->participant_users = collect($f->participants ?? [])
+                ->map(fn ($id) => $participantUsersMap->get($id))
+                ->filter()->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
+                ->values()->toArray();
+        });
+
         $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
             ->select('id', 'name', 'color')
             ->get();
@@ -315,7 +323,6 @@ class LeadContactController extends AccountBaseController
 
         return Inertia::render('Leads/Show', array_merge([
             'lead' => $this->leadContact,
-            'featureFlags' => FeatureFlags::forInertia(),
             'fields' => $customFields,
             'editLeadPermission' => $this->editLeadPermission,
             'deleteLeadPermission' => $this->deleteLeadPermission,
@@ -334,6 +341,9 @@ class LeadContactController extends AccountBaseController
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
+            'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
+                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($this->leadContact)
+                : null,
         ], $formData, $dealFormData));
     }
 
@@ -477,6 +487,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
+        $leadContact->category_id = $request->category_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->company_name = $request->company_name;
@@ -991,7 +1002,17 @@ class LeadContactController extends AccountBaseController
                     $leadContact->withCustomFields();
                     $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
                 }
-                
+
+                // Always refresh the computed display name so the frontend doesn't revert to the
+                // stale salutation+name combo it had before the edit.
+                if ($request->has('client_name') || $request->has('salutation')) {
+                    $responseData['client_name_salutation'] = $leadContact->client_name_salutation;
+                    $responseData['salutation_value'] = $leadContact->salutation instanceof \App\Enums\Salutation
+                        ? $leadContact->salutation->value
+                        : $leadContact->salutation;
+                    $responseData['salutation'] = $responseData['salutation_value'];
+                }
+
                 return response()->json([
                     'status' => 'success',
                     'data' => [

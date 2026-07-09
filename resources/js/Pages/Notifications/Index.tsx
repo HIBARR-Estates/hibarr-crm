@@ -59,6 +59,7 @@ import {
 } from "@/Types/api/notification";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -293,7 +294,11 @@ const NotificationItem: React.FC<NotificationItemProps> = ({
                                     className="flex items-center gap-1"
                                 >
                                     {!notification.is_read && (
-                                        <Tooltip title={t("app.notifications.actions.mark_read")}>
+                                        <Tooltip
+                                            title={t(
+                                                "app.notifications.actions.mark_read",
+                                            )}
+                                        >
                                             <Button
                                                 type="text"
                                                 size="small"
@@ -455,6 +460,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
 }) => {
     const { modal } = App.useApp();
     const { t } = useTranslation();
+    const { td } = useTd();
 
     const handleDeleteAllRead = () => {
         modal.confirm({
@@ -501,9 +507,18 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
                         onChange={onStatusChange}
                         style={{ width: 140 }}
                         options={[
-                            { value: "all", label: t("app.notifications.filters.all") },
-                            { value: "unread", label: t("app.notifications.filters.unread") },
-                            { value: "read", label: t("app.notifications.filters.read") },
+                            {
+                                value: "all",
+                                label: t("app.notifications.filters.all"),
+                            },
+                            {
+                                value: "unread",
+                                label: t("app.notifications.filters.unread"),
+                            },
+                            {
+                                value: "read",
+                                label: t("app.notifications.filters.read"),
+                            },
                         ]}
                     />
 
@@ -529,7 +544,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                    <Tooltip title={t("app.common.actions.refresh")}>
+                    <Tooltip title={td("Refresh")}>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={onRefresh}
@@ -542,7 +557,9 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
                             menu={{ items: moreActions }}
                             trigger={["click"]}
                         >
-                            <Button icon={<MoreOutlined />}>{t("app.notifications.actions_label")}</Button>
+                            <Button icon={<MoreOutlined />}>
+                                {t("app.notifications.actions_label")}
+                            </Button>
                         </Dropdown>
                     )}
                 </div>
@@ -626,7 +643,10 @@ const NotificationsPage: React.FC = () => {
     return (
         <DashboardLayout>
             <Head title={t("app.notifications.title")} />
-            <PageLayout title={t("app.notifications.title")} breadcrumbs={breadcrumbs}>
+            <PageLayout
+                title={t("app.notifications.title")}
+                breadcrumbs={breadcrumbs}
+            >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <Card
                         bodyStyle={{ padding: 0 }}
@@ -644,7 +664,9 @@ const NotificationsPage: React.FC = () => {
                                 type={showCheckboxes ? "primary" : "default"}
                                 onClick={toggleSelectionMode}
                             >
-                                {showCheckboxes ? t("app.notifications.done") : t("app.notifications.select")}
+                                {showCheckboxes
+                                    ? t("app.notifications.done")
+                                    : t("app.notifications.select")}
                             </Button>
                         }
                     >

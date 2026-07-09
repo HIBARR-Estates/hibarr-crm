@@ -148,13 +148,22 @@ class DeveloperProjectController extends AccountBaseController
 
         // Search by name or description
         if ($request->filled('search')) {
-            $search = $request->search;
+            $search = trim($request->search);
+
             $query->where(function ($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
-                  ->orWhere('description', 'like', "%{$search}%");
+                ->orWhere('description', 'like', "%{$search}%");
             });
-        }
 
+            // raw ordering to rank name matches higher than description-only matches
+            $query->orderByRaw("
+                CASE 
+                    WHEN name LIKE ? THEN 2
+                    WHEN description LIKE ? THEN 1
+                    ELSE 0
+                END DESC
+            ", ["%{$search}%", "%{$search}%"]);
+        }
         // Filter by location if provided
         if ($request->filled('location_id')) {
             $query->where('project_location_id', $request->location_id);
@@ -210,6 +219,12 @@ class DeveloperProjectController extends AccountBaseController
                 break;
             case 'properties_desc':
                 $query->orderByDesc('properties_count');
+                break;
+            case 'cheapest':
+                $query->orderBy('starting_price', 'asc');
+                break;
+            case 'most_expensive':
+                $query->orderBy('starting_price', 'desc');
                 break;
             default: // newest
                 $query->orderBy('created_at', 'desc');
@@ -284,8 +299,17 @@ class DeveloperProjectController extends AccountBaseController
 
         // Find lowest starting price across unit types
         $lowestPriceUnit = $project->unitTypes->whereNotNull('starting_price')->sortBy('starting_price')->first();
-        $startingPrice = $project->starting_price ?? ($lowestPriceUnit ? (float) $lowestPriceUnit->starting_price : null);
-        $startingPriceFormatted = $project->formatted_starting_price ?? ($lowestPriceUnit ? $lowestPriceUnit->formatted_starting_price : null);
+        if ($project->starting_price !== null) {
+            // Project-level override has no currency of its own; a project has one currency, so use the unit types'.
+            $startingPrice = (float) $project->starting_price;
+            $startingPriceCurrency = $project->unitTypes->first()?->currency ?? 'GBP';
+        } else {
+            $startingPrice = $lowestPriceUnit ? (float) $lowestPriceUnit->starting_price : null;
+            $startingPriceCurrency = $lowestPriceUnit?->currency ?? 'GBP';
+        }
+        $startingPriceFormatted = $startingPrice !== null
+            ? (DeveloperProjectUnitType::CURRENCIES[$startingPriceCurrency]['symbol'] ?? '£') . number_format($startingPrice, 0)
+            : null;
 
         // Build unit types summary (grouped by property_type)
         $unitTypesSummary = $this->getUnitTypesSummary($project->unitTypes);
@@ -334,6 +358,7 @@ class DeveloperProjectController extends AccountBaseController
                 'under_offer_properties' => $underOfferProperties,
                 'starting_price' => $startingPrice,
                 'starting_price_formatted' => $startingPriceFormatted,
+                'starting_price_currency' => $startingPriceCurrency,
             ],
             'unitTypesSummary' => $unitTypesSummary,
             'facilities' => $facilities,

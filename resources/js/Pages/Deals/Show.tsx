@@ -35,6 +35,9 @@ import { usePage } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import DealViewRedesign from "./Redesign/DealViewRedesign";
+import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
+import type { DealSummaryPayload } from "@/Types/entity-summary";
 
 interface Props extends PageProps {
     deal: Deal;
@@ -57,10 +60,11 @@ interface Props extends PageProps {
     taskBoardColumns: any[];
     employees: any[];
     projects: any[];
+    dealAiSummary?: DealSummaryPayload | null;
 }
 const { Title } = Typography;
 
-export const Show = ({
+export const LegacyDealShow = ({
     deal,
     productNames,
     customFieldCategories,
@@ -81,8 +85,12 @@ export const Show = ({
     taskBoardColumns,
     employees,
     projects,
+    featureFlags: pageFeatureFlags,
+    dealAiSummary,
 }: Props) => {
     const { props } = usePage<PageProps>();
+    const featureFlags = pageFeatureFlags ?? props.featureFlags;
+    const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh({
@@ -143,7 +151,9 @@ export const Show = ({
                                                     :
                                                 </span>
                                                 {deal.created_at ? (
-                                                    dayjs(deal.created_at).format(
+                                                    dayjs(
+                                                        deal.created_at,
+                                                    ).format(
                                                         "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
@@ -161,7 +171,9 @@ export const Show = ({
                                                     :
                                                 </span>
                                                 {deal.updated_at ? (
-                                                    dayjs(deal.updated_at).format(
+                                                    dayjs(
+                                                        deal.updated_at,
+                                                    ).format(
                                                         "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
@@ -261,7 +273,7 @@ export const Show = ({
                                             ? t(
                                                   "pages.deals.refresh_tooltip_disabled",
                                               )
-                                            : t("app.common.actions.refresh")
+                                            : td("Refresh")
                                     }
                                 >
                                     <Button
@@ -276,7 +288,7 @@ export const Show = ({
                                         }
                                         type="text"
                                     >
-                                        {t("app.common.actions.refresh")}
+                                        {td("Refresh")}
                                     </Button>
                                 </Tooltip>
                             </div>
@@ -286,58 +298,32 @@ export const Show = ({
                         <Row gutter={[30, 40]} className="">
                             {/* Left Column - Main Content */}
                             <Col xs={24} lg={14} xl={14}>
-                                <div className="flex flex-col gap-y-4 sm:gap-y-6">
-                                    {/* Deal Information Card */}
-                                    <Card
-                                        className="border-0 rounded-lg overflow-hidden deal-card"
-                                        bodyStyle={{ padding: 0 }}
-                                        variant="outlined"
-                                    >
-                                        <DealInfoSection
-                                            deal={deal}
-                                            productNames={productNames}
-                                            customFieldCategories={
-                                                customFieldCategories
-                                            }
-                                            fields={fields}
-                                            permissions={permissions}
-                                            tasks={tasks}
-                                            taskCategories={taskCategories}
-                                            taskLabels={taskLabels}
-                                            taskBoardColumns={taskBoardColumns}
-                                            employees={employees}
-                                            projects={projects}
-                                            isEditMode={isDealEditMode}
-                                            onEditModeChange={setIsDealEditMode}
-                                        />
-                                    </Card>
-
-                                    {/* Tabs Section */}
-                                    <Card
-                                        className="border-0 rounded-lg overflow-hidden deal-card"
-                                        bodyStyle={{ padding: 0 }}
-                                        variant="outlined"
-                                    >
-                                        <DealTabs
-                                            deal={deal}
-                                            notes={notes}
-                                            dealFollowUps={dealFollowUps}
-                                            meetingTypes={meetingTypes}
-                                            files={files}
-                                            proposals={proposals}
-                                            histories={histories}
-                                            consents={consents}
-                                            gdprSetting={gdprSetting}
-                                            permissions={permissions}
-                                            tasks={tasks}
-                                            taskCategories={taskCategories}
-                                            taskLabels={taskLabels}
-                                            taskBoardColumns={taskBoardColumns}
-                                            employees={employees}
-                                            projects={projects}
-                                        />
-                                    </Card>
-                                </div>
+                                {/* <div className="flex flex-col gap-y-4 sm:gap-y-6"> */}
+                                {/* Deal Information Card */}
+                                <Card
+                                    className="border-0 rounded-lg overflow-hidden deal-card"
+                                    bodyStyle={{ padding: 0 }}
+                                    variant="outlined"
+                                >
+                                    <DealInfoSection
+                                        deal={deal}
+                                        productNames={productNames}
+                                        customFieldCategories={
+                                            customFieldCategories
+                                        }
+                                        fields={fields}
+                                        permissions={permissions}
+                                        tasks={tasks}
+                                        taskCategories={taskCategories}
+                                        taskLabels={taskLabels}
+                                        taskBoardColumns={taskBoardColumns}
+                                        employees={employees}
+                                        projects={projects}
+                                        isEditMode={isDealEditMode}
+                                        onEditModeChange={setIsDealEditMode}
+                                    />
+                                </Card>
+                                {/* </div> */}
                             </Col>
 
                             {/* Right Column - Activities Sidebar */}
@@ -357,10 +343,62 @@ export const Show = ({
                                 </div>
                             </Col>
                         </Row>
+                        <Row gutter={[30, 40]} className="mt-8">
+                            <Col xs={48} lg={24} xl={24}>
+                                {showAiSummary && (
+                                    <div className="mb-6">
+                                        <EntityAiSummaryCard
+                                            entityType="deal"
+                                            entityId={deal.id}
+                                            initialSummary={dealAiSummary}
+                                            variant="legacy"
+                                        />
+                                    </div>
+                                )}
+                                <Card
+                                    className="border-0 rounded-lg overflow-hidden deal-card"
+                                    bodyStyle={{ padding: 0 }}
+                                    variant="outlined"
+                                >
+                                    <DealTabs
+                                        deal={deal}
+                                        notes={notes}
+                                        dealFollowUps={dealFollowUps}
+                                        meetingTypes={meetingTypes}
+                                        files={files}
+                                        proposals={proposals}
+                                        histories={histories}
+                                        consents={consents}
+                                        gdprSetting={gdprSetting}
+                                        permissions={permissions}
+                                        tasks={tasks}
+                                        taskCategories={taskCategories}
+                                        taskLabels={taskLabels}
+                                        taskBoardColumns={taskBoardColumns}
+                                        employees={employees}
+                                        projects={projects}
+                                    />
+                                </Card>
+                            </Col>
+                            {/* Tabs Section */}
+                        </Row>
                     </div>
                 </div>
             </PageLayout>
         </>
+    );
+};
+
+export const Show = (props: Props) => {
+    const page = usePage<PageProps>();
+    const useRedesign =
+        page.props.featureFlags?.["crm.deal-view-redesign"] === true;
+    // const useRedesign = true;
+
+    return useRedesign ? (
+        <DealViewRedesign {...props} />
+    ) : (
+        <LegacyDealShow {...props} />
     );
 };
 

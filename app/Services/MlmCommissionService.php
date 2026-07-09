@@ -9,6 +9,7 @@ use App\Models\LeadAgent;
 use App\Models\MlmCommission;
 use App\Models\MlmCycleLevelSnapshot;
 use App\Models\MlmLevel;
+use App\Support\FeatureFlags;
 use Illuminate\Support\Facades\Log;
 
 class MlmCommissionService
@@ -200,7 +201,7 @@ class MlmCommissionService
 
     protected function isPerAgentOverrideEnabled(): bool
     {
-        return (bool) config('features.sales.per-agent-commission-override', false);
+        return FeatureFlags::enabled('sales.per-agent-commission-override');
     }
 
     protected function resolveDirectRate(

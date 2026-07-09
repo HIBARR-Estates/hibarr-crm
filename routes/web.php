@@ -128,6 +128,7 @@ use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadQualificationController;
+use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
@@ -533,6 +534,12 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deals/change-follow-up-status', [DealController::class, 'changeFollowUpStatus'])->name('deals.change_follow_up_status');
     Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate-meeting-link');
 
+    // Zoho Calendar Sync (jobId retry + fresh enqueue when jobId is null)
+    Route::post(
+        'follow-ups/{followUp}/zoho-calendar-sync/retry',
+        [\App\Http\Controllers\ZohoCalendarSyncController::class, 'retry']
+    )->name('zoho_calendar_sync.retry');
+
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');
     Route::resource('leadCategory', LeadCategoryController::class);
@@ -605,6 +612,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-qualifications/{qualification}/abandon', [LeadQualificationController::class, 'abandon'])->name('lead-qualifications.abandon');
     Route::delete('lead-qualifications/{qualification}/branch-answers', [LeadQualificationController::class, 'clearBranchAnswers'])->name('lead-qualifications.clear-branch-answers');
 
+    Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
+    Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
+
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
         Route::post('apply-quick-action', [AgentController::class, 'applyQuickAction'])->name('agents.apply_quick_action');
@@ -643,6 +653,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/create', [DealController::class, 'create'])->name('deals.create');
     Route::post('deals', [DealController::class, 'store'])->name('deals.store');
     Route::get('deals/{deal}', [DealController::class, 'show'])->name('deals.show');
+    Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
+    Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
@@ -1088,6 +1100,26 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('/{id}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
         Route::post('/{id}/approve', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'approve'])->name('approve');
         Route::post('/{id}/deny', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'deny'])->name('deny');
+    });
+
+    // Property Edit Access Requests
+    Route::prefix('edit-access-requests')->name('edit-access-requests.')->group(function () {
+        Route::get('/', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'index'])->name('index');
+        Route::post('/', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'store'])->name('store');
+        Route::get('/property/{propertyId}', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'forProperty'])->name('for-property');
+        Route::get('/{id}', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'show'])->name('show')->where('id', '[0-9]+');
+        Route::post('/{id}/approve', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'approve'])->name('approve');
+        Route::post('/{id}/deny', [App\Http\Controllers\PropertyEditAccessRequestController::class, 'deny'])->name('deny');
+    });
+
+    // Property collaborators & watchers
+    Route::prefix('properties/{propertyId}')->where(['propertyId' => '[0-9]+'])->group(function () {
+        Route::get('collaborators', [App\Http\Controllers\PropertyCollaboratorController::class, 'index'])->name('properties.collaborators.index');
+        Route::delete('collaborators/{userId}', [App\Http\Controllers\PropertyCollaboratorController::class, 'destroy'])->name('properties.collaborators.destroy')->where('userId', '[0-9]+');
+        Route::get('watchers', [App\Http\Controllers\PropertyWatcherController::class, 'index'])->name('properties.watchers.index');
+        Route::post('watchers/self', [App\Http\Controllers\PropertyWatcherController::class, 'storeSelf'])->name('properties.watchers.store-self');
+        Route::put('watchers', [App\Http\Controllers\PropertyWatcherController::class, 'sync'])->name('properties.watchers.sync');
+        Route::delete('watchers/{userId}', [App\Http\Controllers\PropertyWatcherController::class, 'destroy'])->name('properties.watchers.destroy')->where('userId', '[0-9]+');
     });
     
     // Property Publish Requests

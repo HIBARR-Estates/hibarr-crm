@@ -23,6 +23,7 @@ import MobileSidebarToggle from "./components/MobileSidebarToggle";
 import OverviewSection from "./components/OverviewSection";
 import FacilitiesSection from "./components/FacilitiesSection";
 import ImageGallerySection from "./components/ImageGallerySection";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 import PriceListSection from "./components/PriceListSection";
 import PdfFilesSection from "./components/PdfFilesSection";
 import DevelopersSection from "./components/DevelopersSection";
@@ -49,6 +50,7 @@ export interface Statistics {
     under_offer_properties: number;
     starting_price: number | null;
     starting_price_formatted: string | null;
+    starting_price_currency: string;
 }
 
 export interface ImageItem {
@@ -382,9 +384,11 @@ const Show = ({
                             </div>
                         </div>
                         {project.location?.name && (
-                            <p className="flex items-center gap-1.5 text-sm text-gray-500 capitalize shrink-0 mt-1.5">
+                            <p className="flex items-center gap-1.5 text-sm text-gray-500 shrink-0 mt-1.5">
                                 <MapPin size={14} className="text-gray-400" />
-                                {project.location.name}
+                                {formatLocationNameForDisplay(
+                                    project.location.name,
+                                )}
                             </p>
                         )}
                     </div>

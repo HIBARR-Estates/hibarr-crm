@@ -3,10 +3,11 @@
 namespace App\Services\AiSummary;
 
 use App\Contracts\AiSummaryInterface;
+use App\Contracts\EntitySummaryAgentInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class HibarrAiSummaryService implements AiSummaryInterface
+class HibarrAiSummaryService implements AiSummaryInterface, EntitySummaryAgentInterface
 {
     private string $baseUrl;
     private int $timeout;
@@ -121,5 +122,88 @@ PROMPT;
 
             return 'An unexpected error occurred while generating the AI summary. Please try again later.';
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputPayload
+     * @return array<string, mixed>
+     */
+    public function executeStructuredAgent(
+        string $featureContext,
+        string $systemPrompt,
+        array $inputPayload,
+        int $maxTokens = 2048,
+    ): array {
+        $userContent = json_encode($inputPayload, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+
+        Log::info('HibarrAiSummaryService::executeStructuredAgent', [
+            'feature_context' => $featureContext,
+            'input_length' => mb_strlen($userContent),
+        ]);
+
+        try {
+            $request = Http::timeout($this->timeout);
+
+            if (! empty($this->apiKey)) {
+                $request = $request->withHeaders([
+                    'x-api-key' => $this->apiKey,
+                ]);
+            }
+
+            $response = $request->post("{$this->baseUrl}/ai/execute", [
+                'featureContext' => $featureContext,
+                'userId' => (string) (auth()->id() ?? '0'),
+                'payload' => [
+                    'messages' => [
+                        ['role' => 'system', 'content' => $systemPrompt],
+                        ['role' => 'user', 'content' => $userContent],
+                    ],
+                    'maxTokens' => $maxTokens,
+                ],
+                'routingPreference' => [
+                    'provider' => $this->provider,
+                    'model' => $this->model,
+                    'fallbackEnabled' => true,
+                ],
+            ]);
+
+            if ($response->failed()) {
+                Log::error('Entity summary AI API error', [
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                    'feature_context' => $featureContext,
+                ]);
+
+                throw new \RuntimeException('AI summary API request failed.');
+            }
+
+            $data = $response->json();
+
+            if (! ($data['success'] ?? false) || empty($data['data']['completion'])) {
+                throw new \RuntimeException('AI summary API returned an empty completion.');
+            }
+
+            $completion = trim((string) $data['data']['completion']);
+            $completion = $this->stripMarkdownCodeFence($completion);
+
+            $decoded = json_decode($completion, true);
+
+            if (! is_array($decoded)) {
+                throw new \RuntimeException('AI summary completion was not valid JSON.');
+            }
+
+            return $decoded;
+        } catch (\Illuminate\Http\Client\ConnectionException $e) {
+            throw new \RuntimeException('The AI summary request timed out.', 0, $e);
+        }
+    }
+
+    private function stripMarkdownCodeFence(string $content): string
+    {
+        if (preg_match('/```(?:json)?\s*(.*?)```/s', $content, $matches)) {
+            return trim($matches[1]);
+        }
+
+        return $content;
     }
 }

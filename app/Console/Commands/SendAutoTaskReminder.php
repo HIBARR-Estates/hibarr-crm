@@ -6,6 +6,8 @@ use App\Events\AutoTaskReminderEvent;
 use App\Models\Company;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
+use App\Services\TaskLifecycleNotificationService;
+use App\Support\FeatureFlags;
 use Illuminate\Console\Command;
 
 class SendAutoTaskReminder extends Command
@@ -41,7 +43,7 @@ class SendAutoTaskReminder extends Command
                 $now = now($company->timezone);
 
                 $completedTaskColumn = TaskboardColumn::where('company_id', $company->id)
-                    ->where('slug', 'completed')
+                    ->where('slug', 'done')
                     ->first();
 
                 if (!$completedTaskColumn) {
@@ -55,7 +57,12 @@ class SendAutoTaskReminder extends Command
 
                 if ($company->on_deadline === 'yes') {
                     $onDeadline = $now->clone()->format('Y-m-d');
-                    $this->dispatchReminders($onDeadline, $company->id, $completedTaskColumn->id);
+                    $this->dispatchReminders(
+                        $onDeadline,
+                        $company->id,
+                        $completedTaskColumn->id,
+                        FeatureFlags::enabled('crm.task-lifecycle-notifications')
+                    );
                 }
 
                 if ($company->after_days > 0) {
@@ -69,7 +76,12 @@ class SendAutoTaskReminder extends Command
 
     }
 
-    private function dispatchReminders(string $dueDate, int $companyId, int $completedColumnId): void
+    private function dispatchReminders(
+        string $dueDate,
+        int $companyId,
+        int $completedColumnId,
+        bool $useLifecycleDue = false
+    ): void
     {
         $tasks = Task::whereDate('due_date', $dueDate)
             ->where('company_id', $companyId)
@@ -77,6 +89,11 @@ class SendAutoTaskReminder extends Command
             ->get();
 
         foreach ($tasks as $task) {
+            if ($useLifecycleDue) {
+                app(TaskLifecycleNotificationService::class)->notifyDue($task);
+                continue;
+            }
+
             event(new AutoTaskReminderEvent($task));
         }
     }
