@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\Salutation;
+use App\Enums\AgeRange;
 use App\Models\ClientCategory;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
@@ -36,6 +37,8 @@ class FormDataService
                 return $this->getSalutations();
             case 'genders':
                 return $this->getGenders();
+            case 'age-ranges':
+                return $this->getAgeRanges();
             case 'categories':
                 return $this->getCategories($request);
             case 'sources':
@@ -87,6 +90,18 @@ class FormDataService
                 ['value' => 'male', 'label' => 'Male'],
                 ['value' => 'female', 'label' => 'Female'],
             ]);
+        });
+    }
+
+    private function getAgeRanges(): Collection
+    {
+        return Cache::remember('age_ranges', self::CACHE_TTL, function () {
+            return collect(AgeRange::cases())->map(function (AgeRange $ageRange) {
+                return [
+                    'value' => $ageRange->value,
+                    'label' => $ageRange->label(),
+                ];
+            });
         });
     }
 

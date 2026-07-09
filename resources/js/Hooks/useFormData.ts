@@ -33,6 +33,7 @@ export type FormDataType =
     | "leads"
     | "lead-statuses"
     | "genders"
+    | "age-ranges"
     | "packages";
 
 type FormDataParams = {

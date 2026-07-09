@@ -5,11 +5,13 @@ namespace App\Services;
 use App\Models\CustomField;
 use App\Models\LanguageSetting;
 use App\Models\Lead;
+use App\Enums\AgeRange;
 use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Validation\Rule;
 
 class LeadCoreFieldsService
 {
@@ -18,6 +20,7 @@ class LeadCoreFieldsService
         'nationality',
         'occupation',
         'date-of-birth',
+        'age',
     ];
 
     /** @var array<int, array<string, int>> */
@@ -34,6 +37,10 @@ class LeadCoreFieldsService
             return [
                 'languages' => $lead->languages ?? [],
                 'date_of_birth' => $lead->date_of_birth?->format('Y-m-d'),
+                'age' => $lead->age,
+                'age_range' => $lead->age_range instanceof AgeRange
+                    ? $lead->age_range->value
+                    : $lead->age_range,
                 'nationality' => $lead->nationality,
                 'occupation' => $lead->occupation,
             ];
@@ -57,6 +64,22 @@ class LeadCoreFieldsService
             $lead->date_of_birth = $value
                 ? Carbon::parse($value)->startOfDay()
                 : null;
+        }
+
+        if (array_key_exists('age', $data)) {
+            $value = $data['age'];
+            $lead->age = ($value !== null && $value !== '')
+                ? (int) $value
+                : null;
+        }
+
+        if (array_key_exists('age_range', $data)) {
+            $value = $data['age_range'];
+            if ($value === null || $value === '') {
+                $lead->age_range = null;
+            } else {
+                $lead->age_range = AgeRange::tryFrom((string) $value);
+            }
         }
 
         if (array_key_exists('nationality', $data)) {
@@ -140,17 +163,19 @@ class LeadCoreFieldsService
         }
 
         $languageCodes = LanguageSetting::pluck('language_code')->filter()->implode(',');
-        $prefix = $sometimes ? 'sometimes|' : '';
+        $sometimesRules = $sometimes ? ['sometimes'] : [];
         $languageItemRule = $languageCodes !== ''
             ? 'string|in:' . $languageCodes
             : 'string|max:10';
 
         return [
-            'languages' => $prefix . 'nullable|array',
+            'languages' => [...$sometimesRules, 'nullable', 'array'],
             'languages.*' => $languageItemRule,
-            'date_of_birth' => $prefix . 'nullable|date',
-            'nationality' => $prefix . 'nullable|string|max:255',
-            'occupation' => $prefix . 'nullable|string|max:255',
+            'date_of_birth' => [...$sometimesRules, 'nullable', 'date'],
+            'age' => [...$sometimesRules, 'nullable', 'integer', 'min:0', 'max:150'],
+            'age_range' => [...$sometimesRules, 'nullable', Rule::enum(AgeRange::class)],
+            'nationality' => [...$sometimesRules, 'nullable', 'string', 'max:255'],
+            'occupation' => [...$sometimesRules, 'nullable', 'string', 'max:255'],
         ];
     }
 
@@ -180,10 +205,18 @@ class LeadCoreFieldsService
 
         $nationality = $this->customFieldValueForLead($lead, $slugMap['nationality'] ?? null);
         $occupation = $this->customFieldValueForLead($lead, $slugMap['occupation'] ?? null);
+        $rawAgeRange = $this->customFieldValueForLead($lead, $slugMap['age'] ?? null);
+        $ageRange = null;
+
+        if ($rawAgeRange) {
+            $ageRange = AgeRange::tryFrom($rawAgeRange)?->value ?? $rawAgeRange;
+        }
 
         return [
             'languages' => $languages,
             'date_of_birth' => $dateOfBirth,
+            'age' => null,
+            'age_range' => $ageRange,
             'nationality' => $nationality ?: null,
             'occupation' => $occupation ?: null,
         ];
