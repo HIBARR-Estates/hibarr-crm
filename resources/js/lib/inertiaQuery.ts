@@ -1,3 +1,5 @@
+import type { FormDataConvertible } from "@inertiajs/core";
+
 /**
  * Read the current browser query string as a plain object.
  * Used so Inertia navigations (e.g. pagination) merge into existing
@@ -15,11 +17,13 @@ export function getCurrentQueryParams(): Record<string, string> {
 /**
  * Merge the current URL query with overrides (e.g. `{ page: 2 }`).
  * Override values win; empty string / null / undefined overrides remove the key.
+ *
+ * Return type matches Inertia `router.get` / `RequestPayload` (object form).
  */
 export function mergeQueryParams(
-    overrides: Record<string, unknown>,
-): Record<string, unknown> {
-    const params: Record<string, unknown> = {
+    overrides: Record<string, FormDataConvertible>,
+): Record<string, FormDataConvertible> {
+    const params: Record<string, FormDataConvertible> = {
         ...getCurrentQueryParams(),
         ...overrides,
     };
