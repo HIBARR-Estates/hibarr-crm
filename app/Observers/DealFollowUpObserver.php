@@ -2,12 +2,15 @@
 
 namespace App\Observers;
 
+use App\Models\EmployeeDetails;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Services\DealActivityEventService;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
+use App\Support\FeatureFlags;
 use Illuminate\Support\Facades\Log;
+use App\Jobs\SyncZohoCalendarEventJob;
 
 class DealFollowUpObserver
 {
@@ -47,6 +50,37 @@ class DealFollowUpObserver
                 'deal_id' => $dealFollowUp->deal_id,
             ]);
         }
+
+        if (isSeedingData()) {
+            return;
+        }
+
+        if (!FeatureFlags::enabled('integrations.zoho-calendar-sync')) {
+            return;
+        }
+
+        $creatorUserId = $dealFollowUp->added_by;
+        if (!$creatorUserId) {
+            return;
+        }
+
+        $hasLinkedZohoProfile = EmployeeDetails::query()
+            ->where('user_id', $creatorUserId)
+            ->whereNotNull('zoho_id')
+            ->exists();
+
+        if (!$hasLinkedZohoProfile) {
+            return;
+        }
+
+        // Show the user an immediate "pending" indicator, while the queued job
+        // performs the OL enqueue request and stores the returned jobId.
+        $dealFollowUp->update([
+            'zoho_calendar_job_id' => $dealFollowUp->zoho_calendar_job_id,
+            'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
+        ]);
+
+        SyncZohoCalendarEventJob::dispatch($dealFollowUp->id);
     }
 
     /**

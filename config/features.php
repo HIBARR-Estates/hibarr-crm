@@ -16,5 +16,6 @@ return [
         'sales.bulk-agent-promotion',
         'sales.crm-lead-deal-sync',
         'sally.crm-write-client',
+        'integrations.zoho-calendar-sync',
     ],
 ];

@@ -126,4 +126,12 @@ return [
         'tries' => (int) env('OL_WEBHOOK_TRIES', 3),
         'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '60,300,900'))),
     ],
+
+    'ol' => [
+        // Used for OL integration endpoints (e.g. Zoho Calendar sync jobs).
+        // Default includes `/v1` to match frontend configuration.
+        'base_url' => env('OL_BASE_URL', env('MIX_OL_BASE_URL', 'https://develop-api.hibarr.org/v1')),
+        'api_key' => env('OL_API_KEY', env('MIX_OL_API_KEY')),
+        'timeout' => (int) env('OL_API_TIMEOUT', 15),
+    ],
 ];
