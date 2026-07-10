@@ -5,18 +5,19 @@ import type { Deal } from "@/Types/api/deals";
 import type { Lead } from "@/Types/api/leads";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
-import EditFollowup from "@/Pages/Deals/Components/Tabs/followups/EditFollowup";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import { toWorkspaceMeetingListItem } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
 import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
 import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
+import LeadEditMeetingModal from "./LeadEditMeetingModal";
 import LeadRescheduleMeetingModal from "./LeadRescheduleMeetingModal";
 
 interface LeadMeetingsTabProps {
     lead: Lead;
     followUps: DealFollowup[];
+    meetingTypes?: Array<{ id: number; name: string; color?: string }>;
     permissions: Record<string, string>;
     onScheduleMeeting: () => void;
 }
@@ -218,6 +219,7 @@ function MeetingCard({
 export default function LeadMeetingsTab({
     lead,
     followUps,
+    meetingTypes = [],
     permissions,
     onScheduleMeeting,
 }: LeadMeetingsTabProps) {
@@ -352,18 +354,16 @@ export default function LeadMeetingsTab({
                     ))
             )}
 
-            {selectedFollowup && (
-                <EditFollowup
-                    open={editOpen}
-                    onClose={() => {
-                        setEditOpen(false);
-                        setSelectedFollowup(null);
-                    }}
-                    lead={lead}
-                    deal={linkedDeal}
-                    followup={selectedFollowup}
-                />
-            )}
+            <LeadEditMeetingModal
+                open={editOpen}
+                onClose={() => {
+                    setEditOpen(false);
+                    setSelectedFollowup(null);
+                }}
+                lead={lead}
+                followup={selectedFollowup}
+                meetingTypes={meetingTypes}
+            />
 
             <LeadRescheduleMeetingModal
                 open={rescheduleOpen}

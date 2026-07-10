@@ -78,7 +78,7 @@ export default function LeadRescheduleMeetingModal({
         );
     };
 
-    if (!form) return null;
+    if (!open) return null;
 
     return (
         <DealModal
@@ -90,7 +90,7 @@ export default function LeadRescheduleMeetingModal({
                     <DealButton
                         variant="ghost"
                         onClick={handleClose}
-                        disabled={isRescheduling}
+                        disabled={isRescheduling || !form}
                     >
                         {td("Cancel")}
                     </DealButton>
@@ -98,116 +98,132 @@ export default function LeadRescheduleMeetingModal({
                         variant="navy"
                         onClick={handleSubmit}
                         loading={isRescheduling}
-                        disabled={isRescheduling}
+                        disabled={isRescheduling || !form}
                     >
                         {td("Reschedule")}
                     </DealButton>
                 </>
             }
         >
-            {errors.length > 0 && (
-                <div className="mb-3 space-y-1">
-                    {errors.map((error, index) => (
-                        <p key={index} className="text-xs text-red-600">
-                            {error}
-                        </p>
-                    ))}
-                </div>
-            )}
+            {!form ? (
+                <p className="text-xs text-[#9ca3af]">{td("Loading...")}</p>
+            ) : (
+                <>
+                    {errors.length > 0 && (
+                        <div className="mb-3 space-y-1">
+                            {errors.map((error, index) => (
+                                <p key={index} className="text-xs text-red-600">
+                                    {error}
+                                </p>
+                            ))}
+                        </div>
+                    )}
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <DealModalField label={td("New date")}>
-                    <input
-                        type="date"
-                        value={form.date}
-                        min={new Date().toISOString().split("T")[0]}
-                        disabled={isRescheduling}
-                        onChange={(event) =>
-                            setForm({ ...form, date: event.target.value })
-                        }
-                    />
-                </DealModalField>
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <DealModalField label={td("New date")}>
+                            <input
+                                type="date"
+                                value={form.date}
+                                min={new Date().toISOString().split("T")[0]}
+                                disabled={isRescheduling}
+                                onChange={(event) =>
+                                    setForm({
+                                        ...form,
+                                        date: event.target.value,
+                                    })
+                                }
+                            />
+                        </DealModalField>
 
-                <DealModalField label={td("New start time")}>
-                    <input
-                        type="time"
-                        value={form.startTime}
-                        disabled={isRescheduling}
-                        onChange={(event) => {
-                            const startTime = event.target.value;
-                            setForm({
-                                ...form,
-                                startTime,
-                                endTime:
-                                    form.duration && startTime
-                                        ? addMinutesToTime(
-                                              startTime,
-                                              form.duration,
-                                          )
-                                        : form.endTime,
-                            });
-                        }}
-                    />
-                </DealModalField>
-            </div>
-
-            <DealModalField label={td("Duration")}>
-                <button
-                    type="button"
-                    onClick={() => setShowDuration((current) => !current)}
-                    className="mb-2 border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
-                >
-                    {showDuration
-                        ? td("Hide duration")
-                        : `+ ${td("Add duration")}`}
-                </button>
-                {showDuration && (
-                    <div className="flex flex-wrap gap-1.5">
-                        {MEETING_DURATION_OPTIONS.map((option) => {
-                            const active = form.duration === option.value;
-
-                            return (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    disabled={isRescheduling}
-                                    onClick={() =>
-                                        handleDurationSelect(option.value)
-                                    }
-                                    className="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
-                                    style={{
-                                        borderColor: active
-                                            ? T.NAVY
-                                            : T.BORDER,
-                                        background: active ? T.NAVY : T.WHITE,
-                                        color: active
-                                            ? T.WHITE
-                                            : T.TEXT_MUTED,
-                                    }}
-                                >
-                                    {option.label}
-                                </button>
-                            );
-                        })}
+                        <DealModalField label={td("New start time")}>
+                            <input
+                                type="time"
+                                value={form.startTime}
+                                disabled={isRescheduling}
+                                onChange={(event) => {
+                                    const startTime = event.target.value;
+                                    setForm({
+                                        ...form,
+                                        startTime,
+                                        endTime:
+                                            form.duration && startTime
+                                                ? addMinutesToTime(
+                                                      startTime,
+                                                      form.duration,
+                                                  )
+                                                : form.endTime,
+                                    });
+                                }}
+                            />
+                        </DealModalField>
                     </div>
-                )}
-            </DealModalField>
 
-            <DealModalField label={td("End time")}>
-                <input
-                    type="time"
-                    value={form.endTime}
-                    disabled={isRescheduling}
-                    onChange={(event) => {
-                        const endTime = event.target.value;
-                        const duration = diffMinutesBetweenTimes(
-                            form.startTime,
-                            endTime,
-                        );
-                        setForm({ ...form, endTime, duration });
-                    }}
-                />
-            </DealModalField>
+                    <DealModalField label={td("Duration")}>
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setShowDuration((current) => !current)
+                            }
+                            className="mb-2 border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                        >
+                            {showDuration
+                                ? td("Hide duration")
+                                : `+ ${td("Add duration")}`}
+                        </button>
+                        {showDuration && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {MEETING_DURATION_OPTIONS.map((option) => {
+                                    const active =
+                                        form.duration === option.value;
+
+                                    return (
+                                        <button
+                                            key={option.value}
+                                            type="button"
+                                            disabled={isRescheduling}
+                                            onClick={() =>
+                                                handleDurationSelect(
+                                                    option.value,
+                                                )
+                                            }
+                                            className="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
+                                            style={{
+                                                borderColor: active
+                                                    ? T.NAVY
+                                                    : T.BORDER,
+                                                background: active
+                                                    ? T.NAVY
+                                                    : T.WHITE,
+                                                color: active
+                                                    ? T.WHITE
+                                                    : T.TEXT_MUTED,
+                                            }}
+                                        >
+                                            {option.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </DealModalField>
+
+                    <DealModalField label={td("End time")}>
+                        <input
+                            type="time"
+                            value={form.endTime}
+                            disabled={isRescheduling}
+                            onChange={(event) => {
+                                const endTime = event.target.value;
+                                const duration = diffMinutesBetweenTimes(
+                                    form.startTime,
+                                    endTime,
+                                );
+                                setForm({ ...form, endTime, duration });
+                            }}
+                        />
+                    </DealModalField>
+                </>
+            )}
         </DealModal>
     );
 }

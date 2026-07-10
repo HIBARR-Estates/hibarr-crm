@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { createPortal } from "react-dom";
 import DealPanelHeader from "./DealPanelHeader";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
@@ -17,10 +18,10 @@ export function DealModal({
     children,
     footer,
 }: DealModalProps) {
-    if (!open) return null;
+    if (!open || typeof document === "undefined") return null;
 
-    return (
-        <div className="modal-overlay" onClick={onClose}>
+    return createPortal(
+        <div className="modal-overlay redesign-modal-overlay" onClick={onClose}>
             <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
                 <DealPanelHeader title={title} onClose={onClose} />
                 <div style={{ padding: "16px 18px" }}>{children}</div>
@@ -38,7 +39,8 @@ export function DealModal({
                     </div>
                 )}
             </div>
-        </div>
+        </div>,
+        document.body,
     );
 }
 
