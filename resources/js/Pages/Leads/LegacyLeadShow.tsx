@@ -24,6 +24,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import type { LeadShowProps } from "./Show";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
 
 export default function LegacyLeadShow({
     lead,
@@ -117,6 +118,27 @@ export default function LegacyLeadShow({
                     lead={lead}
                     deals={deals}
                     permissions={dealPermissions}
+                />
+            ),
+        },
+        {
+            key: "itinerary",
+            label: t("pages.flight_itinerary.tab"),
+            children: (
+                <LeadFlightItineraryTab
+                    itineraryLegs={lead.lead_flight_itineraries || []}
+                    leadId={lead.id}
+                    permissions={{
+                        canAdd: ["all", "added", "owned", "both"].includes(
+                            editLeadPermission,
+                        ),
+                        canEdit: ["all", "added", "owned", "both"].includes(
+                            editLeadPermission,
+                        ),
+                        canDelete: ["all", "added", "owned", "both"].includes(
+                            deleteLeadPermission,
+                        ),
+                    }}
                 />
             ),
         },
