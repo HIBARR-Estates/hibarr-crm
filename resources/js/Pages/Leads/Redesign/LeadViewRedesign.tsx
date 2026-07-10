@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
-import AddFollowup from "@/Pages/Deals/Components/Tabs/followups/AddFollowup";
 import { router } from "@inertiajs/react";
 import type { LeadRedesignProps } from "./types";
 import "./lead-redesign.css";
@@ -54,7 +53,6 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     const overview = useLeadOverview({ notes, tasks, leadFollowUps });
     const firstContact = useLeadFirstContact(lead.id);
 
-    const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
     const [ctaLoading, setCtaLoading] = useState(false);
 
     const qualificationRef = useRef<HTMLDivElement>(null);
@@ -265,26 +263,12 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                                 overview={overview}
                                 profileEditMode={nav.profileEditMode}
                                 onProfileEditModeChange={nav.setProfileEditMode}
-                                onScheduleMeeting={() =>
-                                    setScheduleMeetingOpen(true)
-                                }
                                 drawerRef={drawerRef}
                             />
                         </div>
                     </div>
                 </div>
             </div>
-
-            <AddFollowup
-                context="lead"
-                lead={lead}
-                dealsForLead={deals.map((d) => ({
-                    id: d.id,
-                    name: d.name,
-                }))}
-                open={scheduleMeetingOpen}
-                onClose={() => setScheduleMeetingOpen(false)}
-            />
         </PageLayout>
     );
 }
