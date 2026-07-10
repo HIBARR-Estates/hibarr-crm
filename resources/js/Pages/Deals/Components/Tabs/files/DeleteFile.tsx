@@ -18,8 +18,12 @@ const DeleteFile: React.FC<Props> = ({ file, onClose, open, onSuccess }) => {
         onClose();
     };
 
+    const deletePath = file?.id
+        ? route("deal-files.destroy", file.id)
+        : "/api/v1/deal-files/0";
+
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
-        route("deal-files.destroy", file?.id),
+        deletePath,
         "DELETE",
         () => {
             handleCancel();
@@ -27,9 +31,11 @@ const DeleteFile: React.FC<Props> = ({ file, onClose, open, onSuccess }) => {
     );
 
     const onSubmit = () => {
+        if (!file?.id) {
+            return;
+        }
         mutate(null, {
             onSuccess: () => {
-                console.log("Follow-up deleted successfully");
                 onSuccess?.();
                 router.reload();
             },
@@ -44,7 +50,7 @@ const DeleteFile: React.FC<Props> = ({ file, onClose, open, onSuccess }) => {
                 fn: onSubmit,
                 loading: isLoading({ status }),
             }}
-            title="Delete Follow-up"
+            title="Delete File"
             description={
                 file
                     ? `Are you sure you want to delete ${file?.filename}? This action cannot be undone.`

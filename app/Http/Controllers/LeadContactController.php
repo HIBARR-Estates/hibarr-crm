@@ -291,6 +291,17 @@ class LeadContactController extends AccountBaseController
 
         $leadFollowUps = $leadFollowUpsQuery->get();
 
+        $allParticipantIds = $leadFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+        $participantUsersMap = $allParticipantIds->isEmpty()
+            ? collect()
+            : \App\Models\User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+        $leadFollowUps->each(function ($f) use ($participantUsersMap) {
+            $f->participant_users = collect($f->participants ?? [])
+                ->map(fn ($id) => $participantUsersMap->get($id))
+                ->filter()->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
+                ->values()->toArray();
+        });
+
         $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
             ->select('id', 'name', 'color')
             ->get();
@@ -331,6 +342,9 @@ class LeadContactController extends AccountBaseController
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
+            'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
+                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($this->leadContact)
+                : null,
         ], $formData, $dealFormData));
     }
 
@@ -474,6 +488,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
+        $leadContact->category_id = $request->category_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->company_name = $request->company_name;
@@ -506,7 +521,7 @@ class LeadContactController extends AccountBaseController
         Log::info("Create Lead Contact, b4 save");
 
         $this->coreFieldsService->write($leadContact, $request->only([
-            'languages', 'date_of_birth', 'nationality', 'occupation',
+            'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
         $leadContact->save();
 
@@ -674,7 +689,7 @@ class LeadContactController extends AccountBaseController
             $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
         }
         $this->coreFieldsService->write($leadContact, $request->only([
-            'languages', 'date_of_birth', 'nationality', 'occupation',
+            'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
         $leadContact->save();
 
@@ -840,7 +855,7 @@ class LeadContactController extends AccountBaseController
             }
 
             $this->coreFieldsService->write($leadContact, $request->only([
-                'languages', 'date_of_birth', 'nationality', 'occupation',
+                'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
             ]));
 
             // Save the lead contact
@@ -952,12 +967,12 @@ class LeadContactController extends AccountBaseController
                     'company_name', 'website', 'address', 'city', 'state', 'country',
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
-                    'languages', 'date_of_birth', 'nationality', 'occupation',
+                    'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
                 ];
                 
                 foreach ($allowedFields as $field) {
                     if ($request->has($field)) {
-                        if (in_array($field, ['languages', 'date_of_birth', 'nationality', 'occupation'], true)) {
+                        if (in_array($field, ['languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation'], true)) {
                             $responseData[$field] = $this->coreFieldsService->read($leadContact)[$field] ?? null;
                         } else {
                             $responseData[$field] = $leadContact->getAttribute($field);
@@ -988,7 +1003,17 @@ class LeadContactController extends AccountBaseController
                     $leadContact->withCustomFields();
                     $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
                 }
-                
+
+                // Always refresh the computed display name so the frontend doesn't revert to the
+                // stale salutation+name combo it had before the edit.
+                if ($request->has('client_name') || $request->has('salutation')) {
+                    $responseData['client_name_salutation'] = $leadContact->client_name_salutation;
+                    $responseData['salutation_value'] = $leadContact->salutation instanceof \App\Enums\Salutation
+                        ? $leadContact->salutation->value
+                        : $leadContact->salutation;
+                    $responseData['salutation'] = $responseData['salutation_value'];
+                }
+
                 return response()->json([
                     'status' => 'success',
                     'data' => [

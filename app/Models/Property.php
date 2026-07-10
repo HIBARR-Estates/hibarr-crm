@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Str;
@@ -719,6 +720,44 @@ class Property extends BaseModel
     }
 
     /**
+     * Get edit access requests for this property.
+     */
+    public function editAccessRequests(): HasMany
+    {
+        return $this->hasMany(PropertyEditAccessRequest::class);
+    }
+
+    /**
+     * Active collaborators with edit access on this property.
+     */
+    public function collaborators(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'property_collaborators', 'property_id', 'user_id')
+            ->withPivot(['granted_at', 'granted_via', 'granted_by', 'revoked_at', 'revoked_by'])
+            ->wherePivotNull('revoked_at')
+            ->withTimestamps();
+    }
+
+    /**
+     * All collaborator pivot rows (including revoked).
+     */
+    public function collaboratorRecords(): HasMany
+    {
+        return $this->hasMany(PropertyCollaborator::class, 'property_id');
+    }
+
+    /**
+     * Users watching this property.
+     */
+    public function watchers(): BelongsToMany
+    {
+        return $this->belongsToMany(User::class, 'property_watchers', 'property_id', 'user_id')
+            ->using(PropertyWatcher::class)
+            ->withPivot(['added_via'])
+            ->withTimestamps();
+    }
+
+    /**
      * Check if property is assigned to a project.
      */
     public function isAssignedToProject(): bool
@@ -757,15 +796,48 @@ class Property extends BaseModel
     }
 
     /**
+     * Check if the given user is an active collaborator.
+     */
+    public function isCollaborator(?int $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        if ($this->relationLoaded('collaborators')) {
+            return $this->collaborators->contains('id', $userId);
+        }
+
+        return $this->collaborators()->where('users.id', $userId)->exists();
+    }
+
+    /**
+     * Check if the given user is a watcher on this property.
+     */
+    public function isWatcher(?int $userId): bool
+    {
+        if ($userId === null) {
+            return false;
+        }
+
+        if ($this->relationLoaded('watchers')) {
+            return $this->watchers->contains('id', $userId);
+        }
+
+        return $this->watchers()->where('users.id', $userId)->exists();
+    }
+
+    /**
      * Check if the given user can edit this property.
-     * Only creator, responsible agent, or admin can edit.
      */
     public function canBeEditedBy(?int $userId, bool $isAdmin = false): bool
     {
-        if ($isAdmin) {
-            return true;
+        if ($userId === null) {
+            return false;
         }
-        return $this->isCreator($userId) || $this->isResponsibleAgent($userId);
+
+        return app(\App\Services\PropertyAuthorizationService::class)
+            ->canEditPropertyByUserId($userId, $this, $isAdmin);
     }
 
     /**

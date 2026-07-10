@@ -1,4 +1,4 @@
-import { pluralOrSingular } from "@/lib/utils";
+import { pluralOrSingular, formatLocationNameForDisplay } from "@/lib/utils";
 import { IndexProps } from "@/Pages/Properties/Index";
 import { IModalProps } from "@/Types/common";
 import { router, usePage } from "@inertiajs/react";
@@ -115,7 +115,7 @@ const BulkAssignPropertiesToProject: React.FC<Props> = ({
                         }
                         options={developerProjects.map((project) => ({
                             label: project.location
-                                ? `${project.name} (${project.location.name})`
+                                ? `${project.name} (${formatLocationNameForDisplay(project.location.name)})`
                                 : project.name,
                             value: project.id,
                         }))}

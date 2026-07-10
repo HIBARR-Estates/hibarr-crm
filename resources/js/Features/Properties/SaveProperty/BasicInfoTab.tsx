@@ -18,7 +18,7 @@ import { DeveloperProjectOption } from "@/Types/developerProject";
 import { usePage } from "@inertiajs/react";
 import { PageProps } from "@/Components/DashboardLayout";
 import CurrencyInput from "@/Components/CurrencyInput";
-import { parsePropertyPrice } from "@/lib/utils";
+import { parsePropertyPrice, formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -476,7 +476,7 @@ export default function BasicInfoTab({
                                                 {project.name}
                                                 {project.location && (
                                                     <span className="text-gray-400 ml-2">
-                                                        ({project.location.name}
+                                                        ({formatLocationNameForDisplay(project.location.name)}
                                                         )
                                                     </span>
                                                 )}

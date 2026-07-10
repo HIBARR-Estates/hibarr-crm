@@ -16,6 +16,8 @@ use App\Traits\ProjectProgress;
 use App\Models\UniversalSearch;
 use App\Models\User;
 use App\Services\Google;
+use App\Services\TaskLifecycleNotificationService;
+use App\Support\FeatureFlags;
 use Carbon\Carbon;
 use Google\Service\Exception;
 use Google_Service_Calendar_Event;
@@ -103,7 +105,9 @@ class TaskObserver
             if (request()->user_id != null || request()->user_id != '' || request()->has('user_id')) {
 
                 $memberIds = User::whereIn('id',  request()->user_id)->get();
-                event(new TaskEvent($task, $memberIds, 'NewTask'));
+                if (!FeatureFlags::enabled('crm.task-lifecycle-notifications')) {
+                    event(new TaskEvent($task, $memberIds, 'NewTask'));
+                }
                     
             }
 
@@ -261,7 +265,12 @@ class TaskObserver
                     if ($task->addedByUser) {
                         $addedByUserRole = $task->addedByUser->roles->pluck('name')->toArray();
 
-                        if (!is_null($task->added_by) && !in_array('client', $addedByUserRole) && !in_array($task->added_by, $taskUser->pluck('id')->toArray())) {
+                        if (
+                            !FeatureFlags::enabled('crm.task-lifecycle-notifications')
+                            && !is_null($task->added_by)
+                            && !in_array('client', $addedByUserRole)
+                            && !in_array($task->added_by, $taskUser->pluck('id')->toArray())
+                        ) {
                             event(new TaskEvent($task, $task->addedByUser, $notification));
                             $notifiedUserIds[] = $task->added_by;
                         }
@@ -269,8 +278,13 @@ class TaskObserver
 
                     $taskUser = $taskUser->whereNotIn('id', $notifiedUserIds);
                 }
-                
-                event(new TaskEvent($task, $taskUser, $notification));
+
+                $sendLegacyStatusNotification = !FeatureFlags::enabled('crm.task-lifecycle-notifications')
+                    || in_array($task->boardColumn->slug, ['waiting_approval', 'in_review']);
+
+                if ($sendLegacyStatusNotification) {
+                    event(new TaskEvent($task, $taskUser, $notification));
+                }
 
                 $timeLogs = ProjectTimeLog::with('user')->whereNull('end_time')
                     ->where('task_id', $task->id)
@@ -317,8 +331,21 @@ class TaskObserver
 
             if (request('user_id')) {
                 if (($movingTaskId != '' && $task->id == $movingTaskId) || $movingTaskId == '') {
-                    // Send notification to user
-                    event(new TaskEvent($task, $task->users, 'TaskUpdated'));
+                    if (!FeatureFlags::enabled('crm.task-lifecycle-notifications')) {
+                        // Send notification to user
+                        event(new TaskEvent($task, $task->users, 'TaskUpdated'));
+                    }
+                }
+            }
+
+            if (FeatureFlags::enabled('crm.task-lifecycle-notifications')) {
+                $lifecycle = app(TaskLifecycleNotificationService::class);
+                $actorId = user()?->id;
+
+                if ($lifecycle->wasCompletionTransition($task)) {
+                    $lifecycle->notifyCompleted($task, $actorId);
+                } elseif ($lifecycle->hasMeaningfulChanges($task)) {
+                    $lifecycle->notifyUpdated($task, $actorId);
                 }
             }
         }
@@ -393,7 +420,7 @@ class TaskObserver
         $google = new Google();
         $googleAccount = company();
 
-        if (company()->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token) {
+        if ($googleAccount && $googleAccount->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token) {
             $google->connectUsing($googleAccount->token);
             try {
                 if ($task->event_id) {
@@ -442,11 +469,11 @@ class TaskObserver
         $module = GoogleCalendarModule::first();
         $googleAccount = company();
 
-        if (!company()) {
+        if (!$googleAccount) {
             return $event->event_id;
         }
 
-        if (company()->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token && $module->task_status == 1) {
+        if ($googleAccount->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token && $module->task_status == 1) {
 
             $google = new Google();
             $attendiesData = [];
@@ -525,7 +552,7 @@ class TaskObserver
     {
         $googleAccount = company();
 
-        if (company()->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token) {
+        if ($googleAccount && $googleAccount->google_calendar_status == 'active' && $googleAccount->google_calendar_verification_status == 'verified' && $googleAccount->token) {
             $google = new Google();
             $events = Task::whereIn('id', $eventIds)->get();
             $event = $events->first();

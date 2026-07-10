@@ -53,7 +53,7 @@ class ProjectTimelogNotification extends BaseNotification
             ->greeting(__('email.hello') . ' ' . $notifiable->name . '!')
             ->line(__('email.projectTimeLog.text') . user()->name . '.')
             ->line(__('email.projectTimeLog.text2', ['reason' => $this->timelog->reject_reason]))
-            ->action(__('email.projectTimeLog.action'), route('timelogs.edit', $this->timelog->id));
+            ->action(__('email.projectTimeLog.action'), $this->modifyUrl(route('timelogs.edit', $this->timelog->id)));
 
         return $build;
     }

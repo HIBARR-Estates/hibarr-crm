@@ -8,10 +8,15 @@ import TokenHighlight from "../TokenHighlight";
 interface SaySegmentProps {
     label: string;
     tokenMap: Record<QualificationToken, string>;
+    translateScript: (text: string) => string;
 }
 
-const SaySegment: React.FC<SaySegmentProps> = ({ label, tokenMap }) => {
-    const translated = useDynamicTranslation(label);
+const SaySegment: React.FC<SaySegmentProps> = ({
+    label,
+    tokenMap,
+    translateScript,
+}) => {
+    const translated = translateScript(useDynamicTranslation(label));
 
     return (
         <div className="space-y-4">

@@ -36,7 +36,7 @@ export default function SideNavTabs({
 
     return (
         <div
-            className={`flex flex-col border-r border-gray-100 bg-white shrink-0 transition-all duration-200 ${collapsed ? "w-11" : "w-48"
+            className={`flex flex-col border-r border-gray-100 bg-white shrink-0 transition-all duration-200 ${collapsed ? "w-11" : "w-52"
                 }`}
         >
             <nav className="flex-1 overflow-y-auto overflow-x-hidden py-1">
@@ -63,7 +63,7 @@ export default function SideNavTabs({
                                 {abbrev}
                             </span>
                             {!collapsed && (
-                                <span className="truncate text-xs font-medium leading-tight">
+                                <span className="truncate text-sm font-medium leading-tight">
                                     {item.label}
                                 </span>
                             )}

@@ -38,9 +38,14 @@ import dayjs from "dayjs";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { formatMobileForDisplay } from "@/lib/utils";
+import {
+    computeAgeFieldsFromDateOfBirth,
+    resolveLeadAgeFields,
+} from "@/lib/leadAge";
 import UserIndicator from "@/Components/UserIndicator";
 import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
+import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
 
 interface Props {
     lead: Lead;
@@ -80,6 +85,31 @@ export default function LeadInfoSection({
         value: lang.language_code,
         label: lang.language_name,
     }));
+const ageRangeOptions = useMemo(
+        () =>
+            (
+                (props.ageRanges as Array<{ value: string; label: string }>) ||
+                []
+            ).map((option) => ({
+                value: option.value,
+                label: option.label,
+            })),
+        [props.ageRanges],
+    );
+
+    const resolveAgeRangeLabel = useCallback(
+        (value: string) =>
+            ageRangeOptions.find(
+                (option) => option.value === value,
+            )?.label || value,
+        [ageRangeOptions],
+    );
+
+    const salutationOptions = (
+        (props.salutations as Array<{ value: string; label: string }>) || []
+    );
+
+
 
     const resolveLanguageLabel = useCallback(
         (code: string) =>
@@ -191,6 +221,27 @@ export default function LeadInfoSection({
     );
     const [isSavingAll, setIsSavingAll] = useState(false);
 
+    const resolvedAgeFields = useMemo(() => {
+        const dateOfBirth =
+            pendingChanges.date_of_birth !== undefined
+                ? pendingChanges.date_of_birth
+                : currentLeadState.date_of_birth ?? null;
+        const age =
+            pendingChanges.age !== undefined
+                ? pendingChanges.age
+                : currentLeadState.age ?? null;
+        const ageRange =
+            pendingChanges.age_range !== undefined
+                ? pendingChanges.age_range
+                : currentLeadState.age_range ?? null;
+
+        return resolveLeadAgeFields({
+            dateOfBirth,
+            age,
+            ageRange,
+        });
+    }, [currentLeadState, pendingChanges]);
+
     // Check if there are unsaved changes
     const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
 
@@ -240,6 +291,7 @@ export default function LeadInfoSection({
                     }
                     return updated as Lead;
                 });
+                router.reload({ only: ['lead'] });
             }
             // Clear the updating field after completion
             setUpdatingField(null);
@@ -282,10 +334,26 @@ export default function LeadInfoSection({
 
     // Handle field change in edit mode (track pending changes)
     const handleFieldChange = (fieldName: string, value: any) => {
-        setPendingChanges((prev) => ({
-            ...prev,
-            [fieldName]: value,
-        }));
+        setPendingChanges((prev) => {
+            const next = {
+                ...prev,
+                [fieldName]: value,
+            };
+
+            if (fieldName === "date_of_birth") {
+                if (value) {
+                    const { age, age_range } =
+                        computeAgeFieldsFromDateOfBirth(value);
+                    next.age = age;
+                    next.age_range = age_range;
+                } else {
+                    next.age = null;
+                    next.age_range = null;
+                }
+            }
+
+            return next;
+        });
     };
 
     // Save all pending changes
@@ -318,8 +386,30 @@ export default function LeadInfoSection({
                         processedValue = value || null;
                     } else if (fieldName === "languages") {
                         processedValue = Array.isArray(value) ? value : [];
+                    } else if (fieldName === "age") {
+                        processedValue =
+                            value === null || value === "" || value === undefined
+                                ? null
+                                : Number(value);
+                    } else if (fieldName === "age_range") {
+                        processedValue = value || null;
+                    } else if (fieldName === "date_of_birth") {
+                        processedValue = value || null;
                     }
                     standardChanges[fieldName] = processedValue;
+                }
+            }
+
+            if (standardChanges.date_of_birth !== undefined) {
+                if (standardChanges.date_of_birth) {
+                    const computed = computeAgeFieldsFromDateOfBirth(
+                        standardChanges.date_of_birth,
+                    );
+                    standardChanges.age = computed.age;
+                    standardChanges.age_range = computed.age_range;
+                } else {
+                    standardChanges.age = null;
+                    standardChanges.age_range = null;
                 }
             }
 
@@ -344,6 +434,20 @@ export default function LeadInfoSection({
                     languages: Array.isArray(standardChanges.languages)
                         ? standardChanges.languages
                         : [],
+                }));
+            }
+
+            if (standardChanges.date_of_birth !== undefined) {
+                const computed = standardChanges.date_of_birth
+                    ? computeAgeFieldsFromDateOfBirth(
+                          standardChanges.date_of_birth,
+                      )
+                    : { age: null, age_range: null };
+                setCurrentLeadState((prev) => ({
+                    ...prev,
+                    date_of_birth: standardChanges.date_of_birth || null,
+                    age: computed.age,
+                    age_range: computed.age_range,
                 }));
             }
 
@@ -461,6 +565,7 @@ export default function LeadInfoSection({
                         return updated as Lead;
                     });
                     message.success(t("pages.leads.info.file_upload_success"));
+                    router.reload({ only: ['lead'] });
                 }
                 setUpdatingField(null);
                 return;
@@ -478,6 +583,7 @@ export default function LeadInfoSection({
             } else {
                 // Map frontend field names to API field names and process values
                 let processedValue = value;
+                payloadData = { [fieldName]: value };
 
                 // Process value based on field type
                 if (fieldName === "mobile") {
@@ -495,6 +601,29 @@ export default function LeadInfoSection({
                     processedValue = value || null;
                 } else if (fieldName === "languages") {
                     processedValue = Array.isArray(value) ? value : [];
+                } else if (fieldName === "age") {
+                    processedValue =
+                        value === null || value === "" || value === undefined
+                            ? null
+                            : Number(value);
+                } else if (fieldName === "age_range") {
+                    processedValue = value || null;
+                } else if (fieldName === "date_of_birth") {
+                    processedValue = value || null;
+                    if (value) {
+                        const computed = computeAgeFieldsFromDateOfBirth(value);
+                        payloadData = {
+                            date_of_birth: processedValue,
+                            age: computed.age,
+                            age_range: computed.age_range,
+                        };
+                    } else {
+                        payloadData = {
+                            date_of_birth: null,
+                            age: null,
+                            age_range: null,
+                        };
+                    }
                 } else if (
                     fieldName === "category_id" ||
                     fieldName === "source_id" ||
@@ -506,10 +635,24 @@ export default function LeadInfoSection({
                     processedValue = value ? value : null;
                 }
 
-                payloadData = { [fieldName]: processedValue };
+                if (fieldName !== "date_of_birth") {
+                    payloadData = { [fieldName]: processedValue };
+                }
             }
 
             await updateLead(payloadData);
+
+            if (!isCustomField && fieldName === "date_of_birth") {
+                const computed = value
+                    ? computeAgeFieldsFromDateOfBirth(value)
+                    : { age: null, age_range: null };
+                setCurrentLeadState((prev) => ({
+                    ...prev,
+                    date_of_birth: value || null,
+                    age: computed.age,
+                    age_range: computed.age_range,
+                }));
+            }
 
             if (!isCustomField && fieldName === "languages") {
                 setCurrentLeadState((prev) => ({
@@ -630,12 +773,31 @@ export default function LeadInfoSection({
                         isOpen={openSections["lead-contact"] ?? false}
                         onToggle={() => toggleSection("lead-contact")}
                     >
+                        <DetailField label={t("pages.leads.info.fields.salutation", { defaultValue: "Salutation" })}>
+                            <EditableField
+                                value={currentLeadState.salutation_value ?? currentLeadState.salutation ?? ""}
+                                fieldName="salutation"
+                                fieldType="select"
+                                options={salutationOptions}
+                                onSave={(value) =>
+                                    handleFieldUpdate("salutation", value)
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    (currentLeadState.salutation_value || currentLeadState.salutation) ? (
+                                        <span className="capitalize">{currentLeadState.salutation_value ?? currentLeadState.salutation}</span>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("salutation")}
+                            />
+                        </DetailField>
+
                         <DetailField label={t("pages.leads.info.fields.name")}>
                             <EditableField
-                                value={
-                                    currentLeadState.client_name_salutation ||
-                                    currentLeadState.client_name
-                                }
+                                value={currentLeadState.client_name || ""}
                                 fieldName="client_name"
                                 fieldType="text"
                                 onSave={(value) =>
@@ -776,26 +938,54 @@ export default function LeadInfoSection({
                                     />
                                 </DetailField>
 
-                                <DetailField label={t("pages.leads.info.fields.date_of_birth", { defaultValue: "Date of Birth" })}>
-                                    <EditableField
-                                        value={currentLeadState.date_of_birth || ""}
-                                        fieldName="date_of_birth"
-                                        fieldType="date"
-                                        onSave={(value) =>
-                                            handleFieldUpdate("date_of_birth", value)
+                                <DetailField
+                                    label={t(
+                                        "pages.leads.info.fields.date_of_birth_and_age",
+                                        {
+                                            defaultValue: "Date of Birth & Age",
+                                        },
+                                    )}
+                                    span={2}
+                                >
+                                    <LeadAgeFieldsGroup
+                                        dateOfBirth={
+                                            resolvedAgeFields.dateOfBirth
                                         }
-                                        onChange={handleFieldChange}
-                                        displayValue={
-                                            currentLeadState.date_of_birth ? (
-                                                <span>
-                                                    {dayjs(currentLeadState.date_of_birth).format("DD MMM YYYY")}
-                                                </span>
-                                            ) : (
-                                                <span className="text-gray-400">--</span>
-                                            )
+                                        age={resolvedAgeFields.age}
+                                        ageRange={
+                                            (resolvedAgeFields.ageRange as string) ||
+                                            null
+                                        }
+                                        ageRangeOptions={ageRangeOptions}
+                                        resolveAgeRangeLabel={
+                                            resolveAgeRangeLabel
                                         }
                                         alwaysEditing={isFieldEditable}
-                                        loading={isFieldLoading("date_of_birth")}
+                                        disabled={!canEdit}
+                                        loading={
+                                            isSavingAll ||
+                                            updatingField ===
+                                                "date_of_birth" ||
+                                            updatingField === "age" ||
+                                            updatingField === "age_range"
+                                        }
+                                        onSave={async (values) => {
+                                            setUpdatingField("date_of_birth");
+                                            try {
+                                                await updateLead(values);
+                                                setCurrentLeadState((prev) => ({
+                                                    ...prev,
+                                                    date_of_birth:
+                                                        values.date_of_birth,
+                                                    age: values.age,
+                                                    age_range:
+                                                        values.age_range,
+                                                }));
+                                            } finally {
+                                                setUpdatingField(null);
+                                            }
+                                        }}
+                                        onChange={handleFieldChange}
                                     />
                                 </DetailField>
 
@@ -1271,7 +1461,7 @@ export default function LeadInfoSection({
                 </div>
 
                 {/* Sidebar + Content */}
-                <div className="flex overflow-hidden max-h-[70vh]">
+                <div className="flex overflow-hidden h-[70vh]">
                     <SideNavTabs
                         items={sideNavItems}
                         activeKey={activeSection}

@@ -90,6 +90,35 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
 // v2 compatibility routes (mount at /api/v2/)
 Route::middleware(['api.token'])->prefix('v2')->group(function () {
+    Route::middleware(['crm.write.client'])->group(function () {
+        Route::get('tasks', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@listTasks', 'as' => 'api.v2.tasks.index']);
+        Route::post('tasks', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@createTask', 'as' => 'api.v2.tasks.create']);
+        Route::get('tasks/{taskId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getTask', 'as' => 'api.v2.tasks.show'])
+            ->whereNumber('taskId');
+        Route::match(['put', 'patch'], 'tasks/{taskId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@updateTask', 'as' => 'api.v2.tasks.update'])
+            ->whereNumber('taskId');
+        Route::delete('tasks/{taskId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@deleteTask', 'as' => 'api.v2.tasks.destroy'])
+            ->whereNumber('taskId');
+
+        Route::get('notes', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@listNotes', 'as' => 'api.v2.notes.index']);
+        Route::post('notes', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@createNote', 'as' => 'api.v2.notes.create']);
+        Route::get('notes/{noteId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getNote', 'as' => 'api.v2.notes.show'])
+            ->whereNumber('noteId');
+        Route::match(['put', 'patch'], 'notes/{noteId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@updateNote', 'as' => 'api.v2.notes.update'])
+            ->whereNumber('noteId');
+        Route::delete('notes/{noteId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@deleteNote', 'as' => 'api.v2.notes.destroy'])
+            ->whereNumber('noteId');
+
+        Route::get('meetings', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@listMeetings', 'as' => 'api.v2.meetings.index']);
+        Route::post('meetings', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@createMeeting', 'as' => 'api.v2.meetings.create']);
+        Route::get('meetings/{meetingId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getMeeting', 'as' => 'api.v2.meetings.show'])
+            ->whereNumber('meetingId');
+        Route::match(['put', 'patch'], 'meetings/{meetingId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@updateMeeting', 'as' => 'api.v2.meetings.update'])
+            ->whereNumber('meetingId');
+        Route::delete('meetings/{meetingId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@deleteMeeting', 'as' => 'api.v2.meetings.destroy'])
+            ->whereNumber('meetingId');
+    });
+
     Route::post('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@createEmployee', 'as' => 'api.v2.employees.create.compat']);
     Route::post('employees/find-or-create', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@findOrCreateEmployee', 'as' => 'api.v2.employees.findOrCreate.compat']);
     Route::get('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@listEmployees', 'as' => 'api.v2.employees.list.compat']);

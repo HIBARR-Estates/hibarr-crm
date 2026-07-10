@@ -749,4 +749,22 @@ return [
         'name' => 'default', //made default queue name to crm_events to avoid changing supervisor config in production. Can be overridden in .env if needed.
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | OL Outbound Webhook Sync
+    |--------------------------------------------------------------------------
+    |
+    | CRM to OL one-way event sync settings. These slugs are allowed to fan out
+    | to the OL webhook pipeline when the feature flag is enabled.
+    |
+    */
+    'ol_webhook' => [
+        'event_slugs' => [
+            'lead_created',
+            'lead_updated',
+            'deal_created',
+            'deal_updated',
+        ],
+    ],
+
 ];

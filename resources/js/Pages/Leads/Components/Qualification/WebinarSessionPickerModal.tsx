@@ -9,7 +9,7 @@ interface WebinarSessionPickerModalProps {
     webinarId: string;
     registrationService: RegistrationService;
     onClose: () => void;
-    onSelect: (sessionId: string) => void;
+    onSelect: (sessionId: string, sessionLabel: string) => void;
 }
 
 const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
@@ -47,7 +47,16 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
             message.warning("Please select a session");
             return;
         }
-        onSelect(selectedId);
+        const selected = sessions.find((session) => session.id === selectedId);
+        if (!selected) {
+            message.warning("Please select a session");
+            return;
+        }
+
+        const sessionLabel = `${selected.title} · ${dayjs(selected.startsAt).format(
+            "ddd, MMM D, YYYY · h:mm A",
+        )}`;
+        onSelect(selectedId, sessionLabel);
     };
 
     return (

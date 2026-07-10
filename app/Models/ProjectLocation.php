@@ -25,6 +25,10 @@ class ProjectLocation extends BaseModel
 {
     use HasFactory, HasCompany, SoftDeletes;
 
+    // Override the parent's hidden fields to show timestamps (ApiModel hides
+    // created_at/updated_at by default; see Property.php for the same fix).
+    protected $hidden = ['pivot'];
+
     protected $fillable = [
         'company_id',
         'name',

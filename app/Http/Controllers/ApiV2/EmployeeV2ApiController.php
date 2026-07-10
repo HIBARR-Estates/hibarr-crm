@@ -178,7 +178,7 @@ class EmployeeV2ApiController extends Controller
         $status = $user->status === 'deactive' ? 'inactive' : 'active';
 
         // Same as create/update: non-empty `password` (e.g. query ?password=1) triggers setup email; value is not used.
-        if ($request->filled('password')) {
+        if ($this->shouldSendPasswordSetupEmail($request) && $request->filled('password')) {
             $this->sendPasswordSetupEmail($user);
         }
 
@@ -236,7 +236,7 @@ class EmployeeV2ApiController extends Controller
 
         // Only trigger password setup when `password` is provided with a non-empty value.
         // If `password` is null/empty, do not send the reset email.
-        if ($request->filled('password')) {
+        if ($this->shouldSendPasswordSetupEmail($request) && $request->filled('password')) {
             $this->sendPasswordSetupEmail($user);
         }
 
@@ -277,7 +277,7 @@ class EmployeeV2ApiController extends Controller
             $created = (bool) ($resolved['created'] ?? false);
             $payload = collect($resolved)->except('created')->all();
 
-            if ($request->filled('password')) {
+            if ($this->shouldSendPasswordSetupEmail($request) && $request->filled('password')) {
                 $this->sendPasswordSetupEmail($user);
             }
 
@@ -320,8 +320,10 @@ class EmployeeV2ApiController extends Controller
             $leadAgent = $this->ensureLeadAgentWithoutCategory($companyId, $user->id, $uplineId);
         }
 
-        // New user row: always send password setup notification (no `password` field required).
-        $this->sendPasswordSetupEmail($user);
+        // New user row: send password setup notification unless explicitly disabled via flag.
+        if ($this->shouldSendPasswordSetupEmail($request)) {
+            $this->sendPasswordSetupEmail($user);
+        }
 
         $user->load('roles');
         $typed = $this->typedIdsForFindOrCreate($userType, $user, $employee, $leadAgent, $companyId);
@@ -448,7 +450,7 @@ class EmployeeV2ApiController extends Controller
 
         // Send password setup email only when a non-empty `password` field is provided.
         // Value is ignored; presence + non-empty triggers the email.
-        if ($request->filled('password')) {
+        if ($this->shouldSendPasswordSetupEmail($request) && $request->filled('password')) {
             $this->sendPasswordSetupEmail($user);
         }
 
@@ -800,6 +802,19 @@ class EmployeeV2ApiController extends Controller
             $user->status = 'active';
             $user->inactive_date = null;
         }
+    }
+
+    private function shouldSendPasswordSetupEmail(Request $request): bool
+    {
+        if ($request->has('sendOnboardingEmail')) {
+            return $request->boolean('sendOnboardingEmail');
+        }
+
+        if ($request->has('send_onboarding_email')) {
+            return $request->boolean('send_onboarding_email');
+        }
+
+        return true;
     }
 
     private function sendPasswordSetupEmail(User $user): void

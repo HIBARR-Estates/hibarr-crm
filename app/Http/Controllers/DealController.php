@@ -633,6 +633,17 @@ class DealController extends AccountBaseController
             ->orderBy('next_follow_up_date', 'desc')
             ->get();
 
+        $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+        $participantUsersMap = $allParticipantIds->isEmpty()
+            ? collect()
+            : \App\Models\User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+        $dealFollowUps->each(function ($f) use ($participantUsersMap) {
+            $f->participant_users = collect($f->participants ?? [])
+                ->map(fn ($id) => $participantUsersMap->get($id))
+                ->filter()->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
+                ->values()->toArray();
+        });
+
         // if (user()->permission('view_lead_follow_up') == 'added') {
         //     $dealFollowUps = $dealFollowUps->where('added_by', user()->id);
         // }
@@ -682,6 +693,10 @@ class DealController extends AccountBaseController
             'view_lead_files' => user()->permission('view_lead_files'),
             'add_lead_files' => user()->permission('add_lead_files'),
             'delete_deals' => user()->permission('delete_deals'),
+            'view_tasks' => user()->permission('view_tasks'),
+            'add_tasks' => user()->permission('add_tasks'),
+            'edit_tasks' => user()->permission('edit_tasks'),
+            'delete_tasks' => user()->permission('delete_tasks'),
         ];
 
         // Prepare deal with custom fields data
@@ -728,6 +743,9 @@ class DealController extends AccountBaseController
             'taskBoardColumns' => $taskBoardColumns,
             'employees' => $employees,
             'projects' => $projects,
+            'dealAiSummary' => \App\Support\FeatureFlags::enabled('sales.ai-entity-summary')
+                ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
+                : null,
         ]));
     }
 

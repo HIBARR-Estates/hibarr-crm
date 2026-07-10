@@ -4,6 +4,7 @@ import {
     QualificationToken,
     Segment,
     SegmentAnswerState,
+    SegmentOption,
     TemplateTree,
 } from "@/Types/qualification";
 import { AuthType } from "@/Types";
@@ -25,13 +26,91 @@ export const findEntrySegment = (
     );
 };
 
+const splitLeadName = (name?: string | null): { firstName: string; lastName: string } => {
+    const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+    return {
+        firstName: parts[0] ?? "",
+        lastName: parts.slice(1).join(" "),
+    };
+};
+
+const OL_TOKEN_REPLACEMENTS = (
+    lead: Lead,
+    auth?: AuthType,
+): Array<[string, string]> => {
+    const { firstName, lastName } = splitLeadName(lead.client_name);
+
+    return [
+        ["{{lead.firstName}}", firstName],
+        ["{{lead.lastName}}", lastName],
+        ["{{lead.name}}", lead.client_name ?? ""],
+        ["{{lead.email}}", lead.client_email ?? ""],
+        ["{{lead.phone}}", lead.mobile ?? lead.cell ?? ""],
+        ["{{lead.company}}", lead.company_name ?? ""],
+        ["{{agent.name}}", auth?.user?.name ?? ""],
+    ];
+};
+
+export const matchOptionByStoredValue = (
+    segment: Segment | undefined,
+    storedValue: string,
+): SegmentOption | undefined => {
+    if (!segment?.options) {
+        return undefined;
+    }
+
+    return (
+        segment.options.find(
+            (option) => option.id === storedValue || option.key === storedValue,
+        ) ?? undefined
+    );
+};
+
+export const mapStoredValuesToOptionIds = (
+    segment: Segment | undefined,
+    storedValues: string[],
+): string[] => {
+    if (!segment?.options?.length) {
+        return storedValues;
+    }
+
+    return storedValues.map((storedValue) => {
+        const option = matchOptionByStoredValue(segment, storedValue);
+        return option?.id ?? storedValue;
+    });
+};
+
+export const mapOptionIdsToStoredValues = (
+    segment: Segment | undefined,
+    optionIds: string[],
+): string[] => {
+    if (!segment?.options?.length) {
+        return optionIds;
+    }
+
+    return optionIds.map((optionId) => {
+        const option = segment.options?.find((item) => item.id === optionId);
+        return option?.key ?? optionId;
+    });
+};
+
 export const collectSelectedOptionIds = (
+    tree: TemplateTree,
     answers: Record<string, SegmentAnswerState>,
 ): Set<string> => {
     const ids = new Set<string>();
-    Object.values(answers).forEach((answer) => {
-        answer.answer_values.forEach((value) => ids.add(value));
+
+    tree.segments.forEach((segment) => {
+        const answer = answers[segment.key];
+        if (!answer?.answer_values.length) {
+            return;
+        }
+
+        mapStoredValuesToOptionIds(segment, answer.answer_values).forEach(
+            (value) => ids.add(value),
+        );
     });
+
     return ids;
 };
 
@@ -66,7 +145,7 @@ export const computeVisibleSegments = (
     const entryAnswered = entry
         ? Boolean(answers[entry.key]?.answer_values.length)
         : true;
-    const selectedOptionIds = collectSelectedOptionIds(answers);
+    const selectedOptionIds = collectSelectedOptionIds(tree, answers);
 
     return sortSegments(tree.segments).filter((segment) =>
         isSegmentVisible(segment, selectedOptionIds, entryAnswered),
@@ -87,11 +166,20 @@ export const buildTokenMap = (
 export const resolveTokens = (
     text: string,
     tokenMap: Record<QualificationToken, string>,
+    lead?: Lead,
+    auth?: AuthType,
 ): string => {
     let resolved = text;
     QUALIFICATION_TOKENS.forEach((token) => {
         resolved = resolved.split(token).join(tokenMap[token] || "");
     });
+
+    if (lead) {
+        OL_TOKEN_REPLACEMENTS(lead, auth).forEach(([token, value]) => {
+            resolved = resolved.split(token).join(value);
+        });
+    }
+
     return resolved;
 };
 
@@ -147,11 +235,19 @@ export const answersFromQualification = (
         answer_values: string[];
         answer_text?: string | null;
     }> = [],
+    tree?: TemplateTree,
 ): Record<string, SegmentAnswerState> => {
     const map: Record<string, SegmentAnswerState> = {};
     answers.forEach((answer) => {
+        const segment = tree?.segments.find(
+            (item) => item.key === answer.segment_key,
+        );
+        const storedValues = answer.answer_values ?? [];
+
         map[answer.segment_key] = {
-            answer_values: answer.answer_values ?? [],
+            answer_values: tree
+                ? mapStoredValuesToOptionIds(segment, storedValues)
+                : storedValues,
             answer_text: answer.answer_text ?? null,
         };
     });
@@ -167,8 +263,55 @@ export const getBranchOptionKeys = (
         return [];
     }
     return entrySegment.options
-        .filter((option) => previousEntryValues.includes(option.id))
+        .filter(
+            (option) =>
+                previousEntryValues.includes(option.id) ||
+                previousEntryValues.includes(option.key),
+        )
         .map((option) => option.key);
+};
+
+export const getBranchSegmentKeysToClear = (
+    tree: TemplateTree,
+    entrySegment: Segment | undefined,
+): string[] => {
+    if (!entrySegment) {
+        return [];
+    }
+
+    return tree.segments
+        .filter(
+            (segment) =>
+                segment.key !== entrySegment.key &&
+                Boolean(segment.parentOptionId),
+        )
+        .map((segment) => segment.key);
+};
+
+export const formatAnswerDisplay = (
+    segment: Segment | undefined,
+    answer?: SegmentAnswerState,
+): string => {
+    if (!answer) {
+        return "";
+    }
+
+    if (segment?.answerType === "text") {
+        return answer.answer_text?.trim() ?? "";
+    }
+
+    if (segment?.answerType === "boolean") {
+        return answer.answer_values[0] === "true" ? "Yes" : "No";
+    }
+
+    return (segment?.options ?? [])
+        .filter(
+            (option) =>
+                answer.answer_values.includes(option.id) ||
+                answer.answer_values.includes(option.key),
+        )
+        .map((option) => option.label)
+        .join(", ");
 };
 
 export const validateSegmentAnswer = (

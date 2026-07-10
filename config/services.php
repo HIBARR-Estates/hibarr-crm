@@ -88,9 +88,16 @@ return [
     ],
 
     'dynamic_translation' => [
-        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', 'https://staging-api.hibarr.org/v1')),
+        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', '')),
         'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
         'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
+    ],
+
+    'notification_service' => [
+        'base_url' => env('NOTIFICATION_SERVICE_BASE_URL', ''),
+        'timeout' => (int) env('NOTIFICATION_SERVICE_TIMEOUT', 15),
+        'internal_api_key' => env('NOTIFICATION_SERVICE_INTERNAL_API_KEY'),
+        'default_user_id' => (int) env('NOTIFICATION_SERVICE_DEFAULT_USER_ID', 1),
     ],
 
     'keycloak' => [
@@ -102,10 +109,29 @@ return [
     ],
 
     'ai' => [
-        'base_url' => env('AI_BASE_URL', 'https://staging-api.hibarr.org/v1'),
+        'base_url' => env('AI_BASE_URL', ''),
         'timeout'  => (int) env('AI_TIMEOUT', 45),
         'provider' => env('AI_PROVIDER', 'openai'),
         'model'    => env('AI_MODEL', 'gpt-4o'),
         'api_key'  => env('AI_API_KEY'),
+    ],
+
+    'ol_webhook' => [
+        'enabled' => (bool) env('OL_WEBHOOK_ENABLED', false),
+        'endpoint' => env('OL_WEBHOOK_ENDPOINT'),
+        'timeout' => (int) env('OL_WEBHOOK_TIMEOUT', 10),
+        'api_key' => env('OL_WEBHOOK_API_KEY'),
+        'api_key_header' => env('OL_WEBHOOK_API_KEY_HEADER', 'X-API-KEY'),
+        'queue' => env('OL_WEBHOOK_QUEUE', 'ol_webhooks'),
+        'tries' => (int) env('OL_WEBHOOK_TRIES', 3),
+        'backoff' => array_map('intval', explode(',', (string) env('OL_WEBHOOK_BACKOFF', '60,300,900'))),
+    ],
+
+    'ol' => [
+        // Used for OL integration endpoints (e.g. Zoho Calendar sync jobs).
+        // Default includes `/v1` to match frontend configuration.
+        'base_url' => env('OL_BASE_URL', env('MIX_OL_BASE_URL', 'https://develop-api.hibarr.org/v1')),
+        'api_key' => env('OL_API_KEY', env('MIX_OL_API_KEY')),
+        'timeout' => (int) env('OL_API_TIMEOUT', 15),
     ],
 ];

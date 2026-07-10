@@ -68,6 +68,8 @@ export interface Lead {
     lead_lifecycle_status?: LeadLifecycleStatus | null;
     languages?: string[];
     date_of_birth?: string | null;
+    age?: number | null;
+    age_range?: string | null;
     nationality?: string | null;
     occupation?: string | null;
 
@@ -138,6 +140,8 @@ export interface CreateLeadFormData {
     custom_fields_data?: Record<string, any>;
     languages?: string[];
     date_of_birth?: string | null;
+    age?: number | null;
+    age_range?: string | null;
     nationality?: string | null;
     occupation?: string | null;
     // Deal creation fields

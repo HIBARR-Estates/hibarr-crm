@@ -5,6 +5,7 @@ return array(
     'writeshortcode' => 'Project unique short code',
     'taskshortcode' => 'Task unique short code',
     'name' => 'e.g. John Doe',
+    'apiTokenName' => 'e.g. OL Integration',
     'email' => 'e.g. johndoe@example.com',
     'mobile' => 'e.g. 1234567890',
     'mobileWithPlus' => 'e.g. +19876543',

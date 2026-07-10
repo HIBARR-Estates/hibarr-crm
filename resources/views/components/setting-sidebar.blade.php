@@ -45,6 +45,11 @@
                                  :text="__('app.menu.appSettings')"/>
         @endif
 
+        @if (user()->permission('manage_company_setting') == 'all')
+            <x-setting-menu-item :active="$activeMenu" menu="api_token_settings" :href="route('api-token-settings.index')"
+                                 :text="__('app.menu.apiTokenSettings')"/>
+        @endif
+
         <x-setting-menu-item :active="$activeMenu" menu="profile_settings" :href="route('profile-settings.index')"
                              :text="__('app.menu.profileSettings')"/>
 
