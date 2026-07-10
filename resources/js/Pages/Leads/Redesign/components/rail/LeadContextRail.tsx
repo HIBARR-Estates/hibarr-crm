@@ -2,8 +2,8 @@ import type { Lead } from "@/Types/api/leads";
 import type { BantChecks } from "../../types";
 import type { LeadContextRailData } from "../../types";
 import ContactRailPanel from "./ContactRailPanel";
-import QualificationRailPanel from "./QualificationRailPanel";
-import OpenItemsRailPanel from "./OpenItemsRailPanel";
+// import QualificationRailPanel from "./QualificationRailPanel";
+// import OpenItemsRailPanel from "./OpenItemsRailPanel";
 
 interface LeadContextRailProps {
     lead: Lead;
@@ -39,14 +39,14 @@ export default function LeadContextRail({
                 onLogContact={onLogContact}
                 onEditProfile={onEditProfile}
             />
-            <QualificationRailPanel checks={checks} />
+            {/* <QualificationRailPanel checks={checks} />
             <OpenItemsRailPanel
                 data={railData}
                 marketingSource={lead.marketing?.utm_source}
                 onNavigateMeetings={onNavigateMeetings}
                 onNavigateTasks={onNavigateTasks}
                 onNavigateDeals={onNavigateDeals}
-            />
+            /> */}
         </aside>
     );
 }

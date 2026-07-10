@@ -91,6 +91,10 @@
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-align: left;
     border: 1.5px solid #e2e5ea;
     background: #ffffff;
     transition: all 0.15s;
@@ -99,6 +103,28 @@
 .lead-redesign .outcome-btn:hover {
     border-color: #b8d4f0;
     background: #e8f1fb;
+}
+
+.lead-redesign .outcome-primary {
+    background: #1a6bb5;
+    color: white;
+    border: none;
+}
+
+.lead-redesign .outcome-primary:hover {
+    background: #155fa0;
+    border: none;
+}
+
+.lead-redesign .outcome-secondary {
+    background: white;
+    border: 1.5px solid #e2e5ea;
+}
+
+.lead-redesign .outcome-danger {
+    background: white;
+    border: 1.5px dashed #e2e5ea;
+    color: #6b7280;
 }
 
 .lead-redesign .field-label {
