@@ -24,8 +24,11 @@ interface Link {
 
 import { LeadLifecycleStatus } from "@/Types/qualification";
 
+import { ILeadFlightItinerary } from './lead-flight-itinerary';
+
 export interface Lead {
     id: number;
+    lead_flight_itineraries?: ILeadFlightItinerary[];
     added_by?: User | null;
     lead_owner?: User | null;
     client_id?: number | null;

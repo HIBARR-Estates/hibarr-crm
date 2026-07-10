@@ -24,8 +24,11 @@ interface Link {
     active: boolean;
 }
 
+import { ILeadFlightItinerary } from './lead-flight-itinerary';
+
 export interface Deal {
     id: number;
+    lead_flight_itineraries?: ILeadFlightItinerary[];
     probability?: number;
     company_id?: number;
     name: string;
