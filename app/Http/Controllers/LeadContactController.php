@@ -193,11 +193,22 @@ class LeadContactController extends AccountBaseController
 
         $tab = request('tab');
 
+        // Inertia requests (initial visits or router.reload()) must always get the
+        // Inertia SPA response, even when `tab` is in the URL for deep-linking/refresh
+        // purposes — only genuine legacy (non-Inertia) requests get the old Blade/DataTable partial.
+        $isInertiaRequest = (bool) $request->header('X-Inertia');
+
         switch ($tab) {
             case 'deal':
-                return $this->deals();
+                if (!$isInertiaRequest) {
+                    return $this->deals();
+                }
+                break;
             case 'notes':
-                return $this->notes();
+                if (!$isInertiaRequest) {
+                    return $this->notes();
+                }
+                break;
             case 'marketing':
                 // Load marketing data for the lead contact
                 $this->leadContact = $this->leadContact->load('marketing');

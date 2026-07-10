@@ -38,7 +38,8 @@ const AddNote: React.FC<Props> = ({ deal, onClose, open }) => {
         mutate(data, {
             onSuccess: () => {
                 setErrors([]);
-                router.reload({ onSuccess: () => handleCancel() });
+                router.reload();
+                handleCancel();
             },
             onError: (errorResponse) => {
                 const responseErrors =

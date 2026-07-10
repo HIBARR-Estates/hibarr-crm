@@ -57,7 +57,8 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
         if (response?.status === "success") {
             message.success(t("pages.leads.notes.updated_success"));
             setErrors([]);
-            router.reload({ onSuccess: () => onCancel() });
+            router.reload();
+            onCancel();
         }
     });
 

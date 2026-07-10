@@ -54,7 +54,8 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
             message.success("Note created successfully!");
             setErrors([]);
             form.resetFields();
-            router.reload({ onSuccess: () => onCancel() });
+            router.reload();
+            onCancel();
         }
     });
 
