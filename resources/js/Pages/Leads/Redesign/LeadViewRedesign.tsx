@@ -12,7 +12,7 @@ import useLeadBantChecks from "./hooks/useLeadBantChecks";
 import useLeadMission from "./hooks/useLeadMission";
 import useLeadOverview from "./hooks/useLeadOverview";
 import useLeadQualificationWorkspace from "./hooks/useLeadQualificationWorkspace";
-import LeadBreadcrumbRow from "./components/header/LeadBreadcrumbRow";
+import useLeadFirstContact from "./hooks/useLeadFirstContact";
 import LeadIdentityHeader from "./components/header/LeadIdentityHeader";
 import LeadMissionBar from "./components/header/LeadMissionBar";
 import LeadContextRail from "./components/rail/LeadContextRail";
@@ -52,9 +52,10 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         enabled: showQualificationTab,
     });
     const overview = useLeadOverview({ notes, tasks, leadFollowUps });
+    const firstContact = useLeadFirstContact(lead.id);
 
-    const [contactLoggedOverride, setContactLoggedOverride] = useState(false);
     const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
+    const [ctaLoading, setCtaLoading] = useState(false);
 
     const qualificationRef = useRef<HTMLDivElement>(null);
     const noteRef = useRef<QuickNoteCardHandle>(null);
@@ -65,18 +66,12 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         answers: showQualificationTab
             ? qualificationWorkspace.current?.answers
             : undefined,
-        contactLogged:
-            contactLoggedOverride ||
-            notes.length > 0 ||
-            leadFollowUps.length > 0 ||
-            qualificationWorkspace.flowActive ||
-            Boolean(qualificationWorkspace.outcome),
+        contactLogged: firstContact.contactLogged,
     });
 
     const mission = useLeadMission({
         lead,
         leadName: header.leadName,
-        notes,
         tasks,
         leadFollowUps,
         flowActive: qualificationWorkspace.flowActive,
@@ -84,7 +79,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         qualificationAnswers: showQualificationTab
             ? qualificationWorkspace.current?.answers
             : undefined,
-        contactLoggedOverride,
+        contactLogged: firstContact.contactLogged,
         qualificationEnabled: showQualificationTab,
     });
 
@@ -96,26 +91,48 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     const canEdit =
         editLeadPermission === "all" || editLeadPermission === "added";
 
-    const handleMissionCta = useCallback(() => {
+    const handleLogContact = useCallback(async () => {
+        await firstContact.logContact();
+    }, [firstContact]);
+
+    const handleMissionCta = useCallback(async () => {
         if (mission.ctaAction === "logContact") {
-            setContactLoggedOverride(true);
-            qualificationRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
+            setCtaLoading(true);
+            try {
+                await handleLogContact();
+            } finally {
+                setCtaLoading(false);
+            }
             return;
         }
+
         if (mission.ctaAction === "startFlow") {
-            qualificationRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
+            setCtaLoading(true);
+            try {
+                const started =
+                    await qualificationWorkspace.startQualificationScript();
+                if (started) {
+                    qualificationRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    });
+                } else {
+                    qualificationRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    });
+                }
+            } finally {
+                setCtaLoading(false);
+            }
             return;
         }
+
         if (mission.ctaAction === "focusNote") {
             noteRef.current?.focus();
             return;
         }
+
         if (mission.ctaAction === "scrollMeetings") {
             nav.setDrawerTab("meetings");
             drawerRef.current?.scrollIntoView({
@@ -124,10 +141,17 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
             });
             return;
         }
+
         if (mission.ctaAction === "completeTopTask" && railData.topOpenTask) {
             router.reload({ only: ["tasks"] });
         }
-    }, [mission.ctaAction, nav, railData.topOpenTask]);
+    }, [
+        handleLogContact,
+        mission.ctaAction,
+        nav,
+        qualificationWorkspace,
+        railData.topOpenTask,
+    ]);
 
     const handleOutcomeComplete = useCallback(() => {
         nav.setDrawerTab("meetings");
@@ -188,7 +212,12 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                     <LeadMissionBar
                         mission={mission}
                         leadPhone={lead.mobile || lead.cell}
-                        onCta={mission.cta ? handleMissionCta : undefined}
+                        onCta={mission.cta ? () => void handleMissionCta() : undefined}
+                        ctaLoading={
+                            ctaLoading ||
+                            firstContact.isLogging ||
+                            qualificationWorkspace.isStartingFlow
+                        }
                     />
 
                     <div className="grid grid-cols-1 gap-4 p-[26px] lg:grid-cols-[232px_minmax(0,1fr)]">
@@ -196,6 +225,12 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                             lead={lead}
                             checks={checks}
                             railData={railData}
+                            contactLogged={firstContact.contactLogged}
+                            isLoggingContact={firstContact.isLogging}
+                            onLogContact={() => void handleLogContact()}
+                            onEditProfile={
+                                canEdit ? nav.openProfileEdit : undefined
+                            }
                             onNavigateMeetings={() =>
                                 nav.setDrawerTab("meetings")
                             }
