@@ -194,6 +194,22 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                         canEdit={canEdit}
                         onEditLead={nav.openProfileEdit}
                     />
+
+                    <LeadMissionBar
+                        mission={mission}
+                        leadPhone={lead.mobile || lead.cell}
+                        onCta={
+                            mission.cta
+                                ? () => void handleMissionCta()
+                                : undefined
+                        }
+                        ctaLoading={
+                            ctaLoading ||
+                            firstContact.isLogging ||
+                            qualificationWorkspace.isStartingFlow
+                        }
+                    />
+
                     {showAiSummary && (
                         <EntityAiSummaryCard
                             entityType="lead"
@@ -207,18 +223,9 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                                     block: "start",
                                 });
                             }}
+                            className="pt-4"
                         />
                     )}
-                    <LeadMissionBar
-                        mission={mission}
-                        leadPhone={lead.mobile || lead.cell}
-                        onCta={mission.cta ? () => void handleMissionCta() : undefined}
-                        ctaLoading={
-                            ctaLoading ||
-                            firstContact.isLogging ||
-                            qualificationWorkspace.isStartingFlow
-                        }
-                    />
 
                     <div className="grid grid-cols-1 gap-4 p-[26px] lg:grid-cols-[232px_minmax(0,1fr)]">
                         <LeadContextRail
