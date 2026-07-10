@@ -108,7 +108,7 @@ export default function LeadMissionBar({
                             {phoneDisplay}
                         </a>
                     )}
-                    {mission.cta && onCta && (
+                    {/* {mission.cta && onCta && (
                         <DealButton
                             variant="navy"
                             onClick={onCta}
@@ -122,7 +122,7 @@ export default function LeadMissionBar({
                         >
                             {mission.cta}
                         </DealButton>
-                    )}
+                    )} */}
                 </div>
             </div>
         </div>

@@ -132,7 +132,7 @@ export default function ContactRailPanel({
                     </div>
                 )}
 
-                <div className="mt-2">
+                {/* <div className="mt-2">
                     {!contactLogged ? (
                         <DealButton
                             variant="primary"
@@ -146,7 +146,7 @@ export default function ContactRailPanel({
                     ) : (
                         <DealBadge variant="green">{td("Contact logged")}</DealBadge>
                     )}
-                </div>
+                </div> */}
             </div>
         </section>
     );

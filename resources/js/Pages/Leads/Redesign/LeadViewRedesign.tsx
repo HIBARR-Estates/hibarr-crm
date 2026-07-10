@@ -224,6 +224,13 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                             }
                             onNavigateTasks={() => nav.setDrawerTab("tasks")}
                             onNavigateDeals={() => nav.setDrawerTab("deals")}
+                            quickNoteCard={{
+                                ref: noteRef,
+                                props: {
+                                    lead,
+                                    latestNote,
+                                },
+                            }}
                         />
                         <div className="flex flex-col gap-4">
                             {showAiSummary && (
@@ -252,11 +259,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                                     onOutcomeComplete={handleOutcomeComplete}
                                 />
                             )}
-                            <QuickNoteCard
-                                ref={noteRef}
-                                lead={lead}
-                                latestNote={latestNote}
-                            />
+
                             <LeadDrawer
                                 {...props}
                                 drawerTab={nav.drawerTab}
