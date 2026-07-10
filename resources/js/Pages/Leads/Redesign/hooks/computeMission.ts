@@ -2,6 +2,7 @@ import type { QualificationOutcome } from "@/Types/qualification";
 import type { BantCaptures, LeadMission } from "../types";
 import type { LeadTaskPreview } from "../adapters/taskAdapter";
 import type { LeadMeetingPreview } from "../adapters/meetingAdapter";
+import { formatPhoneNumber } from "@/lib/utils";
 
 const OUTCOME_LABELS: Record<QualificationOutcome, string> = {
     bookMeeting: "Book consultation",
@@ -41,7 +42,7 @@ export function computeMission({
     captures,
 }: ComputeMissionInput): LeadMission {
     const outcomeLabel = outcomeToLabel(outcome);
-    const phone = leadPhone || "the lead";
+    const phone = formatPhoneNumber(leadPhone) || "the lead";
 
     if (!contactLogged) {
         return {
