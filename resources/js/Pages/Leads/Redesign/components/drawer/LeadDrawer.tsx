@@ -5,8 +5,8 @@ import LeadDrawerTabBar, { type DrawerTabConfig } from "./LeadDrawerTabBar";
 import OverviewPane from "./panes/OverviewPane";
 import ActivityTab from "../activity/ActivityTab";
 import LeadNotesTab from "@/Pages/Leads/Components/LeadNotesTab";
-import TasksTab from "@/Components/TasksTab";
-import LeadFollowUpTab from "@/Pages/Leads/Components/LeadFollowUpTab";
+import LeadTasksTab from "./panes/LeadTasksTab";
+import LeadMeetingsTab from "./panes/LeadMeetingsTab";
 import LeadDealsTab from "@/Pages/Leads/Components/LeadDealsTab";
 import LeadMarketingTab from "@/Pages/Leads/Components/LeadMarketingTab";
 import LeadInfoSection from "@/Pages/Leads/Components/LeadInfoSection";
@@ -182,28 +182,19 @@ export default function LeadDrawer({
                     />
                 )}
                 {drawerTab === "tasks" && (
-                    <TasksTab
+                    <LeadTasksTab
                         tasks={tasks}
-                        relatedEntity={{ type: "lead", id: lead.id }}
-                        taskCategories={taskCategories}
-                        taskLabels={taskLabels}
                         taskBoardColumns={taskBoardColumns}
-                        employees={employees}
-                        projects={projects}
-                        permissions={permissions as any}
+                        permissions={permissions}
+                        onAddTask={() => setAddTaskOpen(true)}
                     />
                 )}
                 {drawerTab === "meetings" && showMeetings && (
-                    <LeadFollowUpTab
+                    <LeadMeetingsTab
                         lead={lead}
                         followUps={leadFollowUps}
                         permissions={followUpPermissions}
-                        deals={deals}
-                        onScheduleMeeting={
-                            canAddFollowUp
-                                ? () => setAddMeetingOpen(true)
-                                : undefined
-                        }
+                        onScheduleMeeting={() => setAddMeetingOpen(true)}
                     />
                 )}
                 {drawerTab === "deals" && (
