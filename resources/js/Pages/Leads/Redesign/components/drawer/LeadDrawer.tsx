@@ -1,16 +1,19 @@
+import { useState } from "react";
 import type { LeadRedesignProps, LeadDrawerTab } from "../../types";
 import type useLeadOverview from "../../hooks/useLeadOverview";
 import LeadDrawerTabBar, { type DrawerTabConfig } from "./LeadDrawerTabBar";
 import OverviewPane from "./panes/OverviewPane";
 import ActivityTab from "../activity/ActivityTab";
 import LeadNotesTab from "@/Pages/Leads/Components/LeadNotesTab";
-import TasksTab from "@/Components/TasksTab";
-import LeadFollowUpTab from "@/Pages/Leads/Components/LeadFollowUpTab";
+import LeadTasksTab from "./panes/LeadTasksTab";
+import LeadMeetingsTab from "./panes/LeadMeetingsTab";
 import LeadDealsTab from "@/Pages/Leads/Components/LeadDealsTab";
 import LeadMarketingTab from "@/Pages/Leads/Components/LeadMarketingTab";
 import LeadInfoSection from "@/Pages/Leads/Components/LeadInfoSection";
 import LeadIcon from "../primitives/LeadIcon";
 import useTranslation from "@/Hooks/useTranslation";
+import LeadAddTaskModal from "./panes/overview/LeadAddTaskModal";
+import LeadScheduleMeetingModal from "./panes/overview/LeadScheduleMeetingModal";
 
 type OverviewData = ReturnType<typeof useLeadOverview>;
 
@@ -20,7 +23,6 @@ interface LeadDrawerProps extends LeadRedesignProps {
     overview: OverviewData;
     profileEditMode: boolean;
     onProfileEditModeChange: (value: boolean) => void;
-    onScheduleMeeting?: () => void;
     drawerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
@@ -33,6 +35,7 @@ export default function LeadDrawer({
     notePermissions,
     permissions,
     leadFollowUps = [],
+    meetingTypes = [],
     followUpPermissions = {},
     customFieldCategories,
     fields,
@@ -49,10 +52,12 @@ export default function LeadDrawer({
     overview,
     profileEditMode,
     onProfileEditModeChange,
-    onScheduleMeeting,
     drawerRef,
 }: LeadDrawerProps) {
     const { t } = useTranslation();
+    const [addTaskOpen, setAddTaskOpen] = useState(false);
+    const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
 
@@ -63,6 +68,16 @@ export default function LeadDrawer({
     const canAddFollowUp =
         followUpPermissions.add_lead_follow_up === "all" ||
         followUpPermissions.add_lead_follow_up === "added";
+
+    const canAddTask =
+        permissions?.add_tasks === "all" ||
+        permissions?.add_tasks === "added" ||
+        permissions?.add_tasks === "both";
+
+    const canAddNote =
+        notePermissions.add_lead_note === "all" ||
+        notePermissions.add_lead_note === "added" ||
+        notePermissions.add_lead_note === "both";
 
     const tabs: DrawerTabConfig[] = [
         { id: "overview", label: "Overview", icon: "grid" },
@@ -110,9 +125,24 @@ export default function LeadDrawer({
 
     return (
         <div ref={drawerRef} className="section-card">
+            <LeadAddTaskModal
+                open={addTaskOpen}
+                onClose={() => setAddTaskOpen(false)}
+                leadId={lead.id}
+            />
+            <LeadScheduleMeetingModal
+                open={addMeetingOpen}
+                onClose={() => setAddMeetingOpen(false)}
+                lead={lead}
+                meetingTypes={meetingTypes}
+                deals={deals.map((deal) => ({ id: deal.id, name: deal.name }))}
+            />
+
             <header className="flex items-center gap-2 border-b border-[#eef1f5] px-4 py-3">
                 <LeadIcon name="grid" size={15} color="#1a6bb5" />
-                <h3 className="text-sm font-semibold text-[#1a1f2e]">Lead workspace</h3>
+                <h3 className="text-sm font-semibold text-[#1a1f2e]">
+                    Lead workspace
+                </h3>
             </header>
             <LeadDrawerTabBar
                 tabs={tabs}
@@ -126,21 +156,12 @@ export default function LeadDrawer({
                         overview={overview}
                         tasks={tasks}
                         taskBoardColumns={taskBoardColumns}
-                        canAddNote={
-                            notePermissions.add_lead_note === "all" ||
-                            notePermissions.add_lead_note === "added" ||
-                            notePermissions.add_lead_note === "both"
-                        }
-                        canAddTask={
-                            permissions?.add_tasks === "all" ||
-                            permissions?.add_tasks === "added" ||
-                            permissions?.add_tasks === "both"
-                        }
+                        canAddNote={canAddNote}
+                        canAddTask={canAddTask}
                         canAddMeeting={canAddFollowUp}
                         onNavigate={onDrawerTabChange}
-                        onScheduleMeeting={
-                            canAddFollowUp ? onScheduleMeeting : undefined
-                        }
+                        onAddTask={() => setAddTaskOpen(true)}
+                        onAddMeeting={() => setAddMeetingOpen(true)}
                     />
                 )}
                 {drawerTab === "profile" && (
@@ -161,26 +182,19 @@ export default function LeadDrawer({
                     />
                 )}
                 {drawerTab === "tasks" && (
-                    <TasksTab
+                    <LeadTasksTab
                         tasks={tasks}
-                        relatedEntity={{ type: "lead", id: lead.id }}
-                        taskCategories={taskCategories}
-                        taskLabels={taskLabels}
                         taskBoardColumns={taskBoardColumns}
-                        employees={employees}
-                        projects={projects}
-                        permissions={permissions as any}
+                        permissions={permissions}
+                        onAddTask={() => setAddTaskOpen(true)}
                     />
                 )}
                 {drawerTab === "meetings" && showMeetings && (
-                    <LeadFollowUpTab
+                    <LeadMeetingsTab
                         lead={lead}
                         followUps={leadFollowUps}
                         permissions={followUpPermissions}
-                        deals={deals}
-                        onScheduleMeeting={
-                            canAddFollowUp ? onScheduleMeeting : undefined
-                        }
+                        onScheduleMeeting={() => setAddMeetingOpen(true)}
                     />
                 )}
                 {drawerTab === "deals" && (
