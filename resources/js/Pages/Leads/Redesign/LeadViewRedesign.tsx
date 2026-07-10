@@ -17,11 +17,14 @@ import LeadIdentityHeader from "./components/header/LeadIdentityHeader";
 import LeadMissionBar from "./components/header/LeadMissionBar";
 import LeadContextRail from "./components/rail/LeadContextRail";
 import QualificationScriptCard from "./components/workspace/QualificationScriptCard";
-import QuickNoteCard, { type QuickNoteCardHandle } from "./components/workspace/QuickNoteCard";
+import QuickNoteCard, {
+    type QuickNoteCardHandle,
+} from "./components/workspace/QuickNoteCard";
 import LeadDrawer from "./components/drawer/LeadDrawer";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
+import useTranslation from "@/Hooks/useTranslation";
 
 export default function LeadViewRedesign(props: LeadRedesignProps) {
     const {
@@ -40,6 +43,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
     const showQualificationTab =
         featureFlags?.["crm.lead-qualification-tab"] === true;
+    const { t } = useTranslation();
 
     const header = useLeadHeaderData(lead);
     const nav = useLeadViewNavigation();
@@ -89,16 +93,23 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     });
 
     const latestNote = notes[0] ?? null;
-    const canEdit = editLeadPermission === "all" || editLeadPermission === "added";
+    const canEdit =
+        editLeadPermission === "all" || editLeadPermission === "added";
 
     const handleMissionCta = useCallback(() => {
         if (mission.ctaAction === "logContact") {
             setContactLoggedOverride(true);
-            qualificationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            qualificationRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
             return;
         }
         if (mission.ctaAction === "startFlow") {
-            qualificationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            qualificationRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
             return;
         }
         if (mission.ctaAction === "focusNote") {
@@ -107,7 +118,10 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         }
         if (mission.ctaAction === "scrollMeetings") {
             nav.setDrawerTab("meetings");
-            drawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            drawerRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
             return;
         }
         if (mission.ctaAction === "completeTopTask" && railData.topOpenTask) {
@@ -117,23 +131,42 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 
     const handleOutcomeComplete = useCallback(() => {
         nav.setDrawerTab("meetings");
-        drawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        drawerRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
     }, [nav]);
 
     const pageTitle = useMemo(() => header.leadName, [header.leadName]);
+    const leadName = [
+        lead?.salutation_value
+            ? lead.salutation_value.charAt(0).toUpperCase() +
+              lead.salutation_value.slice(1)
+            : null,
+        lead?.client_name,
+    ]
+        .filter(Boolean)
+        .join(" ");
 
     return (
-        <PageLayout title={pageTitle} breadcrumbs={[]} mainContentClassName="">
+        <PageLayout
+            title={pageTitle}
+            breadcrumbs={[
+                {
+                    name: t("pages.leads.contacts"),
+                    url: route("lead-contact.index"),
+                },
+                { name: leadName },
+            ]}
+            mainContentClassName=""
+        >
             <div className="lead-redesign min-h-screen bg-[#f5f6f8]">
                 <div className="mx-auto w-full max-w-[1320px]">
-                    <LeadBreadcrumbRow
-                        leadName={header.leadName}
+                    <LeadIdentityHeader
                         isRefreshing={isRefreshing}
                         refreshDisabled={nav.profileEditMode}
-                        onRefresh={refresh}
-                    />
-                    <LeadIdentityHeader
                         header={header}
+                        onRefresh={refresh}
                         canEdit={canEdit}
                         onEditLead={nav.openProfileEdit}
                     />
@@ -163,7 +196,9 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                             lead={lead}
                             checks={checks}
                             railData={railData}
-                            onNavigateMeetings={() => nav.setDrawerTab("meetings")}
+                            onNavigateMeetings={() =>
+                                nav.setDrawerTab("meetings")
+                            }
                             onNavigateTasks={() => nav.setDrawerTab("tasks")}
                             onNavigateDeals={() => nav.setDrawerTab("deals")}
                         />
@@ -188,7 +223,9 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                                 overview={overview}
                                 profileEditMode={nav.profileEditMode}
                                 onProfileEditModeChange={nav.setProfileEditMode}
-                                onScheduleMeeting={() => setScheduleMeetingOpen(true)}
+                                onScheduleMeeting={() =>
+                                    setScheduleMeetingOpen(true)
+                                }
                                 drawerRef={drawerRef}
                             />
                         </div>
