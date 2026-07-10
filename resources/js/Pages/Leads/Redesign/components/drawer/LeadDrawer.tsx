@@ -121,7 +121,27 @@ export default function LeadDrawer({
             />
             <div className="p-4">
                 {drawerTab === "overview" && (
-                    <OverviewPane overview={overview} onNavigate={onDrawerTabChange} />
+                    <OverviewPane
+                        lead={lead}
+                        overview={overview}
+                        tasks={tasks}
+                        taskBoardColumns={taskBoardColumns}
+                        canAddNote={
+                            notePermissions.add_lead_note === "all" ||
+                            notePermissions.add_lead_note === "added" ||
+                            notePermissions.add_lead_note === "both"
+                        }
+                        canAddTask={
+                            permissions?.add_tasks === "all" ||
+                            permissions?.add_tasks === "added" ||
+                            permissions?.add_tasks === "both"
+                        }
+                        canAddMeeting={canAddFollowUp}
+                        onNavigate={onDrawerTabChange}
+                        onScheduleMeeting={
+                            canAddFollowUp ? onScheduleMeeting : undefined
+                        }
+                    />
                 )}
                 {drawerTab === "profile" && (
                     <LeadInfoSection

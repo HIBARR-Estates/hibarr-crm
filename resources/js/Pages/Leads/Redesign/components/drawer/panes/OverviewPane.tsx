@@ -1,141 +1,73 @@
-import { useMemo, useState } from "react";
-import useTranslation from "@/Hooks/useTranslation";
+import { useState } from "react";
+import type { Lead } from "@/Types/api/leads";
+import type { Task } from "@/Types/api/tasks";
+import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { LeadDrawerTab } from "../../../types";
 import type useLeadOverview from "../../../hooks/useLeadOverview";
+import OverviewNotesColumn from "./overview/OverviewNotesColumn";
+import OverviewTasksColumn from "./overview/OverviewTasksColumn";
+import OverviewMeetingsColumn from "./overview/OverviewMeetingsColumn";
+import LeadAddTaskModal from "./overview/LeadAddTaskModal";
 
 type OverviewData = ReturnType<typeof useLeadOverview>;
 
 interface OverviewPaneProps {
+    lead: Lead;
     overview: OverviewData;
+    tasks: Task[];
+    taskBoardColumns: TaskboardColumn[];
+    canAddNote?: boolean;
+    canAddTask?: boolean;
+    canAddMeeting?: boolean;
     onNavigate: (tab: LeadDrawerTab) => void;
+    onScheduleMeeting?: () => void;
 }
 
-interface OverviewColumnCardProps {
-    title: string;
-    actionLabel: string;
-    preview: Array<{ id: number; title: string; subtitle: string; content: string }>;
-    emptyDescription: string;
-    onAction: () => void;
-}
-
-function OverviewColumnCard({
-    title,
-    actionLabel,
-    preview,
-    emptyDescription,
-    onAction,
-}: OverviewColumnCardProps) {
-    const [expanded, setExpanded] = useState(false);
-    const visibleItems = expanded ? preview : preview.slice(0, 3);
-    const canExpand = preview.length > 3;
+export default function OverviewPane({
+    lead,
+    overview,
+    tasks,
+    taskBoardColumns,
+    canAddNote = true,
+    canAddTask = true,
+    canAddMeeting = true,
+    onNavigate,
+    onScheduleMeeting,
+}: OverviewPaneProps) {
+    const [addTaskOpen, setAddTaskOpen] = useState(false);
 
     return (
-        <section className="rounded-[10px] border border-[#e2e5ea] bg-white">
-            <header className="flex items-center justify-between border-b border-[#eef1f5] px-4 py-3">
-                <h3 className="text-sm font-semibold text-[#1a1f2e]">{title}</h3>
-                <button
-                    type="button"
-                    className="text-xs font-medium text-[#1a6bb5] hover:text-[#145890]"
-                    onClick={onAction}
-                >
-                    {actionLabel}
-                </button>
-            </header>
-            <div className="space-y-3 px-4 py-3">
-                {visibleItems.length === 0 && (
-                    <p className="rounded-[8px] border border-dashed border-[#d6dbe2] bg-[#f9fafb] px-3 py-4 text-xs text-[#667085]">
-                        {emptyDescription}
-                    </p>
-                )}
-                {visibleItems.map((item) => (
-                    <article
-                        key={item.id}
-                        className="rounded-[8px] border border-[#edf1f5] bg-[#fbfcfd] p-3"
-                    >
-                        <p className="truncate text-sm font-medium text-[#111827]">
-                            {item.title}
-                        </p>
-                        <p className="mt-0.5 text-[11px] text-[#6b7280]">{item.subtitle}</p>
-                        <p className="mt-2 max-h-[54px] overflow-hidden text-xs text-[#4b5563]">
-                            {item.content}
-                        </p>
-                    </article>
-                ))}
-                {canExpand && (
-                    <button
-                        type="button"
-                        className="text-xs font-medium text-[#1a6bb5] hover:text-[#145890]"
-                        onClick={() => setExpanded((state) => !state)}
-                    >
-                        {expanded ? "Show less" : `Show ${preview.length - 3} more`}
-                    </button>
-                )}
+        <>
+            <div className="grid grid-cols-1 gap-0 xl:grid-cols-3">
+                <OverviewNotesColumn
+                    lead={lead}
+                    notes={overview.notes}
+                    canAdd={canAddNote}
+                    onViewNote={() => onNavigate("notes")}
+                />
+                <OverviewTasksColumn
+                    tasks={overview.tasks}
+                    rawTasks={tasks}
+                    taskBoardColumns={taskBoardColumns}
+                    openCount={overview.openTasksCount}
+                    canAdd={canAddTask}
+                    onAddTask={() => setAddTaskOpen(true)}
+                    onViewTask={() => onNavigate("tasks")}
+                />
+                <OverviewMeetingsColumn
+                    meetings={overview.meetings}
+                    upcomingCount={overview.upcomingMeetingsCount}
+                    canAdd={canAddMeeting && Boolean(onScheduleMeeting)}
+                    onAddMeeting={() => onScheduleMeeting?.()}
+                    onViewMeeting={() => onNavigate("meetings")}
+                />
             </div>
-        </section>
-    );
-}
 
-export default function OverviewPane({ overview, onNavigate }: OverviewPaneProps) {
-    const { t } = useTranslation();
-
-    const notePreview = useMemo(
-        () =>
-            overview.notes.slice(0, 7).map((note) => ({
-                id: note.id,
-                title: note.title,
-                subtitle: note.createdAtLabel,
-                content: note.preview,
-            })),
-        [overview.notes],
-    );
-
-    const taskPreview = useMemo(
-        () =>
-            overview.tasks.slice(0, 7).map((task) => ({
-                id: task.id,
-                title: task.title,
-                subtitle: `${task.priority.toUpperCase()} priority · ${task.dueDateLabel}`,
-                content: task.description,
-            })),
-        [overview.tasks],
-    );
-
-    const meetingPreview = useMemo(
-        () =>
-            overview.meetings.slice(0, 7).map((meeting) => ({
-                id: meeting.id,
-                title: meeting.title,
-                subtitle: `${meeting.startsAtLabel} · ${meeting.status}`,
-                content: meeting.isUpcoming
-                    ? "Upcoming meeting in lead schedule."
-                    : "Meeting already happened. Open meetings tab for full details.",
-            })),
-        [overview.meetings],
-    );
-
-    return (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            <OverviewColumnCard
-                title={t("pages.leads.tabs.notes")}
-                actionLabel="View all"
-                preview={notePreview}
-                emptyDescription="No notes yet. Add a quick note above or open the notes tab."
-                onAction={() => onNavigate("notes")}
+            <LeadAddTaskModal
+                open={addTaskOpen}
+                onClose={() => setAddTaskOpen(false)}
+                leadId={lead.id}
             />
-            <OverviewColumnCard
-                title={t("pages.leads.tabs.tasks")}
-                actionLabel="View all"
-                preview={taskPreview}
-                emptyDescription="No tasks yet."
-                onAction={() => onNavigate("tasks")}
-            />
-            <OverviewColumnCard
-                title={t("modules.lead.followUp")}
-                actionLabel="View all"
-                preview={meetingPreview}
-                emptyDescription="No meetings scheduled."
-                onAction={() => onNavigate("meetings")}
-            />
-        </div>
+        </>
     );
 }
