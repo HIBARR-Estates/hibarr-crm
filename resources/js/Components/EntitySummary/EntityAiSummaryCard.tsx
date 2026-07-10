@@ -58,7 +58,7 @@ export default function EntityAiSummaryCard({
     };
 
     const cardClassName = [
-        "entity-ai-summary-card",
+        "entity-ai-summary-card my-4",
         `entity-ai-summary-card--${variant}`,
         entityType === "deal" ? "entity-ai-summary-card--deal" : "",
         className,
