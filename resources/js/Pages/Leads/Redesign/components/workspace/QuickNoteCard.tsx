@@ -80,7 +80,7 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
                     <LeadIcon name="file-text" size={15} color="#1a6bb5" />
                     <h3 className="text-sm font-semibold text-[#1a1f2e]">Quick note</h3>
                 </header>
-                <div className="space-y-3 p-4">
+                <div className="flex flex-col gap-y-3 p-4">
                     <Input.TextArea
                         ref={inputRef as any}
                         value={noteText}

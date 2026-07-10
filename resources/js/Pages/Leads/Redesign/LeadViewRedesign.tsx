@@ -208,23 +208,6 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                         }
                     />
 
-                    {showAiSummary && (
-                        <EntityAiSummaryCard
-                            entityType="lead"
-                            entityId={lead.id}
-                            initialSummary={leadAiSummary}
-                            variant="redesign"
-                            leadPhone={lead.mobile || lead.cell}
-                            onQualifyLead={() => {
-                                qualificationRef.current?.scrollIntoView({
-                                    behavior: "smooth",
-                                    block: "start",
-                                });
-                            }}
-                            className="pt-4"
-                        />
-                    )}
-
                     <div className="grid grid-cols-1 gap-4 p-[26px] lg:grid-cols-[232px_minmax(0,1fr)]">
                         <LeadContextRail
                             lead={lead}
@@ -243,6 +226,24 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                             onNavigateDeals={() => nav.setDrawerTab("deals")}
                         />
                         <div className="flex flex-col gap-4">
+                            {showAiSummary && (
+                                <EntityAiSummaryCard
+                                    entityType="lead"
+                                    entityId={lead.id}
+                                    initialSummary={leadAiSummary}
+                                    variant="redesign"
+                                    leadPhone={lead.mobile || lead.cell}
+                                    onQualifyLead={() => {
+                                        qualificationRef.current?.scrollIntoView(
+                                            {
+                                                behavior: "smooth",
+                                                block: "start",
+                                            },
+                                        );
+                                    }}
+                                    className=""
+                                />
+                            )}
                             {showQualificationTab && (
                                 <QualificationScriptCard
                                     lead={lead}
