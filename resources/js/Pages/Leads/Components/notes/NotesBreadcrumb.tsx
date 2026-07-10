@@ -46,10 +46,7 @@ export const NotesBreadcrumb: React.FC<NotesBreadcrumbProps> = ({
                 ...[
                     {
                         title: (
-                            <span
-                                className="flex items-center cursor-pointer hover:text-blue-600 transition-colors"
-                                onClick={() => onNavigate("view")}
-                            >
+                            <span className="flex items-center">
                                 {noteTitle || t("pages.leads.notes.breadcrumb_fallback")}
                             </span>
                         ),

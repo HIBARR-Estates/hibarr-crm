@@ -1,0 +1,27 @@
+.confirmation-modal .ant-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.confirmation-modal .ant-modal-close {
+    top: 16px;
+    inset-inline-end: 16px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.confirmation-modal .ant-modal-close:hover {
+    background: #f9fafb;
+}
+
+.confirmation-modal .ant-modal-close-x {
+    font-size: 14px;
+    line-height: 1;
+    color: #6b7280;
+}
