@@ -742,6 +742,9 @@ class DealController extends AccountBaseController
             'taskBoardColumns' => $taskBoardColumns,
             'employees' => $employees,
             'projects' => $projects,
+            'dealAiSummary' => \App\Support\FeatureFlags::enabled('sales.ai-entity-summary')
+                ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
+                : null,
         ]));
     }
 

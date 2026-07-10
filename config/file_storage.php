@@ -13,7 +13,7 @@ return [
     |
     */
 
-    'base_url' => env('FILE_UPLOAD_BASE_URL', 'https://develop-api.hibarr.org/v1'),
+    'base_url' => env('FILE_UPLOAD_BASE_URL', ''),
 
     'api_key' => env('FILE_UPLOAD_API_KEY', ''),
 

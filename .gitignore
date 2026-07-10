@@ -62,3 +62,10 @@ docker-compose.override.yml
 rr
 /rr.exe
 rr.exe
+
+
+# Ignore all files starting with .env.
+.env.*
+
+# But do not ignore .env.example
+!.env.example

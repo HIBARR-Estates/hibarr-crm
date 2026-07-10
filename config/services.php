@@ -88,7 +88,7 @@ return [
     ],
 
     'dynamic_translation' => [
-        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', 'https://staging-api.hibarr.org/v1')),
+        'base_url' => env('DYNAMIC_TRANSLATION_API_URL', env('AI_BASE_URL', '')),
         'timeout' => (int) env('DYNAMIC_TRANSLATION_API_TIMEOUT', env('AI_TIMEOUT', 30)),
         'api_key' => env('DYNAMIC_TRANSLATION_API_KEY', env('AI_API_KEY')),
     ],
@@ -102,7 +102,7 @@ return [
     ],
 
     'ai' => [
-        'base_url' => env('AI_BASE_URL', 'https://staging-api.hibarr.org/v1'),
+        'base_url' => env('AI_BASE_URL', ''),
         'timeout'  => (int) env('AI_TIMEOUT', 45),
         'provider' => env('AI_PROVIDER', 'openai'),
         'model'    => env('AI_MODEL', 'gpt-4o'),

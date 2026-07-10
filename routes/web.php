@@ -128,6 +128,7 @@ use App\Http\Controllers\EstimateRequestController;
 use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadQualificationController;
+use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
@@ -605,6 +606,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-qualifications/{qualification}/abandon', [LeadQualificationController::class, 'abandon'])->name('lead-qualifications.abandon');
     Route::delete('lead-qualifications/{qualification}/branch-answers', [LeadQualificationController::class, 'clearBranchAnswers'])->name('lead-qualifications.clear-branch-answers');
 
+    Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
+    Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
+
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
         Route::post('apply-quick-action', [AgentController::class, 'applyQuickAction'])->name('agents.apply_quick_action');
@@ -643,6 +647,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/create', [DealController::class, 'create'])->name('deals.create');
     Route::post('deals', [DealController::class, 'store'])->name('deals.store');
     Route::get('deals/{deal}', [DealController::class, 'show'])->name('deals.show');
+    Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
+    Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
