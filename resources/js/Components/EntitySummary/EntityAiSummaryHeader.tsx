@@ -11,6 +11,9 @@ interface EntityAiSummaryHeaderProps {
     loading: boolean;
     onRegenerate: () => void;
     dataConfidence?: "high" | "medium" | "low";
+    variant?: "legacy" | "redesign";
+    collapsed?: boolean;
+    onToggleCollapse?: () => void;
 }
 
 export default function EntityAiSummaryHeader({
@@ -19,10 +22,53 @@ export default function EntityAiSummaryHeader({
     loading,
     onRegenerate,
     dataConfidence,
+    variant = "legacy",
+    collapsed = false,
+    onToggleCollapse,
 }: EntityAiSummaryHeaderProps) {
     const timestampLabel = generatedAt
         ? `refreshed ${dayjs(generatedAt).fromNow()}`
         : null;
+
+    if (variant === "redesign") {
+        return (
+            <header className="entity-ai-summary-header entity-ai-summary-header--redesign">
+                <span className="entity-ai-summary-header__title-text">
+                    {title}
+                </span>
+                <div className="entity-ai-summary-header__actions">
+                    {timestampLabel && (
+                        <span className="entity-ai-summary-header__timestamp entity-ai-summary-header__timestamp--redesign">
+                            {timestampLabel}
+                        </span>
+                    )}
+                    {dataConfidence === "low" && (
+                        <span className="entity-ai-summary-confidence entity-ai-summary-confidence--redesign">
+                            Low confidence
+                        </span>
+                    )}
+                    <button
+                        type="button"
+                        className="entity-ai-summary-header__ghost-btn"
+                        onClick={onRegenerate}
+                        disabled={loading}
+                    >
+                        <ReloadOutlined spin={loading} />
+                        <span>{loading ? "Working…" : "Regenerate"}</span>
+                    </button>
+                    {onToggleCollapse && (
+                        <button
+                            type="button"
+                            className="entity-ai-summary-header__ghost-btn"
+                            onClick={onToggleCollapse}
+                        >
+                            {collapsed ? "Expand" : "Collapse"}
+                        </button>
+                    )}
+                </div>
+            </header>
+        );
+    }
 
     return (
         <header className="entity-ai-summary-header">
@@ -37,7 +83,9 @@ export default function EntityAiSummaryHeader({
                     </span>
                 )}
                 {dataConfidence === "low" && (
-                    <span className="entity-ai-summary-confidence">Low confidence</span>
+                    <span className="entity-ai-summary-confidence">
+                        Low confidence
+                    </span>
                 )}
             </div>
             <Button

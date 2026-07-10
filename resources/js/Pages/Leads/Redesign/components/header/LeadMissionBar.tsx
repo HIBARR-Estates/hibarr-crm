@@ -89,7 +89,7 @@ export default function LeadMissionBar({
                 >
                     {showPhone && phoneDisplay && (
                         <a
-                            href={`tel:${leadPhone}`}
+                            href={`tel:${phoneDisplay.replace(/\D/g, "")}`}
                             className="inline-flex items-center gap-1 no-underline"
                             style={{
                                 fontSize: 12,
@@ -100,11 +100,15 @@ export default function LeadMissionBar({
                                 background: "transparent",
                             }}
                         >
-                            <LeadIcon name="phone" size={12} color={T.TEXT_MUTED} />
+                            <LeadIcon
+                                name="phone"
+                                size={12}
+                                color={T.TEXT_MUTED}
+                            />
                             {phoneDisplay}
                         </a>
                     )}
-                    {mission.cta && onCta && (
+                    {/* {mission.cta && onCta && (
                         <DealButton
                             variant="navy"
                             onClick={onCta}
@@ -118,7 +122,7 @@ export default function LeadMissionBar({
                         >
                             {mission.cta}
                         </DealButton>
-                    )}
+                    )} */}
                 </div>
             </div>
         </div>

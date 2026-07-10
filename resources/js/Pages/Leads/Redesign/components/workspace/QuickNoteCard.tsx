@@ -20,7 +20,7 @@ export interface QuickNoteCardHandle {
     focus: () => void;
 }
 
-interface QuickNoteCardProps {
+export interface QuickNoteCardProps {
     lead: Lead;
     latestNote?: LeadNote | null;
 }
@@ -35,7 +35,10 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
         useImperativeHandle(ref, () => ({
             focus: () => {
                 inputRef.current?.focus();
-                inputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+                inputRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "center",
+                });
             },
         }));
 
@@ -45,7 +48,9 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
             ApiResponse<LeadNote>
         >(route("lead-notes.store"), "POST", (response) => {
             if (response?.status === "success") {
-                message.success(t("pages.leads.notes.created_success") || "Note saved");
+                message.success(
+                    t("pages.leads.notes.created_success") || "Note saved",
+                );
                 setNoteText("");
                 router.reload({ only: ["notes"] });
             }
@@ -63,24 +68,33 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
                 },
                 {
                     onError: (errorResponse) => {
-                        const errors = errorFormatter(errorResponse)?.errors || [];
-                        message.error(Object.values(errors).flat().join(", ") || "Failed to save note");
+                        const errors =
+                            errorFormatter(errorResponse)?.errors || [];
+                        message.error(
+                            Object.values(errors).flat().join(", ") ||
+                                "Failed to save note",
+                        );
                     },
                 },
             );
         };
 
         const previewText = latestNote?.details
-            ? latestNote.details.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
+            ? latestNote.details
+                  .replace(/<[^>]*>/g, "")
+                  .replace(/&nbsp;/g, " ")
+                  .trim()
             : null;
 
         return (
             <div className="section-card">
                 <header className="flex items-center gap-2 border-b border-[#eef1f5] px-4 py-3">
                     <LeadIcon name="file-text" size={15} color="#1a6bb5" />
-                    <h3 className="text-sm font-semibold text-[#1a1f2e]">Quick note</h3>
+                    <h3 className="text-sm font-semibold text-[#1a1f2e]">
+                        Quick note
+                    </h3>
                 </header>
-                <div className="space-y-3 p-4">
+                <div className="flex flex-col gap-y-3 p-4">
                     <Input.TextArea
                         ref={inputRef as any}
                         value={noteText}
@@ -93,7 +107,9 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
                         <DealButton
                             variant="primary"
                             onClick={handleSave}
-                            disabled={!noteText.trim() || addNoteMutation.isPending}
+                            disabled={
+                                !noteText.trim() || addNoteMutation.isPending
+                            }
                         >
                             Save note
                         </DealButton>

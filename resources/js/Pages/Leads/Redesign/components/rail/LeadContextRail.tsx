@@ -2,6 +2,10 @@ import type { Lead } from "@/Types/api/leads";
 import type { BantChecks } from "../../types";
 import type { LeadContextRailData } from "../../types";
 import ContactRailPanel from "./ContactRailPanel";
+import QuickNoteCard, {
+    QuickNoteCardHandle,
+    QuickNoteCardProps,
+} from "../workspace/QuickNoteCard";
 // import QualificationRailPanel from "./QualificationRailPanel";
 // import OpenItemsRailPanel from "./OpenItemsRailPanel";
 
@@ -16,6 +20,10 @@ interface LeadContextRailProps {
     onNavigateMeetings: () => void;
     onNavigateTasks: () => void;
     onNavigateDeals: () => void;
+    quickNoteCard: {
+        ref: React.RefObject<QuickNoteCardHandle | null>;
+        props: Omit<QuickNoteCardProps, "ref">;
+    };
 }
 
 export default function LeadContextRail({
@@ -29,7 +37,9 @@ export default function LeadContextRail({
     onNavigateMeetings,
     onNavigateTasks,
     onNavigateDeals,
+    quickNoteCard: { ref: noteRef, props: noteProps },
 }: LeadContextRailProps) {
+    const { latestNote } = noteProps;
     return (
         <aside className="sticky top-[88px] flex flex-col gap-3 self-start">
             <ContactRailPanel
@@ -39,6 +49,8 @@ export default function LeadContextRail({
                 onLogContact={onLogContact}
                 onEditProfile={onEditProfile}
             />
+
+            <QuickNoteCard ref={noteRef} lead={lead} latestNote={latestNote} />
             {/* <QualificationRailPanel checks={checks} />
             <OpenItemsRailPanel
                 data={railData}

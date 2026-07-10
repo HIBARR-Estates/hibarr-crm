@@ -25,18 +25,13 @@ interface LeadTasksTabProps {
 }
 
 function canAddTasks(permissions: Record<string, string>): boolean {
-    const permission = permissions.add_tasks;
+    const permission = permissions?.add_tasks;
     return (
-        permission === "all" ||
-        permission === "added" ||
-        permission === "both"
+        permission === "all" || permission === "added" || permission === "both"
     );
 }
 
-function isTaskDone(
-    task: Task,
-    taskBoardColumns: TaskboardColumn[],
-): boolean {
+function isTaskDone(task: Task, taskBoardColumns: TaskboardColumn[]): boolean {
     const status =
         (task as Task & { board_column?: { slug?: string } }).board_column
             ?.slug ||
@@ -44,7 +39,8 @@ function isTaskDone(
         "to_do";
 
     return (
-        isCompletedColumn(status, taskBoardColumns) || Boolean(task.completed_on)
+        isCompletedColumn(status, taskBoardColumns) ||
+        Boolean(task.completed_on)
     );
 }
 
