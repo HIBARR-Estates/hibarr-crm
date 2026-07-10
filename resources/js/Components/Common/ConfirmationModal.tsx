@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, Button, Space, Typography, ButtonProps } from "antd";
 import { ExclamationCircleOutlined } from "@ant-design/icons";
+import "./confirmation-modal.css";
 
 const { Text } = Typography;
 
@@ -73,6 +74,7 @@ export default function ConfirmationModal({
                         onClick={onClose}
                         disabled={onSubmit.loading}
                         size="middle"
+                        className="rounded-xl font-semibold"
                     >
                         {cancelText}
                     </Button>
@@ -82,6 +84,7 @@ export default function ConfirmationModal({
                         loading={onSubmit.loading}
                         size="middle"
                         danger={confirmDanger}
+                        className="rounded-xl font-bold"
                     >
                         {confirmText}
                     </Button>

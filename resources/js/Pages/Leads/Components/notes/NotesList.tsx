@@ -4,6 +4,7 @@ import { Card, Input, Empty, Typography } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { LeadNote } from "@/Types/api/lead-note";
 import { NoteCard } from "./NoteCard";
+import { NotesBreadcrumb, NotesView } from "./NotesBreadcrumb";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
@@ -18,6 +19,9 @@ interface NotesListProps {
     onViewNote: (note: LeadNote) => void;
     onEditNote: (note: LeadNote) => void;
     onDeleteNote: (note: LeadNote) => void;
+    currentView: NotesView;
+    selectedNote?: LeadNote | null;
+    setCurrentView: (view: NotesView) => void;
 }
 
 export const NotesList: React.FC<NotesListProps> = ({
@@ -30,6 +34,9 @@ export const NotesList: React.FC<NotesListProps> = ({
     onViewNote,
     onEditNote,
     onDeleteNote,
+    currentView,
+    selectedNote,
+    setCurrentView,
 }) => {
     const { t } = useTranslation();
     const canAddNote =
@@ -90,7 +97,12 @@ export const NotesList: React.FC<NotesListProps> = ({
     return (
         <div className="flex flex-col gap-y-6">
             {/* Header with Search */}
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+                <NotesBreadcrumb
+                    currentView={currentView}
+                    noteTitle={selectedNote?.title}
+                    onNavigate={setCurrentView}
+                />
                 <div className="w-10/12 md:w-1/3 lg:w-4/12">
                     <Search
                         placeholder={t("pages.leads.notes.search_placeholder")}

@@ -12,16 +12,19 @@ import useLeadBantChecks from "./hooks/useLeadBantChecks";
 import useLeadMission from "./hooks/useLeadMission";
 import useLeadOverview from "./hooks/useLeadOverview";
 import useLeadQualificationWorkspace from "./hooks/useLeadQualificationWorkspace";
-import LeadBreadcrumbRow from "./components/header/LeadBreadcrumbRow";
+import useLeadFirstContact from "./hooks/useLeadFirstContact";
 import LeadIdentityHeader from "./components/header/LeadIdentityHeader";
 import LeadMissionBar from "./components/header/LeadMissionBar";
 import LeadContextRail from "./components/rail/LeadContextRail";
 import QualificationScriptCard from "./components/workspace/QualificationScriptCard";
-import QuickNoteCard, { type QuickNoteCardHandle } from "./components/workspace/QuickNoteCard";
+import QuickNoteCard, {
+    type QuickNoteCardHandle,
+} from "./components/workspace/QuickNoteCard";
 import LeadDrawer from "./components/drawer/LeadDrawer";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
+import useTranslation from "@/Hooks/useTranslation";
 
 export default function LeadViewRedesign(props: LeadRedesignProps) {
     const {
@@ -40,6 +43,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
     const showQualificationTab =
         featureFlags?.["crm.lead-qualification-tab"] === true;
+    const { t } = useTranslation();
 
     const header = useLeadHeaderData(lead);
     const nav = useLeadViewNavigation();
@@ -48,9 +52,10 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         enabled: showQualificationTab,
     });
     const overview = useLeadOverview({ notes, tasks, leadFollowUps });
+    const firstContact = useLeadFirstContact(lead.id);
 
-    const [contactLoggedOverride, setContactLoggedOverride] = useState(false);
     const [scheduleMeetingOpen, setScheduleMeetingOpen] = useState(false);
+    const [ctaLoading, setCtaLoading] = useState(false);
 
     const qualificationRef = useRef<HTMLDivElement>(null);
     const noteRef = useRef<QuickNoteCardHandle>(null);
@@ -61,18 +66,12 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         answers: showQualificationTab
             ? qualificationWorkspace.current?.answers
             : undefined,
-        contactLogged:
-            contactLoggedOverride ||
-            notes.length > 0 ||
-            leadFollowUps.length > 0 ||
-            qualificationWorkspace.flowActive ||
-            Boolean(qualificationWorkspace.outcome),
+        contactLogged: firstContact.contactLogged,
     });
 
     const mission = useLeadMission({
         lead,
         leadName: header.leadName,
-        notes,
         tasks,
         leadFollowUps,
         flowActive: qualificationWorkspace.flowActive,
@@ -80,7 +79,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         qualificationAnswers: showQualificationTab
             ? qualificationWorkspace.current?.answers
             : undefined,
-        contactLoggedOverride,
+        contactLogged: firstContact.contactLogged,
         qualificationEnabled: showQualificationTab,
     });
 
@@ -89,51 +88,109 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     });
 
     const latestNote = notes[0] ?? null;
-    const canEdit = editLeadPermission === "all" || editLeadPermission === "added";
+    const canEdit =
+        editLeadPermission === "all" || editLeadPermission === "added";
 
-    const handleMissionCta = useCallback(() => {
+    const handleLogContact = useCallback(async () => {
+        await firstContact.logContact();
+    }, [firstContact]);
+
+    const handleMissionCta = useCallback(async () => {
         if (mission.ctaAction === "logContact") {
-            setContactLoggedOverride(true);
-            qualificationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            setCtaLoading(true);
+            try {
+                await handleLogContact();
+            } finally {
+                setCtaLoading(false);
+            }
             return;
         }
+
         if (mission.ctaAction === "startFlow") {
-            qualificationRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            setCtaLoading(true);
+            try {
+                const started =
+                    await qualificationWorkspace.startQualificationScript();
+                if (started) {
+                    qualificationRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    });
+                } else {
+                    qualificationRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                    });
+                }
+            } finally {
+                setCtaLoading(false);
+            }
             return;
         }
+
         if (mission.ctaAction === "focusNote") {
             noteRef.current?.focus();
             return;
         }
+
         if (mission.ctaAction === "scrollMeetings") {
             nav.setDrawerTab("meetings");
-            drawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            drawerRef.current?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+            });
             return;
         }
+
         if (mission.ctaAction === "completeTopTask" && railData.topOpenTask) {
             router.reload({ only: ["tasks"] });
         }
-    }, [mission.ctaAction, nav, railData.topOpenTask]);
+    }, [
+        handleLogContact,
+        mission.ctaAction,
+        nav,
+        qualificationWorkspace,
+        railData.topOpenTask,
+    ]);
 
     const handleOutcomeComplete = useCallback(() => {
         nav.setDrawerTab("meetings");
-        drawerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+        drawerRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+        });
     }, [nav]);
 
     const pageTitle = useMemo(() => header.leadName, [header.leadName]);
+    const leadName = [
+        lead?.salutation_value
+            ? lead.salutation_value.charAt(0).toUpperCase() +
+              lead.salutation_value.slice(1)
+            : null,
+        lead?.client_name,
+    ]
+        .filter(Boolean)
+        .join(" ");
 
     return (
-        <PageLayout title={pageTitle} breadcrumbs={[]} mainContentClassName="">
+        <PageLayout
+            title={pageTitle}
+            breadcrumbs={[
+                {
+                    name: t("pages.leads.contacts"),
+                    url: route("lead-contact.index"),
+                },
+                { name: leadName },
+            ]}
+            mainContentClassName=""
+        >
             <div className="lead-redesign min-h-screen bg-[#f5f6f8]">
                 <div className="mx-auto w-full max-w-[1320px]">
-                    <LeadBreadcrumbRow
-                        leadName={header.leadName}
+                    <LeadIdentityHeader
                         isRefreshing={isRefreshing}
                         refreshDisabled={nav.profileEditMode}
-                        onRefresh={refresh}
-                    />
-                    <LeadIdentityHeader
                         header={header}
+                        onRefresh={refresh}
                         canEdit={canEdit}
                         onEditLead={nav.openProfileEdit}
                     />
@@ -155,7 +212,12 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                     <LeadMissionBar
                         mission={mission}
                         leadPhone={lead.mobile || lead.cell}
-                        onCta={mission.cta ? handleMissionCta : undefined}
+                        onCta={mission.cta ? () => void handleMissionCta() : undefined}
+                        ctaLoading={
+                            ctaLoading ||
+                            firstContact.isLogging ||
+                            qualificationWorkspace.isStartingFlow
+                        }
                     />
 
                     <div className="grid grid-cols-1 gap-4 p-[26px] lg:grid-cols-[232px_minmax(0,1fr)]">
@@ -163,7 +225,15 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                             lead={lead}
                             checks={checks}
                             railData={railData}
-                            onNavigateMeetings={() => nav.setDrawerTab("meetings")}
+                            contactLogged={firstContact.contactLogged}
+                            isLoggingContact={firstContact.isLogging}
+                            onLogContact={() => void handleLogContact()}
+                            onEditProfile={
+                                canEdit ? nav.openProfileEdit : undefined
+                            }
+                            onNavigateMeetings={() =>
+                                nav.setDrawerTab("meetings")
+                            }
                             onNavigateTasks={() => nav.setDrawerTab("tasks")}
                             onNavigateDeals={() => nav.setDrawerTab("deals")}
                         />
@@ -188,7 +258,9 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                                 overview={overview}
                                 profileEditMode={nav.profileEditMode}
                                 onProfileEditModeChange={nav.setProfileEditMode}
-                                onScheduleMeeting={() => setScheduleMeetingOpen(true)}
+                                onScheduleMeeting={() =>
+                                    setScheduleMeetingOpen(true)
+                                }
                                 drawerRef={drawerRef}
                             />
                         </div>

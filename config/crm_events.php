@@ -442,6 +442,18 @@ return [
             'sync_processing' => true,
         ],
         [
+            'slug' => 'lead_first_contact',
+            'name' => 'First Contact',
+            'category' => 'lead',
+            'model_type' => 'App\\Models\\Lead',
+            'description' => 'First outreach / contact was logged for a lead.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'message' => ['type' => 'string', 'label' => 'Message'],
+            ],
+        ],
+        [
             'slug' => 'qualification_completed',
             'name' => 'Qualification Completed',
             'category' => 'lead',
