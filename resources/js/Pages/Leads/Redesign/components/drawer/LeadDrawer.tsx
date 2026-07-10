@@ -124,7 +124,7 @@ export default function LeadDrawer({
     ];
 
     return (
-        <div ref={drawerRef} className="section-card">
+        <>
             <LeadAddTaskModal
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
@@ -138,84 +138,92 @@ export default function LeadDrawer({
                 deals={deals.map((deal) => ({ id: deal.id, name: deal.name }))}
             />
 
-            <header className="flex items-center gap-2 border-b border-[#eef1f5] px-4 py-3">
-                <LeadIcon name="grid" size={15} color="#1a6bb5" />
-                <h3 className="text-sm font-semibold text-[#1a1f2e]">
-                    Lead workspace
-                </h3>
-            </header>
-            <LeadDrawerTabBar
-                tabs={tabs}
-                activeTab={drawerTab}
-                onChange={onDrawerTabChange}
-            />
-            <div className="p-4">
-                {drawerTab === "overview" && (
-                    <OverviewPane
-                        lead={lead}
-                        overview={overview}
-                        tasks={tasks}
-                        taskBoardColumns={taskBoardColumns}
-                        canAddNote={canAddNote}
-                        canAddTask={canAddTask}
-                        canAddMeeting={canAddFollowUp}
-                        onNavigate={onDrawerTabChange}
-                        onAddTask={() => setAddTaskOpen(true)}
-                        onAddMeeting={() => setAddMeetingOpen(true)}
-                    />
-                )}
-                {drawerTab === "profile" && (
-                    <LeadInfoSection
-                        lead={lead}
-                        customFieldCategories={customFieldCategories}
-                        fields={fields}
-                        editLeadPermission={editLeadPermission}
-                        deleteLeadPermission={deleteLeadPermission}
-                        taskCategories={taskCategories}
-                        taskLabels={taskLabels}
-                        taskBoardColumns={taskBoardColumns}
-                        employees={employees}
-                        projects={projects}
-                        isEditMode={profileEditMode}
-                        onEditModeChange={onProfileEditModeChange}
-                        useLeadCoreFields={useLeadCoreFields}
-                    />
-                )}
-                {drawerTab === "tasks" && (
-                    <LeadTasksTab
-                        tasks={tasks}
-                        taskBoardColumns={taskBoardColumns}
-                        permissions={permissions}
-                        onAddTask={() => setAddTaskOpen(true)}
-                    />
-                )}
-                {drawerTab === "meetings" && showMeetings && (
-                    <LeadMeetingsTab
-                        lead={lead}
-                        followUps={leadFollowUps}
-                        permissions={followUpPermissions}
-                        onScheduleMeeting={() => setAddMeetingOpen(true)}
-                    />
-                )}
-                {drawerTab === "deals" && (
-                    <LeadDealsTab
-                        lead={lead}
-                        deals={deals}
-                        permissions={dealPermissions}
-                    />
-                )}
-                {drawerTab === "notes" && (
-                    <LeadNotesTab
-                        lead={lead}
-                        notes={notes}
-                        permissions={notePermissions}
-                    />
-                )}
-                {drawerTab === "marketing" && <LeadMarketingTab lead={lead} />}
-                {drawerTab === "activity" && (
-                    <ActivityTab leadId={lead.id} leadName={lead.client_name} />
-                )}
+            <div ref={drawerRef} className="section-card">
+                <header className="flex items-center gap-2 border-b border-[#eef1f5] px-4 py-3">
+                    <LeadIcon name="grid" size={15} color="#1a6bb5" />
+                    <h3 className="text-sm font-semibold text-[#1a1f2e]">
+                        Lead workspace
+                    </h3>
+                </header>
+                <LeadDrawerTabBar
+                    tabs={tabs}
+                    activeTab={drawerTab}
+                    onChange={onDrawerTabChange}
+                />
+                <div className="p-4">
+                    {drawerTab === "overview" && (
+                        <OverviewPane
+                            lead={lead}
+                            overview={overview}
+                            tasks={tasks}
+                            taskBoardColumns={taskBoardColumns}
+                            canAddNote={canAddNote}
+                            canAddTask={canAddTask}
+                            canAddMeeting={canAddFollowUp}
+                            onNavigate={onDrawerTabChange}
+                            onAddTask={() => setAddTaskOpen(true)}
+                            onAddMeeting={() => setAddMeetingOpen(true)}
+                        />
+                    )}
+                    {drawerTab === "profile" && (
+                        <LeadInfoSection
+                            lead={lead}
+                            customFieldCategories={customFieldCategories}
+                            fields={fields}
+                            editLeadPermission={editLeadPermission}
+                            deleteLeadPermission={deleteLeadPermission}
+                            taskCategories={taskCategories}
+                            taskLabels={taskLabels}
+                            taskBoardColumns={taskBoardColumns}
+                            employees={employees}
+                            projects={projects}
+                            isEditMode={profileEditMode}
+                            onEditModeChange={onProfileEditModeChange}
+                            useLeadCoreFields={useLeadCoreFields}
+                        />
+                    )}
+                    {drawerTab === "tasks" && (
+                        <LeadTasksTab
+                            tasks={tasks}
+                            taskBoardColumns={taskBoardColumns}
+                            permissions={permissions}
+                            onAddTask={() => setAddTaskOpen(true)}
+                        />
+                    )}
+                    {drawerTab === "meetings" && showMeetings && (
+                        <LeadMeetingsTab
+                            lead={lead}
+                            followUps={leadFollowUps}
+                            meetingTypes={meetingTypes}
+                            permissions={followUpPermissions}
+                            onScheduleMeeting={() => setAddMeetingOpen(true)}
+                        />
+                    )}
+                    {drawerTab === "deals" && (
+                        <LeadDealsTab
+                            lead={lead}
+                            deals={deals}
+                            permissions={dealPermissions}
+                        />
+                    )}
+                    {drawerTab === "notes" && (
+                        <LeadNotesTab
+                            lead={lead}
+                            notes={notes}
+                            permissions={notePermissions}
+                        />
+                    )}
+                    {drawerTab === "marketing" && (
+                        <LeadMarketingTab lead={lead} />
+                    )}
+                    {drawerTab === "activity" && (
+                        <ActivityTab
+                            leadId={lead.id}
+                            leadName={lead.client_name}
+                        />
+                    )}
+                </div>
             </div>
-        </div>
+        </>
     );
 }
