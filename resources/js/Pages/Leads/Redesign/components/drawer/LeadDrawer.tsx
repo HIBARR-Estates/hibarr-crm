@@ -4,7 +4,7 @@ import type useLeadOverview from "../../hooks/useLeadOverview";
 import LeadDrawerTabBar, { type DrawerTabConfig } from "./LeadDrawerTabBar";
 import OverviewPane from "./panes/OverviewPane";
 import ActivityTab from "../activity/ActivityTab";
-import LeadNotesTab from "@/Pages/Leads/Components/LeadNotesTab";
+import LeadNotesTab from "./panes/LeadNotesTab";
 import LeadTasksTab from "./panes/LeadTasksTab";
 import LeadMeetingsTab from "./panes/LeadMeetingsTab";
 import LeadDealsTab from "@/Pages/Leads/Components/LeadDealsTab";
