@@ -81,6 +81,26 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         pipelineIdRef.current = pipelineId;
     }, [pipelineId]);
 
+    const resolvePackageId = (
+        pkg: number | { id: number } | undefined,
+    ): number | undefined => {
+        if (pkg == null) {
+            return undefined;
+        }
+
+        return typeof pkg === "object" ? pkg.id : pkg;
+    };
+
+    const resolvePackageIds = (
+        pkgs: Array<number | { id: number }> | undefined,
+    ): number[] => {
+        if (!pkgs?.length) {
+            return [];
+        }
+
+        return pkgs.map((pkg) => resolvePackageId(pkg)!);
+    };
+
     // Populate form when data changes
     useEffect(() => {
         if (data) {
@@ -134,13 +154,13 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 product_id: data.product_id || [],
                 package_id:
                     dealPackageMode === "single"
-                        ? (data.packages?.[0]?.id ??
+                        ? (resolvePackageId(data.packages?.[0]) ??
                           (Array.isArray(data.package_id)
                               ? data.package_id[0]
                               : data.package_id) ??
                           undefined)
                         : data.packages
-                          ? data.packages.map((p: any) => p.id)
+                          ? resolvePackageIds(data.packages)
                           : data.package_id || [],
             };
             setPipelineId(formData.pipeline);

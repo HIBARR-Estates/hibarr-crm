@@ -18,33 +18,57 @@ declare global {
 // You can safely remove this line.
 window.route = route;
 
-const pages = import.meta.glob<{ default: React.ComponentType & { layout?: (page: React.ReactNode) => React.ReactNode } }>(
-    "./Pages/**/*.tsx",
-);
-
-const INNER_PROVIDERS_WRAPPED = Symbol.for("inertia.innerProvidersWrapped");
+// createInertiaApp({
+//     resolve: async (name) => {
+//         const pages = import.meta.glob("./Pages/**/*.tsx");
+//         const importPage = pages[`./Pages/${name}.tsx`];
+//         if (!importPage) {
+//             throw new Error(`❌ Page not found: ./Pages/${name}.tsx`);
+//         }
+//         const module = await importPage();
+//         return (module as any).default;
+//     },
+//     setup({ el, App, props }) {
+//         const root = createRoot(el);
+//         root.render(
+//             <Providers>
+//                 <App {...props} />
+//             </Providers>,
+//         );
+//     },
+// });
 
 createInertiaApp({
-    resolve: async (name) => {
-        const importPage = pages[`./Pages/${name}.tsx`];
-        if (!importPage) {
-            throw new Error(`Page not found: ./Pages/${name}.tsx`);
-        }
+    resolve: (name) => {
+        try {
+            // console.log(
+            //     "Attempting to load page:",
+            //     name,
+            //     "from URL:",
+            //     window.location.href
+            // );
+            const component = require(`./Pages/${name}`).default;
+            // console.log("Successfully loaded component:", component);
 
-        const module = await importPage();
-        const component = module.default;
-
-        if (!(component as Record<symbol, boolean>)[INNER_PROVIDERS_WRAPPED]) {
+            // Always wrap with InnerProviders (which need Inertia context)
+            // This ensures TranslationProvider has access to usePage()
             const existingLayout = component.layout;
             component.layout = (page: React.ReactNode) => (
                 <InnerProviders>
                     {existingLayout ? existingLayout(page) : page}
                 </InnerProviders>
             );
-            (component as Record<symbol, boolean>)[INNER_PROVIDERS_WRAPPED] = true;
-        }
 
-        return component;
+            return component;
+        } catch (e) {
+            // console.error("Could not load page:", name, e);
+            // console.error(
+            //     "Full error details:",
+            //     e instanceof Error ? e.message : "Unknown error",
+            //     e instanceof Error ? e.stack : ""
+            // );
+            throw e;
+        }
     },
     setup({ App, props, el: og }) {
         // console.log("Setting up Inertia app with element:", og);
