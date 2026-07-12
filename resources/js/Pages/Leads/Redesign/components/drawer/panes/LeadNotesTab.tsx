@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { Lead } from "@/Types/api/leads";
 import type { LeadNote } from "@/Types/api/lead-note";
-import { toLeadNotePreview } from "../../adapters/noteAdapter";
-import useLeadNoteCreate from "../../hooks/useLeadNoteCreate";
+import { toLeadNotePreview } from "../../../adapters/noteAdapter";
+import useLeadNoteCreate from "../../../hooks/useLeadNoteCreate";
 import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import { LEAD_REDESIGN_TOKENS as T } from "../../types";
+import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
 
 interface LeadNotesTabProps {
     lead: Lead;
@@ -59,7 +59,7 @@ export default function LeadNotesTab({
                 <section className="mb-3.5 overflow-hidden rounded-lg border border-[#e2e5ea] bg-white px-[13px] py-[11px]">
                     {errors.length > 0 && (
                         <div className="mb-2 space-y-1">
-                            {errors.map((error, index) => (
+                            {errors.map((error: string, index: number) => (
                                 <p key={index} className="text-xs text-red-600">
                                     {error}
                                 </p>
