@@ -66,7 +66,7 @@ class LeadPipelineSettingController extends AccountBaseController
             ->where('company_id', company()->id)
             ->where('id', $id)
             ->firstOrFail();
-          $this->maxPriority = LeadPipeline::max('priority');
+        $this->maxPriority = LeadPipeline::max('priority');
 
         $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
         $this->customFieldCategories = collect();
@@ -107,13 +107,14 @@ class LeadPipelineSettingController extends AccountBaseController
 
     public function statusUpdate($id)
     {
-        $allLeadSPipelines = LeadPipeline::select('id', 'default')->get();
+        // Added 'hidden_from_nav' to the select query to ensure it is modified and saved correctly
+        $allLeadSPipelines = LeadPipeline::select('id', 'default', 'hidden_from_nav')->get();
 
-        foreach($allLeadSPipelines as $pipeline){
-            if($pipeline->id == $id){
+        foreach ($allLeadSPipelines as $pipeline) {
+            if ($pipeline->id == $id) {
                 $pipeline->default = '1';
-            }
-            else{
+                $pipeline->hidden_from_nav = false; // Forces the default pipeline to always be visible
+            } else {
                 $pipeline->default = '0';
             }
 
@@ -160,5 +161,4 @@ class LeadPipelineSettingController extends AccountBaseController
 
         return Reply::success(__('messages.deleteSuccess'));
     }
-
 }
