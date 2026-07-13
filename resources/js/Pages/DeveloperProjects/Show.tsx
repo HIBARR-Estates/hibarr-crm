@@ -98,6 +98,7 @@ export interface UnitTypePriceListItem {
         floor: string | null;
         total_area_sqm: number | null;
         quantity: number | null;
+        is_sold_out?: boolean;
     }>;
 }
 

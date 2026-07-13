@@ -43,6 +43,7 @@ class DeveloperProjectUnitTypeTransformer
             'description' => (string) ($record->description ?? ''),
             'military_base_distance_km' => $record->military_base_distance_km !== null ? (string) $record->military_base_distance_km : '',
             'has_restrictions' => (bool) $record->has_restrictions,
+            'is_sold_out' => (bool) $record->is_sold_out,
             'restriction_notes' => (string) ($record->restriction_notes ?? ''),
             'order' => (int) ($record->order ?? 0),
             'created_at' => $this->formatDateTime($record->created_at),
