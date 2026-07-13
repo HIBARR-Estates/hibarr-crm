@@ -53,6 +53,8 @@ class FormDataService
                 return $this->getProducts($request);
             case 'countries':
                 return $this->getCountries($request);
+            case 'currencies':
+                return $this->getCurrencies($request);
             case 'lead-agents':
                 return $this->getLeadAgents($request);
             case 'client-categories':
@@ -203,6 +205,50 @@ class FormDataService
             
             return $countries;
         });
+    }
+
+    private function getCurrencies(Request $request)
+    {
+        try {
+            $company = function_exists('company') ? company() : null;
+
+            if (!$company) {
+                return collect();
+            }
+
+            $cacheKey = 'company_currencies_' . $company->id . '_' . $request->get('search', '');
+
+            return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($company, $request) {
+                $currencies = $company->currencies()->get()->map(function ($currency) {
+                    return [
+                        'id' => $currency->id,
+                        'company_id' => $currency->company_id,
+                        'currency_name' => $currency->currency_name,
+                        'currency_symbol' => $currency->currency_symbol,
+                        'currency_code' => $currency->currency_code,
+                        'exchange_rate' => $currency->exchange_rate,
+                        'is_cryptocurrency' => $currency->is_cryptocurrency,
+                        'usd_price' => $currency->usd_price,
+                    ];
+                });
+
+                if ($request->filled('search')) {
+                    $search = strtolower($request->get('search'));
+                    $currencies = $currencies->filter(function ($currency) use ($search) {
+                        return str_contains(strtolower((string) ($currency['currency_name'] ?? '')), $search)
+                            || str_contains(strtolower((string) ($currency['currency_code'] ?? '')), $search);
+                    })->values();
+                }
+
+                if ($request->filled('paginate') && $request->get('paginate')) {
+                    return $this->manualPaginate($currencies, $request);
+                }
+
+                return $currencies->values();
+            });
+        } catch (\Exception $e) {
+            return collect();
+        }
     }
 
     private function getLeadAgents(Request $request)

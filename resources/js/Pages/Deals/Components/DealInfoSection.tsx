@@ -40,6 +40,7 @@ import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropert
 import useTranslation from "@/Hooks/useTranslation";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 interface Props {
     deal: Deal;
@@ -76,7 +77,7 @@ export default function DealInfoSection({
     const { t } = useTranslation();
     const { td } = useTd();
     const user = props.auth.user;
-    const currencies = props.currencies || [];
+    const { currencies } = useCurrencies();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [activeSection, setActiveSection] = useState("overview");
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({

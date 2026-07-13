@@ -50,6 +50,7 @@ import ConstructionProjectFormModal from "@/Features/DeveloperProjects/Construct
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 // Legacy Project interface - kept for backwards compatibility
 interface Project {
@@ -108,7 +109,6 @@ const Index = ({
     properties,
     default_currency_code: currencyCode,
     default_currency_symbol: currencySymbol,
-    currencies = [],
     projects,
     developers,
     developerProjects,
@@ -117,6 +117,7 @@ const Index = ({
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
+    const { currencies } = useCurrencies();
 
     // ── Active tab state ──
     type ActiveTab =

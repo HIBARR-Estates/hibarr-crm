@@ -40,7 +40,7 @@ class FormDataController extends Controller
 
         $allowedTypes = [
             'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
-            'lead-pipelines', 'lead-stages', 'products', 'countries',
+            'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages', 'developer-projects', 'developer_projects'
         ];
 
@@ -87,7 +87,7 @@ class FormDataController extends Controller
 
         $allowedTypes = [
             'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
-            'lead-pipelines', 'lead-stages', 'products', 'countries',
+            'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages'
         ];
 

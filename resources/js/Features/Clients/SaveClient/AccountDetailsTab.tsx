@@ -20,7 +20,7 @@ import {
 } from "@ant-design/icons";
 import { Lead, Country, ClientCategory, Salutation, Language } from "@/Types";
 import PhoneInput from "antd-phone-input";
-import { usePage } from "@inertiajs/react";
+import { useCountries } from "@/Hooks/useFormData";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -49,8 +49,7 @@ const AccountDetailsTab: React.FC<Props> = ({
     languages,
     permissions,
 }) => {
-    const { props } = usePage();
-    const { countries = [] } = props as { countries: Country[] };
+    const { countries } = useCountries();
 
     const [passwordVisible, setPasswordVisible] = useState(false);
     const [selectedCountry, setSelectedCountry] = useState<Country | null>(

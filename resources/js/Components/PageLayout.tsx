@@ -80,7 +80,7 @@ export default function PageLayout({
 
     const { message } = App.useApp();
     const { props } = usePage<PageProps>();
-    const { auth, company, appName, sidebar, currentRouteName, flash } = props;
+    const { auth, appName, flash } = props;
     const { user } = auth;
 
     useEffect(() => {

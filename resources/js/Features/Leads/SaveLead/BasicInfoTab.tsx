@@ -13,6 +13,7 @@ import {
 } from "antd";
 import { Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
+import { useCountries } from "@/Hooks/useFormData";
 import { LeadFormProps } from "./LeadForm";
 import LeadDealCreation from "./LeadDealCreation";
 import dayjs from "dayjs";
@@ -80,13 +81,13 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     languagesLoading = false,
 }) => {
     const { props } = usePage<any>();
+    const { countries } = useCountries();
     const {
         salutations,
         sources,
         categories,
         employees,
         permissions,
-        countries,
         featureFlags,
     } = props;
     const useLeadCoreFields =
