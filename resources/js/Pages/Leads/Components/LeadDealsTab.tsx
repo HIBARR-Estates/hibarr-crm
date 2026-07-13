@@ -36,7 +36,11 @@ interface Props {
 
 const DEALS_PAGE_SIZE = 10;
 
-export default function LeadDealsTab({ lead, deals, permissions }: Props) {
+export default function LeadDealsTab({
+    lead,
+    deals = [],
+    permissions = {},
+}: Props) {
     const { t } = useTranslation();
     const { props } = usePage();
     const user = props.auth.user;

@@ -18,7 +18,11 @@ interface Props {
     permissions: Record<string, string>;
 }
 
-export default function LeadNotesTab({ lead, notes, permissions }: Props) {
+export default function LeadNotesTab({
+    lead,
+    notes = [],
+    permissions = {},
+}: Props) {
     const { props } = usePage();
     const user = props.auth.user;
 

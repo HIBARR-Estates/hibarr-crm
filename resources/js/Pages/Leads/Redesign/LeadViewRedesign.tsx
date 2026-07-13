@@ -30,8 +30,8 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         lead,
         notes,
         tasks,
-        deals,
-        leadFollowUps = [],
+        deals = [],
+        leadFollowUps,
         editLeadPermission,
         leadAiSummary,
         featureFlags: pageFeatureFlags,
@@ -85,7 +85,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         canRefresh: () => !nav.profileEditMode,
     });
 
-    const latestNote = notes[0] ?? null;
+    const latestNote = notes?.[0] ?? null;
     const canEdit =
         editLeadPermission === "all" || editLeadPermission === "added";
 

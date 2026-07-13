@@ -1,18 +1,19 @@
 import type { Lead } from "@/Types/api/leads";
+import type { DealFollowup } from "@/Types/api/deal-followup";
+import type { LeadNote } from "@/Types/api/lead-note";
 import type { Task } from "@/Types/api/tasks";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { LeadDrawerTab } from "../../../types";
-import type useLeadOverview from "../../../hooks/useLeadOverview";
+import useLeadOverview from "../../../hooks/useLeadOverview";
 import OverviewNotesColumn from "./overview/OverviewNotesColumn";
 import OverviewTasksColumn from "./overview/OverviewTasksColumn";
 import OverviewMeetingsColumn from "./overview/OverviewMeetingsColumn";
 
-type OverviewData = ReturnType<typeof useLeadOverview>;
-
 interface OverviewPaneProps {
     lead: Lead;
-    overview: OverviewData;
+    notes: LeadNote[];
     tasks: Task[];
+    leadFollowUps: DealFollowup[];
     taskBoardColumns: TaskboardColumn[];
     canAddNote?: boolean;
     canAddTask?: boolean;
@@ -22,10 +23,12 @@ interface OverviewPaneProps {
     onAddMeeting: () => void;
 }
 
+/** Mounted only inside `<Deferred>` after notes/tasks/follow-ups resolve (C4). */
 export default function OverviewPane({
     lead,
-    overview,
+    notes,
     tasks,
+    leadFollowUps,
     taskBoardColumns,
     canAddNote = true,
     canAddTask = true,
@@ -34,6 +37,8 @@ export default function OverviewPane({
     onAddTask,
     onAddMeeting,
 }: OverviewPaneProps) {
+    const overview = useLeadOverview({ notes, tasks, leadFollowUps });
+
     return (
         <div className="grid grid-cols-1 gap-0 xl:grid-cols-3">
             <OverviewNotesColumn

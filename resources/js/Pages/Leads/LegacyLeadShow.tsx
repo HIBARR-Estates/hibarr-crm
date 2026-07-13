@@ -32,17 +32,18 @@ export default function LegacyLeadShow({
     fields,
     editLeadPermission,
     deleteLeadPermission,
-    deals,
-    notes,
-    dealPermissions,
-    notePermissions,
-    employees,
-    tasks,
-    taskCategories,
-    taskLabels,
-    taskBoardColumns,
-    projects,
-    permissions,
+    deals = [],
+    notes = [],
+    dealPermissions = {},
+    notePermissions = {},
+    employees = [],
+    tasks = [],
+    taskCategories = [],
+    taskLabels = [],
+    taskBoardColumns = [],
+    projects = [],
+    permissions = {},
+    taskPermissions,
     leadFollowUps = [],
     followUpPermissions = {},
     featureFlags: pageFeatureFlags,
@@ -52,6 +53,7 @@ export default function LegacyLeadShow({
     const { t } = useTranslation();
     const { td } = useTd();
     const featureFlags = pageFeatureFlags ?? props.featureFlags;
+    const taskPerms = permissions ?? taskPermissions ?? {};
     const showQualificationTab =
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const useLeadCoreFields =
@@ -202,7 +204,7 @@ export default function LegacyLeadShow({
                     taskBoardColumns={taskBoardColumns}
                     employees={employees}
                     projects={projects}
-                    permissions={permissions as any}
+                    permissions={taskPerms as any}
                 />
             ),
         },
