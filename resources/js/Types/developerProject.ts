@@ -241,6 +241,7 @@ export interface DeveloperProjectUnitType {
     property_type: string | null;
     quantity: number | null;
     total_sold: number | null;
+    is_sold_out?: boolean;
     unit_style: string[] | null;
     view_types: string[] | null;
     furniture_status: string | null;

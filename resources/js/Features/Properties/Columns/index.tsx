@@ -12,6 +12,7 @@ import { Button, Dropdown, MenuProps, Tag, Tooltip } from "antd";
 import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined, BlockOutlined } from "@ant-design/icons";
 import PageDataSorter from "@/Components/PageDataSorter";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import dayjs from "dayjs";
 
 /** Helper: is this row a virtual unit type (not a real property)? */
@@ -60,19 +61,25 @@ export const PROPERTY_TABLE_COLUMNS = (
                         </Link>
                     </div>
                     {isUnitType(record) && (
-                        <Tooltip
-                            title={t(
-                                "pages.properties.table.unit_type_tooltip",
-                            )}
-                        >
-                            <Tag
-                                color="purple"
-                                icon={<BlockOutlined />}
-                                className="ml-1 text-[10px] leading-tight"
+                        <div className="flex flex-wrap items-center gap-1">
+                            <Tooltip
+                                title={t(
+                                    "pages.properties.table.unit_type_tooltip",
+                                )}
                             >
-                                {t("pages.properties.table.unit_type_badge")}
-                            </Tag>
-                        </Tooltip>
+                                <Tag
+                                    color="purple"
+                                    icon={<BlockOutlined />}
+                                    className="ml-1 text-[10px] leading-tight"
+                                >
+                                    {t("pages.properties.table.unit_type_badge")}
+                                </Tag>
+                            </Tooltip>
+                            <UnitSoldOutBadge
+                                soldOut={record.is_sold_out}
+                                className="text-[10px] leading-tight"
+                            />
+                        </div>
                     )}
                 </div>
             );
