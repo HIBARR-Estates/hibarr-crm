@@ -128,6 +128,9 @@ class LeadContactController extends AccountBaseController
 
     public function show($id, Request $request)
     {
+        // Shell vs deferred prop matrix: docs/inertia-react-performance-checklist.md (Task C1).
+        // Deferred keys use Inertia::defer (Task C2).
+
         $this->leadContact = Lead::with([
             'leadOwner',
             'addedBy',
@@ -170,19 +173,9 @@ class LeadContactController extends AccountBaseController
         $this->leadFormFields = LeadCustomForm::with('customField')->where('status', 'active')->where('custom_fields_id', '!=', 'null')->get();
         $this->leadId = $id;
 
-        $formData = $this->getLeadFormData();
-        $dealFormData = $this->getDealFormData();
+        // C1 shell form metadata only — deferred form keys load via Inertia::defer below.
+        $formData = $this->getLeadShowShellFormData();
 
-        // Prepare Deal specific data with namespaced custom fields to avoid collision with Lead custom fields
-        $dealFormData['dealCustomFields'] = $dealFormData['customFields'];
-        $dealFormData['dealCustomFieldCategories'] = $dealFormData['customFieldCategories'];
-        
-        // Remove colliding keys that we want to preserve from LeadFormData (or that are duplicates)
-        // We keep Lead's custom fields as 'customFields' for the main Lead view
-        unset($dealFormData['customFields']);
-        unset($dealFormData['customFieldCategories']);
-        
-        // Assign trait data to class properties for backward compatibility if needed
         $this->categories = $formData['categories'];
         $this->sources = $formData['sources'];
         $this->employees = $formData['employees'];
@@ -220,41 +213,25 @@ class LeadContactController extends AccountBaseController
                 break;
         }
 
-        // if (request()->ajax()) {
-        //     return $this->returnAjax($this->view);
-        // }
-
         $this->activeTab = $tab ?: 'profile';
 
-        // Get deals associated with this lead
+        // Shell: deals for header/summary + schedule-meeting picker
         $deals = Deal::where('lead_id', $id)
             ->with([
                 'leadAgent.user',
                 'leadStage:id,name',
                 'pipeline:id,name'
             ])
-            ->get();
+            ->get()
+            ->map(function ($deal) {
+                $dealWithFields = $deal->withCustomFields();
+                $customFieldsData = $dealWithFields->getCustomFieldsData();
+                $dealArray = $deal->toArray();
+                $dealArray['custom_fields_data'] = $customFieldsData;
 
-        // Transform deals to include custom fields data
-        $deals = $deals->map(function ($deal) {
-            // Load custom fields for each deal
-            $dealWithFields = $deal->withCustomFields();
-            $customFieldsData = $dealWithFields->getCustomFieldsData();
-            
-            // Convert to array and add custom fields data
-            $dealArray = $deal->toArray();
-            $dealArray['custom_fields_data'] = $customFieldsData;
-            
-            return $dealArray;
-        });
+                return $dealArray;
+            });
 
-        // Get notes associated with this lead
-        $notes = LeadNote::where('lead_id', $id)
-            ->with('addedBy')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Get deal and note permissions
         $dealPermissions = [
             'add_deals' => user()->permission('add_deals'),
             'view_deals' => user()->permission('view_deals'),
@@ -269,49 +246,12 @@ class LeadContactController extends AccountBaseController
             'delete_lead_note' => user()->permission('delete_lead_note'),
         ];
 
-        // Get tasks
-        $tasks = $this->leadContact->tasks()
-            ->with(['users', 'category', 'boardColumn', 'labels'])
-            ->orderBy('id', 'desc')
-            ->get();
-
-        // Get task metadata for modal
-        $taskCategories = \App\Models\TaskCategory::all();
-        $taskLabels = \App\Models\TaskLabelList::all();
-        $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
-        $projects = \App\Models\Project::all();
-
-        // Get task permissions
         $taskPermissions = [
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => user()->permission('view_tasks'),
         ];
-        $deal = new Deal();
-        $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
-        $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
-
-        $leadFollowUpsQuery = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary', 'deal:id,name'])
-            ->where('lead_id', $id)
-            ->orderBy('next_follow_up_date', 'desc');
-
-        if (user()->permission('view_lead_follow_up') === 'added') {
-            $leadFollowUpsQuery->where('added_by', user()->id);
-        }
-
-        $leadFollowUps = $leadFollowUpsQuery->get();
-
-        $allParticipantIds = $leadFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
-        $participantUsersMap = $allParticipantIds->isEmpty()
-            ? collect()
-            : \App\Models\User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
-        $leadFollowUps->each(function ($f) use ($participantUsersMap) {
-            $f->participant_users = collect($f->participants ?? [])
-                ->map(fn ($id) => $participantUsersMap->get($id))
-                ->filter()->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
-                ->values()->toArray();
-        });
 
         $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
             ->select('id', 'name', 'color')
@@ -329,34 +269,118 @@ class LeadContactController extends AccountBaseController
             'edit_lead' => user()->permission('edit_lead'),
         ];
 
-        $customFields = $this->coreFieldsService
-            ->filterPromotedFieldDefinitions($formData['customFields'])
-            ->all();
+        $leadId = (int) $id;
+        $leadContact = $this->leadContact;
 
-        return Inertia::render('Leads/Show', array_merge([
-            'lead' => $this->leadContact,
-            'fields' => $customFields,
+        return Inertia::render('Leads/Show', array_merge($formData, [
+            'lead' => $leadContact,
+            'fields' => $formData['customFields'],
             'editLeadPermission' => $this->editLeadPermission,
             'deleteLeadPermission' => $this->deleteLeadPermission,
             'deals' => $deals,
-            'notes' => $notes,
             'dealPermissions' => $dealPermissions,
             'notePermissions' => $notePermissions,
-            'tasks' => $tasks,
-            'taskCategories' => $taskCategories,
-            'taskLabels' => $taskLabels,
-            'taskBoardColumns' => $taskBoardColumns,
-            'projects' => $projects,
             'taskPermissions' => $taskPermissions,
-            'dealCustomFields' => $fields,
-            'leadFollowUps' => $leadFollowUps,
+            // Legacy TasksTab reads `permissions`
+            'permissions' => $taskPermissions,
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
             'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
-                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($this->leadContact)
+                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($leadContact)
                 : null,
-        ], $formData, $dealFormData));
+
+            // ---- C1 deferred (queries run only when Inertia resolves these) ----
+            'notes' => Inertia::defer(fn () => LeadNote::where('lead_id', $leadId)
+                ->with('addedBy')
+                ->orderBy('created_at', 'desc')
+                ->get()),
+            'tasks' => Inertia::defer(fn () => $leadContact->tasks()
+                ->with(['users', 'category', 'boardColumn', 'labels'])
+                ->orderBy('id', 'desc')
+                ->get()),
+            'leadFollowUps' => Inertia::defer(function () use ($leadId) {
+                $leadFollowUpsQuery = DealFollowUp::with([
+                    'addedBy:id,name,image',
+                    'meetingType',
+                    'meetingSummary',
+                    'deal:id,name',
+                ])
+                    ->where('lead_id', $leadId)
+                    ->orderBy('next_follow_up_date', 'desc');
+
+                if (user()->permission('view_lead_follow_up') === 'added') {
+                    $leadFollowUpsQuery->where('added_by', user()->id);
+                }
+
+                $leadFollowUps = $leadFollowUpsQuery->get();
+
+                $allParticipantIds = $leadFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+                $participantUsersMap = $allParticipantIds->isEmpty()
+                    ? collect()
+                    : User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+                $leadFollowUps->each(function ($f) use ($participantUsersMap) {
+                    $f->participant_users = collect($f->participants ?? [])
+                        ->map(fn ($pid) => $participantUsersMap->get($pid))
+                        ->filter()
+                        ->map(fn ($u) => [
+                            'id' => $u->id,
+                            'name' => $u->name,
+                            'image' => $u->image ? $u->image_url : null,
+                        ])
+                        ->values()
+                        ->toArray();
+                });
+
+                return $leadFollowUps;
+            }),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all()),
+            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all()),
+            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()),
+            'projects' => Inertia::defer(fn () => \App\Models\Project::all()),
+            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get()),
+            'leadStages' => Inertia::defer(fn () => PipelineStage::all()),
+            'stages' => Inertia::defer(fn () => PipelineStage::all()),
+            'leadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', 'active');
+            })->get()),
+            'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
+            })->get()),
+            'leadContacts' => Inertia::defer(fn () => Lead::allLeads()),
+            'products' => Inertia::defer(fn () => Product::all()),
+            'packages' => Inertia::defer(fn () => \App\Models\Package::all()),
+            'dealCustomFields' => Inertia::defer(function () {
+                $deal = new Deal();
+                $groups = $deal->getCustomFieldGroupsWithFields();
+
+                return $groups ? $groups->fields : [];
+            }),
+            'dealCustomFieldCategories' => Inertia::defer(function () {
+                $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+                if (!$dealCustomFieldGroup) {
+                    return collect();
+                }
+
+                return CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)
+                    ->where('company_id', company()->id)
+                    ->orderBy(DB::raw('`order`'), 'asc')
+                    ->orderBy('id', 'asc')
+                    ->get();
+            }),
+            'pipelineCustomFieldCategoryIdsByPipeline' => Inertia::defer(function () {
+                return LeadPipeline::query()
+                    ->with('customFieldCategories:id')
+                    ->get()
+                    ->mapWithKeys(function (LeadPipeline $pipeline) {
+                        return [
+                            (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
+                        ];
+                    })
+                    ->toArray();
+            }),
+        ]));
     }
 
     public function notes()

@@ -28,12 +28,18 @@ trait LeadFormDataTrait
      */
     public function getLeadFormData()
     {
-        // Get custom fields
+        return array_merge($this->getLeadShowShellFormData(), $this->getLeadShowDeferredFormData());
+    }
+
+    /**
+     * Lead Show first-paint form metadata (C1 shell).
+     */
+    public function getLeadShowShellFormData(): array
+    {
         $lead = new Lead();
         $getCustomFieldGroupsWithFields = $lead->getCustomFieldGroupsWithFields();
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
-        // Get custom field categories
         $leadCustomFieldGroup = CustomFieldGroup::where('model', Lead::CUSTOM_FIELD_MODEL)->first();
         $customFieldCategories = collect();
         if ($leadCustomFieldGroup) {
@@ -45,13 +51,11 @@ trait LeadFormDataTrait
         }
 
         return [
-            'leadPipelines' => LeadPipeline::orderBy('default', 'DESC')->get(),
-            'leadStages' => PipelineStage::all(),
             'categories' => LeadCategory::all(),
             'sources' => LeadSource::all(),
             'employees' => User::allEmployees(null, true),
             'countries' => countries(),
-            'salutations' => collect(Salutation::cases())->map(function($salutation) {
+            'salutations' => collect(Salutation::cases())->map(function ($salutation) {
                 return [
                     'value' => $salutation->value,
                     'label' => $salutation->label(),
@@ -63,16 +67,27 @@ trait LeadFormDataTrait
                     'label' => $ageRange->label(),
                 ];
             }),
-            'leadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
-                $q->where('status', 'active');
-            })->get(),
-            'products' => Product::all(),
             'customFields' => app(LeadCoreFieldsService::class)
                 ->filterPromotedFieldDefinitions($fields)
                 ->all(),
             'customFieldCategories' => $customFieldCategories,
             'clientCategories' => ClientCategory::all(),
             'languages' => LanguageSetting::where('status', 'enabled')->get(),
+        ];
+    }
+
+    /**
+     * Lead Show deferred form metadata used for deal-create / agents (C1 defer).
+     */
+    public function getLeadShowDeferredFormData(): array
+    {
+        return [
+            'leadPipelines' => LeadPipeline::orderBy('default', 'DESC')->get(),
+            'leadStages' => PipelineStage::all(),
+            'leadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', 'active');
+            })->get(),
+            'products' => Product::all(),
         ];
     }
 }
