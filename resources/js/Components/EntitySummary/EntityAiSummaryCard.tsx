@@ -76,7 +76,7 @@ export default function EntityAiSummaryCard({
     return (
         <section
             className={cardClassName}
-            style="margin-top: 1.5rem; margin-bottom: 1.5rem;"
+            style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}
         >
             <EntityAiSummaryHeader
                 title={TITLES[entityType]}
