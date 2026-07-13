@@ -107,6 +107,9 @@ export function withLeadShowDefaults(
         packages: shell.packages ?? [],
         dealCustomFields: shell.dealCustomFields ?? [],
         dealCustomFieldCategories: shell.dealCustomFieldCategories ?? [],
+        // Re-assert shell keys so TS intersection requires them as defined.
+        deals: shell.deals ?? [],
+        permissions: shell.permissions ?? {},
     };
 }
 

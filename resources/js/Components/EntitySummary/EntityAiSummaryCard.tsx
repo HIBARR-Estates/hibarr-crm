@@ -74,7 +74,10 @@ export default function EntityAiSummaryCard({
     const showBody = !isRedesign || !collapsed;
 
     return (
-        <section className={cardClassName}>
+        <section
+            className={cardClassName}
+            style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}
+        >
             <EntityAiSummaryHeader
                 title={TITLES[entityType]}
                 generatedAt={summary?.meta?.generated_at}
@@ -136,7 +139,9 @@ export default function EntityAiSummaryCard({
                                 >
                                     {summary.status_line}
                                 </p>
-                                <EntityAiSummaryChipGrid chips={summary.chips} />
+                                <EntityAiSummaryChipGrid
+                                    chips={summary.chips}
+                                />
                                 {summary.bullets.length > 0 && (
                                     <ul className="entity-ai-summary-bullets">
                                         {summary.bullets.map((bullet) => (
