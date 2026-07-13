@@ -138,6 +138,7 @@ class LeadContactController extends AccountBaseController
             'lifecycleStatus:id,key,label,label_color,sort_order',
             'activeQualification.answers',
             'activeQualification.agent:id,name,image',
+            'leadFlightItineraries',
         ])->findOrFail($id)->withCustomFields();
 
         $this->coreFieldsService->mergeOntoLead($this->leadContact);
@@ -193,11 +194,22 @@ class LeadContactController extends AccountBaseController
 
         $tab = request('tab');
 
+        // Inertia requests (initial visits or router.reload()) must always get the
+        // Inertia SPA response, even when `tab` is in the URL for deep-linking/refresh
+        // purposes — only genuine legacy (non-Inertia) requests get the old Blade/DataTable partial.
+        $isInertiaRequest = (bool) $request->header('X-Inertia');
+
         switch ($tab) {
             case 'deal':
-                return $this->deals();
+                if (!$isInertiaRequest) {
+                    return $this->deals();
+                }
+                break;
             case 'notes':
-                return $this->notes();
+                if (!$isInertiaRequest) {
+                    return $this->notes();
+                }
+                break;
             case 'marketing':
                 // Load marketing data for the lead contact
                 $this->leadContact = $this->leadContact->load('marketing');
@@ -520,7 +532,7 @@ class LeadContactController extends AccountBaseController
         Log::info("Create Lead Contact, b4 save");
 
         $this->coreFieldsService->write($leadContact, $request->only([
-            'languages', 'date_of_birth', 'nationality', 'occupation',
+            'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
         $leadContact->save();
 
@@ -688,7 +700,7 @@ class LeadContactController extends AccountBaseController
             $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
         }
         $this->coreFieldsService->write($leadContact, $request->only([
-            'languages', 'date_of_birth', 'nationality', 'occupation',
+            'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
         $leadContact->save();
 
@@ -854,7 +866,7 @@ class LeadContactController extends AccountBaseController
             }
 
             $this->coreFieldsService->write($leadContact, $request->only([
-                'languages', 'date_of_birth', 'nationality', 'occupation',
+                'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
             ]));
 
             // Save the lead contact
@@ -966,12 +978,12 @@ class LeadContactController extends AccountBaseController
                     'company_name', 'website', 'address', 'city', 'state', 'country',
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
-                    'languages', 'date_of_birth', 'nationality', 'occupation',
+                    'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
                 ];
                 
                 foreach ($allowedFields as $field) {
                     if ($request->has($field)) {
-                        if (in_array($field, ['languages', 'date_of_birth', 'nationality', 'occupation'], true)) {
+                        if (in_array($field, ['languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation'], true)) {
                             $responseData[$field] = $this->coreFieldsService->read($leadContact)[$field] ?? null;
                         } else {
                             $responseData[$field] = $leadContact->getAttribute($field);

@@ -16,6 +16,7 @@ interface CategorySelectorProps {
     form: FormInstance;
     value?: PrimaryCategory;
     onChange?: (category: PrimaryCategory) => void;
+    disabled?: boolean;
 }
 
 const CATEGORIES: {
@@ -73,8 +74,12 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
     form,
     value,
     onChange,
+    disabled = false,
 }) => {
     const handleSelect = (category: PrimaryCategory) => {
+        if (disabled) {
+            return;
+        }
         const previousCategory = form.getFieldValue("primary_category");
 
         // Call the form onChange to update the form value
@@ -153,7 +158,12 @@ const CategorySelector: React.FC<CategorySelectorProps> = ({
                             key={cat.value}
                             onClick={() => handleSelect(cat.value)}
                             className={`
-                                relative cursor-pointer rounded-lg border-2 p-4 transition-all duration-200
+                                relative rounded-lg border-2 p-4 transition-all duration-200
+                                ${
+                                    disabled
+                                        ? "cursor-not-allowed opacity-60 border-gray-200 bg-gray-50"
+                                        : "cursor-pointer"
+                                }
                                 ${
                                     isSelected
                                         ? `${cat.borderColor} ${cat.bgColor} shadow-sm`

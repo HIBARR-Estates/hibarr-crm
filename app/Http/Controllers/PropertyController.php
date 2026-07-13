@@ -17,6 +17,8 @@ use App\Traits\ImportExcel;
 use App\Exceptions\DuplicatePropertyException;
 use App\Services\PropertyDuplicateService;
 use App\Models\PropertyPublishRequest;
+use App\Models\PropertyEditAccessRequest;
+use App\Services\PropertyAuthorizationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\Excel;
@@ -494,7 +496,7 @@ class PropertyController extends AccountBaseController
 
     public function show($id)
     {
-        $this->property = Property::with(['product', 'developerProject.location', 'addedBy', 'responsibleAgent', 'assets' => function($query) {
+        $this->property = Property::with(['product', 'developerProject.location', 'addedBy', 'responsibleAgent', 'collaborators:id,name,email,image', 'watchers:id,name,email,image', 'assets' => function($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->findOrFail($id);
 
@@ -506,7 +508,7 @@ class PropertyController extends AccountBaseController
      */
     public function showBySlug(string $slug)
     {
-        $property = Property::with(['product', 'developerProject.location', 'addedBy', 'responsibleAgent', 'assets' => function ($query) {
+        $property = Property::with(['product', 'developerProject.location', 'addedBy', 'responsibleAgent', 'collaborators:id,name,email,image', 'watchers:id,name,email,image', 'assets' => function ($query) {
             $query->orderBy('order')->orderBy('created_at', 'desc');
         }])->where('slug', $slug)->firstOrFail();
 
@@ -519,15 +521,13 @@ class PropertyController extends AccountBaseController
     private function renderPropertyShow(Property $property)
     {
         $this->property = $property;
-        $canEdit = $this->property->added_by === user()->id || $this->property->responsible_agent_id === user()->id;
+        $authorization = app(PropertyAuthorizationService::class);
+        $currentUser = user();
+
+        $canEdit = $authorization->canEditProperty($currentUser, $this->property);
         $this->pageTitle = $this->property->title;
 
-        // Only allow admin (edit_product=all), creator, or responsible agent to see owner_info
-        $isAdmin = in_array(user()->permission('edit_product'), ['all', 4]);
-        $isCreator = $this->property->added_by === user()->id;
-        $isResponsibleAgent = $this->property->responsible_agent_id === user()->id;
-
-        if (!$isAdmin && !$isCreator && !$isResponsibleAgent) {
+        if (!$authorization->canViewOwnerInfo($currentUser, $this->property)) {
             $this->property->makeHidden('owner_info');
         }
 
@@ -571,11 +571,17 @@ class PropertyController extends AccountBaseController
             ->pending()
             ->exists();
 
+        $hasPendingEditAccessRequest = PropertyEditAccessRequest::where('property_id', $this->property->id)
+            ->where('requesting_agent_id', $currentUser->id)
+            ->pending()
+            ->exists();
+
         return Inertia::render('Properties/Show', [
             'pageTitle' => $this->pageTitle,
             'property' => $this->property,
             'canEdit' => $canEdit,
             'hasPendingPublishRequest' => $hasPendingPublishRequest,
+            'hasPendingEditAccessRequest' => $hasPendingEditAccessRequest,
             'tasks' => $tasks,
             'taskCategories' => $taskCategories,
             'taskLabels' => $taskLabels,
@@ -637,35 +643,30 @@ class PropertyController extends AccountBaseController
 
     public function update(UpdateRequest $request, $id)
     {
-        $property = Property::with('product')->findOrFail($id);
-        
-        // Check permission
-        $canEdit = false;
-        // switch ($this->editPropertyPermission) {
-        //     case 'all':
-        //         $canEdit = true;
-        //         break;
-        //     case 'added':
-        //         $canEdit = $property->product->added_by == user()->id;
-        //         break;
-        //     case 'owned':
-        //         $canEdit = $property->product->assigned_to == user()->id;
-        //         break;
-        //     case 'both':
-        //         $canEdit = $property->product->added_by == user()->id || $property->product->assigned_to == user()->id;
-        //         break;
-        // }
+        $property = Property::with(['product', 'collaborators'])->findOrFail($id);
 
-        // abort_403(!$canEdit);
+        $this->authorize('update', $property);
+
+        $authorization = app(PropertyAuthorizationService::class);
+        $currentUser = user();
 
         // Check for duplicates if fingerprint-related fields are being updated
         $fingerprintFields = ['developer_project_id', 'property_type', 'city', 'area', 'block_name', 'unit_number'];
         $hasFingerprintChange = collect($fingerprintFields)->contains(fn($field) => $request->has($field));
-        
+
         if ($hasFingerprintChange) {
+            foreach ($fingerprintFields as $field) {
+                if ($request->has($field)) {
+                    abort_403(
+                        !$authorization->canEditField($currentUser, $property, $field),
+                        __('messages.propertyUpdateNotAllowed', ['field' => $field])
+                    );
+                }
+            }
+
             $duplicateService = app(PropertyDuplicateService::class);
             $propertyData = array_merge($property->toArray(), $request->only($fingerprintFields));
-            
+
             try {
                 $duplicateService->assertNoDuplicates($propertyData, $property->id);
             } catch (DuplicatePropertyException $e) {
@@ -676,14 +677,17 @@ class PropertyController extends AccountBaseController
             }
         }
 
-        // Check if updates are allowed based on current status
         $fieldsToUpdate = $request->only($property->getFillable());
-        
+
         if (isset($fieldsToUpdate['price'])) {
             $fieldsToUpdate['price'] = $this->normalizePrice($fieldsToUpdate['price']);
         }
-        
-        foreach ($fieldsToUpdate as $field => $value) {
+
+        foreach (array_keys($fieldsToUpdate) as $field) {
+            abort_403(
+                !$authorization->canEditField($currentUser, $property, $field),
+                __('messages.propertyUpdateNotAllowed', ['field' => $field])
+            );
             abort_403(!$property->canUpdateField($field), __('messages.propertyUpdateNotAllowed', ['field' => $field]));
         }
 

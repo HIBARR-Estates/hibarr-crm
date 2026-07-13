@@ -18,6 +18,8 @@ import {
     computeVisibleSegments,
     findEntrySegment,
     getBranchOptionKeys,
+    getBranchSegmentKeysToClear,
+    mapOptionIdsToStoredValues,
     resolveTokens,
     validateSegmentAnswer,
 } from "./qualificationUtils";
@@ -38,6 +40,14 @@ export interface BranchChangePending {
     newText?: string | null;
 }
 
+const splitLeadName = (name?: string | null) => {
+    const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
+    return {
+        firstName: parts[0] ?? "",
+        lastName: parts.slice(1).join(" "),
+    };
+};
+
 export const useQualificationFlow = ({
     lead,
     qualification,
@@ -54,7 +64,7 @@ export const useQualificationFlow = ({
     );
 
     const [answers, setAnswers] = useState<Record<string, SegmentAnswerState>>(
-        () => answersFromQualification(qualification.answers),
+        () => answersFromQualification(qualification.answers, templateTree),
     );
     const [currentSegmentKey, setCurrentSegmentKey] = useState<string>(() => {
         if (qualification.current_segment_key) {
@@ -62,7 +72,7 @@ export const useQualificationFlow = ({
         }
         const visible = computeVisibleSegments(
             templateTree,
-            answersFromQualification(qualification.answers),
+            answersFromQualification(qualification.answers, templateTree),
         );
         return visible[0]?.key ?? "";
     });
@@ -110,7 +120,7 @@ export const useQualificationFlow = ({
                     current_segment_key: segmentKey,
                 });
             } catch {
-                // Non-blocking — resume is best-effort until backend lands
+                // Non-blocking — resume is best-effort
             }
         },
         [qualification.id, service],
@@ -122,11 +132,13 @@ export const useQualificationFlow = ({
             values: string[],
             text?: string | null,
         ): Promise<void> => {
+            const storedValues = mapOptionIdsToStoredValues(segment, values);
+
             setSaving(true);
             try {
                 await service.upsertAnswer(qualification.id, {
                     segment_key: segment.key,
-                    answer_values: values,
+                    answer_values: storedValues,
                     answer_text: text ?? null,
                 });
 
@@ -184,12 +196,27 @@ export const useQualificationFlow = ({
             return;
         }
 
+        const segmentKeysToClear = getBranchSegmentKeysToClear(
+            templateTree,
+            entrySegment,
+        );
+        const storedValues = mapOptionIdsToStoredValues(
+            entrySegment,
+            branchChangePending.newValues,
+        );
+
         setSaving(true);
         try {
-            await service.clearBranchAnswers(qualification.id);
+            if (segmentKeysToClear.length > 0) {
+                await service.clearBranchAnswers(
+                    qualification.id,
+                    segmentKeysToClear,
+                );
+            }
+
             await service.upsertAnswer(qualification.id, {
                 segment_key: branchChangePending.segmentKey,
-                answer_values: branchChangePending.newValues,
+                answer_values: storedValues,
                 answer_text: branchChangePending.newText ?? null,
             });
 
@@ -263,8 +290,8 @@ export const useQualificationFlow = ({
     ]);
 
     const translateScript = useCallback(
-        (text: string) => resolveTokens(text, tokenMap),
-        [tokenMap],
+        (text: string) => resolveTokens(text, tokenMap, lead, props.auth),
+        [lead, props.auth, tokenMap],
     );
 
     const selectedBranchKeys = useMemo(() => {
@@ -277,15 +304,39 @@ export const useQualificationFlow = ({
     }, [answers, entrySegment, templateTree]);
 
     const completeWithOutcome = useCallback(
-        async (outcome: QualificationOutcome, metadata?: { webinarSessionId?: string; calendlyUrl?: string }) => {
+        async (
+            outcome: QualificationOutcome,
+            metadata?: {
+                webinarSessionId?: string;
+                webinarSessionLabel?: string;
+                calendlyUrl?: string;
+            },
+        ) => {
             setCompleting(true);
             try {
+                const { firstName, lastName } = splitLeadName(lead.client_name);
+                const marketing = lead.marketing;
                 const registrationPayload = {
                     email: lead.client_email ?? "",
-                    firstName: lead.client_name?.split(" ")[0],
-                    lastName: lead.client_name?.split(" ").slice(1).join(" "),
+                    firstName,
+                    lastName,
                     phone: lead.mobile ?? lead.cell ?? undefined,
                     leadId: lead.id,
+                    language: agentLanguage,
+                    country: lead.country ?? undefined,
+                    city: lead.city ?? undefined,
+                    state: lead.state ?? undefined,
+                    zipCode: lead.postal_code ?? undefined,
+                    gender: lead.gender ?? undefined,
+                    utmInfo: marketing?.utm_source
+                        ? {
+                              utmSource: marketing.utm_source,
+                              utmMedium: marketing.utm_medium ?? undefined,
+                              utmCampaign: marketing.utm_campaign ?? undefined,
+                              utmTerm: marketing.utm_term ?? undefined,
+                              utmContent: marketing.utm_content ?? undefined,
+                          }
+                        : undefined,
                 };
 
                 if (outcome === "bookMeeting") {
@@ -308,6 +359,7 @@ export const useQualificationFlow = ({
                     {
                         outcome,
                         selected_branch_keys: selectedBranchKeys,
+                        webinar_session_label: metadata?.webinarSessionLabel,
                     },
                 );
                 onQualificationUpdated(updated);
@@ -324,6 +376,7 @@ export const useQualificationFlow = ({
             }
         },
         [
+            agentLanguage,
             lead,
             onQualificationUpdated,
             qualification.id,

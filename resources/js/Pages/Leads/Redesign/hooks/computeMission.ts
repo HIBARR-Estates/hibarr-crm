@@ -2,6 +2,7 @@ import type { QualificationOutcome } from "@/Types/qualification";
 import type { BantCaptures, LeadMission } from "../types";
 import type { LeadTaskPreview } from "../adapters/taskAdapter";
 import type { LeadMeetingPreview } from "../adapters/meetingAdapter";
+import { formatPhoneNumber } from "@/lib/utils";
 
 const OUTCOME_LABELS: Record<QualificationOutcome, string> = {
     bookMeeting: "Book consultation",
@@ -16,12 +17,15 @@ interface ComputeMissionInput {
     contactLogged: boolean;
     outcome: QualificationOutcome | null;
     flowActive: boolean;
+    qualificationEnabled?: boolean;
     openTasks: LeadTaskPreview[];
     nextMeeting: LeadMeetingPreview | null;
     captures: BantCaptures;
 }
 
-export function outcomeToLabel(outcome: QualificationOutcome | null | undefined): string | null {
+export function outcomeToLabel(
+    outcome: QualificationOutcome | null | undefined,
+): string | null {
     if (!outcome) return null;
     return OUTCOME_LABELS[outcome] ?? outcome;
 }
@@ -32,12 +36,13 @@ export function computeMission({
     contactLogged,
     outcome,
     flowActive,
+    qualificationEnabled = true,
     openTasks,
     nextMeeting,
     captures,
 }: ComputeMissionInput): LeadMission {
     const outcomeLabel = outcomeToLabel(outcome);
-    const phone = leadPhone || "the lead";
+    const phone = formatPhoneNumber(leadPhone) || "the lead";
 
     if (!contactLogged) {
         return {
@@ -50,7 +55,7 @@ export function computeMission({
         };
     }
 
-    if (!outcome && !flowActive) {
+    if (!outcome && !flowActive && qualificationEnabled) {
         const missing = ["need", "budget", "timeline"].filter(
             (k) => !captures[k as keyof BantCaptures],
         ).length;
@@ -116,9 +121,11 @@ export function computeMission({
     return {
         phase: "qualify",
         headline: "Qualify this lead",
-        detail: "Start the script.",
-        cta: "Start script",
-        ctaAction: "startFlow",
+        detail: qualificationEnabled
+            ? "Start the script."
+            : "Continue follow-up on this lead.",
+        cta: qualificationEnabled ? "Start script" : null,
+        ctaAction: qualificationEnabled ? "startFlow" : undefined,
         urgency: "blue",
     };
 }

@@ -3,7 +3,6 @@ import {
     Card,
     Descriptions,
     Alert,
-    Button,
     Tag,
     Space,
     Typography,
@@ -16,21 +15,18 @@ import {
     TeamOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
-import { router } from "@inertiajs/react";
 
 const { Text } = Typography;
 
 interface OwnerInfoCardProps {
     property: Property;
     canViewOwnerInfo: boolean;
-    canRequestAccess: boolean;
     isSalesManager: boolean;
 }
 
 export default function OwnerInfoCard({
     property,
     canViewOwnerInfo,
-    canRequestAccess,
     isSalesManager,
 }: OwnerInfoCardProps) {
     const ownerInfo = property.owner_info;
@@ -40,14 +36,6 @@ export default function OwnerInfoCard({
             ownerInfo.telephone ||
             ownerInfo.email ||
             ownerInfo.key_holder_name);
-
-    const handleRequestAccess = () => {
-        router.post(
-            route("properties.request_access", property.id),
-            {},
-            { preserveScroll: true },
-        );
-    };
 
     return (
         <Card
@@ -193,18 +181,11 @@ export default function OwnerInfoCard({
                         <div>
                             <p className="mb-0">
                                 Owner contact details are only visible to the
-                                property creator and administrators.
+                                property creator, responsible agent, and
+                                administrators. To edit listing content, use
+                                &quot;Request Edit Access&quot; in the property
+                                header.
                             </p>
-                            {canRequestAccess && (
-                                <Button
-                                    type="primary"
-                                    size="small"
-                                    className="mt-2"
-                                    onClick={handleRequestAccess}
-                                >
-                                    Request Access
-                                </Button>
-                            )}
                         </div>
                     }
                 />

@@ -13,6 +13,12 @@ import {
     MAX_OL_RETRY_COUNT,
     OlApiError,
 } from "@/Types/qualification";
+import {
+    normalizeOlTemplateList,
+    normalizeOlTemplateTree,
+    type OlTemplateListResponse,
+    type OlTemplateTreeResponse,
+} from "@/Services/olQualificationAdapter";
 
 const sleep = (ms: number): Promise<void> =>
     new Promise((resolve) => setTimeout(resolve, ms));
@@ -72,21 +78,42 @@ export class QualificationTemplateService {
 
     async getPublishedTemplates(): Promise<GetTemplatesResponse> {
         return this.withRetry(async () => {
-            const response = await axios.get<GetTemplatesResponse>(
+            const response = await axios.get<OlTemplateListResponse>(
                 `${this.config.baseUrl}/qualification/templates`,
-                { headers: this.headers },
+                {
+                    headers: this.headers,
+                    params: {
+                        page: 1,
+                        limit: 100,
+                        status: "published",
+                    },
+                },
             );
-            return response.data;
+
+            return {
+                success: response.data.success,
+                data: normalizeOlTemplateList(response.data),
+            };
         }, "getPublishedTemplates");
     }
 
-    async getTemplateTree(templateId: string): Promise<GetTemplateTreeResponse> {
+    async getTemplateTree(
+        templateId: string,
+        templateName?: string,
+    ): Promise<GetTemplateTreeResponse> {
         return this.withRetry(async () => {
-            const response = await axios.get<GetTemplateTreeResponse>(
+            const response = await axios.get<OlTemplateTreeResponse>(
                 `${this.config.baseUrl}/qualification/templates/${templateId}/tree`,
                 { headers: this.headers },
             );
-            return response.data;
+
+            return {
+                success: response.data.success,
+                data: normalizeOlTemplateTree(
+                    response.data.data,
+                    templateName,
+                ),
+            };
         }, "getTemplateTree");
     }
 

@@ -12,6 +12,12 @@ return new class extends Migration
      */
     public function up(): void
     {
+        // Idempotent: skip when the column already exists so re-running or a
+        // partial rollback state doesn't fail with a duplicate column error.
+        if (Schema::hasColumn('mlm_cycles', 'name')) {
+            return;
+        }
+
         Schema::table('mlm_cycles', function (Blueprint $table) {
             $table->string('name', 100)->nullable()->after('cycle_number');
         });

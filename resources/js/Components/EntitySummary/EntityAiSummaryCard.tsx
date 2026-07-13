@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Skeleton } from "antd";
 import useEntityAiSummary from "@/Hooks/useEntityAiSummary";
 import type { EntityAiSummaryCardProps } from "@/Types/entity-summary";
@@ -18,7 +19,7 @@ export default function EntityAiSummaryCard({
     entityId,
     initialSummary = null,
     variant = "legacy",
-    className = "",
+    className = "my-4",
     leadPhone,
     onQualifyLead,
     onCreateTask,
@@ -27,11 +28,15 @@ export default function EntityAiSummaryCard({
     onAdvanceStage,
     onReviewStaleDeal,
 }: EntityAiSummaryCardProps) {
-    const { summary, loading, error, generate, regenerate } = useEntityAiSummary({
-        entityType,
-        entityId,
-        initialSummary,
-    });
+    const isRedesign = variant === "redesign";
+    const [collapsed, setCollapsed] = useState(false);
+
+    const { summary, loading, error, generate, regenerate } =
+        useEntityAiSummary({
+            entityType,
+            entityId,
+            initialSummary,
+        });
 
     const showRiskHighlight =
         summary &&
@@ -60,10 +65,13 @@ export default function EntityAiSummaryCard({
         "entity-ai-summary-card",
         `entity-ai-summary-card--${variant}`,
         entityType === "deal" ? "entity-ai-summary-card--deal" : "",
+        isRedesign ? "section-card" : "my-4",
         className,
     ]
         .filter(Boolean)
         .join(" ");
+
+    const showBody = !isRedesign || !collapsed;
 
     return (
         <section className={cardClassName}>
@@ -73,65 +81,76 @@ export default function EntityAiSummaryCard({
                 loading={loading}
                 onRegenerate={summary ? regenerate : generate}
                 dataConfidence={summary?.meta?.data_confidence}
+                variant={variant}
+                collapsed={collapsed}
+                onToggleCollapse={
+                    isRedesign
+                        ? () => setCollapsed((value) => !value)
+                        : undefined
+                }
             />
 
-            {loading && (
-                <div className="entity-ai-summary-body">
-                    <Skeleton active paragraph={{ rows: 4 }} />
-                </div>
-            )}
-
-            {error && !loading && (
-                <div className="entity-ai-summary-error">
-                    {error}{" "}
-                    <button type="button" onClick={generate}>
-                        Retry
-                    </button>
-                </div>
-            )}
-
-            {!summary && !loading && !error && (
-                <div className="entity-ai-summary-empty">
-                    <p>
-                        Generate an AI summary to see key facts, risk signals, and a
-                        suggested next step for this {entityType}.
-                    </p>
-                    <button
-                        type="button"
-                        className="entity-ai-summary-next-step__button"
-                        style={{ marginTop: 12, background: "#7c3aed", color: "#fff" }}
-                        onClick={generate}
-                    >
-                        Generate AI Summary
-                    </button>
-                </div>
-            )}
-
-            {summary && !loading && !error && (
+            {showBody && (
                 <>
-                    <div className="entity-ai-summary-body">
-                        <p
-                            className={`entity-ai-summary-status-line${
-                                showRiskHighlight
-                                    ? " entity-ai-summary-status-line--risk"
-                                    : ""
-                            }`}
-                        >
-                            {summary.status_line}
-                        </p>
-                        <EntityAiSummaryChipGrid chips={summary.chips} />
-                        {summary.bullets.length > 0 && (
-                            <ul className="entity-ai-summary-bullets">
-                                {summary.bullets.map((bullet) => (
-                                    <li key={bullet}>{bullet}</li>
-                                ))}
-                            </ul>
-                        )}
-                    </div>
-                    <EntityAiSummaryNextStep
-                        nextStep={summary.next_step}
-                        onAction={handleAction}
-                    />
+                    {loading && (
+                        <div className="entity-ai-summary-body">
+                            <Skeleton active paragraph={{ rows: 4 }} />
+                        </div>
+                    )}
+
+                    {error && !loading && (
+                        <div className="entity-ai-summary-error">
+                            {error}{" "}
+                            <button type="button" onClick={generate}>
+                                Retry
+                            </button>
+                        </div>
+                    )}
+
+                    {!summary && !loading && !error && (
+                        <div className="entity-ai-summary-empty">
+                            <p>
+                                Generate an AI summary to see key facts, risk
+                                signals, and a suggested next step for this{" "}
+                                {entityType}.
+                            </p>
+                            <button
+                                type="button"
+                                className="entity-ai-summary-next-step__button entity-ai-summary-empty__cta"
+                                onClick={generate}
+                            >
+                                Generate AI Summary
+                            </button>
+                        </div>
+                    )}
+
+                    {summary && !loading && !error && (
+                        <>
+                            <div className="entity-ai-summary-body">
+                                <p
+                                    className={`entity-ai-summary-status-line${
+                                        showRiskHighlight
+                                            ? " entity-ai-summary-status-line--risk"
+                                            : ""
+                                    }`}
+                                >
+                                    {summary.status_line}
+                                </p>
+                                <EntityAiSummaryChipGrid chips={summary.chips} />
+                                {summary.bullets.length > 0 && (
+                                    <ul className="entity-ai-summary-bullets">
+                                        {summary.bullets.map((bullet) => (
+                                            <li key={bullet}>{bullet}</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                            <EntityAiSummaryNextStep
+                                nextStep={summary.next_step}
+                                onAction={handleAction}
+                            />
+                        </>
+                    )}
                 </>
             )}
         </section>

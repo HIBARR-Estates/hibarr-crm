@@ -4,6 +4,7 @@ namespace App\Observers;
 
 use App\Events\TaskEvent;
 use App\Models\TaskUser;
+use App\Support\FeatureFlags;
 
 class TaskUserObserver
 {
@@ -30,7 +31,7 @@ class TaskUserObserver
 
         if (!isRunningInConsoleOrSeeding()) {
 
-            if(request()->has('template_id')){
+            if(request()->has('template_id') && !FeatureFlags::enabled('crm.task-lifecycle-notifications')){
                 event(new TaskEvent($taskUser->task, $taskUser->user, 'NewTask'));
             }
         }

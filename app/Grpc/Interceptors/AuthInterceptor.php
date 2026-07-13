@@ -2,7 +2,7 @@
 
 namespace App\Grpc\Interceptors;
 
-use Illuminate\Support\Facades\DB;
+use App\Models\ApiToken;
 use Illuminate\Support\Facades\Log;
 use Spiral\Core\CoreInterceptorInterface;
 use Spiral\Core\CoreInterface;
@@ -123,9 +123,6 @@ class AuthInterceptor implements CoreInterceptorInterface
      */
     private function validateToken(string $token, string|int $companyId): ?object
     {
-        return DB::table('api_tokens')
-            ->where('token', $token)
-            ->where('company_id', $companyId)
-            ->first();
+        return ApiToken::findByPlainToken($token, (int) $companyId);
     }
 }

@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import type { Lead } from "@/Types/api/leads";
-import type { LeadNote } from "@/Types/api/lead-note";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Task } from "@/Types/api/tasks";
 import { computeMission } from "./computeMission";
@@ -14,44 +13,27 @@ import type { QualificationOutcome } from "@/Types/qualification";
 interface UseLeadMissionArgs {
     lead: Lead;
     leadName: string;
-    notes: LeadNote[];
     tasks: Task[];
     leadFollowUps: DealFollowup[];
     flowActive: boolean;
     outcome: QualificationOutcome | null;
     qualificationAnswers?: LeadQualificationAnswer[];
-    contactLoggedOverride?: boolean;
+    /** True when a First Contact CRM event exists (or was just logged). */
+    contactLogged: boolean;
+    qualificationEnabled?: boolean;
 }
 
 export default function useLeadMission({
     lead,
     leadName,
-    notes,
     tasks,
     leadFollowUps,
     flowActive,
     outcome,
     qualificationAnswers,
-    contactLoggedOverride,
+    contactLogged,
+    qualificationEnabled = true,
 }: UseLeadMissionArgs): LeadMission {
-    const contactLogged = useMemo(() => {
-        if (contactLoggedOverride) return true;
-        return (
-            notes.length > 0 ||
-            leadFollowUps.length > 0 ||
-            tasks.length > 0 ||
-            flowActive ||
-            Boolean(outcome)
-        );
-    }, [
-        contactLoggedOverride,
-        flowActive,
-        leadFollowUps.length,
-        notes.length,
-        outcome,
-        tasks.length,
-    ]);
-
     const { captures } = useLeadBantChecks({
         lead,
         answers: qualificationAnswers,
@@ -68,7 +50,9 @@ export default function useLeadMission({
             .map(toLeadMeetingPreview)
             .filter((m) => m.isUpcoming)
             .sort((a, b) => {
-                if (a.startsAt && b.startsAt) return a.startsAt.getTime() - b.startsAt.getTime();
+                if (a.startsAt && b.startsAt) {
+                    return a.startsAt.getTime() - b.startsAt.getTime();
+                }
                 return 0;
             });
         return upcoming[0] ?? null;
@@ -82,6 +66,7 @@ export default function useLeadMission({
                 contactLogged,
                 outcome,
                 flowActive,
+                qualificationEnabled,
                 openTasks,
                 nextMeeting,
                 captures,
@@ -96,6 +81,7 @@ export default function useLeadMission({
             nextMeeting,
             openTasks,
             outcome,
+            qualificationEnabled,
         ],
     );
 }

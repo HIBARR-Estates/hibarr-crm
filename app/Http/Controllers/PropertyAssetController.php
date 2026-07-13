@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Property;
 use App\Models\PropertyAsset;
 use App\Services\PropertyAssetManagementService;
+use App\Services\PropertyAuthorizationService;
 use App\Helper\Reply;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -427,13 +428,11 @@ class PropertyAssetController extends AccountBaseController
      */
     private function canViewProperty(Property $property): bool
     {
-        // Add your permission logic here
-        return true;
+        return app(PropertyAuthorizationService::class)->canViewProperty(user(), $property);
     }
 
     private function canEditProperty(Property $property): bool
     {
-        // Add your permission logic here
-        return true;
+        return app(PropertyAuthorizationService::class)->canEditProperty(user(), $property);
     }
 }

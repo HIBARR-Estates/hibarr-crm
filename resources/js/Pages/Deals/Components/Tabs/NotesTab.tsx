@@ -5,7 +5,7 @@ import { usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 
 // Modular Components
-import { NotesBreadcrumb, NotesView } from "./notes/NotesBreadcrumb";
+import { NotesView } from "./notes/NotesBreadcrumb";
 import { NotesList } from "./notes/NotesList";
 import { AddNoteForm } from "./notes/AddNoteForm";
 import { EditNoteForm } from "./notes/EditNoteForm";
@@ -24,7 +24,9 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
 
     const [searchTerm, setSearchTerm] = useState("");
     const [currentView, setCurrentView] = useState<NotesView>("list");
-    const [selectedNote, setSelectedNote] = useState<Note | null>(null);
+    const [viewingNote, setViewingNote] = useState<Note | null>(null);
+    const [editingNote, setEditingNote] = useState<Note | null>(null);
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
     const {
         handleAction,
@@ -34,25 +36,16 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
     } = useGenericEntityAction<Note>();
 
     // Navigation handlers
-    const handleNavigateToList = () => {
-        setCurrentView("list");
-        setSelectedNote(null);
-        setSearchTerm("");
-    };
-
     const handleNavigateToAdd = () => {
-        setCurrentView("add");
-        setSelectedNote(null);
+        setIsAddModalOpen(true);
     };
 
     const handleNavigateToView = (note: Note) => {
-        setSelectedNote(note);
-        setCurrentView("view");
+        setViewingNote(note);
     };
 
     const handleNavigateToEdit = (note: Note) => {
-        setSelectedNote(note);
-        setCurrentView("edit");
+        setEditingNote(note);
     };
 
     const handleDeleteNote = (note: Note) => {
@@ -61,84 +54,72 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
 
     // Edit note from view
     const handleEditFromView = () => {
-        if (selectedNote) {
-            setCurrentView("edit");
+        if (viewingNote) {
+            setEditingNote(viewingNote);
+            setViewingNote(null);
         }
     };
 
     // Delete note from view
     const handleDeleteFromView = () => {
-        if (selectedNote) {
-            handleAction("delete", selectedNote);
+        if (viewingNote) {
+            handleAction("delete", viewingNote);
+            setViewingNote(null);
         }
     };
 
     const renderCurrentView = () => {
-        switch (currentView) {
-            case "add":
-                return (
-                    <AddNoteForm deal={deal} onCancel={handleNavigateToList} />
-                );
-
-            case "edit":
-                return selectedNote ? (
-                    <EditNoteForm
-                        deal={deal}
-                        note={selectedNote}
-                        onCancel={handleNavigateToList}
-                    />
-                ) : (
-                    <div>Note not found</div>
-                );
-
-            case "view":
-                return selectedNote ? (
-                    <ViewNoteForm
-                        deal={deal}
-                        note={selectedNote}
-                        permissions={permissions}
-                        userId={user?.id}
-                        onCancel={handleNavigateToList}
-                        onEdit={handleEditFromView}
-                        onDelete={handleDeleteFromView}
-                    />
-                ) : (
-                    <div>Note not found</div>
-                );
-
-            case "list":
-            default:
-                return (
-                    <NotesList
-                        notes={notes}
-                        searchTerm={searchTerm}
-                        onSearchChange={setSearchTerm}
-                        permissions={permissions}
-                        userId={user?.id}
-                        onAddNote={handleNavigateToAdd}
-                        onViewNote={handleNavigateToView}
-                        onEditNote={handleNavigateToEdit}
-                        onDeleteNote={handleDeleteNote}
-                        currentView={currentView}
-                        selectedNote={selectedNote}
-                        setCurrentView={setCurrentView}
-                    />
-                );
-        }
+        return (
+            <NotesList
+                notes={notes}
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                permissions={permissions}
+                userId={user?.id}
+                onAddNote={handleNavigateToAdd}
+                onViewNote={handleNavigateToView}
+                onEditNote={handleNavigateToEdit}
+                onDeleteNote={handleDeleteNote}
+                currentView={currentView}
+                setCurrentView={setCurrentView}
+            />
+        );
     };
 
     return (
         <div className="bg-gray-50 p-6 flex flex-col gap-y-6 h-full">
-            {/* Breadcrumb Navigation */}
-            {currentView !== "list" && (
-                <NotesBreadcrumb
-                    currentView={currentView}
-                    noteTitle={selectedNote?.title}
-                    onNavigate={setCurrentView}
-                />
-            )}
             {/* Current View Content */}
             {renderCurrentView()}
+
+            {/* Note Detail Modal */}
+            {viewingNote && (
+                <ViewNoteForm
+                    deal={deal}
+                    note={viewingNote}
+                    permissions={permissions}
+                    userId={user?.id}
+                    onCancel={() => setViewingNote(null)}
+                    onEdit={handleEditFromView}
+                    onDelete={handleDeleteFromView}
+                />
+            )}
+
+            {/* Add Note Modal */}
+            {isAddModalOpen && (
+                <AddNoteForm
+                    deal={deal}
+                    onCancel={() => setIsAddModalOpen(false)}
+                />
+            )}
+
+            {/* Edit Note Modal */}
+            {editingNote && (
+                <EditNoteForm
+                    deal={deal}
+                    note={editingNote}
+                    onCancel={() => setEditingNote(null)}
+                />
+            )}
 
             {/* Delete Confirmation Modal */}
             <DeleteNote

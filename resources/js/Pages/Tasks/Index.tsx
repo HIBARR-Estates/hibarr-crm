@@ -22,10 +22,10 @@ import PageLayout from "@/Components/PageLayout";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
-import usePageSort from "@/Hooks/usePageSort";
 import useViewPreference from "@/Hooks/useViewPreference";
 
 import { router } from "@inertiajs/react";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 
 import createTaskFilterConfig from "@/configs/taskFilterConfig";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
@@ -168,8 +168,6 @@ interface TasksTableViewProps {
     columns: TaskboardColumn[];
     permissions: TasksIndexProps["permissions"];
     rowSelection: TableRowSelection<Task>;
-    filters: Record<string, any>;
-    sortParams: Record<string, any>;
     onEdit: (task: Task) => void;
     onView: (task: Task) => void;
     onDelete: (task: Task) => void;
@@ -183,8 +181,6 @@ const TasksTableView: React.FC<TasksTableViewProps> = ({
     columns,
     permissions,
     rowSelection,
-    filters,
-    sortParams,
     onEdit,
     onView,
     onDelete,
@@ -220,7 +216,7 @@ const TasksTableView: React.FC<TasksTableViewProps> = ({
             onPageChange={(page) => {
                 router.get(
                     route("tasks.index"),
-                    { ...filters, ...sortParams, page },
+                    mergeQueryParams({ page }),
                     { preserveState: true, preserveScroll: true },
                 );
             }}
@@ -305,9 +301,6 @@ const TasksIndex = ({
     });
 
     const { openDrawer, filters } = filter;
-
-    // Sort handlers
-    const { sortParams } = usePageSort({ routeName: "tasks.index" });
 
     // Use server-filtered tasks directly
     const filteredTableTasks = tableTasks?.data || [];
@@ -467,7 +460,7 @@ const TasksIndex = ({
                                     disabled={isRefreshing}
                                     type="text"
                                 >
-                                    {t("app.common.actions.refresh")}
+                                    {td("Refresh")}
                                 </Button>
 
                                 {/* 
@@ -512,8 +505,6 @@ const TasksIndex = ({
                                 columns={columns}
                                 permissions={permissions}
                                 rowSelection={rowSelection}
-                                filters={filters}
-                                sortParams={sortParams}
                                 onEdit={handleEditTask}
                                 onView={handleViewTask}
                                 onDelete={handleDeleteTask}

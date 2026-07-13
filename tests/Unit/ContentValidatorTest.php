@@ -40,22 +40,54 @@ class ContentValidatorTest extends TestCase
         $warnings = (new ContentValidator())->validate($config);
 
         $messages = array_column($warnings, 'message');
+        $labels = array_column($warnings, 'label');
 
         $this->assertContains(
-            'Unit type description is not populated. The expose will fall back to project-level content if available.',
+            'Not populated. The expose will fall back to project-level content if available.',
             $messages
         );
         $this->assertContains(
-            'Project location infrastructure is not populated. Add nearby infrastructure details to enrich the expose.',
+            'Not populated. Add nearby infrastructure details to enrich the expose.',
             $messages
         );
         $this->assertContains(
-            'Project location airports are not populated. Add airport travel details to enrich the expose.',
+            'Not populated. Add airport travel details to enrich the expose.',
             $messages
         );
         $this->assertContains(
-            'The outro/footer image is not populated. Add a footer image to avoid an incomplete closing page.',
+            'Not populated. Add a footer image to avoid an incomplete closing page.',
             $messages
         );
+
+        $this->assertContains('Unit type description', $labels);
+        $this->assertContains('Project location infrastructure', $labels);
+        $this->assertContains('Project location airports', $labels);
+        $this->assertContains('Footer image', $labels);
+    }
+
+    public function test_it_returns_human_readable_labels_for_field_rules(): void
+    {
+        $config = new ExposeConfiguration(
+            entityType: 'property',
+            entityId: 1,
+            layout: 'expose-template',
+            sections: [],
+            data: [
+                'title' => null,
+                'price' => null,
+                'city' => null,
+                'living_area_sqm' => null,
+                'assets' => [],
+            ]
+        );
+
+        $warnings = (new ContentValidator())->validate($config);
+        $labels = array_column($warnings, 'label');
+
+        $this->assertContains('Property title', $labels);
+        $this->assertContains('Living area (sqm)', $labels);
+        $this->assertContains('Hero image', $labels);
+        $this->assertNotContains('living_area_sqm', $labels);
+        $this->assertNotContains('assets.hero', $labels);
     }
 }

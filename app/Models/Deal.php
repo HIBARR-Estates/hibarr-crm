@@ -159,6 +159,11 @@ class Deal extends BaseModel
         'won_at' => 'datetime',
     ];
 
+    public function leadFlightItineraries()
+    {
+        return $this->hasMany(LeadFlightItinerary::class);
+    }
+
     public function getImageUrlAttribute()
     {
         $gravatarHash = md5(strtolower(trim($this->name)));

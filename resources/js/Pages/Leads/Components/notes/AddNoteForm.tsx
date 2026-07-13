@@ -1,7 +1,7 @@
 import React from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import { Card, Form, Input, Button, App, Alert } from "antd";
-import { ArrowLeftOutlined, SaveOutlined } from "@ant-design/icons";
+import { Form, Input, Modal, App, Alert } from "antd";
+import { SaveOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
@@ -10,6 +10,7 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { LeadNote } from "@/Types/api/lead-note";
 import { Lead } from "@/Types/api/leads";
+import "@/Components/Common/note-modal.css";
 
 interface SaveNoteFormData {
     title: string;
@@ -21,6 +22,8 @@ interface AddNoteFormProps {
     lead: Lead;
     onCancel: () => void;
 }
+
+const FORM_ID = "add-note-modal-form";
 
 export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
     const { t } = useTranslation();
@@ -78,22 +81,33 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
         onCancel();
     };
 
-    return (
-        <div className="">
-            <Card variant="outlined">
-                <div className="mb-6 flex items-center">
-                    <Button
-                        type="text"
-                        size="small"
-                        icon={<ArrowLeftOutlined />}
-                        onClick={handleCancel}
-                        className="text-gray-600 hover:text-gray-800 -ml-2"
-                    />
-                    <span className="text-lg font-medium ml-2 text-gray-500">
-                        {t("pages.leads.notes.add_new_title")}
-                    </span>
-                </div>
+    const loading = isLoading({ status: addNoteMutation.status });
 
+    return (
+        <Modal
+            className="note-modal"
+            title={null}
+            open
+            onCancel={handleCancel}
+            footer={null}
+            width={700}
+            centered
+            destroyOnHidden
+            maskClosable={!loading}
+            closable={!loading}
+        >
+            {/* Header */}
+            <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
+                <h2 className="text-xl font-semibold text-gray-900 leading-tight">
+                    {t("pages.leads.notes.add_new_title")}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                    {t("pages.leads.notes.click_to_write")}
+                </p>
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 py-5">
                 {errors.length > 0 && (
                     <Alert
                         type="error"
@@ -114,10 +128,10 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                 )}
 
                 <Form
+                    id={FORM_ID}
                     form={form}
                     layout="vertical"
                     onFinish={handleSaveNote}
-                    className="space-y-6"
                 >
                     <Form.Item
                         name="title"
@@ -132,9 +146,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                     >
                         <Input
                             placeholder={t("pages.leads.notes.placeholder_title")}
-                            disabled={isLoading({
-                                status: addNoteMutation.status,
-                            })}
+                            disabled={loading}
                             className="text-lg py-3"
                             autoFocus
                         />
@@ -149,39 +161,39 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ lead, onCancel }) => {
                                 validator: validateHtmlContent,
                             },
                         ]}
-                        className="mb-6"
                     >
                         <HtmlEditor
                             placeholder={t("pages.leads.notes.placeholder_content_add")}
-                            disabled={isLoading({
-                                status: addNoteMutation.status,
-                            })}
+                            disabled={loading}
                             height={300}
                         />
                     </Form.Item>
-
-                    <div className="flex items-center justify-end space-x-3 pt-6 border-t border-gray-100">
-                        <Button
-                            onClick={handleCancel}
-                            disabled={isLoading({
-                                status: addNoteMutation.status,
-                            })}
-                        >
-                            {t("pages.leads.notes.btn_cancel")}
-                        </Button>
-                        <Button
-                            type="primary"
-                            htmlType="submit"
-                            loading={isLoading({
-                                status: addNoteMutation.status,
-                            })}
-                            icon={<SaveOutlined />}
-                        >
-                            {t("pages.leads.notes.btn_save")}
-                        </Button>
-                    </div>
                 </Form>
-            </Card>
-        </div>
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-end gap-3">
+                <button
+                    onClick={handleCancel}
+                    disabled={loading}
+                    className="px-4 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                >
+                    {t("pages.leads.notes.btn_cancel")}
+                </button>
+                <button
+                    form={FORM_ID}
+                    type="submit"
+                    disabled={loading}
+                    className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                        !loading
+                            ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 active:scale-[0.98]"
+                            : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                    }`}
+                >
+                    <SaveOutlined />
+                    {t("pages.leads.notes.btn_save")}
+                </button>
+            </div>
+        </Modal>
     );
 };

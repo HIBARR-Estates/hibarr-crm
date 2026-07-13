@@ -39,7 +39,7 @@ class FormDataController extends Controller
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'categories', 'sources', 'employees',
+            'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages', 'developer-projects', 'developer_projects'
         ];
@@ -86,7 +86,7 @@ class FormDataController extends Controller
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'categories', 'sources', 'employees',
+            'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages'
         ];

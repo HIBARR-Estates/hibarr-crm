@@ -5,6 +5,12 @@ import { LeadNote } from "@/Types/api/lead-note";
 import DashboardLayout from "@/Components/DashboardLayout";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { User } from "@/Types";
+import LeadInfoSection from "./Components/LeadInfoSection";
+import LeadNotesTab from "./Components/LeadNotesTab";
+import LeadDealsTab from "./Components/LeadDealsTab";
+import LeadMarketingTab from "./Components/LeadMarketingTab";
+import LeadQualificationTab from "./Components/Qualification/LeadQualificationTab";
+import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
 import { Task } from "@/Types/api/tasks";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
@@ -44,7 +50,6 @@ const Show = (props: LeadShowProps) => {
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const useRedesign = featureFlags?.["crm.lead-view-redesign"] === true;
-    // const useRedesign = true;
 
     return useRedesign ? (
         <LeadViewRedesign {...props} />

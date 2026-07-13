@@ -1,73 +1,129 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
-import type { LeadQualification, TemplateTree } from "@/Types/qualification";
-import { useLeadQualificationService } from "@/Services/LeadQualificationService";
-import { getQualificationTemplateService } from "@/Services/QualificationTemplateService";
+import type { PublishedTemplate } from "@/Types/qualification";
+import useLeadQualificationLoader from "@/Pages/Leads/Components/Qualification/useLeadQualificationLoader";
 
-export type QualificationWorkspacePhase =
-    | "loading"
-    | "empty"
-    | "inProgress"
-    | "completed";
+interface UseLeadQualificationWorkspaceOptions {
+    enabled?: boolean;
+}
 
-export default function useLeadQualificationWorkspace(lead: Lead) {
-    const qualificationService = useLeadQualificationService();
-    const templateService = useMemo(
-        () => getQualificationTemplateService(),
-        [],
+export default function useLeadQualificationWorkspace(
+    lead: Lead,
+    { enabled = true }: UseLeadQualificationWorkspaceOptions = {},
+) {
+    const loader = useLeadQualificationLoader(lead.id, { enabled });
+    const [isStartingFlow, setIsStartingFlow] = useState(false);
+    const [templates, setTemplates] = useState<PublishedTemplate[]>([]);
+    const [templatesLoading, setTemplatesLoading] = useState(false);
+    const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(
+        null,
     );
 
-    const [phase, setPhase] = useState<QualificationWorkspacePhase>("loading");
-    const [current, setCurrent] = useState<LeadQualification | null>(null);
-    const [history, setHistory] = useState<LeadQualification[]>([]);
-    const [templateTree, setTemplateTree] = useState<TemplateTree | null>(null);
-
-    const loadQualifications = useCallback(async () => {
-        setPhase("loading");
-        try {
-            const response = await qualificationService.getQualifications(lead.id);
-            setCurrent(response.current);
-            setHistory(response.history ?? []);
-
-            if (response.current?.status === "inProgress") {
-                const treeResponse = await templateService.getTemplateTree(
-                    response.current.template_id,
-                );
-                setTemplateTree(treeResponse.data);
-                setPhase("inProgress");
-            } else if (response.current?.status === "completed") {
-                setPhase("completed");
-            } else {
-                setPhase("empty");
-            }
-        } catch {
-            message.error("Failed to load qualifications");
-            setPhase("empty");
-        }
-    }, [lead.id, qualificationService, templateService]);
+    const flowActive = loader.enabled && loader.phase === "inProgress";
+    const outcome =
+        loader.enabled && loader.current?.status === "completed"
+            ? loader.current.outcome ?? null
+            : null;
 
     useEffect(() => {
-        loadQualifications();
-    }, [loadQualifications]);
+        if (!enabled) {
+            setTemplates([]);
+            setSelectedTemplateId(null);
+            return;
+        }
 
-    const flowActive = phase === "inProgress";
-    const outcome =
-        current?.status === "completed" ? current.outcome ?? null : null;
+        let cancelled = false;
+        const load = async () => {
+            setTemplatesLoading(true);
+            try {
+                const response =
+                    await loader.templateService.getPublishedTemplates();
+                if (cancelled) return;
+                const list = response.data ?? [];
+                setTemplates(list);
+                setSelectedTemplateId((current) => {
+                    if (current && list.some((item) => item.id === current)) {
+                        return current;
+                    }
+                    return list[0]?.id ?? null;
+                });
+            } catch {
+                if (!cancelled) {
+                    setTemplates([]);
+                    setSelectedTemplateId(null);
+                }
+            } finally {
+                if (!cancelled) setTemplatesLoading(false);
+            }
+        };
+
+        void load();
+        return () => {
+            cancelled = true;
+        };
+    }, [enabled, loader.templateService]);
+
+    const startQualificationScript = useCallback(
+        async (templateId?: string | null): Promise<boolean> => {
+            if (!enabled || isStartingFlow) return flowActive;
+            if (flowActive) return true;
+
+            const targetId = templateId ?? selectedTemplateId;
+            const template =
+                templates.find((item) => item.id === targetId) ?? templates[0];
+
+            if (!template) {
+                message.warning(
+                    "No published qualification templates available",
+                );
+                return false;
+            }
+
+            setIsStartingFlow(true);
+            try {
+                const qualification =
+                    await loader.qualificationService.startQualification(
+                        lead.id,
+                        {
+                            template_id: template.id,
+                            template_version: template.version,
+                            template_name: template.name,
+                            agent_language: "en",
+                        },
+                    );
+
+                setSelectedTemplateId(template.id);
+                await loader.handleStarted(qualification);
+                return true;
+            } catch {
+                message.error("Failed to start qualification script");
+                return false;
+            } finally {
+                setIsStartingFlow(false);
+            }
+        },
+        [
+            enabled,
+            flowActive,
+            isStartingFlow,
+            lead.id,
+            loader.handleStarted,
+            loader.qualificationService,
+            selectedTemplateId,
+            templates,
+        ],
+    );
 
     return {
-        phase,
-        current,
-        history,
-        templateTree,
+        ...loader,
         flowActive,
         outcome,
-        qualificationService,
-        templateService,
-        loadQualifications,
-        setCurrent,
-        setHistory,
-        setTemplateTree,
-        setPhase,
+        isStartingFlow,
+        templates,
+        templatesLoading,
+        selectedTemplateId,
+        setSelectedTemplateId,
+        startQualificationScript,
     };
 }

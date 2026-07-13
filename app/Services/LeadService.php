@@ -42,7 +42,7 @@ class LeadService
                 'leads.lead_lifecycle_status_id',
                 'leads.salutation', 'leads.gender', 'leads.address', 'leads.city', 'leads.state', 
                 'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office',
-                'leads.languages', 'leads.date_of_birth', 'leads.nationality', 'leads.occupation',
+                'leads.languages', 'leads.date_of_birth', 'leads.age', 'leads.age_range', 'leads.nationality', 'leads.occupation',
             ]);
 
         // Apply permission-based filtering

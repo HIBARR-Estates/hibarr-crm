@@ -42,11 +42,29 @@ return new class extends Migration {
         }
 
 
+        // SQLite cannot drop foreign keys in-place. On sqlite, Laravel will
+        // rebuild the table when dropping the column, so we can safely skip
+        // the explicit foreign key drop.
+        if (Schema::getConnection()->getDriverName() !== 'sqlite') {
+            Schema::table('proposal_templates', function (Blueprint $table) {
+                $table->dropForeign(['lead_id']);
+            });
+        }
+
+        // SQLite doesn't allow multiple dropColumn calls in a single schema modification.
         Schema::table('proposal_templates', function (Blueprint $table) {
-            $table->dropForeign(['lead_id']);
             $table->dropColumn('lead_id');
+        });
+
+        Schema::table('proposal_templates', function (Blueprint $table) {
             $table->dropColumn('note');
+        });
+
+        Schema::table('proposal_templates', function (Blueprint $table) {
             $table->dropColumn('calculate_tax');
+        });
+
+        Schema::table('proposal_templates', function (Blueprint $table) {
             $table->dropColumn('status');
         });
 
