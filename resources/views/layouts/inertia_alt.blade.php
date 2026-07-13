@@ -22,16 +22,6 @@
 
     {{-- Polyfills (optional) --}}
     <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=smoothscroll,NodeList.prototype.forEach,Promise,Object.values,Object.assign" defer></script>
-
-    {{-- Load your built JS (make sure it's deferred!) --}}
-    
-    {{-- Debug script --}}
-    <script>
-        console.log('✅ app.blade.php loaded');
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('✅ DOM loaded, looking for #app element:', document.getElementById('app'));
-        });
-    </script>
 </head>
 <body class="font-sans leading-none text-gray-700 antialiased">
     
@@ -40,6 +30,11 @@
     @inertia
 
     @routes
+    {{-- A1/A3: initial splitChunks must be script-tagged (runtime stays in inertia.js).
+         Order: shared libs first, entry last. Async page chunks (A2) load via Webpack publicPath `/`. --}}
+    <script src="{{ mix('js/react.js') }}" defer></script>
+    <script src="{{ mix('js/vendor.js') }}" defer></script>
+    <script src="{{ mix('js/antd.js') }}" defer></script>
     <script src="{{ mix('js/inertia.js') }}" defer></script>
 </body>
 </html>
