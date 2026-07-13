@@ -174,7 +174,7 @@ export const useFormDataBatch = (types: FormDataType[]) => {
  * fetch once via the form-data API (React Query cache).
  */
 export function useCountries(options: { enabled?: boolean } = {}) {
-    const { props } = usePage<{ countries?: unknown[] }>();
+    const { props } = usePage();
     const pageCountries = props.countries;
     const hasPageData =
         Array.isArray(pageCountries) && pageCountries.length > 0;
@@ -196,7 +196,7 @@ export function useCountries(options: { enabled?: boolean } = {}) {
  * Prefer page props when currencies were passed; otherwise fetch company currencies.
  */
 export function useCurrencies(options: { enabled?: boolean } = {}) {
-    const { props } = usePage<{ currencies?: unknown[] }>();
+    const { props } = usePage();
     const pageCurrencies = props.currencies;
     const hasPageData =
         Array.isArray(pageCurrencies) && pageCurrencies.length > 0;
