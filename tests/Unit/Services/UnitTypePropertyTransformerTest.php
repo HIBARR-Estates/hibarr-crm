@@ -29,7 +29,7 @@ class UnitTypePropertyTransformerTest extends TestCase
         $this->assertTrue($transformed['is_sold_out']);
     }
 
-    public function test_transform_omits_sold_out_indicator_when_not_flagged(): void
+    public function test_transform_includes_is_sold_out_as_false_when_not_flagged(): void
     {
         $unitType = new DeveloperProjectUnitType([
             'id' => 43,

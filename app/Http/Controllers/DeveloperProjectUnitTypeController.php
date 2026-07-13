@@ -165,7 +165,7 @@ class DeveloperProjectUnitTypeController extends Controller
             'property_type' => 'nullable|string|in:' . implode(',', $allPropertyTypes),
             'quantity' => 'nullable|integer|min:1',
             'total_sold' => 'nullable|integer|min:0',
-            'is_sold_out' => 'nullable|boolean',
+            'is_sold_out' => 'sometimes|boolean',
             'unit_style' => 'nullable|array',
             'unit_style.*' => 'string|in:' . implode(',', array_keys(DeveloperProjectUnitType::UNIT_STYLES)),
             'view_types' => 'nullable|array',
