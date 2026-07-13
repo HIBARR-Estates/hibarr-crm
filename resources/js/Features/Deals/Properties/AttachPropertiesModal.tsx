@@ -833,13 +833,13 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             </span>
                             <div className="flex flex-wrap items-center gap-1">
                                 {unitType.reference_code && (
-                                    <Tag className="!text-[10px]">
+                                    <Tag className="text-[10px]!">
                                         {unitType.reference_code}
                                     </Tag>
                                 )}
                                 <UnitSoldOutBadge
                                     soldOut={unitType.is_sold_out}
-                                    className="!text-[10px]"
+                                    className="!text-[10px]!"
                                 />
                             </div>
                         </div>

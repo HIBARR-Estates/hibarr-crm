@@ -3,15 +3,22 @@
 namespace Tests\Unit\Models;
 
 use App\Models\DeveloperProjectUnitType;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 class DeveloperProjectUnitTypeSoldOutTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_is_sold_out_defaults_to_false(): void
     {
-        $unitType = new DeveloperProjectUnitType();
+        // Persist an empty record using the factory or direct creation
+        $unitType = DeveloperProjectUnitType::factory()->create();
 
-        $this->assertFalse((bool) $unitType->is_sold_out);
+        // Refresh from the database to verify the actual schema default value
+        $unitType->refresh();
+
+        $this->assertFalse($unitType->is_sold_out);
     }
 
     public function test_is_sold_out_is_cast_to_boolean(): void
