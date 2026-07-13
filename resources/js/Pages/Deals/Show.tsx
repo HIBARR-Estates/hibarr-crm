@@ -118,6 +118,9 @@ export function withDealShowDefaults(
         taskBoardColumns: shell.taskBoardColumns ?? [],
         employees: shell.employees ?? [],
         projects: shell.projects ?? [],
+        // Re-assert shell keys so TS intersection requires them as defined.
+        meetingTypes: shell.meetingTypes ?? [],
+        permissions: shell.permissions ?? {},
     };
 }
 
@@ -457,7 +460,12 @@ export const Show = (props: Props) => {
     // const useRedesign = true;
 
     return useRedesign ? (
-        <DealViewRedesign {...withDealShowShellDefaults(props)} />
+        <DealViewRedesign
+            {...withDealShowShellDefaults({
+                ...props,
+                notes: props?.notes ?? [],
+            })}
+        />
     ) : (
         <LegacyDealShow {...withDealShowDefaults(props)} />
     );
