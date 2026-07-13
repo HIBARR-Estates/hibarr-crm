@@ -36,6 +36,7 @@ import { PropertyPermissions } from "@/Hooks/usePropertyPermissions";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 const { Title, Text } = Typography;
 
@@ -59,10 +60,10 @@ function PropertyHeader({
     onGenerateExpose,
 }: PropertyHeaderProps) {
     const { props } = usePage<any>();
+    const { currencies } = useCurrencies();
     const {
         default_currency_code: defaultCurrencyCode,
         default_currency_symbol: defaultCurrencySymbol,
-        currencies = [],
     } = props || {};
 
     // Copied state for reference code

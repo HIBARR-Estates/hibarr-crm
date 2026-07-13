@@ -3,8 +3,8 @@
 namespace App\Http\Middleware;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use App\Support\FeatureFlags;
+use App\Services\I18nTranslationService;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -14,16 +14,6 @@ class HandleInertiaRequests extends Middleware
      */
     // None of the four supported languages (en, de, ru, tr) are RTL
     protected array $rtlLocales = [];
-
-    /**
-     * Locale to language folder mapping
-     */
-    protected array $localeToFolder = [
-        'en' => 'eng',
-        'de' => 'de',
-        'ru' => 'ru',
-        'tr' => 'tr',
-    ];
 
     /**
      * The root template that's loaded on the first page visit.
@@ -64,8 +54,7 @@ class HandleInertiaRequests extends Middleware
             ],
             'default_currency_symbol' => fn () => $this->getDefaultCurrencySymbol(),
             'default_currency_code' => fn () => $this->getDefaultCurrencyCode(),
-            'currencies' => fn () => $this->getCompanyCurrencies(),
-            'countries' => fn () => $this->getCountries(),
+            // countries / currencies: page props or GET /account/api/form-data/{type} (Task B3)
             'errors' => fn () => $request->session()->get('errors')
                 ? $request->session()->get('errors')->getBag('default')->getMessages()
                 : (object) [],
@@ -77,26 +66,24 @@ class HandleInertiaRequests extends Middleware
             ],
             'csrf_token' => csrf_token(),
             'app_url' => config('app.url'),
-            'company' => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
-            'appName' => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting()->app_name ?? config('app.name') : config('app.name'),
-            'appTheme' => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
-            // TODO: Remove sidebar props once refactor is complete
+            'company' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
+            'appName' => fn () => function_exists('companyOrGlobalSetting')
+                ? (companyOrGlobalSetting()->app_name ?? config('app.name'))
+                : config('app.name'),
+            'appTheme' => fn () => function_exists('companyOrGlobalSetting') ? companyOrGlobalSetting() : null,
+            // Permissions/modules live on auth.*; sidebar keeps only sidebar-specific extras.
             'sidebar' => [
-                'permissions' => function_exists('user') ? $this->getAllPermissions() : [],
-                'modules' => function_exists('user_modules') ? user_modules() : [],
-                'unreadMessagesCount' => function_exists('user') && user() ? $this->getUnreadMessagesCount() : 0,
-                'customLinks' => function_exists('user') ? $this->getCustomLinks() : [],
-                'worksuitePlugins' => function_exists('user') ? $this->getWorksuitePlugins() : [],
+                'unreadMessagesCount' => fn () => function_exists('user') && user() ? $this->getUnreadMessagesCount() : 0,
+                'customLinks' => fn () => function_exists('user') ? $this->getCustomLinks() : [],
+                'worksuitePlugins' => fn () => function_exists('user') ? $this->getWorksuitePlugins() : [],
             ],
             'currentRouteName' => $request->route() ? $request->route()->getName() : '',
             'pipelines' => fn () => $this->getPipelines(),
 
-            // Internationalization props
+            // Internationalization props (dictionaries load via GET /account/api/i18n/{locale}.json)
             'locale' => fn () => $this->getCurrentLocale(),
-            'translations' => fn () => $this->getTranslations(),
-            'fallbackTranslations' => fn () => $this->getFallbackTranslations(),
             'isRtl' => fn () => $this->isRtlLocale(),
-            'availableLocales' => fn () => $this->getAvailableLocales(),
+            'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
             'featureFlags' => fn () => FeatureFlags::forInertia(),
         ]);
     }
@@ -135,70 +122,6 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
     }
-
-        /**
-     * Get company currencies safely
-     */
-    private function getCompanyCurrencies()
-    {
-        try {
-            $company = function_exists('company') ? company() : null;
-            
-            if (!$company) {
-                return [];
-            }
-
-            // Load currencies relationship and convert to array
-            $currencies = $company->currencies()->get();
-            
-            // Return as array with all necessary fields
-            return $currencies->map(function ($currency) {
-                return [
-                    'id' => $currency->id,
-                    'company_id' => $currency->company_id,
-                    'currency_name' => $currency->currency_name,
-                    'currency_symbol' => $currency->currency_symbol,
-                    'currency_code' => $currency->currency_code,
-                    'exchange_rate' => $currency->exchange_rate,
-                    'is_cryptocurrency' => $currency->is_cryptocurrency,
-                    'usd_price' => $currency->usd_price,
-                ];
-            })->toArray();
-        } catch (\Exception $e) {
-            return [];
-        }
-    }
-
-    /**
-     * Get countries safely
-     */
-    private function getCountries()
-    {
-        try {
-            // Use cache to avoid querying database on every request
-            $countries = \Illuminate\Support\Facades\Cache::remember('countries_list', 3600, function () {
-                return \App\Models\Country::all();
-            });
-            
-            // Return as array with all necessary fields (including nationality)
-            return $countries->map(function ($country) {
-                return [
-                    'id' => $country->id,
-                    'iso' => $country->iso,
-                    'name' => $country->name,
-                    'nicename' => $country->nicename,
-                    'iso3' => $country->iso3,
-                    'numcode' => $country->numcode,
-                    'phonecode' => $country->phonecode,
-                    'nationality' => $country->nationality, // Include nationality attribute
-                ];
-            })->toArray();
-        } catch (\Exception $e) {
-            return [];
-        }
-    }
-
-  
 
     private function getUnreadMessagesCount(): int
     {
@@ -317,140 +240,5 @@ class HandleInertiaRequests extends Middleware
     private function isRtlLocale(): bool
     {
         return in_array($this->getCurrentLocale(), $this->rtlLocales);
-    }
-
-    /**
-     * Get translations for frontend (cached per locale with TTL)
-     */
-    private function getTranslations(): array
-    {
-        $locale = $this->getCurrentLocale();
-
-        \Log::channel('daily')->debug('[i18n] getTranslations called', [
-            'locale'        => $locale,
-            'cache_key'     => "translations_{$locale}",
-            'cache_hit'     => Cache::has("translations_{$locale}"),
-        ]);
-
-        return Cache::remember("translations_{$locale}", 3600, function () use ($locale) {
-            \Log::channel('daily')->info('[i18n] Building translations from disk (cache miss)', ['locale' => $locale]);
-            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders', 'pages'];
-
-            // Always load English as the base translations
-            $englishPath = lang_path('eng');
-            $baseTranslations = [];
-
-            foreach ($files as $file) {
-                $filePath = $englishPath . '/' . $file . '.php';
-                if (file_exists($filePath)) {
-                    $baseTranslations[$file] = require $filePath;
-                }
-            }
-
-            // If locale is English, return English translations directly
-            if ($locale === 'en') {
-                return $this->flattenTranslations($baseTranslations);
-            }
-
-            // For non-English locales, overlay locale-specific translations on top of English
-            $folder = $this->localeToFolder[$locale] ?? 'eng';
-            $path = lang_path($folder);
-
-            \Log::channel('daily')->info('[i18n] Loading locale files', [
-                'locale' => $locale,
-                'folder' => $folder,
-                'path'   => $path,
-                'exists' => is_dir($path),
-            ]);
-
-            if (is_dir($path)) {
-                foreach ($files as $file) {
-                    $filePath = $path . '/' . $file . '.php';
-                    $exists   = file_exists($filePath);
-                    \Log::channel('daily')->debug('[i18n] Translation file check', [
-                        'file'   => $filePath,
-                        'exists' => $exists,
-                    ]);
-                    if ($exists) {
-                        $localeData = require $filePath;
-                        // Deep merge: locale translations override English, missing keys keep English values
-                        $baseTranslations[$file] = array_replace_recursive(
-                            $baseTranslations[$file] ?? [],
-                            $localeData
-                        );
-                    }
-                }
-            }
-
-            $flat = $this->flattenTranslations($baseTranslations);
-            \Log::channel('daily')->info('[i18n] Translation bundle built', [
-                'locale'     => $locale,
-                'key_count'  => count($flat),
-                'sample_key' => array_key_first($flat) ?? 'none',
-            ]);
-            return $flat;
-        });
-    }
-
-    /**
-     * Get English fallback translations for i18next client-side fallback
-     * Only sent when locale is non-English so i18next fallbackLng works
-     */
-    private function getFallbackTranslations(): ?array
-    {
-        $locale = $this->getCurrentLocale();
-
-        // No need for fallback when already English
-        if ($locale === 'en') {
-            return null;
-        }
-
-        return Cache::remember('translations_en', 3600, function () {
-            $englishPath = lang_path('eng');
-            $files = ['app', 'modules', 'messages', 'permissions', 'placeholders', 'pages'];
-            $translations = [];
-
-            foreach ($files as $file) {
-                $filePath = $englishPath . '/' . $file . '.php';
-                if (file_exists($filePath)) {
-                    $translations[$file] = require $filePath;
-                }
-            }
-
-            return $this->flattenTranslations($translations);
-        });
-    }
-
-    /**
-     * Flatten nested translation arrays for i18next
-     */
-    private function flattenTranslations(array $translations, string $prefix = ''): array
-    {
-        $flat = [];
-
-        foreach ($translations as $key => $value) {
-            $newKey = $prefix ? "{$prefix}.{$key}" : $key;
-
-            if (is_array($value)) {
-                $flat = array_merge($flat, $this->flattenTranslations($value, $newKey));
-            } else {
-                $flat[$newKey] = $value;
-            }
-        }
-
-        return $flat;
-    }
-
-    /**
-     * Get available locales for language switcher
-     */
-    private function getAvailableLocales(): array
-    {
-        return [
-            'en' => ['name' => 'English', 'native' => 'English', 'dir' => 'ltr', 'flag' => 'gb'],
-            'de' => ['name' => 'German', 'native' => 'Deutsch', 'dir' => 'ltr', 'flag' => 'de'],
-            'ru' => ['name' => 'Russian', 'native' => 'Русский', 'dir' => 'ltr', 'flag' => 'ru'],
-            'tr' => ['name' => 'Turkish', 'native' => 'Türkçe', 'dir' => 'ltr', 'flag' => 'tr'],
-        ];
     }
 }

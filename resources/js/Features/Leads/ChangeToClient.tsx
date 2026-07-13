@@ -25,6 +25,7 @@ import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { isLoading as _isLoading } from "@/lib/utils";
 import FormDataSelector from "@/Components/FormDataSelector";
 import { errorFormatter } from "@/lib/api/utils/common";
+import { useCountries } from "@/Hooks/useFormData";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -69,8 +70,8 @@ interface ClientResponse {
 
 const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
     const { props } = usePage();
+    const { countries } = useCountries();
     const {
-        countries = [],
         categories = [],
         salutations = [],
         languages = [],

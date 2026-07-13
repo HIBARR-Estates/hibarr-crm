@@ -10,7 +10,8 @@ import { router, usePage } from "@inertiajs/react";
 import { useTranslation as useI18nTranslation } from "react-i18next";
 import {
     default as i18n,
-    initI18n,
+    clearI18nCache,
+    loadI18n,
     type AvailableLocales,
     type SupportedLocale,
 } from "@/lib/i18n";
@@ -37,7 +38,7 @@ const TranslationContext = createContext<TranslationContextValue | null>(null);
 
 /**
  * Translation Provider
- * Initializes i18next with server-provided translations
+ * Loads dictionaries from /account/api/i18n/{locale}.json and syncs locale from Inertia props.
  */
 export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
     children,
@@ -45,26 +46,33 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
     const { props } = usePage();
     const [isReady, setIsReady] = useState(i18n.isInitialized);
 
-    // Extract i18n props from Inertia shared props (type-safe access)
+    // Locale metadata still comes from Inertia shared props; dictionaries do not.
     const locale = (props.locale as string) || "en";
-    const translations = (props.translations as Record<string, string>) || {};
-    console.log(translations, "translations  ....");
-    const fallbackTranslations =
-        (props.fallbackTranslations as Record<string, string> | null) || null;
     const isRtl = (props.isRtl as boolean) || false;
     const availableLocales = (props.availableLocales as AvailableLocales) || {
         en: { name: "English", native: "English", dir: "ltr", flag: "gb" },
     };
 
-    // Initialize i18next on mount or when locale/translations change
+    // Fetch/apply dictionaries whenever locale changes (boot + language switch).
     useEffect(() => {
-        initI18n(locale, translations, fallbackTranslations);
-        setIsReady(i18n.isInitialized);
+        let cancelled = false;
 
-        // Update document direction and language
-        document.documentElement.dir = isRtl ? "rtl" : "ltr";
-        document.documentElement.lang = locale;
-    }, [locale, translations, fallbackTranslations, isRtl]);
+        loadI18n(locale)
+            .then(() => {
+                if (cancelled) return;
+                setIsReady(true);
+                document.documentElement.dir = isRtl ? "rtl" : "ltr";
+                document.documentElement.lang = locale;
+            })
+            .catch(() => {
+                if (cancelled) return;
+                setIsReady(i18n.isInitialized);
+            });
+
+        return () => {
+            cancelled = true;
+        };
+    }, [locale, isRtl]);
 
     // Get the t function from react-i18next
     const { t: i18nT } = useI18nTranslation();
@@ -80,6 +88,8 @@ export const TranslationProvider: React.FC<{ children: React.ReactNode }> = ({
 
     // Change language by redirecting to the language change route
     const changeLanguage = useCallback((newLocale: SupportedLocale) => {
+        // Ensure the next load pulls fresh dictionaries for the target locale.
+        clearI18nCache(newLocale);
         router.post(
             "/account/settings/profile/change-language",
             { locale: newLocale },

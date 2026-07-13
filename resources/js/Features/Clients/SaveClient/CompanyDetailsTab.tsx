@@ -3,7 +3,7 @@ import { Row, Col, Input, Upload, Typography, Form, Select } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { Lead, Country } from "@/Types";
 import PhoneInput from "antd-phone-input";
-import { usePage } from "@inertiajs/react";
+import { useCountries } from "@/Hooks/useFormData";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -26,8 +26,7 @@ const CompanyDetailsTab: React.FC<Props> = ({
     employees,
     permissions,
 }) => {
-    const { props } = usePage();
-    const { countries = [] } = props as { countries: Country[] };
+    const { countries } = useCountries();
 
     const [selectedCountry, setSelectedCountry] = useState<Country | null>(
         null

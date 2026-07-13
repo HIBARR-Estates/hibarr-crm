@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -167,3 +168,48 @@ export const useFormDataBatch = (types: FormDataType[]) => {
         refetch,
     };
 };
+
+/**
+ * Prefer page props when a controller already passed countries; otherwise
+ * fetch once via the form-data API (React Query cache).
+ */
+export function useCountries(options: { enabled?: boolean } = {}) {
+    const { props } = usePage<{ countries?: unknown[] }>();
+    const pageCountries = props.countries;
+    const hasPageData =
+        Array.isArray(pageCountries) && pageCountries.length > 0;
+
+    const { data, loading, error, refetch } = useFormData("countries", {
+        paginate: false,
+        enabled: options.enabled !== false && !hasPageData,
+    });
+
+    return {
+        countries: (hasPageData ? pageCountries : data) as any[],
+        loading: hasPageData ? false : loading,
+        error,
+        refetch,
+    };
+}
+
+/**
+ * Prefer page props when currencies were passed; otherwise fetch company currencies.
+ */
+export function useCurrencies(options: { enabled?: boolean } = {}) {
+    const { props } = usePage<{ currencies?: unknown[] }>();
+    const pageCurrencies = props.currencies;
+    const hasPageData =
+        Array.isArray(pageCurrencies) && pageCurrencies.length > 0;
+
+    const { data, loading, error, refetch } = useFormData("currencies", {
+        paginate: false,
+        enabled: options.enabled !== false && !hasPageData,
+    });
+
+    return {
+        currencies: (hasPageData ? pageCurrencies : data) as any[],
+        loading: hasPageData ? false : loading,
+        error,
+        refetch,
+    };
+}

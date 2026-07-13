@@ -3,7 +3,7 @@ import { createRoot } from "react-dom/client";
 import { OuterProviders, InnerProviders } from "./providers";
 import { route } from "ziggy-js";
 import React from "react";
-import { initI18n } from "@/lib/i18n";
+import { initI18n, loadI18n } from "@/lib/i18n";
 // import { Ziggy } from "./ziggy";
 
 // Declare global route function
@@ -37,30 +37,12 @@ createInertiaApp({
         return component;
     },
     setup({ App, props, el: og }) {
-        // Initialize i18n before first render so react-i18next hooks always have an instance.
         const sharedProps =
             ((props as { initialPage?: { props?: Record<string, unknown> } })
                 .initialPage?.props as Record<string, unknown> | undefined) ||
             {};
 
         const locale = (sharedProps.locale as string) || "en";
-        const translations =
-            (sharedProps.translations as Record<string, string>) || {};
-        const fallbackTranslations =
-            (sharedProps.fallbackTranslations as Record<
-                string,
-                string
-            > | null) || null;
-
-        console.log("[i18n] Bootstrap props received", {
-            locale,
-            translationKeyCount: Object.keys(translations).length,
-            hasFallback: fallbackTranslations !== null,
-            sampleKey: Object.keys(translations)[0] ?? "none",
-            sampleValue: translations[Object.keys(translations)[0]] ?? "none",
-        });
-
-        initI18n(locale, translations, fallbackTranslations);
 
         const el = document.getElementById("app");
         if (!el) {
@@ -69,10 +51,20 @@ createInertiaApp({
 
         const root = createRoot(el);
 
-        root.render(
-            <OuterProviders>
-                <App {...props} />
-            </OuterProviders>,
-        );
+        const mount = () => {
+            root.render(
+                <OuterProviders>
+                    <App {...props} />
+                </OuterProviders>,
+            );
+        };
+
+        // Load dictionaries from dedicated endpoint before first paint.
+        loadI18n(locale)
+            .catch(() => {
+                // Degrade gracefully; TranslationProvider may retry on mount.
+                initI18n(locale, {}, null);
+            })
+            .finally(mount);
     },
 });

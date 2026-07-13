@@ -6,6 +6,7 @@ import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useTranslation from "@/Hooks/useTranslation";
+import { useCurrencies } from "@/Hooks/useFormData";
 import type { Deal } from "@/Types/api/deals";
 
 const HIBARR_FIELD_NAMES = [
@@ -29,7 +30,7 @@ export default function useDealInfoFieldUpdate(initialDeal: Deal) {
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
     const { props } = usePage<any>();
-    const currencies = props.currencies || [];
+    const { currencies } = useCurrencies();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const { t } = useTranslation();
     const dealPermissions = useDealPermissions(deal);

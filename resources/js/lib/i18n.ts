@@ -39,9 +39,23 @@ export type AvailableLocale = {
 
 export type AvailableLocales = Record<string, AvailableLocale>;
 
+export type I18nPayload = {
+    locale: string;
+    translations: Record<string, string>;
+    fallbackTranslations?: Record<string, string> | null;
+};
+
+const dictionaryCache = new Map<string, I18nPayload>();
+
+/**
+ * Auth-gated JSON endpoint for flattened locale dictionaries.
+ * Kept as a path (not ziggy) so boot can fetch before Ziggy is required.
+ */
+export const i18nEndpoint = (locale: string): string =>
+    `/account/api/i18n/${encodeURIComponent(locale)}.json`;
+
 /**
  * Initialize i18next with translations from server
- * Called once when the app boots with Inertia shared props
  * @param locale - Current locale code
  * @param translations - Translations for the current locale (already merged with English on server)
  * @param fallbackTranslations - English translations for i18next fallback (null when locale is 'en')
@@ -96,9 +110,53 @@ export const initI18n = (
 };
 
 /**
+ * Fetch locale dictionaries (with in-memory cache) and apply them to i18next.
+ */
+export async function loadI18n(locale: string = "en"): Promise<typeof i18n> {
+    const normalized = locale || "en";
+    let payload = dictionaryCache.get(normalized);
+
+    if (!payload) {
+        const response = await fetch(i18nEndpoint(normalized), {
+            credentials: "same-origin",
+            headers: { Accept: "application/json" },
+        });
+
+        if (!response.ok) {
+            throw new Error(
+                `Failed to load i18n dictionaries for "${normalized}" (${response.status})`,
+            );
+        }
+
+        payload = (await response.json()) as I18nPayload;
+        dictionaryCache.set(normalized, payload);
+        if (payload.locale && payload.locale !== normalized) {
+            dictionaryCache.set(payload.locale, payload);
+        }
+    }
+
+    return initI18n(
+        payload.locale || normalized,
+        payload.translations || {},
+        payload.fallbackTranslations ?? null,
+    );
+}
+
+/**
+ * Drop a cached locale payload (e.g. after an explicit language switch).
+ */
+export function clearI18nCache(locale?: string): void {
+    if (locale) {
+        dictionaryCache.delete(locale);
+        return;
+    }
+    dictionaryCache.clear();
+}
+
+/**
  * Check if a locale is RTL
  */
-export const isRtlLocale = (locale: string): boolean => {
+export const isRtlLocale = (_locale: string): boolean => {
     // None of the four supported languages (en, de, ru, tr) are RTL
     return false;
 };

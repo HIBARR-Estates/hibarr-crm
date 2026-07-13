@@ -13,10 +13,9 @@ import {
     Button,
 } from "antd";
 import { UploadOutlined } from "@ant-design/icons";
-import { usePage } from "@inertiajs/react";
 import type { RepeatableItemSchema } from "@/Types";
-import type { PageProps } from "@/Components/DashboardLayout";
 import CurrencyInput from "./CurrencyInput";
+import { useCountries } from "@/Hooks/useFormData";
 
 interface RepeatableFieldRendererProps {
     field: {
@@ -52,8 +51,7 @@ const RepeatableFieldRenderer: React.FC<RepeatableFieldRendererProps> = ({
     isFieldVisible,
     currentCustomFieldsData: providedData,
 }) => {
-    const { props } = usePage<PageProps>();
-    const countries = props?.countries ?? [];
+    const { countries } = useCountries();
     const watched = Form.useWatch(namePrefix, form);
     const currentCustomFieldsData = providedData ?? watched ?? {};
 
