@@ -83,9 +83,43 @@ mix.js("resources/js/bootstrap.js", "public/js")
         require("autoprefixer"),
     ])
     .options({ processCssUrls: false })
-    .sourceMaps(true, "source-map")
+    // A4: keep source maps in development; omit large .map files from production builds
+    .sourceMaps(false, "source-map")
     .webpackConfig({
         plugins: [new RemoveSvgStylingPlugin()],
+        // A1: emit vendor/common chunks (prep for async page imports in A2).
+        // Names include `js/` because initial split chunks use output.filename
+        // (`[name].js`), not chunkFilename — same pattern as Mix `.extract()`.
+        optimization: {
+            splitChunks: {
+                chunks: "all",
+                cacheGroups: {
+                    // Finer cache groups first (higher priority) so antd/react
+                    // are not swallowed by the generic vendor group.
+                    antd: {
+                        test: /[\\/]node_modules[\\/](antd|@ant-design)[\\/]/,
+                        name: "js/antd",
+                        chunks: "all",
+                        priority: 30,
+                        reuseExistingChunk: true,
+                    },
+                    react: {
+                        test: /[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+                        name: "js/react",
+                        chunks: "all",
+                        priority: 20,
+                        reuseExistingChunk: true,
+                    },
+                    vendor: {
+                        test: /[\\/]node_modules[\\/]/,
+                        name: "js/vendor",
+                        chunks: "all",
+                        priority: 10,
+                        reuseExistingChunk: true,
+                    },
+                },
+            },
+        },
         resolve: {
             alias: {
                 "@": path.resolve(__dirname, "resources/js"),
