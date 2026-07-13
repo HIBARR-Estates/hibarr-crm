@@ -245,10 +245,15 @@ class HandleInertiaRequests extends Middleware
                 return [];
             }
 
-            return \App\Models\LeadPipeline::has('stages')
-                ->select('id', 'name', 'default')
-                ->get()
-                ->toArray();
+            $query = \App\Models\LeadPipeline::has('stages')
+                ->select('id', 'name', 'default');
+                
+
+            if (FeatureFlags::enabled('crm.pipeline-nav-visibility')) {
+                $query->visibleInNav();
+            }
+
+            return $query->get()->toArray();
         } catch (\Exception $e) {
             return [];
         }

@@ -10,6 +10,8 @@ use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
+use App\Support\FeatureFlags;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LeadPipelineSettingController extends AccountBaseController
@@ -117,6 +119,28 @@ class LeadPipelineSettingController extends AccountBaseController
 
             $pipeline->save();
         }
+
+        return Reply::success(__('messages.updateSuccess'));
+    }
+
+    public function updateNavVisibility(Request $request, $id)
+    {
+        abort_unless(FeatureFlags::enabled('crm.pipeline-nav-visibility'), 404);
+
+        $request->validate([
+            'hidden_from_nav' => 'required|boolean',
+        ]);
+
+        $pipeline = LeadPipeline::where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
+
+        if ($pipeline->default == 1 && $request->boolean('hidden_from_nav')) {
+            return Reply::error(__('modules.deal.pipelineDefaultNavVisibilityError'));
+        }
+
+        $pipeline->hidden_from_nav = $request->boolean('hidden_from_nav');
+        $pipeline->save();
 
         return Reply::success(__('messages.updateSuccess'));
     }
