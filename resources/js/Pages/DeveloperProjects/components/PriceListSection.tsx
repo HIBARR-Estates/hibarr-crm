@@ -1,6 +1,7 @@
 import React from "react";
 import { Card, Tabs, Tag, Empty, Typography } from "antd";
 import { DataTable } from "@/Components/DataTable";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import type { UnitTypePriceListItem } from "../Show";
 import { snakeToReadable } from "../../../lib/utils";
 
@@ -78,8 +79,15 @@ const PriceListSection: React.FC<{ priceList: UnitTypePriceListItem[] }> = ({
                                         title: "Reference",
                                         dataIndex: "reference_code",
                                         key: "reference_code",
-                                        render: (code: string | null, record) =>
-                                            code || `UT-${record.id}`,
+                                        render: (code: string | null, record) => (
+                                            <div className="flex flex-wrap items-center gap-1">
+                                                <span>{code || `UT-${record.id}`}</span>
+                                                <UnitSoldOutBadge
+                                                    soldOut={record.is_sold_out}
+                                                    className="!text-[10px]"
+                                                />
+                                            </div>
+                                        ),
                                     },
                                     {
                                         title: "Beds",

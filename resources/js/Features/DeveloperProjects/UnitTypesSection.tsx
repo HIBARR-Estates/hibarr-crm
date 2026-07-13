@@ -19,6 +19,7 @@ import {
     App,
     Modal,
 } from "antd";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import {
     PlusOutlined,
     EditOutlined,
@@ -210,14 +211,20 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                     )}
 
                     <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-                        <Tag
-                            color={categoryColor(ut.primary_category)}
-                            className="!m-0 !rounded-full !px-2.5 !py-0.5 !text-[10px]"
-                        >
-                            {ut.primary_category === "residential"
-                                ? "Residential"
-                                : "Commercial"}
-                        </Tag>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <Tag
+                                color={categoryColor(ut.primary_category)}
+                                className="!m-0 !rounded-full !px-2.5 !py-0.5 !text-[10px]"
+                            >
+                                {ut.primary_category === "residential"
+                                    ? "Residential"
+                                    : "Commercial"}
+                            </Tag>
+                            <UnitSoldOutBadge
+                                soldOut={ut.is_sold_out}
+                                className="!m-0 !rounded-full !px-2.5 !py-0.5 !text-[10px]"
+                            />
+                        </div>
                         {ut.reference_code && (
                             <button
                                 type="button"
@@ -398,9 +405,12 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                 width={1080}
                 title={
                     <div className="flex flex-col gap-1 pr-8">
-                        <span className="text-lg font-semibold text-gray-900">
-                            {title}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-lg font-semibold text-gray-900">
+                                {title}
+                            </span>
+                            <UnitSoldOutBadge soldOut={ut.is_sold_out} />
+                        </div>
                         <span className="text-sm text-gray-500 capitalize">
                             {ut.property_type?.replace(/_/g, " ") ??
                                 "Unit type"}
