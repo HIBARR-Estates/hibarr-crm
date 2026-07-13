@@ -58,7 +58,7 @@ export default function WorkspaceSubTabBar({
                             onClick={() => onChange(tab.id)}
                         >
                             <span>{labelMap[tab.id]}</span>
-                            {count !== null && (
+                            {count != null && (
                                 <span className="rounded-full bg-[#e9edf3] px-2 py-[1px] text-[11px] text-[#4b5563]">
                                     {count}
                                 </span>

@@ -7,15 +7,15 @@ import { toLeadMeetingPreview } from "../adapters/meetingAdapter";
 import { getTaskPriorityWeight, toLeadTaskPreview } from "../adapters/taskAdapter";
 
 interface UseLeadOverviewArgs {
-    notes: LeadNote[];
-    tasks: Task[];
-    leadFollowUps: DealFollowup[];
+    notes?: LeadNote[];
+    tasks?: Task[];
+    leadFollowUps?: DealFollowup[];
 }
 
 export default function useLeadOverview({
-    notes,
-    tasks,
-    leadFollowUps,
+    notes = [],
+    tasks = [],
+    leadFollowUps = [],
 }: UseLeadOverviewArgs) {
     const mappedNotes = useMemo(() => notes.map(toLeadNotePreview), [notes]);
 

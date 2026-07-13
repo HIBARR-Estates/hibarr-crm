@@ -28,6 +28,13 @@ export default function DealViewRedesign(props: DealShowProps) {
     const { t } = useTranslation();
     const { td } = useTd();
 
+    const meetingTypes = props.meetingTypes ?? [];
+    const permissions = props.permissions ?? {};
+    const fields = props.fields ?? [];
+    const customFieldCategories = props.customFieldCategories ?? [];
+    const employees = props.employees ?? [];
+    const taskBoardColumns = props.taskBoardColumns ?? [];
+
     return (
         <PageLayout
             title={pageTitle}
@@ -41,8 +48,8 @@ export default function DealViewRedesign(props: DealShowProps) {
                 <div className="mx-auto w-full max-w-[1320px]">
                     <DealStickyHeader
                         deal={props.deal}
-                        permissions={props.permissions}
-                        employees={props.employees}
+                        permissions={permissions}
+                        employees={employees}
                         isRefreshing={isRefreshing}
                         onRefresh={refresh}
                     />
@@ -76,10 +83,10 @@ export default function DealViewRedesign(props: DealShowProps) {
                                 dealFollowUps={props.dealFollowUps}
                                 files={props.files}
                                 proposals={props.proposals}
-                                fields={props.fields}
-                                meetingTypes={props.meetingTypes}
-                                taskBoardColumns={props.taskBoardColumns}
-                                permissions={props.permissions}
+                                fields={fields}
+                                meetingTypes={meetingTypes}
+                                taskBoardColumns={taskBoardColumns}
+                                permissions={permissions}
                                 activeSubTab={nav.workspaceSubTab}
                                 onChangeSubTab={nav.setWorkspaceSubTab}
                                 onSwitchToDealInfo={() =>
@@ -90,10 +97,8 @@ export default function DealViewRedesign(props: DealShowProps) {
                         {nav.mainTab === "dealinfo" && (
                             <DealInfoTab
                                 deal={props.deal}
-                                customFieldCategories={
-                                    props.customFieldCategories
-                                }
-                                fields={props.fields}
+                                customFieldCategories={customFieldCategories}
+                                fields={fields}
                                 activeSection={nav.infoSection}
                                 onSectionChange={nav.setInfoSection}
                             />

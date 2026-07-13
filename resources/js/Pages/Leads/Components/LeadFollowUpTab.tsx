@@ -37,9 +37,9 @@ interface Props {
 
 export default function LeadFollowUpTab({
     lead,
-    followUps,
-    permissions,
-    deals,
+    followUps = [],
+    permissions = {},
+    deals = [],
     onScheduleMeeting,
 }: Props) {
     const { props } = usePage();

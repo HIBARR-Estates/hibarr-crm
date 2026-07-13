@@ -13,8 +13,8 @@ import type { QualificationOutcome } from "@/Types/qualification";
 interface UseLeadMissionArgs {
     lead: Lead;
     leadName: string;
-    tasks: Task[];
-    leadFollowUps: DealFollowup[];
+    tasks?: Task[];
+    leadFollowUps?: DealFollowup[];
     flowActive: boolean;
     outcome: QualificationOutcome | null;
     qualificationAnswers?: LeadQualificationAnswer[];
@@ -26,8 +26,8 @@ interface UseLeadMissionArgs {
 export default function useLeadMission({
     lead,
     leadName,
-    tasks,
-    leadFollowUps,
+    tasks = [],
+    leadFollowUps = [],
     flowActive,
     outcome,
     qualificationAnswers,

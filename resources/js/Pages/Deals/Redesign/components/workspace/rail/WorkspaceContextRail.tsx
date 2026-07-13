@@ -11,18 +11,22 @@ import WorkspaceLeadCard from "./WorkspaceLeadCard";
 import WorkspaceMeetingsCard from "./WorkspaceMeetingsCard";
 import WorkspaceStageFocusCard from "./WorkspaceStageFocusCard";
 import WorkspaceUpcomingTasksCard from "./WorkspaceUpcomingTasksCard";
+import { RailCardDeferredSkeleton } from "../overview/overviewShared";
 
 interface WorkspaceContextRailProps {
     deal: Deal;
-    files: DealFile[];
+    /** undefined = deferred files still pending (C4) */
+    files?: DealFile[];
     fields?: Array<{
         id: number;
         label?: string;
         name?: string;
         type?: string;
     }>;
-    upcomingTasks: WorkspaceTaskPreview[];
-    upcomingMeetings: WorkspaceMeetingPreview[];
+    /** undefined = deferred tasks still pending */
+    upcomingTasks?: WorkspaceTaskPreview[];
+    /** undefined = deferred follow-ups still pending */
+    upcomingMeetings?: WorkspaceMeetingPreview[];
     onNavigateToSubTab: (tab: WorkspaceSubTab) => void;
     onSwitchToDealInfo: () => void;
     onAddTask: () => void;
@@ -40,33 +44,45 @@ export default function WorkspaceContextRail({
     onAddTask,
     onAddMeeting,
 }: WorkspaceContextRailProps) {
-    const documents = useDealDocuments(deal, files, fields);
+    const documents = useDealDocuments(deal, files ?? [], fields);
     const stageFocus = useDealStageFocus(deal, fields);
 
     return (
         <aside className="space-y-0">
             <WorkspaceLeadCard deal={deal} />
-            <WorkspaceDocumentsCard
-                documents={documents.documents}
-                uploadedCount={documents.uploadedCount}
-                totalCount={documents.totalCount}
-                onOpenFiles={() => onNavigateToSubTab("files")}
-            />
+            {files === undefined ? (
+                <RailCardDeferredSkeleton />
+            ) : (
+                <WorkspaceDocumentsCard
+                    documents={documents.documents}
+                    uploadedCount={documents.uploadedCount}
+                    totalCount={documents.totalCount}
+                    onOpenFiles={() => onNavigateToSubTab("files")}
+                />
+            )}
             <WorkspaceDealDetailsCard deal={deal} />
             <WorkspaceStageFocusCard
                 focus={stageFocus}
                 onViewAll={onSwitchToDealInfo}
             />
-            <WorkspaceUpcomingTasksCard
-                tasks={upcomingTasks}
-                onAddTask={onAddTask}
-                onOpenTasks={() => onNavigateToSubTab("tasks")}
-            />
-            <WorkspaceMeetingsCard
-                meetings={upcomingMeetings}
-                onAddMeeting={onAddMeeting}
-                onOpenMeetings={() => onNavigateToSubTab("meetings")}
-            />
+            {upcomingTasks === undefined ? (
+                <RailCardDeferredSkeleton />
+            ) : (
+                <WorkspaceUpcomingTasksCard
+                    tasks={upcomingTasks}
+                    onAddTask={onAddTask}
+                    onOpenTasks={() => onNavigateToSubTab("tasks")}
+                />
+            )}
+            {upcomingMeetings === undefined ? (
+                <RailCardDeferredSkeleton />
+            ) : (
+                <WorkspaceMeetingsCard
+                    meetings={upcomingMeetings}
+                    onAddMeeting={onAddMeeting}
+                    onOpenMeetings={() => onNavigateToSubTab("meetings")}
+                />
+            )}
         </aside>
     );
 }

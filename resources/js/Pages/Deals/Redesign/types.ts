@@ -18,12 +18,12 @@ export type WorkspaceSubTab =
     | "recommendations";
 
 export interface WorkspaceSubTabCount {
-    notes: number;
-    tasks: number;
-    meetings: number;
-    files: number;
-    offers: number;
-    recommendations: number;
+    notes?: number;
+    tasks?: number;
+    meetings?: number;
+    files?: number;
+    offers?: number;
+    recommendations?: number;
 }
 export type DealInfoCoreSectionId =
     | "general"
@@ -44,21 +44,22 @@ export interface DealShowProps extends PageProps {
     productNames: string[];
     customFieldCategories: any[];
     fields: any[];
-    notes: Note[];
-    dealFollowUps: DealFollowup[];
-    meetingTypes: Array<{ id: number; name: string; color?: string }>;
-    files: DealFile[];
-    proposals: Proposal[];
-    histories: any[];
-    consents: any[];
-    gdprSetting: any;
+    meetingTypes?: Array<{ id: number; name: string; color?: string }>;
     permissions: Record<string, string>;
     pageTitle: string;
-    tasks: Task[];
-    taskCategories: any[];
-    taskLabels: any[];
-    taskBoardColumns: any[];
-    employees: any[];
-    projects: any[];
     dealAiSummary?: DealSummaryPayload | null;
+    // C1 deferred — may be undefined until Inertia resolves them
+    notes?: Note[];
+    dealFollowUps?: DealFollowup[];
+    files?: DealFile[];
+    proposals?: Proposal[];
+    histories?: any[];
+    consents?: any[];
+    gdprSetting?: any;
+    tasks?: Task[];
+    taskCategories?: any[];
+    taskLabels?: any[];
+    taskBoardColumns?: any[];
+    employees?: any[];
+    projects?: any[];
 }

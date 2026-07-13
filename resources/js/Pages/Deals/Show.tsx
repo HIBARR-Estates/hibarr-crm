@@ -39,29 +39,90 @@ import DealViewRedesign from "./Redesign/DealViewRedesign";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import type { DealSummaryPayload } from "@/Types/entity-summary";
 
-interface Props extends PageProps {
+export interface DealShowPageProps extends PageProps {
     deal: Deal;
     productNames: string[];
     customFieldCategories: any[];
     fields: any[];
+    meetingTypes?: Array<{ id: number; name: string; color?: string }>;
+    permissions: Record<string, string>;
+    pageTitle: string;
+    dealAiSummary?: DealSummaryPayload | null;
+    // C1 deferred — may be undefined until Inertia resolves them
+    notes?: Note[];
+    dealFollowUps?: DealFollowup[];
+    files?: DealFile[];
+    proposals?: Proposal[];
+    histories?: any[];
+    activities?: any[];
+    consents?: any[];
+    gdprSetting?: any;
+    tasks?: Task[];
+    taskCategories?: any[];
+    taskLabels?: any[];
+    taskBoardColumns?: any[];
+    employees?: any[];
+    projects?: any[];
+}
+
+/**
+ * Shell / permission defaults only.
+ * Leave C1 deferred collections undefined while pending so redesign can skeleton (C4).
+ */
+export function withDealShowShellDefaults(
+    props: DealShowPageProps,
+): DealShowPageProps {
+    return {
+        ...props,
+        meetingTypes: props.meetingTypes ?? [],
+        permissions: props.permissions ?? {},
+        productNames: props.productNames ?? [],
+        customFieldCategories: props.customFieldCategories ?? [],
+        fields: props.fields ?? [],
+    };
+}
+
+/** Legacy path: fill deferred keys so legacy tabs never see undefined iterables. */
+export function withDealShowDefaults(
+    props: DealShowPageProps,
+): DealShowPageProps & {
     notes: Note[];
     dealFollowUps: DealFollowup[];
-    meetingTypes: Array<{ id: number; name: string; color?: string }>;
     files: DealFile[];
     proposals: Proposal[];
     histories: any[];
     consents: any[];
-    gdprSetting: any;
-    permissions: Record<string, string>;
-    pageTitle: string;
     tasks: Task[];
     taskCategories: any[];
     taskLabels: any[];
     taskBoardColumns: any[];
     employees: any[];
     projects: any[];
-    dealAiSummary?: DealSummaryPayload | null;
+    meetingTypes: Array<{ id: number; name: string; color?: string }>;
+    permissions: Record<string, string>;
+} {
+    const shell = withDealShowShellDefaults(props);
+    return {
+        ...shell,
+        notes: shell.notes ?? [],
+        dealFollowUps: shell.dealFollowUps ?? [],
+        files: shell.files ?? [],
+        proposals: shell.proposals ?? [],
+        histories: shell.histories ?? [],
+        activities: shell.activities ?? [],
+        consents: shell.consents ?? [],
+        gdprSetting: shell.gdprSetting ?? null,
+        tasks: shell.tasks ?? [],
+        taskCategories: shell.taskCategories ?? [],
+        taskLabels: shell.taskLabels ?? [],
+        taskBoardColumns: shell.taskBoardColumns ?? [],
+        employees: shell.employees ?? [],
+        projects: shell.projects ?? [],
+    };
 }
+
+type Props = DealShowPageProps;
+
 const { Title } = Typography;
 
 export const LegacyDealShow = ({
@@ -69,22 +130,22 @@ export const LegacyDealShow = ({
     productNames,
     customFieldCategories,
     fields,
-    notes,
-    dealFollowUps,
-    meetingTypes,
-    files,
-    proposals,
-    histories,
-    consents,
-    gdprSetting,
-    permissions,
+    notes = [],
+    dealFollowUps = [],
+    meetingTypes = [],
+    files = [],
+    proposals = [],
+    histories = [],
+    consents = [],
+    gdprSetting = null,
+    permissions = {},
     pageTitle,
-    tasks,
-    taskCategories,
-    taskLabels,
-    taskBoardColumns,
-    employees,
-    projects,
+    tasks = [],
+    taskCategories = [],
+    taskLabels = [],
+    taskBoardColumns = [],
+    employees = [],
+    projects = [],
     featureFlags: pageFeatureFlags,
     dealAiSummary,
 }: Props) => {
@@ -396,9 +457,9 @@ export const Show = (props: Props) => {
     // const useRedesign = true;
 
     return useRedesign ? (
-        <DealViewRedesign {...props} />
+        <DealViewRedesign {...withDealShowShellDefaults(props)} />
     ) : (
-        <LegacyDealShow {...props} />
+        <LegacyDealShow {...withDealShowDefaults(props)} />
     );
 };
 
