@@ -217,21 +217,10 @@ class HandleInertiaRequests extends Middleware
     {
         // Priority: User preference > Session > App default
         if (function_exists('user') && user() && user()->locale) {
-            $locale = user()->locale;
-            \Log::channel('daily')->debug('[i18n] Locale resolved from user record', [
-                'user_id' => user()->id,
-                'locale'  => $locale,
-            ]);
-            return $locale;
+            return user()->locale;
         }
 
-        $locale = session('locale', app()->getLocale());
-        \Log::channel('daily')->debug('[i18n] Locale resolved from session/app default', [
-            'session_locale' => session('locale'),
-            'app_locale'     => app()->getLocale(),
-            'resolved'       => $locale,
-        ]);
-        return $locale;
+        return session('locale', app()->getLocale());
     }
 
     /**
