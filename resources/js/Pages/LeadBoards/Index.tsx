@@ -57,7 +57,7 @@ export interface LeadBoardIndexProps extends PageProps {
     categories: LeadCategory[];
     sources: LeadSource[];
     stages: PipelineStage[];
-    pipelines: Pipeline[];
+    allPipelines: Pipeline[];
     leadAgents: LeadAgent[];
     dealWatcher: User[];
     dealLeads: Array<{ id: number; client_name: string }>;
@@ -77,7 +77,7 @@ const LeadBoardIndex = ({
     pageTitle,
     result: initialResult,
     categories,
-    pipelines,
+    allPipelines: pipelines,
     leadAgents,
     dealWatcher,
     products,
