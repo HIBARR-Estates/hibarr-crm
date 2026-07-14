@@ -451,7 +451,7 @@ class LeadBoardController extends AccountBaseController
                 'currentPipelineName' => $currentPipelineName,
                 'addLeadPermission' => user()->permission('add_deals'),
                 'viewLeadPermission' => $this->viewLeadPermission,
-                'pipelines' => $this->pipelines,
+                'allPipelines' => $this->pipelines,
                 'defaultPipeline' => $this->defaultPipeline,
                 'startDate' => $this->startDate,
                 'endDate' => $this->endDate,

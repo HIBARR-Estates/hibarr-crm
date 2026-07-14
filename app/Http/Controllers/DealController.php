@@ -165,7 +165,7 @@ class DealController extends AccountBaseController
                 'to' => $paginatedDeals->lastItem(),
             ],
             'boardColumns' => $boardColumns,
-            'pipelines' => $this->pipelines,
+            'allPipelines' => $this->pipelines,
             'defaultPipeline' => $this->defaultPipeline,
             'filters' => $request->only([
                 'lead_pipeline_id',
