@@ -89,7 +89,7 @@ export interface IndexProps extends PageProps {
     employees: User[];
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     salutations: Array<{ value: string; label: string }>;
-    pipelines: Pipeline[];
+    allPipelines: Pipeline[];
     packages: Package[];
     addLeadPermission?: string;
 }
@@ -100,7 +100,7 @@ const Index = ({
     boardColumns: initialBoardColumns,
     stages,
     leadAgents,
-    pipelines,
+    allPipelines: pipelines,
     packages,
     sources,
     defaultPipeline,

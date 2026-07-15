@@ -18,5 +18,7 @@ return [
         'sales.crm-lead-deal-sync',
         'sally.crm-write-client',
         'integrations.zoho-calendar-sync',
+        'crm.unit-sold-out-badge',
+        'crm.unit-sold-out-grid-diagonal-ribbon',
     ],
 ];

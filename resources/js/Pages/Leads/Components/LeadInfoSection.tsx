@@ -291,7 +291,6 @@ const ageRangeOptions = useMemo(
                     }
                     return updated as Lead;
                 });
-                router.reload({ only: ['lead'] });
             }
             // Clear the updating field after completion
             setUpdatingField(null);
@@ -565,7 +564,6 @@ const ageRangeOptions = useMemo(
                         return updated as Lead;
                     });
                     message.success(t("pages.leads.info.file_upload_success"));
-                    router.reload({ only: ['lead'] });
                 }
                 setUpdatingField(null);
                 return;
