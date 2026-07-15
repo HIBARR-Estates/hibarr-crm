@@ -124,6 +124,19 @@ const BulkChangeDealAgents: React.FC<Props> = ({
                         onChange={setSelectedAgentId}
                         className="w-full"
                         optionLabelProp="label"
+                        showSearch
+                        filterOption={(input, option) => {
+                            const agent = uniqueLeadAgents.find(
+                                (a) => a.id === option?.value
+                            );
+                            const name = agent?.user?.name || agent?.name || "";
+                            const email = agent?.user?.email || "";
+                            const search = input.toLowerCase();
+                            return (
+                                name.toLowerCase().includes(search) ||
+                                email.toLowerCase().includes(search)
+                            );
+                        }}
                     >
                         {uniqueLeadAgents.map((agent) => (
                             <Select.Option
