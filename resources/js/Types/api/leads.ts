@@ -134,6 +134,7 @@ export interface CreateLeadFormData {
     note?: string;
     source_id?: number;
     category_id?: number;
+    lead_lifecycle_status_id?: number | null;
     lead_owner?: number;
     added_by?: number;
     create_deal?: boolean;

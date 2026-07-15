@@ -306,13 +306,15 @@ class Lead extends BaseModel
 
     /**
      * Alias so the frontend (which reads `lead_lifecycle_status`) gets the
-     * `lifecycleStatus` relation under the key it expects. Uses whatever's
-     * already loaded/lazy-loaded on `lifecycleStatus` — no extra query when
-     * the relation has been eager-loaded.
+     * `lifecycleStatus` relation under the key it expects. Only returns
+     * something when the relation has already been eager-loaded — this is
+     * appended to every Lead's serialization, so it must never trigger a
+     * fresh lazy-load query (that would be an N+1 on every place a Lead
+     * gets serialized without explicitly eager-loading lifecycleStatus).
      */
     public function getLeadLifecycleStatusAttribute()
     {
-        return $this->lifecycleStatus;
+        return $this->relationLoaded('lifecycleStatus') ? $this->lifecycleStatus : null;
     }
 
     public function qualifications(): HasMany
