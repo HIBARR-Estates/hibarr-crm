@@ -925,7 +925,7 @@ class CrmWriteService
     {
         $ids = collect($meetings)
             ->flatMap(fn (DealFollowUp $meeting) => $meeting->participants ?? [])
-            ->filter('is_numeric')
+            ->filter(fn ($id) => is_numeric($id))
             ->map(fn ($id) => (int) $id)
             ->unique()
             ->values();
