@@ -11,6 +11,7 @@ use App\Models\Lead;
 use App\Helper\Reply;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
@@ -139,6 +140,8 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function index(Request $request)
     {
+        $filtersModalEnabled = FeatureFlags::enabled('crm.projects-filters-modal');
+
         $query = DeveloperProject::with(['location', 'exposeConfig', 'developer', 'thumbnail', 'assets'])
             ->withCount('properties')
             ->withCount(['properties as sold_properties_count' => function ($q) {
@@ -164,8 +167,22 @@ class DeveloperProjectController extends AccountBaseController
                 END DESC
             ", ["%{$search}%", "%{$search}%"]);
         }
-        // Filter by location if provided
-        if ($request->filled('location_id')) {
+
+        if ($filtersModalEnabled) {
+            // Filter by city / area attributes on project_locations
+            if ($request->filled('city')) {
+                $city = strtolower(trim((string) $request->city));
+                $query->whereHas('location', function ($q) use ($city, $request) {
+                    $q->whereRaw('LOWER(TRIM(COALESCE(city, ""))) = ?', [$city]);
+
+                    if ($request->filled('area')) {
+                        $area = strtolower(trim((string) $request->area));
+                        $q->whereRaw('LOWER(TRIM(COALESCE(area, ""))) = ?', [$area]);
+                    }
+                });
+            }
+        } elseif ($request->filled('location_id')) {
+            // Legacy: filter by exact project_location FK
             $query->where('project_location_id', $request->location_id);
         }
 
@@ -238,9 +255,13 @@ class DeveloperProjectController extends AccountBaseController
             ->orderBy('name')
             ->get();
 
+        $locationColumns = $filtersModalEnabled
+            ? ['id', 'name', 'city', 'area']
+            : ['id', 'name'];
+
         $locations = \App\Models\ProjectLocation::where('company_id', user()->company_id)
             ->whereHas('developerProjects')
-            ->select('id', 'name')
+            ->select($locationColumns)
             ->orderBy('name')
             ->get();
 
@@ -254,27 +275,28 @@ class DeveloperProjectController extends AccountBaseController
             ->orderBy('label')
             ->get();
 
-        // For Inertia page render
-        // if (!$request->ajax() && !$request->wantsJson()) {
-            return Inertia::render('DeveloperProjects/Index', [
-                'pageTitle' => 'Construction Projects',
-                'projects' => $projects,
-                'developers' => $developers,
-                'locations' => $locations,
-                'constructionStatuses' => $constructionStatuses,
-                'primaryCategories' => $primaryCategories,
-                'filters' => $request->only([
-                    'search', 'location_id', 'sort',
-                    'developer_id', 'construction_status', 'primary_category',
-                    'payment_plan_duration', 'price_min', 'price_max',
-                ]),
-            ]);
-        // }
+        $filterKeys = [
+            'search', 'sort',
+            'developer_id', 'construction_status', 'primary_category',
+            'payment_plan_duration', 'price_min', 'price_max',
+        ];
 
-        // // For AJAX/API requests
-        // return Reply::successWithData('Developer projects fetched successfully', [
-        //     'projects' => $projects,
-        // ]);
+        if ($filtersModalEnabled) {
+            $filterKeys[] = 'city';
+            $filterKeys[] = 'area';
+        } else {
+            $filterKeys[] = 'location_id';
+        }
+
+        return Inertia::render('DeveloperProjects/Index', [
+            'pageTitle' => 'Construction Projects',
+            'projects' => $projects,
+            'developers' => $developers,
+            'locations' => $locations,
+            'constructionStatuses' => $constructionStatuses,
+            'primaryCategories' => $primaryCategories,
+            'filters' => $request->only($filterKeys),
+        ]);
     }
 
     /**
