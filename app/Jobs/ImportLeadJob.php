@@ -4,6 +4,8 @@ namespace App\Jobs;
 
 use App\Models\Deal;
 use App\Models\Lead;
+use App\Models\LeadCategory;
+use App\Models\LeadLifecycleStatus;
 use App\Models\LeadPipeline;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
@@ -83,8 +85,23 @@ class ImportLeadJob implements ShouldQueue
 
                 $leadSource = null;
 
-                if ($this->isColumnExists('source')) {
-                    $leadSource = LeadSource::where('type', $this->getColumnValue('source'))->where('company_id', $this->company?->id)->first();
+                if ($this->isColumnExists('source') && $this->company?->id) {
+                    $leadSource = LeadSource::resolveFromText($this->company->id, $this->getColumnValue('source'));
+                }
+
+                $leadCategory = null;
+
+                if ($this->isColumnExists('category') && $this->company?->id) {
+                    $leadCategory = LeadCategory::resolveFromText($this->company->id, $this->getColumnValue('category'));
+                }
+
+                $lifecycleStatus = null;
+
+                if ($this->isColumnExists('lifecycle_status') && $this->company?->id) {
+                    $lifecycleStatus = LeadLifecycleStatus::resolveFromText(
+                        $this->company->id,
+                        $this->getColumnValue('lifecycle_status')
+                    );
                 }
 
                 $lead = new Lead();
@@ -105,6 +122,10 @@ class ImportLeadJob implements ShouldQueue
                 $lead->postal_code = $this->isColumnExists('postal_code') ? $this->getColumnValue('postal_code') : null;
                 $lead->address = $this->isColumnExists('address') ? $this->getColumnValue('address') : null;
                 $lead->source_id = $leadSource?->id;
+                $lead->category_id = $leadCategory?->id;
+                // Leave unset (null) when the cell is blank or doesn't match a known
+                // status — LeadObserver will fill in the company's default status.
+                $lead->lead_lifecycle_status_id = $lifecycleStatus?->id;
 
                 $leads = Session::get('leads', []);
 

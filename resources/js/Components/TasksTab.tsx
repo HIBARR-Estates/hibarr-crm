@@ -210,6 +210,8 @@ export default function TasksTab({
                     onStatusChange={handleStatusChange as any}
                     canEdit={(task) => hasTaskPermission(task as any, "edit_tasks")}
                     canDelete={(task) => hasTaskPermission(task as any, "delete_tasks")}
+                    canChangeStatus={(task) => hasTaskPermission(task as any, "change_status")}
+                    suppressEntityType={relatedEntity.type === "lead" ? "lead" : undefined}
                     td={td}
                 />
             )}

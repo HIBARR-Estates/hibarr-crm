@@ -80,6 +80,7 @@ return [
                 'added_by'      => 'Ekleyen',
                 'lead_source'   => 'Lead Kaynağı',
                 'category'      => 'Kategori',
+                'lifecycle_status' => 'Yaşam Döngüsü Durumu',
                 'created_at'    => 'Oluşturulma Tarihi',
                 'updated_at'    => 'Güncellenme Tarihi',
                 'country'       => 'Ülke',

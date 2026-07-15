@@ -121,7 +121,7 @@ class LeadContactController extends AccountBaseController
             'customFieldCategories' => $customFieldsData['customFieldCategories'],
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
-                ->get(['id', 'key', 'label']),
+                ->get(['id', 'key', 'label', 'label_color']),
         ]);
     }
 
@@ -296,7 +296,7 @@ class LeadContactController extends AccountBaseController
                 ->orderBy('created_at', 'desc')
                 ->get()),
             'tasks' => Inertia::defer(fn () => $leadContact->tasks()
-                ->with(['users', 'category', 'boardColumn', 'labels'])
+                ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
                 ->orderBy('id', 'desc')
                 ->get()),
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
@@ -524,6 +524,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
         $leadContact->category_id = $request->category_id;
+        $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->company_name = $request->company_name;
@@ -701,6 +702,9 @@ class LeadContactController extends AccountBaseController
         $leadContact->source_id = $request->source_id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->category_id = $request->category_id;
+        if ($request->has('lead_lifecycle_status_id')) {
+            $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
+        }
         $leadContact->company_name = $request->company_name;
         $leadContact->website = $request->website;
         $leadContact->address = $request->address;
@@ -874,7 +878,10 @@ class LeadContactController extends AccountBaseController
             if ($request->has('status_id')) {
                 $leadContact->status_id = $request->status_id;
             }
-            
+            if ($request->has('lead_lifecycle_status_id')) {
+                $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
+            }
+
             // Handle other fields
             if ($request->has('column_priority')) {
                 $leadContact->column_priority = $request->column_priority;
@@ -1003,6 +1010,7 @@ class LeadContactController extends AccountBaseController
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
+                    'lead_lifecycle_status_id',
                 ];
                 
                 foreach ($allowedFields as $field) {
@@ -1032,7 +1040,13 @@ class LeadContactController extends AccountBaseController
                     $leadContact->load('leadOwner');
                     $responseData['lead_owner'] = $leadContact->leadOwner;
                 }
-                
+
+                if ($request->has('lead_lifecycle_status_id')) {
+                    $leadContact->load('lifecycleStatus');
+                    $responseData['lifecycleStatus'] = $leadContact->lifecycleStatus;
+                    $responseData['lead_lifecycle_status'] = $leadContact->lifecycleStatus;
+                }
+
                 // If custom fields were updated (including file uploads), include the updated custom_fields_data
                 if ($request->has('custom_fields') || $request->hasFile('custom_fields')) {
                     $leadContact->withCustomFields();

@@ -96,6 +96,19 @@ const ageRangeOptions = useMemo(
             })),
         [props.ageRanges],
     );
+    const leadLifecycleStatusOptions = useMemo(
+        () =>
+            (
+                (props.leadLifecycleStatuses as Array<{
+                    id: number;
+                    label: string;
+                }>) || []
+            ).map((option) => ({
+                value: option.id,
+                label: option.label,
+            })),
+        [props.leadLifecycleStatuses],
+    );
 
     const resolveAgeRangeLabel = useCallback(
         (value: string) =>
@@ -627,7 +640,8 @@ const ageRangeOptions = useMemo(
                     fieldName === "source_id" ||
                     fieldName === "lead_owner" ||
                     fieldName === "status_id" ||
-                    fieldName === "agent_id"
+                    fieldName === "agent_id" ||
+                    fieldName === "lead_lifecycle_status_id"
                 ) {
                     // Convert empty/falsy values to null for nullable integer fields
                     processedValue = value ? value : null;
@@ -1177,6 +1191,50 @@ const ageRangeOptions = useMemo(
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("category_id")}
+                            />
+                        </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.lifecycle_status")}>
+                            <EditableField
+                                value={
+                                    currentLeadState.lead_lifecycle_status_id ||
+                                    null
+                                }
+                                fieldName="lead_lifecycle_status_id"
+                                fieldType="select"
+                                options={leadLifecycleStatusOptions}
+                                onSave={(value) =>
+                                    handleFieldUpdate(
+                                        "lead_lifecycle_status_id",
+                                        value,
+                                    )
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    currentLeadState.lead_lifecycle_status
+                                        ?.label ? (
+                                        <Tag
+                                            color={
+                                                currentLeadState
+                                                    .lead_lifecycle_status
+                                                    .label_color || "blue"
+                                            }
+                                            className="font-medium"
+                                        >
+                                            {
+                                                currentLeadState
+                                                    .lead_lifecycle_status
+                                                    .label
+                                            }
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading(
+                                    "lead_lifecycle_status_id",
+                                )}
                             />
                         </DetailField>
 

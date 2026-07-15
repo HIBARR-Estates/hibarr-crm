@@ -80,6 +80,7 @@ return [
                 'added_by'      => 'Hinzugefügt von',
                 'lead_source'   => 'Lead-Quelle',
                 'category'      => 'Kategorie',
+                'lifecycle_status' => 'Lebenszyklus-Status',
                 'created_at'    => 'Erstellt am',
                 'updated_at'    => 'Aktualisiert am',
                 'country'       => 'Land',

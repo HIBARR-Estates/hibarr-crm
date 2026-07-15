@@ -4,7 +4,7 @@ import { Deal } from "@/Types/api/deals";
 import { LeadNote } from "@/Types/api/lead-note";
 import type { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
-import { Card, Tabs, Button, Tooltip, message } from "antd";
+import { Card, Tabs, Button, Tooltip, message, Spin } from "antd";
 import { ReloadOutlined } from "@ant-design/icons";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import LeadFollowUpTab from "./Components/LeadFollowUpTab";
@@ -18,7 +18,7 @@ import LeadQualificationTab from "./Components/Qualification/LeadQualificationTa
 import { Task } from "@/Types/api/tasks";
 import TasksTab from "@/Components/TasksTab";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
-import { usePage } from "@inertiajs/react";
+import { usePage, Deferred } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import type { LeadShowProps } from "./Show";
@@ -196,16 +196,25 @@ export default function LegacyLeadShow({
             label: t("pages.leads.tabs.tasks"),
             tall: true,
             children: (
-                <TasksTab
-                    tasks={tasks}
-                    relatedEntity={{ type: "lead", id: lead.id }}
-                    taskCategories={taskCategories}
-                    taskLabels={taskLabels}
-                    taskBoardColumns={taskBoardColumns}
-                    employees={employees}
-                    projects={projects}
-                    permissions={taskPerms as any}
-                />
+                <Deferred
+                    data="tasks"
+                    fallback={
+                        <div className="flex justify-center py-16">
+                            <Spin />
+                        </div>
+                    }
+                >
+                    <TasksTab
+                        tasks={tasks}
+                        relatedEntity={{ type: "lead", id: lead.id }}
+                        taskCategories={taskCategories}
+                        taskLabels={taskLabels}
+                        taskBoardColumns={taskBoardColumns}
+                        employees={employees}
+                        projects={projects}
+                        permissions={taskPerms as any}
+                    />
+                </Deferred>
             ),
         },
         {

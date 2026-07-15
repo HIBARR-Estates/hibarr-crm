@@ -56,6 +56,7 @@ class PatchRequest extends CoreRequest
             'category_id' => 'sometimes|nullable|integer|exists:lead_category,id',
             'source_id' => 'sometimes|nullable|integer|exists:lead_sources,id',
             'status_id' => 'sometimes|nullable|integer|exists:lead_statuses,id',
+            'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
             
             // Products (all optional for patch)
             'products' => 'sometimes|array',

@@ -13,6 +13,7 @@ import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar"
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
 import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
 import OverviewPriorityBadge from "@/Pages/Deals/Redesign/components/workspace/overview/OverviewPriorityBadge";
+import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
 
 type TaskFilter = "open" | "done" | "all";
@@ -212,6 +213,15 @@ export default function LeadTasksTab({
                                         {task.assigneeName}
                                     </span>
                                 </div>
+
+                                {rawTask?.deals && rawTask.deals.length > 0 && (
+                                    <TaskEntityLink
+                                        type="deal"
+                                        id={rawTask.deals[0].id}
+                                        name={rawTask.deals[0].name}
+                                        className="mt-1"
+                                    />
+                                )}
                             </div>
                         </article>
                     );

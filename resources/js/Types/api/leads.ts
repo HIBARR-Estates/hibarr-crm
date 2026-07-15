@@ -65,6 +65,7 @@ export interface Lead {
     updated_at?: string;
     marketing?: LeadMarketing | null;
     lifecycle_status_id?: number | null;
+    lead_lifecycle_status_id?: number | null;
     lead_lifecycle_status?: LeadLifecycleStatus | null;
     languages?: string[];
     date_of_birth?: string | null;

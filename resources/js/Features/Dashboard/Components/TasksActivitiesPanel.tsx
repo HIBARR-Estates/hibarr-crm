@@ -11,8 +11,9 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { Link, router, usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import TaskRowList from "@/Features/Tasks/Components/TaskRowList";
+import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
@@ -242,11 +243,11 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         updateTaskStatus(
             { taskId: task.id, status: newStatus },
             {
-                onSuccess: () => {
-                    router.reload({
-                        only: ["tasks", "stats", "overviewMetrics"],
-                    });
-                },
+                // No reload on success — the optimistic status override above
+                // already reflects the change everywhere on this panel. The
+                // task also intentionally stays visible in its group (see
+                // `visibleTasks` below) until the user navigates away, rather
+                // than vanishing mid-review or the page reloading under them.
                 onError: () => {
                     setStatusOverrides((prev) => {
                         const next = { ...prev };
@@ -270,9 +271,13 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
         );
     };
 
-    // Separate tasks by status and urgency (exclude optimistically completed tasks)
+    // Separate tasks by status and urgency. Deliberately filter on the
+    // task's original (server-provided) status rather than the optimistic
+    // effective status — marking a task done here shouldn't make it vanish
+    // out from under the user; it should stick around until they navigate
+    // away and the panel reloads with a fresh task list.
     const visibleTasks = tasks.filter(
-        (task) => !isCompletedColumn(getEffectiveStatus(task), columns),
+        (task) => !isCompletedColumn(task.status, columns),
     );
     const overdueTasks = visibleTasks.filter((task) =>
         isOverdue(task.due_date),
@@ -304,25 +309,17 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     const renderEntityLink = (task: Task) => {
         if (task.deal) {
             return (
-                <Link
-                    href={route("deals.show", task.deal.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="truncate text-xs text-blue-600 hover:underline"
-                >
-                    {task.deal.name}
-                </Link>
+                <TaskEntityLink type="deal" id={task.deal.id} name={task.deal.name} />
             );
         }
 
         if (task.lead) {
             return (
-                <Link
-                    href={route("lead-contact.show", task.lead.id)}
-                    onClick={(e) => e.stopPropagation()}
-                    className="truncate text-xs text-blue-600 hover:underline"
-                >
-                    {task.lead.client_name}
-                </Link>
+                <TaskEntityLink
+                    type="lead"
+                    id={task.lead.id}
+                    name={task.lead.client_name}
+                />
             );
         }
 

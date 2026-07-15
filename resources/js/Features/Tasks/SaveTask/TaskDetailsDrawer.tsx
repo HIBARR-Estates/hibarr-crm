@@ -26,6 +26,7 @@ import { Link, router } from "@inertiajs/react";
 import TaskStatusDropdownPill, {
     TaskboardColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import "./task-view-modal.css";
 
 export interface Task {
@@ -536,14 +537,13 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                         <PropRow label="Deals">
                                             <div className="flex flex-col gap-1">
                                                 {task.deals.map((deal: any) => (
-                                                    <Link
+                                                    <TaskEntityLink
                                                         key={deal.id}
-                                                        href={route("deals.show", deal.id)}
-                                                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-[13px]"
-                                                    >
-                                                        <LinkOutlined style={{ fontSize: 11 }} />
-                                                        {td(deal.name)}
-                                                    </Link>
+                                                        type="deal"
+                                                        id={deal.id}
+                                                        name={td(deal.name)}
+                                                        className="!text-[13px]"
+                                                    />
                                                 ))}
                                             </div>
                                         </PropRow>
@@ -552,20 +552,17 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                         <PropRow label="Leads">
                                             <div className="flex flex-col gap-1">
                                                 {task.leads.map((lead: any) => (
-                                                    <Link
+                                                    <TaskEntityLink
                                                         key={lead.id}
-                                                        href={route(
-                                                            "lead-contact.show",
-                                                            lead.id,
-                                                        )}
-                                                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-[13px]"
-                                                    >
-                                                        <LinkOutlined style={{ fontSize: 11 }} />
-                                                        {lead.client_name}
-                                                        {lead.company_name
-                                                            ? ` (${lead.company_name})`
-                                                            : ""}
-                                                    </Link>
+                                                        type="lead"
+                                                        id={lead.id}
+                                                        name={`${lead.client_name}${
+                                                            lead.company_name
+                                                                ? ` (${lead.company_name})`
+                                                                : ""
+                                                        }`}
+                                                        className="!text-[13px]"
+                                                    />
                                                 ))}
                                             </div>
                                         </PropRow>
