@@ -12,6 +12,7 @@ use App\Models\LeadNote;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
+use App\Scopes\ActiveScope;
 use App\Scopes\CompanyScope;
 use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
@@ -26,6 +27,18 @@ use Illuminate\Validation\ValidationException;
 class CrmWriteService
 {
     use RecordsCrmEvents;
+
+    private const TASK_SUMMARY_RELATIONS = [
+        'users',
+        'leads:id,client_name,client_email,mobile',
+        'deals:id,name,value,pipeline_stage_id,lead_pipeline_id',
+        'deals.leadStage:id,name',
+        'deals.pipeline:id,name',
+    ];
+
+    private const MEETING_SUMMARY_RELATIONS = ['deal.leadStage', 'deal.pipeline', 'lead', 'meetingType'];
+
+    private const DEAL_NOTE_SUMMARY_RELATIONS = ['deal.leadStage', 'deal.pipeline'];
 
     /**
      * @param  array<string, mixed>  $data
@@ -113,7 +126,7 @@ class CrmWriteService
                 });
             }
 
-            return $task->fresh(['users']);
+            return $task->fresh(self::TASK_SUMMARY_RELATIONS);
         });
     }
 
@@ -139,6 +152,7 @@ class CrmWriteService
             }
 
             $note->save();
+            $note->setRelation('deal', $deal);
 
             app(DealActivityEventService::class)->recordNoteAdded($deal, $note);
 
@@ -163,6 +177,7 @@ class CrmWriteService
         }
 
         $note->save();
+        $note->setRelation('lead', $lead);
 
         $this->recordCrmEvent('lead_updated', $lead, [
             'metadata' => [
@@ -250,7 +265,7 @@ class CrmWriteService
             report($exception);
         }
 
-        return $followUp->fresh(['deal', 'lead', 'meetingType']);
+        return $followUp->fresh(self::MEETING_SUMMARY_RELATIONS);
     }
 
     /**
@@ -261,7 +276,7 @@ class CrmWriteService
     {
         $query = Task::withoutGlobalScopes()
             ->where('company_id', $companyId)
-            ->with(['users', 'leads:id', 'deals:id']);
+            ->with(self::TASK_SUMMARY_RELATIONS);
 
         $this->applyTaskTargetFilters($query, $filters);
 
@@ -272,7 +287,7 @@ class CrmWriteService
     {
         return Task::withoutGlobalScopes()
             ->where('company_id', $companyId)
-            ->with(['users', 'leads:id', 'deals:id'])
+            ->with(self::TASK_SUMMARY_RELATIONS)
             ->findOrFail($taskId);
     }
 
@@ -314,7 +329,13 @@ class CrmWriteService
             $task->users()->sync($assigneeIds);
         }
 
-        return $task->fresh(['users', 'leads:id', 'deals:id']);
+        return $task->fresh([
+                'users',
+                'leads:id,client_name,client_email,mobile',
+                'deals:id,name,value,pipeline_stage_id,lead_pipeline_id',
+                'deals.leadStage:id,name',
+                'deals.pipeline:id,name',
+            ]);
     }
 
     public function deleteTask(int $companyId, int $taskId): void
@@ -334,6 +355,7 @@ class CrmWriteService
 
         if ($queryDeal && !$queryLead) {
             $dealNotesQuery = DealNote::query()
+                ->with(self::DEAL_NOTE_SUMMARY_RELATIONS)
                 ->whereIn('deal_id', $this->companyDealIdsQuery($companyId));
 
             if (!empty($filters['deal_id'])) {
@@ -349,6 +371,7 @@ class CrmWriteService
 
         if ($queryLead && !$queryDeal) {
             $leadNotesQuery = LeadNote::query()
+                ->with('lead')
                 ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId));
 
             if (!empty($filters['lead_id'])) {
@@ -369,6 +392,7 @@ class CrmWriteService
 
         if ($queryDeal) {
             $dealNotesQuery = DealNote::query()
+                ->with(self::DEAL_NOTE_SUMMARY_RELATIONS)
                 ->whereIn('deal_id', $this->companyDealIdsQuery($companyId));
 
             if (!empty($filters['deal_id'])) {
@@ -382,6 +406,7 @@ class CrmWriteService
 
         if ($queryLead) {
             $leadNotesQuery = LeadNote::query()
+                ->with('lead')
                 ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId));
 
             if (!empty($filters['lead_id'])) {
@@ -429,7 +454,9 @@ class CrmWriteService
 
         $note->save();
 
-        return ['note' => $note->fresh(), 'type' => $result['type']];
+        $relations = $result['type'] === 'deal' ? self::DEAL_NOTE_SUMMARY_RELATIONS : ['lead'];
+
+        return ['note' => $note->fresh($relations), 'type' => $result['type']];
     }
 
     public function deleteNote(int $companyId, int $noteId, string $type): void
@@ -448,7 +475,7 @@ class CrmWriteService
         $leadIds = $this->companyLeadIdsQuery($companyId);
 
         $query = DealFollowUp::query()
-            ->with(['deal', 'lead', 'meetingType'])
+            ->with(self::MEETING_SUMMARY_RELATIONS)
             ->where(function ($q) use ($dealIds, $leadIds) {
                 $q->whereIn('deal_id', $dealIds)
                     ->orWhereIn('lead_id', $leadIds);
@@ -462,11 +489,17 @@ class CrmWriteService
             $query->where('lead_id', (int) $filters['lead_id']);
         }
 
-        return $this->paginateQuery(
-            $query->orderByDesc('id'),
-            $filters,
-            fn (DealFollowUp $meeting) => $this->serializeMeeting($meeting)
-        );
+        $page = max(1, (int) ($filters['page'] ?? 1));
+        $perPage = min(100, max(1, (int) ($filters['per_page'] ?? 20)));
+        $paginator = $query->orderByDesc('id')->paginate($perPage, ['*'], 'page', $page);
+
+        $participantUserMap = $this->fetchParticipantUserMap($paginator->items());
+
+        $items = collect($paginator->items())
+            ->map(fn (DealFollowUp $meeting) => $this->serializeMeeting($meeting, $participantUserMap))
+            ->values();
+
+        return ['items' => $items, 'paginator' => $paginator];
     }
 
     public function getMeeting(int $companyId, int $meetingId): DealFollowUp
@@ -539,7 +572,7 @@ class CrmWriteService
 
         $followUp->save();
 
-        return $followUp->fresh(['deal', 'lead', 'meetingType']);
+        return $followUp->fresh(self::MEETING_SUMMARY_RELATIONS);
     }
 
     public function deleteMeeting(int $companyId, int $meetingId): void
@@ -554,6 +587,7 @@ class CrmWriteService
     {
         if ($type === 'deal') {
             $note = DealNote::query()
+                ->with(self::DEAL_NOTE_SUMMARY_RELATIONS)
                 ->where('id', $noteId)
                 ->whereIn('deal_id', $this->companyDealIdsQuery($companyId))
                 ->first();
@@ -565,6 +599,7 @@ class CrmWriteService
 
         if ($type === 'lead') {
             $note = LeadNote::query()
+                ->with('lead')
                 ->where('id', $noteId)
                 ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId))
                 ->first();
@@ -583,7 +618,7 @@ class CrmWriteService
         $leadIds = $this->companyLeadIdsQuery($companyId);
 
         return DealFollowUp::query()
-            ->with(['deal', 'lead', 'meetingType'])
+            ->with(self::MEETING_SUMMARY_RELATIONS)
             ->where('id', $meetingId)
             ->where(function ($q) use ($dealIds, $leadIds) {
                 $q->whereIn('deal_id', $dealIds)
@@ -726,6 +761,7 @@ class CrmWriteService
         }
 
         $query = Deal::withoutGlobalScope(CompanyScope::class)
+            ->with(['leadStage', 'pipeline'])
             ->where('company_id', $companyId)
             ->where('id', (int) $data['deal_id']);
 
@@ -829,6 +865,12 @@ class CrmWriteService
             'assignee_user_ids' => $task->users?->pluck('id')->values()->all() ?? [],
             'lead_ids' => $task->relationLoaded('leads') ? $task->leads->pluck('id')->values()->all() : [],
             'deal_ids' => $task->relationLoaded('deals') ? $task->deals->pluck('id')->values()->all() : [],
+            'leads' => $task->relationLoaded('leads')
+                ? $task->leads->map(fn (Lead $lead) => $this->serializeLeadSummary($lead))->values()->all()
+                : [],
+            'deals' => $task->relationLoaded('deals')
+                ? $task->deals->map(fn (Deal $deal) => $this->serializeDealSummary($deal))->values()->all()
+                : [],
             'created_at' => $task->created_at?->toIso8601String(),
             'updated_at' => $task->updated_at?->toIso8601String(),
         ];
@@ -843,17 +885,25 @@ class CrmWriteService
             'details' => $note->details,
             'lead_id' => $type === 'lead' ? $note->lead_id : null,
             'deal_id' => $type === 'deal' ? $note->deal_id : null,
+            'lead' => $type === 'lead' ? $this->serializeLeadSummary($note->lead) : null,
+            'deal' => $type === 'deal' ? $this->serializeDealSummary($note->deal) : null,
             'created_at' => $note->created_at?->toIso8601String(),
             'updated_at' => $note->updated_at?->toIso8601String(),
         ];
     }
 
-    public function serializeMeeting(DealFollowUp $meeting): array
+    /**
+     * @param  Collection<int, User>|null  $participantUserMap  Pre-fetched users keyed by id, to avoid
+     *                                                            a per-meeting query when serializing a page of results.
+     */
+    public function serializeMeeting(DealFollowUp $meeting, ?Collection $participantUserMap = null): array
     {
         return [
             'id' => $meeting->id,
             'lead_id' => $meeting->lead_id,
             'deal_id' => $meeting->deal_id,
+            'lead' => $this->serializeLeadSummary($meeting->lead),
+            'deal' => $this->serializeDealSummary($meeting->deal),
             'remark' => $meeting->remark,
             'scheduled_at' => $meeting->next_follow_up_date?->toIso8601String(),
             'location' => $meeting->location,
@@ -861,9 +911,104 @@ class CrmWriteService
             'meeting_type_id' => $meeting->meeting_type_id,
             'duration' => $meeting->getEffectiveDuration(),
             'status' => $meeting->status,
-            'participants' => $meeting->participants ?? [],
+            'participants' => $this->serializeParticipants($meeting->participants ?? [], $participantUserMap),
             'created_at' => $meeting->created_at?->toIso8601String(),
             'updated_at' => $meeting->updated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @param  iterable<DealFollowUp>  $meetings
+     * @return Collection<int, User>
+     */
+    private function fetchParticipantUserMap(iterable $meetings): Collection
+    {
+        $ids = collect($meetings)
+            ->flatMap(fn (DealFollowUp $meeting) => $meeting->participants ?? [])
+            ->filter('is_numeric')
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            return collect();
+        }
+
+        return User::withoutGlobalScope(ActiveScope::class)
+            ->whereIn('id', $ids)
+            ->get(['id', 'name', 'email'])
+            ->keyBy('id');
+    }
+
+    /**
+     * @param  array<int|string>  $participantIds
+     * @param  Collection<int, User>|null  $userMap  Pre-fetched users keyed by id; falls back to a single
+     *                                                query for this call's participants when not supplied.
+     * @return list<array{id: int, name: string, email: string}>
+     */
+    private function serializeParticipants(array $participantIds, ?Collection $userMap = null): array
+    {
+        $ids = array_values(array_unique(array_map('intval', array_filter($participantIds, 'is_numeric'))));
+
+        if ($ids === []) {
+            return [];
+        }
+
+        $users = $userMap ?? User::withoutGlobalScope(ActiveScope::class)
+            ->whereIn('id', $ids)
+            ->get(['id', 'name', 'email'])
+            ->keyBy('id');
+
+        return collect($ids)
+            ->map(fn (int $id) => $users->get($id))
+            ->filter()
+            ->map(fn (User $user) => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{id: int, name: ?string, value: ?float, stage: ?array, pipeline: ?array}|null
+     */
+    private function serializeDealSummary(?Deal $deal): ?array
+    {
+        if ($deal === null) {
+            return null;
+        }
+
+        return [
+            'id' => $deal->id,
+            'name' => $deal->name,
+            'value' => $deal->value,
+            'stage' => $deal->relationLoaded('leadStage') && $deal->leadStage
+                ? ['id' => $deal->leadStage->id, 'name' => $deal->leadStage->name]
+                : null,
+            'pipeline' => $deal->relationLoaded('pipeline') && $deal->pipeline
+                ? ['id' => $deal->pipeline->id, 'name' => $deal->pipeline->name]
+                : null,
+        ];
+    }
+
+    /**
+     * @return array{id: int, name: ?string, email: ?string, phone: ?string}|null
+     */
+    private function serializeLeadSummary(?Lead $lead): ?array
+    {
+        if ($lead === null) {
+            return null;
+        }
+
+        $phone = $lead->mobile_with_phone_code;
+
+        return [
+            'id' => $lead->id,
+            'name' => $lead->client_name,
+            'email' => $lead->client_email,
+            'phone' => $phone === '--' ? null : $phone,
         ];
     }
 
