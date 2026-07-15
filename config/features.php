@@ -11,6 +11,7 @@ return [
         'crm.lead-ai-summary',
         'crm.notification-service-routing',
         'crm.task-lifecycle-notifications',
+        'crm.projects-filters-modal',
         'sales.ai-entity-summary',
         'sales.per-agent-commission-override',
         'sales.bulk-agent-promotion',
