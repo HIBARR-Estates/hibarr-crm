@@ -51,6 +51,15 @@ class LeadPipeline extends BaseModel
     protected $default = ['id', 'name'];
     protected $with = [];
 
+    protected $casts = [
+        'hidden_from_nav' => 'boolean',
+    ];
+
+    public function scopeVisibleInNav($query)
+    {
+        return $query->where('hidden_from_nav', false);
+    }
+
     public function stages(): HasMany
     {
         return $this->hasMany(PipelineStage::class, 'lead_pipeline_id', 'id')->orderBy('pipeline_stages.priority');

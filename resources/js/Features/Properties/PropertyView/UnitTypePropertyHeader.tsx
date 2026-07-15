@@ -16,6 +16,7 @@ import type {
     DeveloperProject,
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import { generatePropertySubtitle, formatLocationNameForDisplay } from "@/lib/utils";
 
 const { Title, Text } = Typography;
@@ -106,6 +107,8 @@ export default function UnitTypePropertyHeader({
                         </Tag>
                     </Tooltip>
                 )}
+
+                <UnitSoldOutBadge soldOut={unitType.is_sold_out} />
 
                 {/* Status */}
                 {soldCount > 0 ? (

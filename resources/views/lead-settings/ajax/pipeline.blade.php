@@ -3,7 +3,7 @@
     <div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100">
         @forelse($pipelines as $pipeline)
             <div class="row no-gutters border rounded my-3 px-4 py-2">
-                <div class="col-md-6">
+                <div class="{{ ($pipelineNavVisibilityEnabled ?? false) ? 'col-md-5' : 'col-md-6' }}">
                     <div class="heading-h4"><x-status :value="$pipeline->name" :style="'color:'.$pipeline->label_color" />
     
                         <a href="javascript:;" title="@lang('app.edit')" data-pipeline-id="{{ $pipeline->id }}"
@@ -14,13 +14,30 @@
                     <div class="simple-text text-lightest mt-1">{{ $pipeline->stages->count() }} @lang('modules.deal.stages')
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="{{ ($pipelineNavVisibilityEnabled ?? false) ? 'col-md-3' : 'col-md-4' }}">
                     <x-forms.radio fieldId="pipelineid_{{ $pipeline->id }}" class="set_default_pipeline"
                         data-pipeline-id="{{ $pipeline->id }}" :fieldLabel="__('app.default')"
                         fieldName="pipeline" fieldValue="{{ $pipeline->id }}"
                         :checked="($pipeline->default == 1) ? 'checked' : ''">
                     </x-forms.radio>
                 </div>
+                @if($pipelineNavVisibilityEnabled ?? false)
+                    <div class="col-md-2">
+                        <div class="custom-control custom-switch"
+                            @if($pipeline->default == 1) title="@lang('modules.deal.pipelineDefaultNavVisibilityHint')" data-toggle="tooltip" @endif>
+                            <input type="checkbox"
+                                class="custom-control-input toggle-pipeline-nav-visibility"
+                                id="pipeline_nav_visibility_{{ $pipeline->id }}"
+                                data-pipeline-id="{{ $pipeline->id }}"
+                                @checked($pipeline->hidden_from_nav)
+                                @disabled($pipeline->default == 1)>
+                            <label class="custom-control-label cursor-pointer f-14"
+                                for="pipeline_nav_visibility_{{ $pipeline->id }}">
+                                @lang('modules.deal.hideFromNav')
+                            </label>
+                        </div>
+                    </div>
+                @endif
                 <div class="col-md-2 text-right" >
                     <x-forms.button-secondary class="view-pipeline" data-pipeline-id="{{ $pipeline->id }}"> <i class="side-icon bi bi-kanban"></i>
                         @lang('modules.deal.stages')
@@ -101,4 +118,32 @@
             $("#pipeline-stages-"+pipelineId).toggleClass('d-none');
 
         });
+
+    @if($pipelineNavVisibilityEnabled ?? false)
+    $('.pipelineData').on('change', '.toggle-pipeline-nav-visibility', function() {
+        var id = $(this).data('pipeline-id');
+        var hidden = $(this).is(':checked') ? 1 : 0;
+        var url = "{{ route('lead-pipeline-setting.nav-visibility', ':id') }}";
+        url = url.replace(':id', id);
+
+        $.easyAjax({
+            url: url,
+            type: 'PUT',
+            blockUI: true,
+            container: '.pipelineData',
+            data: {
+                '_token': '{{ csrf_token() }}',
+                hidden_from_nav: hidden,
+            },
+            success: function(response) {
+                if (response.status !== 'success') {
+                    window.location.reload();
+                }
+            },
+            error: function() {
+                window.location.reload();
+            }
+        });
+    });
+    @endif
 </script>

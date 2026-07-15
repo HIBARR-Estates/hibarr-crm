@@ -8,6 +8,7 @@ use App\Models\LeadPipeline;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use App\Models\LeadSetting;
 use App\Services\LeadLifecycleStatusService;
@@ -61,6 +62,7 @@ class LeadSettingController extends AccountBaseController
         };
 
         $this->activeTab = $tab ?: 'source';
+        $this->pipelineNavVisibilityEnabled = FeatureFlags::enabled('crm.pipeline-nav-visibility');
 
         if (request()->ajax()) {
             $html = view($this->view, $this->data)->render();

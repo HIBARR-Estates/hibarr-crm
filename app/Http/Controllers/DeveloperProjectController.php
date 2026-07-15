@@ -644,6 +644,7 @@ class DeveloperProjectController extends AccountBaseController
                     'floor' => $ut->floor,
                     'total_area_sqm' => $ut->total_area_sqm ? (float) $ut->total_area_sqm : null,
                     'quantity' => $ut->quantity,
+                    'is_sold_out' => (bool) $ut->is_sold_out,
                 ])->values()->all(),
             ];
         }

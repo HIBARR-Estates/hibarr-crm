@@ -40,6 +40,7 @@ import type {
     ProjectUnitTypesResponse,
 } from "@/Types/api/deal-properties";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import type { Offer } from "@/Types/api/offers";
 import dayjs from "dayjs";
 
@@ -830,11 +831,17 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                             <span className="text-sm font-medium text-gray-900 capitalize">
                                 {generatePropertySubtitle(unitType)}
                             </span>
-                            {unitType.reference_code && (
-                                <Tag className="!text-[10px]">
-                                    {unitType.reference_code}
-                                </Tag>
-                            )}
+                            <div className="flex flex-wrap items-center gap-1">
+                                {unitType.reference_code && (
+                                    <Tag className="text-[10px]!">
+                                        {unitType.reference_code}
+                                    </Tag>
+                                )}
+                                <UnitSoldOutBadge
+                                    soldOut={unitType.is_sold_out}
+                                    className="!text-[10px]!"
+                                />
+                            </div>
                         </div>
                         <div className="flex items-center gap-2.5 mt-0.5 text-xs text-gray-500">
                             {unitType.bedrooms != null && (
