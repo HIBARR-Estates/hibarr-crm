@@ -69,6 +69,11 @@ export interface IndexProps extends Omit<PageProps, "filters"> {
     locations: FilterLocation[];
     constructionStatuses: LookupOption[];
     primaryCategories: LookupOption[];
+    visibility?: {
+        enabled?: boolean;
+        canSeeHidden?: boolean;
+        canToggleHidden?: boolean;
+    };
     filters?:
         | {
               search?: string;
@@ -147,6 +152,7 @@ const Index = ({
     locations: filterLocations,
     constructionStatuses,
     primaryCategories,
+    visibility,
 }: IndexProps) => {
     const safeFilters =
         rawFilters && !Array.isArray(rawFilters) ? rawFilters : {};
@@ -164,6 +170,11 @@ const Index = ({
     const { props: pageProps } = usePage<PageProps>();
     const filtersModalEnabled =
         pageProps.featureFlags?.["crm.projects-filters-modal"] === true;
+
+    const showHiddenBadge =
+        visibility?.enabled === true && visibility?.canSeeHidden === true;
+    const canToggleHidden =
+        visibility?.enabled === true && visibility?.canToggleHidden === true;
 
     const { hasPermission } = usePermission();
     const canAdd = hasPermission("add_developer_projects");
@@ -818,6 +829,7 @@ const Index = ({
                                         <ProjectCard
                                             key={project.id}
                                             project={project}
+                                            showHiddenBadge={showHiddenBadge}
                                             onEdit={
                                                 canEdit ? handleEdit : undefined
                                             }
@@ -861,6 +873,7 @@ const Index = ({
                 locations={locations}
                 locationsLoading={locationsQuery.isLoading}
                 onSuccess={handleSuccess}
+                canToggleHidden={canToggleHidden}
             />
 
             {filtersModalEnabled && (

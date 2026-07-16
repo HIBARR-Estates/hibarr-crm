@@ -12,6 +12,7 @@ return [
         'crm.notification-service-routing',
         'crm.task-lifecycle-notifications',
         'crm.projects-filters-modal',
+        'crm.developer-project-visibility',
         'crm.pipeline-nav-visibility',
         'sales.ai-entity-summary',
         'sales.per-agent-commission-override',

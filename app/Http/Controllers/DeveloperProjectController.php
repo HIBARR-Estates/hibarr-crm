@@ -12,6 +12,7 @@ use App\Helper\Reply;
 use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use App\Support\FeatureFlags;
+use App\Support\DeveloperProjectVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
@@ -149,6 +150,8 @@ class DeveloperProjectController extends AccountBaseController
             }])
             ->where('company_id', user()->company_id);
 
+        DeveloperProjectVisibility::scopeVisibleProjects($query);
+
         // Search by name or description
         if ($request->filled('search')) {
             $search = trim($request->search);
@@ -250,10 +253,13 @@ class DeveloperProjectController extends AccountBaseController
 
         $projects = $query->paginate(12);
 
-        $developers = \App\Models\Developer::where('company_id', user()->company_id)
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
+        $developersQuery = \App\Models\Developer::where('company_id', user()->company_id)
+            ->select('id', 'name', 'is_hidden')
+            ->orderBy('name');
+
+        DeveloperProjectVisibility::scopeVisibleDevelopers($developersQuery);
+
+        $developers = $developersQuery->get();
 
         $locationColumns = $filtersModalEnabled
             ? ['id', 'name', 'city', 'area']
@@ -296,6 +302,11 @@ class DeveloperProjectController extends AccountBaseController
             'constructionStatuses' => $constructionStatuses,
             'primaryCategories' => $primaryCategories,
             'filters' => $request->only($filterKeys),
+            'visibility' => [
+                'enabled' => DeveloperProjectVisibility::enabled(),
+                'canSeeHidden' => DeveloperProjectVisibility::canSeeHiddenProjects(),
+                'canToggleHidden' => DeveloperProjectVisibility::canToggleProjectHidden(),
+            ],
         ]);
     }
 
@@ -308,6 +319,8 @@ class DeveloperProjectController extends AccountBaseController
             ->withCount('properties')
             ->where('company_id', user()->company_id)
             ->findOrFail($id);
+
+        DeveloperProjectVisibility::assertProjectVisible($project);
 
         // Calculate statistics
         $computedTotalUnits = $project->unitTypes->sum('quantity');
@@ -351,7 +364,7 @@ class DeveloperProjectController extends AccountBaseController
         // Load other projects by the same developer (excluding current)
         $developerProjects = collect();
         if ($project->developer_id) {
-            $developerProjects = DeveloperProject::with([
+            $relatedQuery = DeveloperProject::with([
                     'thumbnail',
                      'assets',
                     'location',
@@ -363,7 +376,11 @@ class DeveloperProjectController extends AccountBaseController
                 }])
                 ->where('company_id', user()->company_id)
                 ->where('developer_id', $project->developer_id)
-                ->where('id', '!=', $project->id)
+                ->where('id', '!=', $project->id);
+
+            DeveloperProjectVisibility::scopeVisibleProjects($relatedQuery);
+
+            $developerProjects = $relatedQuery
                 ->orderBy('created_at', 'desc')
                 ->get();
         }
@@ -390,6 +407,11 @@ class DeveloperProjectController extends AccountBaseController
             'unitTypePriceList' => $this->getUnitTypePriceList($project->unitTypes),
             'unitTypes' => $project->unitTypes->sortBy('order')->values(),
             'developerProjects' => $developerProjects,
+            'visibility' => [
+                'enabled' => DeveloperProjectVisibility::enabled(),
+                'canSeeHidden' => DeveloperProjectVisibility::canSeeHiddenProjects(),
+                'canToggleHidden' => DeveloperProjectVisibility::canToggleProjectHidden(),
+            ],
         ]);
     }
 
@@ -695,6 +717,7 @@ class DeveloperProjectController extends AccountBaseController
             'facilities.*' => 'string',
             'distances' => 'nullable|array',
             'distances.*' => 'nullable|numeric|min:0',
+            'is_hidden' => 'nullable|boolean',
             // Location fields passed flat (for creating/updating project location)
             'city' => 'nullable|string|max:255',
             'area' => 'nullable|string|max:255',
@@ -739,7 +762,7 @@ class DeveloperProjectController extends AccountBaseController
             }
         }
 
-        $project = DeveloperProject::create([
+        $createPayload = [
             'company_id' => user()->company_id,
             'developer_id' => $request->developer_id,
             'name' => $request->name,
@@ -766,7 +789,17 @@ class DeveloperProjectController extends AccountBaseController
             'payment_plan' => $request->payment_plan,
             'facilities' => $request->facilities,
             'distances' => $request->distances,
-        ]);
+        ];
+
+        if (
+            DeveloperProjectVisibility::enabled()
+            && DeveloperProjectVisibility::canToggleProjectHidden()
+            && $request->has('is_hidden')
+        ) {
+            $createPayload['is_hidden'] = (bool) $request->boolean('is_hidden');
+        }
+
+        $project = DeveloperProject::create($createPayload);
 
         return Reply::successWithData('Construction project created successfully', [
             'data' => $project->load(['location', 'developer']),
@@ -816,6 +849,7 @@ class DeveloperProjectController extends AccountBaseController
             'facilities.*' => 'string',
             'distances' => 'nullable|array',
             'distances.*' => 'nullable|numeric|min:0',
+            'is_hidden' => 'nullable|boolean',
             // Location fields
             'city' => 'nullable|string|max:255',
             'area' => 'nullable|string|max:255',
@@ -865,12 +899,24 @@ class DeveloperProjectController extends AccountBaseController
             'facilities', 'distances',
         ];
 
+        if (
+            DeveloperProjectVisibility::enabled()
+            && DeveloperProjectVisibility::canToggleProjectHidden()
+            && $request->has('is_hidden')
+        ) {
+            $updateFields[] = 'is_hidden';
+        }
+
         $updatePayload = $request->only($updateFields);
 
         // Protect existing facilities from being cleared when the field is
         // omitted by a collapsed form section on the frontend.
         if (!$request->has('facilities')) {
             unset($updatePayload['facilities']);
+        }
+
+        if (array_key_exists('is_hidden', $updatePayload)) {
+            $updatePayload['is_hidden'] = (bool) $request->boolean('is_hidden');
         }
 
         $project->update($updatePayload);
@@ -1001,11 +1047,14 @@ class DeveloperProjectController extends AccountBaseController
      */
     public function all()
     {
-        $projects = DeveloperProject::where('company_id', user()->company_id)
-            ->select('id', 'name', 'developer_id', 'project_location_id')
-            ->with(['location:id,name', 'developer:id,name'])
-            ->orderBy('name')
-            ->get();
+        $query = DeveloperProject::where('company_id', user()->company_id)
+            ->select('id', 'name', 'developer_id', 'project_location_id', 'is_hidden')
+            ->with(['location:id,name', 'developer:id,name,is_hidden'])
+            ->orderBy('name');
+
+        DeveloperProjectVisibility::scopeVisibleProjects($query);
+
+        $projects = $query->get();
 
         return Reply::successWithData('Construction projects fetched', [
             'projects' => $projects,
