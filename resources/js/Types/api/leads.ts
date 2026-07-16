@@ -65,6 +65,7 @@ export interface Lead {
     updated_at?: string;
     marketing?: LeadMarketing | null;
     lifecycle_status_id?: number | null;
+    lead_lifecycle_status_id?: number | null;
     lead_lifecycle_status?: LeadLifecycleStatus | null;
     languages?: string[];
     date_of_birth?: string | null;
@@ -133,6 +134,7 @@ export interface CreateLeadFormData {
     note?: string;
     source_id?: number;
     category_id?: number;
+    lead_lifecycle_status_id?: number | null;
     lead_owner?: number;
     added_by?: number;
     create_deal?: boolean;

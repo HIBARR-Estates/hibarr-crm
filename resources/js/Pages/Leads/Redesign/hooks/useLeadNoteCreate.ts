@@ -1,5 +1,4 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
@@ -27,7 +26,10 @@ export default function useLeadNoteCreate(leadId: number) {
     >(route("lead-notes.store"), "POST");
 
     const createNote = useCallback(
-        (input: LeadNoteCreateInput, onSuccess?: () => void) => {
+        (
+            input: LeadNoteCreateInput,
+            onSuccess?: (note: LeadNote) => void,
+        ) => {
             const trimmed = input.text.trim();
             if (!trimmed) {
                 setErrors(["Please enter note details"]);
@@ -43,11 +45,10 @@ export default function useLeadNoteCreate(leadId: number) {
                 },
                 {
                     onSuccess: (response) => {
-                        if (response?.status === "success") {
+                        if (response?.status === "success" && response.data) {
                             setErrors([]);
                             message.success("Note saved");
-                            onSuccess?.();
-                            router.reload({ only: ["notes"] });
+                            onSuccess?.(response.data);
                             return;
                         }
 

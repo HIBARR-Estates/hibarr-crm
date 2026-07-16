@@ -1,7 +1,6 @@
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { LeadNote } from "@/Types/api/lead-note";
 import { IModalProps } from "@/Types/common";
-import { router } from "@inertiajs/react";
 import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { ApiResponse } from "@/lib/api/types";
@@ -10,26 +9,28 @@ import { isLoading } from "@/lib/utils";
 
 interface Props extends IModalProps {
     note?: LeadNote;
+    onDeleted?: (noteId: number) => void;
 }
 
-const DeleteNote: React.FC<Props> = ({ note, onClose, open }) => {
+const DeleteNote: React.FC<Props> = ({ note, onClose, open, onDeleted }) => {
     const handleCancel = () => {
         onClose();
     };
 
     const { mutate, status } = useApiMutate<null, null, ApiResponse<null>>(
-        route("lead-notes.destroy", {lead_note: Number(note?.id)}),
+        route("lead-notes.destroy", { lead_note: Number(note?.id) }),
         "DELETE",
-
         () => {
             handleCancel();
-        }
+        },
     );
+
     const onSubmit = () => {
         mutate(null, {
             onSuccess: () => {
-                console.log("was deleted note ....");
-                router.reload();
+                if (note?.id) {
+                    onDeleted?.(note.id);
+                }
             },
         });
     };

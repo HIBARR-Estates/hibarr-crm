@@ -1,7 +1,10 @@
-import { Empty, Button } from "antd";
-import { useMemo } from "react";
+import { Empty, Button, Spin } from "antd";
+import { useEffect, useMemo, useState } from "react";
 import { Task } from "@/Types/api/tasks";
-import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import {
+    isCompletedColumn,
+    type TaskboardColumn as StatusColumn,
+} from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import { SaveTaskModal, TaskDetailsModal } from "@/Features/Tasks/SaveTask";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import BulkTaskActionSelector from "@/Features/Tasks/BulkActions/BulkTaskActionSelector";
@@ -10,8 +13,6 @@ import DeleteTask from "@/Features/Tasks/Components/DeleteTask";
 import { PlusOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { isLoading } from "@/lib/utils";
-import { useState } from "react";
-import { router } from "@inertiajs/react";
 import { taskApi } from "@/lib/api/tasks";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { usePermission } from "@/lib/permissionUtils";
@@ -24,8 +25,11 @@ interface TaskboardColumn {
     label_color: string;
     priority: number;
 }
+
 interface Props {
     tasks: Task[];
+    /** When true, chrome (header/add/count) stays visible; only the list shows a loader. */
+    isLoading?: boolean;
     relatedEntity: {
         type: "deal" | "lead" | "property";
         id: number;
@@ -39,13 +43,39 @@ interface Props {
         add_tasks: string;
         edit_tasks: string;
         delete_tasks: string;
-        view_tasks: string; // 'all' | 'added' | 'owned' | 'both'
+        view_tasks: string;
         [key: string]: string;
     };
 }
 
+function applyLocalStatus(
+    task: Task,
+    statusSlug: string,
+    columns: TaskboardColumn[],
+): Task {
+    const column = columns.find((c) => c.slug === statusSlug);
+    const done = isCompletedColumn(statusSlug, columns as StatusColumn[]);
+    return {
+        ...task,
+        status: statusSlug,
+        board_column_id: column?.id ?? task.board_column_id,
+        completed_on: done ? new Date().toISOString() : undefined,
+        ...(column
+            ? {
+                  board_column: {
+                      id: column.id,
+                      column_name: column.column_name,
+                      slug: column.slug,
+                      label_color: column.label_color,
+                  },
+              }
+            : {}),
+    } as Task;
+}
+
 export default function TasksTab({
-    tasks,
+    tasks: tasksProp,
+    isLoading: tasksLoading = false,
     relatedEntity,
     taskCategories,
     taskLabels,
@@ -59,6 +89,7 @@ export default function TasksTab({
         view_tasks: "all",
     },
 }: Props) {
+    const [localTasks, setLocalTasks] = useState<Task[]>(tasksProp);
     const [selectedTaskType, setSelectedTaskType] = useState<string>("");
     const {
         action,
@@ -69,17 +100,20 @@ export default function TasksTab({
     const { td } = useTd();
     const { user, permissions } = usePermission();
 
+    useEffect(() => {
+        setLocalTasks(tasksProp);
+    }, [tasksProp]);
+
     const handleClose = () => {
-        router.reload({ only: ["tasks"] });
         closeAction();
     };
 
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
     const [selectedTasks, setSelectedTasks] = useState<Task[]>([]);
 
-    const handleSelectionChange = (ids: number[], tasks: Task[]) => {
+    const handleSelectionChange = (ids: number[], nextTasks: Task[]) => {
         setSelectedIds(ids);
-        setSelectedTasks(tasks);
+        setSelectedTasks(nextTasks);
     };
 
     const clearSelected = () => {
@@ -89,10 +123,29 @@ export default function TasksTab({
 
     const { mutate: updateTaskStatus } = taskApi.useUpdateStatus();
 
-    const handleStatusChange = (task: Task, newStatus: string, _columnId: number) => {
+    const handleStatusChange = (
+        task: Task,
+        newStatus: string,
+        _columnId: number,
+    ) => {
+        setLocalTasks((prev) =>
+            prev.map((t) =>
+                t.id === task.id
+                    ? applyLocalStatus(t, newStatus, taskBoardColumns)
+                    : t,
+            ),
+        );
         updateTaskStatus(
             { taskId: task.id, status: newStatus },
-            { onSuccess: () => router.reload({ only: ["tasks"] }) },
+            {
+                onError: () => {
+                    const serverTask =
+                        tasksProp.find((t) => t.id === task.id) ?? task;
+                    setLocalTasks((prev) =>
+                        prev.map((t) => (t.id === task.id ? serverTask : t)),
+                    );
+                },
+            },
         );
     };
 
@@ -112,7 +165,10 @@ export default function TasksTab({
         relatedEntity.type === "deal"
             ? `/account/deals/${relatedEntity.id}/tasks/default`
             : "";
-    const { mutate: createDefaultTask, status, isError } = useApiMutate(defaultTaskUrl, "POST");
+    const { mutate: createDefaultTask, status, isError } = useApiMutate(
+        defaultTaskUrl,
+        "POST",
+    );
     const isCreatingDefaultTask = isLoading({ status, isError });
 
     const defaultTasks = [
@@ -121,34 +177,52 @@ export default function TasksTab({
     ];
 
     const completionRate = useMemo(() => {
-        if (tasks.length === 0) return 0;
-        const done = tasks.filter((t) =>
-            isCompletedColumn((t as any).board_column?.slug || (t as any).status, taskBoardColumns),
+        if (localTasks.length === 0) return 0;
+        const done = localTasks.filter((t) =>
+            isCompletedColumn(
+                (t as any).board_column?.slug || (t as any).status,
+                taskBoardColumns as StatusColumn[],
+            ),
         ).length;
-        return Math.round((done / tasks.length) * 100);
-    }, [tasks, taskBoardColumns]);
+        return Math.round((done / localTasks.length) * 100);
+    }, [localTasks, taskBoardColumns]);
+
+    const mergeSavedTask = (saved?: Task) => {
+        if (!saved?.id) return;
+        setLocalTasks((prev) => {
+            const exists = prev.some((t) => t.id === saved.id);
+            if (exists) {
+                return prev.map((t) => (t.id === saved.id ? { ...t, ...saved } : t));
+            }
+            return [saved, ...prev];
+        });
+    };
 
     return (
         <>
-            {/* Header — matches dashboard card title style */}
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-4 py-3">
                 <span className="font-semibold text-slate-800">{td("Tasks")}</span>
                 <div className="flex items-center gap-3">
-                    {/* Completion progress */}
-                    <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                style={{ width: `${completionRate}%` }}
-                            />
-                        </div>
-                        <span className="whitespace-nowrap text-[11px] tabular-nums text-slate-500">
-                            {completionRate}% done
-                        </span>
-                    </div>
-                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-                        {tasks.length} tasks
-                    </span>
+                    {!tasksLoading && (
+                        <>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                        style={{
+                                            width: `${completionRate}%`,
+                                        }}
+                                    />
+                                </div>
+                                <span className="whitespace-nowrap text-[11px] tabular-nums text-slate-500">
+                                    {`${completionRate}% done`}
+                                </span>
+                            </div>
+                            <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                                {`${localTasks.length} tasks`}
+                            </span>
+                        </>
+                    )}
                     {selectedTasks.length > 0 && (
                         <BulkTaskActionSelector
                             selectedEntityIds={selectedIds}
@@ -163,7 +237,10 @@ export default function TasksTab({
                                 key={task.key}
                                 variant="dashed"
                                 size="small"
-                                loading={isCreatingDefaultTask && selectedTaskType === task.key}
+                                loading={
+                                    isCreatingDefaultTask &&
+                                    selectedTaskType === task.key
+                                }
                                 onClick={() => {
                                     setSelectedTaskType(task.key);
                                     createDefaultTask(
@@ -171,7 +248,11 @@ export default function TasksTab({
                                         {
                                             onSettled: () => {
                                                 setSelectedTaskType("");
-                                                router.reload({ only: ["tasks"] });
+                                            },
+                                            onSuccess: (response: any) => {
+                                                if (response?.data) {
+                                                    mergeSavedTask(response.data);
+                                                }
                                             },
                                         },
                                     );
@@ -193,13 +274,17 @@ export default function TasksTab({
                 </div>
             </div>
 
-            {tasks.length === 0 ? (
+            {tasksLoading ? (
+                <div className="flex justify-center py-16">
+                    <Spin />
+                </div>
+            ) : localTasks.length === 0 ? (
                 <div className="p-8">
                     <Empty description={td("No tasks yet")} />
                 </div>
             ) : (
                 <TaskRowList
-                    tasks={tasks as any}
+                    tasks={localTasks as any}
                     columns={taskBoardColumns}
                     selectedIds={selectedIds}
                     onSelectionChange={handleSelectionChange}
@@ -209,15 +294,28 @@ export default function TasksTab({
                     onDuplicate={(task) => handleAction("duplicate", task as any)}
                     onStatusChange={handleStatusChange as any}
                     canEdit={(task) => hasTaskPermission(task as any, "edit_tasks")}
-                    canDelete={(task) => hasTaskPermission(task as any, "delete_tasks")}
+                    canDelete={(task) =>
+                        hasTaskPermission(task as any, "delete_tasks")
+                    }
+                    canChangeStatus={(task) =>
+                        hasTaskPermission(task as any, "change_status")
+                    }
+                    suppressEntityType={
+                        relatedEntity.type === "lead" ? "lead" : undefined
+                    }
                     td={td}
                 />
             )}
-            {/* Delete Task Modal */}
+
             <DeleteTask
                 open={action === "delete"}
                 task={selectedTask}
                 onClose={() => handleClose()}
+                onDeleted={(taskId) => {
+                    setLocalTasks((prev) => prev.filter((t) => t.id !== taskId));
+                    clearSelected();
+                }}
+                skipReload
                 td={td}
             />
             <SaveTaskModal
@@ -232,14 +330,31 @@ export default function TasksTab({
                 projects={projects}
                 relatedEntity={relatedEntity}
                 td={td}
+                reloadKeys={false}
+                onSuccess={(saved) => mergeSavedTask(saved as Task | undefined)}
             />
 
             <TaskDetailsModal
-                task={selectedTask}
+                task={selectedTask as any}
                 open={action === "view"}
                 onClose={() => handleClose()}
                 columns={taskBoardColumns}
                 td={td}
+                skipReload
+                canChangeStatus={
+                    selectedTask
+                        ? hasTaskPermission(selectedTask, "change_status")
+                        : false
+                }
+                onStatusChange={(taskId, statusSlug) => {
+                    setLocalTasks((prev) =>
+                        prev.map((t) =>
+                            t.id === taskId
+                                ? applyLocalStatus(t, statusSlug, taskBoardColumns)
+                                : t,
+                        ),
+                    );
+                }}
             />
         </>
     );

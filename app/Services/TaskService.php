@@ -388,7 +388,7 @@ class TaskService
                         if ($agentUserId) {
                             $task->users()->syncWithoutDetaching([$agentUserId]);
                         }
-                        
+
                         // Send notification to deal watchers/agent about new task
                         if ($isNewTask) {
                             app(DealNotificationService::class)->notifyTaskAdded(
@@ -396,6 +396,16 @@ class TaskService
                                 $task->heading,
                                 $task->id
                             );
+                        }
+                    }
+
+                    // Infer the task's lead link from the deal it's connected to.
+                    // Only auto-link when the task isn't already linked to a lead,
+                    // so we never override an explicitly chosen lead.
+                    if (strtolower($type) === 'deal' && $entity->lead_id && $task->leads()->doesntExist()) {
+                        $inferredLead = \App\Models\Lead::withoutGlobalScopes()->find($entity->lead_id);
+                        if ($inferredLead) {
+                            $inferredLead->tasks()->syncWithoutDetaching([$task->id]);
                         }
                     }
                 }

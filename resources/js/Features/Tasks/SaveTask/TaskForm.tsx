@@ -307,6 +307,20 @@ const TaskForm: React.FC<TaskFormProps> = ({
         return (property ? getPropertyLabel(property) : "").toLowerCase().includes(input.toLowerCase());
     };
 
+    // `columns`/`relatedEntity` are read from refs (not effect deps) below on
+    // purpose. Callers often pass `relatedEntity={{ type: "lead", id }}` as a
+    // fresh inline object literal on every render, so its reference changes
+    // whenever the parent re-renders for any unrelated reason (e.g. another
+    // part of the page doing a partial Inertia reload). If those were real
+    // deps, this effect would re-run and call form.setFieldsValue(...) again
+    // mid-edit, silently wiping whatever the user had already typed. Reading
+    // the latest values via ref keeps the effect scoped to real state
+    // changes — the modal opening/closing or switching which task is loaded.
+    const columnsRef = React.useRef(columns);
+    columnsRef.current = columns;
+    const relatedEntityRef = React.useRef(relatedEntity);
+    relatedEntityRef.current = relatedEntity;
+
     React.useEffect(() => {
         if (data && visible) {
             form.setFieldsValue({
@@ -319,16 +333,17 @@ const TaskForm: React.FC<TaskFormProps> = ({
             const initialValues: any = {
                 start_date: dayjs(),
                 priority:   "medium",
-                board_column_id: columns.find((col) => col.slug === "to_do")?.id,
+                board_column_id: columnsRef.current.find((col) => col.slug === "to_do")?.id,
             };
-            if (relatedEntity) {
-                if (relatedEntity.type === "deal")     initialValues.deal_id     = relatedEntity.id;
-                else if (relatedEntity.type === "lead") initialValues.lead_id     = relatedEntity.id;
-                else if (relatedEntity.type === "property") initialValues.property_id = relatedEntity.id;
+            const currentRelatedEntity = relatedEntityRef.current;
+            if (currentRelatedEntity) {
+                if (currentRelatedEntity.type === "deal")     initialValues.deal_id     = currentRelatedEntity.id;
+                else if (currentRelatedEntity.type === "lead") initialValues.lead_id     = currentRelatedEntity.id;
+                else if (currentRelatedEntity.type === "property") initialValues.property_id = currentRelatedEntity.id;
             }
             form.setFieldsValue(initialValues);
         }
-    }, [data, visible, form, columns, relatedEntity]);
+    }, [data, visible, form]);
 
     const hasRelatedFields =
         (relatedEntity?.type !== "deal" && deals.length > 0) ||

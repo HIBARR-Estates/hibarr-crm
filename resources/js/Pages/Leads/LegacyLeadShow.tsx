@@ -18,7 +18,7 @@ import LeadQualificationTab from "./Components/Qualification/LeadQualificationTa
 import { Task } from "@/Types/api/tasks";
 import TasksTab from "@/Components/TasksTab";
 import { CrmEventTimeline } from "@/Components/CrmEvents";
-import { usePage } from "@inertiajs/react";
+import { usePage, router } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import type { LeadShowProps } from "./Show";
@@ -77,6 +77,22 @@ export default function LegacyLeadShow({
 
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isEditMode,
+        onRefresh: () =>
+            new Promise<void>((resolve, reject) => {
+                router.reload({
+                    only: [
+                        "lead",
+                        "notes",
+                        "tasks",
+                        "leadFollowUps",
+                        "taskBoardColumns",
+                        "deals",
+                        "leadAiSummary",
+                    ],
+                    onSuccess: () => resolve(),
+                    onError: (errors) => reject(errors),
+                });
+            }),
     });
 
     const handleTabChange = (key: string) => {
@@ -124,23 +140,32 @@ export default function LegacyLeadShow({
             ),
         },
         {
-            key: "itinerary",
-            label: t("pages.flight_itinerary.tab"),
+            key: "notes",
+            label: t("pages.leads.tabs.notes"),
             children: (
-                <LeadFlightItineraryTab
-                    itineraryLegs={lead.lead_flight_itineraries || []}
-                    leadId={lead.id}
-                    permissions={{
-                        canAdd: ["all", "added", "owned", "both"].includes(
-                            editLeadPermission,
-                        ),
-                        canEdit: ["all", "added", "owned", "both"].includes(
-                            editLeadPermission,
-                        ),
-                        canDelete: ["all", "added", "owned", "both"].includes(
-                            deleteLeadPermission,
-                        ),
-                    }}
+                <LeadNotesTab
+                    lead={lead}
+                    notes={notes}
+                    permissions={notePermissions}
+                    isLoading={props.notes === undefined}
+                />
+            ),
+        },
+        {
+            key: "tasks",
+            label: t("pages.leads.tabs.tasks"),
+            tall: true,
+            children: (
+                <TasksTab
+                    tasks={tasks}
+                    isLoading={props.tasks === undefined}
+                    relatedEntity={{ type: "lead", id: lead.id }}
+                    taskCategories={taskCategories}
+                    taskLabels={taskLabels}
+                    taskBoardColumns={taskBoardColumns}
+                    employees={employees}
+                    projects={projects}
+                    permissions={taskPerms as any}
                 />
             ),
         },
@@ -166,13 +191,23 @@ export default function LegacyLeadShow({
               ]
             : []),
         {
-            key: "notes",
-            label: t("pages.leads.tabs.notes"),
+            key: "itinerary",
+            label: t("pages.flight_itinerary.tab"),
             children: (
-                <LeadNotesTab
-                    lead={lead}
-                    notes={notes}
-                    permissions={notePermissions}
+                <LeadFlightItineraryTab
+                    itineraryLegs={lead.lead_flight_itineraries || []}
+                    leadId={lead.id}
+                    permissions={{
+                        canAdd: ["all", "added", "owned", "both"].includes(
+                            editLeadPermission,
+                        ),
+                        canEdit: ["all", "added", "owned", "both"].includes(
+                            editLeadPermission,
+                        ),
+                        canDelete: ["all", "added", "owned", "both"].includes(
+                            deleteLeadPermission,
+                        ),
+                    }}
                 />
             ),
         },
@@ -191,23 +226,6 @@ export default function LegacyLeadShow({
                   },
               ]
             : []),
-        {
-            key: "tasks",
-            label: t("pages.leads.tabs.tasks"),
-            tall: true,
-            children: (
-                <TasksTab
-                    tasks={tasks}
-                    relatedEntity={{ type: "lead", id: lead.id }}
-                    taskCategories={taskCategories}
-                    taskLabels={taskLabels}
-                    taskBoardColumns={taskBoardColumns}
-                    employees={employees}
-                    projects={projects}
-                    permissions={taskPerms as any}
-                />
-            ),
-        },
         {
             key: "events",
             label: t("pages.leads.tabs.events"),

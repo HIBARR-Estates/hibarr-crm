@@ -44,7 +44,12 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 export interface IndexProps extends PageProps {
     pageTitle: string;
     leads: PaginatedLeadResponse;
-    leadLifecycleStatuses?: Array<{ id: number; label: string; key: string }>;
+    leadLifecycleStatuses?: Array<{
+        id: number;
+        label: string;
+        key: string;
+        label_color?: string;
+    }>;
 }
 
 const Index = ({

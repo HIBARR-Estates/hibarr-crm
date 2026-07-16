@@ -1,11 +1,10 @@
 import { IModalProps } from "@/Types/common";
-import { router } from "@inertiajs/react";
 import { Select, Modal, Button } from "antd";
 import React, { useState } from "react";
 import { SwapOutlined } from "@ant-design/icons";
 import { pluralOrSingular } from "@/lib/utils";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 
 interface TaskboardColumn {
     id: number;
@@ -32,14 +31,15 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
         { row_ids: string; action_type: string; status: number },
         any,
         ApiResponse<any>
-    >("/account/tasks/apply-quick-action", "POST", () => {
-        onClose(true);
-        router.reload();
+    >("/account/tasks/apply-quick-action", "POST", (response) => {
+        // Parent BulkTaskActionSelector refreshes task lists on success.
+        if (response && isSuccessResponse(response)) {
+            onClose(true);
+        }
     });
 
     const handleBulkChangeStatus = () => {
         if (!selectedColumnId) {
-            // Handle validation error - the mutation hook will show appropriate notifications
             return;
         }
 
@@ -56,7 +56,7 @@ const BulkChangeTaskStatus: React.FC<Props> = ({
     };
 
     const selectedColumn = columns.find(
-        (column) => column.id === selectedColumnId
+        (column) => column.id === selectedColumnId,
     );
 
     return (

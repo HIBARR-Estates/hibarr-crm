@@ -39,7 +39,7 @@ interface FilterLocation {
 
 interface ProjectsFiltersModalProps {
     open: boolean;
-    onClose: (): void;
+    onClose: () => void;
     onApply: (draft: ProjectsFilterDraft) => void;
     onReset: () => void;
     initialValues: ProjectsFilterDraft;

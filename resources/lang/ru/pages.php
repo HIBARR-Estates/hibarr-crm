@@ -80,6 +80,7 @@ return [
                 'added_by'      => 'Добавлен',
                 'lead_source'   => 'Источник лида',
                 'category'      => 'Категория',
+                'lifecycle_status' => 'Статус жизненного цикла',
                 'created_at'    => 'Создано',
                 'updated_at'    => 'Обновлено',
                 'country'       => 'Страна',
