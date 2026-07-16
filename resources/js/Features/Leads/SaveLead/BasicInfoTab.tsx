@@ -89,7 +89,21 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         employees,
         permissions,
         featureFlags,
+        leadLifecycleStatuses,
     } = props;
+    const lifecycleStatusOptions = useMemo(
+        () =>
+            (
+                (leadLifecycleStatuses as Array<{
+                    id: number;
+                    label: string;
+                }>) || []
+            ).map((status) => ({
+                value: status.id,
+                label: status.label,
+            })),
+        [leadLifecycleStatuses],
+    );
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
     const [form] = Form.useForm();
@@ -304,6 +318,19 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Col>
                         )}
 
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                label="Lifecycle Status"
+                                name="lead_lifecycle_status_id"
+                            >
+                                <Select
+                                    allowClear
+                                    placeholder="Lifecycle Status"
+                                    options={lifecycleStatusOptions}
+                                />
+                            </Form.Item>
+                        </Col>
+
                         {permissions?.add_lead === "all" && (
                             <Col xs={24} md={8}>
                                 <Form.Item label="Added By" name="added_by">
@@ -374,7 +401,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             </Col>
                             <Col span={24}>
                                 <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] gap-3 w-full">
-                                    <Form.Item label="DOB" name="date_of_birth">
+                                    <Form.Item
+                                        label="Date of Birth"
+                                        name="date_of_birth"
+                                    >
                                         <DatePicker
                                             className="w-full"
                                             format="DD MMM YYYY"

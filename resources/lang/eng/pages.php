@@ -88,6 +88,7 @@ return [
                 'added_by'      => 'Added By',
                 'lead_source'   => 'Lead Source',
                 'category'      => 'Category',
+                'lifecycle_status' => 'Lifecycle Status',
                 'created_at'    => 'Created At',
                 'updated_at'    => 'Updated At',
                 'country'       => 'Country',

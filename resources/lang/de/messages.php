@@ -26,6 +26,8 @@ return array(
     'propertyUpdateSuccess' => 'Immobilie erfolgreich aktualisiert.',
     'taskUpdateSuccess' => 'Aufgabe erfolgreich aktualisiert.',
     'taskCreatedSuccessfully' => 'Aufgabe erfolgreich erstellt.',
+    'taskDeleted' => 'Aufgabe erfolgreich gelöscht.',
+    'taskUpdated' => 'Aufgabe als :status markiert.',
     'projectTasksNotCompleted' => 'Bitte schließen Sie die Projektaufgaben ab.',
     'requestSent' => 'Anfrage wurde zur Genehmigung gesendet',
     'recordSaved' => 'Datensatz erfolgreich gespeichert',

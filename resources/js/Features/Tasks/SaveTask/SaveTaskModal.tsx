@@ -10,6 +10,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
+import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 
 interface Task {
     id: number;
@@ -91,7 +92,7 @@ interface Lead {
 
 interface Property {
     id: number;
-    name: string;
+    title: string;
 }
 
 interface CreateTaskFormData {
@@ -133,8 +134,13 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
         id?: number;
     };
     td?: (key: string) => string;
-    onSuccess?: () => void;
-    reloadKeys?: string[];
+    /** Called after a successful create/update with the API task payload when available. */
+    onSuccess?: (task?: Task) => void;
+    /**
+     * Inertia partial-reload keys after success. Pass `false` to skip reload
+     * (use when the parent merges the returned task into local state).
+     */
+    reloadKeys?: string[] | false;
 }
 
 const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
@@ -180,6 +186,61 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         isEditing && fetchedTaskData?.task
             ? fetchedTaskData.task
             : (task as Task | undefined);
+
+    // True when the caller didn't supply any picker options at all (e.g. the
+    // Dashboard), meaning TaskForm's "Related to" section never renders and
+    // the user has no way to see/change the link through this form.
+    const noEntityPickerRendered =
+        deals.length === 0 && leads.length === 0 && properties.length === 0;
+
+    // Resolve which deal/lead/property this task is linked to, so we can (a)
+    // show it to the user regardless of which page opened this modal, and
+    // (b) preserve the link on submit even when the caller (e.g. the
+    // Dashboard) doesn't pass a `deals`/`leads` picker list, in which case
+    // the "Related to" fields in TaskForm aren't rendered at all.
+    const linkedEntity = React.useMemo(() => {
+        // Prefer the richer task data (has real names) whenever it's available —
+        // it's always accurate for the task actually being edited/duplicated.
+        const anyTask = activeTask as any;
+        if (anyTask?.deals?.[0]) {
+            return { type: "deal" as const, id: anyTask.deals[0].id, name: anyTask.deals[0].name };
+        }
+        if (anyTask?.deal) {
+            return { type: "deal" as const, id: anyTask.deal.id, name: anyTask.deal.name };
+        }
+        if (anyTask?.leads?.[0]) {
+            return {
+                type: "lead" as const,
+                id: anyTask.leads[0].id,
+                name: anyTask.leads[0].client_name,
+            };
+        }
+        if (anyTask?.lead) {
+            return { type: "lead" as const, id: anyTask.lead.id, name: anyTask.lead.client_name };
+        }
+        if (anyTask?.properties?.[0]) {
+            return {
+                type: "property" as const,
+                id: anyTask.properties[0].id,
+                name: anyTask.properties[0].title,
+            };
+        }
+
+        // Fall back to the caller-supplied relatedEntity (e.g. a brand new task
+        // being created from a Deal/Lead's own task tab, before it has any
+        // fetched task data of its own).
+        if (relatedEntity?.id) {
+            const lookupName =
+                relatedEntity.type === "deal"
+                    ? deals.find((d) => d.id === relatedEntity.id)?.name
+                    : relatedEntity.type === "lead"
+                      ? leads.find((l) => l.id === relatedEntity.id)?.client_name
+                      : properties.find((p) => p.id === relatedEntity.id)?.title;
+            return { ...relatedEntity, name: lookupName };
+        }
+
+        return undefined;
+    }, [relatedEntity, activeTask, deals, leads, properties]);
 
     const getTitle = () => {
         if (isEditing) return "Edit Task";
@@ -300,25 +361,42 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                 : values.due_date,
             estimate_hours: values.estimate_hours || 0,
             estimate_minutes: values.estimate_minutes || 0,
-            taskable_type: values?.taskable_type ?? relatedEntity?.type,
-            taskable_id: values?.taskable_id ?? relatedEntity?.id,
+            // Only fall back to the derived link when no "Related to" picker was
+            // ever rendered for the user (e.g. opened from the Dashboard, which
+            // doesn't pass deals/leads/properties lists) — otherwise trust the
+            // form values as-is so clearing/reassigning a picker field on pages
+            // that do show it (e.g. the Tasks list) keeps working.
+            taskable_type:
+                values?.taskable_type ??
+                (noEntityPickerRendered ? linkedEntity?.type : undefined),
+            taskable_id:
+                values?.taskable_id ??
+                (noEntityPickerRendered ? linkedEntity?.id : undefined),
         };
 
         const mutation = isEditing ? updateTask : createTask;
 
         mutation(submitData, {
-            onSuccess: () => {
+            onSuccess: (response) => {
                 setErrors([]);
                 handleCancel();
-                onSuccess?.();
-                router.reload({
-                    only: reloadKeys ?? [
-                        "tableTasks",
-                        "kanbanTasks",
-                        "stats",
-                        "tasks",
-                    ],
-                });
+                const savedTask =
+                    response && "data" in response
+                        ? (response.data as Task | undefined)
+                        : undefined;
+                onSuccess?.(savedTask);
+                if (reloadKeys !== false) {
+                    router.reload({
+                        only: reloadKeys ?? [
+                            "tableTasks",
+                            "kanbanTasks",
+                            "stats",
+                            "tasks",
+                            "overviewMetrics",
+                            "taskBoardColumns",
+                        ],
+                    });
+                }
             },
             onError: (errorResponse) => {
                 const responseErrors =
@@ -370,6 +448,23 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                         ? "Update the task details below."
                         : "Fill in the details below to create a new task."}
                 </p>
+                {linkedEntity?.id && linkedEntity.type !== "property" && (
+                    <div className="mt-2">
+                        {linkedEntity.name ? (
+                            <TaskEntityLink
+                                type={linkedEntity.type as "deal" | "lead"}
+                                id={linkedEntity.id}
+                                name={linkedEntity.name}
+                                className="!text-sm"
+                                stopPropagation={false}
+                            />
+                        ) : (
+                            <span className="text-xs text-gray-400">
+                                Linked to a {linkedEntity.type}
+                            </span>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Scrollable body */}

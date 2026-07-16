@@ -1,12 +1,75 @@
-import { Link } from "@inertiajs/react";
-import { Button, Dropdown, MenuProps, Tag, Tooltip } from "antd";
+import { Link, router, usePage } from "@inertiajs/react";
+import { Button, Dropdown, MenuProps, Select, Tag, Tooltip, message } from "antd";
 import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
+import { useEffect, useState } from "react";
+import axios from "axios";
 import { Lead } from "@/Types/api/leads";
 import dayjs from "dayjs";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
+
+interface LeadLifecycleStatusOption {
+    id: number;
+    label: string;
+    label_color?: string;
+}
+
+/** Inline-editable lifecycle status cell for the Leads table. */
+function LeadLifecycleStatusCell({ record }: { record: Lead }) {
+    const { props } = usePage<{
+        leadLifecycleStatuses?: LeadLifecycleStatusOption[];
+    }>();
+    const statuses = props.leadLifecycleStatuses ?? [];
+    const [value, setValue] = useState<number | undefined>(
+        record.lead_lifecycle_status_id ?? undefined,
+    );
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        setValue(record.lead_lifecycle_status_id ?? undefined);
+    }, [record.lead_lifecycle_status_id]);
+
+    const handleChange = async (nextValue: number) => {
+        const previous = value;
+        setValue(nextValue);
+        setSaving(true);
+        try {
+            await axios.patch(route("lead-contact.patch", record.id), {
+                lead_lifecycle_status_id: nextValue,
+            });
+            router.reload({ only: ["leads"] });
+        } catch {
+            setValue(previous);
+            message.error("Failed to update lifecycle status");
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    return (
+        <Select
+            size="small"
+            value={value}
+            onChange={handleChange}
+            loading={saving}
+            disabled={saving}
+            variant="borderless"
+            className="w-full"
+            popupMatchSelectWidth={false}
+            placeholder={<span className="text-gray-400">—</span>}
+            options={statuses.map((status) => ({
+                value: status.id,
+                label: (
+                    <Tag color={status.label_color} className="!mr-0">
+                        {status.label}
+                    </Tag>
+                ),
+            }))}
+        />
+    );
+}
 
 interface LeadColumnOptions {
     actionItems?: (item: Lead) => MenuProps["items"];
@@ -191,17 +254,8 @@ export const LEAD_TABLE_COLUMNS = (
             ),
             dataIndex: "lead_lifecycle_status",
             key: "lead_lifecycle_status",
-            width: 130,
-            render: (_, record) => {
-                if (!record.lead_lifecycle_status) {
-                    return <span className="text-gray-400">—</span>;
-                }
-                return (
-                    <Tag color={record.lead_lifecycle_status.label_color}>
-                        {record.lead_lifecycle_status.label}
-                    </Tag>
-                );
-            },
+            width: 150,
+            render: (_, record) => <LeadLifecycleStatusCell record={record} />,
         },
         {
             title: (

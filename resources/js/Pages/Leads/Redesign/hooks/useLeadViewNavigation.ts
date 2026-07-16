@@ -4,10 +4,11 @@ import type { LeadDrawerTab } from "../types";
 const VALID_DRAWER_TABS: LeadDrawerTab[] = [
     "overview",
     "profile",
+    "notes",
     "tasks",
     "meetings",
+    "itinerary",
     "deals",
-    "notes",
     "marketing",
     "activity",
 ];

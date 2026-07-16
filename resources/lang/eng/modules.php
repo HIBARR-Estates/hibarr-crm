@@ -1704,6 +1704,7 @@ return array(
         'leadSource' => 'Lead Source',
         'leadOwner' => 'Lead Owner',
         'leadStatus' => 'Lead Status',
+        'lifecycleStatusImportField' => 'Lifecycle Status',
         'leadFollowUp' => 'Meeting Date',
         'remark' => 'Remark',
         'proposal' => 'Proposal',
