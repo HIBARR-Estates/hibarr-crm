@@ -26,26 +26,29 @@ class PatchRequest extends CoreRequest
         
         return [
             // Contact Information (all optional for patch)
+            // client_name is NOT NULL at the DB level, so this intentionally
+            // stays non-nullable — clearing it should surface a friendly
+            // validation error rather than a DB constraint failure.
             'client_name' => 'sometimes|string|max:255',
             'client_email' => 'nullable|email|max:255',
             'mobile' => 'nullable|string|max:20',
-            'cell' => 'sometimes|string|max:20',
-            'office' => 'sometimes|string|max:20',
-            'company_name' => 'sometimes|string|max:255',
-            'website' => 'sometimes|url|max:255',
-            'address' => 'sometimes|string|max:500',
-            'city' => 'sometimes|string|max:100',
-            'state' => 'sometimes|string|max:100',
-            'country' => 'sometimes|string|max:100',
-            'postal_code' => 'sometimes|string|max:20',
+            'cell' => 'sometimes|nullable|string|max:20',
+            'office' => 'sometimes|nullable|string|max:20',
+            'company_name' => 'sometimes|nullable|string|max:255',
+            'website' => 'sometimes|nullable|url|max:255',
+            'address' => 'sometimes|nullable|string|max:500',
+            'city' => 'sometimes|nullable|string|max:100',
+            'state' => 'sometimes|nullable|string|max:100',
+            'country' => 'sometimes|nullable|string|max:100',
+            'postal_code' => 'sometimes|nullable|string|max:20',
             'salutation' => ['sometimes', 'nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
-            
+
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',
             'currency_id' => 'sometimes|integer|exists:currencies,id',
-            'next_follow_up' => 'sometimes|date|after:today',
-            'note' => 'sometimes|string|max:2000',
+            'next_follow_up' => 'sometimes|nullable|date|after:today',
+            'note' => 'sometimes|nullable|string|max:2000',
             
             // Assignment (all optional for patch)
             'agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',

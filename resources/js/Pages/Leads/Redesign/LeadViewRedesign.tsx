@@ -1,8 +1,10 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import { router } from "@inertiajs/react";
 import type { LeadRedesignProps } from "./types";
+import type { LeadNote } from "@/Types/api/lead-note";
+import type { Task } from "@/Types/api/tasks";
 import "./lead-redesign.css";
 import useLeadHeaderData from "./hooks/useLeadHeaderData";
 import useLeadViewNavigation from "./hooks/useLeadViewNavigation";
@@ -44,13 +46,68 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
         featureFlags?.["crm.lead-qualification-tab"] === true;
     const { t } = useTranslation();
 
+    // Local lists — mutated after CRUD so deferred remounts do not wipe UI.
+    const [localNotes, setLocalNotes] = useState<LeadNote[] | undefined>(notes);
+    const [localTasks, setLocalTasks] = useState<Task[] | undefined>(tasks);
+    useEffect(() => {
+        setLocalNotes(notes);
+    }, [notes]);
+    useEffect(() => {
+        setLocalTasks(tasks);
+    }, [tasks]);
+
+    const handleNoteCreated = useCallback((note: LeadNote) => {
+        setLocalNotes((prev) => [
+            note,
+            ...(prev ?? []).filter((n) => n.id !== note.id),
+        ]);
+    }, []);
+
+    const handleTaskCreated = useCallback((task: Task) => {
+        setLocalTasks((prev) => [
+            task,
+            ...(prev ?? []).filter((t) => t.id !== task.id),
+        ]);
+    }, []);
+
+    const handleTaskStatusChange = useCallback(
+        (taskId: number, statusSlug: string) => {
+            setLocalTasks((prev) =>
+                (prev ?? []).map((task) => {
+                    if (task.id !== taskId) return task;
+                    return {
+                        ...task,
+                        status: statusSlug,
+                        completed_on:
+                            statusSlug === "done"
+                                ? new Date().toISOString()
+                                : undefined,
+                        board_column: {
+                            ...((task as any).board_column ?? {}),
+                            slug: statusSlug,
+                        },
+                    } as Task;
+                }),
+            );
+        },
+        [],
+    );
+
     const header = useLeadHeaderData(lead);
     const nav = useLeadViewNavigation();
-    const railData = useLeadContextRail({ tasks, leadFollowUps, deals });
+    const railData = useLeadContextRail({
+        tasks: localTasks,
+        leadFollowUps,
+        deals,
+    });
     const qualificationWorkspace = useLeadQualificationWorkspace(lead, {
         enabled: showQualificationTab,
     });
-    const overview = useLeadOverview({ notes, tasks, leadFollowUps });
+    const overview = useLeadOverview({
+        notes: localNotes,
+        tasks: localTasks,
+        leadFollowUps,
+    });
     const firstContact = useLeadFirstContact(lead.id);
 
     const [ctaLoading, setCtaLoading] = useState(false);
@@ -70,7 +127,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     const mission = useLeadMission({
         lead,
         leadName: header.leadName,
-        tasks,
+        tasks: localTasks,
         leadFollowUps,
         flowActive: qualificationWorkspace.flowActive,
         outcome: qualificationWorkspace.outcome,
@@ -83,9 +140,25 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !nav.profileEditMode,
+        onRefresh: () =>
+            new Promise<void>((resolve, reject) => {
+                router.reload({
+                    only: [
+                        "lead",
+                        "notes",
+                        "tasks",
+                        "leadFollowUps",
+                        "taskBoardColumns",
+                        "deals",
+                        "leadAiSummary",
+                    ],
+                    onSuccess: () => resolve(),
+                    onError: (errors) => reject(errors),
+                });
+            }),
     });
 
-    const latestNote = notes?.[0] ?? null;
+    const latestNote = localNotes?.[0] ?? null;
     const canEdit =
         editLeadPermission === "all" || editLeadPermission === "added";
 
@@ -229,6 +302,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
                                 props: {
                                     lead,
                                     latestNote,
+                                    onNoteCreated: handleNoteCreated,
                                 },
                             }}
                         />
@@ -262,12 +336,17 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 
                             <LeadDrawer
                                 {...props}
+                                notes={localNotes}
+                                tasks={localTasks}
                                 drawerTab={nav.drawerTab}
                                 onDrawerTabChange={nav.setDrawerTab}
                                 overview={overview}
                                 profileEditMode={nav.profileEditMode}
                                 onProfileEditModeChange={nav.setProfileEditMode}
                                 drawerRef={drawerRef}
+                                onNoteCreated={handleNoteCreated}
+                                onTaskCreated={handleTaskCreated}
+                                onTaskStatusChange={handleTaskStatusChange}
                             />
                         </div>
                     </div>

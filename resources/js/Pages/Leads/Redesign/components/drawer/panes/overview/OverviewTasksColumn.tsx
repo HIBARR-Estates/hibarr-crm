@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import {
     isCompletedColumn,
@@ -24,8 +23,10 @@ interface OverviewTasksColumnProps {
     taskBoardColumns: TaskboardColumn[];
     openCount: number;
     canAdd?: boolean;
+    isLoading?: boolean;
     onAddTask: () => void;
     onViewTask: () => void;
+    onTaskStatusChange?: (taskId: number, statusSlug: string) => void;
 }
 
 export default function OverviewTasksColumn({
@@ -34,8 +35,10 @@ export default function OverviewTasksColumn({
     taskBoardColumns,
     openCount,
     canAdd = true,
+    isLoading = false,
     onAddTask,
     onViewTask,
+    onTaskStatusChange,
 }: OverviewTasksColumnProps) {
     const { td } = useTd();
     const [expandedId, setExpandedId] = useState<number | null>(null);
@@ -54,9 +57,14 @@ export default function OverviewTasksColumn({
         const isDone = isCompletedColumn(currentStatus, taskBoardColumns);
         const nextStatus = isDone ? "to_do" : "done";
 
+        onTaskStatusChange?.(taskId, nextStatus);
         updateTaskStatus(
             { taskId, status: nextStatus },
-            { onSuccess: () => router.reload({ only: ["tasks"] }) },
+            {
+                onError: () => {
+                    onTaskStatusChange?.(taskId, currentStatus);
+                },
+            },
         );
     };
 
@@ -67,11 +75,20 @@ export default function OverviewTasksColumn({
                 iconBg={T.GREEN_LIGHT}
                 iconColor={T.GREEN}
                 title={td("Tasks")}
-                count={openCount}
+                count={isLoading ? 0 : openCount}
                 onAdd={canAdd ? onAddTask : undefined}
             />
             <div className="max-h-[560px] overflow-y-auto pr-0.5">
-                {tasks.length === 0 ? (
+                {isLoading ? (
+                    <div className="space-y-2">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="h-16 animate-pulse rounded-lg border border-[#e2e5ea] bg-[#f8fafc]"
+                            />
+                        ))}
+                    </div>
+                ) : tasks.length === 0 ? (
                     <OverviewEmptyMini
                         icon="check-square"
                         label={td("No tasks yet")}

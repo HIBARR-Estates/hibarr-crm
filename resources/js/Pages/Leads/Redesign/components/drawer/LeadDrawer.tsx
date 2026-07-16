@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Deferred } from "@inertiajs/react";
+import type { LeadNote } from "@/Types/api/lead-note";
+import type { Task } from "@/Types/api/tasks";
 import type { LeadRedesignProps, LeadDrawerTab } from "../../types";
 import type useLeadOverview from "../../hooks/useLeadOverview";
 import LeadDrawerTabBar, { type DrawerTabConfig } from "./LeadDrawerTabBar";
@@ -11,14 +13,12 @@ import LeadMeetingsTab from "./panes/LeadMeetingsTab";
 import LeadDealsTab from "@/Pages/Leads/Components/LeadDealsTab";
 import LeadMarketingTab from "@/Pages/Leads/Components/LeadMarketingTab";
 import LeadInfoSection from "@/Pages/Leads/Components/LeadInfoSection";
+import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
 import LeadIcon from "../primitives/LeadIcon";
 import useTranslation from "@/Hooks/useTranslation";
 import LeadAddTaskModal from "./panes/overview/LeadAddTaskModal";
 import LeadScheduleMeetingModal from "./panes/overview/LeadScheduleMeetingModal";
-import {
-    OverviewDeferredSkeleton,
-    TabDeferredSkeleton,
-} from "./panes/overview/overviewShared";
+import { TabDeferredSkeleton } from "./panes/overview/overviewShared";
 
 type OverviewData = ReturnType<typeof useLeadOverview>;
 
@@ -29,6 +29,9 @@ interface LeadDrawerProps extends LeadRedesignProps {
     profileEditMode: boolean;
     onProfileEditModeChange: (value: boolean) => void;
     drawerRef?: React.RefObject<HTMLDivElement | null>;
+    onNoteCreated?: (note: LeadNote) => void;
+    onTaskCreated?: (task: Task) => void;
+    onTaskStatusChange?: (taskId: number, statusSlug: string) => void;
 }
 
 export default function LeadDrawer({
@@ -58,6 +61,9 @@ export default function LeadDrawer({
     profileEditMode,
     onProfileEditModeChange,
     drawerRef,
+    onNoteCreated,
+    onTaskCreated,
+    onTaskStatusChange,
 }: LeadDrawerProps) {
     const { t } = useTranslation();
     const [addTaskOpen, setAddTaskOpen] = useState(false);
@@ -92,6 +98,12 @@ export default function LeadDrawer({
             icon: "user",
         },
         {
+            id: "notes",
+            label: t("pages.leads.tabs.notes"),
+            icon: "file-text",
+            count: notes === undefined ? undefined : notes.length,
+        },
+        {
             id: "tasks",
             label: t("pages.leads.tabs.tasks"),
             icon: "check",
@@ -108,16 +120,15 @@ export default function LeadDrawer({
             hidden: !showMeetings,
         },
         {
+            id: "itinerary",
+            label: t("pages.flight_itinerary.tab"),
+            icon: "map-pin",
+        },
+        {
             id: "deals",
             label: t("app.deal"),
             icon: "briefcase",
             count: deals.length,
-        },
-        {
-            id: "notes",
-            label: t("pages.leads.tabs.notes"),
-            icon: "file-text",
-            count: notes === undefined ? undefined : notes.length,
         },
         {
             id: "marketing",
@@ -137,6 +148,7 @@ export default function LeadDrawer({
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
                 leadId={lead.id}
+                onTaskCreated={onTaskCreated}
             />
             <LeadScheduleMeetingModal
                 open={addMeetingOpen}
@@ -160,29 +172,25 @@ export default function LeadDrawer({
                 />
                 <div className="p-4">
                     {drawerTab === "overview" && (
-                        <Deferred
-                            data={[
-                                "notes",
-                                "tasks",
-                                "leadFollowUps",
-                                "taskBoardColumns",
-                            ]}
-                            fallback={<OverviewDeferredSkeleton />}
-                        >
-                            <OverviewPane
-                                lead={lead}
-                                notes={notes ?? []}
-                                tasks={tasks ?? []}
-                                leadFollowUps={leadFollowUps ?? []}
-                                taskBoardColumns={taskBoardColumns}
-                                canAddNote={canAddNote}
-                                canAddTask={canAddTask}
-                                canAddMeeting={canAddFollowUp}
-                                onNavigate={onDrawerTabChange}
-                                onAddTask={() => setAddTaskOpen(true)}
-                                onAddMeeting={() => setAddMeetingOpen(true)}
-                            />
-                        </Deferred>
+                        // OverviewPane wraps each column in its own <Deferred>
+                        // boundary internally, so it can render immediately —
+                        // no need to gate the whole pane behind one shared
+                        // Deferred here (see OverviewPane.tsx for why).
+                        <OverviewPane
+                            lead={lead}
+                            notes={notes}
+                            tasks={tasks}
+                            leadFollowUps={leadFollowUps}
+                            taskBoardColumns={taskBoardColumns}
+                            canAddNote={canAddNote}
+                            canAddTask={canAddTask}
+                            canAddMeeting={canAddFollowUp}
+                            onNavigate={onDrawerTabChange}
+                            onAddTask={() => setAddTaskOpen(true)}
+                            onAddMeeting={() => setAddMeetingOpen(true)}
+                            onNoteCreated={onNoteCreated}
+                            onTaskStatusChange={onTaskStatusChange}
+                        />
                     )}
                     {drawerTab === "profile" && (
                         <LeadInfoSection
@@ -201,18 +209,24 @@ export default function LeadDrawer({
                             useLeadCoreFields={useLeadCoreFields}
                         />
                     )}
+                    {drawerTab === "notes" && (
+                        <LeadNotesTab
+                            lead={lead}
+                            notes={notes ?? []}
+                            isLoading={notes === undefined}
+                            permissions={notePermissions}
+                            onNoteCreated={onNoteCreated}
+                        />
+                    )}
                     {drawerTab === "tasks" && (
-                        <Deferred
-                            data={["tasks", "taskBoardColumns"]}
-                            fallback={<TabDeferredSkeleton />}
-                        >
-                            <LeadTasksTab
-                                tasks={tasks ?? []}
-                                taskBoardColumns={taskBoardColumns}
-                                permissions={permissions}
-                                onAddTask={() => setAddTaskOpen(true)}
-                            />
-                        </Deferred>
+                        <LeadTasksTab
+                            tasks={tasks ?? []}
+                            isLoading={tasks === undefined}
+                            taskBoardColumns={taskBoardColumns ?? []}
+                            permissions={permissions}
+                            onAddTask={() => setAddTaskOpen(true)}
+                            onTaskStatusChange={onTaskStatusChange}
+                        />
                     )}
                     {drawerTab === "meetings" && showMeetings && (
                         <Deferred
@@ -228,24 +242,32 @@ export default function LeadDrawer({
                             />
                         </Deferred>
                     )}
+                    {drawerTab === "itinerary" && (
+                        <LeadFlightItineraryTab
+                            itineraryLegs={lead.lead_flight_itineraries || []}
+                            leadId={lead.id}
+                            permissions={{
+                                canAdd: ["all", "added", "owned", "both"].includes(
+                                    editLeadPermission,
+                                ),
+                                canEdit: ["all", "added", "owned", "both"].includes(
+                                    editLeadPermission,
+                                ),
+                                canDelete: [
+                                    "all",
+                                    "added",
+                                    "owned",
+                                    "both",
+                                ].includes(deleteLeadPermission),
+                            }}
+                        />
+                    )}
                     {drawerTab === "deals" && (
                         <LeadDealsTab
                             lead={lead}
                             deals={deals}
                             permissions={dealPermissions}
                         />
-                    )}
-                    {drawerTab === "notes" && (
-                        <Deferred
-                            data="notes"
-                            fallback={<TabDeferredSkeleton />}
-                        >
-                            <LeadNotesTab
-                                lead={lead}
-                                notes={notes ?? []}
-                                permissions={notePermissions}
-                            />
-                        </Deferred>
                     )}
                     {drawerTab === "marketing" && (
                         <LeadMarketingTab lead={lead} />

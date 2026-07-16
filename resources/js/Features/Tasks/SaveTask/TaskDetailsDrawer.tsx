@@ -22,11 +22,12 @@ import { getPriorityConfig } from "@/lib/priority";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
-import { Link, router } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import TaskStatusDropdownPill, {
     TaskboardColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
+import { reloadTaskLists } from "@/Features/Tasks/reloadTaskLists";
 import "./task-view-modal.css";
 
 export interface Task {
@@ -94,6 +95,9 @@ interface TaskDetailsModalProps {
     columns?: TaskboardColumn[];
     onMarkDone?: () => void;
     td?: (key: string) => string;
+    /** Skip Inertia reload after status changes (parent updates local state). */
+    skipReload?: boolean;
+    onStatusChange?: (taskId: number, statusSlug: string) => void;
 }
 
 // ─── Small atoms ─────────────────────────────────────────────────────────────
@@ -146,6 +150,8 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     columns = [],
     onMarkDone,
     td = (key) => key,
+    skipReload = false,
+    onStatusChange,
 }) => {
     const { message } = App.useApp();
     const [confirmed, setConfirmed] = useState(false);
@@ -190,7 +196,10 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                         setConfirmed(false);
                         setLocalStatus(null);
                         onMarkDone?.();
-                        router.reload();
+                        onStatusChange?.(task.id, "done");
+                        if (!skipReload) {
+                            reloadTaskLists();
+                        }
                         onClose();
                     }, 1100);
                 },
@@ -208,7 +217,10 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             { taskId: task.id, status: slug },
             {
                 onSuccess: () => {
-                    router.reload();
+                    onStatusChange?.(task.id, slug);
+                    if (!skipReload) {
+                        reloadTaskLists();
+                    }
                 },
                 onError: () => {
                     setLocalStatus(null);

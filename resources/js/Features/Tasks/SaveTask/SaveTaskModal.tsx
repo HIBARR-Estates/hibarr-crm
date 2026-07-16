@@ -92,7 +92,7 @@ interface Lead {
 
 interface Property {
     id: number;
-    name: string;
+    title: string;
 }
 
 interface CreateTaskFormData {
@@ -134,8 +134,13 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
         id?: number;
     };
     td?: (key: string) => string;
-    onSuccess?: () => void;
-    reloadKeys?: string[];
+    /** Called after a successful create/update with the API task payload when available. */
+    onSuccess?: (task?: Task) => void;
+    /**
+     * Inertia partial-reload keys after success. Pass `false` to skip reload
+     * (use when the parent merges the returned task into local state).
+     */
+    reloadKeys?: string[] | false;
 }
 
 const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
@@ -217,7 +222,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
             return {
                 type: "property" as const,
                 id: anyTask.properties[0].id,
-                name: anyTask.properties[0].name,
+                name: anyTask.properties[0].title,
             };
         }
 
@@ -230,7 +235,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                     ? deals.find((d) => d.id === relatedEntity.id)?.name
                     : relatedEntity.type === "lead"
                       ? leads.find((l) => l.id === relatedEntity.id)?.client_name
-                      : properties.find((p) => p.id === relatedEntity.id)?.name;
+                      : properties.find((p) => p.id === relatedEntity.id)?.title;
             return { ...relatedEntity, name: lookupName };
         }
 
@@ -372,18 +377,26 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         const mutation = isEditing ? updateTask : createTask;
 
         mutation(submitData, {
-            onSuccess: () => {
+            onSuccess: (response) => {
                 setErrors([]);
                 handleCancel();
-                onSuccess?.();
-                router.reload({
-                    only: reloadKeys ?? [
-                        "tableTasks",
-                        "kanbanTasks",
-                        "stats",
-                        "tasks",
-                    ],
-                });
+                const savedTask =
+                    response && "data" in response
+                        ? (response.data as Task | undefined)
+                        : undefined;
+                onSuccess?.(savedTask);
+                if (reloadKeys !== false) {
+                    router.reload({
+                        only: reloadKeys ?? [
+                            "tableTasks",
+                            "kanbanTasks",
+                            "stats",
+                            "tasks",
+                            "overviewMetrics",
+                            "taskBoardColumns",
+                        ],
+                    });
+                }
             },
             onError: (errorResponse) => {
                 const responseErrors =

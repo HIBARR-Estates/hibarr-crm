@@ -96,18 +96,22 @@ const ageRangeOptions = useMemo(
             })),
         [props.ageRanges],
     );
+    const leadLifecycleStatuses = useMemo(
+        () =>
+            (props.leadLifecycleStatuses as Array<{
+                id: number;
+                label: string;
+                label_color?: string;
+            }>) || [],
+        [props.leadLifecycleStatuses],
+    );
     const leadLifecycleStatusOptions = useMemo(
         () =>
-            (
-                (props.leadLifecycleStatuses as Array<{
-                    id: number;
-                    label: string;
-                }>) || []
-            ).map((option) => ({
+            leadLifecycleStatuses.map((option) => ({
                 value: option.id,
                 label: option.label,
             })),
-        [props.leadLifecycleStatuses],
+        [leadLifecycleStatuses],
     );
 
     const resolveAgeRangeLabel = useCallback(
@@ -227,6 +231,28 @@ const ageRangeOptions = useMemo(
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [currentLeadState, setCurrentLeadState] = useState<Lead>(lead);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
+
+    // Memoized so SaveTaskModal/TaskForm receive a stable reference across
+    // re-renders — an inline object literal here would get a new identity on
+    // every render (e.g. whenever an unrelated reload elsewhere on the page
+    // updates Inertia's page props), which was re-triggering TaskForm's
+    // populate effect and wiping in-progress "Add Task" input.
+    const taskRelatedEntity = useMemo(
+        () => ({ type: "lead" as const, id: currentLeadState.id }),
+        [currentLeadState.id],
+    );
+
+    // Derived from the id (the field the backend reliably keeps in sync on
+    // every save) rather than trusting `lead_lifecycle_status` to always be
+    // re-attached to the merged state — the nested relation object is only
+    // as fresh as whatever the last response happened to include.
+    const selectedLifecycleStatus = useMemo(
+        () =>
+            leadLifecycleStatuses.find(
+                (status) => status.id === currentLeadState.lead_lifecycle_status_id,
+            ),
+        [leadLifecycleStatuses, currentLeadState.lead_lifecycle_status_id],
+    );
 
     // Track pending changes in edit mode
     const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
@@ -1211,21 +1237,15 @@ const ageRangeOptions = useMemo(
                                 }
                                 onChange={handleFieldChange}
                                 displayValue={
-                                    currentLeadState.lead_lifecycle_status
-                                        ?.label ? (
+                                    selectedLifecycleStatus?.label ? (
                                         <Tag
                                             color={
-                                                currentLeadState
-                                                    .lead_lifecycle_status
-                                                    .label_color || "blue"
+                                                selectedLifecycleStatus.label_color ||
+                                                "blue"
                                             }
                                             className="font-medium"
                                         >
-                                            {
-                                                currentLeadState
-                                                    .lead_lifecycle_status
-                                                    .label
-                                            }
+                                            {selectedLifecycleStatus.label}
                                         </Tag>
                                     ) : (
                                         <span className="text-gray-400">--</span>
@@ -1462,7 +1482,8 @@ const ageRangeOptions = useMemo(
                 columns={taskBoardColumns}
                 users={employees}
                 projects={projects}
-                relatedEntity={{ type: "lead", id: currentLeadState.id }}
+                relatedEntity={taskRelatedEntity}
+                reloadKeys={["tasks"]}
             />
 
             <div>

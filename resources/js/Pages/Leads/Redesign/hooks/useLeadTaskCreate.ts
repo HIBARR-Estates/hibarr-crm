@@ -1,10 +1,11 @@
 import { useCallback, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import type { Task } from "@/Types/api/tasks";
 
 export interface LeadTaskCreateInput {
     title: string;
@@ -69,12 +70,12 @@ export default function useLeadTaskCreate(leadId: number) {
 
     const { mutate, status } = useApiMutate<
         CreateTaskRequest,
-        unknown,
-        ApiResponse<unknown>
+        Task,
+        ApiResponse<Task>
     >(route("tasks.store"), "POST");
 
     const createTask = useCallback(
-        (input: LeadTaskCreateInput, onSuccess?: () => void) => {
+        (input: LeadTaskCreateInput, onSuccess?: (task?: Task) => void) => {
             const title = input.title.trim();
             if (!title) {
                 setErrors(["Task title is required"]);
@@ -110,10 +111,13 @@ export default function useLeadTaskCreate(leadId: number) {
 
             setErrors([]);
             mutate(payload, {
-                onSuccess: () => {
+                onSuccess: (response) => {
                     setErrors([]);
-                    onSuccess?.();
-                    router.reload({ only: ["tasks"] });
+                    onSuccess?.(
+                        response && "data" in response
+                            ? (response.data as Task | undefined)
+                            : undefined,
+                    );
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);

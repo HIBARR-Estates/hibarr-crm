@@ -1,6 +1,5 @@
 import { App } from "antd";
 import { useState } from "react";
-import { router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useApiMutate } from "@/lib/api/client";
@@ -29,14 +28,18 @@ interface OverviewNotesColumnProps {
     lead: Lead;
     notes: LeadNotePreview[];
     canAdd?: boolean;
+    isLoading?: boolean;
     onViewNote: () => void;
+    onNoteCreated?: (note: LeadNote) => void;
 }
 
 export default function OverviewNotesColumn({
     lead,
     notes,
     canAdd = true,
+    isLoading = false,
     onViewNote,
+    onNoteCreated,
 }: OverviewNotesColumnProps) {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -70,7 +73,9 @@ export default function OverviewNotesColumn({
                         );
                         setNoteText("");
                         setComposerOpen(false);
-                        router.reload({ only: ["notes"] });
+                        if (response.data) {
+                            onNoteCreated?.(response.data);
+                        }
                     }
                 },
                 onError: (errorResponse) => {
@@ -91,7 +96,7 @@ export default function OverviewNotesColumn({
                 iconBg={T.BLUE_LIGHT}
                 iconColor={T.BLUE}
                 title={t("pages.leads.tabs.notes")}
-                count={notes.length}
+                count={isLoading ? 0 : notes.length}
                 onAdd={
                     canAdd
                         ? () => setComposerOpen((open) => !open)
@@ -133,7 +138,16 @@ export default function OverviewNotesColumn({
                     </div>
                 )}
 
-                {notes.length === 0 ? (
+                {isLoading ? (
+                    <div className="space-y-2">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="h-16 animate-pulse rounded-lg border border-[#e2e5ea] bg-[#f8fafc]"
+                            />
+                        ))}
+                    </div>
+                ) : notes.length === 0 ? (
                     <OverviewEmptyMini
                         icon="file-text"
                         label={td("No notes yet")}

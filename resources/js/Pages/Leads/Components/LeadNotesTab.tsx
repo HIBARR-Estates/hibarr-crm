@@ -1,10 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Lead } from "@/Types/api/leads";
 import { LeadNote } from "@/Types/api/lead-note";
 import { usePage } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 
-// Modular Components
 import { NotesView } from "./notes/NotesBreadcrumb";
 import { NotesList } from "./notes/NotesList";
 import { AddNoteForm } from "./notes/AddNoteForm";
@@ -16,21 +15,31 @@ interface Props {
     lead: Lead;
     notes: LeadNote[];
     permissions: Record<string, string>;
+    /** When true, header/search/add stay visible; only the notes grid shows a loader. */
+    isLoading?: boolean;
 }
 
 export default function LeadNotesTab({
     lead,
     notes = [],
     permissions = {},
+    isLoading = false,
 }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
 
+    const [localNotes, setLocalNotes] = useState<LeadNote[]>(notes);
     const [searchTerm, setSearchTerm] = useState("");
     const [currentView, setCurrentView] = useState<NotesView>("list");
     const [viewingNote, setViewingNote] = useState<LeadNote | null>(null);
     const [editingNote, setEditingNote] = useState<LeadNote | null>(null);
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+    useEffect(() => {
+        if (!isLoading) {
+            setLocalNotes(notes);
+        }
+    }, [notes, isLoading]);
 
     const {
         handleAction,
@@ -39,7 +48,6 @@ export default function LeadNotesTab({
         selected: noteToDelete,
     } = useGenericEntityAction<LeadNote>();
 
-    // Navigation handlers
     const handleNavigateToAdd = () => {
         setIsAddModalOpen(true);
     };
@@ -56,7 +64,6 @@ export default function LeadNotesTab({
         handleAction("delete", note);
     };
 
-    // Edit note from view
     const handleEditFromView = () => {
         if (viewingNote) {
             setEditingNote(viewingNote);
@@ -64,7 +71,6 @@ export default function LeadNotesTab({
         }
     };
 
-    // Delete note from view
     const handleDeleteFromView = () => {
         if (viewingNote) {
             handleAction("delete", viewingNote);
@@ -72,10 +78,33 @@ export default function LeadNotesTab({
         }
     };
 
-    const renderCurrentView = () => {
-        return (
+    const handleNoteCreated = (note: LeadNote) => {
+        setLocalNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
+    };
+
+    const handleNoteUpdated = (note: LeadNote) => {
+        setLocalNotes((prev) =>
+            prev.map((n) => (n.id === note.id ? note : n)),
+        );
+        setViewingNote((current) =>
+            current?.id === note.id ? note : current,
+        );
+    };
+
+    const handleNoteDeleted = (noteId: number) => {
+        setLocalNotes((prev) => prev.filter((n) => n.id !== noteId));
+        setViewingNote((current) =>
+            current?.id === noteId ? null : current,
+        );
+        setEditingNote((current) =>
+            current?.id === noteId ? null : current,
+        );
+    };
+
+    return (
+        <div className="bg-gray-50 p-6 flex flex-col gap-y-6">
             <NotesList
-                notes={notes}
+                notes={localNotes}
                 searchTerm={searchTerm}
                 onSearchChange={setSearchTerm}
                 permissions={permissions}
@@ -86,16 +115,9 @@ export default function LeadNotesTab({
                 onDeleteNote={handleDeleteNote}
                 currentView={currentView}
                 setCurrentView={setCurrentView}
+                isLoading={isLoading}
             />
-        );
-    };
 
-    return (
-        <div className="bg-gray-50 p-6 flex flex-col gap-y-6">
-            {/* Current View Content */}
-            {renderCurrentView()}
-
-            {/* Note Detail Modal */}
             {viewingNote && (
                 <ViewNoteForm
                     lead={lead}
@@ -108,28 +130,28 @@ export default function LeadNotesTab({
                 />
             )}
 
-            {/* Add Note Modal */}
             {isAddModalOpen && (
                 <AddNoteForm
                     lead={lead}
                     onCancel={() => setIsAddModalOpen(false)}
+                    onCreated={handleNoteCreated}
                 />
             )}
 
-            {/* Edit Note Modal */}
             {editingNote && (
                 <EditNoteForm
                     lead={lead}
                     note={editingNote}
                     onCancel={() => setEditingNote(null)}
+                    onUpdated={handleNoteUpdated}
                 />
             )}
 
-            {/* Delete Confirmation Modal */}
             <DeleteNote
                 open={action === "delete"}
                 onClose={() => handleClose()}
                 note={noteToDelete}
+                onDeleted={handleNoteDeleted}
             />
         </div>
     );

@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { router } from "@inertiajs/react";
+import { Spin } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -23,6 +23,8 @@ interface LeadTasksTabProps {
     taskBoardColumns: TaskboardColumn[];
     permissions: Record<string, string>;
     onAddTask: () => void;
+    isLoading?: boolean;
+    onTaskStatusChange?: (taskId: number, statusSlug: string) => void;
 }
 
 function canAddTasks(permissions: Record<string, string>): boolean {
@@ -67,6 +69,8 @@ export default function LeadTasksTab({
     taskBoardColumns,
     permissions,
     onAddTask,
+    isLoading = false,
+    onTaskStatusChange,
 }: LeadTasksTabProps) {
     const { td } = useTd();
     const [filter, setFilter] = useState<TaskFilter>("open");
@@ -101,9 +105,14 @@ export default function LeadTasksTab({
         const isDone = isCompletedColumn(currentStatus, taskBoardColumns);
         const nextStatus = isDone ? "to_do" : "done";
 
+        onTaskStatusChange?.(taskId, nextStatus);
         updateTaskStatus(
             { taskId, status: nextStatus },
-            { onSuccess: () => router.reload({ only: ["tasks"] }) },
+            {
+                onError: () => {
+                    onTaskStatusChange?.(taskId, currentStatus);
+                },
+            },
         );
     };
 
@@ -139,7 +148,11 @@ export default function LeadTasksTab({
                 )}
             </div>
 
-            {filteredTasks.length === 0 ? (
+            {isLoading ? (
+                <div className="flex justify-center py-16">
+                    <Spin />
+                </div>
+            ) : filteredTasks.length === 0 ? (
                 <div className="rounded-lg border border-[#e2e5ea] bg-white px-5 py-9 text-center">
                     <DealIcon
                         name="check-square"

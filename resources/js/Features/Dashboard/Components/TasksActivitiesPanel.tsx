@@ -50,15 +50,15 @@ interface Task {
         id: number;
         category_name: string;
     };
-    deal?: {
+    deals?: Array<{
         id: number;
         name: string;
-    };
-    lead?: {
+    }>;
+    leads?: Array<{
         id: number;
         client_name: string;
         company_name?: string;
-    };
+    }>;
     users?: Array<{
         id: number;
         name: string;
@@ -307,18 +307,25 @@ const TasksActivitiesPanel: React.FC<TasksActivitiesPanelProps> = ({
     // Linked deal takes priority over lead; if neither exists, fall back to
     // the task description (clipped to one line) — never show deal + lead together.
     const renderEntityLink = (task: Task) => {
-        if (task.deal) {
+        if (task.deals?.[0]) {
             return (
-                <TaskEntityLink type="deal" id={task.deal.id} name={task.deal.name} />
+                <TaskEntityLink
+                    type="deal"
+                    id={task.deals[0].id}
+                    name={task.deals[0].name}
+                />
             );
         }
 
-        if (task.lead) {
+        if (task.leads?.[0]) {
+            const lead = task.leads[0];
             return (
                 <TaskEntityLink
                     type="lead"
-                    id={task.lead.id}
-                    name={task.lead.client_name}
+                    id={lead.id}
+                    name={`${lead.client_name}${
+                        lead.company_name ? ` (${lead.company_name})` : ""
+                    }`}
                 />
             );
         }
