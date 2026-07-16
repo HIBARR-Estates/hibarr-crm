@@ -71,10 +71,11 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
     }, []);
 
     const handleTaskStatusChange = useCallback(
-        (taskId: number, statusSlug: string) => {
+        (taskId: number, statusSlug: string, rollbackTask?: Task) => {
             setLocalTasks((prev) =>
                 (prev ?? []).map((task) => {
                     if (task.id !== taskId) return task;
+                    if (rollbackTask) return rollbackTask;
                     return {
                         ...task,
                         status: statusSlug,

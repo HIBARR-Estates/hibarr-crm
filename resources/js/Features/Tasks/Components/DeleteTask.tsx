@@ -4,7 +4,7 @@ import { router } from "@inertiajs/react";
 import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 
 interface Props extends IModalProps {
     task?: { id: number; heading: string };
@@ -32,7 +32,8 @@ const DeleteTask: React.FC<Props> = ({
         deleteMutation.mutate(
             {},
             {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    if (!isSuccessResponse(response)) return;
                     onDeleted?.(task.id);
                     onClose();
                     if (!skipReload) {

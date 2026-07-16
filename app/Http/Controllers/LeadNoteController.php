@@ -124,7 +124,9 @@ class LeadNoteController extends AccountBaseController
         $note->load('addedBy');
 
         return Reply::successWithData(__('messages.recordSaved'), [
-            'data' => $note,
+            'data' => array_merge($note->toArray(), [
+                'added_by_user' => $note->addedBy,
+            ]),
         ]);
     }
 
@@ -186,7 +188,9 @@ class LeadNoteController extends AccountBaseController
         $note->load('addedBy');
 
         return Reply::successWithData(__('messages.updateSuccess'), [
-            'data' => $note,
+            'data' => array_merge($note->toArray(), [
+                'added_by_user' => $note->addedBy,
+            ]),
         ]);
     }
 

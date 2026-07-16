@@ -139,7 +139,11 @@ export default function TasksTab({
             { taskId: task.id, status: newStatus },
             {
                 onError: () => {
-                    setLocalTasks(tasksProp);
+                    const serverTask =
+                        tasksProp.find((t) => t.id === task.id) ?? task;
+                    setLocalTasks((prev) =>
+                        prev.map((t) => (t.id === task.id ? serverTask : t)),
+                    );
                 },
             },
         );
@@ -199,22 +203,26 @@ export default function TasksTab({
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-4 py-3">
                 <span className="font-semibold text-slate-800">{td("Tasks")}</span>
                 <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
-                            <div
-                                className="h-full rounded-full bg-emerald-500 transition-all duration-500"
-                                style={{
-                                    width: `${tasksLoading ? 0 : completionRate}%`,
-                                }}
-                            />
-                        </div>
-                        <span className="whitespace-nowrap text-[11px] tabular-nums text-slate-500">
-                            {tasksLoading ? "…" : `${completionRate}% done`}
-                        </span>
-                    </div>
-                    <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
-                        {tasksLoading ? "…" : `${localTasks.length} tasks`}
-                    </span>
+                    {!tasksLoading && (
+                        <>
+                            <div className="flex items-center gap-2">
+                                <div className="h-1.5 w-20 overflow-hidden rounded-full bg-slate-100">
+                                    <div
+                                        className="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                        style={{
+                                            width: `${completionRate}%`,
+                                        }}
+                                    />
+                                </div>
+                                <span className="whitespace-nowrap text-[11px] tabular-nums text-slate-500">
+                                    {`${completionRate}% done`}
+                                </span>
+                            </div>
+                            <span className="whitespace-nowrap rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-500">
+                                {`${localTasks.length} tasks`}
+                            </span>
+                        </>
+                    )}
                     {selectedTasks.length > 0 && (
                         <BulkTaskActionSelector
                             selectedEntityIds={selectedIds}
@@ -333,6 +341,11 @@ export default function TasksTab({
                 columns={taskBoardColumns}
                 td={td}
                 skipReload
+                canChangeStatus={
+                    selectedTask
+                        ? hasTaskPermission(selectedTask, "change_status")
+                        : false
+                }
                 onStatusChange={(taskId, statusSlug) => {
                     setLocalTasks((prev) =>
                         prev.map((t) =>

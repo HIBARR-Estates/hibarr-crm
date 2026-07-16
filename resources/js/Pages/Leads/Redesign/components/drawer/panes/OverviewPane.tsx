@@ -23,7 +23,11 @@ interface OverviewPaneProps {
     onAddTask: () => void;
     onAddMeeting: () => void;
     onNoteCreated?: (note: LeadNote) => void;
-    onTaskStatusChange?: (taskId: number, statusSlug: string) => void;
+    onTaskStatusChange?: (
+        taskId: number,
+        statusSlug: string,
+        rollbackTask?: Task,
+    ) => void;
 }
 
 /** Chrome for each column renders immediately; only list bodies wait on data. */

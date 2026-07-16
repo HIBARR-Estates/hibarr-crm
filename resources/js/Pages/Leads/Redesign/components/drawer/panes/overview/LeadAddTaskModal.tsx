@@ -63,7 +63,7 @@ export default function LeadAddTaskModal({
             },
             (task) => {
                 if (task) onTaskCreated?.(task);
-                handleClose();
+                onClose();
             },
         );
     };

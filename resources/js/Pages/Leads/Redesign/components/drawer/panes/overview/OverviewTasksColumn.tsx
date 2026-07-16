@@ -26,7 +26,11 @@ interface OverviewTasksColumnProps {
     isLoading?: boolean;
     onAddTask: () => void;
     onViewTask: () => void;
-    onTaskStatusChange?: (taskId: number, statusSlug: string) => void;
+    onTaskStatusChange?: (
+        taskId: number,
+        statusSlug: string,
+        rollbackTask?: Task,
+    ) => void;
 }
 
 export default function OverviewTasksColumn({
@@ -56,13 +60,18 @@ export default function OverviewTasksColumn({
             "to_do";
         const isDone = isCompletedColumn(currentStatus, taskBoardColumns);
         const nextStatus = isDone ? "to_do" : "done";
+        const originalTask = { ...rawTask };
 
         onTaskStatusChange?.(taskId, nextStatus);
         updateTaskStatus(
             { taskId, status: nextStatus },
             {
                 onError: () => {
-                    onTaskStatusChange?.(taskId, currentStatus);
+                    onTaskStatusChange?.(
+                        taskId,
+                        currentStatus,
+                        originalTask,
+                    );
                 },
             },
         );

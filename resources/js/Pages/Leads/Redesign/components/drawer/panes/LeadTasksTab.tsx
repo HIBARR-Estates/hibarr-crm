@@ -24,7 +24,11 @@ interface LeadTasksTabProps {
     permissions: Record<string, string>;
     onAddTask: () => void;
     isLoading?: boolean;
-    onTaskStatusChange?: (taskId: number, statusSlug: string) => void;
+    onTaskStatusChange?: (
+        taskId: number,
+        statusSlug: string,
+        rollbackTask?: Task,
+    ) => void;
 }
 
 function canAddTasks(permissions: Record<string, string>): boolean {
@@ -104,13 +108,18 @@ export default function LeadTasksTab({
             "to_do";
         const isDone = isCompletedColumn(currentStatus, taskBoardColumns);
         const nextStatus = isDone ? "to_do" : "done";
+        const originalTask = { ...rawTask };
 
         onTaskStatusChange?.(taskId, nextStatus);
         updateTaskStatus(
             { taskId, status: nextStatus },
             {
                 onError: () => {
-                    onTaskStatusChange?.(taskId, currentStatus);
+                    onTaskStatusChange?.(
+                        taskId,
+                        currentStatus,
+                        originalTask,
+                    );
                 },
             },
         );

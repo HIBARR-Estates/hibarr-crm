@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
     Modal,
     Tag,
@@ -21,9 +21,10 @@ import dayjs from "dayjs";
 import { getPriorityConfig } from "@/lib/priority";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { Link } from "@inertiajs/react";
 import TaskStatusDropdownPill, {
+    isCompletedColumn,
     TaskboardColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
@@ -97,6 +98,8 @@ interface TaskDetailsModalProps {
     td?: (key: string) => string;
     /** Skip Inertia reload after status changes (parent updates local state). */
     skipReload?: boolean;
+    /** When false, hide Mark Done and disable the status dropdown. Defaults to true. */
+    canChangeStatus?: boolean;
     onStatusChange?: (taskId: number, statusSlug: string) => void;
 }
 
@@ -151,12 +154,17 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     onMarkDone,
     td = (key) => key,
     skipReload = false,
+    canChangeStatus = true,
     onStatusChange,
 }) => {
     const { message } = App.useApp();
     const [confirmed, setConfirmed] = useState(false);
     // optimistic status — so the pill reflects changes before reload
     const [localStatus, setLocalStatus] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (open) setLocalStatus(null);
+    }, [open, initialTask?.id]);
 
     const { data: fetchedTaskData, isLoading: isFetchingTask } = useApiQuery<{
         task: Task;
@@ -167,8 +175,24 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
         },
     });
 
-    const task = fetchedTaskData?.task || initialTask;
-    const effectiveStatus = localStatus ?? task?.status ?? "";
+    const fetchedTask = fetchedTaskData?.task;
+    const task = fetchedTask
+        ? {
+              ...initialTask,
+              ...fetchedTask,
+              // Prefer relation from API; keep list payload if fetch omitted it.
+              board_column:
+                  fetchedTask.board_column ??
+                  (fetchedTask as Task & { boardColumn?: Task["board_column"] })
+                      .boardColumn ??
+                  initialTask?.board_column,
+          }
+        : initialTask;
+    const effectiveStatus =
+        localStatus ??
+        task?.board_column?.slug ??
+        task?.status ??
+        "";
 
     const { mutate: changeStatus, status: changeStatusState } = useApiMutate<
         { taskId: number; status: string },
@@ -177,19 +201,22 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     >(route("tasks.change_status"), "POST");
 
     const isDone =
+        isCompletedColumn(effectiveStatus, columns) ||
         effectiveStatus === "done" ||
-        task?.board_column?.slug === "done";
+        task?.board_column?.slug === "done" ||
+        Boolean(task?.completed_on);
 
     const isMarkingDone =
         changeStatusState === "pending" ||
         (changeStatusState as string) === "loading";
 
     const handleMarkDone = () => {
-        if (!task?.id) return;
+        if (!task?.id || !canChangeStatus) return;
         changeStatus(
             { taskId: task.id, status: "done" },
             {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    if (!isSuccessResponse(response)) return;
                     setLocalStatus("done");
                     setConfirmed(true);
                     setTimeout(() => {
@@ -211,12 +238,16 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     };
 
     const handleStatusChange = (slug: string) => {
-        if (!task?.id) return;
+        if (!task?.id || !canChangeStatus) return;
         setLocalStatus(slug);
         changeStatus(
             { taskId: task.id, status: slug },
             {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    if (!isSuccessResponse(response)) {
+                        setLocalStatus(null);
+                        return;
+                    }
                     onStatusChange?.(task.id, slug);
                     if (!skipReload) {
                         reloadTaskLists();
@@ -337,7 +368,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-[12px] font-bold rounded-lg border border-emerald-200 whitespace-nowrap">
                                 <CheckOutlined /> Completed
                             </span>
-                        ) : (
+                        ) : canChangeStatus ? (
                             <button
                                 onClick={handleMarkDone}
                                 disabled={isMarkingDone || isFetchingTask}
@@ -346,7 +377,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                 <CheckOutlined />
                                 {isMarkingDone ? "Saving…" : "Mark Done"}
                             </button>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
@@ -381,7 +412,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                         <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
                                             Status
                                         </span>
-                                        {columns.length > 0 ? (
+                                        {columns.length > 0 && canChangeStatus ? (
                                             <TaskStatusDropdownPill
                                                 status={effectiveStatus}
                                                 columns={columns}

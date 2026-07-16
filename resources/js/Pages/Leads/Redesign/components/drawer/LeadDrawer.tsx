@@ -31,7 +31,11 @@ interface LeadDrawerProps extends LeadRedesignProps {
     drawerRef?: React.RefObject<HTMLDivElement | null>;
     onNoteCreated?: (note: LeadNote) => void;
     onTaskCreated?: (task: Task) => void;
-    onTaskStatusChange?: (taskId: number, statusSlug: string) => void;
+    onTaskStatusChange?: (
+        taskId: number,
+        statusSlug: string,
+        rollbackTask?: Task,
+    ) => void;
 }
 
 export default function LeadDrawer({

@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import type { Task } from "@/Types/api/tasks";
@@ -112,12 +112,9 @@ export default function useLeadTaskCreate(leadId: number) {
             setErrors([]);
             mutate(payload, {
                 onSuccess: (response) => {
+                    if (!isSuccessResponse(response)) return;
                     setErrors([]);
-                    onSuccess?.(
-                        response && "data" in response
-                            ? (response.data as Task | undefined)
-                            : undefined,
-                    );
+                    onSuccess?.(response.data as Task | undefined);
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);
