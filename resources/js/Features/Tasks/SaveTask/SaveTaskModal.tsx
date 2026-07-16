@@ -92,7 +92,8 @@ interface Lead {
 
 interface Property {
     id: number;
-    title: string;
+    title?: string;
+    name?: string;
 }
 
 interface CreateTaskFormData {
@@ -222,7 +223,9 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
             return {
                 type: "property" as const,
                 id: anyTask.properties[0].id,
-                name: anyTask.properties[0].title,
+                name:
+                    anyTask.properties[0].title ??
+                    anyTask.properties[0].name,
             };
         }
 
@@ -235,7 +238,12 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                     ? deals.find((d) => d.id === relatedEntity.id)?.name
                     : relatedEntity.type === "lead"
                       ? leads.find((l) => l.id === relatedEntity.id)?.client_name
-                      : properties.find((p) => p.id === relatedEntity.id)?.title;
+                      : (() => {
+                            const property = properties.find(
+                                (p) => p.id === relatedEntity.id,
+                            );
+                            return property?.title ?? property?.name;
+                        })();
             return { ...relatedEntity, name: lookupName };
         }
 
