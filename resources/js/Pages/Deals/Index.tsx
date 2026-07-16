@@ -74,7 +74,7 @@ interface Pipeline {
 }
 
 /** S1: Index no longer ships form/filter option arrays (M1/M3 fetch those). */
-export interface IndexProps extends PageProps {
+export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
     deals: PaginatedDealResponse;
     boardColumns: BoardColumn[];
@@ -424,7 +424,7 @@ const Index = ({
 
     const valueLeadPipelineId = pageFilters?.lead_pipeline_id
         ? Number(pageFilters.lead_pipeline_id)
-        : defaultPipeline?.id;
+        : (defaultPipeline?.id ?? pipelines[0]?.id ?? 0);
 
     // Kanban view handlers
     const handleColumnsUpdate = useCallback((updatedColumns: BoardColumn[]) => {

@@ -41,7 +41,7 @@ import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 
-export interface IndexProps extends PageProps {
+export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
     leads: PaginatedLeadResponse;
     filters?: Record<string, string | undefined>;
