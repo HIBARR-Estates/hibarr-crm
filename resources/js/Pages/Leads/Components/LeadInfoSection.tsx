@@ -96,6 +96,23 @@ const ageRangeOptions = useMemo(
             })),
         [props.ageRanges],
     );
+    const leadLifecycleStatuses = useMemo(
+        () =>
+            (props.leadLifecycleStatuses as Array<{
+                id: number;
+                label: string;
+                label_color?: string;
+            }>) || [],
+        [props.leadLifecycleStatuses],
+    );
+    const leadLifecycleStatusOptions = useMemo(
+        () =>
+            leadLifecycleStatuses.map((option) => ({
+                value: option.id,
+                label: option.label,
+            })),
+        [leadLifecycleStatuses],
+    );
 
     const resolveAgeRangeLabel = useCallback(
         (value: string) =>
@@ -214,6 +231,28 @@ const ageRangeOptions = useMemo(
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
     const [currentLeadState, setCurrentLeadState] = useState<Lead>(lead);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
+
+    // Memoized so SaveTaskModal/TaskForm receive a stable reference across
+    // re-renders — an inline object literal here would get a new identity on
+    // every render (e.g. whenever an unrelated reload elsewhere on the page
+    // updates Inertia's page props), which was re-triggering TaskForm's
+    // populate effect and wiping in-progress "Add Task" input.
+    const taskRelatedEntity = useMemo(
+        () => ({ type: "lead" as const, id: currentLeadState.id }),
+        [currentLeadState.id],
+    );
+
+    // Derived from the id (the field the backend reliably keeps in sync on
+    // every save) rather than trusting `lead_lifecycle_status` to always be
+    // re-attached to the merged state — the nested relation object is only
+    // as fresh as whatever the last response happened to include.
+    const selectedLifecycleStatus = useMemo(
+        () =>
+            leadLifecycleStatuses.find(
+                (status) => status.id === currentLeadState.lead_lifecycle_status_id,
+            ),
+        [leadLifecycleStatuses, currentLeadState.lead_lifecycle_status_id],
+    );
 
     // Track pending changes in edit mode
     const [pendingChanges, setPendingChanges] = useState<Record<string, any>>(
@@ -627,7 +666,8 @@ const ageRangeOptions = useMemo(
                     fieldName === "source_id" ||
                     fieldName === "lead_owner" ||
                     fieldName === "status_id" ||
-                    fieldName === "agent_id"
+                    fieldName === "agent_id" ||
+                    fieldName === "lead_lifecycle_status_id"
                 ) {
                     // Convert empty/falsy values to null for nullable integer fields
                     processedValue = value ? value : null;
@@ -1180,6 +1220,44 @@ const ageRangeOptions = useMemo(
                             />
                         </DetailField>
 
+                        <DetailField label={t("pages.leads.info.fields.lifecycle_status")}>
+                            <EditableField
+                                value={
+                                    currentLeadState.lead_lifecycle_status_id ||
+                                    null
+                                }
+                                fieldName="lead_lifecycle_status_id"
+                                fieldType="select"
+                                options={leadLifecycleStatusOptions}
+                                onSave={(value) =>
+                                    handleFieldUpdate(
+                                        "lead_lifecycle_status_id",
+                                        value,
+                                    )
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    selectedLifecycleStatus?.label ? (
+                                        <Tag
+                                            color={
+                                                selectedLifecycleStatus.label_color ||
+                                                "blue"
+                                            }
+                                            className="font-medium"
+                                        >
+                                            {selectedLifecycleStatus.label}
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading(
+                                    "lead_lifecycle_status_id",
+                                )}
+                            />
+                        </DetailField>
+
                         <DetailField label={t("pages.leads.info.fields.created_at")}>
                             {currentLeadState.created_at ? (
                                 <span className="flex items-center gap-1">
@@ -1404,7 +1482,8 @@ const ageRangeOptions = useMemo(
                 columns={taskBoardColumns}
                 users={employees}
                 projects={projects}
-                relatedEntity={{ type: "lead", id: currentLeadState.id }}
+                relatedEntity={taskRelatedEntity}
+                reloadKeys={["tasks"]}
             />
 
             <div>

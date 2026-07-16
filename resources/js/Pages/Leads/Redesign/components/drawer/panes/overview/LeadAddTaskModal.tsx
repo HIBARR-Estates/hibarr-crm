@@ -11,6 +11,7 @@ interface LeadAddTaskModalProps {
     open: boolean;
     onClose: () => void;
     leadId: number;
+    onTaskCreated?: (task: import("@/Types/api/tasks").Task) => void;
 }
 
 type TaskPriority = "low" | "medium" | "high";
@@ -33,6 +34,7 @@ export default function LeadAddTaskModal({
     open,
     onClose,
     leadId,
+    onTaskCreated,
 }: LeadAddTaskModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<TaskFormState>(INITIAL_FORM);
@@ -59,7 +61,10 @@ export default function LeadAddTaskModal({
                 priority: form.priority,
                 description: form.description,
             },
-            handleClose,
+            (task) => {
+                if (task) onTaskCreated?.(task);
+                onClose();
+            },
         );
     };
 

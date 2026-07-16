@@ -1,6 +1,5 @@
 import { App, Input } from "antd";
 import { useRef, useState, forwardRef, useImperativeHandle } from "react";
-import { router } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
@@ -23,10 +22,11 @@ export interface QuickNoteCardHandle {
 export interface QuickNoteCardProps {
     lead: Lead;
     latestNote?: LeadNote | null;
+    onNoteCreated?: (note: LeadNote) => void;
 }
 
 const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
-    function QuickNoteCard({ lead, latestNote }, ref) {
+    function QuickNoteCard({ lead, latestNote, onNoteCreated }, ref) {
         const { t } = useTranslation();
         const { message } = App.useApp();
         const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -52,7 +52,9 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
                     t("pages.leads.notes.created_success") || "Note saved",
                 );
                 setNoteText("");
-                router.reload({ only: ["notes"] });
+                if (response.data) {
+                    onNoteCreated?.(response.data);
+                }
             }
         });
 

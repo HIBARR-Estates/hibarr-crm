@@ -6,10 +6,11 @@ import type { LeadShowProps } from "../Show";
 export type LeadDrawerTab =
     | "overview"
     | "profile"
+    | "notes"
     | "tasks"
     | "meetings"
+    | "itinerary"
     | "deals"
-    | "notes"
     | "marketing"
     | "activity";
 

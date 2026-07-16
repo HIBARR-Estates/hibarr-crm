@@ -17,6 +17,7 @@ use App\Models\Product;
 use App\Models\User;
 use App\Models\ClientCategory;
 use App\Models\LanguageSetting;
+use App\Models\LeadLifecycleStatus;
 use App\Services\LeadCoreFieldsService;
 
 trait LeadFormDataTrait
@@ -73,6 +74,9 @@ trait LeadFormDataTrait
             'customFieldCategories' => $customFieldCategories,
             'clientCategories' => ClientCategory::all(),
             'languages' => LanguageSetting::where('status', 'enabled')->get(),
+            'leadLifecycleStatuses' => LeadLifecycleStatus::where('company_id', company()->id)
+                ->orderBy('sort_order')
+                ->get(['id', 'key', 'label', 'label_color', 'sort_order']),
         ];
     }
 

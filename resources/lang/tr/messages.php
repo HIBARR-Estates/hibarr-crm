@@ -26,6 +26,8 @@ return array(
     'propertyUpdateSuccess' => 'Mülk başarıyla güncellendi.',
     'taskUpdateSuccess' => 'Görev başarıyla güncellendi.',
     'taskCreatedSuccessfully' => 'Görev başarıyla oluşturuldu.',
+    'taskDeleted' => 'Görev başarıyla silindi.',
+    'taskUpdated' => 'Görev :status olarak işaretlendi.',
     'projectTasksNotCompleted' => 'Lütfen proje görevlerini tamamlayın.',
     'requestSent' => 'Onay için istek gönderildi',
     'recordSaved' => 'Kayıt başarıyla kaydedildi',

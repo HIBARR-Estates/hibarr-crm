@@ -126,7 +126,8 @@ interface Lead {
 
 interface Property {
     id: number;
-    name: string;
+    name?: string;
+    title?: string;
 }
 
 export interface TasksIndexProps extends PageProps {

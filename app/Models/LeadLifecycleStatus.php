@@ -37,6 +37,34 @@ class LeadLifecycleStatus extends BaseModel
             ->first();
     }
 
+    /**
+     * Resolve a status from free text (e.g. a spreadsheet cell during import),
+     * matching case-insensitively against either the display label ("Qualified")
+     * or the internal key ("qualified"/"not_fit"). Returns null on no match —
+     * callers should treat that as "leave unset" rather than fail the row.
+     */
+    public static function resolveFromText(int $companyId, ?string $value): ?self
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        $byLabel = static::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->whereRaw('LOWER(label) = ?', [mb_strtolower($value)])
+            ->first();
+
+        if ($byLabel) {
+            return $byLabel;
+        }
+
+        $slug = str_replace(' ', '_', mb_strtolower($value));
+
+        return static::findByKey($companyId, $slug);
+    }
+
     public static function systemKeys(): array
     {
         return array_column(static::defaultStatusDefinitions(), 'key');

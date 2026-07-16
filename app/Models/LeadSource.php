@@ -61,4 +61,23 @@ class LeadSource extends BaseModel
         return $this->hasMany(Lead::class, 'source_id')->orderBy('column_priority');
     }
 
+    /**
+     * Resolve a source from free text (e.g. a spreadsheet cell during import),
+     * matching case-insensitively against the source type. Returns null on no
+     * match rather than creating one, so callers should treat that as "leave
+     * unset".
+     */
+    public static function resolveFromText(int $companyId, ?string $value): ?self
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return static::where('company_id', $companyId)
+            ->whereRaw('LOWER(type) = ?', [mb_strtolower($value)])
+            ->first();
+    }
+
 }

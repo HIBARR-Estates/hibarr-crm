@@ -83,6 +83,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         note: lead?.note || "",
         source_id: lead?.source_id || undefined,
         category_id: lead?.category_id || undefined,
+        lead_lifecycle_status_id: lead?.lead_lifecycle_status_id || undefined,
         lead_owner: lead?.lead_owner?.id || undefined,
         added_by: lead?.added_by?.id || undefined,
         create_deal: false,

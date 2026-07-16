@@ -1,6 +1,5 @@
 import ConfirmationModal from "@/Components/Common/ConfirmationModal";
 import { IModalProps } from "@/Types/common";
-import { router } from "@inertiajs/react";
 import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { pluralOrSingular } from "@/lib/utils";
@@ -17,8 +16,8 @@ const BulkDeleteTasks: React.FC<Props> = ({ open, onClose, ids }) => {
         any,
         ApiResponse<any>
     >("/account/tasks/apply-quick-action", "POST", () => {
+        // Parent BulkTaskActionSelector refreshes task lists on success.
         onClose(true);
-        router.reload();
     });
 
     const handleBulkDelete = () => {
@@ -40,7 +39,7 @@ const BulkDeleteTasks: React.FC<Props> = ({ open, onClose, ids }) => {
             description={`Are you sure you want to delete ${pluralOrSingular(
                 ids.length,
                 "this task",
-                "tasks"
+                "tasks",
             )}? This action cannot be undone.`}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
             confirmText="Yes, Delete All"

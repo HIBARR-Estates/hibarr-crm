@@ -97,7 +97,8 @@ interface Lead {
 
 interface Property {
     id: number;
-    name: string;
+    name?: string;
+    title?: string;
 }
 
 interface SubTask {

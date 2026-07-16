@@ -136,7 +136,7 @@ class Lead extends BaseModel
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Lead';
 
-    protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted'];
+    protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted', 'lead_lifecycle_status'];
 
     protected $casts = [
         'salutation' => Salutation::class,
@@ -302,6 +302,19 @@ class Lead extends BaseModel
     public function lifecycleStatus(): BelongsTo
     {
         return $this->belongsTo(LeadLifecycleStatus::class, 'lead_lifecycle_status_id');
+    }
+
+    /**
+     * Alias so the frontend (which reads `lead_lifecycle_status`) gets the
+     * `lifecycleStatus` relation under the key it expects. Only returns
+     * something when the relation has already been eager-loaded — this is
+     * appended to every Lead's serialization, so it must never trigger a
+     * fresh lazy-load query (that would be an N+1 on every place a Lead
+     * gets serialized without explicitly eager-loading lifecycleStatus).
+     */
+    public function getLeadLifecycleStatusAttribute()
+    {
+        return $this->relationLoaded('lifecycleStatus') ? $this->lifecycleStatus : null;
     }
 
     public function qualifications(): HasMany
