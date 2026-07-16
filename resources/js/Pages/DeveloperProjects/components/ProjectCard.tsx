@@ -13,6 +13,7 @@ import type { MenuProps } from "antd";
 import type { DeveloperProject } from "@/Types/developerProject";
 import { usePermission } from "@/lib/permissionUtils";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import HiddenBadge from "./HiddenBadge";
 
 function formatCompletionDate(
     dateStr: string | null | undefined,
@@ -27,12 +28,14 @@ interface ProjectCardProps {
     project: DeveloperProject;
     onEdit?: (project: DeveloperProject) => void;
     onDelete?: (project: DeveloperProject) => void;
+    showHiddenBadge?: boolean;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({
     project,
     onEdit,
     onDelete,
+    showHiddenBadge = false,
 }) => {
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
@@ -181,6 +184,18 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         SOLD
                     </span>
                 </div>
+
+                {showHiddenBadge &&
+                    (project.is_hidden || project.developer?.is_hidden) && (
+                        <div className="absolute top-14 left-2.5">
+                            <HiddenBadge
+                                inherited={
+                                    !!project.developer?.is_hidden &&
+                                    !project.is_hidden
+                                }
+                            />
+                        </div>
+                    )}
             </div>
 
             {/* ── Card body ── */}
