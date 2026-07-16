@@ -621,6 +621,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
     Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
+    Route::get('lead-contact/{lead}/custom-fields', [LeadContactController::class, 'getCustomFields'])->name('lead-contact.custom-fields');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
