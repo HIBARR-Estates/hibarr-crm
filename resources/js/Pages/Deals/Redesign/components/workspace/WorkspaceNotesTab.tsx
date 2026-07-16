@@ -7,6 +7,7 @@ import useDealNoteCreate from "../../hooks/useDealNoteCreate";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
+import DealNoteDetailModal from "./DealNoteDetailModal";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface WorkspaceNotesTabProps {
@@ -32,6 +33,8 @@ export default function WorkspaceNotesTab({
 }: WorkspaceNotesTabProps) {
     const { td } = useTd();
     const [noteText, setNoteText] = useState("");
+    const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+    const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
     const { createNote, isSaving, errors, clearErrors } = useDealNoteCreate(
         deal.id,
     );
@@ -125,7 +128,13 @@ export default function WorkspaceNotesTab({
                 noteItems.map((note) => (
                     <article
                         key={note.id}
-                        className="mb-2 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedNoteId(note.id)}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter") setSelectedNoteId(note.id);
+                        }}
+                        className="mb-2 cursor-pointer rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0 hover:border-[#b8d4f0]"
                     >
                         <div className="mb-1.5 flex items-center justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-1.5">
@@ -141,12 +150,18 @@ export default function WorkspaceNotesTab({
                                 {note.timeLabel}
                             </span>
                         </div>
-                        <div className="text-[13px] leading-[1.65] text-[#6b7280]">
+                        <div className="text-[13px] leading-[1.65] text-[#5b6472]">
                             {note.body}
                         </div>
                     </article>
                 ))
             )}
+
+            <DealNoteDetailModal
+                note={selectedNote}
+                permissions={permissions}
+                onClose={() => setSelectedNoteId(null)}
+            />
         </div>
     );
 }

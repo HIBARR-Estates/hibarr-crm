@@ -45,7 +45,7 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
                         {member.name}
                     </div>
                     {member.meta && (
-                        <div className="mt-0.5 truncate text-[11px] text-[#9ca3af]">
+                        <div className="mt-0.5 truncate text-[11px] text-[#5b6472]">
                             {member.meta}
                         </div>
                     )}
@@ -242,7 +242,7 @@ export default function DealTeamModal({
                     onClose={onClose}
                 />
                 <div className="px-[18px] py-4">
-                    <p className="mb-4 text-xs text-[#6b7280]">
+                    <p className="mb-4 text-xs text-[#5b6472]">
                         {td("Manage who can view and work this deal")}
                     </p>
 
@@ -277,7 +277,7 @@ export default function DealTeamModal({
                                 type="agent"
                             />
                         ) : (
-                            <div className="px-3.5 py-3 text-[13px] italic text-[#9ca3af]">
+                            <div className="px-3.5 py-3 text-[13px] italic text-[#5b6472]">
                                 {td("No agent assigned.")}
                             </div>
                         )}
@@ -312,7 +312,7 @@ export default function DealTeamModal({
                             />
                         ))}
                         {participants.length === 0 && !addingParticipants && (
-                            <div className="px-3.5 py-3 text-[13px] italic text-[#9ca3af]">
+                            <div className="px-3.5 py-3 text-[13px] italic text-[#5b6472]">
                                 {td("No participants added.")}
                             </div>
                         )}
@@ -328,11 +328,11 @@ export default function DealTeamModal({
 
                     <TeamRoleBlock
                         title={t("pages.deals.info.fields.deal_watchers")}
-                        dotColor="#9ca3af"
+                        dotColor={T.TEXT_MUTED}
                         tag={td("View only")}
                         tagStyle={{
                             background: T.GRAY,
-                            color: T.GRAY_DARKER,
+                            color: T.TEXT_MUTED,
                             border: `1px solid ${T.GRAY_MID}`,
                         }}
                         onAdd={
@@ -355,7 +355,7 @@ export default function DealTeamModal({
                             />
                         ))}
                         {watchers.length === 0 && !addingWatchers && (
-                            <div className="px-3.5 py-3 text-[13px] italic text-[#9ca3af]">
+                            <div className="px-3.5 py-3 text-[13px] italic text-[#5b6472]">
                                 {td("No watchers added.")}
                             </div>
                         )}

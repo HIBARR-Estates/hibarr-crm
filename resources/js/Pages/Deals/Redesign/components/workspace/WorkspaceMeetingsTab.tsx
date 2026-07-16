@@ -149,12 +149,12 @@ function MeetingCard({
                     />
                 </div>
 
-                <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#6b7280]">
+                <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#5b6472]">
                     <DealIcon name="clock" size={12} />
                     {meeting.timeRangeLabel}
                 </div>
 
-                <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#6b7280]">
+                <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#5b6472]">
                     <DealIcon
                         name={
                             meeting.locationType === "video"
@@ -287,7 +287,7 @@ export default function WorkspaceMeetingsTab({
     return (
         <>
             <div className="mb-3.5 flex items-center justify-between gap-3">
-                <span className="text-xs text-[#6b7280]">
+                <span className="text-xs text-[#5b6472]">
                     {upcoming.length} {td("upcoming")} · {past.length}{" "}
                     {td("past")}
                 </span>

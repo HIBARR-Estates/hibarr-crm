@@ -7,6 +7,7 @@ import type { Deal } from "@/Types/api/deals";
 import DealAddTaskModal from "../workspace/DealAddTaskModal";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
+import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface DealInfoToolbarProps {
     deal: Deal;
@@ -38,13 +39,13 @@ export default function DealInfoToolbar({
                         variant="ghost"
                         icon={<DealIcon name="trash" size={12} />}
                         onClick={() => setDeleteOpen(true)}
-                        style={{ color: "#dc2626", borderColor: "#fecaca" }}
+                        style={{ color: T.RED, borderColor: T.RED_MID }}
                     >
                         {t("pages.deals.info.actions.delete")}
                     </DealButton>
                 )}
                 {isLocked && (
-                    <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[11px] text-amber-700">
+                    <span className="dr-pill dr-pill-amber">
                         <LockOutlined />
                         {t("pages.deals.info.locked")}
                     </span>

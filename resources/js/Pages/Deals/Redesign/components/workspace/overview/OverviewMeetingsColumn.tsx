@@ -32,8 +32,8 @@ export default function OverviewMeetingsColumn({
         <OverviewColumnShell borderSide="right">
             <OverviewColumnHeader
                 icon="calendar"
-                iconBg={T.GOLD_LIGHT}
-                iconColor={T.GOLD_TEXT}
+                iconBg={T.AMBER_SOFT}
+                iconColor={T.AMBER}
                 title={t("pages.deals.tabs.meeting")}
                 count={upcomingCount}
                 onAdd={onAddMeeting}
@@ -89,7 +89,7 @@ export default function OverviewMeetingsColumn({
                                             {meeting.isPast ? ` · ${td("Past")}` : ""}
                                         </div>
                                         {expanded && (
-                                            <div className="mt-1.5 border-t border-[#e2e5ea] pt-1.5 text-[11px] leading-relaxed text-[#6b7280]">
+                                            <div className="mt-1.5 border-t border-[#e2e5ea] pt-1.5 text-[11px] leading-relaxed text-[#5b6472]">
                                                 <div className="mb-1 flex items-center gap-1">
                                                     <DealIcon
                                                         name={

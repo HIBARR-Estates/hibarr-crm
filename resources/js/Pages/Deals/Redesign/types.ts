@@ -15,7 +15,8 @@ export type WorkspaceSubTab =
     | "meetings"
     | "files"
     | "offers"
-    | "recommendations";
+    | "recommendations"
+    | "itinerary";
 
 export interface WorkspaceSubTabCount {
     notes?: number;
@@ -24,6 +25,7 @@ export interface WorkspaceSubTabCount {
     files?: number;
     offers?: number;
     recommendations?: number;
+    itinerary?: number;
 }
 export type DealInfoCoreSectionId =
     | "general"
@@ -48,6 +50,7 @@ export interface DealShowProps extends PageProps {
     permissions: Record<string, string>;
     pageTitle: string;
     dealAiSummary?: DealSummaryPayload | null;
+    restrictPackageOrProperty?: boolean;
     // C1 deferred — may be undefined until Inertia resolves them
     notes?: Note[];
     dealFollowUps?: DealFollowup[];

@@ -98,7 +98,7 @@ export default function WorkspaceLeadCard({ deal }: WorkspaceLeadCardProps) {
                     <button
                         type="button"
                         onClick={copyEmail}
-                        className="contact-field mb-0.5 flex w-full items-center gap-1.5 rounded px-1.5 py-1.5 text-left text-xs text-[#6b7280] hover:bg-[#f5f6f8]"
+                        className="contact-field mb-0.5 flex w-full items-center gap-1.5 rounded px-1.5 py-1.5 text-left text-xs text-[#5b6472] hover:bg-[#f5f6f8]"
                     >
                         <DealIcon name="mail" size={12} />
                         <span className="min-w-0 flex-1 truncate">{email}</span>
@@ -121,7 +121,7 @@ export default function WorkspaceLeadCard({ deal }: WorkspaceLeadCardProps) {
                 {phone && (
                     <a
                         href={`tel:${phone}`}
-                        className="contact-field flex items-center gap-1.5 rounded px-1.5 py-1.5 text-xs text-[#6b7280] no-underline hover:bg-[#f5f6f8]"
+                        className="contact-field flex items-center gap-1.5 rounded px-1.5 py-1.5 text-xs text-[#5b6472] no-underline hover:bg-[#f5f6f8]"
                     >
                         <DealIcon name="phone" size={12} />
                         <span className="min-w-0 flex-1 truncate">{phone}</span>

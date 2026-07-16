@@ -46,7 +46,7 @@ export default function WorkspaceMeetingsCard({
                             <div className="mb-1 text-xs font-medium text-[#1a1f2e]">
                                 {meeting.title}
                             </div>
-                            <div className="text-[11px] text-[#6b7280]">
+                            <div className="text-[11px] text-[#5b6472]">
                                 {meeting.startsAtLabel}
                                 {meeting.isPast ? ` · ${td("Past")}` : ""}
                             </div>

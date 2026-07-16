@@ -1,7 +1,14 @@
 import { ReactNode } from "react";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
-type BadgeVariant = "blue" | "green" | "gray" | "navy";
+type BadgeVariant =
+    | "blue"
+    | "green"
+    | "gray"
+    | "navy"
+    | "amber"
+    | "red"
+    | "teal";
 
 interface DealBadgeProps {
     children: ReactNode;
@@ -19,6 +26,9 @@ export default function DealBadge({
         green: { bg: T.GREEN_LIGHT, color: T.GREEN, border: T.GREEN_MID },
         gray: { bg: T.GRAY, color: T.GRAY_DARK, border: T.GRAY_MID },
         navy: { bg: "#e8ecf2", color: T.NAVY, border: "#c8d0dc" },
+        amber: { bg: T.AMBER_SOFT, color: T.AMBER, border: T.AMBER_MID },
+        red: { bg: T.RED_SOFT, color: T.RED, border: T.RED_MID },
+        teal: { bg: T.TEAL_SOFT, color: T.TEAL, border: T.TEAL_MID },
     };
 
     const v = variants[variant];

@@ -1,10 +1,11 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
 .deal-redesign {
     font-family:
-        "Inter",
+        "IBM Plex Sans",
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
-        system-ui,
         sans-serif;
 }
 
@@ -133,4 +134,389 @@
 .redesign-modal-overlay .modal-field select:focus,
 .redesign-modal-overlay .modal-field textarea:focus {
     border-color: #1a6bb5;
+}
+
+/* ==================================================================== */
+/*  v2.2 parity — structural classes ported from the playground source  */
+/*  of truth (hibarr-playground/src/deal-v2-2.jsx). Colors/spacing here */
+/*  are lifted 1:1; components should prefer these classes over ad-hoc  */
+/*  inline styles wherever a reusable pattern already exists here.      */
+/* ==================================================================== */
+
+.deal-redesign .dr-shell {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.deal-redesign .dr-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+}
+
+.deal-redesign .dr-dossier {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+}
+
+@media (max-width: 960px) {
+    .deal-redesign .dr-grid {
+        grid-template-columns: 1fr;
+    }
+    .deal-redesign .dr-dossier {
+        position: static;
+        max-height: none;
+    }
+}
+
+.deal-redesign .dr-btn {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: none;
+    transition:
+        background 0.12s,
+        color 0.12s;
+    min-height: 32px;
+}
+.deal-redesign .dr-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.deal-redesign .dr-btn-sm {
+    font-size: 12px;
+    padding: 5px 10px;
+    min-height: 28px;
+}
+
+.deal-redesign .dr-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+.deal-redesign .dr-pill-blue {
+    background: #e8f1fb;
+    color: #14538c;
+    border-color: #b8d4f0;
+}
+.deal-redesign .dr-pill-green {
+    background: #e1f5ee;
+    color: #177a5b;
+    border-color: #9fe1cb;
+}
+.deal-redesign .dr-pill-amber {
+    background: #fff7ed;
+    color: #92400e;
+    border-color: #fed7aa;
+}
+.deal-redesign .dr-pill-red {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.deal-redesign .dr-pill-gray {
+    background: #f5f6f8;
+    color: #5b6472;
+    border-color: #e2e5ea;
+}
+.deal-redesign .dr-pill-teal {
+    background: #e6f7f5;
+    color: #0f766e;
+    border-color: #99e2d8;
+}
+.deal-redesign .dr-pill-navy {
+    background: #e8ecf2;
+    color: #16294d;
+    border-color: #c7d0de;
+}
+
+.deal-redesign .dr-tabs {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #e2e5ea;
+    padding: 0 8px;
+}
+.deal-redesign .dr-tabs-scroll {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+    mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+}
+.deal-redesign .dr-tabs-scroll::-webkit-scrollbar {
+    display: none;
+}
+.deal-redesign .dr-tabs-meta {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.deal-redesign .dr-tabs-divider {
+    width: 1px;
+    height: 20px;
+    background: #e2e5ea;
+    margin: 0 6px;
+    flex-shrink: 0;
+}
+.deal-redesign .dr-tab {
+    font-family: inherit;
+    background: transparent;
+    border: none;
+    color: #5b6472;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 12px 11px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    transition: all 0.15s;
+}
+.deal-redesign .dr-tab:hover {
+    color: #1a1f2e;
+}
+.deal-redesign .dr-tab[aria-selected="true"] {
+    color: #1a6bb5;
+    border-bottom-color: #1a6bb5;
+    font-weight: 600;
+}
+.deal-redesign .dr-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #f5f6f8;
+    color: #5b6472;
+    border: 1px solid #e2e5ea;
+    line-height: 1;
+}
+.deal-redesign .dr-tab[aria-selected="true"] .dr-tab-count {
+    background: #e8f1fb;
+    color: #14538c;
+    border-color: #b8d4f0;
+}
+
+.deal-redesign .dr-hscroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+    mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+}
+.deal-redesign .dr-hscroll::-webkit-scrollbar {
+    display: none;
+}
+
+.deal-redesign .dr-filter {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    background: #ffffff;
+    color: #5b6472;
+    border: 1px solid #e2e5ea;
+    min-height: 28px;
+    text-transform: capitalize;
+}
+.deal-redesign .dr-filter[aria-pressed="true"] {
+    background: #16294d;
+    color: #ffffff;
+    border-color: #16294d;
+    font-weight: 600;
+}
+
+.deal-redesign .dr-input {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #1a1f2e;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+}
+.deal-redesign .dr-input::placeholder {
+    color: #5b6472;
+}
+.deal-redesign .dr-input:focus {
+    border-color: #b8d4f0;
+    box-shadow: 0 0 0 2px #e8f1fb;
+}
+
+.deal-redesign .dr-editable {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 6px;
+}
+.deal-redesign .dr-editable .dr-editable-value {
+    border-bottom: 1px dashed transparent;
+}
+.deal-redesign .dr-editable:hover .dr-editable-value,
+.deal-redesign .dr-editable:focus-visible .dr-editable-value {
+    border-bottom-color: #b8d4f0;
+}
+.deal-redesign .dr-editable .dr-pencil {
+    opacity: 0;
+    transition: opacity 0.12s;
+    color: #1a6bb5;
+}
+.deal-redesign .dr-editable:hover .dr-pencil,
+.deal-redesign .dr-editable:focus-visible .dr-pencil {
+    opacity: 1;
+}
+
+.deal-redesign .dr-card {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+.deal-redesign .dr-card-btn {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    color: #1a1f2e;
+}
+.deal-redesign .dr-card-btn:hover {
+    border-color: #b8d4f0;
+}
+
+/* Portal-rendered floating menu (see DealMenuSelect) */
+.dr-menu {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(22, 41, 77, 0.14);
+    padding: 6px;
+}
+.dr-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    border-radius: 7px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    color: #1a1f2e;
+    cursor: pointer;
+    text-align: left;
+    min-height: 36px;
+}
+.dr-menu-item:hover {
+    background: #f5f6f8;
+}
+.dr-menu-item.danger {
+    color: #b91c1c;
+}
+.dr-menu-sep {
+    height: 1px;
+    background: #eef0f3;
+    margin: 4px 6px;
+}
+
+.deal-redesign .dr-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #5b6472;
+}
+
+.deal-redesign .dr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.deal-redesign .dr-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #5b6472;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e5ea;
+}
+.deal-redesign .dr-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eef0f3;
+    vertical-align: top;
+}
+
+@keyframes dr-shimmer {
+    0% {
+        opacity: 0.55;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.55;
+    }
+}
+.deal-redesign .dr-skeleton {
+    background: #eef0f3;
+    border-radius: 6px;
+    animation: dr-shimmer 1.2s ease-in-out infinite;
 }

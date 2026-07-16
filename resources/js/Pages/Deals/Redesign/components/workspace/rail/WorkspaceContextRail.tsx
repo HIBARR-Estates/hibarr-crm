@@ -27,8 +27,10 @@ interface WorkspaceContextRailProps {
     upcomingTasks?: WorkspaceTaskPreview[];
     /** undefined = deferred follow-ups still pending */
     upcomingMeetings?: WorkspaceMeetingPreview[];
+    restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: WorkspaceSubTab) => void;
     onSwitchToDealInfo: () => void;
+    onManagePackagesProperties?: () => void;
     onAddTask: () => void;
     onAddMeeting: () => void;
 }
@@ -39,8 +41,10 @@ export default function WorkspaceContextRail({
     fields = [],
     upcomingTasks,
     upcomingMeetings,
+    restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
+    onManagePackagesProperties,
     onAddTask,
     onAddMeeting,
 }: WorkspaceContextRailProps) {
@@ -60,7 +64,13 @@ export default function WorkspaceContextRail({
                     onOpenFiles={() => onNavigateToSubTab("files")}
                 />
             )}
-            <WorkspaceDealDetailsCard deal={deal} />
+            <WorkspaceDealDetailsCard
+                deal={deal}
+                restrictPackageOrProperty={restrictPackageOrProperty}
+                onManagePackagesProperties={
+                    onManagePackagesProperties ?? onSwitchToDealInfo
+                }
+            />
             <WorkspaceStageFocusCard
                 focus={stageFocus}
                 onViewAll={onSwitchToDealInfo}

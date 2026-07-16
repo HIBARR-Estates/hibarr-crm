@@ -1,3 +1,4 @@
+import { KeyboardEvent } from "react";
 import { DealMainTab } from "../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
@@ -20,23 +21,46 @@ export default function DealMainTabs({ mainTab, onChange }: DealMainTabsProps) {
         timeline: td("Timeline"),
     };
 
+    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+            return;
+        }
+        event.preventDefault();
+        const index = MAIN_TABS.findIndex((tab) => tab.id === mainTab);
+        let next = index;
+        if (event.key === "ArrowRight") next = (index + 1) % MAIN_TABS.length;
+        if (event.key === "ArrowLeft")
+            next = (index - 1 + MAIN_TABS.length) % MAIN_TABS.length;
+        if (event.key === "Home") next = 0;
+        if (event.key === "End") next = MAIN_TABS.length - 1;
+        const nextTab = MAIN_TABS[next];
+        onChange(nextTab.id);
+        document.getElementById(`deal-main-tab-${nextTab.id}`)?.focus();
+    };
+
     return (
-        <div className="flex border-b border-[#e2e5ea] bg-white px-[26px]">
-            {MAIN_TABS.map((tab) => (
-                <button
-                    key={tab.id}
-                    type="button"
-                    className="mtab border-b-2 px-[18px] py-[11px] text-sm"
-                    style={{
-                        color: mainTab === tab.id ? "#1a6bb5" : "#6b7280",
-                        borderBottomColor: mainTab === tab.id ? "#1a6bb5" : "transparent",
-                        fontWeight: mainTab === tab.id ? 500 : 400,
-                    }}
-                    onClick={() => onChange(tab.id)}
-                >
-                    {labels[tab.id]}
-                </button>
-            ))}
+        <div className="dr-tabs">
+            <div
+                className="dr-tabs-scroll"
+                role="tablist"
+                aria-label="Deal sections"
+                onKeyDown={handleKeyDown}
+            >
+                {MAIN_TABS.map((tab) => (
+                    <button
+                        key={tab.id}
+                        id={`deal-main-tab-${tab.id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={mainTab === tab.id}
+                        tabIndex={mainTab === tab.id ? 0 : -1}
+                        className="dr-tab"
+                        onClick={() => onChange(tab.id)}
+                    >
+                        {labels[tab.id]}
+                    </button>
+                ))}
+            </div>
         </div>
     );
 }

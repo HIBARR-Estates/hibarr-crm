@@ -51,6 +51,7 @@ interface DealInfoSectionPanelProps {
         type?: "details" | "contact" | "custom_field" | "hibarr_field",
     ) => Promise<void>;
     onRecalculateValue: () => Promise<void>;
+    restrictPackageOrProperty?: boolean;
 }
 
 function getMobileNumber(mobile: string | null | undefined) {
@@ -91,6 +92,7 @@ export default function DealInfoSectionPanel({
     isRecalculatingValue,
     onFieldUpdate,
     onRecalculateValue,
+    restrictPackageOrProperty = false,
 }: DealInfoSectionPanelProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
@@ -102,6 +104,41 @@ export default function DealInfoSectionPanel({
     const valueInsight = useMemo(() => getDealValueInsight(deal), [deal]);
     const currentCurrencySymbol = deal.currency?.currency_symbol || "£";
     const editing = isEditing && canEdit;
+
+    const hasPackage = (deal.packages?.length ?? 0) > 0;
+    const hasProperty = (deal.products?.length ?? 0) > 0;
+    const totalAttached = (deal.packages?.length ?? 0) + (deal.products?.length ?? 0);
+    const overPackagePropertyLimit = restrictPackageOrProperty && totalAttached > 1;
+    const showPackagesField =
+        !restrictPackageOrProperty || !hasProperty || overPackagePropertyLimit;
+    const showPropertiesSection =
+        !restrictPackageOrProperty || !hasPackage || overPackagePropertyLimit;
+
+    const packagePropertyBanner = restrictPackageOrProperty && (
+        <div
+            className="mb-4 flex items-start gap-2 rounded-lg border px-3 py-2 text-xs leading-relaxed"
+            style={{ color: "#92400e", background: "#fff7ed", borderColor: "#fed7aa" }}
+        >
+            <InfoCircleOutlined className="mt-0.5 shrink-0" />
+            <span>
+                {overPackagePropertyLimit
+                    ? td(
+                          "This deal has more packages/properties attached than the current CRM limit of one. Remove items to get back under the limit.",
+                      )
+                    : hasPackage
+                      ? td(
+                            "This is a package deal. To attach a property instead, remove the package first.",
+                        )
+                      : hasProperty
+                        ? td(
+                              "This is a property deal. To attach a package instead, remove the property first.",
+                          )
+                        : td(
+                              "This CRM is configured to allow only one package or property per deal.",
+                          )}
+            </span>
+        </div>
+    );
 
     const categoryId = isCategorySectionId(sectionId)
         ? parseCategorySectionId(sectionId)
@@ -295,25 +332,27 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.packages")}>
-                    <DealEditableField
-                        value={deal.packages?.map((pkg) => pkg.id) || []}
-                        fieldName="package_id"
-                        selectorType="packages"
-                        mode="multiple"
-                        displayValue={
-                            deal.packages?.length
-                                ? deal.packages
-                                      .map((pkg) => pkg?.name || pkg)
-                                      .join(", ")
-                                : "--"
-                        }
-                        onSave={(value) => onFieldUpdate("package_id", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("package_id")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
+                {showPackagesField && (
+                    <DetailField label={t("pages.deals.info.fields.packages")}>
+                        <DealEditableField
+                            value={deal.packages?.map((pkg) => pkg.id) || []}
+                            fieldName="package_id"
+                            selectorType="packages"
+                            mode="multiple"
+                            displayValue={
+                                deal.packages?.length
+                                    ? deal.packages
+                                          .map((pkg) => pkg?.name || pkg)
+                                          .join(", ")
+                                    : "--"
+                            }
+                            onSave={(value) => onFieldUpdate("package_id", value)}
+                            alwaysEditing={editing}
+                            loading={isFieldLoading("package_id")}
+                            disabled={!canEdit}
+                        />
+                    </DetailField>
+                )}
                 <DetailField label={t("pages.deals.info.fields.lead_contact")}>
                     <DealEditableField
                         value={deal.lead_id}
@@ -511,31 +550,34 @@ export default function DealInfoSectionPanel({
 
     const renderProperty = () => (
         <>
-            <FieldGrid>
-                <DetailField
-                    label={t("pages.deals.info.fields.properties")}
-                    span={2}
-                >
-                    <div className="w-full">
-                        <Button
-                            type="link"
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => setPropertyModalOpen(true)}
-                            className="!px-0 !text-xs"
-                        >
-                            {t("pages.deals.info.actions.manage_properties")}
-                        </Button>
-                        {deal.products && deal.products.length > 0 ? (
-                            <PropertyCarousel products={deal.products} />
-                        ) : (
-                            <span className="text-sm text-gray-400">
-                                {t("pages.deals.info.no_properties")}
-                            </span>
-                        )}
-                    </div>
-                </DetailField>
-            </FieldGrid>
+            {packagePropertyBanner}
+            {showPropertiesSection && (
+                <FieldGrid>
+                    <DetailField
+                        label={t("pages.deals.info.fields.properties")}
+                        span={2}
+                    >
+                        <div className="w-full">
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<EditOutlined />}
+                                onClick={() => setPropertyModalOpen(true)}
+                                className="!px-0 !text-xs"
+                            >
+                                {t("pages.deals.info.actions.manage_properties")}
+                            </Button>
+                            {deal.products && deal.products.length > 0 ? (
+                                <PropertyCarousel products={deal.products} />
+                            ) : (
+                                <span className="text-sm text-gray-400">
+                                    {t("pages.deals.info.no_properties")}
+                                </span>
+                            )}
+                        </div>
+                    </DetailField>
+                </FieldGrid>
+            )}
             {mappedCategories.length > 0 &&
                 renderCustomFields(
                     mappedCategories.map((category) => category.id),
@@ -888,7 +930,7 @@ export default function DealInfoSectionPanel({
                     <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
                         {sectionMeta.title}
                     </h3>
-                    <p className="text-xs text-[#6b7280]">{sectionMeta.subtitle}</p>
+                    <p className="text-xs text-[#5b6472]">{sectionMeta.subtitle}</p>
                 </div>
                 {canEdit && (
                     <DealButton

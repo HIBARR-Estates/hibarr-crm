@@ -639,6 +639,7 @@ class DealController extends AccountBaseController
             'dealAiSummary' => \App\Support\FeatureFlags::enabled('sales.ai-entity-summary')
                 ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
                 : null,
+            'restrictPackageOrProperty' => (bool) (\App\Models\LeadSetting::first()->restrict_package_or_property ?? false),
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
             'notes' => Inertia::defer(function () use ($dealId) {

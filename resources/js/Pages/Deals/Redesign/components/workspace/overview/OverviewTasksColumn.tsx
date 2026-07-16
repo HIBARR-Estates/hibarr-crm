@@ -128,7 +128,7 @@ export default function OverviewTasksColumn({
                                             {task.dueDateLabel}
                                         </div>
                                         {expanded && (
-                                            <div className="mt-1.5 border-t border-[#e2e5ea] pt-1.5 text-[11px] leading-relaxed text-[#6b7280]">
+                                            <div className="mt-1.5 border-t border-[#e2e5ea] pt-1.5 text-[11px] leading-relaxed text-[#5b6472]">
                                                 {task.description ||
                                                     td("No description.")}
                                             </div>

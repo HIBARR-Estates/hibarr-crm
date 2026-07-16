@@ -51,7 +51,7 @@ export default function WorkspaceStageFocusCard({
                             key={item.key}
                             className="mb-1.5 flex items-baseline justify-between gap-3"
                         >
-                            <span className="text-xs text-[#6b7280]">
+                            <span className="text-xs text-[#5b6472]">
                                 {td(item.label)}
                             </span>
                             <span className="text-xs italic text-[#9ca3af]">
@@ -66,7 +66,7 @@ export default function WorkspaceStageFocusCard({
                         <span className="text-[11px] text-[#9ca3af]">
                             {td("Stage completion")}
                         </span>
-                        <span className="text-[11px] text-[#6b7280]">
+                        <span className="text-[11px] text-[#5b6472]">
                             {focus.filledCount} {td("of")} {focus.totalCount}
                         </span>
                     </div>

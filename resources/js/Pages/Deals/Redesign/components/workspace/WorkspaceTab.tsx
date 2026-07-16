@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Deferred } from "@inertiajs/react";
 
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
 import { DealShowProps, WorkspaceSubTab } from "../../types";
 import WorkspaceOverviewTab from "./WorkspaceOverviewTab";
 import WorkspaceSubTabBar from "./WorkspaceSubTabBar";
-import WorkspaceContextRail from "./rail/WorkspaceContextRail";
-import DealAddTaskModal from "./DealAddTaskModal";
-import DealScheduleMeetingModal from "./DealScheduleMeetingModal";
 import WorkspaceNotesTab from "./WorkspaceNotesTab";
 import WorkspaceTasksTab from "./WorkspaceTasksTab";
 import WorkspaceMeetingsTab from "./WorkspaceMeetingsTab";
 import WorkspaceFilesTab from "./WorkspaceFilesTab";
 import WorkspaceOffersTab from "./WorkspaceOffersTab";
 import WorkspaceRecommendationsTab from "./WorkspaceRecommendationsTab";
+import WorkspaceItineraryTab from "./WorkspaceItineraryTab";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -27,15 +26,15 @@ interface WorkspaceTabProps
         | "tasks"
         | "dealFollowUps"
         | "files"
-        | "proposals"
-        | "fields"
         | "meetingTypes"
         | "taskBoardColumns"
         | "permissions"
     > {
     activeSubTab: WorkspaceSubTab;
     onChangeSubTab: (tab: WorkspaceSubTab) => void;
-    onSwitchToDealInfo: () => void;
+    overview: ReturnType<typeof useWorkspaceOverview>;
+    onAddTask: () => void;
+    onAddMeeting: () => void;
 }
 
 export default function WorkspaceTab({
@@ -44,20 +43,18 @@ export default function WorkspaceTab({
     tasks,
     dealFollowUps,
     files,
-    proposals,
-    fields = [],
     meetingTypes = [],
     taskBoardColumns = [],
     permissions = {},
     activeSubTab,
     onChangeSubTab,
-    onSwitchToDealInfo,
+    overview,
+    onAddTask,
+    onAddMeeting,
 }: WorkspaceTabProps) {
-    const [addTaskOpen, setAddTaskOpen] = useState(false);
-    const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [recommendationsCount, setRecommendationsCount] = useState(0);
-
-    const overview = useWorkspaceOverview({ notes, tasks, dealFollowUps });
+    const [offersCount, setOffersCount] = useState(0);
+    const dealPermissions = useDealPermissions(deal);
 
     const subTabs = useMemo(() => {
         const tabs: WorkspaceSubTab[] = ["overview"];
@@ -65,7 +62,7 @@ export default function WorkspaceTab({
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
-        tabs.push("offers", "recommendations");
+        tabs.push("offers", "recommendations", "itinerary");
         return tabs;
     }, [permissions]);
 
@@ -88,183 +85,121 @@ export default function WorkspaceTab({
                     ? undefined
                     : overview.upcomingMeetingsCount,
             files: files === undefined ? undefined : files.length,
-            offers: proposals === undefined ? undefined : proposals.length,
+            offers: offersCount,
             recommendations: recommendationsCount,
+            itinerary: deal.lead_flight_itineraries?.length ?? 0,
         }),
         [
             dealFollowUps,
+            deal.lead_flight_itineraries?.length,
             files,
             notes,
+            offersCount,
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
-            proposals,
             recommendationsCount,
             tasks,
         ],
     );
 
-    const upcomingTasks = useMemo(
-        () => overview.tasks.filter((task) => task.isOpen).slice(0, 5),
-        [overview.tasks],
-    );
-
-    const upcomingMeetings = useMemo(
-        () =>
-            overview.meetings
-                .filter((meeting) => meeting.isUpcoming)
-                .slice(0, 5),
-        [overview.meetings],
-    );
-
     return (
-        <>
-            <DealAddTaskModal
-                open={addTaskOpen}
-                onClose={() => setAddTaskOpen(false)}
-                dealId={deal.id}
+        <div className="space-y-4">
+            <WorkspaceSubTabBar
+                activeSubTab={effectiveSubTab}
+                counts={counts}
+                visibleTabs={subTabs}
+                onChange={onChangeSubTab}
             />
 
-            <DealScheduleMeetingModal
-                open={addMeetingOpen}
-                onClose={() => setAddMeetingOpen(false)}
-                deal={deal}
-                meetingTypes={meetingTypes}
-            />
-
-            <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[1fr_340px]">
-                <div className="space-y-4">
-                    <WorkspaceSubTabBar
-                        activeSubTab={effectiveSubTab}
-                        counts={counts}
-                        visibleTabs={subTabs}
-                        onChange={onChangeSubTab}
+            {effectiveSubTab === "overview" ? (
+                <Deferred
+                    data={["notes", "tasks", "dealFollowUps", "taskBoardColumns"]}
+                    fallback={<OverviewDeferredSkeleton />}
+                >
+                    <WorkspaceOverviewTab
+                        deal={deal}
+                        notes={notes ?? []}
+                        tasks={tasks ?? []}
+                        dealFollowUps={dealFollowUps ?? []}
+                        taskBoardColumns={taskBoardColumns}
+                        onNavigateToSubTab={onChangeSubTab}
+                        onAddTask={onAddTask}
+                        onAddMeeting={onAddMeeting}
                     />
-
-                    {effectiveSubTab === "overview" ? (
-                        <Deferred
-                            data={[
-                                "notes",
-                                "tasks",
-                                "dealFollowUps",
-                                "taskBoardColumns",
-                            ]}
-                            fallback={<OverviewDeferredSkeleton />}
-                        >
-                            <WorkspaceOverviewTab
+                </Deferred>
+            ) : (
+                <>
+                    {effectiveSubTab === "notes" && (
+                        <Deferred data="notes" fallback={<TabDeferredSkeleton />}>
+                            <WorkspaceNotesTab
                                 deal={deal}
                                 notes={notes ?? []}
-                                tasks={tasks ?? []}
-                                dealFollowUps={dealFollowUps ?? []}
-                                taskBoardColumns={taskBoardColumns}
-                                onNavigateToSubTab={onChangeSubTab}
-                                onAddTask={() => setAddTaskOpen(true)}
-                                onAddMeeting={() => setAddMeetingOpen(true)}
+                                permissions={permissions}
+                                onAttachFiles={() => onChangeSubTab("files")}
                             />
                         </Deferred>
-                    ) : (
-                        <>
-                            {effectiveSubTab === "notes" && (
-                                <Deferred
-                                    data="notes"
-                                    fallback={<TabDeferredSkeleton />}
-                                >
-                                    <WorkspaceNotesTab
-                                        deal={deal}
-                                        notes={notes ?? []}
-                                        permissions={permissions}
-                                        onAttachFiles={() =>
-                                            onChangeSubTab("files")
-                                        }
-                                    />
-                                </Deferred>
-                            )}
-
-                            {effectiveSubTab === "tasks" && (
-                                <Deferred
-                                    data={["tasks", "taskBoardColumns"]}
-                                    fallback={<TabDeferredSkeleton />}
-                                >
-                                    <WorkspaceTasksTab
-                                        tasks={tasks ?? []}
-                                        taskBoardColumns={taskBoardColumns}
-                                        permissions={permissions}
-                                        onAddTask={() => setAddTaskOpen(true)}
-                                    />
-                                </Deferred>
-                            )}
-
-                            {effectiveSubTab === "meetings" && (
-                                <Deferred
-                                    data="dealFollowUps"
-                                    fallback={<TabDeferredSkeleton />}
-                                >
-                                    <WorkspaceMeetingsTab
-                                        deal={deal}
-                                        followUps={dealFollowUps ?? []}
-                                        meetingTypes={meetingTypes}
-                                        permissions={permissions}
-                                        onScheduleMeeting={() =>
-                                            setAddMeetingOpen(true)
-                                        }
-                                    />
-                                </Deferred>
-                            )}
-
-                            {effectiveSubTab === "files" && (
-                                <Deferred
-                                    data="files"
-                                    fallback={<TabDeferredSkeleton />}
-                                >
-                                    <WorkspaceFilesTab
-                                        deal={deal}
-                                        files={files ?? []}
-                                        permissions={permissions}
-                                    />
-                                </Deferred>
-                            )}
-
-                            {effectiveSubTab === "offers" && (
-                                <Deferred
-                                    data="proposals"
-                                    fallback={<TabDeferredSkeleton />}
-                                >
-                                    <WorkspaceOffersTab
-                                        deal={deal}
-                                        proposals={proposals ?? []}
-                                        permissions={permissions}
-                                    />
-                                </Deferred>
-                            )}
-
-                            {effectiveSubTab === "recommendations" && (
-                                <WorkspaceRecommendationsTab
-                                    deal={deal}
-                                    permissions={permissions}
-                                    onCountChange={setRecommendationsCount}
-                                />
-                            )}
-                        </>
                     )}
-                </div>
 
-                <WorkspaceContextRail
-                    deal={deal}
-                    files={files}
-                    fields={fields}
-                    upcomingTasks={
-                        tasks === undefined ? undefined : upcomingTasks
-                    }
-                    upcomingMeetings={
-                        dealFollowUps === undefined
-                            ? undefined
-                            : upcomingMeetings
-                    }
-                    onNavigateToSubTab={onChangeSubTab}
-                    onSwitchToDealInfo={onSwitchToDealInfo}
-                    onAddTask={() => setAddTaskOpen(true)}
-                    onAddMeeting={() => setAddMeetingOpen(true)}
-                />
-            </div>
-        </>
+                    {effectiveSubTab === "tasks" && (
+                        <Deferred
+                            data={["tasks", "taskBoardColumns"]}
+                            fallback={<TabDeferredSkeleton />}
+                        >
+                            <WorkspaceTasksTab
+                                tasks={tasks ?? []}
+                                taskBoardColumns={taskBoardColumns}
+                                permissions={permissions}
+                                onAddTask={onAddTask}
+                            />
+                        </Deferred>
+                    )}
+
+                    {effectiveSubTab === "meetings" && (
+                        <Deferred data="dealFollowUps" fallback={<TabDeferredSkeleton />}>
+                            <WorkspaceMeetingsTab
+                                deal={deal}
+                                followUps={dealFollowUps ?? []}
+                                meetingTypes={meetingTypes}
+                                permissions={permissions}
+                                onScheduleMeeting={onAddMeeting}
+                            />
+                        </Deferred>
+                    )}
+
+                    {effectiveSubTab === "files" && (
+                        <Deferred data="files" fallback={<TabDeferredSkeleton />}>
+                            <WorkspaceFilesTab
+                                deal={deal}
+                                files={files ?? []}
+                                permissions={permissions}
+                            />
+                        </Deferred>
+                    )}
+
+                    {effectiveSubTab === "offers" && (
+                        <WorkspaceOffersTab
+                            deal={deal}
+                            onCountChange={setOffersCount}
+                        />
+                    )}
+
+                    {effectiveSubTab === "recommendations" && (
+                        <WorkspaceRecommendationsTab
+                            deal={deal}
+                            permissions={permissions}
+                            onCountChange={setRecommendationsCount}
+                        />
+                    )}
+
+                    {effectiveSubTab === "itinerary" && (
+                        <WorkspaceItineraryTab
+                            deal={deal}
+                            canAdd={dealPermissions.canEdit}
+                            canDelete={dealPermissions.canDelete}
+                        />
+                    )}
+                </>
+            )}
+        </div>
     );
 }

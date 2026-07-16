@@ -1,6 +1,9 @@
+import { KeyboardEvent } from "react";
 import { WorkspaceSubTab, WorkspaceSubTabCount } from "../../types";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useHScroll from "../../hooks/useHScroll";
+import DealScrollArrow from "../primitives/DealScrollArrow";
 
 interface WorkspaceSubTabBarProps {
     activeSubTab: WorkspaceSubTab;
@@ -17,6 +20,7 @@ const SUB_TABS: Array<{ id: WorkspaceSubTab; label: string; countKey?: keyof Wor
     { id: "files", label: "Files", countKey: "files" },
     { id: "offers", label: "Offers", countKey: "offers" },
     { id: "recommendations", label: "Recommendations", countKey: "recommendations" },
+    { id: "itinerary", label: "Itinerary", countKey: "itinerary" },
 ];
 
 export default function WorkspaceSubTabBar({
@@ -27,11 +31,46 @@ export default function WorkspaceSubTabBar({
 }: WorkspaceSubTabBarProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const scroll = useHScroll();
+    const hasOverflow = scroll.overflow.left || scroll.overflow.right;
+
+    const tabs = SUB_TABS.filter((tab) => visibleTabs.includes(tab.id));
+
+    const handleKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) {
+            return;
+        }
+        event.preventDefault();
+        const index = tabs.findIndex((tab) => tab.id === activeSubTab);
+        let next = index;
+        if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+        if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+        if (event.key === "Home") next = 0;
+        if (event.key === "End") next = tabs.length - 1;
+        const nextTab = tabs[next];
+        onChange(nextTab.id);
+        document.getElementById(`workspace-subtab-${nextTab.id}`)?.focus();
+    };
 
     return (
-        <div className="rounded-[10px] border border-[#e2e5ea] bg-[#f3f5f8] p-1">
-            <div className="flex flex-wrap gap-1">
-                {SUB_TABS.filter((tab) => visibleTabs.includes(tab.id)).map((tab) => {
+        <div className="flex items-center rounded-[10px] border border-[#e2e5ea] bg-[#f3f5f8] p-1">
+            {hasOverflow && (
+                <DealScrollArrow
+                    dir="left"
+                    enabled={scroll.overflow.left}
+                    onClick={() => scroll.nudge(-1)}
+                    label="Scroll tabs left"
+                />
+            )}
+            <div
+                ref={scroll.ref}
+                onScroll={scroll.update}
+                onKeyDown={handleKeyDown}
+                role="tablist"
+                aria-label="Workspace sections"
+                className="dr-hscroll flex flex-1 items-center gap-1 overflow-x-auto"
+            >
+                {tabs.map((tab) => {
                     const isActive = activeSubTab === tab.id;
                     const count = tab.countKey ? counts[tab.countKey] : null;
                     const labelMap: Record<WorkspaceSubTab, string> = {
@@ -42,13 +81,18 @@ export default function WorkspaceSubTabBar({
                         files: t("pages.deals.tabs.files"),
                         offers: t("pages.deals.tabs.offers"),
                         recommendations: t("pages.deals.tabs.recommendations"),
+                        itinerary: t("pages.flight_itinerary.tab"),
                     };
 
                     return (
                         <button
                             key={tab.id}
+                            id={`workspace-subtab-${tab.id}`}
                             type="button"
-                            className="inline-flex items-center gap-2 rounded-[8px] px-3 py-2 text-xs transition-all"
+                            role="tab"
+                            aria-selected={isActive}
+                            tabIndex={isActive ? 0 : -1}
+                            className="inline-flex shrink-0 items-center gap-2 rounded-[8px] px-3 py-2 text-xs transition-all"
                             style={{
                                 backgroundColor: isActive ? "#ffffff" : "transparent",
                                 color: isActive ? "#1a1f2e" : "#667085",
@@ -67,6 +111,14 @@ export default function WorkspaceSubTabBar({
                     );
                 })}
             </div>
+            {hasOverflow && (
+                <DealScrollArrow
+                    dir="right"
+                    enabled={scroll.overflow.right}
+                    onClick={() => scroll.nudge(1)}
+                    label="Scroll tabs right"
+                />
+            )}
         </div>
     );
 }

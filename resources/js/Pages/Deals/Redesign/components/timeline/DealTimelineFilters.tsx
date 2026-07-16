@@ -48,27 +48,17 @@ export default function DealTimelineFilters({
                 <span
                     style={{ fontSize: 12, color: T.TEXT_MUTED, marginRight: 4 }}
                 >
-                    Filter:
+                    {td("Filter")}:
                 </span>
                 {FILTERS.map((currentFilter) => (
                     <button
                         key={currentFilter}
                         type="button"
+                        className="dr-filter"
+                        aria-pressed={filter === currentFilter}
                         onClick={() => onFilterChange(currentFilter)}
-                        style={{
-                            fontSize: 12,
-                            padding: "4px 11px",
-                            borderRadius: 20,
-                            cursor: "pointer",
-                            background: filter === currentFilter ? T.NAVY : T.WHITE,
-                            color:
-                                filter === currentFilter ? T.WHITE : T.TEXT_MUTED,
-                            border: `1px solid ${filter === currentFilter ? T.NAVY : T.BORDER}`,
-                            fontWeight: filter === currentFilter ? 500 : 400,
-                            textTransform: "capitalize",
-                        }}
                     >
-                        {currentFilter}
+                        {td(currentFilter)}
                     </button>
                 ))}
 

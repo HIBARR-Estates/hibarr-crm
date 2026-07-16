@@ -150,7 +150,7 @@ export default function OverviewNotesColumn({
                                     </span>
                                 </div>
                                 <div
-                                    className="text-xs leading-relaxed text-[#6b7280]"
+                                    className="text-xs leading-relaxed text-[#5b6472]"
                                     style={
                                         expanded
                                             ? undefined

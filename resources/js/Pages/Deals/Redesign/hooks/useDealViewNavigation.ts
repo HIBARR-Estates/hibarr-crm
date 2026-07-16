@@ -29,6 +29,7 @@ const VALID_WORKSPACE_SUB_TABS: WorkspaceSubTab[] = [
     "files",
     "offers",
     "recommendations",
+    "itinerary",
 ];
 
 function getInitialSection(): DealInfoSectionId {

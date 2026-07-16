@@ -28,7 +28,7 @@ export default function TimelineTab({
     } = useDealTimeline(dealId);
 
     return (
-        <div className="mx-auto w-full max-w-[680px]">
+        <div className="w-full">
             <DealTimelineFilters
                 dealId={dealId}
                 userId={userId}

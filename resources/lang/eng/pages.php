@@ -191,6 +191,9 @@ return [
     'deals' => [
         'locked_message'           => 'This deal is locked. Editing and deletion are disabled.',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
+        'stage_jump_confirm_title'   => 'Skip pipeline stages?',
+        'stage_jump_confirm_message' => 'You are moving this deal to "{{stage}}", skipping one or more stages in between. Continue?',
+        'stage_jump_confirm_action'  => 'Move stage',
         'actions' => [
             'add_task'         => 'Add Task',
             'add_note'         => 'Add Note',
@@ -266,6 +269,7 @@ return [
                 'view_lead_profile' => 'View lead profile',
             ],
             'value_insight' => [
+                'title'             => 'Value breakdown',
                 'properties'        => 'Properties',
                 'products'          => 'Products',
                 'packages'          => 'Packages',

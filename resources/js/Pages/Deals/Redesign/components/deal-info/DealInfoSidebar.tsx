@@ -1,3 +1,5 @@
+import { useMemo, useState } from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import DealBadge from "../primitives/DealBadge";
 import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -28,12 +30,48 @@ export default function DealInfoSidebar({
     activeSection,
     onSectionChange,
 }: DealInfoSidebarProps) {
+    const { t } = useTranslation();
+    const [search, setSearch] = useState("");
+
+    const query = search.trim().toLowerCase();
+    const filteredGroups = useMemo(() => {
+        if (!query) return navGroups;
+        return navGroups
+            .map((group) => ({
+                ...group,
+                items: group.items.filter((item) =>
+                    item.label.toLowerCase().includes(query),
+                ),
+            }))
+            .filter((group) => group.items.length > 0);
+    }, [navGroups, query]);
+    const hasNoMatches = query.length > 0 && filteredGroups.length === 0;
+
     return (
         <aside
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
-            {navGroups.map((group) => (
+            <div className="px-2.5 pb-2">
+                <input
+                    className="dr-input"
+                    type="search"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t("app.search")}
+                    aria-label="Search deal information sections"
+                    style={{ fontSize: 12, padding: "6px 9px" }}
+                />
+            </div>
+            {hasNoMatches && (
+                <div
+                    className="px-2.5 py-1.5 text-xs italic"
+                    style={{ color: T.TEXT_MUTED }}
+                >
+                    No sections match "{search}"
+                </div>
+            )}
+            {filteredGroups.map((group) => (
                 <div key={group.label}>
                     <div
                         className="px-2.5 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.05em]"

@@ -71,7 +71,9 @@ export default function EntityAiSummaryCard({
         .filter(Boolean)
         .join(" ");
 
-    const showBody = !isRedesign || !collapsed;
+    // Redesign variant: collapsed shows only the header (status line + chip
+    // preview live inside it); expanded reveals the detail grid/bullets/footer.
+    const showDetailBody = !isRedesign || !collapsed;
 
     return (
         <section
@@ -91,9 +93,12 @@ export default function EntityAiSummaryCard({
                         ? () => setCollapsed((value) => !value)
                         : undefined
                 }
+                statusLine={isRedesign ? summary?.status_line : undefined}
+                riskLevel={isRedesign ? summary?.risk_level : undefined}
+                chips={isRedesign ? summary?.chips : undefined}
             />
 
-            {showBody && (
+            {showDetailBody && (
                 <>
                     {loading && (
                         <div className="entity-ai-summary-body">
@@ -130,15 +135,17 @@ export default function EntityAiSummaryCard({
                     {summary && !loading && !error && (
                         <>
                             <div className="entity-ai-summary-body">
-                                <p
-                                    className={`entity-ai-summary-status-line${
-                                        showRiskHighlight
-                                            ? " entity-ai-summary-status-line--risk"
-                                            : ""
-                                    }`}
-                                >
-                                    {summary.status_line}
-                                </p>
+                                {!isRedesign && (
+                                    <p
+                                        className={`entity-ai-summary-status-line${
+                                            showRiskHighlight
+                                                ? " entity-ai-summary-status-line--risk"
+                                                : ""
+                                        }`}
+                                    >
+                                        {summary.status_line}
+                                    </p>
+                                )}
                                 <EntityAiSummaryChipGrid
                                     chips={summary.chips}
                                 />
@@ -148,6 +155,18 @@ export default function EntityAiSummaryCard({
                                             <li key={bullet}>{bullet}</li>
                                         ))}
                                     </ul>
+                                )}
+                                {isRedesign && (
+                                    <button
+                                        type="button"
+                                        className="entity-ai-summary-regenerate-btn"
+                                        disabled={loading}
+                                        onClick={regenerate}
+                                    >
+                                        {loading
+                                            ? "Regenerating…"
+                                            : "Regenerate summary"}
+                                    </button>
                                 )}
                             </div>
                             <EntityAiSummaryNextStep

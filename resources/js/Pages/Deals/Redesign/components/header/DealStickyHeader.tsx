@@ -1,5 +1,6 @@
 import { Alert } from "antd";
 import { LockOutlined } from "@ant-design/icons";
+import { useState } from "react";
 import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -11,7 +12,9 @@ import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import DealAvatar from "../primitives/DealAvatar";
 import DealBadge from "../primitives/DealBadge";
 import DealButton from "../primitives/DealButton";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
+import DealValueBlock from "../primitives/DealValueBlock";
 import DealTeamModal from "./DealTeamModal";
 
 interface DealStickyHeaderProps {
@@ -42,6 +45,23 @@ export default function DealStickyHeader({
         deal,
         hasAllPermission(permissions, "change_deal_stages"),
     );
+    const [pendingStageId, setPendingStageId] = useState<number | null>(null);
+
+    const currentIdx = pipeline.stages.findIndex(
+        (stage) => stage.id === pipeline.currentStageId,
+    );
+
+    const handleStageClick = (stage: (typeof pipeline.stages)[number], index: number) => {
+        if (index === currentIdx) return;
+        const isNonAdjacentJump = Math.abs(index - currentIdx) > 1 || index < currentIdx;
+        if (isNonAdjacentJump) {
+            setPendingStageId(stage.id);
+            return;
+        }
+        pipeline.updateStage(stage.id);
+    };
+
+    const pendingStage = pipeline.stages.find((stage) => stage.id === pendingStageId);
 
     return (
         <div className="sticky top-0 z-50 border-b border-[#e2e5ea] bg-white">
@@ -57,7 +77,7 @@ export default function DealStickyHeader({
                 </div>
             )}
 
-            {/* <div className="flex items-center justify-between px-[26px] py-[14px] text-xs text-[#6b7280]">
+            {/* <div className="flex items-center justify-between px-[26px] py-[14px] text-xs text-[#5b6472]">
                 <div className="flex items-center gap-1.5">
                     <DealIcon name="home" size={12} color={T.TEXT_HINT} />
                     <span>{t("app.menu.dashboard")}</span>
@@ -85,7 +105,7 @@ export default function DealStickyHeader({
                         <div className="mt-0.5 text-[11px] uppercase tracking-[0.06em] text-[#9ca3af]">
                             {td(header.pipelineName)}
                         </div>
-                        <div className="mt-1.5 flex items-center gap-3.5 text-[11px] text-[#9ca3af]">
+                        <div className="mt-1.5 flex items-center gap-3.5 text-[11px] text-[#5b6472]">
                             <span className="inline-flex items-center gap-1">
                                 <DealIcon name="calendar" size={11} />
                                 {t("pages.deals.info.fields.created_at")}:{" "}
@@ -99,16 +119,9 @@ export default function DealStickyHeader({
                         </div>
                     </div>
                     <div className="flex items-center gap-5">
+                        <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
                         <div className="flex flex-col items-end">
-                            <span className="text-[11px] text-[#9ca3af]">
-                                Value
-                            </span>
-                            <span className="text-sm font-medium text-[#1a1f2e]">
-                                {header.value}
-                            </span>
-                        </div>
-                        <div className="flex flex-col items-end">
-                            <span className="text-[11px] text-[#9ca3af]">
+                            <span className="text-[11px] text-[#5b6472]">
                                 {t("pages.deals.info.fields.close_date")}
                             </span>
                             <span className="text-sm font-medium text-[#1a1f2e]">
@@ -129,7 +142,7 @@ export default function DealStickyHeader({
 
                 <div className="flex items-center gap-4 border-t border-[#e2e5ea] py-2.5">
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[#9ca3af]">
+                        <span className="text-[11px] text-[#5b6472]">
                             {t("pages.deals.info.fields.deal_agent")}
                         </span>
                         {team.agent && (
@@ -145,7 +158,7 @@ export default function DealStickyHeader({
                     </div>
                     <div className="h-5 w-px bg-[#e2e5ea]" />
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[#9ca3af]">
+                        <span className="text-[11px] text-[#5b6472]">
                             {t("pages.deals.info.fields.deal_participants")}
                         </span>
                         <div className="flex items-center">
@@ -176,7 +189,7 @@ export default function DealStickyHeader({
                     </div>
                     <div className="h-5 w-px bg-[#e2e5ea]" />
                     <div className="flex items-center gap-2">
-                        <span className="text-[11px] text-[#9ca3af]">
+                        <span className="text-[11px] text-[#5b6472]">
                             {t("pages.deals.info.fields.deal_watchers")}
                         </span>
                         <div className="flex items-center">
@@ -241,9 +254,7 @@ export default function DealStickyHeader({
                                             "change_deal_stages",
                                         )
                                     }
-                                    onClick={() =>
-                                        pipeline.updateStage(stage.id)
-                                    }
+                                    onClick={() => handleStageClick(stage, index)}
                                 >
                                     <span
                                         className="step-dot inline-block h-1.5 w-1.5 rounded-full"
@@ -274,6 +285,20 @@ export default function DealStickyHeader({
                 watchers={team.watchers}
                 employees={employees ?? []}
                 canEdit={dealPermissions.canEdit}
+            />
+
+            <DealConfirmDialog
+                open={pendingStage != null}
+                title={t("pages.deals.stage_jump_confirm_title")}
+                message={t("pages.deals.stage_jump_confirm_message", {
+                    stage: pendingStage ? td(pendingStage.name) : "",
+                })}
+                confirmLabel={t("pages.deals.stage_jump_confirm_action")}
+                onCancel={() => setPendingStageId(null)}
+                onConfirm={() => {
+                    if (pendingStage) pipeline.updateStage(pendingStage.id);
+                    setPendingStageId(null);
+                }}
             />
         </div>
     );

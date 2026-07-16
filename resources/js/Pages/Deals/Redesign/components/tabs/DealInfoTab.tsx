@@ -12,6 +12,7 @@ interface DealInfoTabProps {
     fields: any[];
     activeSection: DealInfoSectionId;
     onSectionChange: (section: DealInfoSectionId) => void;
+    restrictPackageOrProperty?: boolean;
 }
 
 export default function DealInfoTab({
@@ -20,6 +21,7 @@ export default function DealInfoTab({
     fields,
     activeSection,
     onSectionChange,
+    restrictPackageOrProperty = false,
 }: DealInfoTabProps) {
     const { navGroups } = useDealInfoNavigation(
         initialDeal,
@@ -67,6 +69,7 @@ export default function DealInfoTab({
                     isRecalculatingValue={isRecalculatingValue}
                     onFieldUpdate={handleFieldUpdate}
                     onRecalculateValue={handleRecalculateValue}
+                    restrictPackageOrProperty={restrictPackageOrProperty}
                 />
             </div>
         </div>

@@ -12,7 +12,7 @@ import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 const DOT_COLORS = {
     agent: T.GREEN,
     system: T.GRAY_MID,
-    external: "#f59e0b",
+    external: T.AMBER,
 } as const;
 
 interface DealTimelineEventRowProps {

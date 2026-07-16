@@ -108,7 +108,7 @@ export default function WorkspaceRecommendationsTab({
     return (
         <div>
             <div className="mb-3.5 flex items-center justify-between gap-3">
-                <span className="text-xs text-[#6b7280]">
+                <span className="text-xs text-[#5b6472]">
                     {recommendationItems.length}{" "}
                     {recommendationItems.length === 1
                         ? td("property")
@@ -153,7 +153,7 @@ export default function WorkspaceRecommendationsTab({
                     <div className="mb-2 flex justify-center text-[#9ca3af]">
                         <DealIcon name="building" size={28} />
                     </div>
-                    <p className="mb-1 text-[13px] font-medium text-[#6b7280]">
+                    <p className="mb-1 text-[13px] font-medium text-[#5b6472]">
                         {td("No recommendations yet")}
                     </p>
                     <p className="mb-3 text-xs text-[#9ca3af]">
@@ -228,7 +228,7 @@ export default function WorkspaceRecommendationsTab({
                             )}
 
                             {item.reasoningNotes && (
-                                <div className="mb-2.5 text-xs italic leading-relaxed text-[#6b7280]">
+                                <div className="mb-2.5 text-xs italic leading-relaxed text-[#5b6472]">
                                     {item.reasoningNotes}
                                 </div>
                             )}
