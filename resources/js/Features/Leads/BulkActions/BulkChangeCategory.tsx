@@ -35,7 +35,8 @@ const BulkChangeCategory: React.FC<Props> = ({ open, onClose, ids }) => {
                     setCategoryId(null);
                     form.resetFields();
                     onClose(true);
-                    router.reload();
+                    // X2: Index-only component — refresh just the leads list
+                    router.reload({ only: ["leads"] });
                 },
                 onError: () => {
                     message.error("Failed to update category");

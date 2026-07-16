@@ -1,19 +1,37 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, {
+    useState,
+    useEffect,
+    useRef,
+    useCallback,
+    useMemo,
+} from "react";
 import { router, usePage } from "@inertiajs/react";
 import { App, Modal } from "antd";
 import { Lead, CreateLeadFormData } from "@/Types/api/leads";
 import { IModalProps } from "@/Types/common";
-import { useApiMutate } from "@/lib/api/client";
+import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
+import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import LeadForm from "./LeadForm";
 import "./save-lead-modal.css";
+
+/**
+ * M4/S3: edit-from-Index loads custom field *values* on open. Index rows no
+ * longer include custom_fields_data — do not rely on the lead prop for values.
+ */
 
 interface SaveLeadModalProps extends Omit<IModalProps, "onClose"> {
     lead?: Lead;
     setLead?: (lead: Lead | undefined) => void;
     onClose: () => void;
+    /**
+     * X2: Inertia partial-reload keys after a successful save
+     * (e.g. ["leads"] from the Leads Index). Defaults to a full reload
+     * for pages that haven't opted in.
+     */
+    reloadKeys?: string[];
 }
 
 const constructCustomFieldsData = (
@@ -28,11 +46,14 @@ const constructCustomFieldsData = (
     return data;
 };
 
+const EMPTY_CUSTOM_FIELDS_DATA: Record<string, any> = {};
+
 const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     lead,
     onClose,
     open,
     setLead,
+    reloadKeys,
 }) => {
     const [errors, setErrors] = useState<string[]>([]);
     const [formData, setFormData] = useState<CreateLeadFormData | null>(null);
@@ -40,8 +61,53 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     const { modal } = App.useApp();
     const { props } = usePage<any>();
 
-    const customFields = props.leadCustomFields || props.customFields || [];
+    // M2/S2: fetch lead custom field definitions on open (Index no longer ships them)
+    const formDataTypes = useMemo(
+        () =>
+            [
+                "lead-custom-fields",
+                "lead-custom-field-categories",
+            ] as FormDataType[],
+        [],
+    );
+
+    const { data: fetchedFormData } = useFormDataBatch(formDataTypes, {
+        enabled: open,
+    });
+
+    const pickFetchedArray = (type: string, fallback: any[] = []) => {
+        const value = fetchedFormData[type];
+        return Array.isArray(value) && value.length > 0 ? value : fallback;
+    };
+
+    const customFields = pickFetchedArray(
+        "lead-custom-fields",
+        props.leadCustomFields || props.customFields || [],
+    );
+    const customFieldCategories = pickFetchedArray(
+        "lead-custom-field-categories",
+        props.leadCustomFieldCategories || props.customFieldCategories || [],
+    );
     const isEditing = !!lead;
+
+    // M4/S3: fetch values on edit open (Index rows no longer include custom_fields_data)
+    const { data: customFieldsPayload } = useApiQuery<{
+        status: string;
+        custom_fields_data: Record<string, any>;
+    }>({
+        path: lead?.id
+            ? route("lead-contact.custom-fields", { lead: lead.id })
+            : "",
+        options: {
+            enabled: open && !!lead?.id,
+            staleTime: 1000 * 60 * 5,
+        },
+    });
+
+    const customFieldsValues =
+        customFieldsPayload?.custom_fields_data ??
+        lead?.custom_fields_data ??
+        EMPTY_CUSTOM_FIELDS_DATA;
 
     const parseMobile = (mobile: any) => {
         if (!mobile) return "";
@@ -98,8 +164,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         nationality: lead?.nationality || "",
         occupation: lead?.occupation || "",
         custom_fields_data:
-            constructCustomFieldsData(customFields, lead?.custom_fields_data) ||
-            {},
+            constructCustomFieldsData(customFields, customFieldsValues) || {},
     });
 
     const { mutate: createLead, status: createStatus } = useApiMutate<
@@ -123,7 +188,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             const initialData = getInitialData();
             setFormData(initialData);
         }
-    }, [lead, open, customFields]);
+    }, [lead, open, customFields, customFieldsValues]);
 
     const handleCancel = useCallback(() => {
         setFormData(null);
@@ -163,7 +228,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             onSuccess: () => {
                 setErrors([]);
                 handleCancel();
-                router.reload();
+                router.reload(reloadKeys ? { only: reloadKeys } : undefined);
             },
             onError: (errorResponse) => {
                 const responseErrors =
@@ -207,6 +272,8 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
                 visible={open}
                 onCancel={handleDismiss}
                 onSubmit={handleSubmit}
+                customFields={customFields}
+                customFieldCategories={customFieldCategories}
                 errors={errors}
                 setErrors={(newErrors) => {
                     if (Array.isArray(newErrors)) {

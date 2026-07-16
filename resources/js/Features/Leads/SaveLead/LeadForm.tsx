@@ -32,6 +32,8 @@ export interface LeadFormProps {
     visible?: boolean;
     isEditing?: boolean;
     getIsDirtyRef?: React.MutableRefObject<(() => boolean) | null>;
+    customFields?: any[];
+    customFieldCategories?: any[];
 }
 
 const LeadForm: React.FC<LeadFormProps> = ({
@@ -46,12 +48,15 @@ const LeadForm: React.FC<LeadFormProps> = ({
     visible,
     isEditing = false,
     getIsDirtyRef,
+    customFields: customFieldsOverride,
+    customFieldCategories: customFieldCategoriesOverride,
 }) => {
     const [activeTab, setActiveTab] = useState("basic");
     const userEditedRef = useRef(false);
     const { props } = usePage<any>();
     const customFieldCategories =
-        props.leadCustomFieldCategories || props.customFieldCategories || [];
+        customFieldCategoriesOverride ??
+        (props.leadCustomFieldCategories || props.customFieldCategories || []);
 
     const pageLanguages = useMemo(
         () =>
@@ -151,6 +156,7 @@ const LeadForm: React.FC<LeadFormProps> = ({
                     loading={loading}
                     categoryId={category.id}
                     categoryName={category.name}
+                    customFields={customFieldsOverride}
                     onUserEdit={markUserEdited}
                     formId={getSaveLeadCustomFormId(category.id)}
                     hideFooter
