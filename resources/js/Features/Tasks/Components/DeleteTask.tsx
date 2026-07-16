@@ -4,11 +4,14 @@ import { router } from "@inertiajs/react";
 import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 
 interface Props extends IModalProps {
     task?: { id: number; heading: string };
     td?: (key: string) => string;
+    onDeleted?: (taskId: number) => void;
+    /** When true, skip Inertia reload after delete (parent updates local state). */
+    skipReload?: boolean;
 }
 
 const DeleteTask: React.FC<Props> = ({
@@ -16,26 +19,31 @@ const DeleteTask: React.FC<Props> = ({
     onClose,
     open,
     td = (key) => key,
+    onDeleted,
+    skipReload = false,
 }) => {
     const deleteMutation = useApiMutate<{}, any, ApiResponse<any>>(
         task ? `/account/tasks/${task.id}` : "",
         "DELETE",
     );
 
-    // Handle single task deletion
     const handleDeleteDeal = () => {
         if (!task) return;
         deleteMutation.mutate(
             {},
             {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    if (!isSuccessResponse(response)) return;
+                    onDeleted?.(task.id);
                     onClose();
-                    // refreshes data on the current page
-                    router.reload({ only: ["tasks"] });
+                    if (!skipReload) {
+                        router.reload({ only: ["tasks"] });
+                    }
                 },
             },
         );
     };
+
     return (
         <ConfirmationModal
             open={open}

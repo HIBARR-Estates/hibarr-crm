@@ -91,7 +91,9 @@ class DealController extends AccountBaseController
         $this->destroySession();
         // abort_403(!in_array($this->viewLeadPermission, ['all', 'added', 'both', 'owned']));
 
-        $this->loadDataForView();
+        // Index only needs pipelines + defaultPipeline for Inertia props / board pipeline id.
+        // Do not use loadDataForView() here (Deal::all(), all leads, watchers, etc.).
+        $this->loadDataForInertiaIndex();
 
         // Use shared query builder for table view (paginated)
         $dealsQuery = $this->getDealsQuery($request);
@@ -128,35 +130,33 @@ class DealController extends AccountBaseController
         
         $paginatedDeals = $dealsQuery->paginate($request->get('per_page', 15));
 
-        // Load additional data needed for the forms
-        $formData = $this->getDealFormData();
-
-        // Transform deals to include custom fields data
-        $dealsWithCustomFields = $paginatedDeals->getCollection()->map(function ($deal) {
-            // Load custom fields for each deal
-            $dealWithFields = $deal->withCustomFields();
-            $customFieldsData = $dealWithFields->getCustomFieldsData();
-            
-            // Convert to array and add custom fields data
+        // S3: do not hydrate per-row custom_fields_data — SaveDealModal fetches on edit (M4).
+        $dealsForIndex = $paginatedDeals->getCollection()->map(function ($deal) {
             $dealArray = $deal->toArray();
-            $dealArray['custom_fields_data'] = $customFieldsData;
             $dealArray['created_at'] = $deal->created_at?->toIso8601String();
             $dealArray['updated_at'] = $deal->updated_at?->toIso8601String();
-            
+
             return $dealArray;
         });
 
-        // Get kanban board columns (without deals - they'll be fetched via API)
-        $pipelineId = $request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all' 
-            ? $request->lead_pipeline_id 
-            : optional($this->defaultPipeline)->id;
-        
-        $boardColumns = $this->getBoardColumns($request, $pipelineId);
+        // View-aware board columns (K1): skip heavy getBoardColumns for table.
+        // Default when missing is table. Frontend syncs localStorage preference via ?view=.
+        $view = $request->get('view', 'table');
+        $isKanbanView = $view === 'kanban';
 
-        return Inertia::render('Deals/Index', array_merge([
+        $pipelineId = $request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all'
+            ? $request->lead_pipeline_id
+            : optional($this->defaultPipeline)->id;
+
+        $boardColumns = $isKanbanView
+            ? $this->getBoardColumns($request, $pipelineId)
+            : [];
+
+        // S1: do not merge getDealFormData() — modals (M1) and filters (M3) fetch via API.
+        return Inertia::render('Deals/Index', [
             'pageTitle' => 'Deals',
             'deals' => [
-                'data' => $dealsWithCustomFields,
+                'data' => $dealsForIndex,
                 'current_page' => $paginatedDeals->currentPage(),
                 'per_page' => $paginatedDeals->perPage(),
                 'total' => $paginatedDeals->total(),
@@ -165,7 +165,7 @@ class DealController extends AccountBaseController
                 'to' => $paginatedDeals->lastItem(),
             ],
             'boardColumns' => $boardColumns,
-            'pipelines' => $this->pipelines,
+            'allPipelines' => $this->pipelines,
             'defaultPipeline' => $this->defaultPipeline,
             'filters' => $request->only([
                 'lead_pipeline_id',
@@ -177,29 +177,29 @@ class DealController extends AccountBaseController
                 'search',
                 'start_date',
                 'end_date',
+                'view',
             ]),
-        ], $formData));
+        ]);
     }
 
     /**
      * Shared deal query builder with filters applied
      * Used by both index (table view) and kanban API endpoint
+     *
+     * Eager-loads only what DEAL_TABLE_COLUMNS / DealCard / edit-from-Index need.
+     * Counts via withCount; do not reintroduce full tasks graph.
      */
     protected function getDealsQuery(Request $request, $pipelineStageId = null)
     {
         $dealsQuery = Deal::with([
             'leadAgent.user:id,name,email,image',
-            'category:id,category_name',
             'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id',
             'contact.leadSource',
-            'pipeline:id,name',
             'leadStage:id,name,label_color,slug',
             'currency:id,currency_symbol,currency_code',
+            // Edit-from-Index SaveDealModal prefills products/packages from the row
             'products:id,name',
-            'packages',
-            'tasks' => function($q) {
-                $q->with(['deals', 'leads', 'properties']);
-            }
+            'packages:id,name',
         ])
         ->select(
             'deals.id',
@@ -218,7 +218,8 @@ class DealController extends AccountBaseController
             'deals.close_date',
             'deals.updated_at',
             'deals.currency_id',
-            'deals.category_id'
+            'deals.category_id',
+            'deals.is_locked'
         )
         ->withCount([
             'tasks as tasks_count',
@@ -429,6 +430,28 @@ class DealController extends AccountBaseController
         return Reply::dataOnly(['deals' => $deals]);
     }
 
+    /**
+     * Minimal data for Inertia Deals Index (docs/leads-deals-index-performance-checklist.md, Tasks D1/D2/S1).
+     *
+     * index() needs exactly:
+     * - $this->pipelines       -> 'allPipelines' Inertia prop
+     * - $this->defaultPipeline -> 'defaultPipeline' prop + fallback pipeline id for getBoardColumns()
+     *
+     * Do not reintroduce Deal::all() / unused Blade stats here.
+     * Do not call getDealFormData() from index() (S1) — SaveDealModal (M1) and
+     * filters/bulk actions (M3) load reference data via /account/api/form-data.
+     */
+    protected function loadDataForInertiaIndex(): void
+    {
+        $this->pipelines = LeadPipeline::all();
+        $this->defaultPipeline = LeadPipeline::where('default', 1)->first();
+    }
+
+    /**
+     * Blade-era kitchen-sink loader. Only show() still calls this.
+     * Do NOT call from index(); use loadDataForInertiaIndex() instead
+     * (loadDealData() alone loads every deal into memory via Deal::all()).
+     */
     protected function loadDataForView()
     {
         $this->loadPipelineData();
@@ -508,6 +531,9 @@ class DealController extends AccountBaseController
 
     public function show($id)
     {
+        // Shell vs deferred prop matrix: docs/inertia-react-performance-checklist.md (Task C1).
+        // Deferred keys use Inertia::defer (Task C3).
+
         $deal = Deal::with([
             'leadAgent.user',
             'contact',
@@ -526,7 +552,6 @@ class DealController extends AccountBaseController
                       }]);
             },
             'packages:id,name,value',
-            'communicationActivities',
             'hibarrFields',
             'offerApplications.offer',
             'dealWatchers' => function ($query) {
@@ -547,10 +572,9 @@ class DealController extends AccountBaseController
         ])->findOrFail($id);
         $this->loadDataForView();
 
-        
         // Load custom fields data
         $deal = $deal->withCustomFields();
-        
+
         // Get custom fields data explicitly
         $customFieldsData = $deal->getCustomFieldsData();
 
@@ -559,13 +583,10 @@ class DealController extends AccountBaseController
 
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function($user, $deal) {
-                // Check if user is the assigned agent
+            'owned' => function ($user, $deal) {
                 $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                
-                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
                 $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-                
+
                 return $isAgent || $isWatcher;
             }
         ];
@@ -581,7 +602,7 @@ class DealController extends AccountBaseController
 
         $productNames = $deal->products->pluck('name')->toArray();
 
-        // Filter categories by deal's pipeline: if pipeline has categories assigned, show only those; else show all (backward compatibility)
+        // Filter categories by deal's pipeline: if pipeline has categories assigned, show only those; else show all
         if ($deal->pipeline && $deal->pipeline->customFieldCategories->isNotEmpty()) {
             $customFieldCategories = $deal->pipeline->customFieldCategories
                 ->sortBy(fn ($c) => [($c->order ?? 0), $c->id])
@@ -590,92 +611,12 @@ class DealController extends AccountBaseController
             $customFieldCategories = $this->getDealCustomFieldCategories();
         }
 
-        $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
-        $fields = null;
-        if ($getCustomFieldGroupsWithFields) {
-            $fields = $getCustomFieldGroupsWithFields->fields;
-        }
+        $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
-        // Get notes data
-        $notes = DealNote::with('addedBy')
-            ->where('deal_id', $id)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $viewNotesPermission = user()->permission('view_deal_note');
-        
-        if ($viewNotesPermission == 'none') {
-            $notes = collect();
-        } elseif ($viewNotesPermission == 'added') {
-            $notes = $notes->where('added_by', user()->id);
-        } elseif ($viewNotesPermission == 'owned') {
-            $notes = $notes->where('added_by', '!=', user()->id);
-        }
-
-        // Always load these collections regardless of tab
-        $histories = DealHistory::where('deal_id', $id)->orderBy('created_at', 'desc')->get();
-        
-        $activities = CommunicationActivity::where('deal_id', $id)
-            ->with(['deal', 'lead'])
-            ->orderBy('timestamp', 'desc')
-            ->get();
-        
-        $consents = PurposeConsent::with(['lead' => function ($query) use ($id) {
-            $query->where('lead_id', $id)
-                ->orderByDesc('created_at');
-        }])->get();
-
-        $gdprSetting = GdprSetting::first();
-
-        // Get follow-ups data
-        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
-            ->where('deal_id', $id)
-            ->orderBy('next_follow_up_date', 'desc')
-            ->get();
-
-        $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
-        $participantUsersMap = $allParticipantIds->isEmpty()
-            ? collect()
-            : \App\Models\User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
-        $dealFollowUps->each(function ($f) use ($participantUsersMap) {
-            $f->participant_users = collect($f->participants ?? [])
-                ->map(fn ($id) => $participantUsersMap->get($id))
-                ->filter()->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
-                ->values()->toArray();
-        });
-
-        // if (user()->permission('view_lead_follow_up') == 'added') {
-        //     $dealFollowUps = $dealFollowUps->where('added_by', user()->id);
-        // }
-
-        // Get meeting types for follow-up forms
         $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
             ->select('id', 'name', 'color')
             ->get();
 
-        // Get files data
-        $files = $deal->files()->orderBy('created_at', 'desc')->get();
-        
-        $viewFilesPermission = user()->permission('view_lead_files');
-        if ($viewFilesPermission == 'added') {
-            $files = $files->where('added_by', user()->id);
-        }
-
-        // Get proposals data
-        $proposals = [];
-        if (in_array(user()->permission('view_lead_proposals'), ['all', 'added'])) {
-            $proposals = Proposal::with(['addedBy:id,name,image', 'currency:id,currency_symbol,currency_code', 'signature'])
-                ->where('deal_id', $id)
-                ->orderBy('created_at', 'desc')
-                ->get();
-
-            if (user()->permission('view_lead_proposals') == 'added') {
-                $proposals = $proposals->where('added_by', user()->id);
-            }
-        }
-        $proposals = $proposals ?: collect();
-
-        // Permission checks
         $permissions = [
             'view_deal_note' => user()->permission('view_deal_note'),
             'add_deal_note' => user()->permission('add_deal_note'),
@@ -699,53 +640,139 @@ class DealController extends AccountBaseController
             'delete_tasks' => user()->permission('delete_tasks'),
         ];
 
-        // Prepare deal with custom fields data
         $dealWithCustomFields = $deal->toArray();
         $dealWithCustomFields['custom_fields_data'] = $customFieldsData;
         $dealWithCustomFields['created_at'] = $deal->created_at?->toIso8601String();
         $dealWithCustomFields['updated_at'] = $deal->updated_at?->toIso8601String();
         $dealWithCustomFields['value_breakdown'] = app(DealValueResolver::class)->getBreakdown($deal);
-        
-        $formData = $this->getDealFormData();
 
-        // Get tasks
-        $tasks = $deal->tasks()
-            ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
-            ->orderBy('id', 'desc')
-            ->get();
+        // C1 shell form metadata only — deferred form keys load via Inertia::defer below.
+        $formData = $this->getDealShowShellFormData();
 
-        // Get task metadata for modal
-        $taskCategories = \App\Models\TaskCategory::all();
-        $taskLabels = \App\Models\TaskLabelList::all();
-        $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
-        $employees = User::allEmployees();
-        $projects = \App\Models\Project::all();
+        $dealId = (int) $id;
 
         return Inertia::render('Deals/Show', array_merge($formData, [
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
             'customFieldCategories' => $customFieldCategories,
-            'fields' => $formData['customFields'], // Map customFields to fields as well
-            'notes' => $notes,
-            'dealFollowUps' => $dealFollowUps,
+            'fields' => $fields ?: ($formData['customFields'] ?? []),
             'meetingTypes' => $meetingTypes,
-            'files' => $files,
-            'proposals' => $proposals,
-            'histories' => $histories,
-            'activities' => $activities,
-            'consents' => $consents,
-            'gdprSetting' => $gdprSetting,
             'permissions' => $permissions,
             'pageTitle' => $deal->name,
-            'tasks' => $tasks,
-            'taskCategories' => $taskCategories,
-            'taskLabels' => $taskLabels,
-            'taskBoardColumns' => $taskBoardColumns,
-            'employees' => $employees,
-            'projects' => $projects,
             'dealAiSummary' => \App\Support\FeatureFlags::enabled('sales.ai-entity-summary')
                 ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
                 : null,
+
+            // ---- C1 deferred (queries run only when Inertia resolves these) ----
+            'notes' => Inertia::defer(function () use ($dealId) {
+                $notes = DealNote::with('addedBy')
+                    ->where('deal_id', $dealId)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                $viewNotesPermission = user()->permission('view_deal_note');
+
+                if ($viewNotesPermission == 'none') {
+                    return collect();
+                }
+                if ($viewNotesPermission == 'added') {
+                    return $notes->where('added_by', user()->id)->values();
+                }
+                if ($viewNotesPermission == 'owned') {
+                    return $notes->where('added_by', '!=', user()->id)->values();
+                }
+
+                return $notes;
+            }),
+            'dealFollowUps' => Inertia::defer(function () use ($dealId) {
+                $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
+                    ->where('deal_id', $dealId)
+                    ->orderBy('next_follow_up_date', 'desc')
+                    ->get();
+
+                $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+                $participantUsersMap = $allParticipantIds->isEmpty()
+                    ? collect()
+                    : User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+                $dealFollowUps->each(function ($f) use ($participantUsersMap) {
+                    $f->participant_users = collect($f->participants ?? [])
+                        ->map(fn ($pid) => $participantUsersMap->get($pid))
+                        ->filter()
+                        ->map(fn ($u) => [
+                            'id' => $u->id,
+                            'name' => $u->name,
+                            'image' => $u->image ? $u->image_url : null,
+                        ])
+                        ->values()
+                        ->toArray();
+                });
+
+                return $dealFollowUps;
+            }),
+            'files' => Inertia::defer(function () use ($deal) {
+                $files = $deal->files()->orderBy('created_at', 'desc')->get();
+                if (user()->permission('view_lead_files') == 'added') {
+                    return $files->where('added_by', user()->id)->values();
+                }
+
+                return $files;
+            }),
+            'proposals' => Inertia::defer(function () use ($dealId) {
+                if (!in_array(user()->permission('view_lead_proposals'), ['all', 'added'])) {
+                    return collect();
+                }
+
+                $proposals = Proposal::with([
+                    'addedBy:id,name,image',
+                    'currency:id,currency_symbol,currency_code',
+                    'signature',
+                ])
+                    ->where('deal_id', $dealId)
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+                if (user()->permission('view_lead_proposals') == 'added') {
+                    return $proposals->where('added_by', user()->id)->values();
+                }
+
+                return $proposals;
+            }),
+            'histories' => Inertia::defer(fn () => DealHistory::where('deal_id', $dealId)
+                ->orderBy('created_at', 'desc')
+                ->get()),
+            'activities' => Inertia::defer(fn () => CommunicationActivity::where('deal_id', $dealId)
+                ->with(['deal', 'lead'])
+                ->orderBy('timestamp', 'desc')
+                ->get()),
+            'consents' => Inertia::defer(fn () => PurposeConsent::with(['lead' => function ($query) use ($dealId) {
+                $query->where('lead_id', $dealId)->orderByDesc('created_at');
+            }])->get()),
+            'gdprSetting' => Inertia::defer(fn () => GdprSetting::first()),
+            'tasks' => Inertia::defer(fn () => $deal->tasks()
+                ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
+                ->orderBy('id', 'desc')
+                ->get()),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all()),
+            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all()),
+            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()),
+            'employees' => Inertia::defer(fn () => User::allEmployees()),
+            'projects' => Inertia::defer(fn () => \App\Models\Project::all()),
+            'leadContacts' => Inertia::defer(fn () => Lead::allLeads()),
+            'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
+            })->get()),
+            'pipelineCustomFieldCategoryIdsByPipeline' => Inertia::defer(function () {
+                return LeadPipeline::query()
+                    ->with('customFieldCategories:id')
+                    ->get()
+                    ->mapWithKeys(function (LeadPipeline $pipeline) {
+                        return [
+                            (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
+                        ];
+                    })
+                    ->toArray();
+            }),
         ]));
     }
 

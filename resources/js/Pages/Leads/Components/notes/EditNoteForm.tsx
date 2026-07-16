@@ -5,7 +5,6 @@ import { SaveOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
-import { router } from "@inertiajs/react";
 import { errorFormatter } from "@/lib/api/utils/common";
 import HtmlEditor from "@/Components/HtmlEditor";
 import { LeadNote } from "@/Types/api/lead-note";
@@ -21,6 +20,7 @@ interface EditNoteFormProps {
     lead: Lead;
     note: LeadNote;
     onCancel: () => void;
+    onUpdated?: (note: LeadNote) => void;
 }
 
 const FORM_ID = "edit-note-modal-form";
@@ -29,13 +29,13 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
     lead,
     note,
     onCancel,
+    onUpdated,
 }) => {
     const { t } = useTranslation();
     const { message } = App.useApp();
     const [form] = Form.useForm();
     const [errors, setErrors] = React.useState<string[]>([]);
 
-    // Custom validator for HTML content
     const validateHtmlContent = (_: any, value: string) => {
         const textContent = (value || "")
             .replace(/<[^>]*>/g, "")
@@ -48,7 +48,6 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
         return Promise.resolve();
     };
 
-    // Update note mutation
     const updateNoteMutation = useApiMutate<
         UpdateNoteFormData,
         LeadNote,
@@ -57,7 +56,9 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
         if (response?.status === "success") {
             message.success(t("pages.leads.notes.updated_success"));
             setErrors([]);
-            router.reload();
+            if (response.data) {
+                onUpdated?.(response.data);
+            }
             onCancel();
         }
     });
@@ -82,7 +83,6 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
         onCancel();
     };
 
-    // Set initial form values
     React.useEffect(() => {
         form.setFieldsValue({
             title: note.title,
@@ -105,7 +105,6 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
             maskClosable={!loading}
             closable={!loading}
         >
-            {/* Header */}
             <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
                 <h2 className="text-xl font-semibold text-gray-900 leading-tight">
                     {t("pages.leads.notes.breadcrumb_edit")}
@@ -115,7 +114,6 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                 </p>
             </div>
 
-            {/* Scrollable body */}
             <div className="flex-1 overflow-y-auto px-6 py-5">
                 {errors.length > 0 && (
                     <Alert
@@ -172,7 +170,9 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                         ]}
                     >
                         <HtmlEditor
-                            placeholder={t("pages.leads.notes.placeholder_content_edit")}
+                            placeholder={t(
+                                "pages.leads.notes.placeholder_content_edit",
+                            )}
                             disabled={loading}
                             height={300}
                         />
@@ -180,7 +180,6 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                 </Form>
             </div>
 
-            {/* Footer */}
             <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-end gap-3">
                 <button
                     onClick={handleCancel}

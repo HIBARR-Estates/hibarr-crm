@@ -7,15 +7,15 @@ import { getTaskPriorityWeight, toLeadTaskPreview } from "../adapters/taskAdapte
 import type { LeadContextRailData } from "../types";
 
 interface UseLeadContextRailArgs {
-    tasks: Task[];
-    leadFollowUps: DealFollowup[];
-    deals: Deal[];
+    tasks?: Task[];
+    leadFollowUps?: DealFollowup[];
+    deals?: Deal[];
 }
 
 export default function useLeadContextRail({
-    tasks,
-    leadFollowUps,
-    deals,
+    tasks = [],
+    leadFollowUps = [],
+    deals = [],
 }: UseLeadContextRailArgs): LeadContextRailData {
     return useMemo(() => {
         const mappedTasks = tasks

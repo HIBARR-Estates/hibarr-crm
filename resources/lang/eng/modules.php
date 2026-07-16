@@ -1704,6 +1704,7 @@ return array(
         'leadSource' => 'Lead Source',
         'leadOwner' => 'Lead Owner',
         'leadStatus' => 'Lead Status',
+        'lifecycleStatusImportField' => 'Lifecycle Status',
         'leadFollowUp' => 'Meeting Date',
         'remark' => 'Remark',
         'proposal' => 'Proposal',
@@ -2505,6 +2506,9 @@ return array(
         'product' => 'Product',
         'assignAgent' => 'Assign Agent',
         'pipelineCategoryHint' => 'Only selected categories will be shown on deals in this pipeline. Leave all unchecked to show all categories.',
+        'hideFromNav' => 'Hide from navigation',
+        'pipelineDefaultNavVisibilityHint' => 'The default pipeline cannot be hidden from navigation. Set another pipeline as default first.',
+        'pipelineDefaultNavVisibilityError' => 'The default pipeline cannot be hidden from navigation.',
     ),
     'estimateRequest' => array(
         'estimateRequest' => 'Estimate Request',

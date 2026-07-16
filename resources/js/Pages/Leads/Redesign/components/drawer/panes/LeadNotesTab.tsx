@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Spin } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { Lead } from "@/Types/api/leads";
 import type { LeadNote } from "@/Types/api/lead-note";
@@ -12,6 +13,8 @@ interface LeadNotesTabProps {
     lead: Lead;
     notes: LeadNote[];
     permissions: Record<string, string>;
+    onNoteCreated?: (note: LeadNote) => void;
+    isLoading?: boolean;
 }
 
 function canAddNote(permissions: Record<string, string>): boolean {
@@ -26,6 +29,8 @@ export default function LeadNotesTab({
     lead,
     notes,
     permissions,
+    onNoteCreated,
+    isLoading = false,
 }: LeadNotesTabProps) {
     const { td } = useTd();
     const [noteText, setNoteText] = useState("");
@@ -48,8 +53,9 @@ export default function LeadNotesTab({
     }, [clearErrors, showComposer]);
 
     const handleSave = () => {
-        createNote({ text: noteText }, () => {
+        createNote({ text: noteText }, (note) => {
             setNoteText("");
+            onNoteCreated?.(note);
         });
     };
 
@@ -96,7 +102,11 @@ export default function LeadNotesTab({
                 </section>
             )}
 
-            {noteItems.length === 0 ? (
+            {isLoading ? (
+                <div className="flex justify-center py-16">
+                    <Spin />
+                </div>
+            ) : noteItems.length === 0 ? (
                 <p className="px-1 text-[13px] italic text-[#9ca3af]">
                     {td("No notes yet")}
                 </p>

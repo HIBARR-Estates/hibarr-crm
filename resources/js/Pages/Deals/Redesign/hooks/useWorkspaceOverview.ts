@@ -14,9 +14,9 @@ import {
 } from "../adapters/taskAdapter";
 
 interface UseWorkspaceOverviewArgs {
-    notes: Note[];
-    tasks: Task[];
-    dealFollowUps: DealFollowup[];
+    notes?: Note[];
+    tasks?: Task[];
+    dealFollowUps?: DealFollowup[];
 }
 
 interface WorkspaceOverviewData {
@@ -28,9 +28,9 @@ interface WorkspaceOverviewData {
 }
 
 export default function useWorkspaceOverview({
-    notes,
-    tasks,
-    dealFollowUps,
+    notes = [],
+    tasks = [],
+    dealFollowUps = [],
 }: UseWorkspaceOverviewArgs): WorkspaceOverviewData {
     const mappedNotes = useMemo(() => notes.map(toWorkspaceNotePreview), [notes]);
 

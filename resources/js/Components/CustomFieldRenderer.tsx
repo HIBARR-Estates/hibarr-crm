@@ -17,10 +17,10 @@ import { UploadOutlined } from "@ant-design/icons";
 import PhoneInput from "antd-phone-input";
 import { CustomField } from "@/Types";
 import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
-import { usePage } from "@inertiajs/react";
 import CurrencyInput from "@/Components/CurrencyInput";
 import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
 import { getFileUploadService } from "@/Services/FileUploadService";
+import { useCountries } from "@/Hooks/useFormData";
 
 interface Props {
     fields: CustomField[];
@@ -33,8 +33,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
     form,
     namePrefix = "custom_fields_data",
 }) => {
-    const { props } = usePage<any>();
-    const { countries = [] } = props;
+    const { countries } = useCountries();
 
     // Get visibility map
     const { visibilityMap, isFieldVisible } = useCustomFieldVisibility({

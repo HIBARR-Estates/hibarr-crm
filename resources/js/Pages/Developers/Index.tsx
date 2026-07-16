@@ -19,6 +19,7 @@ import type { Developer } from "../../Types/developerProject";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiSuccessResponse } from "@/lib/api/types";
 import DeveloperFormModal from "@/Features/Developers/DeveloperFormModal";
+import HiddenBadge from "../DeveloperProjects/components/HiddenBadge";
 
 // ============================================
 // Types
@@ -34,12 +35,19 @@ interface PaginationData {
     to: number;
 }
 
+interface VisibilityProps {
+    enabled?: boolean;
+    canSeeHidden?: boolean;
+    canToggleHidden?: boolean;
+}
+
 export interface IndexProps extends PageProps {
     pageTitle: string;
     developers: PaginationData;
     filters: {
         search?: string;
     };
+    visibility?: VisibilityProps;
 }
 
 // ============================================
@@ -51,12 +59,14 @@ interface DeveloperCardProps {
     developer: Developer;
     onEdit: (developer: Developer) => void;
     onDelete: (developer: Developer) => void;
+    showHiddenBadge?: boolean;
 }
 
 const DeveloperCard: React.FC<DeveloperCardProps> = ({
     developer,
     onEdit,
     onDelete,
+    showHiddenBadge = false,
 }) => {
     const menuItems: MenuProps["items"] = [
         {
@@ -86,6 +96,11 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
 
     return (
         <div className="group relative bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-sm transition-shadow duration-200 cursor-pointer">
+            {showHiddenBadge && developer.is_hidden && (
+                <div className="absolute top-2 left-2 z-10">
+                    <HiddenBadge />
+                </div>
+            )}
             {/* ··· action menu */}
             <div
                 className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
@@ -128,7 +143,7 @@ const DeveloperCard: React.FC<DeveloperCardProps> = ({
 // Main Component
 // ============================================
 
-const Index = ({ pageTitle, developers, filters }: IndexProps) => {
+const Index = ({ pageTitle, developers, filters, visibility }: IndexProps) => {
     const { t } = useTranslation();
     const [modalOpen, setModalOpen] = useState(false);
     const [selectedDeveloper, setSelectedDeveloper] =
@@ -136,6 +151,11 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
     const [developerToDelete, setDeveloperToDelete] =
         useState<Developer | null>(null);
     const [searchValue, setSearchValue] = useState(filters.search || "");
+
+    const showHiddenBadge =
+        visibility?.enabled === true && visibility?.canSeeHidden === true;
+    const canToggleHidden =
+        visibility?.enabled === true && visibility?.canToggleHidden === true;
 
     // Delete mutation
     const deleteMutation = useApiMutate<
@@ -232,6 +252,7 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
                                     developer={developer}
                                     onEdit={handleEdit}
                                     onDelete={handleDelete}
+                                    showHiddenBadge={showHiddenBadge}
                                 />
                             </Col>
                         ))}
@@ -277,6 +298,7 @@ const Index = ({ pageTitle, developers, filters }: IndexProps) => {
                 onClose={() => setModalOpen(false)}
                 developer={selectedDeveloper}
                 onSuccess={handleSuccess}
+                canToggleHidden={canToggleHidden}
             />
         </PageLayout>
     );

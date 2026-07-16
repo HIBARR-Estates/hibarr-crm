@@ -6,24 +6,19 @@ import { AuthType } from "@/Types";
 import Sidebar from "./Sidebar/Sidebar";
 import { useTranslation } from "@/Hooks/useTranslation";
 
-interface SidebarPermissions {
-    [key: string]: number | string;
-}
-
 export interface PageProps extends InertiaPageProps {
     auth: AuthType;
     appName: string;
     featureFlags?: Record<string, boolean>;
     sidebar: {
-        permissions: Record<string, number | string>;
-        modules: string[];
         unreadMessagesCount: number;
+        customLinks?: unknown[];
+        worksuitePlugins?: unknown[];
     };
     currentRouteName: string;
     // Internationalization props
     locale?: string;
     isRtl?: boolean;
-    translations?: Record<string, string>;
     availableLocales?: Record<
         string,
         { name: string; native: string; dir: string; flag: string }

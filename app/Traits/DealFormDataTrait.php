@@ -20,24 +20,32 @@ use App\Models\User;
 trait DealFormDataTrait
 {
     /**
-     * Get all necessary data for the Deal Form (SaveDealModal).
+     * Get all necessary data for the Deal Form (SaveDealModal / Show / Blade board).
+     *
+     * Do not merge into Deals Index (S1) — Index uses form-data APIs via M1/M3.
      *
      * @return array
      */
     public function getDealFormData()
     {
+        return array_merge($this->getDealShowShellFormData(), $this->getDealShowDeferredFormData());
+    }
+
+    /**
+     * Deal Show first-paint form metadata (C1 shell).
+     * Does not include employees / leadContacts / nonActiveLeadAgents / pipeline category map.
+     */
+    public function getDealShowShellFormData(): array
+    {
         $pipelines = LeadPipeline::query()
             ->with('customFieldCategories:id')
             ->get();
-        $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $stages = PipelineStage::all();
-        
-        // Get custom fields
+
         $deal = new Deal();
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
-        // Get custom field categories
         $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
         $customFieldCategories = collect();
         if ($dealCustomFieldGroup) {
@@ -48,22 +56,13 @@ trait DealFormDataTrait
                 ->get();
         }
 
-        $pipelineCustomFieldCategoryIdsByPipeline = $pipelines
-            ->mapWithKeys(function (LeadPipeline $pipeline) {
-                return [
-                    (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
-                ];
-            })
-            ->toArray();
-
         return [
             'leadPipelines' => $pipelines,
             'stages' => $stages,
             'categories' => LeadCategory::all(),
             'sources' => LeadSource::all(),
-            'employees' => User::allEmployees(null, true),
             'countries' => countries(),
-            'salutations' => collect(Salutation::cases())->map(function($salutation) {
+            'salutations' => collect(Salutation::cases())->map(function ($salutation) {
                 return [
                     'value' => $salutation->value,
                     'label' => $salutation->name,
@@ -72,15 +71,35 @@ trait DealFormDataTrait
             'leadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', 'active');
             })->get(),
-            'nonActiveLeadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
-                $q->where('status', '!=', 'active');
-            })->get(),
-            'leadContacts' => Lead::allLeads(),
             'products' => Product::all(),
             'packages' => Package::all(),
             'customFields' => $fields,
             'customFieldCategories' => $customFieldCategories,
-            'pipelineCustomFieldCategoryIdsByPipeline' => $pipelineCustomFieldCategoryIdsByPipeline,
+        ];
+    }
+
+    /**
+     * Deal Show deferred form helpers (C1 defer).
+     */
+    public function getDealShowDeferredFormData(): array
+    {
+        $pipelines = LeadPipeline::query()
+            ->with('customFieldCategories:id')
+            ->get();
+
+        return [
+            'employees' => User::allEmployees(null, true),
+            'nonActiveLeadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
+            })->get(),
+            'leadContacts' => Lead::allLeads(),
+            'pipelineCustomFieldCategoryIdsByPipeline' => $pipelines
+                ->mapWithKeys(function (LeadPipeline $pipeline) {
+                    return [
+                        (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
+                    ];
+                })
+                ->toArray(),
         ];
     }
 }

@@ -172,6 +172,7 @@ class DeveloperProjectUnitType extends BaseModel
         'property_type',
         'quantity',
         'total_sold',
+        'is_sold_out',
         'unit_style',
         'view_types',
         'furniture_status',
@@ -232,6 +233,7 @@ class DeveloperProjectUnitType extends BaseModel
         'bathrooms' => 'integer',
         'floors_in_building' => 'integer',
         'has_restrictions' => 'boolean',
+        'is_sold_out' => 'boolean',
         'completion_date' => 'date',
         'order' => 'integer',
     ];

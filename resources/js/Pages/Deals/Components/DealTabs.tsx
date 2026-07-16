@@ -47,23 +47,31 @@ interface Props {
 
 export default function DealTabs({
     deal,
-    notes,
-    dealFollowUps,
-    meetingTypes,
-    files,
-    proposals,
-    histories,
-    consents,
-    gdprSetting,
-    permissions,
-    tasks,
-    taskCategories,
-    taskLabels,
-    taskBoardColumns,
-    employees,
-    projects,
+    notes = [],
+    dealFollowUps = [],
+    meetingTypes = [],
+    files = [],
+    proposals = [],
+    histories = [],
+    consents = [],
+    gdprSetting = null,
+    permissions = {},
+    tasks = [],
+    taskCategories = [],
+    taskLabels = [],
+    taskBoardColumns = [],
+    employees = [],
+    projects = [],
 }: Props) {
-    const [activeTab, setActiveTab] = useState("notes");
+    const [activeTab, setActiveTabState] = useState(
+        () => new URLSearchParams(window.location.search).get("tab") || "notes",
+    );
+    const setActiveTab = (key: string) => {
+        setActiveTabState(key);
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", key);
+        window.history.replaceState({}, "", url.toString());
+    };
     const { t } = useTranslation();
     const { canEdit: canModifyDeal, canDelete: canDeleteDeal } =
         useDealPermissions(deal);

@@ -1,4 +1,6 @@
 import type { Deal } from "@/Types/api/deals";
+import type { DealFollowup } from "@/Types/api/deal-followup";
+import type { Note } from "@/Types/api/note";
 import type { Task } from "@/Types/api/tasks";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import OverviewMeetingsColumn from "./overview/OverviewMeetingsColumn";
@@ -9,15 +11,16 @@ import { WorkspaceSubTab } from "../../types";
 
 interface WorkspaceOverviewTabProps {
     deal: Deal;
-    notes: Parameters<typeof useWorkspaceOverview>[0]["notes"];
+    notes: Note[];
     tasks: Task[];
-    dealFollowUps: Parameters<typeof useWorkspaceOverview>[0]["dealFollowUps"];
+    dealFollowUps: DealFollowup[];
     taskBoardColumns: TaskboardColumn[];
     onNavigateToSubTab: (tab: WorkspaceSubTab) => void;
     onAddTask: () => void;
     onAddMeeting: () => void;
 }
 
+/** Mounted only inside `<Deferred>` after notes/tasks/follow-ups resolve (C4). */
 export default function WorkspaceOverviewTab({
     deal,
     notes,

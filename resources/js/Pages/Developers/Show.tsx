@@ -14,6 +14,7 @@ import {
     Card,
     Empty,
     message,
+    Alert,
 } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
@@ -43,6 +44,7 @@ import ConstructionProjectFormModal from "@/Features/DeveloperProjects/Construct
 import OfferFormModal from "@/Features/Offers/OfferFormModal";
 import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
 import { formatLocationNameForDisplay } from "@/lib/utils";
+import HiddenBadge from "../DeveloperProjects/components/HiddenBadge";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -68,6 +70,13 @@ export interface ShowProps extends PageProps {
     filters: {
         search?: string;
     };
+    visibility?: {
+        enabled?: boolean;
+        canSeeHidden?: boolean;
+        canToggleHidden?: boolean;
+        canSeeHiddenProjects?: boolean;
+        canToggleProjectHidden?: boolean;
+    };
 }
 
 // ============================================
@@ -80,6 +89,7 @@ const Show = ({
     projects,
     offers,
     filters,
+    visibility,
 }: ShowProps) => {
     const { t } = useTranslation();
     const [editModalOpen, setEditModalOpen] = useState(false);
@@ -90,6 +100,17 @@ const Show = ({
     const [offerModalOpen, setOfferModalOpen] = useState(false);
     const [editOffer, setEditOffer] = useState<Offer | null>(null);
     const [drawerOfferId, setDrawerOfferId] = useState<number | null>(null);
+
+    const showHiddenBadge =
+        visibility?.enabled === true && visibility?.canSeeHidden === true;
+    const canToggleHidden =
+        visibility?.enabled === true && visibility?.canToggleHidden === true;
+    const canToggleProjectHidden =
+        visibility?.enabled === true &&
+        visibility?.canToggleProjectHidden === true;
+    const showProjectHiddenBadge =
+        visibility?.enabled === true &&
+        visibility?.canSeeHiddenProjects === true;
 
     const handleSuccess = useCallback(() => {
         router.reload({ only: ["developer", "projects"] });
@@ -115,9 +136,17 @@ const Show = ({
             render: (name: string, record) => (
                 <Link
                     href={route("developer-projects.show", record.id)}
-                    className="text-blue-600 hover:text-blue-800 font-medium"
+                    className="text-blue-600 hover:text-blue-800 font-medium inline-flex items-center gap-2"
                 >
                     {name}
+                    {showProjectHiddenBadge &&
+                        (record.is_hidden || developer.is_hidden) && (
+                            <HiddenBadge
+                                inherited={
+                                    !!developer.is_hidden && !record.is_hidden
+                                }
+                            />
+                        )}
                 </Link>
             ),
         },
@@ -286,7 +315,20 @@ const Show = ({
                         <div className="flex-1">
                             <Title level={3} className="mb-2">
                                 {developer.name}
+                                {showHiddenBadge && developer.is_hidden && (
+                                    <span className="ml-3 align-middle">
+                                        <HiddenBadge />
+                                    </span>
+                                )}
                             </Title>
+                            {showHiddenBadge && developer.is_hidden && (
+                                <Alert
+                                    type="info"
+                                    showIcon
+                                    className="mb-4"
+                                    message="This developer is hidden from view-only users. All of its projects are also hidden for those users, even if a project’s own Hidden flag is off."
+                                />
+                            )}
                             {developer.description && (
                                 <Paragraph className="text-gray-600 mb-4">
                                     {developer.description}
@@ -546,6 +588,7 @@ const Show = ({
                 onClose={() => setEditModalOpen(false)}
                 developer={developer}
                 onSuccess={handleSuccess}
+                canToggleHidden={canToggleHidden}
             />
 
             {/* Edit Construction Project Modal */}
@@ -553,6 +596,7 @@ const Show = ({
                 open={!!editProject}
                 onClose={() => setEditProject(null)}
                 project={editProject}
+                canToggleHidden={canToggleProjectHidden}
                 developer={developer}
                 onSuccess={handleSuccess}
             />

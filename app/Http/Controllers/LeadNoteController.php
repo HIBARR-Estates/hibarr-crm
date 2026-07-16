@@ -121,7 +121,13 @@ class LeadNoteController extends AccountBaseController
             ]);
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('lead-contact.show', $note->lead_id) . '?tab=notes']);
+        $note->load('addedBy');
+
+        return Reply::successWithData(__('messages.recordSaved'), [
+            'data' => array_merge($note->toArray(), [
+                'added_by_user' => $note->addedBy,
+            ]),
+        ]);
     }
 
     public function edit($id)
@@ -179,7 +185,13 @@ class LeadNoteController extends AccountBaseController
             }
         }
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('lead-contact.show', $note->lead_id) . '?tab=notes']);
+        $note->load('addedBy');
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'data' => array_merge($note->toArray(), [
+                'added_by_user' => $note->addedBy,
+            ]),
+        ]);
     }
 
     public function destroy($id)

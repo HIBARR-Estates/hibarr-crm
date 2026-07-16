@@ -39,7 +39,6 @@ export default function LeadContextRail({
     onNavigateDeals,
     quickNoteCard: { ref: noteRef, props: noteProps },
 }: LeadContextRailProps) {
-    const { latestNote } = noteProps;
     return (
         <aside className="sticky top-[88px] flex flex-col gap-3 self-start">
             <ContactRailPanel
@@ -50,7 +49,7 @@ export default function LeadContextRail({
                 onEditProfile={onEditProfile}
             />
 
-            <QuickNoteCard ref={noteRef} lead={lead} latestNote={latestNote} />
+            <QuickNoteCard ref={noteRef} {...noteProps} />
             {/* <QualificationRailPanel checks={checks} />
             <OpenItemsRailPanel
                 data={railData}

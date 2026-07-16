@@ -22,7 +22,7 @@ import {
 } from "@ant-design/icons";
 import PhoneInput, { PhoneNumber } from "antd-phone-input";
 import FormDataSelector from "./FormDataSelector";
-import { FormDataType } from "@/Hooks/useFormData";
+import { FormDataType, useCountries, useCurrencies } from "@/Hooks/useFormData";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
 import {
@@ -86,11 +86,11 @@ export default function EditableField({
     onChange,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
+    const { countries } = useCountries();
+    const { currencies } = useCurrencies();
     const {
-        countries = [],
         default_currency_code,
         default_currency_symbol,
-        currencies = [],
     } = props;
 
     const maxFileSizeMB = props?.company?.allowed_file_size || 10;

@@ -25,8 +25,8 @@ const BulkDeleteDeals: React.FC<Props> = ({ open, onClose, ids }) => {
                 onSuccess: () => {
                     message.success("Deals deleted successfully");
                     onClose(true);
-                    // Refresh the deals list
-                    router.reload();
+                    // X2: bulk actions render in table view only — refresh deals list
+                    router.reload({ only: ["deals"] });
                 },
                 onError: () => {
                     message.error("Failed to delete deals");

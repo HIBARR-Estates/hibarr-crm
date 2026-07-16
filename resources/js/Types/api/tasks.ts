@@ -26,6 +26,19 @@ export interface Task {
         label_name: string;
         label_color: string;
     }>;
+    deals?: Array<{
+        id: number;
+        name: string;
+    }>;
+    leads?: Array<{
+        id: number;
+        client_name: string;
+        company_name?: string;
+    }>;
+    properties?: Array<{
+        id: number;
+        title?: string;
+    }>;
     estimate_hours?: number;
     estimate_minutes?: number;
     is_private?: boolean;

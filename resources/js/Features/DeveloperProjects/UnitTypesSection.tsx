@@ -19,6 +19,8 @@ import {
     App,
     Modal,
 } from "antd";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
+import useUnitSoldOutBadgeFlags from "@/Hooks/useUnitSoldOutBadgeFlags";
 import {
     PlusOutlined,
     EditOutlined,
@@ -192,6 +194,12 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
     const title = getUnitTypeTitle(ut);
     const offerCount = ut.offers?.length ?? 0;
     const { message } = App.useApp();
+    const { enabled: soldOutBadgeEnabled, gridVariant } =
+        useUnitSoldOutBadgeFlags();
+    const referenceCodeOnLeft =
+        ut.is_sold_out &&
+        soldOutBadgeEnabled &&
+        gridVariant === "diagonal";
 
     return (
         <>
@@ -209,19 +217,38 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         </div>
                     )}
 
-                    <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-2 p-3">
-                        <Tag
-                            color={categoryColor(ut.primary_category)}
-                            className="!m-0 !rounded-full !px-2.5 !py-0.5 !text-[10px]"
-                        >
-                            {ut.primary_category === "residential"
-                                ? "Residential"
-                                : "Commercial"}
-                        </Tag>
-                        {ut.reference_code && (
+                    <div className="absolute inset-x-0 top-0 z-10 flex items-start justify-between gap-2 p-3">
+                        <div className="flex flex-wrap items-center gap-1.5 min-w-0">
+                            <Tag
+                                color={categoryColor(ut.primary_category)}
+                                className="!m-0 !rounded-full !px-2.5 !py-0.5 !text-[10px]"
+                            >
+                                {ut.primary_category === "residential"
+                                    ? "Residential"
+                                    : "Commercial"}
+                            </Tag>
+                            {ut.reference_code && referenceCodeOnLeft && (
+                                <button
+                                    type="button"
+                                    className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-gray-700 shadow-sm cursor-pointer max-w-full"
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(
+                                            ut.reference_code!,
+                                        );
+                                        message.success("Code copied");
+                                    }}
+                                >
+                                    <span className="truncate">
+                                        {ut.reference_code}
+                                    </span>
+                                    <CopyOutlined style={{ fontSize: 11 }} />
+                                </button>
+                            )}
+                        </div>
+                        {ut.reference_code && !referenceCodeOnLeft && (
                             <button
                                 type="button"
-                                className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-gray-700 shadow-sm cursor-pointer"
+                                className="inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-gray-700 shadow-sm cursor-pointer shrink-0"
                                 onClick={() => {
                                     navigator.clipboard.writeText(
                                         ut.reference_code!,
@@ -235,12 +262,23 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                         )}
                     </div>
 
-                    <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3 bg-gradient-to-t from-black/65 to-transparent">
-                        <div className="shrink-0 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white">
-                            {imageUrls.length} photo
-                            {imageUrls.length === 1 ? "" : "s"}
+                    <UnitSoldOutBadge
+                        soldOut={ut.is_sold_out}
+                        variant="grid"
+                    />
+
+                    {!(
+                        ut.is_sold_out &&
+                        soldOutBadgeEnabled &&
+                        gridVariant === "overlay"
+                    ) && (
+                        <div className="absolute inset-x-0 bottom-0 flex items-end gap-2 p-3">
+                            <div className="shrink-0 rounded-full bg-black/45 px-2.5 py-1 text-[11px] font-medium text-white">
+                                {imageUrls.length} photo
+                                {imageUrls.length === 1 ? "" : "s"}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
 
                 <div className="px-4 py-4 flex flex-col gap-y-3 flex-1">
@@ -397,14 +435,20 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                 footer={null}
                 width={1080}
                 title={
-                    <div className="flex flex-col gap-1 pr-8">
-                        <span className="text-lg font-semibold text-gray-900">
-                            {title}
-                        </span>
-                        <span className="text-sm text-gray-500 capitalize">
-                            {ut.property_type?.replace(/_/g, " ") ??
-                                "Unit type"}
-                        </span>
+                    <div className="flex flex-col gap-2 pr-8">
+                        <UnitSoldOutBadge
+                            soldOut={ut.is_sold_out}
+                            variant="modal"
+                        />
+                        <div className="flex flex-col gap-1">
+                            <span className="text-lg font-semibold text-gray-900">
+                                {title}
+                            </span>
+                            <span className="text-sm text-gray-500 capitalize">
+                                {ut.property_type?.replace(/_/g, " ") ??
+                                    "Unit type"}
+                            </span>
+                        </div>
                     </div>
                 }
             >

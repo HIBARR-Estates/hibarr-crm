@@ -18,6 +18,7 @@ import { usePage } from "@inertiajs/react";
 import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
 import CurrencyInput from "@/Components/CurrencyInput";
 import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
+import { useCountries } from "@/Hooks/useFormData";
 
 interface CustomFieldTabProps<CustomFormData = any> {
     data: CustomFormData;
@@ -25,6 +26,8 @@ interface CustomFieldTabProps<CustomFormData = any> {
     errors: Record<string, string>;
     categoryId: number;
     categoryName: string;
+    customFields?: any[];
+    dealCustomFields?: any[];
 }
 
 const GeneralCustomFieldTab = <
@@ -35,9 +38,14 @@ const GeneralCustomFieldTab = <
     errors,
     categoryId,
     categoryName,
+    customFields: customFieldsOverride,
+    dealCustomFields: dealCustomFieldsOverride,
 }: CustomFieldTabProps<T>) => {
     const { props } = usePage<any>();
-    const { customFields = [], countries = [], dealCustomFields = [] } = props;
+    const { countries } = useCountries();
+    const customFields = customFieldsOverride ?? props.customFields ?? [];
+    const dealCustomFields =
+        dealCustomFieldsOverride ?? props.dealCustomFields ?? [];
 
     // Get form instance from parent Form context (may be null if no Form context)
     // Call hook once at top level to comply with Rules of Hooks

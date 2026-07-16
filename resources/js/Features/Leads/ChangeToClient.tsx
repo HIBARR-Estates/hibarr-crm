@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
     Drawer,
     Typography,
@@ -25,6 +25,7 @@ import GeneralCustomFieldTab from "@/Components/Common/GeneralCustomFieldTab";
 import { isLoading as _isLoading } from "@/lib/utils";
 import FormDataSelector from "@/Components/FormDataSelector";
 import { errorFormatter } from "@/lib/api/utils/common";
+import { FormDataType, useCountries, useFormDataBatch } from "@/Hooks/useFormData";
 
 const { Title } = Typography;
 const { TextArea } = Input;
@@ -69,16 +70,41 @@ interface ClientResponse {
 
 const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
     const { props } = usePage();
+    const { countries } = useCountries();
     const {
-        countries = [],
         categories = [],
         salutations = [],
         languages = [],
     } = props;
     const { message: messageApi } = App.useApp();
-    const {
-        props: { customFieldCategories = [], customFields = [] },
-    } = usePage();
+
+    // S2: Index no longer ships custom field defs — fetch on open (same pattern as M2)
+    const customFieldTypes = useMemo(
+        () =>
+            [
+                "lead-custom-fields",
+                "lead-custom-field-categories",
+            ] as FormDataType[],
+        [],
+    );
+    const { data: fetchedFormData } = useFormDataBatch(customFieldTypes, {
+        enabled: open,
+    });
+    const pickFetchedArray = (type: string, fallback: any[] = []) => {
+        const value = fetchedFormData[type];
+        return Array.isArray(value) && value.length > 0 ? value : fallback;
+    };
+    const customFields = pickFetchedArray(
+        "lead-custom-fields",
+        (props as any).leadCustomFields || (props as any).customFields || [],
+    );
+    const customFieldCategories = pickFetchedArray(
+        "lead-custom-field-categories",
+        (props as any).leadCustomFieldCategories ||
+            (props as any).customFieldCategories ||
+            [],
+    );
+
     const [form] = Form.useForm();
     const [activeTab, setActiveTab] = useState("account");
     const [errors, setErrors] = useState<string[]>([]);
@@ -520,6 +546,7 @@ const ChangeToClient: React.FC<Props> = ({ lead, open, onClose }) => {
                               errors={{}}
                               categoryId={category.id}
                               categoryName={category.name}
+                              customFields={customFields}
                           />
                       </Card>
                   ),

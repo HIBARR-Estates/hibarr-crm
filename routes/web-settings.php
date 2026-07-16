@@ -233,6 +233,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('lead-stage-setting', LeadStageSettingController::class);
 
     Route::get('lead-pipeline-update/{statusId}', [LeadPipelineSettingController::class, 'statusUpdate'])->name('lead-pipeline-update.stageUpdate');
+    Route::put('lead-pipeline-setting/{id}/nav-visibility', [LeadPipelineSettingController::class, 'updateNavVisibility'])->name('lead-pipeline-setting.nav-visibility');
     Route::resource('lead-pipeline-setting', LeadPipelineSettingController::class);
 
     Route::resource('lead-agent-settings', LeadAgentSettingController::class);

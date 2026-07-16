@@ -23,6 +23,7 @@ import type {
     DeveloperProject,
 } from "../../../Types/developerProject";
 import ProjectCard from "./ProjectCard";
+import HiddenBadge from "./HiddenBadge";
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -31,11 +32,13 @@ const DevelopersSection: React.FC<{
     developerProjects?: DeveloperProject[];
     googleDriveLink?: string | null;
     availabilityLink?: string | null;
+    showHiddenBadge?: boolean;
 }> = ({
     developer,
     developerProjects = [],
     googleDriveLink,
     availabilityLink,
+    showHiddenBadge = false,
 }) => {
     if (!developer) {
         return (
@@ -69,9 +72,12 @@ const DevelopersSection: React.FC<{
                         <Title level={4} className="!mb-1">
                             <Link
                                 href={route("developers.show", developer.id)}
-                                className="text-blue-600 hover:text-blue-800"
+                                className="text-blue-600 hover:text-blue-800 inline-flex items-center gap-2"
                             >
                                 {developer.name}
+                                {showHiddenBadge && developer.is_hidden && (
+                                    <HiddenBadge />
+                                )}
                             </Link>
                         </Title>
                         {developer.description && (
@@ -183,7 +189,11 @@ const DevelopersSection: React.FC<{
                     </Text>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         {developerProjects.map((p) => (
-                            <ProjectCard key={p.id} project={p} />
+                            <ProjectCard
+                                key={p.id}
+                                project={p}
+                                showHiddenBadge={showHiddenBadge}
+                            />
                         ))}
                     </div>
                 </div>

@@ -18,6 +18,7 @@ interface CustomFieldTabProps
     > {
     categoryId: number;
     categoryName: string;
+    customFields?: any[];
     onUserEdit?: () => void;
     formId?: string;
     hideFooter?: boolean;
@@ -32,6 +33,7 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     cancelText = "Cancel",
     categoryId,
     categoryName,
+    customFields,
     onUserEdit,
     formId,
     hideFooter = false,
@@ -84,6 +86,7 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
                     errors={{}}
                     categoryId={categoryId}
                     categoryName={categoryName}
+                    customFields={customFields}
                 />
 
                 {!hideFooter && (

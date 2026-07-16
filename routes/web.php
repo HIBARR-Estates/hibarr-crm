@@ -142,6 +142,7 @@ use App\Http\Controllers\TimelogWeeklyApprovalController;
 use App\Http\Controllers\WeeklyTimesheetController;
 use App\Http\Controllers\MeetingTypeController;
 use App\Http\Controllers\DynamicTranslationController;
+use App\Http\Controllers\I18nController;
 
 // Signed URL route for availability request email responses (no auth required)
 Route::get('availability-requests/{id}/respond/{action}', [App\Http\Controllers\PropertyAvailabilityRequestController::class, 'respondFromEmail'])
@@ -594,6 +595,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::prefix('api/dynamic-translations')->group(function () {
         Route::post('batch', [DynamicTranslationController::class, 'batch'])->name('dynamic-translations.batch');
     });
+
+    // Static i18n dictionaries (auth-protected; cached per locale)
+    Route::get('api/i18n/{locale}.json', [I18nController::class, 'show'])->name('i18n.show');
     // deals route
 
     // Lead Contact routes (explicit to avoid Route::resource overriding PUT/PATCH)
@@ -617,6 +621,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
 
     Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
     Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
+    Route::get('lead-contact/{lead}/custom-fields', [LeadContactController::class, 'getCustomFields'])->name('lead-contact.custom-fields');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {

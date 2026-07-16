@@ -29,6 +29,7 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import { capitalizeFirstLetter, formatLocationNameForDisplay } from "@/lib/utils";
 import dayjs from "dayjs";
 // import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
@@ -338,6 +339,11 @@ export default function UnitTypePropertyView({
                                                 {unitType.restriction_notes}
                                             </span>
                                         )}
+                                    </Descriptions.Item>
+                                )}
+                                {unitType.is_sold_out && (
+                                    <Descriptions.Item label="Availability">
+                                        <UnitSoldOutBadge soldOut />
                                     </Descriptions.Item>
                                 )}
                             </Descriptions>

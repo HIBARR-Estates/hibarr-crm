@@ -46,6 +46,7 @@ interface TasksKanbanProps {
         edit_tasks: string;
         delete_tasks: string;
         view_tasks: string;
+        change_status?: string;
     };
     userId: number;
     onEdit: (task: Task) => void;
@@ -107,21 +108,24 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
 
             if (!newColumn) return;
 
-            // Check permissions
+            // Check permissions — moving a card between columns changes the
+            // task's status, so this is gated by change_status (which
+            // assignees have by default), not edit_tasks.
             const task = tasks.find((t) => t.id === taskId);
             if (!task) return;
 
-            const canEdit =
-                permissions.edit_tasks === "all" ||
-                (permissions.edit_tasks === "added" &&
+            const changeStatusPerm = permissions.change_status ?? permissions.edit_tasks;
+            const canChangeStatus =
+                changeStatusPerm === "all" ||
+                (changeStatusPerm === "added" &&
                     task.added_by === userId) ||
-                (permissions.edit_tasks === "owned" &&
+                (changeStatusPerm === "owned" &&
                     task.users?.some((u) => u.id === userId)) ||
-                (permissions.edit_tasks === "both" &&
+                (changeStatusPerm === "both" &&
                     (task.added_by === userId ||
                         task.users?.some((u) => u.id === userId)));
 
-            if (!canEdit) {
+            if (!canChangeStatus) {
                 message.error("You don't have permission to move this task.");
                 return;
             }
@@ -164,6 +168,19 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
             (permissions.delete_tasks === "owned" &&
                 task.users?.some((u) => u.id === userId)) ||
             (permissions.delete_tasks === "both" &&
+                (task.added_by === userId ||
+                    task.users?.some((u) => u.id === userId)));
+
+        // Dragging a card to another column changes its status, so this is
+        // gated by change_status (assignees have this by default) rather
+        // than edit_tasks.
+        const changeStatusPerm = permissions.change_status ?? permissions.edit_tasks;
+        const canChangeStatus =
+            changeStatusPerm === "all" ||
+            (changeStatusPerm === "added" && task.added_by === userId) ||
+            (changeStatusPerm === "owned" &&
+                task.users?.some((u) => u.id === userId)) ||
+            (changeStatusPerm === "both" &&
                 (task.added_by === userId ||
                     task.users?.some((u) => u.id === userId)));
 
@@ -216,7 +233,7 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
                 key={task.id}
                 draggableId={task.id.toString()}
                 index={index}
-                isDragDisabled={!canEdit || isProcessing}
+                isDragDisabled={!canChangeStatus || isProcessing}
             >
                 {(provided, snapshot) => (
                     <div

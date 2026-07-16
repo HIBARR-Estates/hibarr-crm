@@ -558,7 +558,7 @@ class TaskController extends AccountBaseController
              $this->data['selfActiveTimer'] = $this->selfActiveTimer; // ensure data is available
             $clockHtml = view('sections.timer_clock', $this->data)->render();
 
-            return Reply::successWithData(__('messages.taskUpdated').' '.$status, ['clockHtml' => $clockHtml]);
+            return Reply::successWithData(__('messages.taskUpdated', ['status' => $taskBoardColumn->column_name]), ['clockHtml' => $clockHtml]);
         }
         
         return Reply::error('Column not found');
@@ -745,10 +745,13 @@ class TaskController extends AccountBaseController
             'leads',
             'properties',
             'addedByUser:id,name,image',
+            'boardColumn:id,column_name,slug,label_color',
         ])->find($id);
 
         if ($task) {
             $task->withCustomFields();
+            // Frontend status UI is driven by board column slug, not the legacy status column.
+            $task->setAttribute('status', $task->boardColumn?->slug ?? $task->status);
         }
 
         if (!$task) {
@@ -1315,7 +1318,7 @@ class TaskController extends AccountBaseController
             $data = $request->all();
             $task = $this->taskService->updateTask($task, $data, user());
 
-            return Reply::successWithData(__('messages.taskUpdated'), [
+            return Reply::successWithData(__('messages.taskUpdateSuccess'), [
                 'project' => $task->project, 
                 'data' => $task, 
                 'redirectUrl' => route('tasks.show', $task->id)

@@ -88,13 +88,12 @@ class LeadContactController extends AccountBaseController
 
         // Use LeadService for optimized data fetching
         $leads = $this->leadService->getPaginatedLeads($request, $dataTable);
-        $leadContacts = $this->leadService->getDropdownLeads();
-        $customFieldsData = $this->leadService->getLeadCustomFieldsData();
 
+        // S2: Index no longer ships leadContacts / stages / custom field definitions.
+        // SaveLeadModal (M2) and ChangeToClient fetch defs via form-data API.
+        // Keep leadLifecycleStatuses for the inline status cell.
         return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
-            'leadContacts' => $leadContacts,
-            'stages' => $this->leadService->getLeadStages(),
             'filters' => $request->only([
                 'search',
                 'lead_type',
@@ -117,17 +116,18 @@ class LeadContactController extends AccountBaseController
                 'from' => $leads->firstItem(),
                 'to' => $leads->lastItem(),
             ],
-            'customFields' => $customFieldsData['customFields'],
-            'customFieldCategories' => $customFieldsData['customFieldCategories'],
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
-                ->get(['id', 'key', 'label']),
+                ->get(['id', 'key', 'label', 'label_color']),
         ]);
     }
 
 
     public function show($id, Request $request)
     {
+        // Shell vs deferred prop matrix: docs/inertia-react-performance-checklist.md (Task C1).
+        // Deferred keys use Inertia::defer (Task C2).
+
         $this->leadContact = Lead::with([
             'leadOwner',
             'addedBy',
@@ -170,19 +170,9 @@ class LeadContactController extends AccountBaseController
         $this->leadFormFields = LeadCustomForm::with('customField')->where('status', 'active')->where('custom_fields_id', '!=', 'null')->get();
         $this->leadId = $id;
 
-        $formData = $this->getLeadFormData();
-        $dealFormData = $this->getDealFormData();
+        // C1 shell form metadata only — deferred form keys load via Inertia::defer below.
+        $formData = $this->getLeadShowShellFormData();
 
-        // Prepare Deal specific data with namespaced custom fields to avoid collision with Lead custom fields
-        $dealFormData['dealCustomFields'] = $dealFormData['customFields'];
-        $dealFormData['dealCustomFieldCategories'] = $dealFormData['customFieldCategories'];
-        
-        // Remove colliding keys that we want to preserve from LeadFormData (or that are duplicates)
-        // We keep Lead's custom fields as 'customFields' for the main Lead view
-        unset($dealFormData['customFields']);
-        unset($dealFormData['customFieldCategories']);
-        
-        // Assign trait data to class properties for backward compatibility if needed
         $this->categories = $formData['categories'];
         $this->sources = $formData['sources'];
         $this->employees = $formData['employees'];
@@ -194,22 +184,16 @@ class LeadContactController extends AccountBaseController
 
         $tab = request('tab');
 
-        // Inertia requests (initial visits or router.reload()) must always get the
-        // Inertia SPA response, even when `tab` is in the URL for deep-linking/refresh
-        // purposes — only genuine legacy (non-Inertia) requests get the old Blade/DataTable partial.
-        $isInertiaRequest = (bool) $request->header('X-Inertia');
-
+        // This route always renders the Inertia SPA page below — a plain
+        // browser reload/re-entered URL is indistinguishable from a "genuine
+        // legacy" request (neither sends the X-Inertia header), so a check
+        // like `if (!$isInertiaRequest)` here would incorrectly divert every
+        // reload of a deep-linked `?tab=notes`/`?tab=deal` URL to the old
+        // Blade/DataTable partial instead of the SPA. Nothing in the current
+        // frontend calls notes()/deals() directly (all links/visits go
+        // through Inertia), so this never needs to branch away from the
+        // Inertia response.
         switch ($tab) {
-            case 'deal':
-                if (!$isInertiaRequest) {
-                    return $this->deals();
-                }
-                break;
-            case 'notes':
-                if (!$isInertiaRequest) {
-                    return $this->notes();
-                }
-                break;
             case 'marketing':
                 // Load marketing data for the lead contact
                 $this->leadContact = $this->leadContact->load('marketing');
@@ -220,41 +204,25 @@ class LeadContactController extends AccountBaseController
                 break;
         }
 
-        // if (request()->ajax()) {
-        //     return $this->returnAjax($this->view);
-        // }
-
         $this->activeTab = $tab ?: 'profile';
 
-        // Get deals associated with this lead
+        // Shell: deals for header/summary + schedule-meeting picker
         $deals = Deal::where('lead_id', $id)
             ->with([
                 'leadAgent.user',
                 'leadStage:id,name',
                 'pipeline:id,name'
             ])
-            ->get();
+            ->get()
+            ->map(function ($deal) {
+                $dealWithFields = $deal->withCustomFields();
+                $customFieldsData = $dealWithFields->getCustomFieldsData();
+                $dealArray = $deal->toArray();
+                $dealArray['custom_fields_data'] = $customFieldsData;
 
-        // Transform deals to include custom fields data
-        $deals = $deals->map(function ($deal) {
-            // Load custom fields for each deal
-            $dealWithFields = $deal->withCustomFields();
-            $customFieldsData = $dealWithFields->getCustomFieldsData();
-            
-            // Convert to array and add custom fields data
-            $dealArray = $deal->toArray();
-            $dealArray['custom_fields_data'] = $customFieldsData;
-            
-            return $dealArray;
-        });
+                return $dealArray;
+            });
 
-        // Get notes associated with this lead
-        $notes = LeadNote::where('lead_id', $id)
-            ->with('addedBy')
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        // Get deal and note permissions
         $dealPermissions = [
             'add_deals' => user()->permission('add_deals'),
             'view_deals' => user()->permission('view_deals'),
@@ -269,49 +237,12 @@ class LeadContactController extends AccountBaseController
             'delete_lead_note' => user()->permission('delete_lead_note'),
         ];
 
-        // Get tasks
-        $tasks = $this->leadContact->tasks()
-            ->with(['users', 'category', 'boardColumn', 'labels'])
-            ->orderBy('id', 'desc')
-            ->get();
-
-        // Get task metadata for modal
-        $taskCategories = \App\Models\TaskCategory::all();
-        $taskLabels = \App\Models\TaskLabelList::all();
-        $taskBoardColumns = \App\Models\TaskboardColumn::orderBy('priority')->get();
-        $projects = \App\Models\Project::all();
-
-        // Get task permissions
         $taskPermissions = [
             'add_tasks' => user()->permission('add_tasks'),
             'edit_tasks' => user()->permission('edit_tasks'),
             'delete_tasks' => user()->permission('delete_tasks'),
             'view_tasks' => user()->permission('view_tasks'),
         ];
-        $deal = new Deal();
-        $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
-        $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
-
-        $leadFollowUpsQuery = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary', 'deal:id,name'])
-            ->where('lead_id', $id)
-            ->orderBy('next_follow_up_date', 'desc');
-
-        if (user()->permission('view_lead_follow_up') === 'added') {
-            $leadFollowUpsQuery->where('added_by', user()->id);
-        }
-
-        $leadFollowUps = $leadFollowUpsQuery->get();
-
-        $allParticipantIds = $leadFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
-        $participantUsersMap = $allParticipantIds->isEmpty()
-            ? collect()
-            : \App\Models\User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
-        $leadFollowUps->each(function ($f) use ($participantUsersMap) {
-            $f->participant_users = collect($f->participants ?? [])
-                ->map(fn ($id) => $participantUsersMap->get($id))
-                ->filter()->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
-                ->values()->toArray();
-        });
 
         $meetingTypes = \App\Models\MeetingType::where('company_id', company()->id)
             ->select('id', 'name', 'color')
@@ -329,34 +260,118 @@ class LeadContactController extends AccountBaseController
             'edit_lead' => user()->permission('edit_lead'),
         ];
 
-        $customFields = $this->coreFieldsService
-            ->filterPromotedFieldDefinitions($formData['customFields'])
-            ->all();
+        $leadId = (int) $id;
+        $leadContact = $this->leadContact;
 
-        return Inertia::render('Leads/Show', array_merge([
-            'lead' => $this->leadContact,
-            'fields' => $customFields,
+        return Inertia::render('Leads/Show', array_merge($formData, [
+            'lead' => $leadContact,
+            'fields' => $formData['customFields'],
             'editLeadPermission' => $this->editLeadPermission,
             'deleteLeadPermission' => $this->deleteLeadPermission,
             'deals' => $deals,
-            'notes' => $notes,
             'dealPermissions' => $dealPermissions,
             'notePermissions' => $notePermissions,
-            'tasks' => $tasks,
-            'taskCategories' => $taskCategories,
-            'taskLabels' => $taskLabels,
-            'taskBoardColumns' => $taskBoardColumns,
-            'projects' => $projects,
             'taskPermissions' => $taskPermissions,
-            'dealCustomFields' => $fields,
-            'leadFollowUps' => $leadFollowUps,
+            // Legacy TasksTab reads `permissions`
+            'permissions' => $taskPermissions,
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
             'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
-                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($this->leadContact)
+                ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($leadContact)
                 : null,
-        ], $formData, $dealFormData));
+
+            // ---- C1 deferred (queries run only when Inertia resolves these) ----
+            'notes' => Inertia::defer(fn () => LeadNote::where('lead_id', $leadId)
+                ->with('addedBy')
+                ->orderBy('created_at', 'desc')
+                ->get()),
+            'tasks' => Inertia::defer(fn () => $leadContact->tasks()
+                ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
+                ->orderBy('id', 'desc')
+                ->get()),
+            'leadFollowUps' => Inertia::defer(function () use ($leadId) {
+                $leadFollowUpsQuery = DealFollowUp::with([
+                    'addedBy:id,name,image',
+                    'meetingType',
+                    'meetingSummary',
+                    'deal:id,name',
+                ])
+                    ->where('lead_id', $leadId)
+                    ->orderBy('next_follow_up_date', 'desc');
+
+                if (user()->permission('view_lead_follow_up') === 'added') {
+                    $leadFollowUpsQuery->where('added_by', user()->id);
+                }
+
+                $leadFollowUps = $leadFollowUpsQuery->get();
+
+                $allParticipantIds = $leadFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+                $participantUsersMap = $allParticipantIds->isEmpty()
+                    ? collect()
+                    : User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+                $leadFollowUps->each(function ($f) use ($participantUsersMap) {
+                    $f->participant_users = collect($f->participants ?? [])
+                        ->map(fn ($pid) => $participantUsersMap->get($pid))
+                        ->filter()
+                        ->map(fn ($u) => [
+                            'id' => $u->id,
+                            'name' => $u->name,
+                            'image' => $u->image ? $u->image_url : null,
+                        ])
+                        ->values()
+                        ->toArray();
+                });
+
+                return $leadFollowUps;
+            }),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all()),
+            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all()),
+            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()),
+            'projects' => Inertia::defer(fn () => \App\Models\Project::all()),
+            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get()),
+            'leadStages' => Inertia::defer(fn () => PipelineStage::all()),
+            'stages' => Inertia::defer(fn () => PipelineStage::all()),
+            'leadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', 'active');
+            })->get()),
+            'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
+            })->get()),
+            'leadContacts' => Inertia::defer(fn () => Lead::allLeads()),
+            'products' => Inertia::defer(fn () => Product::all()),
+            'packages' => Inertia::defer(fn () => \App\Models\Package::all()),
+            'dealCustomFields' => Inertia::defer(function () {
+                $deal = new Deal();
+                $groups = $deal->getCustomFieldGroupsWithFields();
+
+                return $groups ? $groups->fields : [];
+            }),
+            'dealCustomFieldCategories' => Inertia::defer(function () {
+                $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+                if (!$dealCustomFieldGroup) {
+                    return collect();
+                }
+
+                return CustomFieldCategory::where('custom_field_group_id', $dealCustomFieldGroup->id)
+                    ->where('company_id', company()->id)
+                    ->orderBy(DB::raw('`order`'), 'asc')
+                    ->orderBy('id', 'asc')
+                    ->get();
+            }),
+            'pipelineCustomFieldCategoryIdsByPipeline' => Inertia::defer(function () {
+                return LeadPipeline::query()
+                    ->with('customFieldCategories:id')
+                    ->get()
+                    ->mapWithKeys(function (LeadPipeline $pipeline) {
+                        return [
+                            (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
+                        ];
+                    })
+                    ->toArray();
+            }),
+        ]));
     }
 
     public function notes()
@@ -500,6 +515,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
         $leadContact->category_id = $request->category_id;
+        $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->company_name = $request->company_name;
@@ -677,6 +693,9 @@ class LeadContactController extends AccountBaseController
         $leadContact->source_id = $request->source_id;
         $leadContact->lead_owner = $request->lead_owner;
         $leadContact->category_id = $request->category_id;
+        if ($request->has('lead_lifecycle_status_id')) {
+            $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
+        }
         $leadContact->company_name = $request->company_name;
         $leadContact->website = $request->website;
         $leadContact->address = $request->address;
@@ -850,7 +869,10 @@ class LeadContactController extends AccountBaseController
             if ($request->has('status_id')) {
                 $leadContact->status_id = $request->status_id;
             }
-            
+            if ($request->has('lead_lifecycle_status_id')) {
+                $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
+            }
+
             // Handle other fields
             if ($request->has('column_priority')) {
                 $leadContact->column_priority = $request->column_priority;
@@ -979,6 +1001,7 @@ class LeadContactController extends AccountBaseController
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
+                    'lead_lifecycle_status_id',
                 ];
                 
                 foreach ($allowedFields as $field) {
@@ -1008,7 +1031,13 @@ class LeadContactController extends AccountBaseController
                     $leadContact->load('leadOwner');
                     $responseData['lead_owner'] = $leadContact->leadOwner;
                 }
-                
+
+                if ($request->has('lead_lifecycle_status_id')) {
+                    $leadContact->load('lifecycleStatus');
+                    $responseData['lifecycleStatus'] = $leadContact->lifecycleStatus;
+                    $responseData['lead_lifecycle_status'] = $leadContact->lifecycleStatus;
+                }
+
                 // If custom fields were updated (including file uploads), include the updated custom_fields_data
                 if ($request->has('custom_fields') || $request->hasFile('custom_fields')) {
                     $leadContact->withCustomFields();
@@ -1385,6 +1414,22 @@ class LeadContactController extends AccountBaseController
                 $leadProduct->save();
             }
         }
+    }
+
+    /**
+     * JSON: lead custom field values for edit-from-Index
+     * (docs/leads-deals-index-performance-checklist.md Task M4).
+     *
+     * S3 must not land before this fetch path is verified.
+     */
+    public function getCustomFields($id)
+    {
+        $lead = Lead::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'custom_fields_data' => $lead->getCustomFieldsData(),
+        ]);
     }
 
     /**
