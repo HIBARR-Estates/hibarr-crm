@@ -97,11 +97,16 @@ interface LocationsResponse {
     locations: ProjectLocationOption[];
 }
 
-const VISIT_OPTIONS = {
+const VISIT_OPTIONS: {
+    preserveState: boolean;
+    preserveScroll: boolean;
+    replace: boolean;
+    only: string[];
+} = {
     preserveState: true,
     preserveScroll: true,
     replace: true,
-    only: ["projects", "filters"] as const,
+    only: ["projects", "filters"],
 };
 
 // ============================================
