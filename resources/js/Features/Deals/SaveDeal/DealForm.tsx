@@ -20,6 +20,7 @@ export interface DealFormProps {
     cancelText?: string;
     visible?: boolean;
     disableFields?: string[];
+    formReferenceData?: Record<string, any>;
 }
 
 const DealForm: React.FC<DealFormProps> = ({
@@ -35,6 +36,7 @@ const DealForm: React.FC<DealFormProps> = ({
     onErrorsClear,
     visible,
     disableFields = [],
+    formReferenceData = {},
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
@@ -42,11 +44,24 @@ const DealForm: React.FC<DealFormProps> = ({
         number | undefined
     >(data?.pipeline);
 
+    const dealCustomFields: any[] =
+        formReferenceData.dealCustomFields ||
+        formReferenceData.customFields ||
+        props.dealCustomFields ||
+        props.customFields ||
+        [];
+
     const allCustomFieldCategories: any[] =
-        props.dealCustomFieldCategories || props.customFieldCategories || [];
+        formReferenceData.dealCustomFieldCategories ||
+        formReferenceData.customFieldCategories ||
+        props.dealCustomFieldCategories ||
+        props.customFieldCategories ||
+        [];
 
     const pipelineCustomFieldCategoryIdsByPipeline: Record<string, number[]> =
-        props.pipelineCustomFieldCategoryIdsByPipeline || {};
+        formReferenceData.pipelineCustomFieldCategoryIdsByPipeline ||
+        props.pipelineCustomFieldCategoryIdsByPipeline ||
+        {};
 
     useEffect(() => {
         if (data?.pipeline !== undefined) {
@@ -99,6 +114,7 @@ const DealForm: React.FC<DealFormProps> = ({
                     cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
+                    formReferenceData={formReferenceData}
                     onPipelineChange={(pipelineId) =>
                         setSelectedPipelineId(pipelineId)
                     }
@@ -119,6 +135,8 @@ const DealForm: React.FC<DealFormProps> = ({
                     submitText={submitText}
                     categoryId={category.id}
                     categoryName={category.name}
+                    customFields={dealCustomFields}
+                    dealCustomFields={dealCustomFields}
                 />
             ) : null,
             disabled: data === undefined,

@@ -88,13 +88,12 @@ class LeadContactController extends AccountBaseController
 
         // Use LeadService for optimized data fetching
         $leads = $this->leadService->getPaginatedLeads($request, $dataTable);
-        $leadContacts = $this->leadService->getDropdownLeads();
-        $customFieldsData = $this->leadService->getLeadCustomFieldsData();
 
+        // S2: Index no longer ships leadContacts / stages / custom field definitions.
+        // SaveLeadModal (M2) and ChangeToClient fetch defs via form-data API.
+        // Keep leadLifecycleStatuses for the inline status cell.
         return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
-            'leadContacts' => $leadContacts,
-            'stages' => $this->leadService->getLeadStages(),
             'filters' => $request->only([
                 'search',
                 'lead_type',
@@ -117,8 +116,6 @@ class LeadContactController extends AccountBaseController
                 'from' => $leads->firstItem(),
                 'to' => $leads->lastItem(),
             ],
-            'customFields' => $customFieldsData['customFields'],
-            'customFieldCategories' => $customFieldsData['customFieldCategories'],
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
@@ -1417,6 +1414,22 @@ class LeadContactController extends AccountBaseController
                 $leadProduct->save();
             }
         }
+    }
+
+    /**
+     * JSON: lead custom field values for edit-from-Index
+     * (docs/leads-deals-index-performance-checklist.md Task M4).
+     *
+     * S3 must not land before this fetch path is verified.
+     */
+    public function getCustomFields($id)
+    {
+        $lead = Lead::findOrFail($id);
+
+        return response()->json([
+            'status' => 'success',
+            'custom_fields_data' => $lead->getCustomFieldsData(),
+        ]);
     }
 
     /**

@@ -44,6 +44,7 @@ import usePageRefresh from "@/Hooks/usePageRefresh";
 export interface IndexProps extends PageProps {
     pageTitle: string;
     leads: PaginatedLeadResponse;
+    filters?: Record<string, string | undefined>;
     leadLifecycleStatuses?: Array<{
         id: number;
         label: string;
@@ -56,7 +57,6 @@ const Index = ({
     pageTitle,
     leads,
     leadLifecycleStatuses = [],
-    ...props
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -87,8 +87,8 @@ const Index = ({
     const { data: formData, loading: formDataLoading } = useFormDataBatch(
         formDataTypes as FormDataType[],
     );
-    console.log(formData, "FORM DATA");
-    // // Memoize configs to prevent unnecessary re-renders and filter resets
+
+    // Memoize configs to prevent unnecessary re-renders and filter resets
     const filterConfig = useMemo(
         () =>
             createLeadFilterConfig({
@@ -199,7 +199,18 @@ const Index = ({
     );
 
     // ── Page-level refresh ──────────────────────────────────────────
-    const { refresh, isRefreshing } = usePageRefresh();
+    // X2: refresh only the leads list (lifecycle statuses/filters are stable)
+    const { refresh, isRefreshing } = usePageRefresh({
+        onRefresh: async () => {
+            await new Promise<void>((resolve, reject) => {
+                router.reload({
+                    only: ["leads"],
+                    onSuccess: () => resolve(),
+                    onError: (errors) => reject(errors),
+                });
+            });
+        },
+    });
 
     return (
         <>
@@ -276,6 +287,7 @@ const Index = ({
                             to: leads.to,
                         }}
                         onPageChange={(page) => {
+                            // X2: pagination only needs the leads list
                             router.get(
                                 route("lead-contact.index"),
                                 mergeQueryParams({
@@ -283,6 +295,7 @@ const Index = ({
                                     per_page: leads.per_page,
                                 }),
                                 {
+                                    only: ["leads"],
                                     preserveState: true,
                                     preserveScroll: true,
                                 },
@@ -298,6 +311,7 @@ const Index = ({
             <SaveLeadModal
                 open={["add", "edit"].includes(action ?? "")}
                 onClose={handleClose}
+                reloadKeys={["leads"]}
                 lead={lead}
                 setLead={(lead) => {
                     if (lead) handleEditLead(lead);

@@ -183,7 +183,10 @@ class DealGatheringController extends AccountBaseController
     }
 
     /**
-     * Get Deal's Custom Fields Data
+     * Get Deal's Custom Fields Data.
+     *
+     * Also used by SaveDealModal edit-from-Index (Task M4).
+     * S3 must not land before that fetch path is verified.
      */
     public function getDealCustomFields($id)
     {

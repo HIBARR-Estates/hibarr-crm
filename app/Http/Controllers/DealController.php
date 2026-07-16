@@ -91,7 +91,9 @@ class DealController extends AccountBaseController
         $this->destroySession();
         // abort_403(!in_array($this->viewLeadPermission, ['all', 'added', 'both', 'owned']));
 
-        $this->loadDataForView();
+        // Index only needs pipelines + defaultPipeline for Inertia props / board pipeline id.
+        // Do not use loadDataForView() here (Deal::all(), all leads, watchers, etc.).
+        $this->loadDataForInertiaIndex();
 
         // Use shared query builder for table view (paginated)
         $dealsQuery = $this->getDealsQuery($request);
@@ -128,35 +130,33 @@ class DealController extends AccountBaseController
         
         $paginatedDeals = $dealsQuery->paginate($request->get('per_page', 15));
 
-        // Load additional data needed for the forms
-        $formData = $this->getDealFormData();
-
-        // Transform deals to include custom fields data
-        $dealsWithCustomFields = $paginatedDeals->getCollection()->map(function ($deal) {
-            // Load custom fields for each deal
-            $dealWithFields = $deal->withCustomFields();
-            $customFieldsData = $dealWithFields->getCustomFieldsData();
-            
-            // Convert to array and add custom fields data
+        // S3: do not hydrate per-row custom_fields_data — SaveDealModal fetches on edit (M4).
+        $dealsForIndex = $paginatedDeals->getCollection()->map(function ($deal) {
             $dealArray = $deal->toArray();
-            $dealArray['custom_fields_data'] = $customFieldsData;
             $dealArray['created_at'] = $deal->created_at?->toIso8601String();
             $dealArray['updated_at'] = $deal->updated_at?->toIso8601String();
-            
+
             return $dealArray;
         });
 
-        // Get kanban board columns (without deals - they'll be fetched via API)
-        $pipelineId = $request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all' 
-            ? $request->lead_pipeline_id 
-            : optional($this->defaultPipeline)->id;
-        
-        $boardColumns = $this->getBoardColumns($request, $pipelineId);
+        // View-aware board columns (K1): skip heavy getBoardColumns for table.
+        // Default when missing is table. Frontend syncs localStorage preference via ?view=.
+        $view = $request->get('view', 'table');
+        $isKanbanView = $view === 'kanban';
 
-        return Inertia::render('Deals/Index', array_merge([
+        $pipelineId = $request->filled('lead_pipeline_id') && $request->lead_pipeline_id !== 'all'
+            ? $request->lead_pipeline_id
+            : optional($this->defaultPipeline)->id;
+
+        $boardColumns = $isKanbanView
+            ? $this->getBoardColumns($request, $pipelineId)
+            : [];
+
+        // S1: do not merge getDealFormData() — modals (M1) and filters (M3) fetch via API.
+        return Inertia::render('Deals/Index', [
             'pageTitle' => 'Deals',
             'deals' => [
-                'data' => $dealsWithCustomFields,
+                'data' => $dealsForIndex,
                 'current_page' => $paginatedDeals->currentPage(),
                 'per_page' => $paginatedDeals->perPage(),
                 'total' => $paginatedDeals->total(),
@@ -177,29 +177,29 @@ class DealController extends AccountBaseController
                 'search',
                 'start_date',
                 'end_date',
+                'view',
             ]),
-        ], $formData));
+        ]);
     }
 
     /**
      * Shared deal query builder with filters applied
      * Used by both index (table view) and kanban API endpoint
+     *
+     * Eager-loads only what DEAL_TABLE_COLUMNS / DealCard / edit-from-Index need.
+     * Counts via withCount; do not reintroduce full tasks graph.
      */
     protected function getDealsQuery(Request $request, $pipelineStageId = null)
     {
         $dealsQuery = Deal::with([
             'leadAgent.user:id,name,email,image',
-            'category:id,category_name',
             'contact:id,client_name,client_email,mobile,company_name,source_id,salutation,client_id',
             'contact.leadSource',
-            'pipeline:id,name',
             'leadStage:id,name,label_color,slug',
             'currency:id,currency_symbol,currency_code',
+            // Edit-from-Index SaveDealModal prefills products/packages from the row
             'products:id,name',
-            'packages',
-            'tasks' => function($q) {
-                $q->with(['deals', 'leads', 'properties']);
-            }
+            'packages:id,name',
         ])
         ->select(
             'deals.id',
@@ -218,7 +218,8 @@ class DealController extends AccountBaseController
             'deals.close_date',
             'deals.updated_at',
             'deals.currency_id',
-            'deals.category_id'
+            'deals.category_id',
+            'deals.is_locked'
         )
         ->withCount([
             'tasks as tasks_count',
@@ -429,6 +430,28 @@ class DealController extends AccountBaseController
         return Reply::dataOnly(['deals' => $deals]);
     }
 
+    /**
+     * Minimal data for Inertia Deals Index (docs/leads-deals-index-performance-checklist.md, Tasks D1/D2/S1).
+     *
+     * index() needs exactly:
+     * - $this->pipelines       -> 'allPipelines' Inertia prop
+     * - $this->defaultPipeline -> 'defaultPipeline' prop + fallback pipeline id for getBoardColumns()
+     *
+     * Do not reintroduce Deal::all() / unused Blade stats here.
+     * Do not call getDealFormData() from index() (S1) — SaveDealModal (M1) and
+     * filters/bulk actions (M3) load reference data via /account/api/form-data.
+     */
+    protected function loadDataForInertiaIndex(): void
+    {
+        $this->pipelines = LeadPipeline::all();
+        $this->defaultPipeline = LeadPipeline::where('default', 1)->first();
+    }
+
+    /**
+     * Blade-era kitchen-sink loader. Only show() still calls this.
+     * Do NOT call from index(); use loadDataForInertiaIndex() instead
+     * (loadDealData() alone loads every deal into memory via Deal::all()).
+     */
     protected function loadDataForView()
     {
         $this->loadPipelineData();

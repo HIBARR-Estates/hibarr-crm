@@ -31,6 +31,7 @@ interface DealDetailsTabProps extends Pick<
     | "onSubmit"
     | "setErrors"
     | "onErrorsClear"
+    | "formReferenceData"
 > {
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
@@ -49,6 +50,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     setDeal,
     disableFields = [], // prop to disable fields
     onPipelineChange,
+    formReferenceData = {},
 }) => {
     const [form] = Form.useForm();
     const selectedValueSource = Form.useWatch("value_source", form) || "manual";
@@ -69,7 +71,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         company = {},
         stages = [],
         packages = [],
-    } = props;
+    } = {
+        ...props,
+        ...formReferenceData,
+    };
 
     const [pipelineId, setPipelineId] = useState<number>();
     const pipelineIdRef = useRef<number | undefined>(pipelineId);

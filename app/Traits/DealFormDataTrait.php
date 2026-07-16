@@ -20,7 +20,9 @@ use App\Models\User;
 trait DealFormDataTrait
 {
     /**
-     * Get all necessary data for the Deal Form (SaveDealModal).
+     * Get all necessary data for the Deal Form (SaveDealModal / Show / Blade board).
+     *
+     * Do not merge into Deals Index (S1) — Index uses form-data APIs via M1/M3.
      *
      * @return array
      */

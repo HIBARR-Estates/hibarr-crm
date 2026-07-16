@@ -29,7 +29,8 @@ const BulkDeleteLeads: React.FC<Props> = ({ open, onClose, ids }) => {
                 onSuccess: () => {
                     message.success("Leads deleted successfully");
                     onClose(true);
-                    router.reload();
+                    // X2: Index-only component — refresh just the leads list
+                    router.reload({ only: ["leads"] });
                 },
                 onError: () => {
                     message.error("Failed to delete leads");
