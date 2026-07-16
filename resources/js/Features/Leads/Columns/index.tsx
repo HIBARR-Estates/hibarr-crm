@@ -18,10 +18,13 @@ interface LeadLifecycleStatusOption {
 
 /** Inline-editable lifecycle status cell for the Leads table. */
 function LeadLifecycleStatusCell({ record }: { record: Lead }) {
-    const { props } = usePage<{
-        leadLifecycleStatuses?: LeadLifecycleStatusOption[];
-    }>();
-    const statuses = props.leadLifecycleStatuses ?? [];
+    const { props } = usePage();
+    const statuses =
+        (
+            props as {
+                leadLifecycleStatuses?: LeadLifecycleStatusOption[];
+            }
+        ).leadLifecycleStatuses ?? [];
     const [value, setValue] = useState<number | undefined>(
         record.lead_lifecycle_status_id ?? undefined,
     );
