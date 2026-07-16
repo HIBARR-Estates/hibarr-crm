@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Developer;
 use App\Models\DeveloperProject;
 use App\Helper\Reply;
+use App\Support\DeveloperProjectVisibility;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Inertia\Inertia;
@@ -32,6 +33,8 @@ class DeveloperController extends AccountBaseController
         $query = Developer::withCount('projects')
             ->where('company_id', user()->company_id);
 
+        DeveloperProjectVisibility::scopeVisibleDevelopers($query);
+
         // Search by name or description
         if ($request->filled('search')) {
             $search = $request->search;
@@ -47,19 +50,28 @@ class DeveloperController extends AccountBaseController
             'pageTitle' => 'Developers',
             'developers' => $developers,
             'filters' => $request->only(['search']),
+            'visibility' => [
+                'enabled' => DeveloperProjectVisibility::enabled(),
+                'canSeeHidden' => DeveloperProjectVisibility::canSeeHiddenDevelopers(),
+                'canToggleHidden' => DeveloperProjectVisibility::canToggleDeveloperHidden(),
+            ],
         ]);
     }
 
     /**
      * Get all developers for dropdown selection.
      * Returns minimal data optimized for select inputs.
+     * Hidden developers remain available to edit/manage users.
      */
     public function all()
     {
-        $developers = Developer::where('company_id', user()->company_id)
-            ->select('id', 'name', 'logo_url', 'project_list', 'whatsapp_group_link', 'google_drive_link')
-            ->orderBy('name')
-            ->get();
+        $query = Developer::where('company_id', user()->company_id)
+            ->select('id', 'name', 'logo_url', 'project_list', 'whatsapp_group_link', 'google_drive_link', 'is_hidden')
+            ->orderBy('name');
+
+        DeveloperProjectVisibility::scopeVisibleDevelopers($query);
+
+        $developers = $query->get();
 
         return Reply::successWithData('Developers fetched successfully', [
             'developers' => $developers,
@@ -75,11 +87,15 @@ class DeveloperController extends AccountBaseController
             ->where('company_id', user()->company_id)
             ->findOrFail($id);
 
+        DeveloperProjectVisibility::assertDeveloperVisible($developer);
+
         // Get developer's projects with counts
         $projectsQuery = DeveloperProject::with(['location', 'exposeConfig'])
             ->withCount('properties')
             ->where('developer_id', $id)
             ->where('company_id', user()->company_id);
+
+        DeveloperProjectVisibility::scopeVisibleProjects($projectsQuery);
 
         // Search projects by name
         if ($request->filled('search')) {
@@ -104,6 +120,13 @@ class DeveloperController extends AccountBaseController
             'projects' => $projects,
             'offers' => $offers,
             'filters' => $request->only(['search']),
+            'visibility' => [
+                'enabled' => DeveloperProjectVisibility::enabled(),
+                'canSeeHidden' => DeveloperProjectVisibility::canSeeHiddenDevelopers(),
+                'canToggleHidden' => DeveloperProjectVisibility::canToggleDeveloperHidden(),
+                'canSeeHiddenProjects' => DeveloperProjectVisibility::canSeeHiddenProjects(),
+                'canToggleProjectHidden' => DeveloperProjectVisibility::canToggleProjectHidden(),
+            ],
         ]);
     }
 
@@ -112,26 +135,45 @@ class DeveloperController extends AccountBaseController
      */
     public function store(Request $request)
     {
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'name' => 'required|string|max:255',
             'logo_url' => 'nullable|url|max:500',
             'description' => 'nullable|string',
             'whatsapp_group_link' => 'nullable|url|max:500',
             'google_drive_link' => 'nullable|url|max:500',
-        ]);
+        ];
+
+        if (
+            DeveloperProjectVisibility::enabled()
+            && DeveloperProjectVisibility::canToggleDeveloperHidden()
+        ) {
+            $rules['is_hidden'] = 'nullable|boolean';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return Reply::error($validator->errors()->first());
         }
 
-        $developer = Developer::create([
+        $payload = [
             'company_id' => user()->company_id,
             'name' => $request->name,
             'logo_url' => $request->logo_url,
             'description' => $request->description,
             'whatsapp_group_link' => $request->whatsapp_group_link,
             'google_drive_link' => $request->google_drive_link,
-        ]);
+        ];
+
+        if (
+            DeveloperProjectVisibility::enabled()
+            && DeveloperProjectVisibility::canToggleDeveloperHidden()
+            && $request->has('is_hidden')
+        ) {
+            $payload['is_hidden'] = (bool) $request->boolean('is_hidden');
+        }
+
+        $developer = Developer::create($payload);
 
         return Reply::successWithData('Developer created successfully', [
             'developer' => $developer,
@@ -146,19 +188,38 @@ class DeveloperController extends AccountBaseController
         $developer = Developer::where('company_id', user()->company_id)
             ->findOrFail($id);
 
-        $validator = Validator::make($request->all(), [
+        $rules = [
             'name' => 'sometimes|required|string|max:255',
             'logo_url' => 'nullable|url|max:500',
             'description' => 'nullable|string',
             'whatsapp_group_link' => 'nullable|url|max:500',
             'google_drive_link' => 'nullable|url|max:500',
-        ]);
+        ];
+
+        if (
+            DeveloperProjectVisibility::enabled()
+            && DeveloperProjectVisibility::canToggleDeveloperHidden()
+        ) {
+            $rules['is_hidden'] = 'nullable|boolean';
+        }
+
+        $validator = Validator::make($request->all(), $rules);
 
         if ($validator->fails()) {
             return Reply::error($validator->errors()->first());
         }
 
-        $developer->update($request->only(['name', 'logo_url', 'description', 'whatsapp_group_link', 'google_drive_link']));
+        $fields = ['name', 'logo_url', 'description', 'whatsapp_group_link', 'google_drive_link'];
+
+        if (
+            DeveloperProjectVisibility::enabled()
+            && DeveloperProjectVisibility::canToggleDeveloperHidden()
+            && $request->has('is_hidden')
+        ) {
+            $fields[] = 'is_hidden';
+        }
+
+        $developer->update($request->only($fields));
 
         return Reply::successWithData('Developer updated successfully', [
             'developer' => $developer->fresh(),

@@ -28,6 +28,7 @@ class Developer extends BaseModel
         'project_list',
         'whatsapp_group_link',
         'google_drive_link',
+        'is_hidden',
     ];
 
     /**
@@ -38,6 +39,7 @@ class Developer extends BaseModel
         'updated_at' => 'datetime',
         'deleted_at' => 'datetime',
         'project_list' => 'array',
+        'is_hidden' => 'boolean',
     ];
 
     /**
