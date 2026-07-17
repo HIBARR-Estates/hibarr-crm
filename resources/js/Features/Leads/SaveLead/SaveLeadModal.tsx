@@ -47,6 +47,8 @@ const constructCustomFieldsData = (
 };
 
 const EMPTY_CUSTOM_FIELDS_DATA: Record<string, any> = {};
+const EMPTY_CUSTOM_FIELDS: any[] = [];
+const EMPTY_CUSTOM_FIELD_CATEGORIES: any[] = [];
 
 const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     lead,
@@ -80,13 +82,33 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         return Array.isArray(value) && value.length > 0 ? value : fallback;
     };
 
-    const customFields = pickFetchedArray(
-        "lead-custom-fields",
-        props.leadCustomFields || props.customFields || [],
+    const customFields = useMemo(
+        () =>
+            pickFetchedArray(
+                "lead-custom-fields",
+                props.leadCustomFields ||
+                    props.customFields ||
+                    EMPTY_CUSTOM_FIELDS,
+            ),
+        [
+            fetchedFormData,
+            props.leadCustomFields,
+            props.customFields,
+        ],
     );
-    const customFieldCategories = pickFetchedArray(
-        "lead-custom-field-categories",
-        props.leadCustomFieldCategories || props.customFieldCategories || [],
+    const customFieldCategories = useMemo(
+        () =>
+            pickFetchedArray(
+                "lead-custom-field-categories",
+                props.leadCustomFieldCategories ||
+                    props.customFieldCategories ||
+                    EMPTY_CUSTOM_FIELD_CATEGORIES,
+            ),
+        [
+            fetchedFormData,
+            props.leadCustomFieldCategories,
+            props.customFieldCategories,
+        ],
     );
     const isEditing = !!lead;
 
