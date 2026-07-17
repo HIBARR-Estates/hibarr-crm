@@ -1,42 +1,36 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
-    Card,
-    Descriptions,
-    Avatar,
+    Modal,
     Tag,
-    Space,
-    Progress,
-    Typography,
-    Row,
-    Col,
-    Divider,
-    List,
+    Avatar,
     Tooltip,
+    Spin,
     Empty,
-    Skeleton,
+    Progress,
+    App,
 } from "antd";
 import {
-    CalendarOutlined,
     UserOutlined,
     FlagOutlined,
-    ClockCircleOutlined,
-    ProjectOutlined,
-    FileTextOutlined,
-    TagOutlined,
-    EyeOutlined,
     LockOutlined,
     DollarOutlined,
     LinkOutlined,
+    CheckOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { getStatusColor } from "@/lib/utils";
 import { getPriorityConfig } from "@/lib/priority";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
+import { useApiMutate } from "@/lib/api/client";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { Link } from "@inertiajs/react";
+import TaskStatusDropdownPill, {
+    isCompletedColumn,
+    TaskboardColumn,
+} from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
+import { reloadTaskLists } from "@/Features/Tasks/reloadTaskLists";
+import "./task-view-modal.css";
 
-const { Text, Title } = Typography;
-
-// Match the Task interface from columns
 export interface Task {
     id: number;
     heading: string;
@@ -85,618 +79,635 @@ export interface Task {
         slug: string;
         label_color: string;
     };
-    time_logs?: Array<{
-        total_minutes: number;
-    }>;
-    created_by?: {
-        id: number;
-        name: string;
-        image?: string;
-    };
-    assigner?: {
-        id: number;
-        name: string;
-        image?: string;
-    };
+    time_logs?: Array<{ total_minutes: number }>;
+    created_by?: { id: number; name: string; image?: string };
+    assigner?: { id: number; name: string; image?: string };
+    added_by_user?: { id: number; name: string; image?: string };
     hash?: string;
-    deals?: Array<{
-        id: number;
-        name: string;
-    }>;
-    leads?: Array<{
-        id: number;
-        client_name: string;
-        company_name?: string;
-    }>;
-    properties?: Array<{
-        id: number;
-        name: string;
-    }>;
+    deals?: Array<{ id: number; name: string }>;
+    leads?: Array<{ id: number; client_name: string; company_name?: string }>;
+    properties?: Array<{ id: number; name: string }>;
 }
 
-interface TaskDetailsDrawerProps {
+interface TaskDetailsModalProps {
     task: Task | null | undefined;
-    loading: boolean;
+    open: boolean;
+    onClose: () => void;
+    columns?: TaskboardColumn[];
+    onMarkDone?: () => void;
     td?: (key: string) => string;
+    /** Skip Inertia reload after status changes (parent updates local state). */
+    skipReload?: boolean;
+    /** When false, hide Mark Done and disable the status dropdown. Defaults to true. */
+    canChangeStatus?: boolean;
+    onStatusChange?: (taskId: number, statusSlug: string) => void;
 }
 
-const TaskDetailsDrawer: React.FC<TaskDetailsDrawerProps> = ({
+// ─── Small atoms ─────────────────────────────────────────────────────────────
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+    return (
+        <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">
+            {children}
+        </p>
+    );
+}
+
+function PropRow({ label, children }: { label: string; children: React.ReactNode }) {
+    return (
+        <div className="flex items-center gap-3 px-4 py-3">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-20 shrink-0">
+                {label}
+            </span>
+            <div className="flex-1 min-w-0">{children}</div>
+        </div>
+    );
+}
+
+function PropTable({ children }: { children: React.ReactNode }) {
+    return (
+        <div className="rounded-xl border border-slate-100 overflow-hidden divide-y divide-slate-100">
+            {children}
+        </div>
+    );
+}
+
+function formatDateTime(dateStr: string | undefined): React.ReactNode {
+    if (!dateStr) return <span className="text-slate-500">Not set</span>;
+    const d = dayjs(dateStr);
+    return (
+        <span>
+            {d.format("MMM D, YYYY")}
+            <span className="text-slate-400 mx-1.5">·</span>
+            {d.format("h:mm A")}
+        </span>
+    );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
+
+const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     task: initialTask,
-    loading: initialLoading,
+    open,
+    onClose,
+    columns = [],
+    onMarkDone,
     td = (key) => key,
+    skipReload = false,
+    canChangeStatus = true,
+    onStatusChange,
 }) => {
-    // Fetch full task details
+    const { message } = App.useApp();
+    const [confirmed, setConfirmed] = useState(false);
+    // optimistic status — so the pill reflects changes before reload
+    const [localStatus, setLocalStatus] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (open) setLocalStatus(null);
+    }, [open, initialTask?.id]);
+
     const { data: fetchedTaskData, isLoading: isFetchingTask } = useApiQuery<{
         task: Task;
     }>({
         path: initialTask?.id ? route("tasks.data", initialTask.id) : "",
         options: {
-            enabled: !!initialTask?.id,
+            enabled: !!initialTask?.id && open,
         },
     });
 
-    const task = fetchedTaskData?.task || initialTask;
-    const loading = initialLoading || isFetchingTask;
+    const fetchedTask = fetchedTaskData?.task;
+    const task = fetchedTask
+        ? {
+              ...initialTask,
+              ...fetchedTask,
+              // Prefer relation from API; keep list payload if fetch omitted it.
+              board_column:
+                  fetchedTask.board_column ??
+                  (fetchedTask as Task & { boardColumn?: Task["board_column"] })
+                      .boardColumn ??
+                  initialTask?.board_column,
+          }
+        : initialTask;
+    const effectiveStatus =
+        localStatus ??
+        task?.board_column?.slug ??
+        task?.status ??
+        "";
 
-    if (loading) {
-        return (
-            <div style={{ padding: "24px", textAlign: "center" }}>
-                <Skeleton active paragraph={{ rows: 10 }} />
-            </div>
+    const { mutate: changeStatus, status: changeStatusState } = useApiMutate<
+        { taskId: number; status: string },
+        any,
+        ApiResponse<any>
+    >(route("tasks.change_status"), "POST");
+
+    const isDone =
+        isCompletedColumn(effectiveStatus, columns) ||
+        effectiveStatus === "done" ||
+        task?.board_column?.slug === "done" ||
+        Boolean(task?.completed_on);
+
+    const isMarkingDone =
+        changeStatusState === "pending" ||
+        (changeStatusState as string) === "loading";
+
+    const handleMarkDone = () => {
+        if (!task?.id || !canChangeStatus) return;
+        changeStatus(
+            { taskId: task.id, status: "done" },
+            {
+                onSuccess: (response) => {
+                    if (!isSuccessResponse(response)) return;
+                    setLocalStatus("done");
+                    setConfirmed(true);
+                    setTimeout(() => {
+                        setConfirmed(false);
+                        setLocalStatus(null);
+                        onMarkDone?.();
+                        onStatusChange?.(task.id, "done");
+                        if (!skipReload) {
+                            reloadTaskLists();
+                        }
+                        onClose();
+                    }, 1100);
+                },
+                onError: () => {
+                    message.error("Failed to mark task as done");
+                },
+            },
         );
-    }
-
-    if (!task) {
-        return (
-            <Empty description="Task not found" style={{ margin: "40px 0" }} />
-        );
-    }
-
-
-    const calculateTimeSpent = () => {
-        if (task.time_logs && Array.isArray(task.time_logs)) {
-            return task.time_logs.reduce((total: number, log: any) => {
-                return total + (log.total_minutes || 0);
-            }, 0);
-        }
-        return 0;
     };
+
+    const handleStatusChange = (slug: string) => {
+        if (!task?.id || !canChangeStatus) return;
+        setLocalStatus(slug);
+        changeStatus(
+            { taskId: task.id, status: slug },
+            {
+                onSuccess: (response) => {
+                    if (!isSuccessResponse(response)) {
+                        setLocalStatus(null);
+                        return;
+                    }
+                    onStatusChange?.(task.id, slug);
+                    if (!skipReload) {
+                        reloadTaskLists();
+                    }
+                },
+                onError: () => {
+                    setLocalStatus(null);
+                    message.error("Failed to update status");
+                },
+            },
+        );
+    };
+
+    // ── Derived values ────────────────────────────────────────────────────────
+
+    const calculateTimeSpent = () =>
+        (task?.time_logs ?? []).reduce(
+            (total: number, log: any) => total + (log.total_minutes || 0),
+            0,
+        );
 
     const formatDuration = (minutes: number) => {
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
-        if (hours > 0) {
-            return `${hours}h ${mins}m`;
-        }
-        return `${mins}m`;
+        return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
     };
 
     const estimatedMinutes =
-        (task.estimate_hours || 0) * 60 + (task.estimate_minutes || 0);
+        (task?.estimate_hours || 0) * 60 + (task?.estimate_minutes || 0);
     const spentMinutes = calculateTimeSpent();
     const progressPercent =
         estimatedMinutes > 0
             ? Math.min((spentMinutes / estimatedMinutes) * 100, 100)
             : 0;
 
-    return (
-        <div style={{ padding: "0" }}>
-            {/* Header Section */}
-            <Card size="small" style={{ marginBottom: 16 }} variant="outlined">
-                <div style={{ marginBottom: 16 }}>
-                    <Space
-                        direction="vertical"
-                        size="small"
-                        style={{ width: "100%" }}
-                    >
-                        <div
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                            }}
-                        >
-                            <Space>
-                                <FileTextOutlined
-                                    style={{ color: "#1890ff" }}
-                                />
-                                {task.task_short_code && (
-                                    <Text strong style={{ fontSize: "16px" }}>
-                                        #{task.task_short_code}
-                                    </Text>
-                                )}
-                            </Space>
-                            <Space>
-                                {Boolean(task.is_private) && (
-                                    <Tooltip title={td("Private Task")}>
-                                        <LockOutlined
-                                            style={{ color: "#fa8c16" }}
-                                        />
-                                    </Tooltip>
-                                )}
-                                {Boolean(task.billable) && (
-                                    <Tooltip title={td("Billable")}>
-                                        <DollarOutlined
-                                            style={{ color: "#52c41a" }}
-                                        />
-                                    </Tooltip>
-                                )}
-                                <EyeOutlined style={{ color: "#722ed1" }} />
-                            </Space>
-                        </div>
-                        <Title
-                            level={4}
-                            style={{ margin: 0, wordBreak: "break-word" }}
-                        >
-                            {td(task.heading)}
-                        </Title>
+    const isOverdue =
+        task?.due_date &&
+        dayjs().isAfter(dayjs(task.due_date)) &&
+        !isDone;
 
-                        <Text
-                            type="secondary"
-                            style={{
-                                whiteSpace: "pre-wrap",
-                                wordBreak: "break-word",
-                            }}
-                        >
-                            {task?.description
-                                ? td(task.description)
-                                : td(
-                                      "No Description has been assigned to this task",
-                                  )}
-                        </Text>
-                    </Space>
+    const priorityCfg = task ? getPriorityConfig(task.priority) : null;
+
+    const hasRelated =
+        (task?.deals?.length ?? 0) > 0 ||
+        (task?.leads?.length ?? 0) > 0 ||
+        (task?.properties?.length ?? 0) > 0;
+
+    const assigner = task?.assigner ?? task?.added_by_user ?? task?.created_by;
+
+    // ── Success overlay ───────────────────────────────────────────────────────
+
+    if (confirmed) {
+        return (
+            <Modal
+                className="task-view-modal"
+                title={null}
+                open={open}
+                onCancel={onClose}
+                footer={null}
+                width={680}
+                centered
+                destroyOnHidden
+                closable={false}
+            >
+                <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <div className="w-14 h-14 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <CheckOutlined className="text-2xl text-emerald-600" />
+                    </div>
+                    <p className="text-[17px] font-bold text-slate-800">Task complete!</p>
+                    <p className="text-sm text-slate-400 text-center max-w-[200px] italic">
+                        "{task?.heading}"
+                    </p>
                 </div>
-            </Card>
+            </Modal>
+        );
+    }
 
-            {/* Priority and Status */}
-            <Card
-                size="small"
-                title="Status & Priority"
-                style={{ marginBottom: 16 }}
-                variant="outlined"
-            >
-                <Row gutter={16}>
-                    <Col span={12}>
-                        <Space direction="vertical" size="small">
-                            <Text strong>Priority</Text>
-                            <Tag
-                                color={getPriorityConfig(task.priority).color}
-                                icon={<FlagOutlined />}
-                                className="uppercase"
+    return (
+        <Modal
+            className="task-view-modal"
+            title={null}
+            open={open}
+            onCancel={onClose}
+            footer={null}
+            width={680}
+            centered
+            destroyOnHidden
+            maskClosable
+            closable
+        >
+            {/* ── Header ── */}
+            <div className="px-6 pt-5 pb-4 pr-14 border-b border-gray-100 shrink-0">
+                <div className="flex items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                            {task?.task_short_code && (
+                                <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                                    #{task.task_short_code}
+                                </span>
+                            )}
+                            {Boolean(task?.is_private) && (
+                                <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-amber-50 text-amber-700 border border-amber-100 inline-flex items-center gap-1">
+                                    <LockOutlined className="text-[10px]" /> Private
+                                </span>
+                            )}
+                            {Boolean(task?.billable) && (
+                                <span className="text-[11px] font-medium rounded-full px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-100 inline-flex items-center gap-1">
+                                    <DollarOutlined className="text-[10px]" /> Billable
+                                </span>
+                            )}
+                        </div>
+                        <h2 className="text-[18px] font-bold text-slate-900 leading-snug">
+                            {task?.heading || "Task Details"}
+                        </h2>
+                    </div>
+                    <div className="shrink-0">
+                        {isDone ? (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 text-[12px] font-bold rounded-lg border border-emerald-200 whitespace-nowrap">
+                                <CheckOutlined /> Completed
+                            </span>
+                        ) : canChangeStatus ? (
+                            <button
+                                onClick={handleMarkDone}
+                                disabled={isMarkingDone || isFetchingTask}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-bold rounded-lg transition-colors shadow-sm whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                {task.priority.toUpperCase()}
-                            </Tag>
-                        </Space>
-                    </Col>
-                    <Col span={12}>
-                        <Space direction="vertical" size="small">
-                            <Text strong>{td("Status")}</Text>
-                            <Tag
-                                color={getStatusColor(task.status)}
-                                className="capitalize"
-                            >
-                                {task.board_column?.column_name ||
-                                    task.status ||
-                                    "Unknown"}
-                            </Tag>
-                        </Space>
-                    </Col>
-                </Row>
-            </Card>
+                                <CheckOutlined />
+                                {isMarkingDone ? "Saving…" : "Mark Done"}
+                            </button>
+                        ) : null}
+                    </div>
+                </div>
+            </div>
 
-            {/* Timeline */}
-            <Card
-                size="small"
-                title={
-                    <Space>
-                        <CalendarOutlined />
-                        {td("Timeline")}
-                    </Space>
-                }
-                style={{ marginBottom: 16 }}
-                variant="outlined"
-            >
-                <Descriptions size="small" column={1}>
-                    <Descriptions.Item label={td("Start Date")}>
-                        {task.start_date
-                            ? dayjs(task.start_date).format(
-                                  "MMM DD, YYYY h:mm A",
-                              )
-                            : "Not set"}
-                    </Descriptions.Item>
-                    <Descriptions.Item label={td("Due Date")}>
-                        {task.due_date ? (
-                            <Space>
-                                {dayjs(task.due_date).format(
-                                    "MMM DD, YYYY h:mm A",
-                                )}
-                                {dayjs().isAfter(dayjs(task.due_date)) && (
-                                    <Tag color="red">Overdue</Tag>
-                                )}
-                            </Space>
-                        ) : (
-                            "No due date"
+            {/* ── Scrollable body ── */}
+            <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+                {isFetchingTask ? (
+                    <div className="flex flex-col items-center justify-center py-16 gap-3">
+                        <Spin size="large" />
+                        <p className="text-sm text-slate-400">Loading task…</p>
+                    </div>
+                ) : !task ? (
+                    <Empty description="Task not found" style={{ margin: "40px 0" }} />
+                ) : (
+                    <>
+                        {/* Overdue banner */}
+                        {isOverdue && (
+                            <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[12px] font-semibold">
+                                <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                                Overdue since{" "}
+                                {dayjs(task.due_date).format("MMM D, YYYY")}
+                            </div>
                         )}
-                    </Descriptions.Item>
-                    {(task.created_at || task.updated_at) && (
-                        <>
-                            {task.created_at && (
-                                <Descriptions.Item label={td("Created")}>
-                                    {dayjs(task.created_at).format(
-                                        "MMM DD, YYYY HH:mm",
-                                    )}
-                                </Descriptions.Item>
-                            )}
-                            {task.updated_at && (
-                                <Descriptions.Item label={td("Last Updated")}>
-                                    {dayjs(task.updated_at).format(
-                                        "MMM DD, YYYY HH:mm",
-                                    )}
-                                </Descriptions.Item>
-                            )}
-                        </>
-                    )}
-                </Descriptions>
-            </Card>
 
-            {/* Time Tracking */}
-            {(estimatedMinutes > 0 || spentMinutes > 0) && (
-                <Card
-                    size="small"
-                    title={
-                        <Space>
-                            <ClockCircleOutlined />
-                            {td("Time Tracking")}
-                        </Space>
-                    }
-                    style={{ marginBottom: 16 }}
-                    variant="outlined"
-                >
-                    <Space direction="vertical" style={{ width: "100%" }}>
-                        <Row gutter={16}>
-                            <Col span={12}>
-                                <Text strong>{td("Estimated")}</Text>
-                                <br />
-                                <Text>
-                                    {estimatedMinutes > 0
-                                        ? formatDuration(estimatedMinutes)
-                                        : "Not set"}
-                                </Text>
-                            </Col>
-                            <Col span={12}>
-                                <Text strong>{td("Time Spent")}</Text>
-                                <br />
-                                <Text>
-                                    {spentMinutes > 0
-                                        ? formatDuration(spentMinutes)
-                                        : "No time logged"}
-                                </Text>
-                            </Col>
-                        </Row>
-                        {estimatedMinutes > 0 && (
-                            <>
-                                <Divider />
-                                <div>
-                                    <Text strong>{td("Progress")}</Text>
-                                    <Progress
-                                        percent={Math.round(progressPercent)}
-                                        status={
-                                            progressPercent >= 100
-                                                ? "exception"
-                                                : "active"
-                                        }
-                                        format={(percent) => `${percent}%`}
-                                    />
+                        {/* ── Details ── */}
+                        <div>
+                            <SectionLabel>Details</SectionLabel>
+                            <PropTable>
+                                {/* Status + Priority */}
+                                <div className="grid grid-cols-2 divide-x divide-slate-100">
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
+                                            Status
+                                        </span>
+                                        {columns.length > 0 && canChangeStatus ? (
+                                            <TaskStatusDropdownPill
+                                                status={effectiveStatus}
+                                                columns={columns}
+                                                onChange={(slug) => handleStatusChange(slug)}
+                                            />
+                                        ) : (
+                                            <Tag className="capitalize mb-0">
+                                                {task.board_column?.column_name ||
+                                                    task.status ||
+                                                    "Unknown"}
+                                            </Tag>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
+                                            Priority
+                                        </span>
+                                        <Tag
+                                            color={priorityCfg?.color}
+                                            icon={<FlagOutlined />}
+                                            className="uppercase mb-0"
+                                        >
+                                            {task.priority}
+                                        </Tag>
+                                    </div>
                                 </div>
-                            </>
-                        )}
-                    </Space>
-                </Card>
-            )}
 
-            {/* Project & Assignment */}
-            {(task.project ||
-                task.assigner ||
-                task.created_by ||
-                (task.users && task.users.length > 0)) && (
-                <Card
-                    size="small"
-                    title={
-                        <Space>
-                            <ProjectOutlined />
-                            {td("Project & Assignment")}
-                        </Space>
-                    }
-                    style={{ marginBottom: 16 }}
-                    variant="outlined"
-                >
-                    {task.project && (
-                        <div style={{ marginBottom: 16 }}>
-                            <Text strong>{td("Project")}</Text>
-                            <br />
-                            <Space>
-                                <ProjectOutlined />
-                                <Text>{task.project.project_name}</Text>
-                                {task.project.project_short_code && (
-                                    <Tag>{task.project.project_short_code}</Tag>
-                                )}
-                            </Space>
-                        </div>
-                    )}
-
-                    {(task.assigner ?? task.created_by) && (
-                        <div style={{ marginBottom: 16 }}>
-                            <Text strong>{td("Assigner")}</Text>
-                            <br />
-                            <Space style={{ marginTop: 8 }}>
-                                <Avatar
-                                    size="small"
-                                    icon={<UserOutlined />}
-                                    src={
-                                        (task.assigner ?? task.created_by)
-                                            ?.image
-                                    }
-                                />
-                                <Text>
-                                    {(task.assigner ?? task.created_by)?.name}
-                                </Text>
-                            </Space>
-                        </div>
-                    )}
-
-                    {task.users && task.users.length > 0 && (
-                        <div>
-                            <Text strong>
-                                {td("Assignees")} ({task.users.length})
-                            </Text>
-                            <List
-                                size="small"
-                                style={{ marginTop: 8 }}
-                                dataSource={task.users}
-                                renderItem={(user: any) => (
-                                    <List.Item
-                                        style={{
-                                            padding: "8px 0",
-                                            border: "none",
-                                        }}
-                                    >
-                                        <Space>
-                                            <Avatar
-                                                size="small"
-                                                icon={<UserOutlined />}
-                                                src={user.image}
-                                            />
-                                            <div>
-                                                <Text strong>{user.name}</Text>
-                                                {user.designation_name && (
-                                                    <Text
-                                                        type="secondary"
-                                                        style={{
-                                                            display: "block",
-                                                            fontSize: "12px",
-                                                        }}
-                                                    >
-                                                        {td(
-                                                            user.designation_name,
-                                                        )}
-                                                    </Text>
+                                {/* Start + Due */}
+                                <div className="grid grid-cols-2 divide-x divide-slate-100">
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
+                                            Start
+                                        </span>
+                                        <span
+                                            className={`text-[12px] ${task.start_date ? "text-slate-800" : "text-slate-500"}`}
+                                        >
+                                            {formatDateTime(task.start_date)}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-center gap-3 px-4 py-3">
+                                        <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-14 shrink-0">
+                                            Due
+                                        </span>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            <span
+                                                className={`text-[12px] font-medium ${isOverdue ? "text-red-600" : "text-slate-800"}`}
+                                            >
+                                                {task.due_date ? (
+                                                    formatDateTime(task.due_date)
+                                                ) : (
+                                                    <span className="text-slate-500 font-normal">
+                                                        No due date
+                                                    </span>
                                                 )}
+                                            </span>
+                                            {isOverdue && (
+                                                <span className="text-[10px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded border border-red-200 leading-none">
+                                                    Overdue
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Assignees */}
+                                {task.users && task.users.length > 0 && (
+                                    <PropRow label="Assigned">
+                                        <div className="flex flex-wrap gap-2">
+                                            {task.users.map((user: any) => (
+                                                <div
+                                                    key={user.id}
+                                                    className="flex items-center gap-1.5"
+                                                >
+                                                    <Avatar
+                                                        size={22}
+                                                        icon={<UserOutlined />}
+                                                        src={user.image}
+                                                        className="shrink-0"
+                                                    />
+                                                    <span className="text-[12px] font-medium text-slate-800">
+                                                        {user.name}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </PropRow>
+                                )}
+
+                                {/* Assigner */}
+                                {assigner && (
+                                    <PropRow label="Assigner">
+                                        <div className="flex items-center gap-1.5">
+                                            <Avatar
+                                                size={22}
+                                                icon={<UserOutlined />}
+                                                src={assigner.image}
+                                                className="shrink-0"
+                                            />
+                                            <span className="text-[12px] font-medium text-slate-800">
+                                                {assigner.name}
+                                            </span>
+                                        </div>
+                                    </PropRow>
+                                )}
+
+                                {/* Project */}
+                                {task.project && (
+                                    <PropRow label="Project">
+                                        <span className="font-medium text-slate-800 text-[13px]">
+                                            {task.project.project_name}
+                                        </span>
+                                        {task.project.project_short_code && (
+                                            <span className="ml-2 text-[11px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded">
+                                                {task.project.project_short_code}
+                                            </span>
+                                        )}
+                                    </PropRow>
+                                )}
+
+                                {/* Category */}
+                                {task.category && (
+                                    <PropRow label="Category">
+                                        <Tag>{td(task.category.category_name)}</Tag>
+                                    </PropRow>
+                                )}
+
+                                {/* Labels */}
+                                {task.labels && task.labels.length > 0 && (
+                                    <PropRow label="Labels">
+                                        <div className="flex flex-wrap gap-1">
+                                            {task.labels.slice(0, 4).map((label: any) => (
+                                                <Tag
+                                                    key={label.id}
+                                                    style={{
+                                                        backgroundColor: label.label_color,
+                                                        borderColor: label.label_color,
+                                                        color: "#fff",
+                                                    }}
+                                                >
+                                                    {td(label.label_name)}
+                                                </Tag>
+                                            ))}
+                                            {task.labels.length > 4 && (
+                                                <Tooltip
+                                                    title={task.labels
+                                                        .slice(4)
+                                                        .map((l: any) => td(l.label_name))
+                                                        .join(", ")}
+                                                >
+                                                    <Tag>+{task.labels.length - 4}</Tag>
+                                                </Tooltip>
+                                            )}
+                                        </div>
+                                    </PropRow>
+                                )}
+                            </PropTable>
+                        </div>
+
+                        {/* ── Related entities ── */}
+                        {hasRelated && (
+                            <div>
+                                <SectionLabel>Related</SectionLabel>
+                                <PropTable>
+                                    {task.deals && task.deals.length > 0 && (
+                                        <PropRow label="Deals">
+                                            <div className="flex flex-col gap-1">
+                                                {task.deals.map((deal: any) => (
+                                                    <TaskEntityLink
+                                                        key={deal.id}
+                                                        type="deal"
+                                                        id={deal.id}
+                                                        name={td(deal.name)}
+                                                        className="!text-[13px]"
+                                                    />
+                                                ))}
                                             </div>
-                                        </Space>
-                                    </List.Item>
-                                )}
-                            />
-                        </div>
-                    )}
-                </Card>
-            )}
+                                        </PropRow>
+                                    )}
+                                    {task.leads && task.leads.length > 0 && (
+                                        <PropRow label="Leads">
+                                            <div className="flex flex-col gap-1">
+                                                {task.leads.map((lead: any) => (
+                                                    <TaskEntityLink
+                                                        key={lead.id}
+                                                        type="lead"
+                                                        id={lead.id}
+                                                        name={`${lead.client_name}${
+                                                            lead.company_name
+                                                                ? ` (${lead.company_name})`
+                                                                : ""
+                                                        }`}
+                                                        className="!text-[13px]"
+                                                    />
+                                                ))}
+                                            </div>
+                                        </PropRow>
+                                    )}
+                                    {task.properties && task.properties.length > 0 && (
+                                        <PropRow label="Properties">
+                                            <div className="flex flex-col gap-1">
+                                                {task.properties.map((property: any) => (
+                                                    <Link
+                                                        key={property.id}
+                                                        href={route(
+                                                            "products.show",
+                                                            property.id,
+                                                        )}
+                                                        className="text-blue-600 hover:underline inline-flex items-center gap-1 text-[13px]"
+                                                    >
+                                                        <LinkOutlined style={{ fontSize: 11 }} />
+                                                        {td(property.name)}
+                                                    </Link>
+                                                ))}
+                                            </div>
+                                        </PropRow>
+                                    )}
+                                </PropTable>
+                            </div>
+                        )}
 
-            {/* Categories & Labels */}
-            {(task.category || (task.labels && task.labels.length > 0)) && (
-                <Card
-                    size="small"
-                    title={
-                        <Space>
-                            <TagOutlined />
-                            {td("Categories & Labels")}
-                        </Space>
-                    }
-                    style={{ marginBottom: 16 }}
-                    variant="outlined"
-                >
-                    {task.category && (
-                        <div
-                            style={{
-                                marginBottom:
-                                    (task?.labels || [])?.length > 0 ? 16 : 0,
-                            }}
-                        >
-                            <Text strong>{td("Category")}</Text>
-                            <br />
-                            <Tag>{td(task.category.category_name)}</Tag>
-                        </div>
-                    )}
+                        {/* ── Time tracking ── */}
+                        {(estimatedMinutes > 0 || spentMinutes > 0) && (
+                            <div>
+                                <SectionLabel>Time Tracking</SectionLabel>
+                                <PropTable>
+                                    <div className="grid grid-cols-2 divide-x divide-slate-100">
+                                        <div className="px-4 py-3">
+                                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                                {td("Estimated")}
+                                            </p>
+                                            <p className="text-[13px] font-semibold text-slate-800 mb-0">
+                                                {estimatedMinutes > 0 ? (
+                                                    formatDuration(estimatedMinutes)
+                                                ) : (
+                                                    <span className="text-slate-500 font-normal">
+                                                        Not set
+                                                    </span>
+                                                )}
+                                            </p>
+                                        </div>
+                                        <div className="px-4 py-3">
+                                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                                                {td("Time Spent")}
+                                            </p>
+                                            <p className="text-[13px] font-semibold text-slate-800 mb-0">
+                                                {spentMinutes > 0 ? (
+                                                    formatDuration(spentMinutes)
+                                                ) : (
+                                                    <span className="text-slate-500 font-normal">
+                                                        None logged
+                                                    </span>
+                                                )}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    {estimatedMinutes > 0 && (
+                                        <div className="px-4 py-3">
+                                            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                                                {td("Progress")}
+                                            </p>
+                                            <Progress
+                                                percent={Math.round(progressPercent)}
+                                                status={
+                                                    progressPercent >= 100
+                                                        ? "exception"
+                                                        : "active"
+                                                }
+                                                size="small"
+                                            />
+                                        </div>
+                                    )}
+                                </PropTable>
+                            </div>
+                        )}
 
-                    {task.labels && task.labels.length > 0 && (
+                        {/* ── Description — last, in a bordered box ── */}
                         <div>
-                            <Text strong>{td("Labels")}</Text>
-                            <br />
-                            <Space wrap style={{ marginTop: 4 }}>
-                                {task.labels.slice(0, 2).map((label: any) => (
-                                    <Tag
-                                        key={label.id}
-                                        color={label.label_color}
-                                        style={{
-                                            backgroundColor: label.label_color,
-                                            borderColor: label.label_color,
-                                            color: "#fff",
-                                        }}
-                                    >
-                                        {td(label.label_name)}
-                                    </Tag>
-                                ))}
-                                {task.labels.length > 2 && (
-                                    <Tooltip
-                                        title={task.labels
-                                            .slice(2)
-                                            .map((l: any) => td(l.label_name))
-                                            .join(", ")}
-                                    >
-                                        <Tag>+{task.labels.length - 2}</Tag>
-                                    </Tooltip>
+                            <SectionLabel>Description</SectionLabel>
+                            <div className="rounded-xl border border-slate-100 px-4 py-3 min-h-[72px]">
+                                {task.description ? (
+                                    <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap mb-0">
+                                        {td(task.description)}
+                                    </p>
+                                ) : (
+                                    <p className="text-[13px] text-slate-300 italic mb-0">
+                                        {td("No description added")}
+                                    </p>
                                 )}
-                            </Space>
+                            </div>
                         </div>
-                    )}
-                </Card>
-            )}
-
-            {/* Related Entities - Properties, Deals, Leads */}
-            {((task.deals && task.deals.length > 0) ||
-                (task.leads && task.leads.length > 0) ||
-                (task.properties && task.properties.length > 0)) && (
-                <Card
-                    size="small"
-                    title={
-                        <Space>
-                            <FlagOutlined />
-                            {td("Related Entities")}
-                        </Space>
-                    }
-                    style={{ marginBottom: 16 }}
-                    variant="outlined"
-                >
-                    {/* Deals */}
-                    {task.deals && task.deals.length > 0 && (
-                        <div
-                            style={{
-                                marginBottom:
-                                    (task.leads?.length || 0) > 0 ||
-                                    (task.properties?.length || 0) > 0
-                                        ? 16
-                                        : 0,
-                            }}
-                        >
-                            <Text strong>{td("Deals")}</Text>
-                            <List
-                                size="small"
-                                dataSource={task.deals}
-                                renderItem={(deal: any) => (
-                                    <List.Item style={{ padding: "4px 0" }}>
-                                        <Link
-                                            href={route("deals.show", deal.id)}
-                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-                                        >
-                                            <LinkOutlined
-                                                style={{ fontSize: 12 }}
-                                            />
-                                            {td(deal.name)}
-                                        </Link>
-                                    </List.Item>
-                                )}
-                            />
-                        </div>
-                    )}
-                    {/* Leads */}
-                    {task.leads && task.leads.length > 0 && (
-                        <div
-                            style={{
-                                marginBottom:
-                                    (task.properties?.length || 0) > 0 ? 16 : 0,
-                            }}
-                        >
-                            <Text strong>{td("Leads")}</Text>
-                            <List
-                                size="small"
-                                dataSource={task.leads}
-                                renderItem={(lead: any) => (
-                                    <List.Item style={{ padding: "4px 0" }}>
-                                        <Link
-                                            href={route(
-                                                "lead-contact.show",
-                                                lead.id,
-                                            )}
-                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-                                        >
-                                            <LinkOutlined
-                                                style={{ fontSize: 12 }}
-                                            />
-                                            {lead.client_name}{" "}
-                                            {lead.company_name
-                                                ? `(${lead.company_name})`
-                                                : ""}
-                                        </Link>
-                                    </List.Item>
-                                )}
-                            />
-                        </div>
-                    )}
-                    {/* Properties */}
-                    {task.properties && task.properties.length > 0 && (
-                        <div>
-                            <Text strong>{td("Properties")}</Text>
-                            <List
-                                size="small"
-                                dataSource={task.properties}
-                                renderItem={(property: any) => (
-                                    <List.Item style={{ padding: "4px 0" }}>
-                                        <Link
-                                            href={route(
-                                                "products.show",
-                                                property.id,
-                                            )}
-                                            className="text-blue-600 hover:text-blue-800 hover:underline flex items-center gap-1"
-                                        >
-                                            <LinkOutlined
-                                                style={{ fontSize: 12 }}
-                                            />
-                                            {td(property.name)}
-                                        </Link>
-                                    </List.Item>
-                                )}
-                            />
-                        </div>
-                    )}
-                </Card>
-            )}
-
-            {/* Additional Details */}
-            {/* {(task.task_short_code || task.hash) && (
-                <Card
-                    size="small"
-                    title="Additional Details"
-                    style={{ marginBottom: 16 }}
-                >
-                    <Descriptions size="small" column={1}>
-                        {task.task_short_code && (
-                            <Descriptions.Item label="Task Code">
-                                <Text code>{task.task_short_code}</Text>
-                            </Descriptions.Item>
-                        )}
-                        {task.hash && (
-                            <Descriptions.Item label="Unique Hash">
-                                <Text code style={{ fontSize: "11px" }}>
-                                    {task.hash}
-                                </Text>
-                            </Descriptions.Item>
-                        )}
-                        {task.created_by && (
-                            <Descriptions.Item label="Created By">
-                                <Space>
-                                    <Avatar
-                                        size="small"
-                                        icon={<UserOutlined />}
-                                        src={task.created_by.image}
-                                    />
-                                    {task.created_by.name}
-                                </Space>
-                            </Descriptions.Item>
-                        )}
-                    </Descriptions>
-                </Card>
-            )} */}
-        </div>
+                    </>
+                )}
+            </div>
+        </Modal>
     );
 };
 
-export default TaskDetailsDrawer;
+export default TaskDetailsModal;

@@ -76,7 +76,7 @@ class NewMentionChat extends BaseNotification
         $build
             ->subject(__('email.newChat.mentionSubject') . ' ' . __('app.from') . ' ' . $this->userChat->fromUser->name)
             ->markdown('mail.email', [
-                'url' => route('messages.index'),
+                'url' => $this->modifyUrl(route('messages.index')),
                 'content' => $content,
                 'themeColor' => $this->company->header_color,
                 'actionText' => __('email.newChat.action'),
@@ -106,8 +106,7 @@ class NewMentionChat extends BaseNotification
 
     public function toSlack($notifiable)
     {
-        $url = route('messages.index');
-        $url = getDomainSpecificUrl($url, $this->company);
+        $url = $this->modifyUrl(route('messages.index'));
 
         return $this->slackBuild($notifiable)
             ->content('<' . $url . '|' . __('email.newChat.subject') . ' ' . __('app.from') . ' ' . $this->userChat->fromUser->name . '>');
@@ -119,7 +118,7 @@ class NewMentionChat extends BaseNotification
         return OneSignalMessage::create()
             ->setSubject(__('email.newChat.mentionSubject') . ' ' . __('app.from') . ' ' . $this->userChat->fromUser->name)
             ->setBody($this->userChat->message)
-            ->setUrl(route('messages.index'));
+            ->setUrl($this->modifyUrl(route('messages.index')));
     }
 
 }

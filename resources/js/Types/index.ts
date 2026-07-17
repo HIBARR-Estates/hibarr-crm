@@ -275,6 +275,7 @@ export interface Property {
     _developer_project_name?: string;
     _sold_count?: number;
     _sold_property_ids?: number[];
+    is_sold_out?: boolean;
 }
 
 // Project Location (simplified reference)

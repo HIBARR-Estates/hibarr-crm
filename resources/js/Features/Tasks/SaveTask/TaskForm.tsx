@@ -4,31 +4,20 @@ import {
     Input,
     Select,
     DatePicker,
-    InputNumber,
-    Switch,
     Row,
     Col,
     Space,
     Typography,
-    Tag,
-    Divider,
     Button,
 } from "antd";
 import {
-    ProjectOutlined,
-    TagOutlined,
-    FileTextOutlined,
-    ClockCircleOutlined,
     SaveOutlined,
     UserOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { usePage } from "@inertiajs/react";
 
-import TaskCategorySelector from "../Components/Selectors/TaskCategorySelector";
-import TaskLabelSelector from "../Components/Selectors/TaskLabelSelector";
 
-const { Option } = Select;
 const { TextArea } = Input;
 const { Text } = Typography;
 
@@ -76,7 +65,7 @@ interface Lead {
 }
 
 interface Property {
-    id: number;
+    id?: number;
     name?: string;
     title?: string;
 }
@@ -105,7 +94,158 @@ interface TaskFormProps {
         id?: number;
     };
     td?: (key: string) => string;
+    formId?: string;
+    hideFooter?: boolean;
 }
+
+// ─── Section divider ──────────────────────────────────────────────────────────
+
+function SectionDivider({ label }: { label: string }) {
+    return (
+        <div className="flex items-center gap-3 py-1 col-span-2">
+            <div className="flex-1 h-px bg-gray-100" />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-300 whitespace-nowrap">
+                {label}
+            </span>
+            <div className="flex-1 h-px bg-gray-100" />
+        </div>
+    );
+}
+
+// ─── Priority chip selector ────────────────────────────────────────────────────
+
+const PRIORITY_CONFIG = {
+    high:   { color: "#ef4444", bg: "#fef2f2", border: "#ef444440", label: "High Priority"   },
+    medium: { color: "#f59e0b", bg: "#fffbeb", border: "#f59e0b40", label: "Medium Priority" },
+    low:    { color: "#94a3b8", bg: "#f8fafc", border: "#94a3b840", label: "Low Priority"    },
+} as const;
+
+function PriorityChips({
+    value,
+    onChange,
+    disabled,
+}: {
+    value?: "low" | "medium" | "high";
+    onChange?: (v: "low" | "medium" | "high") => void;
+    disabled?: boolean;
+}) {
+    return (
+        <div className="flex flex-col gap-1.5">
+            {(["high", "medium", "low"] as const).map((pr) => {
+                const cfg = PRIORITY_CONFIG[pr];
+                const active = value === pr;
+                return (
+                    <button
+                        key={pr}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => onChange?.(pr)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
+                            active ? "shadow-sm" : "border-gray-200 text-gray-500 bg-white hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                        style={active ? { color: cfg.color, backgroundColor: cfg.bg, borderColor: cfg.border } : {}}
+                    >
+                        <span
+                            className="w-2.5 h-2.5 rounded-sm shrink-0"
+                            style={{ backgroundColor: active ? cfg.color : "#cbd5e1" }}
+                        />
+                        <span className="flex-1">{cfg.label}</span>
+                        {active && (
+                            <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── Status chip selector ──────────────────────────────────────────────────────
+
+function StatusChips({
+    value,
+    onChange,
+    disabled,
+    columns,
+}: {
+    value?: number;
+    onChange?: (v: number) => void;
+    disabled?: boolean;
+    columns: TaskboardColumn[];
+}) {
+    return (
+        <div className="flex flex-col gap-1.5">
+            {columns.map((col) => {
+                const active = value === col.id;
+                return (
+                    <button
+                        key={col.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => onChange?.(col.id)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-[13px] font-medium transition-all text-left disabled:opacity-50 disabled:cursor-not-allowed ${
+                            active
+                                ? "border-blue-300 bg-blue-50 text-blue-700 shadow-sm"
+                                : "border-gray-200 text-gray-500 bg-white hover:border-gray-300 hover:bg-gray-50"
+                        }`}
+                    >
+                        <span
+                            className="w-2 h-2 rounded-full shrink-0"
+                            style={{ backgroundColor: col.label_color || (active ? "#3b82f6" : "#cbd5e1") }}
+                        />
+                        <span className="flex-1">{col.column_name}</span>
+                        {active && (
+                            <svg className="w-3.5 h-3.5 shrink-0 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                            </svg>
+                        )}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── Category chip selector ────────────────────────────────────────────────────
+
+function CategoryChips({
+    value,
+    onChange,
+    disabled,
+    categories,
+}: {
+    value?: number;
+    onChange?: (v: number | undefined) => void;
+    disabled?: boolean;
+    categories: TaskCategory[];
+}) {
+    return (
+        <div className="flex flex-wrap gap-2">
+            {categories.map((cat) => {
+                const active = value === cat.id;
+                return (
+                    <button
+                        key={cat.id}
+                        type="button"
+                        disabled={disabled}
+                        onClick={() => onChange?.(active ? undefined : cat.id)}
+                        className={`px-3 py-1.5 rounded-md border text-[13px] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                            active
+                                ? "bg-blue-500 border-blue-500 text-white"
+                                : "border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-500"
+                        }`}
+                    >
+                        {cat.category_name}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+// ─── Main form ─────────────────────────────────────────────────────────────────
 
 const TaskForm: React.FC<TaskFormProps> = ({
     data,
@@ -128,6 +268,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
     properties = [],
     relatedEntity,
     td = (key) => key,
+    formId,
+    hideFooter = false,
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage();
@@ -138,7 +280,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         view_tasks: string;
     }>;
 
-    const isAdmin = permissions?.view_tasks === "all";
+    const isAdmin = !permissions || permissions?.view_tasks === "all";
 
     const getPropertyLabel = (property: Property) =>
         property.name ?? property.title ?? `Property #${property.id}`;
@@ -150,90 +292,87 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
     const getDealLabel = (deal: Deal) => td(deal.name);
 
-    const filterLeadOption = (
-        input: string,
-        option?: { value?: number },
-    ) => {
+    const filterLeadOption = (input: string, option?: { value?: number }) => {
         const lead = leads.find((l) => l.id === option?.value);
-        const label = lead ? getLeadLabel(lead) : "";
-        return label.toLowerCase().includes(input.toLowerCase());
+        return (lead ? getLeadLabel(lead) : "").toLowerCase().includes(input.toLowerCase());
     };
 
-    const filterDealOption = (
-        input: string,
-        option?: { value?: number },
-    ) => {
+    const filterDealOption = (input: string, option?: { value?: number }) => {
         const deal = deals.find((d) => d.id === option?.value);
-        const label = deal ? getDealLabel(deal) : "";
-        return label.toLowerCase().includes(input.toLowerCase());
+        return (deal ? getDealLabel(deal) : "").toLowerCase().includes(input.toLowerCase());
     };
 
-    const filterPropertyOption = (
-        input: string,
-        option?: { value?: number },
-    ) => {
+    const filterPropertyOption = (input: string, option?: { value?: number }) => {
         const property = properties.find((p) => p.id === option?.value);
-        const label = property ? getPropertyLabel(property) : "";
-        return label.toLowerCase().includes(input.toLowerCase());
+        return (property ? getPropertyLabel(property) : "").toLowerCase().includes(input.toLowerCase());
     };
 
-    // Set form values when data changes
+    // `columns`/`relatedEntity` are read from refs (not effect deps) below on
+    // purpose. Callers often pass `relatedEntity={{ type: "lead", id }}` as a
+    // fresh inline object literal on every render, so its reference changes
+    // whenever the parent re-renders for any unrelated reason (e.g. another
+    // part of the page doing a partial Inertia reload). If those were real
+    // deps, this effect would re-run and call form.setFieldsValue(...) again
+    // mid-edit, silently wiping whatever the user had already typed. Reading
+    // the latest values via ref keeps the effect scoped to real state
+    // changes — the modal opening/closing or switching which task is loaded.
+    const columnsRef = React.useRef(columns);
+    columnsRef.current = columns;
+    const relatedEntityRef = React.useRef(relatedEntity);
+    relatedEntityRef.current = relatedEntity;
+
     React.useEffect(() => {
         if (data && visible) {
-            const formValues = {
+            form.setFieldsValue({
                 ...data,
                 start_date: data.start_date ? dayjs(data.start_date) : dayjs(),
-                due_date: data.due_date ? dayjs(data.due_date) : undefined,
-            };
-            form.setFieldsValue(formValues);
+                due_date:   data.due_date   ? dayjs(data.due_date)   : undefined,
+            });
         } else if (!data && visible) {
             form.resetFields();
             const initialValues: any = {
                 start_date: dayjs(),
-                priority: "medium",
-                board_column_id: columns.find((col) => col.slug === "to_do")
-                    ?.id,
+                priority:   "medium",
+                board_column_id: columnsRef.current.find((col) => col.slug === "to_do")?.id,
             };
-
-            // Pre-fill related entity if provided
-            if (relatedEntity) {
-                if (relatedEntity.type === "deal") {
-                    initialValues.deal_id = relatedEntity.id;
-                } else if (relatedEntity.type === "lead") {
-                    initialValues.lead_id = relatedEntity.id;
-                } else if (relatedEntity.type === "property") {
-                    initialValues.property_id = relatedEntity.id;
-                }
+            const currentRelatedEntity = relatedEntityRef.current;
+            if (currentRelatedEntity) {
+                if (currentRelatedEntity.type === "deal")     initialValues.deal_id     = currentRelatedEntity.id;
+                else if (currentRelatedEntity.type === "lead") initialValues.lead_id     = currentRelatedEntity.id;
+                else if (currentRelatedEntity.type === "property") initialValues.property_id = currentRelatedEntity.id;
             }
-
             form.setFieldsValue(initialValues);
         }
-    }, [data, visible, form, columns, relatedEntity]);
+    }, [data, visible, form]);
+
+    const hasRelatedFields =
+        (relatedEntity?.type !== "deal" && deals.length > 0) ||
+        (relatedEntity?.type !== "lead" && leads.length > 0) ||
+        (relatedEntity?.type !== "property" && properties.length > 0);
 
     return (
         <Form
+            id={formId}
             form={form}
             layout="vertical"
             onFinish={(vals) => {
                 const taskableInfo: any = {};
-
                 if (vals.deal_id) {
                     taskableInfo.taskable_type = "deal";
-                    taskableInfo.taskable_id = vals.deal_id;
+                    taskableInfo.taskable_id   = vals.deal_id;
                 } else if (vals.lead_id) {
                     taskableInfo.taskable_type = "lead";
-                    taskableInfo.taskable_id = vals.lead_id;
+                    taskableInfo.taskable_id   = vals.lead_id;
                 } else if (vals.property_id) {
                     taskableInfo.taskable_type = "property";
-                    taskableInfo.taskable_id = vals.property_id;
+                    taskableInfo.taskable_id   = vals.property_id;
                 }
-
                 onSubmit({
                     ...vals,
                     ...taskableInfo,
-                    priority: vals.priority || "medium",
+                    priority:        vals.priority || "medium",
                     without_duedate: !vals.due_date,
-                    user_ids: isAdmin
+                    user_ids:        isAdmin
                         ? vals?.user_ids
                         : [props?.auth?.user?.id].filter(Boolean),
                 });
@@ -241,57 +380,38 @@ const TaskForm: React.FC<TaskFormProps> = ({
             preserve={false}
             style={{ marginTop: 16 }}
         >
+            {/* ── Title ── */}
+            <Form.Item
+                name="heading"
+                label={td("Task Title")}
+                rules={[
+                    { required: true, message: td("Please enter task title") },
+                    { min: 3, message: td("Title must be at least 3 characters") },
+                ]}
+            >
+                <Input placeholder={td("Enter task title...")} size="large" />
+            </Form.Item>
+
+            {/* ── Description ── */}
+            <Form.Item
+                name="description"
+                label={td("Description")}
+                extra={td("Provide a detailed description of the task")}
+            >
+                <TextArea
+                    rows={3}
+                    placeholder={td("Enter task description...")}
+                    showCount
+                    maxLength={1000}
+                />
+            </Form.Item>
+
+            {/* ── Scheduling ── */}
+            <SectionDivider label="Scheduling" />
+
             <Row gutter={16}>
-                <Col span={24}>
-                    <Form.Item
-                        name="heading"
-                        label={td("Task Title")}
-                        rules={[
-                            {
-                                required: true,
-                                message: td("Please enter task title"),
-                            },
-                            {
-                                min: 3,
-                                message: td(
-                                    "Title must be at least 3 characters",
-                                ),
-                            },
-                        ]}
-                    >
-                        <Input
-                            placeholder={td("Enter task title...")}
-                            size="large"
-                        />
-                    </Form.Item>
-                </Col>
-
-                <Col span={24}>
-                    <Form.Item
-                        name="description"
-                        label={td("Description")}
-                        extra={td("Provide a detailed description of the task")}
-                    >
-                        <TextArea
-                            rows={4}
-                            placeholder={td("Enter task description...")}
-                            showCount
-                            maxLength={1000}
-                        />
-                    </Form.Item>
-                </Col>
-
                 <Col xs={24} sm={12}>
-                    <Form.Item
-                        name="start_date"
-                        label={td("Start Date")}
-                        rules={[
-                            {
-                                required: false,
-                                message: "Please select start date",
-                            },
-                        ]}
-                    >
+                    <Form.Item name="start_date" label={td("Start Date")}>
                         <DatePicker
                             style={{ width: "100%" }}
                             showTime={{ format: "HH:mm" }}
@@ -299,7 +419,6 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         />
                     </Form.Item>
                 </Col>
-
                 <Col xs={24} sm={12}>
                     <Form.Item
                         name="due_date"
@@ -313,128 +432,86 @@ const TaskForm: React.FC<TaskFormProps> = ({
                         />
                     </Form.Item>
                 </Col>
+            </Row>
 
+            {/* ── Classification ── */}
+            <SectionDivider label="Classification" />
+
+            <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                    <Form.Item
-                        name="priority"
-                        label={td("Priority")}
-                        rules={[
-                            {
-                                required: false,
-                                message: td("Please select priority"),
-                            },
-                        ]}
-                    >
-                        <Select placeholder={td("Select priority")}>
-                            <Option value="low">
-                                <Space>🟢 {td("Low Priority")}</Space>
-                            </Option>
-                            <Option value="medium">
-                                <Space>🔵 {td("Medium Priority")}</Space>
-                            </Option>
-                            <Option value="high">
-                                <Space>🔴 {td("High Priority")}</Space>
-                            </Option>
-                        </Select>
+                    <Form.Item name="priority" label={td("Priority")}>
+                        <PriorityChips disabled={loading} />
                     </Form.Item>
                 </Col>
-
                 <Col xs={24} sm={12}>
-                    <Form.Item
-                        name="board_column_id"
-                        label={td("Initial Status")}
-                        extra={td("Starting status for this task")}
-                    >
-                        <Select>
-                            {columns.map((column) => (
-                                <Option key={column.id} value={column.id}>
-                                    <Space>
-                                        <div
-                                            style={{
-                                                width: 8,
-                                                height: 8,
-                                                borderRadius: "50%",
-                                                backgroundColor:
-                                                    column.label_color,
-                                                display: "inline-block",
-                                            }}
-                                        />
-                                        {column.column_name}
-                                    </Space>
-                                </Option>
-                            ))}
-                        </Select>
+                    <Form.Item name="board_column_id" label={td("Initial Status")} extra={td("Starting status for this task")}>
+                        <StatusChips columns={columns} disabled={loading} />
                     </Form.Item>
                 </Col>
+            </Row>
 
-                <Col xs={24} sm={24}>
-                    <Form.Item
-                        name="user_ids"
-                        label={td("Assignees")}
-                        extra={td("Select team members to assign this task")}
+            {/* ── People ── */}
+            <SectionDivider label="People" />
+
+            {isAdmin && (
+                <Form.Item
+                    name="user_ids"
+                    label={td("Assignees")}
+                    extra={td("Select team members to assign this task")}
+                >
+                    <Select
+                        mode="multiple"
+                        placeholder={td("Select assignees")}
+                        showSearch
+                        filterOption={(input, option) => {
+                            const user = users.find((u) => u.id === option?.value);
+                            return (
+                                user?.name?.toLowerCase().includes(input.toLowerCase()) ||
+                                user?.designation_name?.toLowerCase().includes(input.toLowerCase()) ||
+                                false
+                            );
+                        }}
                     >
-                        <Select
-                            mode="multiple"
-                            placeholder={td("Select assignees")}
-                            showSearch
-                            filterOption={(input, option) => {
-                                const user = users.find(
-                                    (u) => u.id === option?.value,
-                                );
-                                return (
-                                    user?.name
-                                        ?.toLowerCase()
-                                        .includes(input.toLowerCase()) ||
-                                    user?.designation_name
-                                        ?.toLowerCase()
-                                        .includes(input.toLowerCase()) ||
-                                    false
-                                );
-                            }}
-                        >
-                            {users.map((user) => (
-                                <Option key={user.id} value={user.id}>
-                                    <Space>
-                                        <UserOutlined />
-                                        {user.name}
-                                        {user.designation_name && (
-                                            <Text
-                                                type="secondary"
-                                                style={{
-                                                    fontSize: 12,
-                                                }}
-                                            >
-                                                ({td(user.designation_name)})
-                                            </Text>
-                                        )}
-                                    </Space>
-                                </Option>
-                            ))}
-                        </Select>
-                    </Form.Item>
-                </Col>
+                        {users.map((user) => (
+                            <Select.Option key={user.id} value={user.id}>
+                                <Space>
+                                    <UserOutlined />
+                                    {user.name}
+                                    {user.designation_name && (
+                                        <Text type="secondary" style={{ fontSize: 12 }}>
+                                            ({td(user.designation_name)})
+                                        </Text>
+                                    )}
+                                </Space>
+                            </Select.Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+            )}
 
-                {relatedEntity?.type !== "deal" && deals.length > 0 && (
-                    <Col xs={24} sm={24}>
-                        <Form.Item name="deal_id" label={td("Related Deal")}>
-                            <Select
-                                placeholder={td("Select a deal")}
-                                showSearch
-                                allowClear
-                                filterOption={filterDealOption}
-                            >
-                                {deals.map((deal) => (
-                                    <Option key={deal.id} value={deal.id}>
-                                        {td(deal.name)}
-                                    </Option>
-                                ))}
-                            </Select>
-                        </Form.Item>
-                    </Col>
-                )}
+            {/* ── Related to ── */}
+            {hasRelatedFields && <SectionDivider label="Related to" />}
 
+            {relatedEntity?.type !== "deal" && deals.length > 0 && (
+                <Form.Item name="deal_id" label={td("Related Deal")}>
+                    <Select
+                        placeholder={td("Select a deal")}
+                        showSearch
+                        allowClear
+                        filterOption={filterDealOption}
+                    >
+                        {deals.map((deal) => (
+                            <Select.Option key={deal.id} value={deal.id}>
+                                {td(deal.name)}
+                            </Select.Option>
+                        ))}
+                    </Select>
+                </Form.Item>
+            )}
+
+            <Row gutter={16}>
                 {relatedEntity?.type !== "lead" && leads.length > 0 && (
-                    <Col xs={24} sm={24}>
+                    <Col xs={24} sm={12}>
                         <Form.Item name="lead_id" label={td("Related Lead")}>
                             <Select
                                 placeholder={td("Select a lead")}
@@ -443,58 +520,51 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                 filterOption={filterLeadOption}
                             >
                                 {leads.map((lead) => (
-                                    <Option key={lead.id} value={lead.id}>
+                                    <Select.Option key={lead.id} value={lead.id}>
                                         {lead.client_name}{" "}
-                                        {lead.company_name
-                                            ? `(${lead.company_name})`
-                                            : ""}
-                                    </Option>
+                                        {lead.company_name ? `(${lead.company_name})` : ""}
+                                    </Select.Option>
                                 ))}
                             </Select>
                         </Form.Item>
                     </Col>
                 )}
-
-                {relatedEntity?.type !== "property" &&
-                    properties.length > 0 && (
-                        <Col xs={24} sm={24}>
-                            <Form.Item
-                                name="property_id"
-                                label={td("Related Property")}
+                {relatedEntity?.type !== "property" && properties.length > 0 && (
+                    <Col xs={24} sm={12}>
+                        <Form.Item name="property_id" label={td("Related Property")}>
+                            <Select
+                                placeholder="Select a property"
+                                showSearch
+                                allowClear
+                                filterOption={filterPropertyOption}
                             >
-                                <Select
-                                    placeholder="Select a property"
-                                    showSearch
-                                    allowClear
-                                    filterOption={filterPropertyOption}
-                                >
-                                    {properties.map((property) => (
-                                        <Option
-                                            key={property.id}
-                                            value={property.id}
-                                        >
-                                            {getPropertyLabel(property)}
-                                        </Option>
-                                    ))}
-                                </Select>
-                            </Form.Item>
-                        </Col>
-                    )}
+                                {properties.map((property) => (
+                                    <Select.Option key={property.id} value={property.id}>
+                                        {getPropertyLabel(property)}
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                        </Form.Item>
+                    </Col>
+                )}
             </Row>
 
-            <div className="flex items-center justify-end space-x-3 mt-8 pt-4 border-t border-gray-200">
-                <Button onClick={onCancel} disabled={loading}>
-                    {cancelText}
-                </Button>
-                <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={loading}
-                    icon={<SaveOutlined />}
-                >
-                    {submitText}
-                </Button>
-            </div>
+            {/* Footer (hidden when managed externally) */}
+            {!hideFooter && (
+                <div className="flex items-center justify-end space-x-3 mt-8 pt-4 border-t border-gray-200">
+                    <Button onClick={onCancel} disabled={loading}>
+                        {cancelText}
+                    </Button>
+                    <Button
+                        type="primary"
+                        htmlType="submit"
+                        loading={loading}
+                        icon={<SaveOutlined />}
+                    >
+                        {submitText}
+                    </Button>
+                </div>
+            )}
         </Form>
     );
 };

@@ -1,9 +1,13 @@
 import { useEffect } from "react";
-import { Button, Form, Input, Modal, Select } from "antd";
-import type { DeveloperProject, ProjectLocationOption } from "@/Types/developerProject";
-import type { CreateDeveloperProjectInput } from "@/Types/developerProject";
+import { Button, Form, Input, Modal, Select, Switch } from "antd";
+import type {
+    DeveloperProject,
+    ProjectLocationOption,
+    CreateDeveloperProjectInput,
+} from "@/Types/developerProject";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 
 export interface ProjectFormModalProps {
     open: boolean;
@@ -12,6 +16,7 @@ export interface ProjectFormModalProps {
     locations: ProjectLocationOption[];
     locationsLoading: boolean;
     onSuccess: () => void;
+    canToggleHidden?: boolean;
 }
 
 const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
@@ -21,6 +26,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
     locations,
     locationsLoading,
     onSuccess,
+    canToggleHidden = false,
 }) => {
     const [form] = Form.useForm();
     const isEditing = !!project;
@@ -59,6 +65,10 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                 project_location_id: values.project_location_id,
             };
 
+            if (canToggleHidden) {
+                payload.is_hidden = !!values.is_hidden;
+            }
+
             if (isEditing) {
                 updateMutation.mutate(payload);
             } else {
@@ -73,6 +83,7 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                 name: project?.name || "",
                 description: project?.description || "",
                 project_location_id: project?.project_location_id || undefined,
+                is_hidden: !!project?.is_hidden,
             });
         } else {
             form.resetFields();
@@ -104,8 +115,14 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                     name="name"
                     label="Project Name"
                     rules={[
-                        { required: true, message: "Please enter project name" },
-                        { max: 255, message: "Name cannot exceed 255 characters" },
+                        {
+                            required: true,
+                            message: "Please enter project name",
+                        },
+                        {
+                            max: 255,
+                            message: "Name cannot exceed 255 characters",
+                        },
                     ]}
                 >
                     <Input placeholder="Enter project name" />
@@ -127,10 +144,21 @@ const ProjectFormModal: React.FC<ProjectFormModalProps> = ({
                         loading={locationsLoading}
                         options={locations.map((loc) => ({
                             value: loc.id,
-                            label: `${loc.name}${loc.city ? ` (${loc.city})` : ""}`,
+                            label: `${formatLocationNameForDisplay(loc.name)}${loc.city ? ` (${loc.city})` : ""}`,
                         }))}
                     />
                 </Form.Item>
+
+                {canToggleHidden && (
+                    <Form.Item
+                        name="is_hidden"
+                        label="Hide from view-only users"
+                        valuePropName="checked"
+                        extra="When enabled, users without edit access will not see this project."
+                    >
+                        <Switch />
+                    </Form.Item>
+                )}
             </Form>
         </Modal>
     );

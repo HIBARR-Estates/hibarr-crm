@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { router, usePage } from "@inertiajs/react";
-import { Drawer, Skeleton } from "antd";
+import { Modal, Skeleton } from "antd";
+import { SaveOutlined } from "@ant-design/icons";
+import "./save-task-modal.css";
 import { IModalProps } from "@/Types/common";
 import TaskForm from "./TaskForm";
 import { useApiMutate } from "@/lib/api/client";
@@ -8,6 +10,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
+import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 
 interface Task {
     id: number;
@@ -89,7 +92,8 @@ interface Lead {
 
 interface Property {
     id: number;
-    name: string;
+    title?: string;
+    name?: string;
 }
 
 interface CreateTaskFormData {
@@ -131,8 +135,13 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
         id?: number;
     };
     td?: (key: string) => string;
-    onSuccess?: () => void;
-    reloadKeys?: string[];
+    /** Called after a successful create/update with the API task payload when available. */
+    onSuccess?: (task?: Task) => void;
+    /**
+     * Inertia partial-reload keys after success. Pass `false` to skip reload
+     * (use when the parent merges the returned task into local state).
+     */
+    reloadKeys?: string[] | false;
 }
 
 const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
@@ -178,6 +187,68 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         isEditing && fetchedTaskData?.task
             ? fetchedTaskData.task
             : (task as Task | undefined);
+
+    // True when the caller didn't supply any picker options at all (e.g. the
+    // Dashboard), meaning TaskForm's "Related to" section never renders and
+    // the user has no way to see/change the link through this form.
+    const noEntityPickerRendered =
+        deals.length === 0 && leads.length === 0 && properties.length === 0;
+
+    // Resolve which deal/lead/property this task is linked to, so we can (a)
+    // show it to the user regardless of which page opened this modal, and
+    // (b) preserve the link on submit even when the caller (e.g. the
+    // Dashboard) doesn't pass a `deals`/`leads` picker list, in which case
+    // the "Related to" fields in TaskForm aren't rendered at all.
+    const linkedEntity = React.useMemo(() => {
+        // Prefer the richer task data (has real names) whenever it's available —
+        // it's always accurate for the task actually being edited/duplicated.
+        const anyTask = activeTask as any;
+        if (anyTask?.deals?.[0]) {
+            return { type: "deal" as const, id: anyTask.deals[0].id, name: anyTask.deals[0].name };
+        }
+        if (anyTask?.deal) {
+            return { type: "deal" as const, id: anyTask.deal.id, name: anyTask.deal.name };
+        }
+        if (anyTask?.leads?.[0]) {
+            return {
+                type: "lead" as const,
+                id: anyTask.leads[0].id,
+                name: anyTask.leads[0].client_name,
+            };
+        }
+        if (anyTask?.lead) {
+            return { type: "lead" as const, id: anyTask.lead.id, name: anyTask.lead.client_name };
+        }
+        if (anyTask?.properties?.[0]) {
+            return {
+                type: "property" as const,
+                id: anyTask.properties[0].id,
+                name:
+                    anyTask.properties[0].title ??
+                    anyTask.properties[0].name,
+            };
+        }
+
+        // Fall back to the caller-supplied relatedEntity (e.g. a brand new task
+        // being created from a Deal/Lead's own task tab, before it has any
+        // fetched task data of its own).
+        if (relatedEntity?.id) {
+            const lookupName =
+                relatedEntity.type === "deal"
+                    ? deals.find((d) => d.id === relatedEntity.id)?.name
+                    : relatedEntity.type === "lead"
+                      ? leads.find((l) => l.id === relatedEntity.id)?.client_name
+                      : (() => {
+                            const property = properties.find(
+                                (p) => p.id === relatedEntity.id,
+                            );
+                            return property?.title ?? property?.name;
+                        })();
+            return { ...relatedEntity, name: lookupName };
+        }
+
+        return undefined;
+    }, [relatedEntity, activeTask, deals, leads, properties]);
 
     const getTitle = () => {
         if (isEditing) return "Edit Task";
@@ -298,25 +369,42 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                 : values.due_date,
             estimate_hours: values.estimate_hours || 0,
             estimate_minutes: values.estimate_minutes || 0,
-            taskable_type: values?.taskable_type ?? relatedEntity?.type,
-            taskable_id: values?.taskable_id ?? relatedEntity?.id,
+            // Only fall back to the derived link when no "Related to" picker was
+            // ever rendered for the user (e.g. opened from the Dashboard, which
+            // doesn't pass deals/leads/properties lists) — otherwise trust the
+            // form values as-is so clearing/reassigning a picker field on pages
+            // that do show it (e.g. the Tasks list) keeps working.
+            taskable_type:
+                values?.taskable_type ??
+                (noEntityPickerRendered ? linkedEntity?.type : undefined),
+            taskable_id:
+                values?.taskable_id ??
+                (noEntityPickerRendered ? linkedEntity?.id : undefined),
         };
 
         const mutation = isEditing ? updateTask : createTask;
 
         mutation(submitData, {
-            onSuccess: () => {
+            onSuccess: (response) => {
                 setErrors([]);
                 handleCancel();
-                onSuccess?.();
-                router.reload({
-                    only: reloadKeys ?? [
-                        "tableTasks",
-                        "kanbanTasks",
-                        "stats",
-                        "tasks",
-                    ],
-                });
+                const savedTask =
+                    response && "data" in response
+                        ? (response.data as Task | undefined)
+                        : undefined;
+                onSuccess?.(savedTask);
+                if (reloadKeys !== false) {
+                    router.reload({
+                        only: reloadKeys ?? [
+                            "tableTasks",
+                            "kanbanTasks",
+                            "stats",
+                            "tasks",
+                            "overviewMetrics",
+                            "taskBoardColumns",
+                        ],
+                    });
+                }
             },
             onError: (errorResponse) => {
                 const responseErrors =
@@ -343,58 +431,130 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
         getLoadingStatus({ status: createStatus }) ||
         getLoadingStatus({ status: updateStatus });
 
+    const FORM_ID = "save-task-modal-form";
+
     return (
-        <Drawer
-            title={getTitle()}
-            placement="right"
-            size="large"
+        <Modal
+            className="save-task-modal"
+            title={null}
             open={open}
-            onClose={handleCancel}
+            onCancel={handleCancel}
+            footer={null}
+            width={900}
+            centered
             destroyOnHidden
+            maskClosable={false}
+            closable
         >
-            {isFetchingTask ? (
-                <Skeleton active paragraph={{ rows: 10 }} />
-            ) : (
-                <>
-                    {/* show errors */}
+            {/* Header */}
+            <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
+                <h2 className="text-xl font-semibold text-gray-900 leading-tight">
+                    {getTitle()}
+                </h2>
+                <p className="mt-1 text-sm text-gray-500">
+                    {isEditing
+                        ? "Update the task details below."
+                        : "Fill in the details below to create a new task."}
+                </p>
+                {linkedEntity?.id && linkedEntity.type !== "property" && (
+                    <div className="mt-2">
+                        {linkedEntity.name ? (
+                            <TaskEntityLink
+                                type={linkedEntity.type as "deal" | "lead"}
+                                id={linkedEntity.id}
+                                name={linkedEntity.name}
+                                className="!text-sm"
+                                stopPropagation={false}
+                            />
+                        ) : (
+                            <span className="text-xs text-gray-400">
+                                Linked to a {linkedEntity.type}
+                            </span>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto px-6 pb-2">
+                {isFetchingTask ? (
+                    <div className="py-8">
+                        <Skeleton active paragraph={{ rows: 10 }} />
+                    </div>
+                ) : (
+                    <>
+                        {errors.length > 0 && (
+                            <div className="mt-4 mb-0">
+                                {errors.map((error, index) => (
+                                    <div key={index} className="text-red-600 text-sm">
+                                        {error}
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <TaskForm
+                            data={formData || undefined}
+                            visible={open}
+                            onCancel={handleCancel}
+                            onSubmit={handleSubmit}
+                            submitText={td(submitText)}
+                            cancelText={td("Cancel")}
+                            errors={errors}
+                            setErrors={(newErrors) => {
+                                if (Array.isArray(newErrors)) {
+                                    setErrors(newErrors);
+                                }
+                            }}
+                            onErrorsClear={handleErrorsClear}
+                            loading={isLoading}
+                            categories={categories}
+                            labels={labels}
+                            columns={columns}
+                            users={users}
+                            projects={projects}
+                            deals={deals}
+                            leads={leads}
+                            properties={properties}
+                            relatedEntity={relatedEntity}
+                            td={td}
+                            formId={FORM_ID}
+                            hideFooter={true}
+                        />
+                    </>
+                )}
+            </div>
+
+            {/* Footer */}
+            <div className="shrink-0 px-6 py-4 border-t border-gray-100 bg-white flex items-center justify-between">
+                <button
+                    onClick={handleCancel}
+                    disabled={isLoading}
+                    className="px-4 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
+                >
+                    {td("Cancel")}
+                </button>
+                <div className="flex items-center gap-3">
                     {errors.length > 0 && (
-                        <div className="mb-4">
-                            {errors.map((error, index) => (
-                                <div key={index} className="text-red-600">
-                                    {error}
-                                </div>
-                            ))}
-                        </div>
+                        <p className="text-[11px] text-red-500 italic">
+                            Please fix the errors above
+                        </p>
                     )}
-                    <TaskForm
-                        data={formData || undefined}
-                        visible={open}
-                        onCancel={handleCancel}
-                        onSubmit={handleSubmit}
-                        submitText={td(submitText)}
-                        cancelText={td("Cancel")}
-                        errors={errors}
-                        setErrors={(newErrors) => {
-                            if (Array.isArray(newErrors)) {
-                                setErrors(newErrors);
-                            }
-                        }}
-                        onErrorsClear={handleErrorsClear}
-                        loading={isLoading}
-                        categories={categories}
-                        labels={labels}
-                        columns={columns}
-                        users={users}
-                        projects={projects}
-                        deals={deals}
-                        leads={leads}
-                        properties={properties}
-                        relatedEntity={relatedEntity}
-                        td={td}
-                    />
-                </>
-            )}
-        </Drawer>
+                    <button
+                        form={FORM_ID}
+                        type="submit"
+                        disabled={isLoading || isFetchingTask}
+                        className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                            !isLoading && !isFetchingTask
+                                ? "bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 active:scale-[0.98]"
+                                : "bg-gray-100 text-gray-300 cursor-not-allowed"
+                        }`}
+                    >
+                        <SaveOutlined />
+                        {isLoading ? "Saving…" : td(submitText)}
+                    </button>
+                </div>
+            </div>
+        </Modal>
     );
 };
 

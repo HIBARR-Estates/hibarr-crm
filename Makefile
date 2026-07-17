@@ -42,6 +42,13 @@ reset-repo:
 
 
 # ------------------------------------
+# Local development (Infisical)
+# ------------------------------------
+
+env-pull:
+	infisical export --env=dev --format=dotenv --output-file=.env
+
+# ------------------------------------
 # Generic tasks
 # ------------------------------------
 

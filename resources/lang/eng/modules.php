@@ -1704,6 +1704,7 @@ return array(
         'leadSource' => 'Lead Source',
         'leadOwner' => 'Lead Owner',
         'leadStatus' => 'Lead Status',
+        'lifecycleStatusImportField' => 'Lifecycle Status',
         'leadFollowUp' => 'Meeting Date',
         'remark' => 'Remark',
         'proposal' => 'Proposal',
@@ -2534,6 +2535,9 @@ return array(
         'pipelineScopeSelectedCount' => ':count selected',
         'pipelineScopeNoMatches' => 'No matches',
         'pipelineScopeAllSelected' => 'All options selected',
+        'hideFromNav' => 'Hide from navigation',
+        'pipelineDefaultNavVisibilityHint' => 'The default pipeline cannot be hidden from navigation. Set another pipeline as default first.',
+        'pipelineDefaultNavVisibilityError' => 'The default pipeline cannot be hidden from navigation.',
     ),
     'estimateRequest' => array(
         'estimateRequest' => 'Estimate Request',

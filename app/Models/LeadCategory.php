@@ -41,4 +41,23 @@ class LeadCategory extends BaseModel
         return $this->hasMany(LeadAgent::class, 'lead_category_id')->where('status', '=', 'enabled');
     }
 
+    /**
+     * Resolve a category from free text (e.g. a spreadsheet cell during import),
+     * matching case-insensitively against the category name. Returns null on
+     * no match rather than creating one, so callers should treat that as
+     * "leave unset".
+     */
+    public static function resolveFromText(int $companyId, ?string $value): ?self
+    {
+        $value = trim((string) $value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        return static::where('company_id', $companyId)
+            ->whereRaw('LOWER(category_name) = ?', [mb_strtolower($value)])
+            ->first();
+    }
+
 }

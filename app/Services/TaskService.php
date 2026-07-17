@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Traits\ProjectProgress;
 use App\Traits\RecordsCrmEvents;
 use App\Services\DealNotificationService;
+use App\Services\TaskLifecycleNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -140,6 +141,8 @@ class TaskService
 
             DB::commit();
 
+            app(TaskLifecycleNotificationService::class)->notifyCreated($task, $user?->id);
+
             return $task;
 
         } catch (\Exception $e) {
@@ -162,6 +165,9 @@ class TaskService
         DB::beginTransaction();
 
         try {
+            $previousAssigneeIds = $task->users()->pluck('user_id')->sort()->values()->all();
+            $assigneesChanged = false;
+
             $task->heading = $data['heading'];
             $task->description = isset($data['description']) ? trim_editor($data['description']) : '';
             
@@ -252,13 +258,24 @@ class TaskService
             $assigneeIds = self::normalizeAssigneeIds($data);
             if ($assigneeIds !== null) {
                 $task->users()->sync($assigneeIds);
+                $assigneesChanged = $previousAssigneeIds !== collect($assigneeIds)->sort()->values()->all();
             }
             
             if (isset($data['custom_fields_data'])) {
                 $task->updateCustomFieldData($data['custom_fields_data']);
             }
 
+            $this->handlePolymorphicRelations($task, $data, false);
+
             DB::commit();
+
+            $lifecycle = app(TaskLifecycleNotificationService::class);
+            if ($lifecycle->wasCompletionTransition($task)) {
+                $lifecycle->notifyCompleted($task, $user?->id);
+            } elseif ($lifecycle->hasMeaningfulChanges($task) || $assigneesChanged) {
+                $lifecycle->notifyUpdated($task, $user?->id);
+            }
+
             return $task;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -371,7 +388,7 @@ class TaskService
                         if ($agentUserId) {
                             $task->users()->syncWithoutDetaching([$agentUserId]);
                         }
-                        
+
                         // Send notification to deal watchers/agent about new task
                         if ($isNewTask) {
                             app(DealNotificationService::class)->notifyTaskAdded(
@@ -379,6 +396,16 @@ class TaskService
                                 $task->heading,
                                 $task->id
                             );
+                        }
+                    }
+
+                    // Infer the task's lead link from the deal it's connected to.
+                    // Only auto-link when the task isn't already linked to a lead,
+                    // so we never override an explicitly chosen lead.
+                    if (strtolower($type) === 'deal' && $entity->lead_id && $task->leads()->doesntExist()) {
+                        $inferredLead = \App\Models\Lead::withoutGlobalScopes()->find($entity->lead_id);
+                        if ($inferredLead) {
+                            $inferredLead->tasks()->syncWithoutDetaching([$task->id]);
                         }
                     }
                 }

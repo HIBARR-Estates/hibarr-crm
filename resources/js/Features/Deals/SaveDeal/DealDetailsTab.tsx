@@ -19,6 +19,7 @@ import { SaveOutlined } from "@ant-design/icons";
 import { DealFormProps } from "./DealForm";
 import { formatCurrency } from "@/lib/utils";
 import CurrencyInput from "@/Components/CurrencyInput";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 interface DealDetailsTabProps extends Pick<
     DealFormProps,
@@ -30,6 +31,7 @@ interface DealDetailsTabProps extends Pick<
     | "onSubmit"
     | "setErrors"
     | "onErrorsClear"
+    | "formReferenceData"
 > {
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
@@ -50,13 +52,14 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     disableFields = [],
     onPipelineChange,
     onStageChange,
+    formReferenceData = {},
 }) => {
     const [form] = Form.useForm();
     const selectedValueSource = Form.useWatch("value_source", form) || "manual";
     const { props } = usePage<any>();
+    const { currencies } = useCurrencies();
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const defaultCurrencyCode = props.default_currency_code || "TRY";
-    const currencies = props.currencies || [];
     const {
         leadContacts = [],
         leadPipelines = [],
@@ -71,7 +74,10 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         stages = [],
         packages = [],
         dealPackageMode = "multiple",
-    } = props;
+    } = {
+        ...props,
+        ...formReferenceData,
+    };
 
     const [pipelineId, setPipelineId] = useState<number>();
     const pipelineIdRef = useRef<number | undefined>(pipelineId);

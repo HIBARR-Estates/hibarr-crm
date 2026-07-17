@@ -35,54 +35,126 @@ import { usePage } from "@inertiajs/react";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import DealViewRedesign from "./Redesign/DealViewRedesign";
+import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
+import type { DealSummaryPayload } from "@/Types/entity-summary";
 
-interface Props extends PageProps {
+export interface DealShowPageProps extends PageProps {
     deal: Deal;
     productNames: string[];
     customFieldCategories: any[];
     fields: any[];
+    meetingTypes?: Array<{ id: number; name: string; color?: string }>;
+    permissions: Record<string, string>;
+    pageTitle: string;
+    dealAiSummary?: DealSummaryPayload | null;
+    // C1 deferred — may be undefined until Inertia resolves them
+    notes?: Note[];
+    dealFollowUps?: DealFollowup[];
+    files?: DealFile[];
+    proposals?: Proposal[];
+    histories?: any[];
+    activities?: any[];
+    consents?: any[];
+    gdprSetting?: any;
+    tasks?: Task[];
+    taskCategories?: any[];
+    taskLabels?: any[];
+    taskBoardColumns?: any[];
+    employees?: any[];
+    projects?: any[];
+}
+
+/**
+ * Shell / permission defaults only.
+ * Leave C1 deferred collections undefined while pending so redesign can skeleton (C4).
+ */
+export function withDealShowShellDefaults(
+    props: DealShowPageProps,
+): DealShowPageProps {
+    return {
+        ...props,
+        meetingTypes: props.meetingTypes ?? [],
+        permissions: props.permissions ?? {},
+        productNames: props.productNames ?? [],
+        customFieldCategories: props.customFieldCategories ?? [],
+        fields: props.fields ?? [],
+    };
+}
+
+/** Legacy path: fill deferred keys so legacy tabs never see undefined iterables. */
+export function withDealShowDefaults(
+    props: DealShowPageProps,
+): DealShowPageProps & {
     notes: Note[];
     dealFollowUps: DealFollowup[];
-    meetingTypes: Array<{ id: number; name: string; color?: string }>;
     files: DealFile[];
     proposals: Proposal[];
     histories: any[];
     consents: any[];
-    gdprSetting: any;
-    permissions: Record<string, string>;
-    pageTitle: string;
     tasks: Task[];
     taskCategories: any[];
     taskLabels: any[];
     taskBoardColumns: any[];
     employees: any[];
     projects: any[];
+    meetingTypes: Array<{ id: number; name: string; color?: string }>;
+    permissions: Record<string, string>;
+} {
+    const shell = withDealShowShellDefaults(props);
+    return {
+        ...shell,
+        notes: shell.notes ?? [],
+        dealFollowUps: shell.dealFollowUps ?? [],
+        files: shell.files ?? [],
+        proposals: shell.proposals ?? [],
+        histories: shell.histories ?? [],
+        activities: shell.activities ?? [],
+        consents: shell.consents ?? [],
+        gdprSetting: shell.gdprSetting ?? null,
+        tasks: shell.tasks ?? [],
+        taskCategories: shell.taskCategories ?? [],
+        taskLabels: shell.taskLabels ?? [],
+        taskBoardColumns: shell.taskBoardColumns ?? [],
+        employees: shell.employees ?? [],
+        projects: shell.projects ?? [],
+        // Re-assert shell keys so TS intersection requires them as defined.
+        meetingTypes: shell.meetingTypes ?? [],
+        permissions: shell.permissions ?? {},
+    };
 }
+
+type Props = DealShowPageProps;
+
 const { Title } = Typography;
 
-export const Show = ({
+export const LegacyDealShow = ({
     deal,
     productNames,
     customFieldCategories,
     fields,
-    notes,
-    dealFollowUps,
-    meetingTypes,
-    files,
-    proposals,
-    histories,
-    consents,
-    gdprSetting,
-    permissions,
+    notes = [],
+    dealFollowUps = [],
+    meetingTypes = [],
+    files = [],
+    proposals = [],
+    histories = [],
+    consents = [],
+    gdprSetting = null,
+    permissions = {},
     pageTitle,
-    tasks,
-    taskCategories,
-    taskLabels,
-    taskBoardColumns,
-    employees,
-    projects,
+    tasks = [],
+    taskCategories = [],
+    taskLabels = [],
+    taskBoardColumns = [],
+    employees = [],
+    projects = [],
+    featureFlags: pageFeatureFlags,
+    dealAiSummary,
 }: Props) => {
     const { props } = usePage<PageProps>();
+    const featureFlags = pageFeatureFlags ?? props.featureFlags;
+    const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
 
     // ── Page-level refresh ──────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh({
@@ -143,7 +215,9 @@ export const Show = ({
                                                     :
                                                 </span>
                                                 {deal.created_at ? (
-                                                    dayjs(deal.created_at).format(
+                                                    dayjs(
+                                                        deal.created_at,
+                                                    ).format(
                                                         "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
@@ -161,7 +235,9 @@ export const Show = ({
                                                     :
                                                 </span>
                                                 {deal.updated_at ? (
-                                                    dayjs(deal.updated_at).format(
+                                                    dayjs(
+                                                        deal.updated_at,
+                                                    ).format(
                                                         "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
@@ -193,22 +269,23 @@ export const Show = ({
                                                             <div
                                                                 className={`
                                                                 flex items-center px-4 py-1.5 rounded-md text-sm font-bold transition-all duration-200
-                                                                ${isCurrent
+                                                                ${
+                                                                    isCurrent
                                                                         ? "scale-105"
                                                                         : isCompleted
-                                                                            ? ""
-                                                                            : "opacity-60"
-                                                                    }
+                                                                          ? ""
+                                                                          : "opacity-60"
+                                                                }
                                                             `}
                                                                 style={{
                                                                     backgroundColor:
                                                                         isCurrent ||
-                                                                            isCompleted
+                                                                        isCompleted
                                                                             ? `${stage.label_color}8C`
                                                                             : "#e5e7eb",
                                                                     color:
                                                                         isCurrent ||
-                                                                            isCompleted
+                                                                        isCompleted
                                                                             ? "#0000008F"
                                                                             : "#4b5563",
                                                                 }}
@@ -221,9 +298,9 @@ export const Show = ({
                                                                     ?.stages
                                                                     ?.length ||
                                                                     0) -
-                                                                1 && (
-                                                                    <div className="w-6 h-0.5 bg-gray-300 mx-1" />
-                                                                )}
+                                                                    1 && (
+                                                                <div className="w-6 h-0.5 bg-gray-300 mx-1" />
+                                                            )}
                                                         </div>
                                                     );
                                                 },
@@ -231,21 +308,21 @@ export const Show = ({
 
                                             {(!deal.pipeline?.stages ||
                                                 deal.pipeline.stages.length ===
-                                                0) && (
-                                                    <div
-                                                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
-                                                        style={{
-                                                            backgroundColor: `${deal.lead_stage?.label_color}25`,
-                                                            color: deal.lead_stage
-                                                                ?.label_color,
-                                                        }}
-                                                    >
-                                                        <span className="mr-1.5">
-                                                            •
-                                                        </span>
-                                                        {deal.lead_stage?.name}
-                                                    </div>
-                                                )}
+                                                    0) && (
+                                                <div
+                                                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-bold"
+                                                    style={{
+                                                        backgroundColor: `${deal.lead_stage?.label_color}25`,
+                                                        color: deal.lead_stage
+                                                            ?.label_color,
+                                                    }}
+                                                >
+                                                    <span className="mr-1.5">
+                                                        •
+                                                    </span>
+                                                    {deal.lead_stage?.name}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
@@ -258,9 +335,9 @@ export const Show = ({
                                     title={
                                         isDealEditMode
                                             ? t(
-                                                "pages.deals.refresh_tooltip_disabled",
-                                            )
-                                            : t("app.common.actions.refresh")
+                                                  "pages.deals.refresh_tooltip_disabled",
+                                              )
+                                            : td("Refresh")
                                     }
                                 >
                                     <Button
@@ -275,7 +352,7 @@ export const Show = ({
                                         }
                                         type="text"
                                     >
-                                        {t("app.common.actions.refresh")}
+                                        {td("Refresh")}
                                     </Button>
                                 </Tooltip>
                             </div>
@@ -332,6 +409,16 @@ export const Show = ({
                         </Row>
                         <Row gutter={[30, 40]} className="mt-8">
                             <Col xs={48} lg={24} xl={24}>
+                                {showAiSummary && (
+                                    <div className="mb-6">
+                                        <EntityAiSummaryCard
+                                            entityType="deal"
+                                            entityId={deal.id}
+                                            initialSummary={dealAiSummary}
+                                            variant="legacy"
+                                        />
+                                    </div>
+                                )}
                                 <Card
                                     className="border-0 rounded-lg overflow-hidden deal-card"
                                     bodyStyle={{ padding: 0 }}
@@ -363,6 +450,24 @@ export const Show = ({
                 </div>
             </PageLayout>
         </>
+    );
+};
+
+export const Show = (props: Props) => {
+    const page = usePage<PageProps>();
+    const useRedesign =
+        page.props.featureFlags?.["crm.deal-view-redesign"] === true;
+    // const useRedesign = true;
+
+    return useRedesign ? (
+        <DealViewRedesign
+            {...withDealShowShellDefaults({
+                ...props,
+                notes: props?.notes ?? [],
+            })}
+        />
+    ) : (
+        <LegacyDealShow {...withDealShowDefaults(props)} />
     );
 };
 

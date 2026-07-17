@@ -30,6 +30,7 @@ import usePageFilter from "@/Hooks/usePageFilter";
 import FilterDrawer from "@/Components/FilterDrawer";
 import ActiveFilters from "@/Components/ActiveFilters";
 import useTranslation from "@/Hooks/useTranslation";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 interface Project {
     id: number;
@@ -68,9 +69,9 @@ export default function Index({
     properties,
     default_currency_code: currencyCode,
     default_currency_symbol: currencySymbol,
-    currencies = [],
 }: IndexProps) {
     const { t } = useTranslation();
+    const { currencies } = useCurrencies();
 
     const {
         handleAction,

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
 use Illuminate\Validation\Rule;
@@ -25,26 +26,29 @@ class PatchRequest extends CoreRequest
         
         return [
             // Contact Information (all optional for patch)
+            // client_name is NOT NULL at the DB level, so this intentionally
+            // stays non-nullable — clearing it should surface a friendly
+            // validation error rather than a DB constraint failure.
             'client_name' => 'sometimes|string|max:255',
             'client_email' => 'nullable|email|max:255',
             'mobile' => 'nullable|string|max:20',
-            'cell' => 'sometimes|string|max:20',
-            'office' => 'sometimes|string|max:20',
-            'company_name' => 'sometimes|string|max:255',
-            'website' => 'sometimes|url|max:255',
-            'address' => 'sometimes|string|max:500',
-            'city' => 'sometimes|string|max:100',
-            'state' => 'sometimes|string|max:100',
-            'country' => 'sometimes|string|max:100',
-            'postal_code' => 'sometimes|string|max:20',
-            'salutation' => ['sometimes', 'string', Rule::in(['mr', 'mrs', 'miss', 'ms', 'dr', 'prof'])],
+            'cell' => 'sometimes|nullable|string|max:20',
+            'office' => 'sometimes|nullable|string|max:20',
+            'company_name' => 'sometimes|nullable|string|max:255',
+            'website' => 'sometimes|nullable|url|max:255',
+            'address' => 'sometimes|nullable|string|max:500',
+            'city' => 'sometimes|nullable|string|max:100',
+            'state' => 'sometimes|nullable|string|max:100',
+            'country' => 'sometimes|nullable|string|max:100',
+            'postal_code' => 'sometimes|nullable|string|max:20',
+            'salutation' => ['sometimes', 'nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
-            
+
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',
             'currency_id' => 'sometimes|integer|exists:currencies,id',
-            'next_follow_up' => 'sometimes|date|after:today',
-            'note' => 'sometimes|string|max:2000',
+            'next_follow_up' => 'sometimes|nullable|date|after:today',
+            'note' => 'sometimes|nullable|string|max:2000',
             
             // Assignment (all optional for patch)
             'agent_id' => 'sometimes|nullable|integer|exists:lead_agents,id',
@@ -55,6 +59,7 @@ class PatchRequest extends CoreRequest
             'category_id' => 'sometimes|nullable|integer|exists:lead_category,id',
             'source_id' => 'sometimes|nullable|integer|exists:lead_sources,id',
             'status_id' => 'sometimes|nullable|integer|exists:lead_statuses,id',
+            'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
             
             // Products (all optional for patch)
             'products' => 'sometimes|array',
@@ -104,7 +109,7 @@ class PatchRequest extends CoreRequest
             'source_id.exists' => 'Selected source is invalid.',
             'status_id.exists' => 'Selected status is invalid.',
             'client_id.exists' => 'Selected client is invalid.',
-            'salutation.in' => 'Salutation must be one of: mr, mrs, miss, ms, dr, prof.',
+            'salutation.in' => 'Salutation must be one of: ' . implode(', ', array_column(Salutation::cases(), 'value')) . '.',
             'column_priority.min' => 'Priority cannot be negative.',
         ];
     }

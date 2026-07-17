@@ -23,6 +23,8 @@ import TasksTab from "@/Components/TasksTab";
 import { Task } from "@/Types/api/tasks";
 import { SaveTaskModal } from "@/Features/Tasks/SaveTask";
 import useTranslation from "@/Hooks/useTranslation";
+import LeadFlightItineraryTab from "@/Components/LeadFlightItineraryTab";
+import useDealPermissions from "@/Hooks/useDealPermissions";
 
 interface Props {
     deal: Deal;
@@ -45,24 +47,34 @@ interface Props {
 
 export default function DealTabs({
     deal,
-    notes,
-    dealFollowUps,
-    meetingTypes,
-    files,
-    proposals,
-    histories,
-    consents,
-    gdprSetting,
-    permissions,
-    tasks,
-    taskCategories,
-    taskLabels,
-    taskBoardColumns,
-    employees,
-    projects,
+    notes = [],
+    dealFollowUps = [],
+    meetingTypes = [],
+    files = [],
+    proposals = [],
+    histories = [],
+    consents = [],
+    gdprSetting = null,
+    permissions = {},
+    tasks = [],
+    taskCategories = [],
+    taskLabels = [],
+    taskBoardColumns = [],
+    employees = [],
+    projects = [],
 }: Props) {
-    const [activeTab, setActiveTab] = useState("notes");
+    const [activeTab, setActiveTabState] = useState(
+        () => new URLSearchParams(window.location.search).get("tab") || "notes",
+    );
+    const setActiveTab = (key: string) => {
+        setActiveTabState(key);
+        const url = new URL(window.location.href);
+        url.searchParams.set("tab", key);
+        window.history.replaceState({}, "", url.toString());
+    };
     const { t } = useTranslation();
+    const { canEdit: canModifyDeal, canDelete: canDeleteDeal } =
+        useDealPermissions(deal);
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 
@@ -190,6 +202,23 @@ export default function DealTabs({
             key: "history",
             label: t("pages.deals.tabs.history"),
             children: <HistoryTab deal={deal} histories={histories} />,
+        });
+
+        // Itinerary Tab
+        items.push({
+            key: "itinerary",
+            label: t("pages.flight_itinerary.tab"),
+            children: (
+                <LeadFlightItineraryTab
+                    itineraryLegs={deal.lead_flight_itineraries || []}
+                    dealId={deal.id}
+                    permissions={{
+                        canAdd: canModifyDeal,
+                        canEdit: canModifyDeal,
+                        canDelete: canDeleteDeal,
+                    }}
+                />
+            ),
         });
 
         return items;
@@ -381,7 +410,7 @@ export default function DealTabs({
                         activeKey={activeTab}
                         onChange={setActiveTab}
                     />
-                    <div className="flex-1 min-w-0 overflow-hidden h-[40vh]">
+                    <div className="flex-1 min-w-0 overflow-y-auto h-[40vh]">
                         {dealTabActiveContent}
                     </div>
                 </div>

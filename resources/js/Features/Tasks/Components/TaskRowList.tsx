@@ -13,6 +13,7 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { motion } from "framer-motion";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import TaskEntityLink from "./TaskEntityLink";
 import { clsx } from "clsx";
 
 dayjs.extend(relativeTime);
@@ -50,6 +51,13 @@ interface TaskRowListProps {
     showHeader?: boolean;
     /** Renders content below the task title (e.g. entity links on the dashboard, label dots in entity tabs). */
     renderSubtitle?: (task: Task) => React.ReactNode;
+    /**
+     * Suppresses the entity-link badge for this type in the default subtitle
+     * (e.g. on a lead's own Tasks tab, showing "linked to this same lead" is
+     * redundant — pass "lead" so it falls back to the deal link, or the task
+     * description, instead).
+     */
+    suppressEntityType?: "deal" | "lead" | "property";
     td?: (key: string) => string;
 }
 
@@ -72,6 +80,7 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
     onSelectionChange,
     showHeader = true,
     renderSubtitle,
+    suppressEntityType,
     td = (k) => k,
 }) => {
     const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
@@ -213,18 +222,39 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
                                     return sub ? <div className="mt-0.5 truncate">{sub}</div> : null;
                                 })()
                             ) : (
-                                task.labels && task.labels.length > 0 && (
-                                    <div className="mt-0.5 flex gap-1">
-                                        {task.labels.slice(0, 3).map((label) => (
-                                            <Tooltip key={label.id} title={label.label_name}>
-                                                <div
-                                                    className="w-2 h-2 rounded-full shrink-0"
-                                                    style={{ backgroundColor: label.label_color }}
-                                                />
-                                            </Tooltip>
-                                        ))}
-                                    </div>
-                                )
+                                <div className="mt-0.5 flex flex-col gap-0.5">
+                                    {task.deals && task.deals.length > 0 && suppressEntityType !== "deal" ? (
+                                        <TaskEntityLink
+                                            type="deal"
+                                            id={task.deals[0].id}
+                                            name={task.deals[0].name}
+                                        />
+                                    ) : task.leads && task.leads.length > 0 && suppressEntityType !== "lead" ? (
+                                        <TaskEntityLink
+                                            type="lead"
+                                            id={task.leads[0].id}
+                                            name={task.leads[0].client_name}
+                                        />
+                                    ) : (
+                                        task.description && (
+                                            <p className="truncate text-[11px] text-slate-400 leading-tight">
+                                                {task.description}
+                                            </p>
+                                        )
+                                    )}
+                                    {task.labels && task.labels.length > 0 && (
+                                        <div className="flex gap-1">
+                                            {task.labels.slice(0, 3).map((label) => (
+                                                <Tooltip key={label.id} title={label.label_name}>
+                                                    <div
+                                                        className="w-2 h-2 rounded-full shrink-0"
+                                                        style={{ backgroundColor: label.label_color }}
+                                                    />
+                                                </Tooltip>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </div>
 

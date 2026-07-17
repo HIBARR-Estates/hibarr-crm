@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 import {
     Form,
     Input,
+    InputNumber,
     Select,
     Row,
     Col,
@@ -12,24 +13,49 @@ import {
 } from "antd";
 import { Lead } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
+import { useCountries } from "@/Hooks/useFormData";
 import { LeadFormProps } from "./LeadForm";
 import LeadDealCreation from "./LeadDealCreation";
 import dayjs from "dayjs";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
+import {
+    computeAgeFieldsFromDateOfBirth,
+    computeAgeRangeFromAge,
+    getLeadAgeFieldVisibility,
+} from "@/lib/leadAge";
 
-interface BasicInfoTabProps
-    extends Pick<
-        LeadFormProps,
-        | "onCancel"
-        | "loading"
-        | "submitText"
-        | "cancelText"
-        | "data"
-        | "onSubmit"
-        | "setErrors"
-        | "onErrorsClear"
-    > {
+// interface BasicInfoTabProps
+//     extends Pick
+//         LeadFormProps,
+//         | "onCancel"
+//         | "loading"
+//         | "submitText"
+//         | "cancelText"
+//         | "data"
+//         | "onSubmit"
+//         | "setErrors"
+//         | "onErrorsClear"
+//     > {
+//     setLead?: (lead: Lead | undefined) => void;
+//     onUserEdit?: () => void;
+//     formId?: string;
+//     hideFooter?: boolean;
+//     languageOptions?: Array<{ value: string; label: string }>;
+//     languagesLoading?: boolean;
+// }
+
+interface BasicInfoTabProps extends Pick<
+    LeadFormProps,
+    | "onCancel"
+    | "loading"
+    | "submitText"
+    | "cancelText"
+    | "data"
+    | "onSubmit"
+    | "setErrors"
+    | "onErrorsClear"
+> {
     setLead?: (lead: Lead | undefined) => void;
     onUserEdit?: () => void;
     formId?: string;
@@ -55,15 +81,29 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     languagesLoading = false,
 }) => {
     const { props } = usePage<any>();
+    const { countries } = useCountries();
     const {
         salutations,
         sources,
         categories,
         employees,
         permissions,
-        countries,
         featureFlags,
+        leadLifecycleStatuses,
     } = props;
+    const lifecycleStatusOptions = useMemo(
+        () =>
+            (
+                (leadLifecycleStatuses as Array<{
+                    id: number;
+                    label: string;
+                }>) || []
+            ).map((status) => ({
+                value: status.id,
+                label: status.label,
+            })),
+        [leadLifecycleStatuses],
+    );
     const useLeadCoreFields =
         featureFlags?.["crm.lead-language-core-field"] === true;
     const [form] = Form.useForm();
@@ -75,10 +115,21 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     useEffect(() => {
         if (data) {
             isPopulatingRef.current = true;
+            const computedAgeFields = data.date_of_birth
+                ? computeAgeFieldsFromDateOfBirth(data.date_of_birth)
+                : {
+                      age: data.age ?? null,
+                      age_range: data.age_range ?? null,
+                  };
             const formData = {
                 ...data,
                 close_date: data.close_date ? dayjs(data.close_date) : null,
-                date_of_birth: data.date_of_birth ? dayjs(data.date_of_birth) : null,
+                date_of_birth: data.date_of_birth
+                    ? dayjs(data.date_of_birth)
+                    : null,
+                age: computedAgeFields.age ?? data.age ?? null,
+                age_range:
+                    computedAgeFields.age_range ?? data.age_range ?? null,
                 deal_watcher: data.deal_watcher || [],
                 product_id: data.product_id || [],
             };
@@ -92,8 +143,55 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
     // watch create_deal and create_client checkboxes to update form values
     const createDeal = Form.useWatch("create_deal", form);
     const createClient = Form.useWatch("create_client", form);
+    const dateOfBirth = Form.useWatch("date_of_birth", form);
+    const watchedAge = Form.useWatch("age", form);
+    const watchedAgeRange = Form.useWatch("age_range", form);
+
+    const ageFieldVisibility = useMemo(
+        () =>
+            getLeadAgeFieldVisibility({
+                dateOfBirth:
+                    dateOfBirth === undefined
+                        ? (data?.date_of_birth ?? null)
+                        : dateOfBirth
+                          ? dateOfBirth.format("YYYY-MM-DD")
+                          : null,
+                age: watchedAge ?? data?.age ?? null,
+                ageRange: watchedAgeRange ?? data?.age_range ?? null,
+            }),
+        [dateOfBirth, watchedAge, watchedAgeRange, data],
+    );
+
+    useEffect(() => {
+        if (isPopulatingRef.current) {
+            return;
+        }
+
+        if (dateOfBirth) {
+            const { age, age_range } =
+                computeAgeFieldsFromDateOfBirth(dateOfBirth);
+            form.setFieldsValue({ age, age_range });
+            return;
+        }
+
+        if (watchedAge != null) {
+            form.setFieldsValue({
+                age_range: computeAgeRangeFromAge(Number(watchedAge)),
+            });
+        }
+    }, [dateOfBirth, watchedAge, form]);
 
     const handleSubmit = (values: any) => {
+        const computedAgeFields = values.date_of_birth
+            ? computeAgeFieldsFromDateOfBirth(values.date_of_birth)
+            : {
+                  age:
+                      values.age === null || values.age === undefined
+                          ? null
+                          : Number(values.age),
+                  age_range: values.age_range || null,
+              };
+
         // Transform the values to match the API expectations
         const formData = {
             ...values,
@@ -103,6 +201,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             date_of_birth: values.date_of_birth
                 ? values.date_of_birth.format("YYYY-MM-DD")
                 : null,
+            age: computedAgeFields.age,
+            age_range: computedAgeFields.age_range,
             deal_watcher: values.deal_watcher || [],
             product_id: values.product_id || [],
             strategy_accepted: values.strategy_accepted || false,
@@ -126,7 +226,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
             }}
             onFinishFailed={(errorInfo) => {
                 setErrors?.(
-                    errorInfo.errorFields.map((field) => field.errors).flat()
+                    errorInfo.errorFields.map((field) => field.errors).flat(),
                 );
                 if (onErrorsClear) {
                     onErrorsClear();
@@ -206,7 +306,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
                         {permissions?.view_lead_categories !== "none" && (
                             <Col xs={24} md={8}>
-                                <Form.Item label="Lead category" name="category_id">
+                                <Form.Item
+                                    label="Lead category"
+                                    name="category_id"
+                                >
                                     <FormDataSelector
                                         type="categories"
                                         placeholder="Lead category"
@@ -214,6 +317,19 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                 </Form.Item>
                             </Col>
                         )}
+
+                        <Col xs={24} md={8}>
+                            <Form.Item
+                                label="Lifecycle Status"
+                                name="lead_lifecycle_status_id"
+                            >
+                                <Select
+                                    allowClear
+                                    placeholder="Lifecycle Status"
+                                    options={lifecycleStatusOptions}
+                                />
+                            </Form.Item>
+                        </Col>
 
                         {permissions?.add_lead === "all" && (
                             <Col xs={24} md={8}>
@@ -241,21 +357,20 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                             {["all", "added"].includes(
                                 permissions?.add_deals,
                             ) && (
-                                    <Row gutter={[24, 16]} className="mt-2">
-                                        <Col span={24}>
-                                            <Form.Item name="create_deal">
-                                                <Checkbox>Create Deal</Checkbox>
-                                            </Form.Item>
-                                        </Col>
-                                    </Row>
-                                )}
+                                <Row gutter={[24, 16]} className="mt-2">
+                                    <Col span={24}>
+                                        <Form.Item name="create_deal">
+                                            <Checkbox>Create Deal</Checkbox>
+                                        </Form.Item>
+                                    </Col>
+                                </Row>
+                            )}
 
                             <div className="save-lead-form__auto-convert">
                                 <Form.Item name="create_client">
                                     <Checkbox>
                                         Auto-convert lead to client when deal
-                                        stage is set to{" "}
-                                        <strong>Won</strong>
+                                        stage is set to <strong>Won</strong>
                                     </Checkbox>
                                 </Form.Item>
                             </div>
@@ -284,13 +399,42 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                     />
                                 </Form.Item>
                             </Col>
-                            <Col span={12}>
-                                <Form.Item
-                                    label="Date of Birth"
-                                    name="date_of_birth"
-                                >
-                                    <DatePicker className="w-full" />
-                                </Form.Item>
+                            <Col span={24}>
+                                <div className="grid grid-cols-[minmax(0,1fr)_4.5rem_minmax(0,1fr)] gap-3 w-full">
+                                    <Form.Item
+                                        label="Date of Birth"
+                                        name="date_of_birth"
+                                    >
+                                        <DatePicker
+                                            className="w-full"
+                                            format="DD MMM YYYY"
+                                            placeholder="Select date"
+                                        />
+                                    </Form.Item>
+                                    <Form.Item label="Age" name="age">
+                                        <InputNumber
+                                            className="!w-full"
+                                            min={0}
+                                            max={300}
+                                            placeholder="Enter age"
+                                            disabled={
+                                                ageFieldVisibility.ageAndRangeReadOnly
+                                            }
+                                        />
+                                    </Form.Item>
+                                    <Form.Item
+                                        label="Age Range"
+                                        name="age_range"
+                                    >
+                                        <FormDataSelector
+                                            type="age-ranges"
+                                            placeholder="Select age range"
+                                            disabled={
+                                                ageFieldVisibility.ageAndRangeReadOnly
+                                            }
+                                        />
+                                    </Form.Item>
+                                </div>
                             </Col>
                             <Col span={12}>
                                 <Form.Item
@@ -353,10 +497,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                         </Col>
 
                         <Col xs={24} md={12}>
-                            <Form.Item
-                                label="State / Province"
-                                name="state"
-                            >
+                            <Form.Item label="State / Province" name="state">
                                 <Input placeholder="Enter state or province" />
                             </Form.Item>
                         </Col>
@@ -370,7 +511,8 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                     optionFilterProp="label"
                                     filterOption={(input, option) => {
                                         const searchText = input.toLowerCase();
-                                        const countryValue = option?.value as string;
+                                        const countryValue =
+                                            option?.value as string;
                                         const country = (countries || []).find(
                                             (c: {
                                                 iso: string;

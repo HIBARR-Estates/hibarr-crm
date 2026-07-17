@@ -23,10 +23,12 @@ import MobileSidebarToggle from "./components/MobileSidebarToggle";
 import OverviewSection from "./components/OverviewSection";
 import FacilitiesSection from "./components/FacilitiesSection";
 import ImageGallerySection from "./components/ImageGallerySection";
+import { formatLocationNameForDisplay } from "@/lib/utils";
 import PriceListSection from "./components/PriceListSection";
 import PdfFilesSection from "./components/PdfFilesSection";
 import DevelopersSection from "./components/DevelopersSection";
 import ProjectOffersSection from "../../Features/Offers/ProjectOffersSection";
+import HiddenBadge from "./components/HiddenBadge";
 
 // ============================================
 // Types
@@ -49,6 +51,7 @@ export interface Statistics {
     under_offer_properties: number;
     starting_price: number | null;
     starting_price_formatted: string | null;
+    starting_price_currency: string;
 }
 
 export interface ImageItem {
@@ -96,6 +99,7 @@ export interface UnitTypePriceListItem {
         floor: string | null;
         total_area_sqm: number | null;
         quantity: number | null;
+        is_sold_out?: boolean;
     }>;
 }
 
@@ -116,6 +120,11 @@ export interface ShowProps extends PageProps {
     unitTypePriceList: UnitTypePriceListItem[];
     unitTypes: DeveloperProjectUnitType[];
     developerProjects: DeveloperProject[];
+    visibility?: {
+        enabled?: boolean;
+        canSeeHidden?: boolean;
+        canToggleHidden?: boolean;
+    };
 }
 
 export type SectionKey =
@@ -226,6 +235,7 @@ const Show = ({
     unitTypePriceList,
     unitTypes,
     developerProjects,
+    visibility,
 }: ShowProps) => {
     const { t } = useTranslation();
     const [activeSection, setActiveSection] = useState<SectionKey>(
@@ -236,6 +246,14 @@ const Show = ({
     const [initialEditUnitTypeId] = useState<number | null>(() =>
         parseEditUnitTypeFromUrl(),
     );
+
+    const showHiddenBadge =
+        visibility?.enabled === true && visibility?.canSeeHidden === true;
+    const canToggleHidden =
+        visibility?.enabled === true && visibility?.canToggleHidden === true;
+
+    const isEffectivelyHidden =
+        !!project.is_hidden || !!project.developer?.is_hidden;
 
     useEffect(() => {
         if (new URLSearchParams(window.location.search).get("edit") === "1") {
@@ -265,6 +283,7 @@ const Show = ({
                         developerProjects={developerProjects}
                         googleDriveLink={project.google_drive_link}
                         availabilityLink={project.availability_link}
+                        showHiddenBadge={showHiddenBadge}
                     />
                 );
             case "unit_types":
@@ -362,8 +381,17 @@ const Show = ({
                                 <span className="text-gray-300">|</span>
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-slate-900 leading-tight">
+                                <h1 className="text-2xl font-bold text-slate-900 leading-tight inline-flex items-center gap-2 flex-wrap">
                                     {project.name}
+                                    {showHiddenBadge && isEffectivelyHidden && (
+                                        <HiddenBadge
+                                            inherited={
+                                                !!project.developer
+                                                    ?.is_hidden &&
+                                                !project.is_hidden
+                                            }
+                                        />
+                                    )}
                                 </h1>
                                 {project.developer && (
                                     <p className="text-sm text-gray-500 mt-0.5">
@@ -382,9 +410,11 @@ const Show = ({
                             </div>
                         </div>
                         {project.location?.name && (
-                            <p className="flex items-center gap-1.5 text-sm text-gray-500 capitalize shrink-0 mt-1.5">
+                            <p className="flex items-center gap-1.5 text-sm text-gray-500 shrink-0 mt-1.5">
                                 <MapPin size={14} className="text-gray-400" />
-                                {project.location.name}
+                                {formatLocationNameForDisplay(
+                                    project.location.name,
+                                )}
                             </p>
                         )}
                     </div>
@@ -429,6 +459,7 @@ const Show = ({
                     onClose={() => setEditModalOpen(false)}
                     project={project}
                     onSuccess={handleEditSuccess}
+                    canToggleHidden={canToggleHidden}
                 />
             </PageLayout>
         </PageErrorBoundary>

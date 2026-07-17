@@ -1,7 +1,8 @@
-import { Link, router } from "@inertiajs/react";
+import { Link } from "@inertiajs/react";
 import { Dropdown, Popconfirm } from "antd";
 import {
     Eye,
+    ExternalLink,
     Pencil,
     Trash2,
     MoreHorizontal,
@@ -11,6 +12,8 @@ import {
 import type { MenuProps } from "antd";
 import type { DeveloperProject } from "@/Types/developerProject";
 import { usePermission } from "@/lib/permissionUtils";
+import { formatLocationNameForDisplay } from "@/lib/utils";
+import HiddenBadge from "./HiddenBadge";
 
 function formatCompletionDate(
     dateStr: string | null | undefined,
@@ -25,12 +28,14 @@ interface ProjectCardProps {
     project: DeveloperProject;
     onEdit?: (project: DeveloperProject) => void;
     onDelete?: (project: DeveloperProject) => void;
+    showHiddenBadge?: boolean;
 }
 
 const ProjectCard: React.FC<ProjectCardProps> = ({
     project,
     onEdit,
     onDelete,
+    showHiddenBadge = false,
 }) => {
     const { hasPermission } = usePermission();
     const canEdit = hasPermission("edit_developer_projects");
@@ -58,6 +63,20 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     <Eye size={13} />
                     View
                 </Link>
+            ),
+        },
+        {
+            key: "open-new-tab",
+            label: (
+                <a
+                    href={route("developer-projects.show", project.id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2"
+                >
+                    <ExternalLink size={13} />
+                    Open in new tab
+                </a>
             ),
         },
         ...(canEdit
@@ -102,11 +121,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
     ];
 
     return (
-        <div
-            onClick={() =>
-                router.visit(route("developer-projects.show", project.id))
-            }
-            className="group relative bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
+        <Link
+            href={route("developer-projects.show", project.id)}
+            className="group relative block bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-all duration-200 hover:-translate-y-0.5 cursor-pointer"
         >
             {/* ── Developer logo strip ── */}
             <div className="p-2 flex justify-center items-center h-10 border-b border-gray-100 bg-white">
@@ -128,7 +145,10 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                 {/* Context menu — always visible on hover */}
                 <div
                     className="absolute top-2 right-2 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-150"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                    }}
                 >
                     <Dropdown
                         menu={{ items: menuItems }}
@@ -164,10 +184,22 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                         SOLD
                     </span>
                 </div>
+
+                {showHiddenBadge &&
+                    (project.is_hidden || project.developer?.is_hidden) && (
+                        <div className="absolute top-14 left-2.5">
+                            <HiddenBadge
+                                inherited={
+                                    !!project.developer?.is_hidden &&
+                                    !project.is_hidden
+                                }
+                            />
+                        </div>
+                    )}
             </div>
 
             {/* ── Card body ── */}
-            <div className="px-4 pt-3 pb-4">
+            <div className="px-4 pt-3 pb-4 bg-white">
                 <p className="font-bold text-sm text-slate-900 truncate mb-0.5">
                     {project.name}
                 </p>
@@ -175,7 +207,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                 {project.location?.name ? (
                     <p className="flex items-center gap-1 text-xs text-gray-400 mb-3">
                         <MapPin size={11} className="text-gray-300 shrink-0" />
-                        {project.location.name}
+                        {formatLocationNameForDisplay(project.location.name)}
                     </p>
                 ) : (
                     <p className="text-xs text-gray-400 mb-3">No location</p>
@@ -232,7 +264,7 @@ const ProjectCard: React.FC<ProjectCardProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
+        </Link>
     );
 };
 

@@ -4,6 +4,7 @@ import { PlusOutlined, CheckCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { LeadQualification, TemplateTree } from "@/Types/qualification";
 import { QualificationTemplateService } from "@/Services/QualificationTemplateService";
+import { formatAnswerDisplay } from "./qualificationUtils";
 
 interface CompletedRecapProps {
     qualification: LeadQualification;
@@ -34,6 +35,7 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
             try {
                 const response = await templateService.getTemplateTree(
                     qualification.template_id,
+                    qualification.template_name,
                 );
                 setTree(response.data);
             } catch {
@@ -43,7 +45,11 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
             }
         };
         load();
-    }, [qualification.template_id, templateService]);
+    }, [
+        qualification.template_id,
+        qualification.template_name,
+        templateService,
+    ]);
 
     const historyItems = history
         .filter((h) => h.id !== qualification.id)
@@ -62,6 +68,9 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
             ),
             children: (
                 <Descriptions size="small" column={1} bordered>
+                    <Descriptions.Item label="Agent">
+                        {item.agent?.name ?? "—"}
+                    </Descriptions.Item>
                     <Descriptions.Item label="Outcome">
                         {item.outcome
                             ? (OUTCOME_LABELS[item.outcome] ?? item.outcome)
@@ -86,6 +95,9 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                     </div>
                     <p className="text-gray-500">
                         {qualification.template_name ?? qualification.template_id}
+                        {qualification.template_version
+                            ? ` · v${qualification.template_version}`
+                            : ""}
                         {qualification.completed_at && (
                             <>
                                 {" · "}
@@ -95,6 +107,11 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                             </>
                         )}
                     </p>
+                    {qualification.agent?.name && (
+                        <p className="text-sm text-gray-500 mt-1">
+                            Agent: {qualification.agent.name}
+                        </p>
+                    )}
                     {qualification.outcome && (
                         <Tag color="green" className="mt-2">
                             {OUTCOME_LABELS[qualification.outcome] ??
@@ -107,7 +124,7 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                     icon={<PlusOutlined />}
                     onClick={onStartNew}
                 >
-                    Start new
+                    Start new qualification
                 </Button>
             </div>
 
@@ -121,7 +138,10 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                         const segment = tree?.segments.find(
                             (s) => s.key === answer.segment_key,
                         );
-                        const display = resolveAnswerDisplay(segment, answer);
+                        const display = formatAnswerDisplay(segment, {
+                            answer_values: answer.answer_values,
+                            answer_text: answer.answer_text,
+                        });
                         return (
                             <Descriptions.Item
                                 key={answer.segment_key}
@@ -149,22 +169,6 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
             )}
         </div>
     );
-};
-
-const resolveAnswerDisplay = (
-    segment: { options?: { id: string; label: string }[]; answerType?: string } | undefined,
-    answer: { answer_values: string[]; answer_text?: string | null },
-): string => {
-    if (segment?.answerType === "text") {
-        return answer.answer_text ?? "";
-    }
-    if (segment?.answerType === "boolean") {
-        return answer.answer_values[0] === "true" ? "Yes" : "No";
-    }
-    return (segment?.options ?? [])
-        .filter((o) => answer.answer_values.includes(o.id))
-        .map((o) => o.label)
-        .join(", ");
 };
 
 export default CompletedRecap;

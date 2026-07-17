@@ -34,9 +34,9 @@ class LeadQualificationController extends AccountBaseController
     {
         $this->authorizeLeadAccess($lead);
 
-        return Reply::dataOnly([
-            'qualifications' => $this->qualificationService->listForLead($lead),
-        ]);
+        return Reply::dataOnly(
+            $this->qualificationService->resolveWorkspaceForLead($lead)
+        );
     }
 
     public function store(Request $request, Lead $lead)
@@ -46,6 +46,7 @@ class LeadQualificationController extends AccountBaseController
         $validated = $request->validate([
             'template_id' => ['required', 'string', 'max:255'],
             'template_version' => ['required', 'integer', 'min:1'],
+            'template_name' => ['nullable', 'string', 'max:255'],
             'agent_language' => ['nullable', 'string', 'max:10'],
             'current_segment_key' => ['nullable', 'string', 'max:255'],
             'selected_branch_keys' => ['nullable', 'array'],
@@ -99,6 +100,8 @@ class LeadQualificationController extends AccountBaseController
 
         $validated = $request->validate([
             'outcome' => ['required', Rule::in(['bookMeeting', 'inviteWebinar', 'callback', 'noFit'])],
+            'selected_branch_keys' => ['nullable', 'array'],
+            'selected_branch_keys.*' => ['string', 'max:255'],
             'outcome_triggered_at' => ['nullable', 'date'],
             'webinar_session_label' => ['nullable', 'string', 'max:255'],
         ]);

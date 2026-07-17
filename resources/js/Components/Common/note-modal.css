@@ -1,0 +1,39 @@
+.note-modal .ant-modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+    padding: 0;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-modal .ant-modal-body {
+    padding: 0;
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.note-modal .ant-modal-close {
+    top: 20px;
+    inset-inline-end: 20px;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.note-modal .ant-modal-close:hover {
+    background: #f9fafb;
+}
+
+.note-modal .ant-modal-close-x {
+    font-size: 14px;
+    line-height: 1;
+    color: #6b7280;
+}

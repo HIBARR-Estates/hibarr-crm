@@ -14,11 +14,13 @@ import SavePropertyModal from "@/Features/Properties/SaveProperty/SavePropertyMo
 import { generatePropertySubtitle } from "@/lib/utils";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 
 interface ShowProps {
     pageTitle: string;
     property: Property;
     hasPendingPublishRequest?: boolean;
+    hasPendingEditAccessRequest?: boolean;
     tasks: Task[];
     taskCategories: any[];
     taskLabels: any[];
@@ -31,6 +33,7 @@ const Show = ({
     pageTitle,
     property,
     hasPendingPublishRequest = false,
+    hasPendingEditAccessRequest = false,
     tasks,
     taskCategories,
     taskLabels,
@@ -39,6 +42,7 @@ const Show = ({
     projects,
 }: ShowProps) => {
     const { t } = useTranslation();
+    const { td } = useTd();
     // Breadcrumbs for the page
     const breadcrumbs = [
         {
@@ -121,12 +125,15 @@ const Show = ({
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {t("app.common.actions.refresh")}
+                            {td("Refresh")}
                         </Button>
                     </div>
                     <PropertyView
                         property={currentProperty}
                         hasPendingPublishRequest={hasPendingPublishRequest}
+                        hasPendingEditAccessRequest={
+                            hasPendingEditAccessRequest
+                        }
                         onEdit={handleEdit}
                         onShare={handleShare}
                         onGenerateExpose={() => setShowExposeModal(true)}

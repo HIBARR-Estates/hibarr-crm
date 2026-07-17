@@ -22,11 +22,22 @@ use App\Services\PipelineScopeResolverService;
 trait DealFormDataTrait
 {
     /**
-     * Get all necessary data for the Deal Form (SaveDealModal).
+     * Get all necessary data for the Deal Form (SaveDealModal / Show / Blade board).
+     *
+     * Do not merge into Deals Index (S1) — Index uses form-data APIs via M1/M3.
      *
      * @return array
      */
     public function getDealFormData()
+    {
+        return array_merge($this->getDealShowShellFormData(), $this->getDealShowDeferredFormData());
+    }
+
+    /**
+     * Deal Show first-paint form metadata (C1 shell).
+     * Does not include employees / leadContacts / nonActiveLeadAgents.
+     */
+    public function getDealShowShellFormData(): array
     {
         $scopeResolver = app(PipelineScopeResolverService::class);
         $packageRouter = app(PackagePipelineRouterService::class);
@@ -34,9 +45,8 @@ trait DealFormDataTrait
         $pipelines = LeadPipeline::query()
             ->with(['customFieldCategoryScopes', 'stages'])
             ->get();
-        $defaultPipeline = LeadPipeline::where('default', 1)->first();
         $stages = PipelineStage::all();
-        
+
         $deal = new Deal();
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
@@ -73,9 +83,8 @@ trait DealFormDataTrait
             'stages' => $stages,
             'categories' => LeadCategory::all(),
             'sources' => LeadSource::all(),
-            'employees' => User::allEmployees(null, true),
             'countries' => countries(),
-            'salutations' => collect(Salutation::cases())->map(function($salutation) {
+            'salutations' => collect(Salutation::cases())->map(function ($salutation) {
                 return [
                     'value' => $salutation->value,
                     'label' => $salutation->name,
@@ -84,10 +93,6 @@ trait DealFormDataTrait
             'leadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', 'active');
             })->get(),
-            'nonActiveLeadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
-                $q->where('status', '!=', 'active');
-            })->get(),
-            'leadContacts' => Lead::allLeads(),
             'products' => Product::all(),
             'packages' => Package::all(),
             'customFields' => $fields,
@@ -97,6 +102,20 @@ trait DealFormDataTrait
             'pipelineFieldScopeMap' => $pipelineFieldScopeMap,
             'packagePipelineRoutingEnabled' => $packageSettings['packagePipelineRoutingEnabled'],
             'dealPackageMode' => $packageSettings['dealPackageMode'],
+        ];
+    }
+
+    /**
+     * Deal Show deferred form helpers (C1 defer).
+     */
+    public function getDealShowDeferredFormData(): array
+    {
+        return [
+            'employees' => User::allEmployees(null, true),
+            'nonActiveLeadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
+                $q->where('status', '!=', 'active');
+            })->get(),
+            'leadContacts' => Lead::allLeads(),
         ];
     }
 }

@@ -45,6 +45,12 @@ const LeadQualificationHeader: React.FC<LeadQualificationHeaderProps> = ({
                             {lead.lead_lifecycle_status.label}
                         </Tag>
                     )}
+                    {(lead.lead_source?.type ?? lead.leadSource?.type) && (
+                        <span className="text-gray-500">
+                            Source:{" "}
+                            {lead.lead_source?.type ?? lead.leadSource?.type}
+                        </span>
+                    )}
                 </div>
             </div>
         </div>

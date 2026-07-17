@@ -61,6 +61,7 @@ use App\Http\Controllers\SignUpSettingController;
 use App\Http\Controllers\TaxSettingController;
 use App\Http\Controllers\UnitTypeController;
 use App\Http\Controllers\UserReminderPreferenceController;
+use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\UpdateAppController;
 use Illuminate\Support\Facades\Route;
 
@@ -70,6 +71,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     Route::post('app-settings/deleteSessions', [AppSettingController::class, 'deleteSessions'])->name('app-settings.delete_sessions');
     Route::resource('app-settings', AppSettingController::class);
+
+    Route::post('api-token-settings/{id}/regenerate', [ApiTokenSettingController::class, 'regenerate'])
+        ->name('api-token-settings.regenerate')
+        ->whereNumber('id');
+    Route::resource('api-token-settings', ApiTokenSettingController::class)->only(['index', 'store', 'update', 'destroy']);
     Route::resource('profile-settings', ProfileSettingController::class);
 
     /* User Reminder Preferences */
@@ -228,6 +234,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::resource('lead-stage-setting', LeadStageSettingController::class);
 
     Route::get('lead-pipeline-update/{statusId}', [LeadPipelineSettingController::class, 'statusUpdate'])->name('lead-pipeline-update.stageUpdate');
+    Route::put('lead-pipeline-setting/{id}/nav-visibility', [LeadPipelineSettingController::class, 'updateNavVisibility'])->name('lead-pipeline-setting.nav-visibility');
     Route::resource('lead-pipeline-setting', LeadPipelineSettingController::class);
 
     Route::resource('lead-agent-settings', LeadAgentSettingController::class);

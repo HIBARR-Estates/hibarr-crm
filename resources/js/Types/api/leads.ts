@@ -24,8 +24,11 @@ interface Link {
 
 import { LeadLifecycleStatus } from "@/Types/qualification";
 
+import { ILeadFlightItinerary } from './lead-flight-itinerary';
+
 export interface Lead {
     id: number;
+    lead_flight_itineraries?: ILeadFlightItinerary[];
     added_by?: User | null;
     lead_owner?: User | null;
     client_id?: number | null;
@@ -62,9 +65,12 @@ export interface Lead {
     updated_at?: string;
     marketing?: LeadMarketing | null;
     lifecycle_status_id?: number | null;
+    lead_lifecycle_status_id?: number | null;
     lead_lifecycle_status?: LeadLifecycleStatus | null;
     languages?: string[];
     date_of_birth?: string | null;
+    age?: number | null;
+    age_range?: string | null;
     nationality?: string | null;
     occupation?: string | null;
 
@@ -128,6 +134,7 @@ export interface CreateLeadFormData {
     note?: string;
     source_id?: number;
     category_id?: number;
+    lead_lifecycle_status_id?: number | null;
     lead_owner?: number;
     added_by?: number;
     create_deal?: boolean;
@@ -135,6 +142,8 @@ export interface CreateLeadFormData {
     custom_fields_data?: Record<string, any>;
     languages?: string[];
     date_of_birth?: string | null;
+    age?: number | null;
+    age_range?: string | null;
     nationality?: string | null;
     occupation?: string | null;
     // Deal creation fields

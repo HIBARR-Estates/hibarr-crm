@@ -3,9 +3,11 @@
 namespace App\Services;
 
 use App\Enums\Salutation;
+use App\Enums\AgeRange;
 use App\Models\ClientCategory;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
+use App\Models\Deal;
 use App\Models\DeveloperProject;
 use App\Models\LanguageSetting;
 use App\Models\Lead;
@@ -36,6 +38,8 @@ class FormDataService
                 return $this->getSalutations();
             case 'genders':
                 return $this->getGenders();
+            case 'age-ranges':
+                return $this->getAgeRanges();
             case 'categories':
                 return $this->getCategories($request);
             case 'sources':
@@ -50,6 +54,8 @@ class FormDataService
                 return $this->getProducts($request);
             case 'countries':
                 return $this->getCountries($request);
+            case 'currencies':
+                return $this->getCurrencies($request);
             case 'lead-agents':
                 return $this->getLeadAgents($request);
             case 'client-categories':
@@ -60,6 +66,16 @@ class FormDataService
                 return $this->getLeads($request);
             case 'packages':
                 return $this->getPackages($request);
+            case 'deal-custom-fields':
+                return $this->getDealCustomFields();
+            case 'deal-custom-field-categories':
+                return $this->getDealCustomFieldCategories();
+            case 'deal-pipeline-custom-field-category-map':
+                return $this->getDealPipelineCustomFieldCategoryMap();
+            case 'lead-custom-fields':
+                return $this->getLeadCustomFields();
+            case 'lead-custom-field-categories':
+                return $this->getLeadCustomFieldCategories();
             case 'developer_projects':
             case 'developer-projects':
                 return $this->getDeveloperProjects($request);
@@ -87,6 +103,18 @@ class FormDataService
                 ['value' => 'male', 'label' => 'Male'],
                 ['value' => 'female', 'label' => 'Female'],
             ]);
+        });
+    }
+
+    private function getAgeRanges(): Collection
+    {
+        return Cache::remember('age_ranges', self::CACHE_TTL, function () {
+            return collect(AgeRange::cases())->map(function (AgeRange $ageRange) {
+                return [
+                    'value' => $ageRange->value,
+                    'label' => $ageRange->label(),
+                ];
+            });
         });
     }
 
@@ -190,6 +218,50 @@ class FormDataService
         });
     }
 
+    private function getCurrencies(Request $request)
+    {
+        try {
+            $company = function_exists('company') ? company() : null;
+
+            if (!$company) {
+                return collect();
+            }
+
+            $cacheKey = 'company_currencies_' . $company->id . '_' . $request->get('search', '');
+
+            return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($company, $request) {
+                $currencies = $company->currencies()->get()->map(function ($currency) {
+                    return [
+                        'id' => $currency->id,
+                        'company_id' => $currency->company_id,
+                        'currency_name' => $currency->currency_name,
+                        'currency_symbol' => $currency->currency_symbol,
+                        'currency_code' => $currency->currency_code,
+                        'exchange_rate' => $currency->exchange_rate,
+                        'is_cryptocurrency' => $currency->is_cryptocurrency,
+                        'usd_price' => $currency->usd_price,
+                    ];
+                });
+
+                if ($request->filled('search')) {
+                    $search = strtolower($request->get('search'));
+                    $currencies = $currencies->filter(function ($currency) use ($search) {
+                        return str_contains(strtolower((string) ($currency['currency_name'] ?? '')), $search)
+                            || str_contains(strtolower((string) ($currency['currency_code'] ?? '')), $search);
+                    })->values();
+                }
+
+                if ($request->filled('paginate') && $request->get('paginate')) {
+                    return $this->manualPaginate($currencies, $request);
+                }
+
+                return $currencies->values();
+            });
+        } catch (\Exception $e) {
+            return collect();
+        }
+    }
+
     private function getLeadAgents(Request $request)
     {
         $query = LeadAgent::select('id', 'user_id')
@@ -253,6 +325,62 @@ class FormDataService
         }
 
         return $this->paginateIfRequested($query, $request);
+    }
+
+    private function getDealCustomFields(): Collection
+    {
+        $deal = new Deal();
+        $group = $deal->getCustomFieldGroupsWithFields();
+
+        return $group && $group->fields ? $group->fields->values() : collect();
+    }
+
+    private function getDealCustomFieldCategories(): Collection
+    {
+        $group = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
+
+        if (!$group) {
+            return collect();
+        }
+
+        return CustomFieldCategory::where('custom_field_group_id', $group->id)
+            ->where('company_id', company()->id)
+            ->orderBy(\DB::raw('`order`'), 'asc')
+            ->orderBy('id', 'asc')
+            ->get();
+    }
+
+    /**
+     * Lead custom field definitions (promoted core fields filtered out),
+     * matching what Leads Index / SaveLeadModal receive as `customFields`.
+     */
+    private function getLeadCustomFields(): Collection
+    {
+        $data = app(LeadService::class)->getLeadCustomFieldsData();
+
+        // values(): filterPromotedFieldDefinitions can leave gaps in keys,
+        // which would JSON-serialize as an object instead of an array.
+        return collect($data['customFields'] ?? [])->values();
+    }
+
+    private function getLeadCustomFieldCategories(): Collection
+    {
+        $data = app(LeadService::class)->getLeadCustomFieldsData();
+
+        return collect($data['customFieldCategories'] ?? [])->values();
+    }
+
+    private function getDealPipelineCustomFieldCategoryMap(): array
+    {
+        return LeadPipeline::query()
+            ->with('customFieldCategories:id')
+            ->get()
+            ->mapWithKeys(function (LeadPipeline $pipeline) {
+                return [
+                    (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
+                ];
+            })
+            ->toArray();
     }
 
     private function getDeveloperProjects(Request $request)

@@ -26,6 +26,8 @@ return array(
     'propertyUpdateSuccess' => 'Недвижимость успешно обновлена.',
     'taskUpdateSuccess' => 'Задача успешно обновлена.',
     'taskCreatedSuccessfully' => 'Задача успешно создана.',
+    'taskDeleted' => 'Задача успешно удалена.',
+    'taskUpdated' => 'Задача отмечена как :status.',
     'projectTasksNotCompleted' => 'Пожалуйста, завершите задачи проекта.',
     'requestSent' => 'Запрос отправлен на согласование',
     'recordSaved' => 'Запись успешно сохранена',

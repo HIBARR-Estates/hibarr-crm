@@ -36,8 +36,8 @@ const ImportDeals: React.FC<Props> = ({ open, onClose }) => {
                     "Import file uploaded successfully. Processing will begin shortly."
                 );
                 onClose();
-                // Refresh the leads list
-                router.reload();
+                // X2: refresh list + board columns (cheap [] in table view)
+                router.reload({ only: ["deals", "boardColumns"] });
             },
             onError: (errors) => {
                 console.error("Import errors:", errors);

@@ -112,6 +112,7 @@ class UnitTypePropertyTransformer
             // Legal
             'has_restrictions' => $ut->has_restrictions,
             'restriction_notes' => $ut->restriction_notes,
+            'is_sold_out' => (bool) $ut->is_sold_out,
 
             // Computed attributes expected by the frontend
             'reference_code' => $ut->reference_code ?? '',

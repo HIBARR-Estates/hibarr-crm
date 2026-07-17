@@ -11,6 +11,8 @@ use App\Models\Deal;
 use App\Models\LeadPipeline;
 use App\Models\PipelineStage;
 use App\Services\PipelineScopeResolverService;
+use App\Support\FeatureFlags;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class LeadPipelineSettingController extends AccountBaseController
@@ -98,11 +100,13 @@ class LeadPipelineSettingController extends AccountBaseController
 
     public function statusUpdate($id)
     {
-        $allLeadSPipelines = LeadPipeline::select('id', 'default')->get();
+        // Added 'hidden_from_nav' to the select query to ensure it is modified and saved correctly
+        $allLeadSPipelines = LeadPipeline::select('id', 'default', 'hidden_from_nav')->get();
 
         foreach ($allLeadSPipelines as $pipeline) {
             if ($pipeline->id == $id) {
                 $pipeline->default = '1';
+                $pipeline->hidden_from_nav = false; // Forces the default pipeline to always be visible
             } else {
                 $pipeline->default = '0';
             }
@@ -113,6 +117,34 @@ class LeadPipelineSettingController extends AccountBaseController
         return Reply::success(__('messages.updateSuccess'));
     }
 
+    public function updateNavVisibility(Request $request, $id)
+    {
+        abort_unless(FeatureFlags::enabled('crm.pipeline-nav-visibility'), 404);
+
+        $request->validate([
+            'hidden_from_nav' => 'required|boolean',
+        ]);
+
+        $pipeline = LeadPipeline::where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
+
+        if ($pipeline->default == 1 && $request->boolean('hidden_from_nav')) {
+            return Reply::error(__('modules.deal.pipelineDefaultNavVisibilityError'));
+        }
+
+        $pipeline->hidden_from_nav = $request->boolean('hidden_from_nav');
+        $pipeline->save();
+
+        return Reply::success(__('messages.updateSuccess'));
+    }
+
+    /**
+     * Remove the specified resource from storage.
+     *
+     * @param  int  $id
+     * @return \Illuminate\Http\Response
+     */
     public function destroy($id)
     {
         \App\Models\Deal::where('lead_pipeline_id', $id)->where('is_locked', false)->delete();

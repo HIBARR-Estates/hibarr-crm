@@ -5,9 +5,7 @@ import PageLayout from "@/Components/PageLayout";
 import BulkDealActionSelector from "@/Features/Deals/BulkActions/BulkDealActionSelector";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
-import usePageSort from "@/Hooks/usePageSort";
 import useViewPreference from "@/Hooks/useViewPreference";
-import { LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PipelineStage } from "@/Types/api/deals";
 import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
@@ -16,6 +14,7 @@ import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import createDealFilterConfig from "@/configs/dealFilterConfig";
 import { createDealSearchConfig } from "@/configs/searchConfigs";
 import { getDealPermissions } from "@/Hooks/useDealPermissions";
+import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import { dealApi } from "@/lib/api/deals";
 import {
     UserOutlined,
@@ -29,7 +28,7 @@ import {
     ReloadOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
-import { Button, MenuProps, Select } from "antd";
+import { Button, MenuProps, Select, Spin } from "antd";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import { DEAL_TABLE_COLUMNS } from "@/Features/Deals/Columns/index";
@@ -47,6 +46,7 @@ import KanbanBoard from "@/Components/Kanban/KanbanBoard";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -73,24 +73,25 @@ interface Pipeline {
     default: number;
 }
 
-interface Package {
-    id: number;
-    name: string;
-}
-
-export interface IndexProps extends PageProps {
+/** S1: Index no longer ships form/filter option arrays (M1/M3 fetch those). */
+export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
     deals: PaginatedDealResponse;
     boardColumns: BoardColumn[];
-    categories: LeadCategory[];
-    sources: LeadSource[];
-    stages: PipelineStage[];
-    leadAgents: LeadAgent[];
-    employees: User[];
-    countries: Array<{ iso: string; nicename: string; iso3: string }>;
-    salutations: Array<{ value: string; label: string }>;
-    pipelines: Pipeline[];
-    packages: Package[];
+    allPipelines: Pipeline[];
+    defaultPipeline?: Pipeline | null;
+    filters?: {
+        lead_pipeline_id?: string;
+        pipeline_stage_id?: string;
+        category_id?: string;
+        source_id?: string;
+        package_id?: string;
+        agent_id?: string;
+        search?: string;
+        start_date?: string;
+        end_date?: string;
+        view?: string;
+    };
     addLeadPermission?: string;
 }
 
@@ -98,14 +99,10 @@ const Index = ({
     pageTitle,
     deals,
     boardColumns: initialBoardColumns,
-    stages,
-    leadAgents,
-    pipelines,
-    packages,
-    sources,
+    allPipelines: pipelines,
     defaultPipeline,
+    filters: pageFilters,
     addLeadPermission = "all",
-    ...props
 }: IndexProps) => {
     const { t } = useTranslation();
 
@@ -123,14 +120,70 @@ const Index = ({
         defaultView: "table",
     });
 
+    const [boardColumnsLoading, setBoardColumnsLoading] = useState(
+        () =>
+            view === "kanban" && (initialBoardColumns?.length ?? 0) === 0,
+    );
+
+    /** K2: fetch board column metadata only (cards still load via kanban API). */
+    const loadBoardColumns = useCallback((nextView: "kanban" | "table" = "kanban") => {
+        setBoardColumnsLoading(nextView === "kanban");
+        router.get(
+            route("deals.index"),
+            mergeQueryParams({ view: nextView }),
+            {
+                only: ["boardColumns"],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onFinish: () => setBoardColumnsLoading(false),
+                onError: () => setBoardColumnsLoading(false),
+            },
+        );
+    }, []);
+
+    // Cold-load sync: localStorage kanban + missing ?view= would otherwise get empty boardColumns (K1/K2).
+    React.useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const urlView = urlParams.get("view");
+        const effectiveUrlView =
+            urlView === "kanban" || urlView === "table" ? urlView : "table";
+
+        if (view === effectiveUrlView) {
+            return;
+        }
+
+        if (view === "kanban") {
+            loadBoardColumns("kanban");
+        } else {
+            loadBoardColumns("table");
+        }
+        // Mount-only: align URL with stored preference once.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const handleViewChange = useCallback(
+        (nextView: "kanban" | "table") => {
+            setView(nextView);
+            // Kanban needs boardColumns; table only needs URL/view sync (server returns []).
+            loadBoardColumns(nextView);
+        },
+        [setView, loadBoardColumns],
+    );
+
     // Board columns state for kanban view
     const [boardColumns, setBoardColumns] =
         useState<BoardColumn[]>(initialBoardColumns);
 
     // Update board columns when props change
     React.useEffect(() => {
-        setBoardColumns(initialBoardColumns);
+        setBoardColumns(initialBoardColumns ?? []);
+        if ((initialBoardColumns?.length ?? 0) > 0) {
+            setBoardColumnsLoading(false);
+        }
     }, [initialBoardColumns]);
+
+    const showKanbanLoading = isKanbanView && boardColumnsLoading;
 
     const {
         handleAction,
@@ -139,33 +192,60 @@ const Index = ({
         selected: deal,
     } = useGenericEntityAction<Deal>();
 
-    // Memoize configs to prevent unnecessary re-renders and filter resets
-    const filterConfig = useMemo(
+    // M3/S1: filter + bulk-action options come from form-data batch (not Index props)
+    const filterFormDataTypes = useMemo(
         () =>
-            createDealFilterConfig({
-                ...props,
-                stages,
-                leadPipelines: pipelines,
-                leadAgents,
-                sources,
-                packages,
-                excludeFields: [
-                    "pipeline_stage_id",
-                    "lead_pipeline_id",
-                    "search",
-                ],
-            }),
-        [
-            props.categories,
-            (props as any).leadPipelines,
-            stages,
-            leadAgents,
-            props.employees,
-            pipelines,
-            sources,
-            packages,
-        ],
+            [
+                "categories",
+                "sources",
+                "packages",
+                "lead-agents",
+                "lead-pipelines",
+                "lead-stages",
+            ] as FormDataType[],
+        [],
     );
+
+    const { data: filterFormData, loading: formDataLoading } =
+        useFormDataBatch(filterFormDataTypes);
+
+    const filterStages = useMemo(
+        () =>
+            (Array.isArray(filterFormData["lead-stages"])
+                ? filterFormData["lead-stages"]
+                : []) as PipelineStage[],
+        [filterFormData],
+    );
+
+    const filterLeadAgents = useMemo(
+        () =>
+            (Array.isArray(filterFormData["lead-agents"])
+                ? filterFormData["lead-agents"]
+                : []) as LeadAgent[],
+        [filterFormData],
+    );
+
+    // Memoize configs to prevent unnecessary re-renders and filter resets
+    const filterConfig = useMemo(() => {
+        const pick = (type: string, fallback: any[] = []) => {
+            const value = filterFormData[type];
+            return Array.isArray(value) && value.length > 0 ? value : fallback;
+        };
+
+        return createDealFilterConfig({
+            categories: pick("categories"),
+            sources: pick("sources"),
+            packages: pick("packages"),
+            leadAgents: pick("lead-agents"),
+            leadPipelines: pick("lead-pipelines", pipelines || []),
+            stages: pick("lead-stages"),
+            excludeFields: [
+                "pipeline_stage_id",
+                "lead_pipeline_id",
+                "search",
+            ],
+        });
+    }, [filterFormData, pipelines]);
 
     // Setup search and filter contexts
     const { filter } = usePageSearchAndFilter({
@@ -180,19 +260,20 @@ const Index = ({
         const urlParams = new URLSearchParams(window.location.search);
         const params = Object.fromEntries(urlParams.entries());
 
-        // Update pipeline
+        // Update pipeline; keep view so server stays view-aware (K1)
         params.lead_pipeline_id = String(value);
+        params.view = view;
 
-        // Navigate
+        // X2: only refresh list props (+ board columns in kanban); filters drives valueLeadPipelineId
         router.get(route("deals.index"), params, {
+            only: isKanbanView
+                ? ["deals", "boardColumns", "filters"]
+                : ["deals", "filters"],
             preserveState: true,
             preserveScroll: true,
             replace: true,
         });
     };
-
-    // Sort handlers
-    const { sortParams } = usePageSort({ routeName: "deals.index" });
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -231,12 +312,22 @@ const Index = ({
                 { deal_id: deal.id, agent_id: agentId },
                 {
                     onSuccess: () => {
-                        router.reload({ only: ["deals", "boardColumns"] });
+                        // K3: table skips boardColumns; kanban refreshes column metadata + card cache
+                        router.reload({
+                            only: isKanbanView
+                                ? ["deals", "boardColumns"]
+                                : ["deals"],
+                        });
+                        if (isKanbanView) {
+                            queryClient.invalidateQueries({
+                                queryKey: [route("deals.kanban_deals")],
+                            });
+                        }
                     },
                 },
             );
         },
-        [changeAgent],
+        [changeAgent, isKanbanView, queryClient],
     );
 
     // Helper to check if user can edit a specific deal
@@ -331,9 +422,9 @@ const Index = ({
         td,
     });
 
-    const valueLeadPipelineId = (props as any).filters?.lead_pipeline_id
-        ? Number((props as any).filters?.lead_pipeline_id)
-        : defaultPipeline?.id;
+    const valueLeadPipelineId = pageFilters?.lead_pipeline_id
+        ? Number(pageFilters.lead_pipeline_id)
+        : (defaultPipeline?.id ?? pipelines[0]?.id ?? 0);
 
     // Kanban view handlers
     const handleColumnsUpdate = useCallback((updatedColumns: BoardColumn[]) => {
@@ -351,18 +442,18 @@ const Index = ({
     // ── Page-level refresh ──────────────────────────────────────────────
     const { refresh, isRefreshing } = usePageRefresh({
         onRefresh: async () => {
-            // Reload Inertia server-rendered props (deals table data + board columns)
+            // K3: view-aware partial reload — no full window.location.reload
             await new Promise<void>((resolve, reject) => {
                 router.reload({
+                    only: isKanbanView
+                        ? ["deals", "boardColumns"]
+                        : ["deals"],
                     onSuccess: () => resolve(),
                     onError: (errors) => reject(errors),
                 });
             });
 
-            // For Kanban view, also bust the React Query cache that each
-            // KanbanColumn uses via useApiInfiniteQuery.
             if (isKanbanView) {
-                window.location.reload(); // Full reload to ensure all Kanban data is fresh and in sync
                 await queryClient.invalidateQueries({
                     queryKey: [route("deals.kanban_deals")],
                 });
@@ -414,7 +505,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {t("app.common.actions.refresh")}
+                                {td("Refresh")}
                             </Button>
                             {/* Advanced Filters Button */}
                             <div className="flex items-center gap-x-2">
@@ -426,7 +517,7 @@ const Index = ({
                                 </Button>
                                 <DealsModeSwitcher
                                     view={view}
-                                    onChange={setView}
+                                    onChange={handleViewChange}
                                 />
                             </div>
 
@@ -436,8 +527,8 @@ const Index = ({
                                     selectedEntityIds={selectedEntities?.map(
                                         ({ id }) => id,
                                     )}
-                                    stages={stages}
-                                    leadAgents={leadAgents}
+                                    stages={filterStages}
+                                    leadAgents={filterLeadAgents}
                                     clearSelected={clearSelected}
                                 />
                             )}
@@ -460,16 +551,17 @@ const Index = ({
                                 to: deals.to,
                             }}
                             onPageChange={(page) => {
+                                // X2: pagination only needs the deals list (table view only)
                                 router.get(
                                     route("deals.index"),
-                                    {
-                                        ...filters,
+                                    mergeQueryParams({
                                         lead_pipeline_id: valueLeadPipelineId,
-                                        ...sortParams,
                                         page,
                                         per_page: deals.per_page,
-                                    },
+                                        view,
+                                    }),
                                     {
+                                        only: ["deals"],
                                         preserveState: true,
                                         preserveScroll: true,
                                     },
@@ -483,23 +575,28 @@ const Index = ({
                     {/* Kanban View */}
                     {isKanbanView && (
                         <div className="">
-                            {/* <div className="bg-white rounded-lg border border-gray-200 p-4"> */}
-                            <KanbanBoard
-                                columns={boardColumns}
-                                td={td}
-                                addLeadPermission={addLeadPermission}
-                                onCreateDeal={handleCreateDeal}
-                                onEditDeal={handleEditDeal}
-                                onScheduleMeeting={handleScheduleMeeting}
-                                onAgentChange={handleAgentChange}
-                                onEditColumn={handleEditColumn}
-                                onDeleteColumn={handleDeleteColumn}
-                                onColumnsUpdate={handleColumnsUpdate}
-                                filters={{
-                                    ...filters,
-                                    lead_pipeline_id: valueLeadPipelineId,
-                                }}
-                            />
+                            {showKanbanLoading ? (
+                                <div className="flex items-center justify-center py-24">
+                                    <Spin size="large" tip={td("Loading board…")} />
+                                </div>
+                            ) : (
+                                <KanbanBoard
+                                    columns={boardColumns}
+                                    td={td}
+                                    addLeadPermission={addLeadPermission}
+                                    onCreateDeal={handleCreateDeal}
+                                    onEditDeal={handleEditDeal}
+                                    onScheduleMeeting={handleScheduleMeeting}
+                                    onAgentChange={handleAgentChange}
+                                    onEditColumn={handleEditColumn}
+                                    onDeleteColumn={handleDeleteColumn}
+                                    onColumnsUpdate={handleColumnsUpdate}
+                                    filters={{
+                                        ...filters,
+                                        lead_pipeline_id: valueLeadPipelineId,
+                                    }}
+                                />
+                            )}
                         </div>
                     )}
                 </div>
@@ -510,6 +607,9 @@ const Index = ({
                 open={action === "edit"}
                 onClose={handleClose}
                 deal={deal}
+                reloadKeys={
+                    isKanbanView ? ["deals", "boardColumns"] : ["deals"]
+                }
             />
 
             {/* Deal Gathering Form - For Add */}
@@ -543,7 +643,10 @@ const Index = ({
             />
 
             {/* Universal Filter Drawer */}
-            <UniversalFilterDrawer config={filterConfig} />
+            <UniversalFilterDrawer
+                config={filterConfig}
+                loading={formDataLoading}
+            />
         </>
     );
 };

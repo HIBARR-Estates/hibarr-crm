@@ -28,6 +28,7 @@ class LeadOwnerAssigned extends BaseNotification
         $via = ['database'];
 
         if (
+            $notifiable->status === 'active' &&
             $this->emailSetting &&
             $this->emailSetting->send_email === 'yes' &&
             $notifiable->email_notifications &&

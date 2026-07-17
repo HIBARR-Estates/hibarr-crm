@@ -81,6 +81,7 @@ interface UnitTypeFormValues {
     description: string | null;
     military_base_distance_km: number | null;
     has_restrictions: boolean;
+    is_sold_out: boolean;
     restriction_notes: string | null;
     reference_code: string | null;
     quantity: number | null;
@@ -241,6 +242,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                     ? Number(editingItem.military_base_distance_km)
                     : null,
                 has_restrictions: editingItem.has_restrictions ?? false,
+                is_sold_out: editingItem.is_sold_out ?? false,
                 restriction_notes: editingItem.restriction_notes,
                 // Clear reference_code when duplicating — server will auto-generate
                 reference_code: isDuplicating
@@ -255,6 +257,7 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                 primary_category: "residential",
                 currency: "GBP",
                 has_restrictions: false,
+                is_sold_out: false,
                 unit_style: [],
                 view_types: [],
                 outside_features: [],
@@ -774,6 +777,15 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
                         />
                     </Form.Item>
                 )}
+
+                <Form.Item
+                    name="is_sold_out"
+                    label="Sold Out"
+                    valuePropName="checked"
+                    tooltip="Marks this unit as unavailable. Visible to all users."
+                >
+                    <Switch checkedChildren="Yes" unCheckedChildren="No" />
+                </Form.Item>
 
                 {/* ================================================
                     SECTION 5 — Description

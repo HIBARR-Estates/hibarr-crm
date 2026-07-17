@@ -26,6 +26,7 @@ export interface DealFormProps {
     cancelText?: string;
     visible?: boolean;
     disableFields?: string[];
+    formReferenceData?: Record<string, any>;
 }
 
 const DealForm: React.FC<DealFormProps> = ({
@@ -41,6 +42,7 @@ const DealForm: React.FC<DealFormProps> = ({
     onErrorsClear,
     visible,
     disableFields = [],
+    formReferenceData = {},
 }) => {
     const [activeTab, setActiveTab] = useState("deal");
     const { props } = usePage<any>();
@@ -51,16 +53,33 @@ const DealForm: React.FC<DealFormProps> = ({
         number | undefined
     >(data?.stage_id);
 
+    const dealCustomFields: any[] =
+        formReferenceData.dealCustomFields ||
+        formReferenceData.customFields ||
+        props.dealCustomFields ||
+        props.customFields ||
+        [];
+
     const allCustomFieldCategories: any[] =
-        props.dealCustomFieldCategories || props.customFieldCategories || [];
+        formReferenceData.dealCustomFieldCategories ||
+        formReferenceData.customFieldCategories ||
+        props.dealCustomFieldCategories ||
+        props.customFieldCategories ||
+        [];
 
     const pipelineCategoryScopeMap: Record<
         string,
         { pipelineWide?: number[]; byStage?: Record<string, number[]> }
-    > = props.pipelineCategoryScopeMap || {};
+    > =
+        formReferenceData.pipelineCategoryScopeMap ||
+        props.pipelineCategoryScopeMap ||
+        {};
 
-    const pipelineFieldScopeMap = props.pipelineFieldScopeMap || {};
-    const stages = props.stages || [];
+    const pipelineFieldScopeMap =
+        formReferenceData.pipelineFieldScopeMap ||
+        props.pipelineFieldScopeMap ||
+        {};
+    const stages = formReferenceData.stages || props.stages || [];
     const { mode: fieldViewMode, setMode: setFieldViewMode, showAllFields } =
         useDealFieldViewMode();
 
@@ -135,6 +154,7 @@ const DealForm: React.FC<DealFormProps> = ({
                     cancelText={cancelText}
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
+                    formReferenceData={formReferenceData}
                     onPipelineChange={(pipelineId) => {
                         setSelectedPipelineId(pipelineId);
                         setSelectedStageId(undefined);
@@ -156,6 +176,8 @@ const DealForm: React.FC<DealFormProps> = ({
                     submitText={submitText}
                     categoryId={category.id}
                     categoryName={category.name}
+                    customFields={dealCustomFields}
+                    dealCustomFields={dealCustomFields}
                 />
             ) : null,
             disabled: data === undefined,

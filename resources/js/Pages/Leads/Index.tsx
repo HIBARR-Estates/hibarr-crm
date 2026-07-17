@@ -10,7 +10,6 @@ import DeleteLead from "@/Features/Leads/DeleteLead";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import useGenericTableRowSelection from "@/Hooks/useGenericTableRowSelection";
 
-import usePageSort from "@/Hooks/usePageSort";
 import { Lead, LeadCategory, LeadSource } from "@/Types/api/leads";
 import { PaginatedLeadResponse } from "@/Types/api/leads";
 
@@ -38,20 +37,26 @@ import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 
-export interface IndexProps extends PageProps {
+export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
     leads: PaginatedLeadResponse;
-    leadLifecycleStatuses?: Array<{ id: number; label: string; key: string }>;
+    filters?: Record<string, string | undefined>;
+    leadLifecycleStatuses?: Array<{
+        id: number;
+        label: string;
+        key: string;
+        label_color?: string;
+    }>;
 }
 
 const Index = ({
     pageTitle,
     leads,
     leadLifecycleStatuses = [],
-    ...props
 }: IndexProps) => {
     const { t } = useTranslation();
     const { td } = useTd();
@@ -82,8 +87,8 @@ const Index = ({
     const { data: formData, loading: formDataLoading } = useFormDataBatch(
         formDataTypes as FormDataType[],
     );
-    console.log(formData, "FORM DATA");
-    // // Memoize configs to prevent unnecessary re-renders and filter resets
+
+    // Memoize configs to prevent unnecessary re-renders and filter resets
     const filterConfig = useMemo(
         () =>
             createLeadFilterConfig({
@@ -109,10 +114,7 @@ const Index = ({
     });
 
     // Extract commonly used values
-    const { openDrawer, filters } = filter;
-
-    // Sort handlers
-    const { sortParams } = usePageSort({ routeName: "lead-contact.index" });
+    const { openDrawer } = filter;
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -197,7 +199,18 @@ const Index = ({
     );
 
     // ── Page-level refresh ──────────────────────────────────────────
-    const { refresh, isRefreshing } = usePageRefresh();
+    // X2: refresh only the leads list (lifecycle statuses/filters are stable)
+    const { refresh, isRefreshing } = usePageRefresh({
+        onRefresh: async () => {
+            await new Promise<void>((resolve, reject) => {
+                router.reload({
+                    only: ["leads"],
+                    onSuccess: () => resolve(),
+                    onError: (errors) => reject(errors),
+                });
+            });
+        },
+    });
 
     return (
         <>
@@ -238,7 +251,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {t("app.common.actions.refresh")}
+                                {td("Refresh")}
                             </Button>
                             {/* Advanced Filters Button */}
                             <Button
@@ -274,15 +287,15 @@ const Index = ({
                             to: leads.to,
                         }}
                         onPageChange={(page) => {
+                            // X2: pagination only needs the leads list
                             router.get(
                                 route("lead-contact.index"),
-                                {
-                                    // ...filters,
-                                    ...sortParams,
+                                mergeQueryParams({
                                     page,
                                     per_page: leads.per_page,
-                                },
+                                }),
                                 {
+                                    only: ["leads"],
                                     preserveState: true,
                                     preserveScroll: true,
                                 },
@@ -298,6 +311,7 @@ const Index = ({
             <SaveLeadModal
                 open={["add", "edit"].includes(action ?? "")}
                 onClose={handleClose}
+                reloadKeys={["leads"]}
                 lead={lead}
                 setLead={(lead) => {
                     if (lead) handleEditLead(lead);

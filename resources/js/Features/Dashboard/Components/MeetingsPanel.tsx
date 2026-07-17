@@ -26,6 +26,7 @@ import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollow
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import { Deal } from "@/Types/api/deals";
+import { Lead } from "@/Types/api/leads";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 
@@ -358,16 +359,17 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                     onClose={() => handleClose(undefined)}
                     followup={selectedMeeting}
                     deal={meetingDeal}
-                    lead={meetingLead as any}
+                    lead={meetingLead as Lead}
                     onEdit={() => handleAction("edit", selectedMeeting)}
                 />
             )}
 
-            {selectedMeeting && meetingDeal && (
+            {selectedMeeting && (meetingDeal || meetingLead) && (
                 <EditFollowup
                     open={action === "edit"}
                     onClose={() => handleClose()}
                     deal={meetingDeal}
+                    lead={meetingLead as Lead}
                     followup={selectedMeeting}
                 />
             )}

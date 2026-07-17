@@ -1,8 +1,8 @@
 import React from "react";
 import { Form, Input, Select, Row, Col } from "antd";
 import { CreateLeadFormData } from "@/Types/api/leads";
-import { usePage } from "@inertiajs/react";
 import PhoneInput from "antd-phone-input";
+import { useCountries } from "@/Hooks/useFormData";
 
 interface ContactDetailsTabProps {
     data: CreateLeadFormData;
@@ -15,8 +15,7 @@ const ContactDetailsTab: React.FC<ContactDetailsTabProps> = ({
     setData,
     errors,
 }) => {
-    const { props } = usePage<any>();
-    const { countries } = props;
+    const { countries } = useCountries();
     return (
         <div className="space-y-6">
             <Row gutter={[24, 16]}>

@@ -8,6 +8,7 @@ use App\Models\LeadPipeline;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Models\User;
+use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use App\Models\LeadSetting;
@@ -64,6 +65,7 @@ class LeadSettingController extends AccountBaseController
         };
 
         $this->activeTab = $tab ?: 'source';
+        $this->pipelineNavVisibilityEnabled = FeatureFlags::enabled('crm.pipeline-nav-visibility');
 
         if ($this->activeTab === 'deal-packages') {
             $catalog = app(PackageRoutingFieldCatalog::class);

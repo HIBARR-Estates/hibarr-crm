@@ -29,7 +29,8 @@ import type {
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
 import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
-import { capitalizeFirstLetter } from "@/lib/utils";
+import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
+import { capitalizeFirstLetter, formatLocationNameForDisplay } from "@/lib/utils";
 import dayjs from "dayjs";
 // import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 
@@ -338,6 +339,11 @@ export default function UnitTypePropertyView({
                                                 {unitType.restriction_notes}
                                             </span>
                                         )}
+                                    </Descriptions.Item>
+                                )}
+                                {unitType.is_sold_out && (
+                                    <Descriptions.Item label="Availability">
+                                        <UnitSoldOutBadge soldOut />
                                     </Descriptions.Item>
                                 )}
                             </Descriptions>
@@ -774,7 +780,7 @@ export default function UnitTypePropertyView({
                             {location ? (
                                 <div>
                                     <div className="font-semibold text-gray-900">
-                                        {location.name}
+                                        {formatLocationNameForDisplay(location.name)}
                                     </div>
                                     {location.address && (
                                         <div className="text-sm text-gray-500 mt-1">

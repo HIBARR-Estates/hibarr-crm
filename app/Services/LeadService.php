@@ -26,14 +26,19 @@ class LeadService
     {
         $viewPermission = user()->permission('view_lead');
         
+        // Q2: eager-load only relations the Leads Index actually consumes.
+        // - leadOwner: lead owner column (image_url, name)
+        // - addedBy: edit-from-Index modal reads lead.added_by.id
+        // - leadSource / category: table columns
+        // The lifecycle column uses the lead_lifecycle_status_id scalar + the
+        // leadLifecycleStatuses page prop (not the lifecycleStatus relation).
+        // Custom field values are fetched on edit open (M4/S3), not per row.
         $query = Lead::query()
             ->with([
                 'leadOwner:id,name,email,image',
                 'addedBy:id,name,email',
                 'leadSource:id,type',
                 'category:id,category_name',
-                'client:id,name,email',
-                'lifecycleStatus:id,key,label,label_color,sort_order',
             ])
             ->select([
                 'leads.id', 'leads.company_id', 'leads.client_name', 'leads.client_email', 
@@ -42,7 +47,7 @@ class LeadService
                 'leads.lead_lifecycle_status_id',
                 'leads.salutation', 'leads.gender', 'leads.address', 'leads.city', 'leads.state', 
                 'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office',
-                'leads.languages', 'leads.date_of_birth', 'leads.nationality', 'leads.occupation',
+                'leads.languages', 'leads.date_of_birth', 'leads.age', 'leads.age_range', 'leads.nationality', 'leads.occupation',
             ]);
 
         // Apply permission-based filtering
@@ -56,12 +61,12 @@ class LeadService
         
         $leads = $query->paginate($request->get('per_page', 15));
 
+        // S3: do not call withCustomFields() / mergeOntoLead here — SaveLeadModal
+        // fetches custom field values on edit open (M4). Keep enum scalar helpers
+        // the Index / edit modal still read from the row.
         $leads->getCollection()->transform(function ($lead) {
             $lead->salutation_value = $lead->salutation instanceof \App\Enums\Salutation ? $lead->salutation->value : $lead->salutation;
             $lead->gender_value = $lead->gender instanceof \App\Enums\Gender ? $lead->gender->value : $lead->gender;
-            $lead = $lead->withCustomFields();
-
-            $this->coreFieldsService->mergeOntoLead($lead);
 
             return $lead;
         });

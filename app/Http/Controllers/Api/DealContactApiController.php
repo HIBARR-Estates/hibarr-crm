@@ -10,6 +10,7 @@ use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
+use App\Notifications\LeadOwnerAssigned;
 use App\Http\Requests\Deal\CreateDealRequest;
 use App\Http\Requests\Contact\CreateOrUpdateContactRequest;
 use App\Services\DealCreationService;
@@ -19,6 +20,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Notification;
 
 
 class DealContactApiController extends Controller
@@ -216,6 +218,7 @@ class DealContactApiController extends Controller
                 
                 $companyId = (int) $companyId;
                 $updateAgentIfExists = $request->boolean('update_agent_if_exists', false);
+                $notify = $request->boolean('notify', false);
                 
                 // Check if contact already exists by email (most reliable identifier)
                 $existingContact = null;
@@ -254,8 +257,13 @@ class DealContactApiController extends Controller
                     if ($request->has('lead_owner_id') && !empty($request->lead_owner_id)) {
                         $contact->lead_owner = $request->lead_owner_id;
                     }
+
+                    // Set lead category if provided
+                    if ($request->has('lead_category_id') && !empty($request->lead_category_id)) {
+                        $contact->category_id = $request->lead_category_id;
+                    }
                     $this->applyAddressAndDobToLead($contact, $request);
-                    $contact->saveQuietly();
+                    $this->saveContact($contact, $request, $notify);
                     $contactId = $contact->id;
                 } else {
                     // Update existing contact
@@ -286,11 +294,18 @@ class DealContactApiController extends Controller
                             $updated = true;
                         }
                     }
+                    // Update lead category if provided
+                    if ($request->has('lead_category_id') && !empty($request->lead_category_id)) {
+                        if (!$existingContact->category_id) {
+                            $existingContact->category_id = $request->lead_category_id;
+                            $updated = true;
+                        }
+                    }
                     if ($this->applyAddressAndDobToLead($existingContact, $request)) {
                         $updated = true;
                     }
                     if ($updated) {
-                        $existingContact->saveQuietly();
+                        $this->saveContact($existingContact, $request, $notify);
                     }
                     $contactId = $existingContact->id;
                 }
@@ -412,6 +427,59 @@ class DealContactApiController extends Controller
         $contact->saveQuietly();
 
         return $contact->id;
+    }
+
+    /**
+     * Save a lead contact, optionally firing model observers for notifications.
+     *
+     * @param \App\Models\Lead $contact
+     * @param Request $request
+     * @param bool $notify
+     * @return void
+     */
+    private function saveContact(Lead $contact, Request $request, bool $notify): void
+    {
+        if (!$notify) {
+            $contact->saveQuietly();
+            return;
+        }
+
+        // LeadObserver::creating overwrites added_by when no authenticated user is present.
+        if ($contact->added_by) {
+            $request->merge(['added_by' => $contact->added_by]);
+        }
+
+        $contact->save();
+
+        if ($contact->wasRecentlyCreated && $contact->lead_owner) {
+            $this->notifyLeadOwnerOnCreate($contact);
+        }
+    }
+
+    /**
+     * Notify the assigned owner when a new lead is created via the API.
+     *
+     * @param \App\Models\Lead $contact
+     * @return void
+     */
+    private function notifyLeadOwnerOnCreate(Lead $contact): void
+    {
+        $owner = $contact->leadOwner;
+        if (!$owner) {
+            return;
+        }
+
+        DB::afterCommit(function () use ($owner, $contact) {
+            try {
+                Notification::send($owner, new LeadOwnerAssigned($contact));
+            } catch (\Throwable $e) {
+                Log::error('Failed to notify lead owner after contact creation', [
+                    'lead_id' => $contact->id,
+                    'owner_id' => $owner->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
     }
 
     /**

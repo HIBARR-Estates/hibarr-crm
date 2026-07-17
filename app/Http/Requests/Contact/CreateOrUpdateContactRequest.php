@@ -33,7 +33,9 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'phone' => 'nullable|string|max:50',
             'lead_source_id' => 'nullable|integer|exists:lead_sources,id',
             'lead_owner_id' => 'nullable|integer|exists:users,id',
+            'lead_category_id' => 'nullable|integer|exists:lead_category,id',
             'update_agent_if_exists' => 'nullable|boolean',
+            'notify' => 'nullable|boolean',
             
             // Optional UTM/marketing fields
             'utmInfo' => 'nullable|array',

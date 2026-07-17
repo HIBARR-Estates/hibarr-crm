@@ -18,6 +18,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { getFileUploadService } from "@/Services/FileUploadService";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 const DEFAULT_CURRENCY_CODE = "USD";
 
@@ -518,7 +519,8 @@ export default function CustomFieldDisplay({
     visibleFieldKeys,
 }: Props) {
     const { props } = usePage<any>();
-    const { currencies = [], default_currency_code } = props;
+    const { currencies } = useCurrencies();
+    const { default_currency_code } = props;
 
     // Use the application's default currency (current company setting)
     const appDefaultCurrency: string =

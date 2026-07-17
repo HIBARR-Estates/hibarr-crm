@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Input, Select, Form, Space } from "antd";
-import { usePage } from "@inertiajs/react";
 import { Country } from "@/Types";
+import { useCountries } from "@/Hooks/useFormData";
 
 interface Props {
     fieldName: string;
@@ -30,8 +30,7 @@ const PhoneInput: React.FC<Props> = ({
     optional = false,
     disabled = false,
 }) => {
-    const { props } = usePage();
-    const { countries = [] } = props;
+    const { countries } = useCountries();
 
     const [searchedCountries, setSearchedCountries] = useState<Country[]>([]);
     const [selectedCountry, setSelectedCountry] = useState<Country | null>(

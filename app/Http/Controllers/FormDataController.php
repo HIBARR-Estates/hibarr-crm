@@ -39,9 +39,12 @@ class FormDataController extends Controller
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'categories', 'sources', 'employees',
-            'lead-pipelines', 'lead-stages', 'products', 'countries',
-            'lead-agents', 'client-categories', 'languages', 'leads', 'packages', 'developer-projects', 'developer_projects'
+            'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
+            'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
+            'lead-agents', 'client-categories', 'languages', 'leads', 'packages',
+            'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',
+            'lead-custom-fields', 'lead-custom-field-categories',
+            'developer-projects', 'developer_projects'
         ];
 
         if (!in_array($type, $allowedTypes)) {
@@ -81,14 +84,16 @@ class FormDataController extends Controller
     public function batch(Request $request): JsonResponse
     {
         $request->validate([
-            'types' => 'required|array|max:10',
+            'types' => 'required|array|max:15',
             'types.*' => 'required|string',
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'categories', 'sources', 'employees',
-            'lead-pipelines', 'lead-stages', 'products', 'countries',
-            'lead-agents', 'client-categories', 'languages', 'leads', 'packages'
+            'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
+            'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
+            'lead-agents', 'client-categories', 'languages', 'leads', 'packages',
+            'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',
+            'lead-custom-fields', 'lead-custom-field-categories'
         ];
 
         $types = $request->get('types');

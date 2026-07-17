@@ -442,6 +442,18 @@ return [
             'sync_processing' => true,
         ],
         [
+            'slug' => 'lead_first_contact',
+            'name' => 'First Contact',
+            'category' => 'lead',
+            'model_type' => 'App\\Models\\Lead',
+            'description' => 'First outreach / contact was logged for a lead.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'message' => ['type' => 'string', 'label' => 'Message'],
+            ],
+        ],
+        [
             'slug' => 'qualification_completed',
             'name' => 'Qualification Completed',
             'category' => 'lead',
@@ -747,6 +759,24 @@ return [
         'connection' => null, // null = default connection
         // 'name' => 'crm_events',
         'name' => 'default', //made default queue name to crm_events to avoid changing supervisor config in production. Can be overridden in .env if needed.
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | OL Outbound Webhook Sync
+    |--------------------------------------------------------------------------
+    |
+    | CRM to OL one-way event sync settings. These slugs are allowed to fan out
+    | to the OL webhook pipeline when the feature flag is enabled.
+    |
+    */
+    'ol_webhook' => [
+        'event_slugs' => [
+            'lead_created',
+            'lead_updated',
+            'deal_created',
+            'deal_updated',
+        ],
     ],
 
 ];

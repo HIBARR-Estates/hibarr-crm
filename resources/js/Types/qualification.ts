@@ -99,6 +99,38 @@ export interface ConsultationCalendlyPayload {
     phone?: string;
     leadId?: number;
     calendlyUrl?: string;
+    language?: string;
+    country?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    gender?: string;
+    utmInfo?: {
+        utmSource?: string;
+        utmMedium?: string;
+        utmCampaign?: string;
+        utmTerm?: string;
+        utmContent?: string;
+        agt?: number;
+    };
+}
+
+export interface RegisterWebinarSessionPayload {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    leadId?: number;
+    language?: string;
+    gender?: string;
+    utmInfo?: {
+        utmSource?: string;
+        utmMedium?: string;
+        utmCampaign?: string;
+        utmTerm?: string;
+        utmContent?: string;
+        agt?: number;
+    };
 }
 
 export interface ConsultationCalendlyResponse {
@@ -119,14 +151,6 @@ export interface WebinarSession {
 export interface GetNextWebinarSessionsResponse {
     success: boolean;
     data: WebinarSession[];
-}
-
-export interface RegisterWebinarSessionPayload {
-    email: string;
-    firstName?: string;
-    lastName?: string;
-    phone?: string;
-    leadId?: number;
 }
 
 export interface RegisterWebinarSessionResponse {
@@ -189,6 +213,11 @@ export interface LeadQualification {
     created_at: string;
     updated_at: string;
     answers?: LeadQualificationAnswer[];
+    agent?: {
+        id: number;
+        name: string;
+        image?: string | null;
+    };
 }
 
 export interface LeadQualificationsResponse {
@@ -216,6 +245,7 @@ export interface UpdateNavigationPayload {
 export interface CompleteQualificationPayload {
     outcome: QualificationOutcome;
     selected_branch_keys?: string[];
+    webinar_session_label?: string;
 }
 
 export interface LeadLifecycleStatus {

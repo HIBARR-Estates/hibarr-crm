@@ -1,9 +1,10 @@
 import React from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import { Card, Input, Empty, Typography } from "antd";
+import { Card, Input, Empty, Typography, Spin } from "antd";
 import { PlusOutlined } from "@ant-design/icons";
 import { LeadNote } from "@/Types/api/lead-note";
 import { NoteCard } from "./NoteCard";
+import { NotesBreadcrumb, NotesView } from "./NotesBreadcrumb";
 
 const { Search } = Input;
 const { Title, Text } = Typography;
@@ -18,6 +19,10 @@ interface NotesListProps {
     onViewNote: (note: LeadNote) => void;
     onEditNote: (note: LeadNote) => void;
     onDeleteNote: (note: LeadNote) => void;
+    currentView: NotesView;
+    selectedNote?: LeadNote | null;
+    setCurrentView: (view: NotesView) => void;
+    isLoading?: boolean;
 }
 
 export const NotesList: React.FC<NotesListProps> = ({
@@ -30,6 +35,10 @@ export const NotesList: React.FC<NotesListProps> = ({
     onViewNote,
     onEditNote,
     onDeleteNote,
+    currentView,
+    selectedNote,
+    setCurrentView,
+    isLoading = false,
 }) => {
     const { t } = useTranslation();
     const canAddNote =
@@ -90,7 +99,12 @@ export const NotesList: React.FC<NotesListProps> = ({
     return (
         <div className="flex flex-col gap-y-6">
             {/* Header with Search */}
-            <div className="flex justify-end">
+            <div className="flex justify-between items-center">
+                <NotesBreadcrumb
+                    currentView={currentView}
+                    noteTitle={selectedNote?.title}
+                    onNavigate={setCurrentView}
+                />
                 <div className="w-10/12 md:w-1/3 lg:w-4/12">
                     <Search
                         placeholder={t("pages.leads.notes.search_placeholder")}
@@ -98,32 +112,43 @@ export const NotesList: React.FC<NotesListProps> = ({
                         onChange={(e) => onSearchChange(e.target.value)}
                         allowClear
                         size="small"
-                        // prefix={<SearchOutlined />}
+                        disabled={isLoading}
                     />
                 </div>
             </div>
 
-            {/* Notes Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-                {/* Add Note Card - Show only when not searching */}
                 {!searchTerm && renderAddNoteCard()}
 
-                {/* Notes or Empty State */}
-                {filteredNotes.length === 0 &&
-                    !canAddNote &&
-                    renderEmptyState()}
+                {isLoading ? (
+                    <div
+                        className={`flex min-h-[180px] items-center justify-center rounded-lg border border-dashed border-gray-200 bg-white ${
+                            !searchTerm && canAddNote
+                                ? "md:col-span-1 xl:col-span-2 2xl:col-span-3"
+                                : "col-span-full"
+                        }`}
+                    >
+                        <Spin />
+                    </div>
+                ) : (
+                    <>
+                        {filteredNotes.length === 0 &&
+                            !canAddNote &&
+                            renderEmptyState()}
 
-                {filteredNotes.map((note) => (
-                    <NoteCard
-                        key={note.id}
-                        note={note}
-                        permissions={permissions}
-                        userId={userId}
-                        onView={onViewNote}
-                        onEdit={onEditNote}
-                        onDelete={onDeleteNote}
-                    />
-                ))}
+                        {filteredNotes.map((note) => (
+                            <NoteCard
+                                key={note.id}
+                                note={note}
+                                permissions={permissions}
+                                userId={userId}
+                                onView={onViewNote}
+                                onEdit={onEditNote}
+                                onDelete={onDeleteNote}
+                            />
+                        ))}
+                    </>
+                )}
             </div>
         </div>
     );

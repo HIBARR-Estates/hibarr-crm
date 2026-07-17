@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { usePage } from "@inertiajs/react";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useQuery } from "@tanstack/react-query";
 import axios from "axios";
@@ -33,7 +34,13 @@ export type FormDataType =
     | "leads"
     | "lead-statuses"
     | "genders"
-    | "packages";
+    | "age-ranges"
+    | "packages"
+    | "deal-custom-fields"
+    | "deal-custom-field-categories"
+    | "deal-pipeline-custom-field-category-map"
+    | "lead-custom-fields"
+    | "lead-custom-field-categories";
 
 type FormDataParams = {
     page?: number;
@@ -108,7 +115,10 @@ export const useFormData = <T = any>(
     };
 };
 
-export const useFormDataBatch = (types: FormDataType[]) => {
+export const useFormDataBatch = (
+    types: FormDataType[],
+    options: { enabled?: boolean } = {},
+) => {
     // Sort types for stable cache keys
     const sortedTypes = useMemo(() => [...types].sort(), [types]);
 
@@ -120,7 +130,7 @@ export const useFormDataBatch = (types: FormDataType[]) => {
         refetch,
     } = useQuery<{
         success: boolean;
-        data: Record<string, any[]>;
+        data: Record<string, any>;
         message?: string;
     }>({
         queryKey: ["formDataBatch", sortedTypes],
@@ -149,7 +159,7 @@ export const useFormDataBatch = (types: FormDataType[]) => {
 
             return result.data;
         },
-        enabled: types.length > 0,
+        enabled: types.length > 0 && options.enabled !== false,
         staleTime: 1000 * 60 * 30, // 30 minutes
         gcTime: 1000 * 60 * 60, // 1 hour
         refetchOnWindowFocus: false,
@@ -166,3 +176,48 @@ export const useFormDataBatch = (types: FormDataType[]) => {
         refetch,
     };
 };
+
+/**
+ * Prefer page props when a controller already passed countries; otherwise
+ * fetch once via the form-data API (React Query cache).
+ */
+export function useCountries(options: { enabled?: boolean } = {}) {
+    const { props } = usePage();
+    const pageCountries = props.countries;
+    const hasPageData =
+        Array.isArray(pageCountries) && pageCountries.length > 0;
+
+    const { data, loading, error, refetch } = useFormData("countries", {
+        paginate: false,
+        enabled: options.enabled !== false && !hasPageData,
+    });
+
+    return {
+        countries: (hasPageData ? pageCountries : data) as any[],
+        loading: hasPageData ? false : loading,
+        error,
+        refetch,
+    };
+}
+
+/**
+ * Prefer page props when currencies were passed; otherwise fetch company currencies.
+ */
+export function useCurrencies(options: { enabled?: boolean } = {}) {
+    const { props } = usePage();
+    const pageCurrencies = props.currencies;
+    const hasPageData =
+        Array.isArray(pageCurrencies) && pageCurrencies.length > 0;
+
+    const { data, loading, error, refetch } = useFormData("currencies", {
+        paginate: false,
+        enabled: options.enabled !== false && !hasPageData,
+    });
+
+    return {
+        currencies: (hasPageData ? pageCurrencies : data) as any[],
+        loading: hasPageData ? false : loading,
+        error,
+        refetch,
+    };
+}

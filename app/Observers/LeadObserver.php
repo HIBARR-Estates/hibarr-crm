@@ -8,6 +8,7 @@ use App\Models\LeadLifecycleStatus;
 use App\Models\UniversalSearch;
 use App\Models\User;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\DB;
 use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
 use App\Traits\HasDynamicTranslations;
@@ -65,7 +66,16 @@ class LeadObserver
 
             if (!session()->has('is_imported')) {
 
-                event(new LeadEvent($leadContact, 'NewLeadCreated'));
+                DB::afterCommit(function () use ($leadContact) {
+                    try {
+                        event(new LeadEvent($leadContact, 'NewLeadCreated'));
+                    } catch (\Throwable $e) {
+                        \Log::error('Failed to notify admins of new lead after commit', [
+                            'lead_id' => $leadContact->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                });
             }else{
 
 
@@ -135,7 +145,17 @@ class LeadObserver
             return;
         }
 
-        Notification::send($newOwner, new LeadOwnerAssigned($leadContact, $oldOwnerId));
+        DB::afterCommit(function () use ($newOwner, $leadContact, $oldOwnerId) {
+            try {
+                Notification::send($newOwner, new LeadOwnerAssigned($leadContact, $oldOwnerId));
+            } catch (\Throwable $e) {
+                \Log::error('Failed to notify lead owner after assignment', [
+                    'lead_id' => $leadContact->id,
+                    'owner_id' => $newOwner->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        });
 
         // ── CRM Event: lead_status_changed (owner reassigned) ──
         $this->recordCrmEvent('lead_status_changed', $leadContact, [

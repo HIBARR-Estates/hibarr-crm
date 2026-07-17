@@ -45,6 +45,7 @@ export interface Developer {
     project_list: string[] | null;
     whatsapp_group_link: string | null;
     google_drive_link: string | null;
+    is_hidden?: boolean;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -175,6 +176,7 @@ export interface DeveloperProject {
     payment_plan: PaymentPlan | null;
     facilities: string[] | null;
     distances: ProjectDistances | null;
+    is_hidden?: boolean;
     created_at: string;
     updated_at: string;
     deleted_at: string | null;
@@ -241,6 +243,7 @@ export interface DeveloperProjectUnitType {
     property_type: string | null;
     quantity: number | null;
     total_sold: number | null;
+    is_sold_out?: boolean;
     unit_style: string[] | null;
     view_types: string[] | null;
     furniture_status: string | null;
@@ -477,6 +480,7 @@ export interface CreateDeveloperProjectInput {
     description?: string;
     developer_id?: number;
     project_location_id?: number;
+    is_hidden?: boolean;
 }
 
 export interface UpdateDeveloperProjectInput extends Partial<CreateDeveloperProjectInput> {}

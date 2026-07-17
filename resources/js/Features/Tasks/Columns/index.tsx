@@ -22,6 +22,7 @@ import PageDataSorter from "@/Components/PageDataSorter";
 import { getPriorityConfig } from "@/lib/priority";
 import { Task } from "@/Types/Task";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
+import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 
 // Types based on Laravel Task model
 
@@ -114,6 +115,21 @@ export const useTasksTableColumns = ({
                                 </>
                             )}
                         </div>
+                        {record.deals && record.deals.length > 0 ? (
+                            <TaskEntityLink
+                                type="deal"
+                                id={record.deals[0].id}
+                                name={record.deals[0].name}
+                                className="mt-0.5"
+                            />
+                        ) : record.leads && record.leads.length > 0 ? (
+                            <TaskEntityLink
+                                type="lead"
+                                id={record.leads[0].id}
+                                name={record.leads[0].client_name}
+                                className="mt-0.5"
+                            />
+                        ) : null}
                     </div>
                 );
             },

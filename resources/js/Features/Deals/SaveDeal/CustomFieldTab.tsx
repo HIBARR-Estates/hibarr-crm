@@ -20,6 +20,8 @@ interface CustomFieldTabProps
     > {
     categoryId: number;
     categoryName: string;
+    customFields?: any[];
+    dealCustomFields?: any[];
 }
 
 const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
@@ -31,16 +33,28 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
     cancelText = "Cancel",
     categoryId,
     categoryName,
+    customFields: customFieldsOverride,
+    dealCustomFields: dealCustomFieldsOverride,
 }) => {
     const [form] = Form.useForm();
     const { props } = usePage<any>();
     const defaultCode = props?.default_currency_code || "TRY";
     const currencyFieldIds = useMemo(() => {
-        const fields = (props?.customFields || []).concat(props?.dealCustomFields || []);
+        const fields = (
+            customFieldsOverride ??
+            props?.customFields ??
+            []
+        ).concat(dealCustomFieldsOverride ?? props?.dealCustomFields ?? []);
         return fields
             .filter((f: any) => f.type === "currency" && f.custom_field_category_id === categoryId)
             .map((f: any) => f.id);
-    }, [props?.customFields, props?.dealCustomFields, categoryId]);
+    }, [
+        props?.customFields,
+        props?.dealCustomFields,
+        customFieldsOverride,
+        dealCustomFieldsOverride,
+        categoryId,
+    ]);
 
     useEffect(() => {
         // Initialize form values when data changes; normalize currency fields from number/string to { amount, currency }
@@ -104,6 +118,8 @@ const CustomFieldTab: React.FC<CustomFieldTabProps> = ({
                     errors={{}}
                     categoryId={categoryId}
                     categoryName={categoryName}
+                    customFields={customFieldsOverride}
+                    dealCustomFields={dealCustomFieldsOverride}
                 />
 
                 <div style={{ marginTop: 24 }}>

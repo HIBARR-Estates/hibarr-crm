@@ -122,6 +122,8 @@ class FindOrCreateEmployeeV2Request extends CoreRequest
             ],
 
             'password' => ['nullable', 'string'],
+            'sendOnboardingEmail' => ['nullable', 'boolean'],
+            'send_onboarding_email' => ['nullable', 'boolean'],
             'phone' => ['nullable', 'string', 'max:20', 'regex:/^\+\d{8,15}$/'],
         ];
     }

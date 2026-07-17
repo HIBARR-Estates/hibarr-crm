@@ -10,6 +10,7 @@ import {
     Progress,
     Row,
     Col,
+    Switch,
 } from "antd";
 import {
     UploadOutlined,
@@ -28,6 +29,8 @@ interface DeveloperFormModalProps {
     onClose: () => void;
     developer?: Developer | null;
     onSuccess: () => void;
+    /** Show the Hidden toggle (feature flag + edit permission). */
+    canToggleHidden?: boolean;
 }
 
 interface CreateDeveloperInput {
@@ -36,6 +39,7 @@ interface CreateDeveloperInput {
     description?: string;
     whatsapp_group_link?: string;
     google_drive_link?: string;
+    is_hidden?: boolean;
 }
 
 const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
@@ -43,6 +47,7 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
     onClose,
     developer,
     onSuccess,
+    canToggleHidden = false,
 }) => {
     const [form] = Form.useForm();
     const isEditing = !!developer;
@@ -130,11 +135,13 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                     description: developer.description,
                     whatsapp_group_link: developer.whatsapp_group_link,
                     google_drive_link: developer.google_drive_link,
+                    is_hidden: !!developer.is_hidden,
                 });
                 setLogoUrl(developer.logo_url || null);
             } else {
                 form.resetFields();
                 setLogoUrl(null);
+                form.setFieldsValue({ is_hidden: false });
             }
             resetUpload();
         }
@@ -275,6 +282,17 @@ const DeveloperFormModal: React.FC<DeveloperFormModalProps> = ({
                         </Form.Item>
                     </Col>
                 </Row>
+
+                {canToggleHidden && (
+                    <Form.Item
+                        name="is_hidden"
+                        label="Hide from view-only users"
+                        valuePropName="checked"
+                        extra="When enabled, users without edit access will not see this developer or any of its projects."
+                    >
+                        <Switch />
+                    </Form.Item>
+                )}
             </Form>
         </Modal>
     );

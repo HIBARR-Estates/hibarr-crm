@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { InputNumber, Select, Form } from "antd";
 import { usePage } from "@inertiajs/react";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 // Currency type that may come from different sources
 type CurrencyType = {
@@ -46,7 +47,8 @@ const CurrencyInput: React.FC<Props> = ({
     defaultCurrency,
 }) => {
     const { props } = usePage<any>();
-    const { currencies = [], default_currency_code } = props;
+    const { currencies } = useCurrencies();
+    const { default_currency_code } = props;
     const effectiveDefaultCurrencyCode =
         defaultCurrency || default_currency_code || "TRY";
 

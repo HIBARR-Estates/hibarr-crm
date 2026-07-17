@@ -51,6 +51,7 @@ import {
     pipelineHasFieldScopes,
     useDealFieldViewMode,
 } from "@/Features/Deals/useDealFieldViewMode";
+import { useCurrencies } from "@/Hooks/useFormData";
 
 function normalizePackageFieldValue(value: unknown): number[] {
     if (value === undefined || value === null || value === "") {
@@ -277,7 +278,7 @@ export default function DealInfoSection({
         [resolvedDealFieldKeys],
     );
     const user = props.auth.user;
-    const currencies = props.currencies || [];
+    const { currencies } = useCurrencies();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const [activeSection, setActiveSection] = useState("overview");
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
@@ -1879,7 +1880,7 @@ export default function DealInfoSection({
                 </div>
 
                 {/* Sidebar + Content */}
-                <div className="flex overflow-hidden max-h-[70vh]">
+                <div className="flex overflow-hidden max-h-[85vh]">
                     <SideNavTabs
                         items={sideNavItems}
                         activeKey={activeSection}
