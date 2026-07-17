@@ -9,11 +9,14 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Session;
 use Maatwebsite\Excel\HeadingRowImport;
 use Maatwebsite\Excel\Imports\HeadingRowFormatter;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use ReflectionClass;
 
 trait ImportExcel
 {
+    /** @var array<int, \Illuminate\Bus\Batch|null> */
+    protected array $importBatches = [];
 
     protected function applyImportResourceLimits(): void
     {
@@ -81,6 +84,7 @@ trait ImportExcel
 
     public function importJobProcess($request, $importClass, $importJobClass)
     {
+        $this->importBatches = [];
         $this->applyImportResourceLimits();
         // get class name from $importClass
         $importClassName = (new ReflectionClass($importClass))->getShortName();
@@ -220,9 +224,11 @@ trait ImportExcel
         }
         
         Log::info('All chunks processed', ['total_chunks' => count($allBatches)]);
-        
-        // Return the first batch for tracking
-        $batch = $allBatches[0] ?? null;
+
+        $this->importBatches = array_values(array_filter($allBatches));
+
+        // Return the first batch for legacy single-batch tracking
+        $batch = $this->importBatches[0] ?? null;
 
         Files::deleteFile($request->file, Files::IMPORT_FOLDER);
 
@@ -230,23 +236,97 @@ trait ImportExcel
     }
 
     /**
-     * Process all jobs on an import-specific queue inline. The legacy Blade import
-     * flow polls ImportController::getImportProgress for this; the Inertia upload
-     * path must invoke it directly or jobs sit unprocessed unless a worker listens
-     * on the import queue name (e.g. LeadImport).
+     * Drain an import queue within a strict job/time budget (legacy Blade flow polls
+     * ImportController::getImportProgress for unbounded progress). When batch objects
+     * are supplied, stop early once every batch has finished.
+     *
+     * @param  array<int, \Illuminate\Bus\Batch|null>  $batches
      */
-    protected function runImportQueueUntilEmpty(string $queueName): void
+    protected function runImportQueueUntilEmpty(string $queueName, array $batches = []): void
     {
-        try {
-            Artisan::call('queue:work', [
+        $maxJobsPerSlice = max(1, (int) (ini_get('max_execution_time') / 10));
+        $budgetSeconds = min(55, max(10, (int) (ini_get('max_execution_time') / 5)));
+        $deadline = microtime(true) + $budgetSeconds;
+
+        while (microtime(true) < $deadline) {
+            if ($batches !== [] && $this->importBatchesAreFinished($batches)) {
+                return;
+            }
+
+            $exitCode = Artisan::call('queue:work', [
                 'connection' => 'database',
                 '--queue' => $queueName,
+                '--max-jobs' => $maxJobsPerSlice,
                 '--stop-when-empty' => true,
                 '--tries' => 3,
             ]);
-        } catch (\Exception $e) {
-            Log::warning("Could not process import queue [{$queueName}]: " . $e->getMessage());
+
+            if ($exitCode !== 0) {
+                throw new \RuntimeException("Import queue worker exited with code {$exitCode}.");
+            }
+
+            if ($batches === [] || $this->importBatchesAreFinished($batches)) {
+                return;
+            }
+
+            if (! $this->importQueueHasPendingJobs($queueName)) {
+                break;
+            }
         }
+    }
+
+    /**
+     * @param  array<int, \Illuminate\Bus\Batch|null>  $batches
+     * @return 'complete'|'failed'|'pending'
+     */
+    protected function assessImportBatches(array $batches): string
+    {
+        if ($batches === []) {
+            return 'complete';
+        }
+
+        $hasPending = false;
+
+        foreach ($batches as $batch) {
+            if (! $batch) {
+                continue;
+            }
+
+            $fresh = $batch->fresh();
+
+            if ($fresh->cancelled() || $fresh->hasFailures()) {
+                return 'failed';
+            }
+
+            if (! $fresh->finished()) {
+                $hasPending = true;
+            }
+        }
+
+        return $hasPending ? 'pending' : 'complete';
+    }
+
+    /**
+     * @param  array<int, \Illuminate\Bus\Batch|null>  $batches
+     */
+    protected function importBatchesAreFinished(array $batches): bool
+    {
+        if ($batches === []) {
+            return true;
+        }
+
+        foreach ($batches as $batch) {
+            if ($batch && ! $batch->fresh()->finished()) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    protected function importQueueHasPendingJobs(string $queueName): bool
+    {
+        return DB::table('jobs')->where('queue', $queueName)->exists();
     }
 
 }

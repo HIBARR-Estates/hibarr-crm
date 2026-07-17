@@ -20,7 +20,6 @@ const ImportLeads: React.FC<Props> = ({ open, onClose }) => {
         router.post(route("lead-contact.import.store"), formDataObject, {
             forceFormData: true,
             onSuccess: () => {
-                message.success("Import completed successfully.");
                 onClose();
                 router.reload({ only: ["leads"] });
             },
