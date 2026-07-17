@@ -10,6 +10,7 @@ declare module "@inertiajs/core" {
         flash?: {
             success?: string;
             error?: string;
+            message?: string;
         };
         company?: Company;
         languages?: Array<{ language_code: string; language_name: string }>;
