@@ -229,4 +229,24 @@ trait ImportExcel
         return $batch;
     }
 
+    /**
+     * Process all jobs on an import-specific queue inline. The legacy Blade import
+     * flow polls ImportController::getImportProgress for this; the Inertia upload
+     * path must invoke it directly or jobs sit unprocessed unless a worker listens
+     * on the import queue name (e.g. LeadImport).
+     */
+    protected function runImportQueueUntilEmpty(string $queueName): void
+    {
+        try {
+            Artisan::call('queue:work', [
+                'connection' => 'database',
+                '--queue' => $queueName,
+                '--stop-when-empty' => true,
+                '--tries' => 3,
+            ]);
+        } catch (\Exception $e) {
+            Log::warning("Could not process import queue [{$queueName}]: " . $e->getMessage());
+        }
+    }
+
 }

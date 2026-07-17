@@ -1275,6 +1275,7 @@ class LeadContactController extends AccountBaseController
 
         try {
             $this->importJobProcess($processRequest, LeadImport::class, ImportLeadJob::class);
+            $this->runImportQueueUntilEmpty($this->importClassName ?? 'LeadImport');
         } catch (\Throwable $e) {
             Log::error('Lead Inertia import failed after upload', [
                 'message' => $e->getMessage(),
