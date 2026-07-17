@@ -36,8 +36,8 @@ const ImportLeads: React.FC<Props> = ({ open, onClose }) => {
                     "Import has been queued. Leads will appear shortly if the queue worker is running."
                 );
                 onClose();
-                // Refresh the leads list
-                router.reload();
+                // X2: refresh just the leads list
+                router.reload({ only: ["leads"] });
             },
             onError: (errors) => {
                 console.error("Import errors:", errors);

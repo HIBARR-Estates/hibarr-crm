@@ -11,6 +11,7 @@ import {
     Alert,
     App,
     Typography,
+    Switch,
 } from "antd";
 import {
     BuildOutlined,
@@ -23,6 +24,7 @@ import {
     BlockOutlined,
     ThunderboltOutlined,
     SaveOutlined,
+    EyeInvisibleOutlined,
 } from "@ant-design/icons";
 import type {
     DeveloperProject,
@@ -72,6 +74,8 @@ interface ConstructionProjectFormModalProps {
     developer?: Developer | null;
     /** Callback after successful create/update. */
     onSuccess?: () => void;
+    /** Show the Hidden toggle (feature flag + edit permission). */
+    canToggleHidden?: boolean;
 }
 
 const removeUndefined = (payload: Record<string, any>) =>
@@ -85,7 +89,14 @@ const removeUndefined = (payload: Record<string, any>) =>
 
 const ConstructionProjectFormModal: React.FC<
     ConstructionProjectFormModalProps
-> = ({ open, onClose, project, developer, onSuccess }) => {
+> = ({
+    open,
+    onClose,
+    project,
+    developer,
+    onSuccess,
+    canToggleHidden = false,
+}) => {
     const [form] = Form.useForm();
     const isEditing = !!project?.id;
     const queryClient = useQueryClient();
@@ -242,6 +253,7 @@ const ConstructionProjectFormModal: React.FC<
                     : [],
                 distances: project.distances,
                 project_location_id: project.project_location_id,
+                is_hidden: !!project.is_hidden,
                 ...locationFields,
             });
         } else {
@@ -267,6 +279,10 @@ const ConstructionProjectFormModal: React.FC<
                             ? cleanData.completion_date.format("YYYY-MM-DD")
                             : cleanData.completion_date,
                     });
+
+                    if (!canToggleHidden) {
+                        delete submitData.is_hidden;
+                    }
 
                     // When the facilities accordion is closed, that field may
                     // be absent from the form payload. Preserve DB value on edit.
@@ -311,7 +327,7 @@ const ConstructionProjectFormModal: React.FC<
                     });
                 });
         },
-        [form, isEffectivelyEditing, createMutation, updateMutation],
+        [form, isEffectivelyEditing, createMutation, updateMutation, canToggleHidden],
     );
 
     const handleSubmit = useCallback(() => doSubmit(false), [doSubmit]);
@@ -377,6 +393,23 @@ const ConstructionProjectFormModal: React.FC<
                                 developers={developers}
                             />
                         </FormSection>
+
+                        {canToggleHidden && (
+                            <FormSection
+                                title="Visibility"
+                                icon={<EyeInvisibleOutlined />}
+                                description="Control whether view-only users can see this project"
+                            >
+                                <Form.Item
+                                    name="is_hidden"
+                                    label="Hide from view-only users"
+                                    valuePropName="checked"
+                                    extra="When enabled, users without edit access will not see this project. A hidden parent developer also hides all projects."
+                                >
+                                    <Switch />
+                                </Form.Item>
+                            </FormSection>
+                        )}
 
                         {/* Project Details — classification & specs */}
                         <FormSection

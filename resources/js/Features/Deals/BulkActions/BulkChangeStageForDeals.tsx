@@ -44,8 +44,8 @@ const BulkChangeStageForDeals: React.FC<Props> = ({
                 onSuccess: () => {
                     message.success("Deal stages updated successfully");
                     onClose(true);
-                    // Refresh the deals list
-                    router.reload();
+                    // X2: bulk actions render in table view only — refresh deals list
+                    router.reload({ only: ["deals"] });
                 },
                 onError: () => {
                     message.error("Failed to update deal stages");

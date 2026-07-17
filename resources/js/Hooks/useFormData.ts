@@ -35,7 +35,12 @@ export type FormDataType =
     | "lead-statuses"
     | "genders"
     | "age-ranges"
-    | "packages";
+    | "packages"
+    | "deal-custom-fields"
+    | "deal-custom-field-categories"
+    | "deal-pipeline-custom-field-category-map"
+    | "lead-custom-fields"
+    | "lead-custom-field-categories";
 
 type FormDataParams = {
     page?: number;
@@ -110,7 +115,10 @@ export const useFormData = <T = any>(
     };
 };
 
-export const useFormDataBatch = (types: FormDataType[]) => {
+export const useFormDataBatch = (
+    types: FormDataType[],
+    options: { enabled?: boolean } = {},
+) => {
     // Sort types for stable cache keys
     const sortedTypes = useMemo(() => [...types].sort(), [types]);
 
@@ -122,7 +130,7 @@ export const useFormDataBatch = (types: FormDataType[]) => {
         refetch,
     } = useQuery<{
         success: boolean;
-        data: Record<string, any[]>;
+        data: Record<string, any>;
         message?: string;
     }>({
         queryKey: ["formDataBatch", sortedTypes],
@@ -151,7 +159,7 @@ export const useFormDataBatch = (types: FormDataType[]) => {
 
             return result.data;
         },
-        enabled: types.length > 0,
+        enabled: types.length > 0 && options.enabled !== false,
         staleTime: 1000 * 60 * 30, // 30 minutes
         gcTime: 1000 * 60 * 60, // 1 hour
         refetchOnWindowFocus: false,

@@ -137,6 +137,7 @@ class DeveloperProject extends BaseModel
         'payment_plan',
         'facilities',
         'distances',
+        'is_hidden',
     ];
 
     /**
@@ -166,6 +167,7 @@ class DeveloperProject extends BaseModel
         'payment_plan' => 'array',
         'facilities' => 'array',
         'distances' => 'array',
+        'is_hidden' => 'boolean',
     ];
 
     /**

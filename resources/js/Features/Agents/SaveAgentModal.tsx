@@ -182,7 +182,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
                             showSearch
                             loading={formDataLoading}
                             filterOption={(input, option) =>
-                                (option?.label ?? "")
+                                String(option?.label ?? "")
                                     .toLowerCase()
                                     .includes(input.toLowerCase())
                             }
@@ -236,7 +236,7 @@ const SaveAgentModal: React.FC<SaveAgentModalProps> = ({
                         showSearch
                         loading={formDataLoading}
                         filterOption={(input, option) =>
-                            (option?.label ?? "")
+                            String(option?.label ?? "")
                                 .toLowerCase()
                                 .includes(input.toLowerCase())
                         }
