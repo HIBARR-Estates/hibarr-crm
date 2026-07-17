@@ -90,6 +90,9 @@ export default function PageLayout({
         if (flash?.error) {
             message.error(flash.error);
         }
+        if (flash?.message) {
+            message.info(flash.message);
+        }
     }, [flash]);
 
     // Logout mutation
