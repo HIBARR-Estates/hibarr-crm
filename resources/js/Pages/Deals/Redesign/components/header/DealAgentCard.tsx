@@ -18,7 +18,14 @@ interface AgentInfo {
 interface LeadAgentOption {
     id: number;
     name: string;
-    user?: { id: number; name: string; email?: string };
+    user?: {
+        id: number;
+        name: string;
+        email?: string;
+        employee_detail?: {
+            designation?: { name?: string } | null;
+        } | null;
+    };
 }
 
 interface DealAgentCardProps {
@@ -52,7 +59,8 @@ export default function DealAgentCard({
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right" });
-    const { saveTeamField } = useDealTeamMutations(dealId);
+    const { saveTeamField, isSaving } = useDealTeamMutations(dealId);
+    const isAssigning = isSaving("agent_id");
 
     const { data, loading } = useFormData<LeadAgentOption>("lead-agents", {
         search: debouncedSearch,
@@ -102,6 +110,7 @@ export default function DealAgentCard({
                         : td("Assign a deal agent")
                 }
                 onClick={() => setOpen((v) => !v)}
+                disabled={isAssigning}
                 style={{
                     display: "flex",
                     alignItems: "center",
@@ -110,7 +119,8 @@ export default function DealAgentCard({
                     border: `1px solid ${T.BORDER}`,
                     borderRadius: 10,
                     padding: "8px 12px",
-                    cursor: "pointer",
+                    cursor: isAssigning ? "default" : "pointer",
+                    opacity: isAssigning ? 0.6 : 1,
                     fontFamily: "inherit",
                     textAlign: "left",
                 }}
@@ -151,7 +161,16 @@ export default function DealAgentCard({
                     </span>
                 </span>
                 <span style={{ color: T.TEXT_MUTED, display: "flex", marginLeft: 2 }}>
-                    <DealIcon name={open ? "chevron-up" : "chevron-down"} size={14} />
+                    {isAssigning ? (
+                        <span
+                            aria-hidden="true"
+                            className="flex h-3.5 w-3.5 items-center justify-center"
+                        >
+                            <span className="animate-spin rounded-full border-2 border-current border-t-transparent h-3 w-3" />
+                        </span>
+                    ) : (
+                        <DealIcon name={open ? "chevron-up" : "chevron-down"} size={14} />
+                    )}
                 </span>
             </button>
 
@@ -206,6 +225,9 @@ export default function DealAgentCard({
                                             .map((option) => {
                                                 const name =
                                                     option.user?.name ?? option.name;
+                                                const designation =
+                                                    option.user?.employee_detail
+                                                        ?.designation?.name;
                                                 return (
                                                     <button
                                                         key={option.id}
@@ -233,10 +255,11 @@ export default function DealAgentCard({
                                                             >
                                                                 {name}
                                                             </span>
-                                                            {option.user?.email && (
+                                                            {designation && (
                                                                 <span
                                                                     style={{
                                                                         display: "block",
+                                                                        marginTop: 2,
                                                                         fontSize: 11,
                                                                         color: T.TEXT_MUTED,
                                                                         overflow: "hidden",
@@ -246,7 +269,7 @@ export default function DealAgentCard({
                                                                             "nowrap",
                                                                     }}
                                                                 >
-                                                                    {option.user.email}
+                                                                    {designation}
                                                                 </span>
                                                             )}
                                                         </span>

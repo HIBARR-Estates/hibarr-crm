@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
-import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -83,7 +83,11 @@ export default function WorkspaceTasksTab({
     const [filter, setFilter] = useState<TaskFilter>("open");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
+    const [pendingTaskIds, setPendingTaskIds] = useState<Set<number>>(
+        () => new Set(),
+    );
     const { mutate: updateTaskStatus } = taskApi.useUpdateStatus();
+    const { setTasks } = useDealWorkspace();
 
     const taskItems = useMemo(
         () => tasks.map((task) => toWorkspaceTaskListItem(task)),
@@ -121,18 +125,45 @@ export default function WorkspaceTasksTab({
                 : new Set(filteredTasks.map((task) => task.id)),
         );
 
+    const applyStatus = (taskId: number, slug: string) => {
+        setTasks((prev) =>
+            prev.map((task) =>
+                task.id === taskId ? { ...task, status: slug } : task,
+            ),
+        );
+    };
+
+    const markPending = (taskId: number, pending: boolean) => {
+        setPendingTaskIds((prev) => {
+            const next = new Set(prev);
+            if (pending) next.add(taskId);
+            else next.delete(taskId);
+            return next;
+        });
+    };
+
     const handleStatusChange = (taskId: number, slug: string) => {
+        markPending(taskId, true);
         updateTaskStatus(
             { taskId, status: slug },
-            { onSuccess: () => router.reload({ only: ["tasks"] }) },
+            {
+                onSuccess: () => applyStatus(taskId, slug),
+                onSettled: () => markPending(taskId, false),
+            },
         );
     };
 
     const handleBulkStatusChange = (slug: string) => {
         selected.forEach((taskId) => {
-            updateTaskStatus({ taskId, status: slug });
+            markPending(taskId, true);
+            updateTaskStatus(
+                { taskId, status: slug },
+                {
+                    onSuccess: () => applyStatus(taskId, slug),
+                    onSettled: () => markPending(taskId, false),
+                },
+            );
         });
-        router.reload({ only: ["tasks"] });
         exitSelectMode();
     };
 
@@ -289,6 +320,7 @@ export default function WorkspaceTasksTab({
                                 status={statusSlug}
                                 columns={taskBoardColumns}
                                 disabled={selectMode}
+                                loading={pendingTaskIds.has(task.id)}
                                 onChange={(slug) =>
                                     handleStatusChange(task.id, slug)
                                 }

@@ -1,25 +1,18 @@
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useState } from "react";
 import {
-    CalendarOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
     EditOutlined,
-    GiftOutlined,
     InfoCircleOutlined,
-    LinkOutlined,
-    MailOutlined,
-    PhoneOutlined,
-    ReloadOutlined,
 } from "@ant-design/icons";
-import { Link, router, usePage } from "@inertiajs/react";
-import { Button, Tag, Tooltip } from "antd";
+import axios from "axios";
+import { Button, Tag } from "antd";
 import dayjs from "dayjs";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import { DetailField } from "@/Components/DetailSection";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import UserIndicator from "@/Components/UserIndicator";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
-import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { Deal, HibarrDealFields } from "@/Types/api/deals";
@@ -34,6 +27,7 @@ import type { DealInfoCoreSectionId, DealInfoSectionId } from "../../types";
 import DealButton from "../primitives/DealButton";
 import DealEditableField from "../primitives/DealEditableField";
 import DealInfoGroupTitle from "./DealInfoGroupTitle";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
 interface DealInfoSectionPanelProps {
     sectionId: DealInfoSectionId;
@@ -44,32 +38,12 @@ interface DealInfoSectionPanelProps {
     isLocked: boolean;
     isFieldLoading: (fieldName: string) => boolean;
     updatingField: string | null;
-    isRecalculatingValue: boolean;
     onFieldUpdate: (
         fieldName: string,
         value: unknown,
         type?: "details" | "contact" | "custom_field" | "hibarr_field",
     ) => Promise<void>;
-    onRecalculateValue: () => Promise<void>;
     restrictPackageOrProperty?: boolean;
-}
-
-function getMobileNumber(mobile: string | null | undefined) {
-    if (!mobile) return "--";
-    if (typeof mobile === "string" && mobile.trim().startsWith("{")) {
-        try {
-            const mobileData = JSON.parse(mobile.trim());
-            return mobileData?.phone || mobile;
-        } catch {
-            return mobile;
-        }
-    }
-    return mobile;
-}
-
-function formatCurrency(value: number, currencySymbol = "£") {
-    if (!value) return "--";
-    return `${currencySymbol}${value.toLocaleString()}`;
 }
 
 function FieldGrid({ children }: { children: ReactNode }) {
@@ -89,21 +63,29 @@ export default function DealInfoSectionPanel({
     isLocked,
     isFieldLoading,
     updatingField,
-    isRecalculatingValue,
     onFieldUpdate,
-    onRecalculateValue,
     restrictPackageOrProperty = false,
 }: DealInfoSectionPanelProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
-    const { props } = usePage<any>();
+    const [refreshingProperties, setRefreshingProperties] = useState(false);
     const { t } = useTranslation();
     const { td } = useTd();
-    const defaultCurrencyCode = props.default_currency_code || "TRY";
+    const { setDeal } = useDealWorkspace();
     const hibarrFields: Partial<HibarrDealFields> = deal.hibarr_fields || {};
-    const valueInsight = useMemo(() => getDealValueInsight(deal), [deal]);
-    const currentCurrencySymbol = deal.currency?.currency_symbol || "£";
     const editing = isEditing && canEdit;
+
+    const refreshDeal = async () => {
+        setRefreshingProperties(true);
+        try {
+            const response = await axios.get(route("deals.refresh", deal.id));
+            if (response.data?.status === "success" && response.data?.data) {
+                setDeal(response.data.data);
+            }
+        } finally {
+            setRefreshingProperties(false);
+        }
+    };
 
     const hasPackage = (deal.packages?.length ?? 0) > 0;
     const hasProperty = (deal.products?.length ?? 0) > 0;
@@ -220,102 +202,6 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.deal_value")}>
-                    <div className="flex flex-col items-start gap-2 md:flex-row md:items-center">
-                        <DealEditableField
-                            value={{
-                                amount: deal.value ?? null,
-                                currency:
-                                    deal.currency?.currency_code ||
-                                    defaultCurrencyCode,
-                            }}
-                            fieldName="value"
-                            fieldType="currency"
-                            onSave={(value) => onFieldUpdate("value", value)}
-                            alwaysEditing={editing}
-                            loading={isFieldLoading("value")}
-                            disabled={!canEdit || isLocked}
-                        />
-                        {!editing && (
-                            <>
-                                <Tooltip
-                                    placement="topLeft"
-                                    title={
-                                        <div style={{ minWidth: 220 }}>
-                                            <div>
-                                                {t(
-                                                    "pages.deals.info.value_insight.properties",
-                                                )}
-                                                :{" "}
-                                                {valueInsight.productsTotal !==
-                                                null
-                                                    ? formatCurrency(
-                                                          valueInsight.productsTotal,
-                                                          currentCurrencySymbol,
-                                                      )
-                                                    : "--"}
-                                            </div>
-                                            <div>
-                                                {t(
-                                                    "pages.deals.info.value_insight.packages",
-                                                )}
-                                                :{" "}
-                                                {formatCurrency(
-                                                    valueInsight.packagesTotal,
-                                                    currentCurrencySymbol,
-                                                )}
-                                            </div>
-                                            <div>
-                                                {t(
-                                                    "pages.deals.info.value_insight.total",
-                                                )}
-                                                :{" "}
-                                                {formatCurrency(
-                                                    valueInsight.finalValue,
-                                                    currentCurrencySymbol,
-                                                )}
-                                            </div>
-                                        </div>
-                                    }
-                                >
-                                    <InfoCircleOutlined className="cursor-help text-blue-500" />
-                                </Tooltip>
-                                <Tooltip
-                                    title={t(
-                                        "pages.deals.info.actions.recalculate_value_tooltip",
-                                    )}
-                                >
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={
-                                            <ReloadOutlined
-                                                spin={isRecalculatingValue}
-                                            />
-                                        }
-                                        onClick={onRecalculateValue}
-                                        disabled={
-                                            !canEdit ||
-                                            isLocked ||
-                                            isRecalculatingValue
-                                        }
-                                    />
-                                </Tooltip>
-                            </>
-                        )}
-                        {!editing &&
-                            deal.total_discount != null &&
-                            deal.total_discount > 0 && (
-                                <Tag color="green" icon={<GiftOutlined />}>
-                                    -
-                                    {formatCurrency(
-                                        Number(deal.total_discount),
-                                        currentCurrencySymbol,
-                                    )}
-                                </Tag>
-                            )}
-                    </div>
-                </DetailField>
                 <DetailField label={t("pages.deals.info.fields.close_date")}>
                     <DealEditableField
                         value={deal.close_date}
@@ -329,69 +215,6 @@ export default function DealInfoSectionPanel({
                         }
                         alwaysEditing={editing}
                         loading={isFieldLoading("close_date")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                {showPackagesField && (
-                    <DetailField label={t("pages.deals.info.fields.packages")}>
-                        <DealEditableField
-                            value={deal.packages?.map((pkg) => pkg.id) || []}
-                            fieldName="package_id"
-                            selectorType="packages"
-                            mode="multiple"
-                            displayValue={
-                                deal.packages?.length
-                                    ? deal.packages
-                                          .map((pkg) => pkg?.name || pkg)
-                                          .join(", ")
-                                    : "--"
-                            }
-                            onSave={(value) => onFieldUpdate("package_id", value)}
-                            alwaysEditing={editing}
-                            loading={isFieldLoading("package_id")}
-                            disabled={!canEdit}
-                        />
-                    </DetailField>
-                )}
-                <DetailField label={t("pages.deals.info.fields.lead_contact")}>
-                    <DealEditableField
-                        value={deal.lead_id}
-                        fieldName="lead_id"
-                        selectorType="leads"
-                        displayValue={
-                            deal.contact ? (
-                                <div className="flex min-w-0 flex-col gap-1.5">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="font-medium text-gray-900">
-                                            {deal.contact.client_name_salutation ||
-                                                deal.contact.client_name}
-                                        </span>
-                                        {deal.contact.client_id && (
-                                            <Tag color="blue" className="text-xs">
-                                                {t("pages.deals.info.client_tag")}
-                                            </Tag>
-                                        )}
-                                    </div>
-                                    <Link
-                                        href={route(
-                                            "lead-contact.show",
-                                            deal.contact.id,
-                                        )}
-                                        className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800"
-                                    >
-                                        <LinkOutlined />
-                                        {t(
-                                            "pages.deals.info.actions.view_lead_profile",
-                                        )}
-                                    </Link>
-                                </div>
-                            ) : (
-                                <span className="text-gray-400">--</span>
-                            )
-                        }
-                        onSave={(value) => onFieldUpdate("lead_id", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("lead_id")}
                         disabled={!canEdit}
                     />
                 </DetailField>
@@ -415,100 +238,66 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.created_at")}>
-                    {deal.created_at ? (
-                        <span className="flex items-center gap-1">
-                            <CalendarOutlined className="text-gray-400" />
-                            {dayjs(deal.created_at).format("MMM DD, YYYY HH:mm")}
+                <DetailField label="Lead source">
+                    {deal.contact?.lead_source?.type ? (
+                        <span className="text-gray-700">
+                            {deal.contact.lead_source.type}
                         </span>
                     ) : (
                         <span className="text-gray-400">--</span>
                     )}
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.updated_at")}>
-                    {deal.updated_at ? (
-                        <span className="flex items-center gap-1">
-                            <CalendarOutlined className="text-gray-400" />
-                            {dayjs(deal.updated_at).format("MMM DD, YYYY HH:mm")}
-                        </span>
-                    ) : (
-                        <span className="text-gray-400">--</span>
-                    )}
-                </DetailField>
-                {deal.lead_status && (
-                    <DetailField label={t("pages.deals.info.fields.status")}>
-                        <Tag
-                            color={deal.lead_status.label_color}
-                            className="font-medium"
-                        >
-                            {deal.lead_status.type}
-                        </Tag>
-                    </DetailField>
-                )}
             </FieldGrid>
 
-            <DealInfoGroupTitle>
-                {t("pages.deals.info.sections.contact_info")}
-            </DealInfoGroupTitle>
+            {packagePropertyBanner}
             <FieldGrid>
-                <DetailField
-                    label={t("pages.deals.info.fields.email")}
-                    copyValue={deal.contact?.client_email || undefined}
-                >
-                    <div className="flex w-full items-center gap-x-2">
-                        {deal.contact?.client_email && (
-                            <MailOutlined className="flex-shrink-0 text-gray-400" />
-                        )}
-                        {deal.contact?.client_email ? (
-                            <DealEditableField
-                                value={deal.contact.client_email}
-                                fieldName="email"
-                                fieldType="email"
-                                onSave={(value) => onFieldUpdate("email", value)}
-                                alwaysEditing={editing}
-                                loading={isFieldLoading("email")}
-                                disabled={!canEdit}
-                            />
-                        ) : (
-                            <span className="text-gray-400">--</span>
-                        )}
-                    </div>
-                </DetailField>
-                <DetailField
-                    label={t("pages.deals.info.fields.mobile")}
-                    copyValue={getMobileNumber(deal.contact?.mobile) || undefined}
-                >
-                    {deal.contact ? (
-                        <div className="flex items-center gap-x-2">
-                            <PhoneOutlined className="flex-shrink-0 text-gray-400" />
-                            <DealEditableField
-                                value={getMobileNumber(deal.contact.mobile)}
-                                fieldName="mobile"
-                                fieldType="phone"
-                                onSave={(value) => onFieldUpdate("mobile", value)}
-                                alwaysEditing={editing}
-                                loading={isFieldLoading("mobile")}
-                                disabled={!canEdit}
-                            />
+                {showPackagesField && (
+                    <DetailField label={t("pages.deals.info.fields.packages")}>
+                        <DealEditableField
+                            value={deal.packages?.map((pkg) => pkg.id) || []}
+                            fieldName="package_id"
+                            selectorType="packages"
+                            mode="multiple"
+                            displayValue={
+                                deal.packages?.length
+                                    ? deal.packages
+                                          .map((pkg) => pkg?.name || pkg)
+                                          .join(", ")
+                                    : "--"
+                            }
+                            onSave={(value) => onFieldUpdate("package_id", value)}
+                            alwaysEditing={editing}
+                            loading={isFieldLoading("package_id")}
+                            disabled={!canEdit}
+                        />
+                    </DetailField>
+                )}
+                {showPropertiesSection && (
+                    <DetailField
+                        label={t("pages.deals.info.fields.properties")}
+                        span={2}
+                    >
+                        <div className="w-full">
+                            <Button
+                                type="link"
+                                size="small"
+                                icon={<EditOutlined />}
+                                onClick={() => setPropertyModalOpen(true)}
+                                loading={refreshingProperties}
+                                className="!px-0 !text-xs"
+                            >
+                                {t("pages.deals.info.actions.manage_properties")}
+                            </Button>
+                            {deal.products && deal.products.length > 0 ? (
+                                <PropertyCarousel products={deal.products} />
+                            ) : (
+                                <span className="text-sm text-gray-400">
+                                    {t("pages.deals.info.no_properties")}
+                                </span>
+                            )}
                         </div>
-                    ) : (
-                        <span className="text-gray-400">--</span>
-                    )}
-                </DetailField>
-                <DetailField
-                    label={t("pages.deals.info.fields.company_name")}
-                    span={2}
-                >
-                    <DealEditableField
-                        value={deal.contact?.company_name}
-                        fieldName="company_name"
-                        fieldType="text"
-                        onSave={(value) => onFieldUpdate("company_name", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("company_name")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
+                    </DetailField>
+                )}
             </FieldGrid>
 
             <DealInfoGroupTitle>Interest & Budget</DealInfoGroupTitle>
@@ -545,48 +334,12 @@ export default function DealInfoSectionPanel({
                 renderCustomFields(
                     mappedCategories.map((category) => category.id),
                 )}
-        </>
-    );
 
-    const renderProperty = () => (
-        <>
-            {packagePropertyBanner}
-            {showPropertiesSection && (
-                <FieldGrid>
-                    <DetailField
-                        label={t("pages.deals.info.fields.properties")}
-                        span={2}
-                    >
-                        <div className="w-full">
-                            <Button
-                                type="link"
-                                size="small"
-                                icon={<EditOutlined />}
-                                onClick={() => setPropertyModalOpen(true)}
-                                className="!px-0 !text-xs"
-                            >
-                                {t("pages.deals.info.actions.manage_properties")}
-                            </Button>
-                            {deal.products && deal.products.length > 0 ? (
-                                <PropertyCarousel products={deal.products} />
-                            ) : (
-                                <span className="text-sm text-gray-400">
-                                    {t("pages.deals.info.no_properties")}
-                                </span>
-                            )}
-                        </div>
-                    </DetailField>
-                </FieldGrid>
-            )}
-            {mappedCategories.length > 0 &&
-                renderCustomFields(
-                    mappedCategories.map((category) => category.id),
-                )}
             <ManageDealPropertiesModal
                 open={propertyModalOpen}
                 onClose={() => setPropertyModalOpen(false)}
                 deal={deal}
-                onRefresh={() => router.reload({ only: ["deal"] })}
+                onRefresh={refreshDeal}
             />
         </>
     );
@@ -910,8 +663,6 @@ export default function DealInfoSectionPanel({
         switch (sectionId as DealInfoCoreSectionId) {
             case "general":
                 return renderGeneral();
-            case "property":
-                return renderProperty();
             case "preftimeline":
                 return renderPrefTimeline();
             case "funding":
@@ -935,7 +686,7 @@ export default function DealInfoSectionPanel({
                 {canEdit && (
                     <DealButton
                         variant="ghost"
-                        style={{ fontSize: 11, padding: "5px 10px" }}
+                        size="sm"
                         onClick={() => setIsEditing((previous) => !previous)}
                     >
                         {isEditing ? "Done editing" : "Edit fields"}

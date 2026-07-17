@@ -57,8 +57,18 @@ export default function DealPipelineStepper({
                 padding: "12px 16px",
             }}
         >
-            <div className="dr-label" style={{ marginBottom: 10 }}>
+            <div
+                className="dr-label"
+                style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}
+            >
                 {deal.pipeline?.name ? td(deal.pipeline.name) : t("app.menu.pipeline")}
+                {pipeline.isUpdating && (
+                    <span
+                        aria-hidden="true"
+                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        style={{ width: 10, height: 10, color: T.TEXT_MUTED }}
+                    />
+                )}
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
                 {hasOverflow && (
@@ -95,7 +105,11 @@ export default function DealPipelineStepper({
                                     onClick={() => handleClick(stage, index)}
                                     aria-current={isActive ? "step" : undefined}
                                     title={td(stage.name)}
-                                    disabled={!canChangeStages || deal.is_locked}
+                                    disabled={
+                                        !canChangeStages ||
+                                        deal.is_locked ||
+                                        pipeline.isUpdating
+                                    }
                                     style={{
                                         fontFamily: "inherit",
                                         fontSize: 12,
@@ -106,8 +120,11 @@ export default function DealPipelineStepper({
                                         alignItems: "center",
                                         gap: 6,
                                         fontWeight: isActive ? 700 : 500,
+                                        opacity: pipeline.isUpdating ? 0.6 : 1,
                                         cursor:
-                                            !canChangeStages || deal.is_locked
+                                            !canChangeStages ||
+                                            deal.is_locked ||
+                                            pipeline.isUpdating
                                                 ? "default"
                                                 : "pointer",
                                         minHeight: 30,

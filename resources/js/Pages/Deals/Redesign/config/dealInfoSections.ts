@@ -1,7 +1,7 @@
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../types";
 
 /** First N core sections appear under "Now — in progress". Adjust when field-to-section mapping is formalized. */
-export const DEAL_INFO_NOW_SECTION_COUNT = 4;
+export const DEAL_INFO_NOW_SECTION_COUNT = 3;
 
 /**
  * Optional mapping from custom field category id → core section id.
@@ -33,7 +33,6 @@ export interface DealInfoSectionMeta {
 export const DEAL_INFO_CORE_SECTION_ORDER: DealInfoCoreSectionId[] = [
     "general",
     // "experience",
-    "property",
     // "income",
     // "location",
     "preftimeline",
@@ -51,10 +50,6 @@ export const DEAL_INFO_SECTION_META: Record<
     },
     experience: {
         title: "Investment experience & goals",
-        subtitle: "Stage relevant — In progress",
-    },
-    property: {
-        title: "Property preferences",
         subtitle: "Stage relevant — In progress",
     },
     income: {
@@ -82,7 +77,6 @@ export const DEAL_INFO_SECTION_META: Record<
 const CORE_NAV_ICONS: Record<DealInfoCoreSectionId, string> = {
     general: "info",
     experience: "award",
-    property: "building",
     income: "wallet",
     location: "map-pin",
     preftimeline: "clock",
@@ -93,7 +87,6 @@ const CORE_NAV_ICONS: Record<DealInfoCoreSectionId, string> = {
 const CORE_NAV_LABELS: Record<DealInfoCoreSectionId, string> = {
     general: "General info",
     experience: "Inv. experience",
-    property: "Property pref.",
     income: "Income & savings",
     location: "Location pref.",
     preftimeline: "Pref. & timeline",

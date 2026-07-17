@@ -68,7 +68,7 @@ export default function DealStickyHeader({
             {isLocked && (
                 <div
                     role="alert"
-                    className="mx-[26px] mt-4 flex items-center gap-2.5 rounded-[10px] px-3.5 py-2.5 text-[13px] font-medium"
+                    className="mb-4 w-full flex items-center gap-2.5 rounded-[10px] px-3.5 py-2.5 text-[13px] font-medium"
                     style={{
                         background: T.AMBER_BANNER,
                         border: "1px solid #fde68a",
@@ -80,8 +80,8 @@ export default function DealStickyHeader({
                 </div>
             )}
 
-            <div className="px-[26px] pt-4">
-                <div className="mb-[10px] flex items-start justify-between gap-4">
+            <div className="">
+                <div className="flex flex-wrap items-start justify-between gap-6">
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="text-[20px] font-bold tracking-[-0.01em] text-[#1a1f2e]">
@@ -112,13 +112,11 @@ export default function DealStickyHeader({
                             />
                             <DealButton
                                 variant="ghost"
-                                icon={<DealIcon name="refresh" size={12} />}
+                                size="sm"
                                 onClick={onRefresh}
-                                loading={isRefreshing}
                                 disabled={isRefreshing}
-                                style={{ fontSize: 12, padding: "5px 10px" }}
                             >
-                                {td("Refresh")}
+                                {isRefreshing ? td("Refreshing…") : td("Refresh")}
                             </DealButton>
                         </div>
 
@@ -176,8 +174,8 @@ export default function DealStickyHeader({
                             ))}
                             <DealButton
                                 variant="ghost"
+                                size="sm"
                                 onClick={() => team.setTeamModalOpen(true)}
-                                style={{ fontSize: 12, padding: "5px 10px" }}
                             >
                                 {td("Manage team")}
                             </DealButton>

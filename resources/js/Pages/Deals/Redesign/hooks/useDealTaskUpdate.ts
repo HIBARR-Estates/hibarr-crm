@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
+import dayjs from "dayjs";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
@@ -8,40 +9,37 @@ import type { Task } from "@/Types/api/tasks";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 import { formatDueDateForApi } from "./taskDateUtils";
 
-export interface DealTaskCreateInput {
+export interface DealTaskUpdateInput {
     title: string;
     dueDate?: string;
     priority: "low" | "medium" | "high";
     description?: string;
-    assignees?: number[];
+    assignees: number[];
 }
 
-interface CreateTaskRequest {
+interface UpdateTaskRequest {
     heading: string;
     description?: string;
     due_date?: string;
     without_duedate?: boolean;
+    start_date: string;
     priority: "low" | "medium" | "high";
-    taskable_type: "deal";
-    taskable_id: number;
-    user_id?: number[];
-    estimate_hours: number;
-    estimate_minutes: number;
+    user_id: number[];
 }
 
-export default function useDealTaskCreate(dealId: number) {
+export default function useDealTaskUpdate(task: Task) {
     const { props } = usePage();
     const [errors, setErrors] = useState<string[]>([]);
     const { setTasks } = useDealWorkspace();
 
     const { mutate, status } = useApiMutate<
-        CreateTaskRequest,
+        UpdateTaskRequest,
         Task,
         ApiResponse<Task>
-    >(route("tasks.store"), "POST");
+    >(route("tasks.update", task.id), "PUT");
 
-    const createTask = useCallback(
-        (input: DealTaskCreateInput, onSuccess?: () => void) => {
+    const updateTask = useCallback(
+        (input: DealTaskUpdateInput, onSuccess?: () => void) => {
             const title = input.title.trim();
             if (!title) {
                 setErrors(["Task title is required"]);
@@ -50,26 +48,15 @@ export default function useDealTaskCreate(dealId: number) {
 
             const company = props.company;
             const dateFormat = `${company?.date_format || "d-m-Y"} ${company?.time_format || "H:i"}`;
-            const userId = props.auth?.user?.id;
+            const startDateSource = task.start_date || dayjs().format("YYYY-MM-DD");
 
-            const payload: CreateTaskRequest = {
+            const payload: UpdateTaskRequest = {
                 heading: title,
                 description: input.description?.trim() || "",
                 priority: input.priority,
-                taskable_type: "deal",
-                taskable_id: dealId,
-                estimate_hours: 0,
-                estimate_minutes: 0,
+                start_date: formatDueDateForApi(startDateSource, dateFormat),
+                user_id: input.assignees,
             };
-
-            const assignees = input.assignees?.length
-                ? input.assignees
-                : userId
-                  ? [userId]
-                  : undefined;
-            if (assignees) {
-                payload.user_id = assignees;
-            }
 
             if (input.dueDate?.trim()) {
                 payload.due_date = formatDueDateForApi(
@@ -85,7 +72,12 @@ export default function useDealTaskCreate(dealId: number) {
                 onSuccess: (response) => {
                     setErrors([]);
                     if (response?.data) {
-                        setTasks((prev) => [response.data as Task, ...prev]);
+                        const updated = response.data;
+                        setTasks((prev) =>
+                            prev.map((item) =>
+                                item.id === updated.id ? updated : item,
+                            ),
+                        );
                     }
                     onSuccess?.();
                 },
@@ -97,19 +89,19 @@ export default function useDealTaskCreate(dealId: number) {
                     setErrors(
                         responseErrors.length > 0
                             ? responseErrors
-                            : [formatted.message || "Failed to create task"],
+                            : [formatted.message || "Failed to update task"],
                     );
                 },
             });
         },
-        [dealId, mutate, props.auth?.user?.id, props.company, setTasks],
+        [mutate, props.company, setTasks, task.start_date],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);
 
     return {
-        createTask,
-        isCreating: isLoading({ status }),
+        updateTask,
+        isUpdating: isLoading({ status }),
         errors,
         clearErrors,
     };

@@ -92,7 +92,7 @@ export default function DealRescheduleMeetingModal({
                         {td("Cancel")}
                     </DealButton>
                     <DealButton
-                        variant="navy"
+                        variant="primary"
                         onClick={handleSubmit}
                         loading={isRescheduling}
                         disabled={isRescheduling}

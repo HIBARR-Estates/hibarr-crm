@@ -37,7 +37,6 @@ export interface DealTabCount {
 export type DealInfoCoreSectionId =
     | "general"
     | "experience"
-    | "property"
     | "income"
     | "location"
     | "preftimeline"

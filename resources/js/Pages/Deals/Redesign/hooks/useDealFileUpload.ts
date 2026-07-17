@@ -1,24 +1,21 @@
 import { useCallback, useRef, useState } from "react";
 import { message } from "antd";
-import { router } from "@inertiajs/react";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { IUploadResponseItem } from "@/Types/uploads";
+import type { DealFile } from "@/Types/api/file";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 interface StoreExternalPayload {
     deal_id: number;
     files: IUploadResponseItem[];
 }
 
-interface StoreExternalResponse {
-    message: string;
-    data: unknown[];
-}
-
 export default function useDealFileUpload(dealId: number) {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
+    const { setFiles } = useDealWorkspace();
     const uploadServiceRef = useRef(
         getFileUploadService({
             maxFileSize: 200 * 1024 * 1024,
@@ -28,8 +25,8 @@ export default function useDealFileUpload(dealId: number) {
 
     const saveMutation = useApiMutate<
         StoreExternalPayload,
-        StoreExternalResponse,
-        ApiResponse<StoreExternalResponse>
+        DealFile[],
+        ApiResponse<DealFile[]>
     >(route("deal-files.store-external"), "POST");
 
     const uploadFiles = useCallback(
@@ -77,7 +74,10 @@ export default function useDealFileUpload(dealId: number) {
                             onSuccess: (response) => {
                                 if (response?.status === "success") {
                                     message.success("Files uploaded");
-                                    router.reload({ only: ["files"] });
+                                    if (response.data) {
+                                        const uploaded = response.data;
+                                        setFiles((prev) => [...uploaded, ...prev]);
+                                    }
                                     resolve();
                                     return;
                                 }

@@ -536,7 +536,7 @@ class DealController extends AccountBaseController
 
         $deal = Deal::with([
             'leadAgent.user',
-            'contact',
+            'contact.leadSource',
             'category',
             'pipeline.stages',
             'pipeline.customFieldCategories.customFields',
@@ -1190,11 +1190,11 @@ class DealController extends AccountBaseController
 
         $deal->save();
 
-        // Handle packages
-        if ($request->package_id && is_array($request->package_id)) {
-            $deal->packages()->sync($request->package_id);
-        } else {
-            $deal->packages()->detach();
+        // Handle packages — only touch when the field is actually present in the
+        // request, so partial updates (e.g. pipeline stage changes) don't wipe
+        // packages the caller never intended to change.
+        if ($request->has('package_id')) {
+            $deal->packages()->sync(is_array($request->package_id) ? $request->package_id : []);
         }
 
         // Handle deal watchers
@@ -1209,7 +1209,10 @@ class DealController extends AccountBaseController
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();
 
-        $deal->products()->sync($request->product_id);
+        // Same as packages above: only sync products when the field is present.
+        if ($request->has('product_id')) {
+            $deal->products()->sync(is_array($request->product_id) ? $request->product_id : []);
+        }
 
         // Record CRM events for newly linked products
         $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
@@ -1236,6 +1239,28 @@ class DealController extends AccountBaseController
         // $this->triggerDealUpdateAutomation($request, $deal);
 
         return Reply::successWithData(__('messages.dealUpdateSuccess'), ['redirectUrl' => $redirectTo]);
+    }
+
+    /**
+     * Refresh a single deal with the full relation set + value breakdown, for
+     * client-side state patching after a legacy modal (e.g. property attach/detach)
+     * mutates the deal via its own endpoint without echoing the deal back.
+     */
+    public function refresh($id)
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->loadFullDeal($id),
+        ]);
+    }
+
+    private function loadFullDeal($id): Deal
+    {
+        $deal = Deal::with(['currency', 'contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline.stages', 'packages', 'products.property', 'dealWatchers', 'dealParticipants'])->findOrFail($id);
+        $deal->withCustomFields();
+        $deal->setAttribute('value_breakdown', app(DealValueResolver::class)->getBreakdown($deal));
+
+        return $deal;
     }
 
     /**
@@ -1431,7 +1456,7 @@ class DealController extends AccountBaseController
                 return response()->json([
                     'success' => true,
                     'message' => __('messages.dealUpdateSuccess'),
-                    'data' => $deal->fresh()->load(['leadAgent.user', 'contact', 'pipeline', 'leadStage', 'category', 'products'])
+                    'data' => $this->loadFullDeal($deal->id),
                 ]);
             }
             
@@ -1955,7 +1980,31 @@ class DealController extends AccountBaseController
 
         event(new AutoFollowUpReminderEvent($followUp, true));
 
-        return Reply::success(__('messages.recordSaved'));
+        return Reply::successWithData(__('messages.recordSaved'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
+    }
+
+    /**
+     * Load a follow-up with the same relations + manually-computed
+     * `participant_users` shape the show() deferred prop produces, so create/
+     * update/reschedule responses can patch client state without a reload.
+     */
+    private function loadFollowUpWithParticipants($followUpId): DealFollowUp
+    {
+        $followUp = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])->findOrFail($followUpId);
+
+        $participantIds = collect($followUp->participants ?? []);
+        $participantUsersMap = $participantIds->isEmpty()
+            ? collect()
+            : User::whereIn('id', $participantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+        $followUp->participant_users = $participantIds
+            ->map(fn ($pid) => $participantUsersMap->get($pid))
+            ->filter()
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
+            ->values()
+            ->toArray();
+
+        return $followUp;
     }
 
     public function editFollow($id)
@@ -2061,7 +2110,7 @@ class DealController extends AccountBaseController
             // Continue without throwing exception - follow-up is already updated
         }
 
-        return Reply::success(__('messages.updateSuccess'));
+        return Reply::successWithData(__('messages.updateSuccess'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
     public function deleteFollow($id)

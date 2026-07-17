@@ -52,7 +52,12 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
                 </div>
             </div>
             {onRemove && (
-                <DealButton variant="ghost" onClick={onRemove} disabled={removing}>
+                <DealButton
+                    variant="ghost"
+                    onClick={onRemove}
+                    disabled={removing}
+                    loading={removing}
+                >
                     Remove
                 </DealButton>
             )}
@@ -142,6 +147,7 @@ function AddMemberRow({
             <DealButton
                 variant="primary"
                 disabled={!selectedId || saving}
+                loading={saving}
                 onClick={() => {
                     if (!selectedId) return;
                     onAdd(Number(selectedId));
@@ -173,6 +179,7 @@ export default function DealTeamModal({
 
     const [addingParticipants, setAddingParticipants] = useState(false);
     const [addingWatchers, setAddingWatchers] = useState(false);
+    const [changingAgent, setChangingAgent] = useState(false);
 
     const availableParticipantEmployees = useMemo(
         () =>
@@ -197,7 +204,12 @@ export default function DealTeamModal({
 
     const handleAgentChange = (agentId: number | null) => {
         if (!canEdit) return;
-        saveTeamField("agent_id", agentId);
+        saveTeamField("agent_id", agentId).then(() => setChangingAgent(false));
+    };
+
+    const handleUnassignAgent = () => {
+        if (!canEdit) return;
+        saveTeamField("agent_id", null);
     };
 
     const handleAddParticipant = (employeeId: number) => {
@@ -256,13 +268,14 @@ export default function DealTeamModal({
                             border: `1px solid ${T.BLUE_MID}`,
                         }}
                         headerAction={
-                            canEdit ? (
-                                <AgentSelector
-                                    size="small"
-                                    currentAgent={null}
-                                    onSelect={handleAgentChange}
-                                    placeholder={td("Reassign")}
-                                />
+                            canEdit && agent ? (
+                                <DealButton
+                                    variant="ghost"
+                                    onClick={() => setChangingAgent((v) => !v)}
+                                    disabled={isSaving("agent_id")}
+                                >
+                                    {changingAgent ? td("Cancel") : td("Change")}
+                                </DealButton>
                             ) : undefined
                         }
                     >
@@ -270,15 +283,54 @@ export default function DealTeamModal({
                             <TeamMemberRow
                                 member={{
                                     ...agent,
-                                    meta:
-                                        agent.meta ??
-                                        td("Primary owner"),
+                                    meta: agent.meta ?? td("Primary owner"),
                                 }}
                                 type="agent"
+                                onRemove={
+                                    canEdit ? handleUnassignAgent : undefined
+                                }
+                                removing={isSaving("agent_id")}
                             />
                         ) : (
-                            <div className="px-3.5 py-3 text-[13px] italic text-[#5b6472]">
-                                {td("No agent assigned.")}
+                            <div className="px-3.5 py-3 text-center">
+                                <p className="mb-2.5 text-xs text-[#5b6472]">
+                                    {td(
+                                        "No agent assigned — this deal is unowned and won't appear in anyone's pipeline.",
+                                    )}
+                                </p>
+                                {canEdit && (
+                                    <DealButton
+                                        variant="primary"
+                                        onClick={() =>
+                                            setChangingAgent((v) => !v)
+                                        }
+                                    >
+                                        {changingAgent
+                                            ? td("Cancel")
+                                            : td("Assign agent")}
+                                    </DealButton>
+                                )}
+                            </div>
+                        )}
+                        {canEdit && changingAgent && (
+                            <div
+                                className="border-t px-3 py-2.5"
+                                style={{
+                                    borderColor: T.BORDER_SOFT,
+                                    background: T.SURFACE_2,
+                                }}
+                            >
+                                <AgentSelector
+                                    size="small"
+                                    currentAgent={null}
+                                    onSelect={handleAgentChange}
+                                    placeholder={
+                                        isSaving("agent_id")
+                                            ? td("Saving…")
+                                            : td("Search agents…")
+                                    }
+                                    disabled={isSaving("agent_id")}
+                                />
                             </div>
                         )}
                     </TeamRoleBlock>

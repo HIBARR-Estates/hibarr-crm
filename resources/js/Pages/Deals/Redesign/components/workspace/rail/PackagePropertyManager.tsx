@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { router } from "@inertiajs/react";
+import { useCallback, useMemo, useState } from "react";
+import axios from "axios";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
@@ -8,6 +8,7 @@ import type { Deal } from "@/Types/api/deals";
 import DealIcon from "../../primitives/DealIcon";
 import DealMenuSelect from "../../primitives/DealMenuSelect";
 import useDealPackages from "../../../hooks/useDealPackages";
+import { useDealWorkspace } from "../../../context/DealWorkspaceContext";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 
 interface PackageOption {
@@ -34,7 +35,21 @@ export default function PackagePropertyManager({
     const { td } = useTd();
     const permissions = useDealPermissions(deal);
     const { addPackage, removePackage, saving } = useDealPackages(deal);
+    const { setDeal } = useDealWorkspace();
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+
+    const refreshDeal = useCallback(async () => {
+        setRefreshing(true);
+        try {
+            const response = await axios.get(route("deals.refresh", deal.id));
+            if (response.data?.status === "success" && response.data?.data) {
+                setDeal(response.data.data);
+            }
+        } finally {
+            setRefreshing(false);
+        }
+    }, [deal.id, setDeal]);
 
     const packages = deal.packages ?? [];
     const products = deal.products ?? [];
@@ -185,13 +200,20 @@ export default function PackagePropertyManager({
             {showPropertiesSection && (
                 <>
                     <div
-                        className="mb-2 mt-1 pb-1.5 text-[11px] font-bold uppercase tracking-[0.05em]"
+                        className="mb-2 mt-1 flex items-center gap-1.5 pb-1.5 text-[11px] font-bold uppercase tracking-[0.05em]"
                         style={{
                             color: T.TEXT_MUTED,
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,
                         }}
                     >
                         {restrictPackageOrProperty ? td("Property") : td("Properties")}
+                        {refreshing && (
+                            <span
+                                aria-hidden="true"
+                                className="animate-spin rounded-full border-2 border-current border-t-transparent normal-case"
+                                style={{ width: 10, height: 10 }}
+                            />
+                        )}
                     </div>
                     {products.length === 0 ? (
                         <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
@@ -223,7 +245,9 @@ export default function PackagePropertyManager({
                                     background: T.WHITE,
                                     color: T.TEXT_MUTED,
                                     border: `1px solid ${T.BORDER}`,
+                                    opacity: refreshing ? 0.6 : 1,
                                 }}
+                                disabled={refreshing}
                                 onClick={() => setPropertyModalOpen(true)}
                             >
                                 + {td("Add property")}
@@ -237,7 +261,7 @@ export default function PackagePropertyManager({
                 open={propertyModalOpen}
                 onClose={() => setPropertyModalOpen(false)}
                 deal={deal}
-                onRefresh={() => router.reload({ only: ["deal"] })}
+                onRefresh={refreshDeal}
             />
         </div>
     );

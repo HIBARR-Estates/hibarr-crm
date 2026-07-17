@@ -1,14 +1,15 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import type { Note } from "@/Types/api/note";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface DealNoteCreateInput {
     text: string;
+    title?: string;
 }
 
 interface SaveNotePayload {
@@ -19,6 +20,7 @@ interface SaveNotePayload {
 
 export default function useDealNoteCreate(dealId: number) {
     const [errors, setErrors] = useState<string[]>([]);
+    const { setNotes } = useDealWorkspace();
 
     const { mutate, status } = useApiMutate<
         SaveNotePayload,
@@ -37,7 +39,7 @@ export default function useDealNoteCreate(dealId: number) {
             setErrors([]);
             mutate(
                 {
-                    title: trimmed.slice(0, 80),
+                    title: input.title?.trim() || trimmed.slice(0, 80),
                     details: `<p>${trimmed}</p>`,
                     lead_id: dealId,
                 },
@@ -46,8 +48,10 @@ export default function useDealNoteCreate(dealId: number) {
                         if (response?.status === "success") {
                             setErrors([]);
                             message.success("Note saved");
+                            if (response.data) {
+                                setNotes((prev) => [response.data as Note, ...prev]);
+                            }
                             onSuccess?.();
-                            router.reload({ only: ["notes"] });
                             return;
                         }
 
@@ -67,7 +71,7 @@ export default function useDealNoteCreate(dealId: number) {
                 },
             );
         },
-        [dealId, mutate],
+        [dealId, mutate, setNotes],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

@@ -9,6 +9,8 @@ interface DealConfirmDialogProps {
     confirmLabel?: string;
     cancelLabel?: string;
     danger?: boolean;
+    /** Shows a spinner and disables both buttons while the confirmed action is in flight. */
+    confirmLoading?: boolean;
     onConfirm: () => void;
     onCancel: () => void;
 }
@@ -24,6 +26,7 @@ export default function DealConfirmDialog({
     confirmLabel = "Confirm",
     cancelLabel = "Cancel",
     danger,
+    confirmLoading = false,
     onConfirm,
     onCancel,
 }: DealConfirmDialogProps) {
@@ -89,6 +92,7 @@ export default function DealConfirmDialog({
                         className="dr-btn dr-btn-sm"
                         style={{ background: T.WHITE, color: T.TEXT_MUTED, border: `1px solid ${T.BORDER}` }}
                         onClick={onCancel}
+                        disabled={confirmLoading}
                     >
                         {cancelLabel}
                     </button>
@@ -99,9 +103,21 @@ export default function DealConfirmDialog({
                         style={{
                             background: danger ? T.RED : T.BLUE,
                             color: T.WHITE,
+                            opacity: confirmLoading ? 0.7 : 1,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
                         }}
+                        disabled={confirmLoading}
                         onClick={onConfirm}
                     >
+                        {confirmLoading && (
+                            <span
+                                aria-hidden="true"
+                                className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                                style={{ width: 11, height: 11 }}
+                            />
+                        )}
                         {confirmLabel}
                     </button>
                 </div>

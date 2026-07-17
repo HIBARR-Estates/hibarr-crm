@@ -33,10 +33,8 @@ export default function DealInfoTab({
         isLocked,
         isFieldLoading,
         updatingField,
-        isRecalculatingValue,
         handleFieldUpdate,
-        handleRecalculateValue,
-    } = useDealInfoFieldUpdate(initialDeal);
+    } = useDealInfoFieldUpdate();
 
     return (
         <div>
@@ -58,9 +56,7 @@ export default function DealInfoTab({
                     isLocked={isLocked}
                     isFieldLoading={isFieldLoading}
                     updatingField={updatingField}
-                    isRecalculatingValue={isRecalculatingValue}
                     onFieldUpdate={handleFieldUpdate}
-                    onRecalculateValue={handleRecalculateValue}
                     restrictPackageOrProperty={restrictPackageOrProperty}
                 />
             </div>

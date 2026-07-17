@@ -78,7 +78,7 @@ export default function DealScheduleMeetingModal({
                         {td("Cancel")}
                     </DealButton>
                     <DealButton
-                        variant="navy"
+                        variant="primary"
                         onClick={handleSubmit}
                         loading={isCreating}
                         disabled={isCreating}

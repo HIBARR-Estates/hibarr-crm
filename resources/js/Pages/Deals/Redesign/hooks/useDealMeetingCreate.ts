@@ -1,8 +1,7 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
-import type { Reminder } from "@/Types/api/deal-followup";
+import type { DealFollowup, Reminder } from "@/Types/api/deal-followup";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
@@ -13,6 +12,7 @@ import {
     formatMeetingTimeForApi,
     isMeetingStartInFuture,
 } from "../components/workspace/meetingFormUtils";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface DealMeetingCreateInput {
     meetingTypeId: number | null;
@@ -50,11 +50,12 @@ function dealHasAgent(deal: Deal): boolean {
 
 export default function useDealMeetingCreate(deal: Deal) {
     const [errors, setErrors] = useState<string[]>([]);
+    const { setDealFollowUps } = useDealWorkspace();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,
-        null,
-        ApiResponse<null>
+        DealFollowup,
+        ApiResponse<DealFollowup>
     >(route("deals.follow_up_store"), "POST");
 
     const createMeeting = useCallback(
@@ -122,11 +123,14 @@ export default function useDealMeetingCreate(deal: Deal) {
 
             setErrors([]);
             mutate(payload, {
-                onSuccess: () => {
+                onSuccess: (response) => {
                     setErrors([]);
                     message.success("Meeting scheduled");
+                    if (response?.data) {
+                        const created = response.data;
+                        setDealFollowUps((prev) => [created, ...prev]);
+                    }
                     onSuccess?.();
-                    router.reload({ only: ["dealFollowUps"] });
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);
@@ -141,7 +145,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 },
             });
         },
-        [deal, mutate],
+        [deal, mutate, setDealFollowUps],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

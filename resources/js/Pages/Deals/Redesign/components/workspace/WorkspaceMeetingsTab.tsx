@@ -12,6 +12,7 @@ import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import DealEditMeetingModal from "./DealEditMeetingModal";
 import DealRescheduleMeetingModal from "./DealRescheduleMeetingModal";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
 interface WorkspaceMeetingsTabProps {
     deal: Deal;
@@ -195,29 +196,21 @@ function MeetingCard({
                 {(canEdit || canDelete) && (
                     <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-[#e2e5ea] pt-2">
                         {canEdit && (
-                            <DealButton
-                                variant="ghost"
-                                onClick={onEdit}
-                                style={{ fontSize: 11, padding: "4px 10px" }}
-                            >
+                            <DealButton variant="ghost" size="sm" onClick={onEdit}>
                                 {td("Edit")}
                             </DealButton>
                         )}
                         {showReschedule && (
                             <DealButton
                                 variant="ghost"
+                                size="sm"
                                 onClick={onReschedule}
-                                style={{ fontSize: 11, padding: "4px 10px" }}
                             >
                                 {td("Reschedule")}
                             </DealButton>
                         )}
                         {canDelete && (
-                            <DealButton
-                                variant="ghost"
-                                onClick={onDelete}
-                                style={{ fontSize: 11, padding: "4px 10px" }}
-                            >
+                            <DealButton variant="ghost" size="sm" onClick={onDelete}>
                                 {td("Delete")}
                             </DealButton>
                         )}
@@ -244,6 +237,7 @@ export default function WorkspaceMeetingsTab({
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [viewOpen, setViewOpen] = useState(false);
+    const { setDealFollowUps } = useDealWorkspace();
 
     const meetings = useMemo(
         () => followUps.map((followup) => toWorkspaceMeetingListItem(followup)),
@@ -384,6 +378,12 @@ export default function WorkspaceMeetingsTab({
                 open={deleteOpen}
                 onClose={closeModals}
                 followup={selectedFollowup ?? undefined}
+                skipReload
+                onDeleted={(followupId) => {
+                    setDealFollowUps((prev) =>
+                        prev.filter((f) => f.id !== followupId),
+                    );
+                }}
             />
 
             {selectedFollowup && (

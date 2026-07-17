@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export default function useDealRecommendationAdd(deal: Deal) {
     const [addingPropertyIds, setAddingPropertyIds] = useState<Set<number>>(
         new Set(),
     );
+    const { setDeal } = useDealWorkspace();
 
     const existingProductIds = useMemo(
         () => deal.products?.map((product) => product.id) || [],
@@ -43,7 +44,7 @@ export default function useDealRecommendationAdd(deal: Deal) {
                     ...new Set([...existingProductIds, ...propertyIds]),
                 ];
 
-                await axios.patch(
+                const response = await axios.patch(
                     route("deals.gathering.inline_update", { id: deal.id }),
                     {
                         type: "details",
@@ -51,13 +52,15 @@ export default function useDealRecommendationAdd(deal: Deal) {
                     },
                 );
 
+                if (response.data?.status === "success" && response.data?.data) {
+                    setDeal(response.data.data);
+                }
+
                 message.success(
                     `${propertyIds.length} ${
                         propertyIds.length === 1 ? "property" : "properties"
                     } added to deal`,
                 );
-
-                router.reload({ only: ["deal", "productNames"] });
             } catch (error: unknown) {
                 const responseMessage =
                     typeof error === "object" &&
@@ -77,7 +80,7 @@ export default function useDealRecommendationAdd(deal: Deal) {
                 });
             }
         },
-        [deal.id, existingProductIds],
+        [deal.id, existingProductIds, setDeal],
     );
 
     return {

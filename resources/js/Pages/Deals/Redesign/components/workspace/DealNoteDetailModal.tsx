@@ -42,7 +42,7 @@ export default function DealNoteDetailModal({
     const [title, setTitle] = useState("");
     const [text, setText] = useState("");
     const [confirmDelete, setConfirmDelete] = useState(false);
-    const { updateNote, isUpdating, deleteNote } = useDealNoteMutations(
+    const { updateNote, isUpdating, deleteNote, isDeleting } = useDealNoteMutations(
         note?.id ?? 0,
     );
 
@@ -183,6 +183,7 @@ export default function DealNoteDetailModal({
                 )}
                 confirmLabel={td("Delete note")}
                 danger
+                confirmLoading={isDeleting}
                 onConfirm={() => {
                     deleteNote(() => {
                         setConfirmDelete(false);

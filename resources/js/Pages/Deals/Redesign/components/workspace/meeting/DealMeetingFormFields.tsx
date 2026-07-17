@@ -403,6 +403,7 @@ export default function DealMeetingFormFields({
 
                         <DealButton
                             variant="ghost"
+                            size="sm"
                             disabled={disabled}
                             onClick={() =>
                                 updateForm({
@@ -412,7 +413,6 @@ export default function DealMeetingFormFields({
                                     ],
                                 })
                             }
-                            style={{ fontSize: 11, padding: "4px 10px" }}
                         >
                             + {td("Add custom reminder")}
                         </DealButton>

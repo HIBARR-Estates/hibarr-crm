@@ -928,7 +928,7 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load('users')]);
 
         } catch (\Exception $e) {
             return Reply::error($e->getMessage());
@@ -1319,8 +1319,8 @@ class TaskController extends AccountBaseController
             $task = $this->taskService->updateTask($task, $data, user());
 
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
-                'project' => $task->project, 
-                'data' => $task, 
+                'project' => $task->project,
+                'data' => $task->load('users'),
                 'redirectUrl' => route('tasks.show', $task->id)
             ]);
 

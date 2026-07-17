@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import axios from "axios";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 /**
  * Attach/detach packages on a deal via the same inline-update contract the Deal
@@ -11,6 +11,7 @@ import type { Deal } from "@/Types/api/deals";
  */
 export default function useDealPackages(deal: Deal) {
     const [saving, setSaving] = useState(false);
+    const { setDeal } = useDealWorkspace();
 
     const currentIds = useCallback(
         () => (deal.packages ?? []).map((pkg) => pkg.id),
@@ -21,18 +22,20 @@ export default function useDealPackages(deal: Deal) {
         async (nextIds: number[]) => {
             setSaving(true);
             try {
-                await axios.patch(
+                const response = await axios.patch(
                     route("deals.gathering.inline_update", { id: deal.id }),
                     { type: "details", data: { package_id: nextIds } },
                 );
-                router.reload({ only: ["deal"] });
+                if (response.data?.status === "success" && response.data?.data) {
+                    setDeal(response.data.data);
+                }
             } catch {
                 message.error("Failed to update packages");
             } finally {
                 setSaving(false);
             }
         },
-        [deal.id],
+        [deal.id, setDeal],
     );
 
     const addPackage = useCallback(

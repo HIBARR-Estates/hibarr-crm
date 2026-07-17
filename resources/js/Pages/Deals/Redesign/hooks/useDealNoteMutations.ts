@@ -1,10 +1,10 @@
 import { useCallback } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import type { Note } from "@/Types/api/note";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 interface UpdateNotePayload {
     title: string;
@@ -12,6 +12,7 @@ interface UpdateNotePayload {
 }
 
 export default function useDealNoteMutations(noteId: number) {
+    const { setNotes } = useDealWorkspace();
     const { mutate: updateMutate, status: updateStatus } = useApiMutate<
         UpdateNotePayload,
         Note,
@@ -30,13 +31,20 @@ export default function useDealNoteMutations(noteId: number) {
                 onSuccess: (response) => {
                     if (response?.status === "success") {
                         message.success("Note updated");
+                        if (response.data) {
+                            const updated = response.data;
+                            setNotes((prev) =>
+                                prev.map((note) =>
+                                    note.id === noteId ? updated : note,
+                                ),
+                            );
+                        }
                         onSuccess?.();
-                        router.reload({ only: ["notes"] });
                     }
                 },
             });
         },
-        [updateMutate],
+        [updateMutate, noteId, setNotes],
     );
 
     const deleteNote = useCallback(
@@ -44,12 +52,12 @@ export default function useDealNoteMutations(noteId: number) {
             deleteMutate(null, {
                 onSuccess: () => {
                     message.success("Note deleted");
+                    setNotes((prev) => prev.filter((note) => note.id !== noteId));
                     onSuccess?.();
-                    router.reload({ only: ["notes"] });
                 },
             });
         },
-        [deleteMutate],
+        [deleteMutate, noteId, setNotes],
     );
 
     return {

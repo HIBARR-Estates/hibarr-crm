@@ -86,17 +86,7 @@ function countSectionCompletion(
     };
 
     const dealKeysBySection: Partial<Record<DealInfoCoreSectionId, string[]>> = {
-        general: [
-            "name",
-            "value",
-            "close_date",
-            "lead_id",
-            "category_id",
-            "email",
-            "mobile",
-            "company_name",
-        ],
-        property: ["products"],
+        general: ["name", "close_date", "category_id", "products"],
     };
 
     let filled = 0;
@@ -110,18 +100,6 @@ function countSectionCompletion(
     for (const key of dealKeysBySection[sectionId] ?? []) {
         if (key === "products") {
             track(deal.products?.length ? deal.products : null);
-            continue;
-        }
-        if (key === "email") {
-            track(deal.contact?.client_email);
-            continue;
-        }
-        if (key === "mobile") {
-            track(deal.contact?.mobile);
-            continue;
-        }
-        if (key === "company_name") {
-            track(deal.contact?.company_name);
             continue;
         }
         track((deal as unknown as Record<string, unknown>)[key]);

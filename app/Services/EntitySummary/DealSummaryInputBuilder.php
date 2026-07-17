@@ -157,7 +157,6 @@ class DealSummaryInputBuilder
             'stage' => $deal->pipeline_stage_id,
             'value' => $deal->value,
             'close_date' => $deal->close_date,
-            'updated_at' => $deal->updated_at?->toIso8601String(),
             'notes_count' => DealNote::where('deal_id', $deal->id)->count(),
             'tasks_count' => $deal->tasks()->count(),
             'followups_count' => DealFollowUp::where('deal_id', $deal->id)->count(),

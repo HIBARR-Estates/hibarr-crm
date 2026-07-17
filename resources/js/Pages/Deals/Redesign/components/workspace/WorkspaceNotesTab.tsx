@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import type { Deal } from "@/Types/api/deals";
 import type { Note } from "@/Types/api/note";
 import { toWorkspaceNotePreview } from "../../adapters/noteAdapter";
-import useDealNoteCreate from "../../hooks/useDealNoteCreate";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
 import DealNoteDetailModal from "./DealNoteDetailModal";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface WorkspaceNotesTabProps {
-    deal: Deal;
     notes: Note[];
     permissions: Record<string, string>;
-    onAttachFiles?: () => void;
+    onAddNote: () => void;
 }
 
 function canAddNote(permissions: Record<string, string>): boolean {
@@ -26,98 +21,29 @@ function canAddNote(permissions: Record<string, string>): boolean {
 }
 
 export default function WorkspaceNotesTab({
-    deal,
     notes,
     permissions,
-    onAttachFiles,
+    onAddNote,
 }: WorkspaceNotesTabProps) {
     const { td } = useTd();
-    const [noteText, setNoteText] = useState("");
     const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
     const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
-    const { createNote, isSaving, errors, clearErrors } = useDealNoteCreate(
-        deal.id,
-    );
 
     const noteItems = useMemo(
         () => notes.map((note) => toWorkspaceNotePreview(note)),
         [notes],
     );
 
-    const showComposer = canAddNote(permissions);
-
-    useEffect(() => {
-        if (!showComposer) {
-            setNoteText("");
-            clearErrors();
-        }
-    }, [clearErrors, showComposer]);
-
-    const handleSave = () => {
-        createNote({ text: noteText }, () => {
-            setNoteText("");
-        });
-    };
+    const showAddNote = canAddNote(permissions);
 
     return (
         <div>
-            {showComposer && (
-                <section className="mb-3.5 overflow-hidden rounded-lg border border-[#e2e5ea] bg-white px-[13px] py-[11px]">
-                    {errors.length > 0 && (
-                        <div className="mb-2 space-y-1">
-                            {errors.map((error, index) => (
-                                <p key={index} className="text-xs text-red-600">
-                                    {error}
-                                </p>
-                            ))}
-                        </div>
-                    )}
-
-                    <div
-                        className="mb-2.5 rounded-md border px-3 py-2.5"
-                        style={{
-                            background: T.BLUE_LIGHT,
-                            borderColor: T.BLUE_MID,
-                        }}
-                    >
-                        <textarea
-                            value={noteText}
-                            onChange={(event) => setNoteText(event.target.value)}
-                            placeholder={td(
-                                "Log a note about this interaction...",
-                            )}
-                            className="h-[68px] w-full resize-none border-none bg-transparent text-[13px] leading-relaxed text-[#1a1f2e] outline-none"
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-1.5 border-t border-[#e2e5ea] pt-2">
-                        {onAttachFiles && (
-                            <DealButton
-                                variant="ghost"
-                                onClick={onAttachFiles}
-                                icon={
-                                    <DealIcon
-                                        name="paperclip"
-                                        size={12}
-                                        color={T.TEXT_MUTED}
-                                    />
-                                }
-                                style={{ fontSize: 12, padding: "6px 11px" }}
-                            >
-                                {td("Attach")}
-                            </DealButton>
-                        )}
-                        <DealButton
-                            variant="navy"
-                            onClick={handleSave}
-                            disabled={!noteText.trim() || isSaving}
-                            loading={isSaving}
-                            style={{ fontSize: 12, padding: "6px 11px" }}
-                        >
-                            {td("Save note")}
-                        </DealButton>
-                    </div>
-                </section>
+            {showAddNote && (
+                <div className="mb-3.5 flex justify-end">
+                    <DealButton variant="navy" onClick={onAddNote}>
+                        + {td("Add note")}
+                    </DealButton>
+                </div>
             )}
 
             {noteItems.length === 0 ? (
@@ -150,7 +76,7 @@ export default function WorkspaceNotesTab({
                                 {note.timeLabel}
                             </span>
                         </div>
-                        <div className="text-[13px] leading-[1.65] text-[#5b6472]">
+                        <div className="dr-clamp-2 text-[13px] leading-[1.65] text-[#5b6472]">
                             {note.body}
                         </div>
                     </article>

@@ -66,7 +66,7 @@ export default function EntityAiSummaryCard({
         "entity-ai-summary-card",
         `entity-ai-summary-card--${variant}`,
         entityType === "deal" ? "entity-ai-summary-card--deal" : "",
-        isRedesign ? "section-card" : "my-4",
+        isRedesign ? "section-card" : "",
         className,
     ]
         .filter(Boolean)
@@ -79,7 +79,7 @@ export default function EntityAiSummaryCard({
     return (
         <section
             className={cardClassName}
-            style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}
+            // style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}
         >
             <EntityAiSummaryHeader
                 title={TITLES[entityType]}

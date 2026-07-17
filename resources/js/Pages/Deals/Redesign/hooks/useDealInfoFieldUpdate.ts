@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import axios from "axios";
 import { message } from "antd";
@@ -8,6 +8,7 @@ import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useTranslation from "@/Hooks/useTranslation";
 import { useCurrencies } from "@/Hooks/useFormData";
 import type { Deal } from "@/Types/api/deals";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 const HIBARR_FIELD_NAMES = [
     "interested_in",
@@ -25,8 +26,8 @@ const HIBARR_FIELD_NAMES = [
 
 type UpdateType = "details" | "contact" | "custom_field" | "hibarr_field" | "recalculate_value";
 
-export default function useDealInfoFieldUpdate(initialDeal: Deal) {
-    const [deal, setDeal] = useState<Deal>(initialDeal);
+export default function useDealInfoFieldUpdate() {
+    const { deal, setDeal } = useDealWorkspace();
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [isRecalculatingValue, setIsRecalculatingValue] = useState(false);
     const { props } = usePage<any>();
@@ -34,10 +35,6 @@ export default function useDealInfoFieldUpdate(initialDeal: Deal) {
     const defaultCurrencyCode = props.default_currency_code || "TRY";
     const { t } = useTranslation();
     const dealPermissions = useDealPermissions(deal);
-
-    useEffect(() => {
-        setDeal(initialDeal);
-    }, [initialDeal]);
 
     const { mutateAsync: updateDeal } = useApiMutate<
         { type: UpdateType; data: Record<string, unknown> },

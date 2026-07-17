@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useDealTaskCreate from "../../hooks/useDealTaskCreate";
 import DealButton from "../primitives/DealButton";
 import { DealModal, DealModalField } from "../primitives/DealModal";
+import DealAssigneeField from "./DealAssigneeField";
 
 interface DealAddTaskModalProps {
     open: boolean;
@@ -17,14 +19,18 @@ interface TaskFormState {
     due: string;
     priority: TaskPriority;
     description: string;
+    assignees: number[];
 }
 
-const INITIAL_FORM: TaskFormState = {
-    title: "",
-    due: "",
-    priority: "medium",
-    description: "",
-};
+function buildInitialForm(currentUserId?: number): TaskFormState {
+    return {
+        title: "",
+        due: "",
+        priority: "medium",
+        description: "",
+        assignees: currentUserId ? [currentUserId] : [],
+    };
+}
 
 export default function DealAddTaskModal({
     open,
@@ -32,16 +38,20 @@ export default function DealAddTaskModal({
     dealId,
 }: DealAddTaskModalProps) {
     const { td } = useTd();
-    const [form, setForm] = useState<TaskFormState>(INITIAL_FORM);
+    const { props } = usePage();
+    const currentUserId = props.auth?.user?.id;
+    const [form, setForm] = useState<TaskFormState>(() =>
+        buildInitialForm(currentUserId),
+    );
     const { createTask, isCreating, errors, clearErrors } =
         useDealTaskCreate(dealId);
 
     useEffect(() => {
         if (!open) {
-            setForm(INITIAL_FORM);
+            setForm(buildInitialForm(currentUserId));
             clearErrors();
         }
-    }, [clearErrors, open]);
+    }, [clearErrors, open, currentUserId]);
 
     const handleClose = () => {
         if (isCreating) return;
@@ -55,6 +65,7 @@ export default function DealAddTaskModal({
                 dueDate: form.due,
                 priority: form.priority,
                 description: form.description,
+                assignees: form.assignees,
             },
             handleClose,
         );
@@ -75,7 +86,7 @@ export default function DealAddTaskModal({
                         {td("Cancel")}
                     </DealButton>
                     <DealButton
-                        variant="navy"
+                        variant="primary"
                         onClick={handleSubmit}
                         loading={isCreating}
                         disabled={isCreating}
@@ -135,6 +146,16 @@ export default function DealAddTaskModal({
                     <option value="medium">{td("Medium")}</option>
                     <option value="low">{td("Low")}</option>
                 </select>
+            </DealModalField>
+
+            <DealModalField label={td("Assignees")}>
+                <DealAssigneeField
+                    value={form.assignees}
+                    onChange={(assignees) =>
+                        setForm((current) => ({ ...current, assignees }))
+                    }
+                    disabled={isCreating}
+                />
             </DealModalField>
 
             <DealModalField label={td("Description")}>

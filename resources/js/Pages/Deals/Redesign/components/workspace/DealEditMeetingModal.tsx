@@ -109,7 +109,7 @@ export default function DealEditMeetingModal({
                         {td("Cancel")}
                     </DealButton>
                     <DealButton
-                        variant="navy"
+                        variant="primary"
                         onClick={handleSubmit}
                         loading={isUpdating}
                         disabled={isUpdating}

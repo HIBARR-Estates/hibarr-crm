@@ -32,7 +32,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
         align: "right",
         maxHeight: 420,
     });
-    const { update } = useDealValueUpdate(deal, canEdit);
+    const { update, isUpdating } = useDealValueUpdate(deal, canEdit);
 
     useEffect(() => {
         if (!open) return undefined;
@@ -145,22 +145,26 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                         <div className="dr-label" style={{ marginBottom: 8 }}>
                             {t("pages.deals.info.value_insight.title")}
                         </div>
-                        {line(
-                            t("pages.deals.info.value_insight.properties"),
-                            formatMoney(breakdown.products_total, symbol),
-                        )}
-                        {line(
-                            t("pages.deals.info.value_insight.packages"),
-                            formatMoney(breakdown.packages_total, symbol),
-                        )}
-                        {line(
-                            t("pages.deals.info.value_insight.gross"),
-                            formatMoney(breakdown.gross_total, symbol),
-                        )}
-                        {line(
-                            t("pages.deals.info.value_insight.discount"),
-                            `−${formatMoney(breakdown.discount_total, symbol)}`,
-                        )}
+                        {!!breakdown.products_total &&
+                            line(
+                                t("pages.deals.info.value_insight.properties"),
+                                formatMoney(breakdown.products_total, symbol),
+                            )}
+                        {!!breakdown.packages_total &&
+                            line(
+                                t("pages.deals.info.value_insight.packages"),
+                                formatMoney(breakdown.packages_total, symbol),
+                            )}
+                        {!!breakdown.gross_total &&
+                            line(
+                                t("pages.deals.info.value_insight.gross"),
+                                formatMoney(breakdown.gross_total, symbol),
+                            )}
+                        {!!breakdown.discount_total &&
+                            line(
+                                t("pages.deals.info.value_insight.discount"),
+                                `−${formatMoney(breakdown.discount_total, symbol)}`,
+                            )}
                         <div
                             style={{
                                 borderTop: `1px solid ${T.BORDER_SOFT}`,
@@ -189,6 +193,8 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                         type="button"
                                         className="dr-filter"
                                         aria-pressed={valueSource === "manual"}
+                                        disabled={isUpdating}
+                                        style={{ opacity: isUpdating ? 0.6 : 1 }}
                                         onClick={() => update({ value_source: "manual" })}
                                     >
                                         {t("pages.deals.info.value_insight.source_manual")}
@@ -197,10 +203,23 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                         type="button"
                                         className="dr-filter"
                                         aria-pressed={valueSource === "calculated"}
+                                        disabled={isUpdating}
+                                        style={{ opacity: isUpdating ? 0.6 : 1 }}
                                         onClick={() => update({ value_source: "calculated" })}
                                     >
                                         {t("pages.deals.info.value_insight.source_calculated")}
                                     </button>
+                                    {isUpdating && (
+                                        <span
+                                            aria-hidden="true"
+                                            className="flex h-4 w-4 items-center justify-center"
+                                        >
+                                            <span
+                                                className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                                                style={{ width: 12, height: 12, color: T.TEXT_MUTED }}
+                                            />
+                                        </span>
+                                    )}
                                 </div>
                                 {valueSource === "manual" && (
                                     <input
@@ -209,6 +228,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                         aria-label="Manual deal value"
                                         value={manualDraft}
                                         placeholder={`${symbol}0`}
+                                        disabled={isUpdating}
                                         onChange={(e) =>
                                             setManualDraft(
                                                 e.target.value.replace(/[^\d]/g, ""),
@@ -218,7 +238,11 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                             if (manualDraft === "") return;
                                             update({ manual_value: Number(manualDraft) });
                                         }}
-                                        style={{ fontSize: 12, padding: "7px 10px" }}
+                                        style={{
+                                            fontSize: 12,
+                                            padding: "7px 10px",
+                                            opacity: isUpdating ? 0.6 : 1,
+                                        }}
                                     />
                                 )}
                             </>

@@ -39,11 +39,7 @@ export function OverviewColumnHeader({
             </div>
             <div className="flex justify-end">
                 {onAdd && (
-                    <DealButton
-                        variant="ghost"
-                        onClick={onAdd}
-                        style={{ fontSize: 11, padding: "3px 8px" }}
-                    >
+                    <DealButton variant="ghost" size="sm" onClick={onAdd}>
                         {addActive ? "Cancel" : addLabel}
                     </DealButton>
                 )}

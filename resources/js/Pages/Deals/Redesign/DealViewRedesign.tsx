@@ -24,6 +24,7 @@ import {
 } from "./components/workspace/overview/overviewShared";
 import WorkspaceContextRail from "./components/workspace/rail/WorkspaceContextRail";
 import DealAddTaskModal from "./components/workspace/DealAddTaskModal";
+import DealAddNoteModal from "./components/workspace/DealAddNoteModal";
 import DealScheduleMeetingModal from "./components/workspace/DealScheduleMeetingModal";
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
@@ -31,11 +32,27 @@ import { DealShowProps, DealTab } from "./types";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
 export default function DealViewRedesign(props: DealShowProps) {
+    return (
+        <DealWorkspaceProvider
+            deal={props.deal}
+            notes={props.notes}
+            tasks={props.tasks}
+            dealFollowUps={props.dealFollowUps}
+            files={props.files}
+        >
+            <DealViewRedesignInner {...props} />
+        </DealWorkspaceProvider>
+    );
+}
+
+function DealViewRedesignInner(props: DealShowProps) {
     const [isDealEditMode] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+    const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [offersCount, setOffersCount] = useState(0);
     const [recommendationsCount, setRecommendationsCount] = useState(0);
     const nav = useDealViewNavigation();
@@ -45,7 +62,8 @@ export default function DealViewRedesign(props: DealShowProps) {
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
-    const pageTitle = props?.pageTitle || props?.deal?.name;
+    const { deal, notes, tasks, dealFollowUps, files } = useDealWorkspace();
+    const pageTitle = props?.pageTitle || deal?.name;
     const { t } = useTranslation();
     const { td } = useTd();
 
@@ -55,12 +73,12 @@ export default function DealViewRedesign(props: DealShowProps) {
     const customFieldCategories = props.customFieldCategories ?? [];
     const employees = props.employees ?? [];
     const taskBoardColumns = props.taskBoardColumns ?? [];
-    const dealPermissions = useDealPermissions(props.deal);
+    const dealPermissions = useDealPermissions(deal);
 
     const overview = useWorkspaceOverview({
-        notes: props.notes,
-        tasks: props.tasks,
-        dealFollowUps: props.dealFollowUps,
+        notes,
+        tasks,
+        dealFollowUps,
     });
 
     const visibleTabs = useMemo(() => {
@@ -83,24 +101,26 @@ export default function DealViewRedesign(props: DealShowProps) {
 
     const counts = useMemo(
         () => ({
-            notes: props.notes === undefined ? undefined : props.notes.length,
+            notes: props.notes === undefined ? undefined : notes.length,
             tasks:
                 props.tasks === undefined ? undefined : overview.openTasksCount,
             meetings:
                 props.dealFollowUps === undefined
                     ? undefined
                     : overview.upcomingMeetingsCount,
-            files: props.files === undefined ? undefined : props.files.length,
+            files: props.files === undefined ? undefined : files.length,
             offers: offersCount,
             recommendations: recommendationsCount,
-            itinerary: props.deal.lead_flight_itineraries?.length ?? 0,
+            itinerary: deal.lead_flight_itineraries?.length ?? 0,
         }),
         [
             props.notes,
             props.tasks,
             props.dealFollowUps,
             props.files,
-            props.deal.lead_flight_itineraries?.length,
+            notes.length,
+            files.length,
+            deal.lead_flight_itineraries?.length,
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
             offersCount,
@@ -120,32 +140,37 @@ export default function DealViewRedesign(props: DealShowProps) {
             <DealAddTaskModal
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
-                dealId={props.deal.id}
+                dealId={deal.id}
             />
             <DealScheduleMeetingModal
                 open={addMeetingOpen}
                 onClose={() => setAddMeetingOpen(false)}
-                deal={props.deal}
+                deal={deal}
                 meetingTypes={meetingTypes}
+            />
+            <DealAddNoteModal
+                open={addNoteOpen}
+                onClose={() => setAddNoteOpen(false)}
+                dealId={deal.id}
             />
 
             <div className="deal-redesign min-h-screen bg-[#f5f6f8]">
-                <div className="mx-auto w-full max-w-[1320px]">
+                <div className="mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
                     <DealStickyHeader
-                        deal={props.deal}
+                        deal={deal}
                         permissions={permissions}
                         employees={employees}
                         isRefreshing={isRefreshing}
                         onRefresh={refresh}
-                        onAddNote={() => nav.setTab("notes")}
+                        onAddNote={() => setAddNoteOpen(true)}
                         onAddTask={() => setAddTaskOpen(true)}
                         onScheduleMeeting={() => setAddMeetingOpen(true)}
                     />
 
-                    <div className="p-[26px]">
+                    <div className="">
                         <div className="mb-[14px]">
                             <DealPipelineStepper
-                                deal={props.deal}
+                                deal={deal}
                                 permissions={permissions}
                             />
                         </div>
@@ -154,7 +179,7 @@ export default function DealViewRedesign(props: DealShowProps) {
                                 {showAiSummary && (
                                     <EntityAiSummaryCard
                                         entityType="deal"
-                                        entityId={props.deal.id}
+                                        entityId={deal.id}
                                         initialSummary={props.dealAiSummary}
                                         variant="redesign"
                                         onCreateTask={() => nav.setTab("tasks")}
@@ -183,24 +208,26 @@ export default function DealViewRedesign(props: DealShowProps) {
                                                 fallback={<OverviewDeferredSkeleton />}
                                             >
                                                 <WorkspaceOverviewTab
-                                                    deal={props.deal}
-                                                    notes={props.notes ?? []}
-                                                    tasks={props.tasks ?? []}
-                                                    dealFollowUps={props.dealFollowUps ?? []}
+                                                    deal={deal}
+                                                    notes={notes}
+                                                    tasks={tasks}
+                                                    dealFollowUps={dealFollowUps}
                                                     taskBoardColumns={taskBoardColumns}
+                                                    permissions={permissions}
+                                                    meetingTypes={meetingTypes}
                                                     onNavigateToSubTab={nav.setTab}
                                                     onAddTask={() => setAddTaskOpen(true)}
                                                     onAddMeeting={() => setAddMeetingOpen(true)}
+                                                    onAddNote={() => setAddNoteOpen(true)}
                                                 />
                                             </Deferred>
                                         )}
                                         {activeTab === "notes" && (
                                             <Deferred data="notes" fallback={<TabDeferredSkeleton />}>
                                                 <WorkspaceNotesTab
-                                                    deal={props.deal}
-                                                    notes={props.notes ?? []}
+                                                    notes={notes}
                                                     permissions={permissions}
-                                                    onAttachFiles={() => nav.setTab("files")}
+                                                    onAddNote={() => setAddNoteOpen(true)}
                                                 />
                                             </Deferred>
                                         )}
@@ -210,7 +237,7 @@ export default function DealViewRedesign(props: DealShowProps) {
                                                 fallback={<TabDeferredSkeleton />}
                                             >
                                                 <WorkspaceTasksTab
-                                                    tasks={props.tasks ?? []}
+                                                    tasks={tasks}
                                                     taskBoardColumns={taskBoardColumns}
                                                     permissions={permissions}
                                                     onAddTask={() => setAddTaskOpen(true)}
@@ -223,8 +250,8 @@ export default function DealViewRedesign(props: DealShowProps) {
                                                 fallback={<TabDeferredSkeleton />}
                                             >
                                                 <WorkspaceMeetingsTab
-                                                    deal={props.deal}
-                                                    followUps={props.dealFollowUps ?? []}
+                                                    deal={deal}
+                                                    followUps={dealFollowUps}
                                                     meetingTypes={meetingTypes}
                                                     permissions={permissions}
                                                     onScheduleMeeting={() =>
@@ -236,35 +263,35 @@ export default function DealViewRedesign(props: DealShowProps) {
                                         {activeTab === "files" && (
                                             <Deferred data="files" fallback={<TabDeferredSkeleton />}>
                                                 <WorkspaceFilesTab
-                                                    deal={props.deal}
-                                                    files={props.files ?? []}
+                                                    deal={deal}
+                                                    files={files}
                                                     permissions={permissions}
                                                 />
                                             </Deferred>
                                         )}
                                         {activeTab === "offers" && (
                                             <WorkspaceOffersTab
-                                                deal={props.deal}
+                                                deal={deal}
                                                 onCountChange={setOffersCount}
                                             />
                                         )}
                                         {activeTab === "recommendations" && (
                                             <WorkspaceRecommendationsTab
-                                                deal={props.deal}
+                                                deal={deal}
                                                 permissions={permissions}
                                                 onCountChange={setRecommendationsCount}
                                             />
                                         )}
                                         {activeTab === "itinerary" && (
                                             <WorkspaceItineraryTab
-                                                deal={props.deal}
+                                                deal={deal}
                                                 canAdd={dealPermissions.canEdit}
                                                 canDelete={dealPermissions.canDelete}
                                             />
                                         )}
                                         {activeTab === "dealinfo" && (
                                             <DealInfoTab
-                                                deal={props.deal}
+                                                deal={deal}
                                                 customFieldCategories={customFieldCategories}
                                                 fields={fields}
                                                 activeSection={nav.infoSection}
@@ -276,8 +303,8 @@ export default function DealViewRedesign(props: DealShowProps) {
                                         )}
                                         {activeTab === "timeline" && (
                                             <TimelineTab
-                                                dealId={props.deal.id}
-                                                dealName={props.deal.name}
+                                                dealId={deal.id}
+                                                dealName={deal.name}
                                                 userId={props.auth?.user?.id}
                                             />
                                         )}
@@ -287,8 +314,8 @@ export default function DealViewRedesign(props: DealShowProps) {
 
                             <div className="dr-dossier">
                                 <WorkspaceContextRail
-                                    deal={props.deal}
-                                    files={props.files}
+                                    deal={deal}
+                                    files={files}
                                     fields={fields}
                                     restrictPackageOrProperty={
                                         props.restrictPackageOrProperty
@@ -296,7 +323,7 @@ export default function DealViewRedesign(props: DealShowProps) {
                                     onNavigateToSubTab={nav.setTab}
                                     onSwitchToDealInfo={() => nav.goToDealInfo("general")}
                                     onManagePackagesProperties={() =>
-                                        nav.goToDealInfo("property")
+                                        nav.goToDealInfo("general")
                                     }
                                 />
                             </div>

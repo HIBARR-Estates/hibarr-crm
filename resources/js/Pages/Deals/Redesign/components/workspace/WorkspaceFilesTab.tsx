@@ -12,6 +12,7 @@ import useDealFileUpload from "../../hooks/useDealFileUpload";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
 interface WorkspaceFilesTabProps {
     deal: Deal;
@@ -64,6 +65,7 @@ export default function WorkspaceFilesTab({
     const { uploadFiles, isUploading, uploadProgress } = useDealFileUpload(
         deal.id,
     );
+    const { setFiles } = useDealWorkspace();
 
     const visibleFiles = useMemo(
         () =>
@@ -179,20 +181,20 @@ export default function WorkspaceFilesTab({
                         <div className="flex shrink-0 gap-1.5">
                             <DealButton
                                 variant="ghost"
+                                size="sm"
                                 onClick={() => downloadDealFile(file.file)}
-                                style={{ fontSize: 11, padding: "3px 8px" }}
                                 aria-label={td("Download")}
                             >
-                                ↓
+                                <DealIcon name="external-link" size={13} />
                             </DealButton>
                             {canDeleteFile(file.file, permissions, userId) && (
                                 <DealButton
                                     variant="ghost"
+                                    size="sm"
                                     onClick={() => setDeleteFile(file.file)}
-                                    style={{ fontSize: 11, padding: "3px 8px" }}
                                     aria-label={td("Delete")}
                                 >
-                                    ×
+                                    <DealIcon name="x" size={13} />
                                 </DealButton>
                             )}
                         </div>
@@ -204,7 +206,16 @@ export default function WorkspaceFilesTab({
                 open={Boolean(deleteFile)}
                 onClose={() => setDeleteFile(null)}
                 file={deleteFile ?? undefined}
-                onSuccess={() => setDeleteFile(null)}
+                skipReload
+                onSuccess={() => {
+                    const deletedId = deleteFile?.id;
+                    setDeleteFile(null);
+                    if (deletedId) {
+                        setFiles((prev) =>
+                            prev.filter((item) => item.id !== deletedId),
+                        );
+                    }
+                }}
             />
         </>
     );
