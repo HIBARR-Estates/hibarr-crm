@@ -1,20 +1,33 @@
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
-import { useState } from "react";
-import { usePage } from "@inertiajs/react";
+import { useEffect, useMemo, useState } from "react";
+import { Deferred, usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
 import DealStickyHeader from "./components/header/DealStickyHeader";
-import DealMainTabs from "./components/tabs/DealMainTabs";
+import DealPipelineStepper from "./components/header/DealPipelineStepper";
+import DealTabBar from "./components/tabs/DealTabBar";
 import DealInfoTab from "./components/tabs/DealInfoTab";
 import TimelineTab from "./components/tabs/TimelineTab";
-import WorkspaceTab from "./components/workspace/WorkspaceTab";
+import WorkspaceOverviewTab from "./components/workspace/WorkspaceOverviewTab";
+import WorkspaceNotesTab from "./components/workspace/WorkspaceNotesTab";
+import WorkspaceTasksTab from "./components/workspace/WorkspaceTasksTab";
+import WorkspaceMeetingsTab from "./components/workspace/WorkspaceMeetingsTab";
+import WorkspaceFilesTab from "./components/workspace/WorkspaceFilesTab";
+import WorkspaceOffersTab from "./components/workspace/WorkspaceOffersTab";
+import WorkspaceRecommendationsTab from "./components/workspace/WorkspaceRecommendationsTab";
+import WorkspaceItineraryTab from "./components/workspace/WorkspaceItineraryTab";
+import {
+    OverviewDeferredSkeleton,
+    TabDeferredSkeleton,
+} from "./components/workspace/overview/overviewShared";
 import WorkspaceContextRail from "./components/workspace/rail/WorkspaceContextRail";
 import DealAddTaskModal from "./components/workspace/DealAddTaskModal";
 import DealScheduleMeetingModal from "./components/workspace/DealScheduleMeetingModal";
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
-import { DealShowProps } from "./types";
+import { DealShowProps, DealTab } from "./types";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -23,6 +36,8 @@ export default function DealViewRedesign(props: DealShowProps) {
     const [isDealEditMode] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+    const [offersCount, setOffersCount] = useState(0);
+    const [recommendationsCount, setRecommendationsCount] = useState(0);
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
@@ -40,6 +55,7 @@ export default function DealViewRedesign(props: DealShowProps) {
     const customFieldCategories = props.customFieldCategories ?? [];
     const employees = props.employees ?? [];
     const taskBoardColumns = props.taskBoardColumns ?? [];
+    const dealPermissions = useDealPermissions(props.deal);
 
     const overview = useWorkspaceOverview({
         notes: props.notes,
@@ -47,12 +63,50 @@ export default function DealViewRedesign(props: DealShowProps) {
         dealFollowUps: props.dealFollowUps,
     });
 
-    const upcomingTasks = overview.tasks.filter((task) => task.isOpen).slice(0, 5);
-    const upcomingMeetings = overview.meetings
-        .filter((meeting) => meeting.isUpcoming)
-        .slice(0, 5);
+    const visibleTabs = useMemo(() => {
+        const tabs: DealTab[] = ["overview"];
+        if (permissions.view_deal_note !== "none") tabs.push("notes");
+        if (permissions.view_tasks !== "none") tabs.push("tasks");
+        if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
+        if (permissions.view_lead_files !== "none") tabs.push("files");
+        tabs.push("offers", "recommendations", "itinerary", "dealinfo", "timeline");
+        return tabs;
+    }, [permissions]);
 
-    const switchToDealInfo = () => nav.switchToDealInfo("general");
+    const activeTab = visibleTabs.includes(nav.tab) ? nav.tab : "overview";
+
+    useEffect(() => {
+        if (activeTab !== nav.tab) {
+            nav.setTab(activeTab);
+        }
+    }, [activeTab, nav]);
+
+    const counts = useMemo(
+        () => ({
+            notes: props.notes === undefined ? undefined : props.notes.length,
+            tasks:
+                props.tasks === undefined ? undefined : overview.openTasksCount,
+            meetings:
+                props.dealFollowUps === undefined
+                    ? undefined
+                    : overview.upcomingMeetingsCount,
+            files: props.files === undefined ? undefined : props.files.length,
+            offers: offersCount,
+            recommendations: recommendationsCount,
+            itinerary: props.deal.lead_flight_itineraries?.length ?? 0,
+        }),
+        [
+            props.notes,
+            props.tasks,
+            props.dealFollowUps,
+            props.files,
+            props.deal.lead_flight_itineraries?.length,
+            overview.openTasksCount,
+            overview.upcomingMeetingsCount,
+            offersCount,
+            recommendationsCount,
+        ],
+    );
 
     return (
         <PageLayout
@@ -83,9 +137,18 @@ export default function DealViewRedesign(props: DealShowProps) {
                         employees={employees}
                         isRefreshing={isRefreshing}
                         onRefresh={refresh}
+                        onAddNote={() => nav.setTab("notes")}
+                        onAddTask={() => setAddTaskOpen(true)}
+                        onScheduleMeeting={() => setAddMeetingOpen(true)}
                     />
 
                     <div className="p-[26px]">
+                        <div className="mb-[14px]">
+                            <DealPipelineStepper
+                                deal={props.deal}
+                                permissions={permissions}
+                            />
+                        </div>
                         <div className="dr-grid">
                             <div className="flex min-w-0 flex-col gap-[14px]">
                                 {showAiSummary && (
@@ -94,52 +157,115 @@ export default function DealViewRedesign(props: DealShowProps) {
                                         entityId={props.deal.id}
                                         initialSummary={props.dealAiSummary}
                                         variant="redesign"
-                                        onCreateTask={() =>
-                                            nav.setWorkspaceSubTab("tasks")
-                                        }
-                                        onScheduleCall={() =>
-                                            nav.setWorkspaceSubTab("meetings")
-                                        }
-                                        onRequestDocuments={() =>
-                                            nav.setWorkspaceSubTab("files")
-                                        }
-                                        onReviewStaleDeal={() =>
-                                            nav.setMainTab("timeline")
-                                        }
+                                        onCreateTask={() => nav.setTab("tasks")}
+                                        onScheduleCall={() => nav.setTab("meetings")}
+                                        onRequestDocuments={() => nav.setTab("files")}
+                                        onReviewStaleDeal={() => nav.setTab("timeline")}
                                     />
                                 )}
 
                                 <section className="overflow-hidden rounded-xl border border-[#e2e5ea] bg-white">
-                                    <DealMainTabs
-                                        mainTab={nav.mainTab}
-                                        onChange={nav.setMainTab}
+                                    <DealTabBar
+                                        activeTab={activeTab}
+                                        counts={counts}
+                                        visibleTabs={visibleTabs}
+                                        onChange={nav.setTab}
                                     />
                                     <div className="p-4">
-                                        {nav.mainTab === "workspace" && (
-                                            <WorkspaceTab
+                                        {activeTab === "overview" && (
+                                            <Deferred
+                                                data={[
+                                                    "notes",
+                                                    "tasks",
+                                                    "dealFollowUps",
+                                                    "taskBoardColumns",
+                                                ]}
+                                                fallback={<OverviewDeferredSkeleton />}
+                                            >
+                                                <WorkspaceOverviewTab
+                                                    deal={props.deal}
+                                                    notes={props.notes ?? []}
+                                                    tasks={props.tasks ?? []}
+                                                    dealFollowUps={props.dealFollowUps ?? []}
+                                                    taskBoardColumns={taskBoardColumns}
+                                                    onNavigateToSubTab={nav.setTab}
+                                                    onAddTask={() => setAddTaskOpen(true)}
+                                                    onAddMeeting={() => setAddMeetingOpen(true)}
+                                                />
+                                            </Deferred>
+                                        )}
+                                        {activeTab === "notes" && (
+                                            <Deferred data="notes" fallback={<TabDeferredSkeleton />}>
+                                                <WorkspaceNotesTab
+                                                    deal={props.deal}
+                                                    notes={props.notes ?? []}
+                                                    permissions={permissions}
+                                                    onAttachFiles={() => nav.setTab("files")}
+                                                />
+                                            </Deferred>
+                                        )}
+                                        {activeTab === "tasks" && (
+                                            <Deferred
+                                                data={["tasks", "taskBoardColumns"]}
+                                                fallback={<TabDeferredSkeleton />}
+                                            >
+                                                <WorkspaceTasksTab
+                                                    tasks={props.tasks ?? []}
+                                                    taskBoardColumns={taskBoardColumns}
+                                                    permissions={permissions}
+                                                    onAddTask={() => setAddTaskOpen(true)}
+                                                />
+                                            </Deferred>
+                                        )}
+                                        {activeTab === "meetings" && (
+                                            <Deferred
+                                                data="dealFollowUps"
+                                                fallback={<TabDeferredSkeleton />}
+                                            >
+                                                <WorkspaceMeetingsTab
+                                                    deal={props.deal}
+                                                    followUps={props.dealFollowUps ?? []}
+                                                    meetingTypes={meetingTypes}
+                                                    permissions={permissions}
+                                                    onScheduleMeeting={() =>
+                                                        setAddMeetingOpen(true)
+                                                    }
+                                                />
+                                            </Deferred>
+                                        )}
+                                        {activeTab === "files" && (
+                                            <Deferred data="files" fallback={<TabDeferredSkeleton />}>
+                                                <WorkspaceFilesTab
+                                                    deal={props.deal}
+                                                    files={props.files ?? []}
+                                                    permissions={permissions}
+                                                />
+                                            </Deferred>
+                                        )}
+                                        {activeTab === "offers" && (
+                                            <WorkspaceOffersTab
                                                 deal={props.deal}
-                                                notes={props.notes}
-                                                tasks={props.tasks}
-                                                dealFollowUps={props.dealFollowUps}
-                                                files={props.files}
-                                                meetingTypes={meetingTypes}
-                                                taskBoardColumns={taskBoardColumns}
-                                                permissions={permissions}
-                                                activeSubTab={nav.workspaceSubTab}
-                                                onChangeSubTab={nav.setWorkspaceSubTab}
-                                                overview={overview}
-                                                onAddTask={() => setAddTaskOpen(true)}
-                                                onAddMeeting={() =>
-                                                    setAddMeetingOpen(true)
-                                                }
+                                                onCountChange={setOffersCount}
                                             />
                                         )}
-                                        {nav.mainTab === "dealinfo" && (
+                                        {activeTab === "recommendations" && (
+                                            <WorkspaceRecommendationsTab
+                                                deal={props.deal}
+                                                permissions={permissions}
+                                                onCountChange={setRecommendationsCount}
+                                            />
+                                        )}
+                                        {activeTab === "itinerary" && (
+                                            <WorkspaceItineraryTab
+                                                deal={props.deal}
+                                                canAdd={dealPermissions.canEdit}
+                                                canDelete={dealPermissions.canDelete}
+                                            />
+                                        )}
+                                        {activeTab === "dealinfo" && (
                                             <DealInfoTab
                                                 deal={props.deal}
-                                                customFieldCategories={
-                                                    customFieldCategories
-                                                }
+                                                customFieldCategories={customFieldCategories}
                                                 fields={fields}
                                                 activeSection={nav.infoSection}
                                                 onSectionChange={nav.setInfoSection}
@@ -148,7 +274,7 @@ export default function DealViewRedesign(props: DealShowProps) {
                                                 }
                                             />
                                         )}
-                                        {nav.mainTab === "timeline" && (
+                                        {activeTab === "timeline" && (
                                             <TimelineTab
                                                 dealId={props.deal.id}
                                                 dealName={props.deal.name}
@@ -164,28 +290,14 @@ export default function DealViewRedesign(props: DealShowProps) {
                                     deal={props.deal}
                                     files={props.files}
                                     fields={fields}
-                                    upcomingTasks={
-                                        props.tasks === undefined
-                                            ? undefined
-                                            : upcomingTasks
-                                    }
-                                    upcomingMeetings={
-                                        props.dealFollowUps === undefined
-                                            ? undefined
-                                            : upcomingMeetings
-                                    }
                                     restrictPackageOrProperty={
                                         props.restrictPackageOrProperty
                                     }
-                                    onNavigateToSubTab={(tab) => {
-                                        nav.setWorkspaceSubTab(tab);
-                                    }}
-                                    onSwitchToDealInfo={switchToDealInfo}
+                                    onNavigateToSubTab={nav.setTab}
+                                    onSwitchToDealInfo={() => nav.goToDealInfo("general")}
                                     onManagePackagesProperties={() =>
-                                        nav.switchToDealInfo("property")
+                                        nav.goToDealInfo("property")
                                     }
-                                    onAddTask={() => setAddTaskOpen(true)}
-                                    onAddMeeting={() => setAddMeetingOpen(true)}
                                 />
                             </div>
                         </div>

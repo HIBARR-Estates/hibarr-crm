@@ -7,8 +7,11 @@ import type { Note } from "@/Types/api/note";
 import type { Proposal } from "@/Types/api/proposal";
 import type { Task } from "@/Types/api/tasks";
 
-export type DealMainTab = "workspace" | "dealinfo" | "timeline";
-export type WorkspaceSubTab =
+/**
+ * v2.2 uses a single flat tab bar: record tabs, then a divider, then meta tabs.
+ * There is no separate "workspace" wrapper tab.
+ */
+export type DealRecordTab =
     | "overview"
     | "notes"
     | "tasks"
@@ -18,7 +21,11 @@ export type WorkspaceSubTab =
     | "recommendations"
     | "itinerary";
 
-export interface WorkspaceSubTabCount {
+export type DealMetaTab = "dealinfo" | "timeline";
+
+export type DealTab = DealRecordTab | DealMetaTab;
+
+export interface DealTabCount {
     notes?: number;
     tasks?: number;
     meetings?: number;

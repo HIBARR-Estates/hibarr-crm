@@ -1,8 +1,20 @@
 import { useCallback, useMemo, useState } from "react";
-import { DealInfoSectionId, DealMainTab, WorkspaceSubTab } from "../types";
+import { DealInfoSectionId, DealTab } from "../types";
 import { parseCategorySectionId } from "../config/dealInfoSections";
 
-const VALID_TABS: DealMainTab[] = ["workspace", "dealinfo", "timeline"];
+const VALID_TABS: DealTab[] = [
+    "overview",
+    "notes",
+    "tasks",
+    "meetings",
+    "files",
+    "offers",
+    "recommendations",
+    "itinerary",
+    "dealinfo",
+    "timeline",
+];
+
 const VALID_CORE_INFO_SECTIONS = [
     "general",
     "experience",
@@ -21,16 +33,12 @@ function isValidInfoSection(section: string): section is DealInfoSectionId {
         ) || parseCategorySectionId(section) !== null
     );
 }
-const VALID_WORKSPACE_SUB_TABS: WorkspaceSubTab[] = [
-    "overview",
-    "notes",
-    "tasks",
-    "meetings",
-    "files",
-    "offers",
-    "recommendations",
-    "itinerary",
-];
+
+function getInitialTab(): DealTab {
+    if (typeof window === "undefined") return "overview";
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    return VALID_TABS.includes(tab as DealTab) ? (tab as DealTab) : "overview";
+}
 
 function getInitialSection(): DealInfoSectionId {
     if (typeof window === "undefined") return "general";
@@ -38,101 +46,68 @@ function getInitialSection(): DealInfoSectionId {
     return section && isValidInfoSection(section) ? section : "general";
 }
 
-function getInitialTab(): DealMainTab {
-    if (typeof window === "undefined") return "workspace";
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    return VALID_TABS.includes(tab as DealMainTab) ? (tab as DealMainTab) : "workspace";
-}
-
-function getInitialWorkspaceSubTab(): WorkspaceSubTab {
-    if (typeof window === "undefined") return "overview";
-    const subTab = new URLSearchParams(window.location.search).get("subtab");
-    return VALID_WORKSPACE_SUB_TABS.includes(subTab as WorkspaceSubTab)
-        ? (subTab as WorkspaceSubTab)
-        : "overview";
-}
-
-function setQuery(nextTab: DealMainTab, section?: DealInfoSectionId, subTab?: WorkspaceSubTab) {
+function syncQuery(tab: DealTab, section?: DealInfoSectionId) {
     if (typeof window === "undefined") return;
     const url = new URL(window.location.href);
-    url.searchParams.set("tab", nextTab);
-    if (section) {
+    url.searchParams.set("tab", tab);
+    if (tab === "dealinfo" && section) {
         url.searchParams.set("section", section);
     } else {
         url.searchParams.delete("section");
     }
-    if (subTab && nextTab === "workspace") {
-        url.searchParams.set("subtab", subTab);
-    } else {
-        url.searchParams.delete("subtab");
-    }
     window.history.replaceState({}, "", url.toString());
 }
 
+/**
+ * Single flat-tab navigation matching v2.2. `tab` is the one active tab
+ * (record or meta); `infoSection` is the Deal-info tab's internal left-nav
+ * selection, only meaningful while `tab === "dealinfo"`.
+ */
 export default function useDealViewNavigation() {
-    const [mainTab, setMainTabState] = useState<DealMainTab>(() => getInitialTab());
-    const [infoSection, setInfoSectionState] = useState<DealInfoSectionId>(() => getInitialSection());
-    const [workspaceSubTab, setWorkspaceSubTabState] = useState<WorkspaceSubTab>(() =>
-        getInitialWorkspaceSubTab(),
+    const [tab, setTabState] = useState<DealTab>(() => getInitialTab());
+    const [infoSection, setInfoSectionState] = useState<DealInfoSectionId>(() =>
+        getInitialSection(),
     );
 
-    const setMainTab = useCallback((tab: DealMainTab) => {
-        setMainTabState(tab);
-        setQuery(
-            tab,
-            tab === "dealinfo" ? infoSection : undefined,
-            tab === "workspace" ? workspaceSubTab : undefined,
-        );
-    }, [infoSection, workspaceSubTab]);
+    const setTab = useCallback(
+        (nextTab: DealTab) => {
+            setTabState(nextTab);
+            syncQuery(nextTab, nextTab === "dealinfo" ? infoSection : undefined);
+        },
+        [infoSection],
+    );
 
-    const setInfoSection = useCallback((section: DealInfoSectionId) => {
-        setInfoSectionState(section);
-        if (mainTab === "dealinfo") {
-            setQuery(mainTab, section, workspaceSubTab);
-        }
-    }, [mainTab, workspaceSubTab]);
+    const setInfoSection = useCallback(
+        (section: DealInfoSectionId) => {
+            setInfoSectionState(section);
+            if (tab === "dealinfo") {
+                syncQuery("dealinfo", section);
+            }
+        },
+        [tab],
+    );
 
-    const setWorkspaceSubTab = useCallback((subTab: WorkspaceSubTab) => {
-        setWorkspaceSubTabState(subTab);
-        if (mainTab === "workspace") {
-            setQuery("workspace", undefined, subTab);
-            return;
-        }
-
-        setMainTabState("workspace");
-        setQuery("workspace", undefined, subTab);
-    }, [mainTab]);
-
-    const switchToDealInfo = useCallback((section?: DealInfoSectionId) => {
+    const goToDealInfo = useCallback((section?: DealInfoSectionId) => {
+        setTabState("dealinfo");
         if (section) {
             setInfoSectionState(section);
-            setMainTabState("dealinfo");
-            setQuery("dealinfo", section, undefined);
-            return;
+            syncQuery("dealinfo", section);
+        } else {
+            setInfoSectionState((current) => {
+                syncQuery("dealinfo", current);
+                return current;
+            });
         }
-
-        setMainTabState("dealinfo");
-        setQuery("dealinfo", infoSection, undefined);
-    }, [infoSection]);
+    }, []);
 
     return useMemo(
         () => ({
-            mainTab,
+            tab,
             infoSection,
-            workspaceSubTab,
-            setMainTab,
+            setTab,
             setInfoSection,
-            setWorkspaceSubTab,
-            switchToDealInfo,
+            goToDealInfo,
         }),
-        [
-            infoSection,
-            mainTab,
-            setInfoSection,
-            setMainTab,
-            setWorkspaceSubTab,
-            switchToDealInfo,
-            workspaceSubTab,
-        ],
+        [tab, infoSection, setTab, setInfoSection, goToDealInfo],
     );
 }

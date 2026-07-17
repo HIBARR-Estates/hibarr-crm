@@ -7,7 +7,7 @@ import OverviewMeetingsColumn from "./overview/OverviewMeetingsColumn";
 import OverviewNotesColumn from "./overview/OverviewNotesColumn";
 import OverviewTasksColumn from "./overview/OverviewTasksColumn";
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
-import { WorkspaceSubTab } from "../../types";
+import { DealTab } from "../../types";
 
 interface WorkspaceOverviewTabProps {
     deal: Deal;
@@ -15,7 +15,7 @@ interface WorkspaceOverviewTabProps {
     tasks: Task[];
     dealFollowUps: DealFollowup[];
     taskBoardColumns: TaskboardColumn[];
-    onNavigateToSubTab: (tab: WorkspaceSubTab) => void;
+    onNavigateToSubTab: (tab: DealTab) => void;
     onAddTask: () => void;
     onAddMeeting: () => void;
 }

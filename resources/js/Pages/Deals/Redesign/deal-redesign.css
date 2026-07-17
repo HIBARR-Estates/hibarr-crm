@@ -160,6 +160,10 @@
     top: 16px;
     max-height: calc(100vh - 32px);
     overflow-y: auto;
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 12px;
+    padding: 14px 16px;
 }
 
 @media (max-width: 960px) {

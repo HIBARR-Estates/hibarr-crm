@@ -284,7 +284,7 @@ export default function DealTeamModal({
                     </TeamRoleBlock>
 
                     <TeamRoleBlock
-                        title={t("pages.deals.info.fields.deal_participants")}
+                        title={td("Participants")}
                         dotColor={T.GREEN}
                         tag={td("Can edit")}
                         tagStyle={{
@@ -327,7 +327,7 @@ export default function DealTeamModal({
                     </TeamRoleBlock>
 
                     <TeamRoleBlock
-                        title={t("pages.deals.info.fields.deal_watchers")}
+                        title={td("Watchers")}
                         dotColor={T.TEXT_MUTED}
                         tag={td("View only")}
                         tagStyle={{

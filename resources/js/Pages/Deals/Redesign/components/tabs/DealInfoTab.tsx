@@ -4,7 +4,6 @@ import useDealInfoNavigation from "../../hooks/useDealInfoNavigation";
 import type { DealInfoSectionId } from "../../types";
 import DealInfoSectionPanel from "../deal-info/DealInfoSectionPanel";
 import DealInfoSidebar from "../deal-info/DealInfoSidebar";
-import DealInfoToolbar from "../deal-info/DealInfoToolbar";
 
 interface DealInfoTabProps {
     deal: Deal;
@@ -31,7 +30,6 @@ export default function DealInfoTab({
     const {
         deal,
         canEdit,
-        canDelete,
         isLocked,
         isFieldLoading,
         updatingField,
@@ -42,12 +40,6 @@ export default function DealInfoTab({
 
     return (
         <div>
-            <DealInfoToolbar
-                deal={deal}
-                canDelete={canDelete}
-                isLocked={isLocked}
-            />
-
             <div
                 className="grid min-h-[500px] gap-0"
                 style={{ gridTemplateColumns: "210px 1fr" }}

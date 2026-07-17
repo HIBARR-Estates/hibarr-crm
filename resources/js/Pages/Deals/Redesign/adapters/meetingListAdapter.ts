@@ -19,6 +19,7 @@ export interface WorkspaceMeetingListItem extends WorkspaceMeetingPreview {
     meetingLink: string | null;
     summaryStatus: MeetingSummaryStatus;
     statusLabel: string;
+    typeColor: string | null;
     followup: DealFollowup;
 }
 
@@ -113,6 +114,7 @@ export function toWorkspaceMeetingListItem(
         meetingLink,
         summaryStatus: getSummaryStatus(meeting),
         statusLabel: meeting.status?.trim() || "scheduled",
+        typeColor: meeting.meeting_type?.color?.trim() || null,
         followup: meeting,
     };
 }

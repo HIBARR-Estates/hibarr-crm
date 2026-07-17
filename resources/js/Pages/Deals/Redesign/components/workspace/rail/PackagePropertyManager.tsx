@@ -1,34 +1,45 @@
+import { useMemo, useState } from "react";
+import { router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useFormData } from "@/Hooks/useFormData";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import type { Deal } from "@/Types/api/deals";
 import DealIcon from "../../primitives/DealIcon";
+import DealMenuSelect from "../../primitives/DealMenuSelect";
+import useDealPackages from "../../../hooks/useDealPackages";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
+
+interface PackageOption {
+    id: number;
+    name: string;
+    value?: number;
+}
 
 interface PackagePropertyManagerProps {
     deal: Deal;
     restrictPackageOrProperty: boolean;
-    onManage?: () => void;
 }
 
 /**
- * Compact packages/properties summary ported from v2.2's PackagePropertyManager
- * (deal-v2-2.jsx:3120-3315), shown in the Dossier sidebar. v2.2's component was
- * dual-mode (compact + full, with inline add/replace/remove editing) because its
- * mock had no real backend. In this CRM, package attach/detach already works via
- * the "Packages" field in Deal Info > Overview (DealInfoSectionPanel) and property
- * attach/detach already works via ManageDealPropertiesModal in Deal Info >
- * Property — both real, working mutation surfaces. Rebuilding that editing UI a
- * second time here would just fork it, so this component is read-only display +
- * the same "1 package or property" exclusivity messaging, linking out to Deal
- * Info for edits rather than duplicating the edit controls.
+ * Compact packages/properties editor for the Dossier, ported from v2.2's
+ * PackagePropertyManager (deal-v2-2.jsx:3120-3315). Packages attach/detach via
+ * the real `package_id` inline-update; properties attach via the existing
+ * ManageDealPropertiesModal. Respects the "1 package or property" CRM limit.
  */
 export default function PackagePropertyManager({
     deal,
     restrictPackageOrProperty,
-    onManage,
 }: PackagePropertyManagerProps) {
     const { td } = useTd();
+    const permissions = useDealPermissions(deal);
+    const { addPackage, removePackage, saving } = useDealPackages(deal);
+    const [propertyModalOpen, setPropertyModalOpen] = useState(false);
+
     const packages = deal.packages ?? [];
     const products = deal.products ?? [];
+    const isLocked = !!deal.is_locked;
+    const canEdit = permissions.canEdit;
 
     const hasPackage = packages.length > 0;
     const hasProperty = products.length > 0;
@@ -39,6 +50,33 @@ export default function PackagePropertyManager({
         !restrictPackageOrProperty || !hasProperty || overLimit;
     const showPropertiesSection =
         !restrictPackageOrProperty || !hasPackage || overLimit;
+    const showPackageAdd =
+        canEdit &&
+        !isLocked &&
+        showPackagesSection &&
+        (!restrictPackageOrProperty || packages.length === 0);
+    const showPropertyAdd =
+        canEdit &&
+        !isLocked &&
+        showPropertiesSection &&
+        (!restrictPackageOrProperty || products.length === 0);
+
+    const { data } = useFormData<PackageOption>("packages", {
+        per_page: 50,
+        paginate: false,
+        enabled: showPackageAdd,
+    });
+    const availablePackages = useMemo(
+        () =>
+            ((data as PackageOption[] | undefined) ?? []).filter(
+                (option) => !packages.some((pkg) => pkg.id === option.id),
+            ),
+        [data, packages],
+    );
+
+    const currencySymbol = deal.currency?.currency_symbol || "";
+    const money = (value?: number | null) =>
+        value == null ? "" : `${currencySymbol}${Number(value).toLocaleString()}`;
 
     const bannerMessage = overLimit
         ? td(
@@ -74,15 +112,15 @@ export default function PackagePropertyManager({
                 <>
                     <div
                         className="mb-2 pb-1.5 text-[11px] font-bold uppercase tracking-[0.05em]"
-                        style={{ color: T.TEXT_MUTED, borderBottom: `1px solid ${T.BORDER_SOFT}` }}
+                        style={{
+                            color: T.TEXT_MUTED,
+                            borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                        }}
                     >
                         {restrictPackageOrProperty ? td("Package") : td("Packages")}
                     </div>
                     {packages.length === 0 ? (
-                        <div
-                            className="mb-2 text-xs italic"
-                            style={{ color: T.TEXT_MUTED }}
-                        >
+                        <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
                             {td("No packages attached")}
                         </div>
                     ) : (
@@ -100,13 +138,46 @@ export default function PackagePropertyManager({
                                     </div>
                                     {pkg.value != null && (
                                         <div className="text-[11px]" style={{ color: T.TEXT_MUTED }}>
-                                            {deal.currency?.currency_symbol || ""}
-                                            {Number(pkg.value).toLocaleString()}
+                                            {money(pkg.value)}
                                         </div>
                                     )}
                                 </div>
+                                {canEdit && !isLocked && (
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-sm cursor-pointer"
+                                        style={{
+                                            color: T.RED,
+                                            background: "transparent",
+                                            border: "none",
+                                        }}
+                                        disabled={saving}
+                                        aria-label={`${td("Remove")} ${pkg.name}`}
+                                        onClick={() => removePackage(pkg.id)}
+                                    >
+                                        {td("Remove")}
+                                    </button>
+                                )}
                             </div>
                         ))
+                    )}
+                    {showPackageAdd && (
+                        <div className="mb-2">
+                            <DealMenuSelect
+                                value={null}
+                                placeholder={`+ ${td("Add package")}`}
+                                size="sm"
+                                width={150}
+                                disabled={saving || availablePackages.length === 0}
+                                options={availablePackages.map((option) => ({
+                                    value: option.id,
+                                    label: option.value
+                                        ? `${option.name} · ${money(option.value)}`
+                                        : option.name,
+                                }))}
+                                onChange={(value) => addPackage(Number(value))}
+                            />
+                        </div>
                     )}
                 </>
             )}
@@ -115,15 +186,15 @@ export default function PackagePropertyManager({
                 <>
                     <div
                         className="mb-2 mt-1 pb-1.5 text-[11px] font-bold uppercase tracking-[0.05em]"
-                        style={{ color: T.TEXT_MUTED, borderBottom: `1px solid ${T.BORDER_SOFT}` }}
+                        style={{
+                            color: T.TEXT_MUTED,
+                            borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                        }}
                     >
                         {restrictPackageOrProperty ? td("Property") : td("Properties")}
                     </div>
                     {products.length === 0 ? (
-                        <div
-                            className="mb-2 text-xs italic"
-                            style={{ color: T.TEXT_MUTED }}
-                        >
+                        <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
                             {td("No properties attached")}
                         </div>
                     ) : (
@@ -143,19 +214,31 @@ export default function PackagePropertyManager({
                             </div>
                         ))
                     )}
+                    {showPropertyAdd && (
+                        <div className="mb-1">
+                            <button
+                                type="button"
+                                className="dr-btn dr-btn-sm cursor-pointer"
+                                style={{
+                                    background: T.WHITE,
+                                    color: T.TEXT_MUTED,
+                                    border: `1px solid ${T.BORDER}`,
+                                }}
+                                onClick={() => setPropertyModalOpen(true)}
+                            >
+                                + {td("Add property")}
+                            </button>
+                        </div>
+                    )}
                 </>
             )}
 
-            {onManage && (
-                <button
-                    type="button"
-                    className="mt-1 text-xs font-medium"
-                    style={{ color: T.BLUE, background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                    onClick={onManage}
-                >
-                    {td("Manage packages & properties")} ↗
-                </button>
-            )}
+            <ManageDealPropertiesModal
+                open={propertyModalOpen}
+                onClose={() => setPropertyModalOpen(false)}
+                deal={deal}
+                onRefresh={() => router.reload({ only: ["deal"] })}
+            />
         </div>
     );
 }

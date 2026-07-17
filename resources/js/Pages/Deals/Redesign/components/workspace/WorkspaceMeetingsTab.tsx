@@ -134,6 +134,11 @@ function MeetingCard({
 
             <div className="min-w-0 flex-1">
                 <div className="mb-1 flex flex-wrap items-center gap-2">
+                    <span
+                        aria-hidden="true"
+                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                        style={{ background: meeting.typeColor ?? T.TEXT_MUTED }}
+                    />
                     <span className="text-[13px] font-medium text-[#1a1f2e]">
                         {meeting.title}
                     </span>
