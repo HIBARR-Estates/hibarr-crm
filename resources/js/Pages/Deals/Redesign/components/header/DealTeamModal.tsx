@@ -54,6 +54,7 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
             {onRemove && (
                 <DealButton
                     variant="ghost"
+                    size="sm"
                     onClick={onRemove}
                     disabled={removing}
                     loading={removing}
@@ -104,7 +105,7 @@ function TeamRoleBlock({
                 </div>
                 {headerAction}
                 {onAdd && !headerAction && (
-                    <DealButton variant="ghost" onClick={onAdd}>
+                    <DealButton variant="ghost" size="sm" onClick={onAdd}>
                         {addLabel}
                     </DealButton>
                 )}
@@ -146,6 +147,7 @@ function AddMemberRow({
             </select>
             <DealButton
                 variant="primary"
+                size="sm"
                 disabled={!selectedId || saving}
                 loading={saving}
                 onClick={() => {
@@ -156,7 +158,12 @@ function AddMemberRow({
             >
                 Add
             </DealButton>
-            <DealButton variant="ghost" onClick={onCancel} disabled={saving}>
+            <DealButton
+                variant="ghost"
+                size="sm"
+                onClick={onCancel}
+                disabled={saving}
+            >
                 Cancel
             </DealButton>
         </div>
@@ -271,6 +278,7 @@ export default function DealTeamModal({
                             canEdit && agent ? (
                                 <DealButton
                                     variant="ghost"
+                                    size="sm"
                                     onClick={() => setChangingAgent((v) => !v)}
                                     disabled={isSaving("agent_id")}
                                 >
@@ -301,6 +309,7 @@ export default function DealTeamModal({
                                 {canEdit && (
                                     <DealButton
                                         variant="primary"
+                                        size="sm"
                                         onClick={() =>
                                             setChangingAgent((v) => !v)
                                         }

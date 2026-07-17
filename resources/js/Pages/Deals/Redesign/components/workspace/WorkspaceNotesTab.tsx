@@ -40,7 +40,7 @@ export default function WorkspaceNotesTab({
         <div>
             {showAddNote && (
                 <div className="mb-3.5 flex justify-end">
-                    <DealButton variant="navy" onClick={onAddNote}>
+                    <DealButton variant="primary" size="sm" onClick={onAddNote}>
                         + {td("Add note")}
                     </DealButton>
                 </div>

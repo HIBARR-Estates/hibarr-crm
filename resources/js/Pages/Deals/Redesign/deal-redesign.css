@@ -227,13 +227,6 @@
     color: #1a1f2e;
     background: #f5f6f8;
 }
-.dr-btn-navy {
-    background: #16294d;
-    color: #ffffff;
-}
-.dr-btn-navy:hover:not(:disabled) {
-    background: #0f1d38;
-}
 
 .dr-pill {
     display: inline-flex;

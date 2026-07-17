@@ -98,7 +98,7 @@ export default function WorkspaceRecommendationsTab({
                 {apiError && (
                     <p className="mb-2 text-xs text-[#b45309]">{apiError}</p>
                 )}
-                <DealButton variant="ghost" onClick={() => refetch()}>
+                <DealButton variant="ghost" size="sm" onClick={() => refetch()}>
                     {td("Try Again")}
                 </DealButton>
             </div>
@@ -126,14 +126,9 @@ export default function WorkspaceRecommendationsTab({
                         </DealBadge>
                     )}
                     <DealButton
-                        variant="navy"
-                        icon={
-                            <DealIcon
-                                name="refresh"
-                                size={12}
-                                color={T.WHITE}
-                            />
-                        }
+                        variant="ghost"
+                        size="sm"
+                        icon={<DealIcon name="refresh" size={12} />}
                         onClick={refreshRecommendations}
                         loading={loading}
                     >
@@ -162,14 +157,9 @@ export default function WorkspaceRecommendationsTab({
                         )}
                     </p>
                     <DealButton
-                        variant="navy"
-                        icon={
-                            <DealIcon
-                                name="refresh"
-                                size={12}
-                                color={T.WHITE}
-                            />
-                        }
+                        variant="primary"
+                        size="sm"
+                        icon={<DealIcon name="refresh" size={12} />}
                         onClick={refreshRecommendations}
                         loading={loading}
                     >
@@ -247,6 +237,7 @@ export default function WorkspaceRecommendationsTab({
                                 ) : (
                                     <DealButton
                                         variant="primary"
+                                        size="sm"
                                         onClick={() =>
                                             item.propertyId &&
                                             addPropertiesToDeal([
@@ -265,6 +256,7 @@ export default function WorkspaceRecommendationsTab({
                                 {item.propertyHref && (
                                     <DealButton
                                         variant="ghost"
+                                        size="sm"
                                         icon={
                                             <DealIcon
                                                 name="external-link"

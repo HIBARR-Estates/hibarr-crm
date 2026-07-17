@@ -69,13 +69,8 @@ export default function DealActionsMenu({
                 aria-expanded={open}
                 aria-label={td("Deal actions")}
                 onClick={() => setOpen((v) => !v)}
-                className="dr-btn dr-btn-sm"
-                style={{
-                    background: "#ffffff",
-                    color: "#5b6472",
-                    border: "1px solid #e2e5ea",
-                    padding: "5px 8px",
-                }}
+                className="dr-btn dr-btn-sm dr-btn-ghost"
+                style={{ padding: "5px 8px" }}
             >
                 <DealIcon name="more" size={16} />
             </button>

@@ -291,7 +291,11 @@ export default function WorkspaceMeetingsTab({
                     {td("past")}
                 </span>
                 {showSchedule && (
-                    <DealButton variant="navy" onClick={onScheduleMeeting}>
+                    <DealButton
+                        variant="primary"
+                        size="sm"
+                        onClick={onScheduleMeeting}
+                    >
                         + {td("Schedule meeting")}
                     </DealButton>
                 )}
@@ -309,7 +313,11 @@ export default function WorkspaceMeetingsTab({
                         {td("No meetings yet")}
                     </p>
                     {showSchedule && (
-                        <DealButton variant="navy" onClick={onScheduleMeeting}>
+                        <DealButton
+                            variant="primary"
+                            size="sm"
+                            onClick={onScheduleMeeting}
+                        >
                             + {td("Schedule meeting")}
                         </DealButton>
                     )}

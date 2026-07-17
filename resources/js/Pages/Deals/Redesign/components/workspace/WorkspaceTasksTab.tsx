@@ -202,7 +202,7 @@ export default function WorkspaceTasksTab({
                         {selectMode ? td("Cancel") : td("Select")}
                     </DealButton>
                     {showAddTask && (
-                        <DealButton variant="navy" onClick={onAddTask}>
+                        <DealButton variant="primary" size="sm" onClick={onAddTask}>
                             + {td("Add task")}
                         </DealButton>
                     )}
@@ -255,7 +255,7 @@ export default function WorkspaceTasksTab({
                         {td("No")} {filter} {td("tasks")}
                     </p>
                     {showAddTask && (
-                        <DealButton variant="navy" onClick={onAddTask}>
+                        <DealButton variant="primary" size="sm" onClick={onAddTask}>
                             + {td("Add task")}
                         </DealButton>
                     )}

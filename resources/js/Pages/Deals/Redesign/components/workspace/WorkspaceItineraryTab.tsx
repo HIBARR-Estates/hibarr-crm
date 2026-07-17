@@ -101,6 +101,7 @@ export default function WorkspaceItineraryTab({
                 {canAdd && (
                     <DealButton
                         variant="primary"
+                        size="sm"
                         onClick={() => setFormOpen((v) => !v)}
                     >
                         {formOpen ? t("app.cancel") : `+ ${ft("add_flight")}`}
@@ -211,11 +212,16 @@ export default function WorkspaceItineraryTab({
                         </DealModalField>
                     </div>
                     <div className="flex justify-end gap-2">
-                        <DealButton variant="ghost" onClick={() => setFormOpen(false)}>
+                        <DealButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setFormOpen(false)}
+                        >
                             {t("app.cancel")}
                         </DealButton>
                         <DealButton
                             variant="primary"
+                            size="sm"
                             disabled={!form.flight_number.trim() || !form.date || isCreating}
                             loading={isCreating}
                             onClick={handleSave}
