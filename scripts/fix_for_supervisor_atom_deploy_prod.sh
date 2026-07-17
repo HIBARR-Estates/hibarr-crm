@@ -5,7 +5,7 @@ ls -la /home/hibarr/hibarr-crm
 sudo tee /etc/supervisor/conf.d/hibarr_crm.conf > /dev/null << 'EOF'
 [program:hibarr_crm]
 process_name=%(program_name)s_%(process_num)02d
-command=/usr/bin/php /home/hibarr/hibarr-crm/artisan queue:work database --queue=default,communication_activities,resolvers,PropertyImport --sleep=3 --tries=3 --timeout=300
+command=/usr/bin/php /home/hibarr/hibarr-crm/artisan queue:work database --queue=default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport --sleep=3 --tries=3 --timeout=300
 autostart=true
 autorestart=true
 user=hibarr
