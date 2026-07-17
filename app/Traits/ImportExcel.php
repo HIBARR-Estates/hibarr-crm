@@ -294,6 +294,10 @@ trait ImportExcel
 
             $fresh = $batch->fresh();
 
+            if (! $fresh) {
+                continue;
+            }
+
             if ($fresh->cancelled() || $fresh->hasFailures()) {
                 return 'failed';
             }
@@ -316,7 +320,17 @@ trait ImportExcel
         }
 
         foreach ($batches as $batch) {
-            if ($batch && ! $batch->fresh()->finished()) {
+            if (! $batch) {
+                continue;
+            }
+
+            $fresh = $batch->fresh();
+
+            if (! $fresh) {
+                continue;
+            }
+
+            if (! $fresh->finished()) {
                 return false;
             }
         }
