@@ -61,7 +61,18 @@ export default function EntityAiSummaryHeader({
                 onClick={onToggleCollapse}
             >
                 <span className="entity-ai-summary-header__spark" aria-hidden="true">
-                    <RobotOutlined />
+                    <svg
+                        width={15}
+                        height={15}
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <path d="M12 3l1.9 4.8L19 9.5l-4.2 2.9L15 18l-3-3-3 3 .2-5.6L5 9.5l5.1-1.7z" />
+                    </svg>
                 </span>
                 <span className="entity-ai-summary-header__redesign-body">
                     <span className="entity-ai-summary-header__redesign-meta">

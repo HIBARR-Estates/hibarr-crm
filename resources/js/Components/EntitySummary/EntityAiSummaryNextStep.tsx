@@ -18,14 +18,16 @@ export default function EntityAiSummaryNextStep({
 
     return (
         <footer className="entity-ai-summary-next-step">
-            <div>
+            <div className="entity-ai-summary-next-step__body">
                 <p className="entity-ai-summary-next-step__label">
                     Suggested next step · {urgencyLabel}
                 </p>
-                <p className="entity-ai-summary-next-step__text">
-                    {nextStep.label}
-                    {nextStep.rationale ? ` — ${nextStep.rationale}` : ""}
-                </p>
+                <p className="entity-ai-summary-next-step__text">{nextStep.label}</p>
+                {nextStep.rationale && (
+                    <p className="entity-ai-summary-next-step__rationale">
+                        {nextStep.rationale}
+                    </p>
+                )}
             </div>
             <button
                 type="button"

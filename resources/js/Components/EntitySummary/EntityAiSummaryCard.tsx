@@ -29,7 +29,8 @@ export default function EntityAiSummaryCard({
     onReviewStaleDeal,
 }: EntityAiSummaryCardProps) {
     const isRedesign = variant === "redesign";
-    const [collapsed, setCollapsed] = useState(false);
+    // v2.2's AiSummary is collapsed by default (deal-v2-2.jsx:1268).
+    const [collapsed, setCollapsed] = useState(isRedesign);
 
     const { summary, loading, error, generate, regenerate } =
         useEntityAiSummary({

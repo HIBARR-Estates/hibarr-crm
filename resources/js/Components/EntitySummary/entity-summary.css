@@ -261,6 +261,22 @@
 .entity-ai-summary-chip__dot--red { background: #ef4444; }
 .entity-ai-summary-chip__dot--neutral { background: #9ca3af; }
 
+/* v2.2 chip dot + label tuning (deal-v2-2.jsx:1311-1316) */
+.entity-ai-summary-card--redesign .entity-ai-summary-chip__dot--green { background: #177a5b; }
+.entity-ai-summary-card--redesign .entity-ai-summary-chip__dot--amber { background: #b45309; }
+.entity-ai-summary-card--redesign .entity-ai-summary-chip__dot--red { background: #b91c1c; }
+.entity-ai-summary-card--redesign .entity-ai-summary-chip__dot--neutral { background: #5b6472; }
+.entity-ai-summary-card--redesign .entity-ai-summary-chip__label {
+    font-size: 11px;
+    color: #5b6472;
+}
+.entity-ai-summary-card--redesign .entity-ai-summary-chip__value {
+    color: #1a1f2e;
+}
+.entity-ai-summary-card--redesign .entity-ai-summary-chip__sublabel {
+    color: #5b6472;
+}
+
 .entity-ai-summary-chip__sublabel {
     margin-top: 4px;
     font-size: 11px;
@@ -352,10 +368,30 @@
     margin-bottom: 4px;
 }
 
+/* v2.2 next-step footer (deal-v2-2.jsx:1332-1342) */
+.entity-ai-summary-card--redesign .entity-ai-summary-next-step__label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: #b8d4f0;
+    margin-bottom: 3px;
+}
+
 .entity-ai-summary-next-step__text {
     font-size: 13px;
     line-height: 1.4;
     color: #f9fafb;
+}
+
+.entity-ai-summary-next-step__rationale {
+    margin-top: 2px;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #9fb3d4;
+}
+
+.entity-ai-summary-next-step__body {
+    min-width: 0;
 }
 
 .entity-ai-summary-next-step__button {

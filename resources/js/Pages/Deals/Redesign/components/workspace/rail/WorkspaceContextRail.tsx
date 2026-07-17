@@ -124,7 +124,7 @@ export default function WorkspaceContextRail({
                             <button
                                 type="button"
                                 onClick={copyEmail}
-                                className="flex w-full items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-[#5b6472] hover:bg-[#f5f6f8]"
+                                className="flex w-full cursor-pointer items-center gap-1.5 rounded px-0 py-2 text-left text-xs text-[#5b6472] hover:bg-[#f5f6f8]"
                             >
                                 <DealIcon name="mail" size={12} />
                                 <span className="min-w-0 flex-1 truncate">{email}</span>
@@ -177,7 +177,7 @@ export default function WorkspaceContextRail({
                             <button
                                 type="button"
                                 onClick={onManagePackagesProperties ?? onSwitchToDealInfo}
-                                className="border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
+                                className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
                             >
                                 {td("Open Deal info →")}
                             </button>
@@ -200,7 +200,7 @@ export default function WorkspaceContextRail({
                                     key={doc.id}
                                     type="button"
                                     onClick={() => onNavigateToSubTab("files")}
-                                    className="flex w-full items-center justify-between border-b border-[#eef0f3] px-0 py-2.5 text-left last:border-b-0"
+                                    className="flex w-full cursor-pointer items-center justify-between border-b border-[#eef0f3] px-0 py-2.5 text-left last:border-b-0"
                                 >
                                     <span className="flex items-center gap-1.5 text-xs text-[#1a1f2e]">
                                         <DealIcon
