@@ -13,6 +13,7 @@ export type MeetingSummaryStatus = "available" | "pending" | "none";
 export interface WorkspaceMeetingListItem extends WorkspaceMeetingPreview {
     endTimeLabel: string;
     timeRangeLabel: string;
+    durationMinutes: number;
     platformLabel: string;
     platformBadgeVariant: "blue" | "green" | "gray";
     locationDisplay: string;
@@ -108,6 +109,7 @@ export function toWorkspaceMeetingListItem(
         locationType: platform.locationType,
         endTimeLabel,
         timeRangeLabel,
+        durationMinutes: duration,
         platformLabel: platform.label,
         platformBadgeVariant: platform.variant,
         locationDisplay: getLocationDisplay(meeting, platform.locationType),

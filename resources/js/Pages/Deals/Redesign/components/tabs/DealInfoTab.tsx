@@ -12,6 +12,8 @@ interface DealInfoTabProps {
     activeSection: DealInfoSectionId;
     onSectionChange: (section: DealInfoSectionId) => void;
     restrictPackageOrProperty?: boolean;
+    consents?: any[];
+    gdprSetting?: { enable_gdpr?: boolean } | null;
 }
 
 export default function DealInfoTab({
@@ -21,6 +23,8 @@ export default function DealInfoTab({
     activeSection,
     onSectionChange,
     restrictPackageOrProperty = false,
+    consents,
+    gdprSetting,
 }: DealInfoTabProps) {
     const { navGroups } = useDealInfoNavigation(
         initialDeal,
@@ -58,6 +62,8 @@ export default function DealInfoTab({
                     updatingField={updatingField}
                     onFieldUpdate={handleFieldUpdate}
                     restrictPackageOrProperty={restrictPackageOrProperty}
+                    consents={consents}
+                    gdprSetting={gdprSetting}
                 />
             </div>
         </div>

@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
-import { taskApi } from "@/lib/api/tasks";
+import { useApiMutate } from "@/lib/api/client";
+import type { ApiResponse } from "@/lib/api/types";
+import { isLoading } from "@/lib/utils";
 import type { Task } from "@/Types/api/tasks";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
+import useDealTaskStatus from "../../hooks/useDealTaskStatus";
+import DealTaskDetailModal from "./DealTaskDetailModal";
 import {
     toWorkspaceTaskListItem,
     type WorkspaceTaskListItem,
@@ -13,10 +17,11 @@ import {
 import DealAvatar from "../primitives/DealAvatar";
 import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
 import DealMenuSelect from "../primitives/DealMenuSelect";
 import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
-import OverviewPriorityBadge from "./overview/OverviewPriorityBadge";
+import DealPriorityBadge from "../primitives/DealPriorityBadge";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 type TaskFilter = "open" | "done" | "all";
@@ -34,6 +39,56 @@ function canAddTasks(permissions: Record<string, string>): boolean {
         permission === "all" ||
         permission === "added" ||
         permission === "both"
+    );
+}
+
+/** v2.2 AssigneeStack (deal-v2-2.jsx:1849-1871) — overlapping avatars, +N cap. */
+function AssigneeStack({
+    people,
+    size = 18,
+    max = 3,
+}: {
+    people: Array<{ id: number; name: string; initials: string }>;
+    size?: number;
+    max?: number;
+}) {
+    if (!people.length) return null;
+    const shown = people.slice(0, max);
+    const overflow = people.length - shown.length;
+    return (
+        <span
+            className="inline-flex items-center"
+            title={people.map((person) => person.name).join(", ")}
+        >
+            {shown.map((person, index) => (
+                <span
+                    key={person.id}
+                    className="flex rounded-full"
+                    style={{
+                        marginLeft: index === 0 ? 0 : -6,
+                        border: `2px solid ${T.WHITE}`,
+                    }}
+                >
+                    <DealAvatar size={size} initials={person.initials} />
+                </span>
+            ))}
+            {overflow > 0 && (
+                <span
+                    className="flex shrink-0 items-center justify-center rounded-full font-bold"
+                    style={{
+                        marginLeft: -6,
+                        width: size,
+                        height: size,
+                        border: `2px solid ${T.WHITE}`,
+                        background: T.BORDER,
+                        color: T.TEXT_MUTED,
+                        fontSize: Math.max(9, size * 0.4),
+                    }}
+                >
+                    +{overflow}
+                </span>
+            )}
+        </span>
     );
 }
 
@@ -83,11 +138,24 @@ export default function WorkspaceTasksTab({
     const [filter, setFilter] = useState<TaskFilter>("open");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
-    const [pendingTaskIds, setPendingTaskIds] = useState<Set<number>>(
-        () => new Set(),
-    );
-    const { mutate: updateTaskStatus } = taskApi.useUpdateStatus();
+    const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+    const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+    const { setStatus, isPending } = useDealTaskStatus();
     const { setTasks } = useDealWorkspace();
+    const selectedTask =
+        tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+    // Single bulk endpoint backing both actions below — mirrors the legacy
+    // BulkChangeTaskStatus/BulkDeleteTasks components (Features/Tasks/BulkActions).
+    // Looping the single-task status mutation per selected id (the previous
+    // approach) fired N concurrent requests through one shared mutation
+    // observer, which is why only some rows ever reflected the new status.
+    const { mutate: applyBulkAction, status: bulkActionStatus } = useApiMutate<
+        { row_ids: string; action_type: string; status?: number },
+        unknown,
+        ApiResponse<unknown>
+    >("/account/tasks/apply-quick-action", "POST");
+    const isBulkActing = isLoading({ status: bulkActionStatus });
 
     const taskItems = useMemo(
         () => tasks.map((task) => toWorkspaceTaskListItem(task)),
@@ -100,6 +168,10 @@ export default function WorkspaceTasksTab({
     );
 
     const showAddTask = canAddTasks(permissions);
+    // Backend hard-requires the full delete_tasks scope for bulk delete
+    // (TaskController::deleteRecords aborts otherwise) — only show it when
+    // we know it's allowed rather than exposing a button the API will reject.
+    const canBulkDelete = permissions.delete_tasks === "all";
 
     const exitSelectMode = () => {
         setSelectMode(false);
@@ -125,71 +197,75 @@ export default function WorkspaceTasksTab({
                 : new Set(filteredTasks.map((task) => task.id)),
         );
 
-    const applyStatus = (taskId: number, slug: string) => {
-        setTasks((prev) =>
-            prev.map((task) =>
-                task.id === taskId ? { ...task, status: slug } : task,
-            ),
-        );
-    };
-
-    const markPending = (taskId: number, pending: boolean) => {
-        setPendingTaskIds((prev) => {
-            const next = new Set(prev);
-            if (pending) next.add(taskId);
-            else next.delete(taskId);
-            return next;
-        });
-    };
-
-    const handleStatusChange = (taskId: number, slug: string) => {
-        markPending(taskId, true);
-        updateTaskStatus(
-            { taskId, status: slug },
+    const handleBulkStatusChange = (columnId: number) => {
+        const column = taskBoardColumns.find((c) => c.id === columnId);
+        if (!column) return;
+        const ids = Array.from(selected);
+        applyBulkAction(
+            { row_ids: ids.join(","), action_type: "change-status", status: columnId },
             {
-                onSuccess: () => applyStatus(taskId, slug),
-                onSettled: () => markPending(taskId, false),
+                onSuccess: () => {
+                    setTasks((prev) =>
+                        prev.map((task) =>
+                            ids.includes(task.id)
+                                ? ({
+                                      ...task,
+                                      status: column.slug,
+                                      board_column: column,
+                                      // Mirror TaskController::changeBulkStatus
+                                      // (server-side fix below): completed_on
+                                      // only survives when the target is "done".
+                                      completed_on:
+                                          column.slug === "done"
+                                              ? new Date()
+                                                    .toISOString()
+                                                    .slice(0, 10)
+                                              : undefined,
+                                  } as Task)
+                                : task,
+                        ),
+                    );
+                    exitSelectMode();
+                },
             },
         );
     };
 
-    const handleBulkStatusChange = (slug: string) => {
-        selected.forEach((taskId) => {
-            markPending(taskId, true);
-            updateTaskStatus(
-                { taskId, status: slug },
-                {
-                    onSuccess: () => applyStatus(taskId, slug),
-                    onSettled: () => markPending(taskId, false),
+    const handleBulkDelete = () => {
+        const ids = Array.from(selected);
+        applyBulkAction(
+            { row_ids: ids.join(","), action_type: "delete" },
+            {
+                onSuccess: () => {
+                    setTasks((prev) =>
+                        prev.filter((task) => !ids.includes(task.id)),
+                    );
+                    setConfirmBulkDelete(false);
+                    exitSelectMode();
                 },
-            );
-        });
-        exitSelectMode();
+            },
+        );
     };
 
     return (
         <div>
             <div className="mb-3.5 flex items-center justify-between gap-3">
-                <div className="flex gap-1">
-                    {(["open", "done", "all"] as const).map((option) => {
-                        const active = filter === option;
-
-                        return (
-                            <button
-                                key={option}
-                                type="button"
-                                onClick={() => setFilter(option)}
-                                className="rounded-md border px-2.5 py-1 text-[11px] capitalize transition-colors"
-                                style={{
-                                    background: active ? T.NAVY : "transparent",
-                                    color: active ? T.WHITE : T.TEXT_MUTED,
-                                    borderColor: active ? T.NAVY : T.BORDER,
-                                }}
-                            >
-                                {td(option)}
-                            </button>
-                        );
-                    })}
+                <div
+                    className="flex gap-1"
+                    role="group"
+                    aria-label="Filter tasks"
+                >
+                    {(["open", "done", "all"] as const).map((option) => (
+                        <button
+                            key={option}
+                            type="button"
+                            className="dr-filter"
+                            aria-pressed={filter === option}
+                            onClick={() => setFilter(option)}
+                        >
+                            {td(option)}
+                        </button>
+                    ))}
                 </div>
 
                 <div className="flex gap-1.5">
@@ -227,7 +303,7 @@ export default function WorkspaceTasksTab({
                         value={null}
                         placeholder={td("Set status…")}
                         size="sm"
-                        disabled={!selected.size}
+                        disabled={!selected.size || isBulkActing}
                         width={140}
                         triggerClassName="dr-btn dr-btn-sm"
                         triggerStyle={{ background: T.WHITE, color: T.NAVY, border: "none" }}
@@ -235,11 +311,22 @@ export default function WorkspaceTasksTab({
                             .slice()
                             .sort((a, b) => a.priority - b.priority)
                             .map((column) => ({
-                                value: column.slug,
+                                value: column.id,
                                 label: td(column.column_name),
                             }))}
-                        onChange={(value) => handleBulkStatusChange(String(value))}
+                        onChange={(value) => handleBulkStatusChange(Number(value))}
                     />
+                    {canBulkDelete && (
+                        <button
+                            type="button"
+                            className="dr-btn dr-btn-sm"
+                            style={{ background: T.RED, color: T.WHITE }}
+                            disabled={!selected.size || isBulkActing}
+                            onClick={() => setConfirmBulkDelete(true)}
+                        >
+                            {td("Delete")}
+                        </button>
+                    )}
                 </DealBulkActionBar>
             )}
 
@@ -267,6 +354,10 @@ export default function WorkspaceTasksTab({
                         ? isTaskDone(rawTask, taskBoardColumns)
                         : !task.isOpen;
                     const statusSlug = rawTask ? taskStatusSlug(rawTask) : "to_do";
+                    const overdue =
+                        !done &&
+                        task.dueDate != null &&
+                        task.dueDate.getTime() < Date.now();
 
                     return (
                         <article
@@ -284,51 +375,107 @@ export default function WorkspaceTasksTab({
                                 </div>
                             )}
 
-                            <div className="min-w-0 flex-1">
-                                <div className="mb-1 flex flex-wrap items-center gap-2">
-                                    <span
-                                        className="text-[13px] font-medium text-[#1a1f2e]"
-                                        style={{
-                                            textDecoration: done
-                                                ? "line-through"
-                                                : "none",
-                                        }}
-                                    >
-                                        {task.title}
-                                    </span>
-                                    <OverviewPriorityBadge
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    selectMode
+                                        ? toggleSelect(task.id)
+                                        : setSelectedTaskId(task.id)
+                                }
+                                aria-label={
+                                    selectMode
+                                        ? `Select task ${task.title}`
+                                        : `Open task — ${task.title}`
+                                }
+                                className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
+                            >
+                                <div
+                                    className="mb-1 text-[13px] font-semibold text-[#1a1f2e]"
+                                    style={{
+                                        textDecoration: done
+                                            ? "line-through"
+                                            : "none",
+                                    }}
+                                >
+                                    {task.title}
+                                </div>
+                                <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                                    <DealPriorityBadge
                                         priority={task.priority}
                                     />
+                                    {overdue && (
+                                        <span className="dr-pill dr-pill-red">
+                                            {td("Overdue")}
+                                        </span>
+                                    )}
                                 </div>
+                                {task.descriptionText && (
+                                    <div
+                                        className="mb-1.5 text-xs leading-normal"
+                                        style={{ color: T.TEXT_MUTED }}
+                                    >
+                                        {task.descriptionText}
+                                    </div>
+                                )}
 
-                                <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-[#5b6472]">
-                                    <span className="inline-flex items-center gap-1">
+                                <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#5b6472]">
+                                    <span
+                                        className="inline-flex items-center gap-1"
+                                        style={{
+                                            color: overdue
+                                                ? T.RED
+                                                : T.TEXT_MUTED,
+                                            fontWeight: overdue ? 600 : 400,
+                                        }}
+                                    >
                                         <DealIcon name="calendar" size={11} />
                                         {task.dueDateLabel}
                                     </span>
-                                    <span className="inline-flex items-center gap-1.5">
-                                        <DealAvatar
-                                            size={18}
-                                            initials={task.assigneeInitials}
-                                        />
-                                        {task.assigneeName}
-                                    </span>
+                                    {task.assignees.length > 0 && (
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <AssigneeStack
+                                                people={task.assignees}
+                                            />
+                                            {task.assignees.length === 1
+                                                ? task.assignees[0].name
+                                                : `${task.assignees.length} ${td("assignees")}`}
+                                        </span>
+                                    )}
                                 </div>
-                            </div>
+                            </button>
 
                             <TaskStatusDropdownPill
                                 status={statusSlug}
                                 columns={taskBoardColumns}
                                 disabled={selectMode}
-                                loading={pendingTaskIds.has(task.id)}
-                                onChange={(slug) =>
-                                    handleStatusChange(task.id, slug)
-                                }
+                                loading={isPending(task.id)}
+                                onChange={(slug) => setStatus(task.id, slug)}
                             />
                         </article>
                     );
                 })
             )}
+
+            <DealTaskDetailModal
+                task={selectedTask}
+                taskBoardColumns={taskBoardColumns}
+                onClose={() => setSelectedTaskId(null)}
+            />
+
+            <DealConfirmDialog
+                open={confirmBulkDelete}
+                title={`${td("Delete")} ${selected.size} ${
+                    selected.size === 1 ? td("task") : td("tasks")
+                }?`}
+                message={td(
+                    "These tasks will be permanently removed from the deal. This cannot be undone.",
+                )}
+                confirmLabel={td("Delete tasks")}
+                danger
+                confirmLoading={isBulkActing}
+                onConfirm={handleBulkDelete}
+                onCancel={() => setConfirmBulkDelete(false)}
+            />
         </div>
     );
 }

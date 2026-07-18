@@ -53,8 +53,14 @@ function DealViewRedesignInner(props: DealShowProps) {
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
-    const [offersCount, setOffersCount] = useState(0);
-    const [recommendationsCount, setRecommendationsCount] = useState(0);
+    // undefined = not yet known (tab not visited); the tab bar hides the
+    // count pill until a real number is reported, instead of showing 0.
+    const [offersCount, setOffersCount] = useState<number | undefined>(
+        undefined,
+    );
+    const [recommendationsCount, setRecommendationsCount] = useState<
+        number | undefined
+    >(undefined);
     const nav = useDealViewNavigation();
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
@@ -227,7 +233,6 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                 <WorkspaceNotesTab
                                                     notes={notes}
                                                     permissions={permissions}
-                                                    onAddNote={() => setAddNoteOpen(true)}
                                                 />
                                             </Deferred>
                                         )}
@@ -279,6 +284,9 @@ function DealViewRedesignInner(props: DealShowProps) {
                                             <WorkspaceRecommendationsTab
                                                 deal={deal}
                                                 permissions={permissions}
+                                                restrictPackageOrProperty={
+                                                    props.restrictPackageOrProperty
+                                                }
                                                 onCountChange={setRecommendationsCount}
                                             />
                                         )}
@@ -299,6 +307,8 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                 restrictPackageOrProperty={
                                                     props.restrictPackageOrProperty
                                                 }
+                                                consents={props.consents}
+                                                gdprSetting={props.gdprSetting}
                                             />
                                         )}
                                         {activeTab === "timeline" && (

@@ -36,3 +36,24 @@ export function mapPhpToDayjsFormat(format: string): string {
 export function formatDueDateForApi(isoDate: string, dateFormat: string): string {
     return dayjs(`${isoDate}T12:00:00`).format(mapPhpToDayjsFormat(dateFormat));
 }
+
+/** Default due time for new/undated tasks — end of business day. */
+export const DEFAULT_DUE_TIME = "17:00";
+
+/** Combines a `YYYY-MM-DD` date and `HH:mm` time into the company's API format. */
+export function formatDueDateTimeForApi(
+    isoDate: string,
+    time: string | undefined,
+    dateFormat: string,
+): string {
+    const safeTime = time?.trim() || DEFAULT_DUE_TIME;
+    return dayjs(`${isoDate}T${safeTime}`).format(mapPhpToDayjsFormat(dateFormat));
+}
+
+/** Local `HH:mm` for a `<input type="time">`, extracted from an ISO due-date string. */
+export function extractLocalTime(isoDateTime: string | undefined): string {
+    if (!isoDateTime) return DEFAULT_DUE_TIME;
+    const date = new Date(isoDateTime);
+    if (Number.isNaN(date.getTime())) return DEFAULT_DUE_TIME;
+    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}

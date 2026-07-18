@@ -44,6 +44,8 @@ interface DealInfoSectionPanelProps {
         type?: "details" | "contact" | "custom_field" | "hibarr_field",
     ) => Promise<void>;
     restrictPackageOrProperty?: boolean;
+    consents?: any[];
+    gdprSetting?: { enable_gdpr?: boolean } | null;
 }
 
 function FieldGrid({ children }: { children: ReactNode }) {
@@ -65,6 +67,8 @@ export default function DealInfoSectionPanel({
     updatingField,
     onFieldUpdate,
     restrictPackageOrProperty = false,
+    consents = [],
+    gdprSetting = null,
 }: DealInfoSectionPanelProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
@@ -625,6 +629,119 @@ export default function DealInfoSectionPanel({
         </>
     );
 
+    // v2.2 Contact info section (deal-v2-2.jsx:3449-3468) — read-only lead data.
+    const renderContact = () => {
+        const contact = deal.contact;
+        const leadName =
+            contact?.client_name_salutation || contact?.client_name || null;
+        const leadUrl = contact?.id
+            ? route("lead-contact.show", contact.id)
+            : null;
+        const empty = <span className="text-gray-400">--</span>;
+
+        return (
+            <FieldGrid>
+                <DetailField label={td("Lead contact")}>
+                    {leadName && leadUrl ? (
+                        <a
+                            href={leadUrl}
+                            className="text-[13px] font-semibold text-[#1a6bb5] no-underline"
+                        >
+                            {leadName} ↗
+                        </a>
+                    ) : (
+                        leadName || empty
+                    )}
+                </DetailField>
+                <DetailField label={td("Email")}>
+                    {contact?.client_email || empty}
+                </DetailField>
+                <DetailField label={td("Mobile")}>
+                    {contact?.mobile || contact?.cell || empty}
+                </DetailField>
+                <DetailField label={td("Company")}>
+                    {contact?.company_name || empty}
+                </DetailField>
+            </FieldGrid>
+        );
+    };
+
+    // v2.2 GDPR & consents section (deal-v2-2.jsx:3513-3541) — read-only table.
+    const renderGdpr = () => {
+        if (!gdprSetting?.enable_gdpr) {
+            return (
+                <p className="text-[13px] italic text-[#9ca3af]">
+                    {td("GDPR is not enabled")}
+                </p>
+            );
+        }
+        if (consents.length === 0) {
+            return (
+                <p className="text-[13px] italic text-[#9ca3af]">
+                    {td("No GDPR consents found")}
+                </p>
+            );
+        }
+        return (
+            <div style={{ maxWidth: 640 }}>
+                <div className="overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
+                    <table className="dr-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">{td("Purpose")}</th>
+                                <th scope="col">{td("Description")}</th>
+                                <th scope="col">{td("Status")}</th>
+                                <th scope="col">{td("Date")}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {consents.map((consent) => {
+                                const granted =
+                                    Array.isArray(consent.lead) &&
+                                    consent.lead.length > 0;
+                                return (
+                                    <tr key={consent.id}>
+                                        <td className="font-semibold text-[#1a1f2e]">
+                                            {consent.name}
+                                        </td>
+                                        <td className="text-[#5b6472]">
+                                            {consent.description}
+                                        </td>
+                                        <td>
+                                            <span
+                                                className={`dr-pill ${
+                                                    granted
+                                                        ? "dr-pill-green"
+                                                        : "dr-pill-red"
+                                                }`}
+                                            >
+                                                {granted
+                                                    ? td("Granted")
+                                                    : td("Not granted")}
+                                            </span>
+                                        </td>
+                                        <td className="text-[#5b6472]">
+                                            {granted && consent.lead[0]?.created_at
+                                                ? dayjs(
+                                                      consent.lead[0].created_at,
+                                                  ).format("D MMM YYYY")
+                                                : "—"}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="mt-2 text-[11px] leading-normal text-[#5b6472]">
+                    {td(
+                        "Consent records are captured on the linked lead. Erasure requests are handled from the lead's GDPR panel.",
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     const renderMappedOnly = () =>
         mappedCategories.length > 0 ? (
             renderCustomFields(
@@ -663,16 +780,23 @@ export default function DealInfoSectionPanel({
         switch (sectionId as DealInfoCoreSectionId) {
             case "general":
                 return renderGeneral();
+            case "contact":
+                return renderContact();
             case "preftimeline":
                 return renderPrefTimeline();
             case "funding":
                 return renderFunding();
             case "support":
                 return renderSupport();
+            case "gdpr":
+                return renderGdpr();
             default:
                 return renderMappedOnly();
         }
     };
+
+    // v2.2: contact + GDPR are read-only sections with no edit toggle.
+    const editableSection = sectionId !== "contact" && sectionId !== "gdpr";
 
     return (
         <section className="pl-[26px] pt-1">
@@ -683,7 +807,7 @@ export default function DealInfoSectionPanel({
                     </h3>
                     <p className="text-xs text-[#5b6472]">{sectionMeta.subtitle}</p>
                 </div>
-                {canEdit && (
+                {canEdit && editableSection && (
                     <DealButton
                         variant="ghost"
                         size="sm"

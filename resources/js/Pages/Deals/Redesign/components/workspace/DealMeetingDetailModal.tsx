@@ -7,6 +7,7 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
 import { toWorkspaceMeetingListItem } from "../../adapters/meetingListAdapter";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 import DealEditMeetingModal from "./DealEditMeetingModal";
@@ -54,6 +55,7 @@ export default function DealMeetingDetailModal({
     const [editOpen, setEditOpen] = useState(false);
     const [rescheduleOpen, setRescheduleOpen] = useState(false);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const [confirmCancel, setConfirmCancel] = useState(false);
     const { setDealFollowUps } = useDealWorkspace();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
@@ -81,6 +83,19 @@ export default function DealMeetingDetailModal({
         updateMeeting(meeting.id, form, undefined, "completed");
     };
 
+    const markCancelled = () => {
+        const form = buildMeetingFormFromFollowup(meeting, deal, currentUserId);
+        updateMeeting(
+            meeting.id,
+            form,
+            () => {
+                setConfirmCancel(false);
+                onClose();
+            },
+            "cancelled",
+        );
+    };
+
     return (
         <DealModal
             open={!!meeting}
@@ -96,6 +111,16 @@ export default function DealMeetingDetailModal({
                             disabled={isCompleting}
                         >
                             {td("Delete")}
+                        </DealButton>
+                    )}
+                    {canEdit && isActionable && (
+                        <DealButton
+                            variant="ghost"
+                            style={{ color: T.RED }}
+                            onClick={() => setConfirmCancel(true)}
+                            disabled={isCompleting}
+                        >
+                            {td("Cancel meeting")}
                         </DealButton>
                     )}
                     <span style={{ flex: 1 }} />
@@ -253,6 +278,18 @@ export default function DealMeetingDetailModal({
                         prev.filter((f) => f.id !== followupId),
                     );
                 }}
+            />
+            <DealConfirmDialog
+                open={confirmCancel}
+                title={td("Cancel meeting?")}
+                message={td(
+                    "Attendees will no longer be reminded and the calendar event will be removed.",
+                )}
+                confirmLabel={td("Cancel meeting")}
+                danger
+                confirmLoading={isCompleting}
+                onConfirm={markCancelled}
+                onCancel={() => setConfirmCancel(false)}
             />
         </DealModal>
     );

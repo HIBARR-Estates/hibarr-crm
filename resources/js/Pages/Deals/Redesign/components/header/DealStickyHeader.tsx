@@ -184,14 +184,16 @@ export default function DealStickyHeader({
 
                     <div className="flex items-center gap-[18px]">
                         <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
-                        <div className="flex flex-col items-end">
-                            <span className="text-xs text-[#5b6472]">
-                                {t("pages.deals.info.fields.close_date")}
-                            </span>
-                            <span className="text-sm font-semibold text-[#1a1f2e]">
-                                {header.closeDate}
-                            </span>
-                        </div>
+                        {deal.close_date && (
+                            <div className="flex flex-col items-end">
+                                <span className="text-xs text-[#5b6472]">
+                                    {t("pages.deals.info.fields.close_date")}
+                                </span>
+                                <span className="text-sm font-semibold text-[#1a1f2e]">
+                                    {header.closeDate}
+                                </span>
+                            </div>
+                        )}
                         <DealAgentCard
                             dealId={deal.id}
                             agent={team.agent}

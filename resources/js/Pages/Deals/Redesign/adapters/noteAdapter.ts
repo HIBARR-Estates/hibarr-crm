@@ -14,6 +14,7 @@ export interface WorkspaceNotePreview {
     createdAt: Date | null;
     createdAtLabel: string;
     timeLabel: string;
+    edited: boolean;
 }
 
 const DATE_FORMAT = new Intl.DateTimeFormat("en", {
@@ -57,5 +58,6 @@ export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
         createdAt: date,
         createdAtLabel: label,
         timeLabel: note.created_at ? dayjs(note.created_at).fromNow() : label,
+        edited: Boolean(note.updated_at && note.updated_at !== note.created_at),
     };
 }

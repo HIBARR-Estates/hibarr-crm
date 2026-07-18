@@ -1,10 +1,14 @@
-import { CSSProperties, ReactNode, useMemo, useState } from "react";
+import { ReactNode, useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import AgentSelector from "@/Components/AgentSelector";
 import DealAvatar from "../primitives/DealAvatar";
+import DealAgentPicker from "../primitives/DealAgentPicker";
+import DealBadge from "../primitives/DealBadge";
 import DealButton from "../primitives/DealButton";
 import DealPanelHeader from "../primitives/DealPanelHeader";
+import DealPeoplePicker, {
+    type DealPersonOption,
+} from "../primitives/DealPeoplePicker";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import useDealTeamMutations from "../../hooks/useDealTeamMutations";
 
@@ -22,9 +26,16 @@ interface DealTeamModalProps {
     agent: TeamMember | null;
     participants: TeamMember[];
     watchers: TeamMember[];
-    employees: Array<{ id: number; name: string; email?: string }>;
+    employees: Array<{
+        id: number;
+        name: string;
+        email?: string;
+        designation_name?: string;
+    }>;
     canEdit?: boolean;
 }
+
+type AddingRole = "agent" | "participants" | "watchers" | null;
 
 interface TeamMemberRowProps {
     member: TeamMember;
@@ -33,15 +44,18 @@ interface TeamMemberRowProps {
     removing?: boolean;
 }
 
+/** v2.2 TeamRow (deal-v2-2.jsx:1019-1032). */
 function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps) {
+    const { td } = useTd();
     return (
         <div
-            className="flex items-center justify-between border-b border-[#e2e5ea] px-3.5 py-2.5 last:border-b-0"
+            className="flex items-center justify-between gap-2.5 px-3 py-2.5 last:border-b-0"
+            style={{ borderBottom: `1px solid ${T.BORDER_SOFT}` }}
         >
             <div className="flex min-w-0 items-center gap-2.5">
                 <DealAvatar type={type} size={32} initials={member.initials} />
                 <div className="min-w-0">
-                    <div className="truncate text-sm font-medium text-[#1a1f2e]">
+                    <div className="truncate text-sm font-semibold text-[#1a1f2e]">
                         {member.name}
                     </div>
                     {member.meta && (
@@ -59,117 +73,56 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
                     disabled={removing}
                     loading={removing}
                 >
-                    Remove
+                    {td("Remove")}
                 </DealButton>
             )}
         </div>
     );
 }
 
-interface TeamRoleBlockProps {
+interface TeamSectionProps {
     title: string;
-    dotColor: string;
     tag: string;
-    tagStyle: CSSProperties;
+    tagVariant: "blue" | "green" | "gray";
     children: ReactNode;
-    onAdd?: () => void;
-    addLabel?: string;
-    headerAction?: ReactNode;
+    action?: ReactNode;
 }
 
-function TeamRoleBlock({
-    title,
-    dotColor,
-    tag,
-    tagStyle,
-    children,
-    onAdd,
-    addLabel = "+ Add",
-    headerAction,
-}: TeamRoleBlockProps) {
+/** v2.2 TeamSection (deal-v2-2.jsx:1034-1047). */
+function TeamSection({ title, tag, tagVariant, action, children }: TeamSectionProps) {
     return (
-        <div className="mb-[22px]">
-            <div className="mb-2.5 flex items-center justify-between border-b border-[#e2e5ea] pb-2">
-                <div className="flex items-center gap-2 text-[13px] font-medium text-[#1a1f2e]">
-                    <span
-                        className="inline-block h-2 w-2 rounded-full"
-                        style={{ background: dotColor }}
-                    />
+        <div className="mb-[18px]">
+            <div className="mb-2 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[13px] font-semibold text-[#1a1f2e]">
                     {title}
-                    <span
-                        className="rounded-[10px] px-2 py-0.5 text-[11px] font-medium"
-                        style={tagStyle}
-                    >
-                        {tag}
-                    </span>
+                    <DealBadge variant={tagVariant}>{tag}</DealBadge>
                 </div>
-                {headerAction}
-                {onAdd && !headerAction && (
-                    <DealButton variant="ghost" size="sm" onClick={onAdd}>
-                        {addLabel}
-                    </DealButton>
-                )}
+                {action}
             </div>
-            <div className="overflow-hidden rounded-lg border border-[#e2e5ea] bg-white">
+            <div className="overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
                 {children}
             </div>
         </div>
     );
 }
 
-function AddMemberRow({
-    employees,
-    onAdd,
-    onCancel,
-    saving,
-}: {
-    employees: Array<{ id: number; name: string }>;
-    onAdd: (employeeId: number) => void;
-    onCancel: () => void;
-    saving?: boolean;
-}) {
-    const [selectedId, setSelectedId] = useState("");
-
+/** v2.2's shared picker wrapper (deal-v2-2.jsx:1056-1060) — same slot inside
+ * every section's bordered box, right below the rows/empty state. */
+function PickerSlot({ children }: { children: ReactNode }) {
     return (
-        <div className="flex items-center gap-2 border-t border-[#e2e5ea] bg-[#f9fafb] px-3.5 py-2.5">
-            <select
-                className="min-w-0 flex-1 rounded-md border border-[#e2e5ea] px-2 py-1.5 text-xs"
-                value={selectedId}
-                onChange={(event) => setSelectedId(event.target.value)}
-                disabled={saving}
-            >
-                <option value="">Select team member…</option>
-                {employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                        {employee.name}
-                    </option>
-                ))}
-            </select>
-            <DealButton
-                variant="primary"
-                size="sm"
-                disabled={!selectedId || saving}
-                loading={saving}
-                onClick={() => {
-                    if (!selectedId) return;
-                    onAdd(Number(selectedId));
-                    setSelectedId("");
-                }}
-            >
-                Add
-            </DealButton>
-            <DealButton
-                variant="ghost"
-                size="sm"
-                onClick={onCancel}
-                disabled={saving}
-            >
-                Cancel
-            </DealButton>
+        <div
+            className="px-3 py-2.5"
+            style={{
+                borderTop: `1px solid ${T.BORDER_SOFT}`,
+                background: T.SURFACE_2,
+            }}
+        >
+            {children}
         </div>
     );
 }
 
+/** Ported from v2.2's TeamModal (deal-v2-2.jsx:1049-1131). */
 export default function DealTeamModal({
     open,
     onClose,
@@ -183,106 +136,118 @@ export default function DealTeamModal({
     const { t } = useTranslation();
     const { td } = useTd();
     const { saveTeamField, isSaving } = useDealTeamMutations(dealId);
+    const [adding, setAdding] = useState<AddingRole>(null);
+    // Tracks which specific picker row is being assigned, so the picker can
+    // show a spinner on that row rather than leaving the click unacknowledged.
+    const [pendingPickId, setPendingPickId] = useState<number | null>(null);
+    // Tracks which specific member is being removed. isSaving("deal_participant")
+    // is keyed by field, not by row — it's true for the whole list while any
+    // one member's removal is in flight, which spun every row's Remove button
+    // at once instead of just the one that was clicked.
+    const [pendingRemoveId, setPendingRemoveId] = useState<number | null>(null);
 
-    const [addingParticipants, setAddingParticipants] = useState(false);
-    const [addingWatchers, setAddingWatchers] = useState(false);
-    const [changingAgent, setChangingAgent] = useState(false);
+    const toggleAdding = (role: AddingRole) =>
+        setAdding((current) => (current === role ? null : role));
 
-    const availableParticipantEmployees = useMemo(
-        () =>
-            employees.filter(
-                (employee) =>
-                    !participants.some((participant) => participant.id === employee.id) &&
-                    agent?.id !== employee.id,
-            ),
-        [agent?.id, employees, participants],
+    // v2.2 excludes everyone already holding any role from every picker
+    // (deal-v2-2.jsx:1055) — one person, one role.
+    const taken = useMemo(
+        () => [
+            ...(agent ? [agent.id] : []),
+            ...participants.map((member) => member.id),
+            ...watchers.map((member) => member.id),
+        ],
+        [agent, participants, watchers],
     );
 
-    const availableWatcherEmployees = useMemo(
+    const employeeOptions: DealPersonOption[] = useMemo(
         () =>
-            employees.filter(
-                (employee) =>
-                    !watchers.some((watcher) => watcher.id === employee.id) &&
-                    agent?.id !== employee.id &&
-                    !participants.some((participant) => participant.id === employee.id),
-            ),
-        [agent?.id, employees, participants, watchers],
+            employees.map((employee) => ({
+                id: employee.id,
+                name: employee.name,
+                designation: employee.designation_name,
+            })),
+        [employees],
     );
 
-    const handleAgentChange = (agentId: number | null) => {
+    const handleAgentPick = (agentId: number) => {
         if (!canEdit) return;
-        saveTeamField("agent_id", agentId).then(() => setChangingAgent(false));
+        setPendingPickId(agentId);
+        saveTeamField("agent_id", agentId)
+            .then(() => setAdding(null))
+            .finally(() => setPendingPickId(null));
     };
 
     const handleUnassignAgent = () => {
-        if (!canEdit) return;
-        saveTeamField("agent_id", null);
+        if (!canEdit || !agent) return;
+        setPendingRemoveId(agent.id);
+        saveTeamField("agent_id", null).finally(() => setPendingRemoveId(null));
     };
 
     const handleAddParticipant = (employeeId: number) => {
         if (!canEdit) return;
+        setPendingPickId(employeeId);
         const nextIds = [...participants.map((item) => item.id), employeeId];
-        saveTeamField("deal_participant", nextIds).then(() => setAddingParticipants(false));
+        saveTeamField("deal_participant", nextIds)
+            .then(() => setAdding(null))
+            .finally(() => setPendingPickId(null));
     };
 
     const handleRemoveParticipant = (memberId: number) => {
         if (!canEdit) return;
+        setPendingRemoveId(memberId);
         const nextIds = participants
             .filter((item) => item.id !== memberId)
             .map((item) => item.id);
-        saveTeamField("deal_participant", nextIds);
+        saveTeamField("deal_participant", nextIds).finally(() =>
+            setPendingRemoveId(null),
+        );
     };
 
     const handleAddWatcher = (employeeId: number) => {
         if (!canEdit) return;
+        setPendingPickId(employeeId);
         const nextIds = [...watchers.map((item) => item.id), employeeId];
-        saveTeamField("deal_watcher", nextIds).then(() => setAddingWatchers(false));
+        saveTeamField("deal_watcher", nextIds)
+            .then(() => setAdding(null))
+            .finally(() => setPendingPickId(null));
     };
 
     const handleRemoveWatcher = (memberId: number) => {
         if (!canEdit) return;
+        setPendingRemoveId(memberId);
         const nextIds = watchers
             .filter((item) => item.id !== memberId)
             .map((item) => item.id);
-        saveTeamField("deal_watcher", nextIds);
+        saveTeamField("deal_watcher", nextIds).finally(() =>
+            setPendingRemoveId(null),
+        );
     };
 
     if (!open) return null;
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay redesign-modal-overlay" onClick={onClose}>
             <div
                 className="modal-panel"
                 onClick={(event) => event.stopPropagation()}
                 style={{ maxWidth: 520 }}
             >
-                <DealPanelHeader
-                    title={td("Deal team")}
-                    onClose={onClose}
-                />
+                <DealPanelHeader title={td("Deal team")} onClose={onClose} />
                 <div className="px-[18px] py-4">
-                    <p className="mb-4 text-xs text-[#5b6472]">
-                        {td("Manage who can view and work this deal")}
-                    </p>
-
-                    <TeamRoleBlock
+                    <TeamSection
                         title={t("pages.deals.info.fields.deal_agent")}
-                        dotColor={T.BLUE}
-                        tag={td("Can edit")}
-                        tagStyle={{
-                            background: T.BLUE_LIGHT,
-                            color: T.BLUE,
-                            border: `1px solid ${T.BLUE_MID}`,
-                        }}
-                        headerAction={
+                        tag={`${td("Owner")} · ${td("Can edit")}`}
+                        tagVariant="blue"
+                        action={
                             canEdit && agent ? (
                                 <DealButton
                                     variant="ghost"
                                     size="sm"
-                                    onClick={() => setChangingAgent((v) => !v)}
+                                    onClick={() => toggleAdding("agent")}
                                     disabled={isSaving("agent_id")}
                                 >
-                                    {changingAgent ? td("Cancel") : td("Change")}
+                                    {adding === "agent" ? td("Cancel") : td("Change")}
                                 </DealButton>
                             ) : undefined
                         }
@@ -297,10 +262,10 @@ export default function DealTeamModal({
                                 onRemove={
                                     canEdit ? handleUnassignAgent : undefined
                                 }
-                                removing={isSaving("agent_id")}
+                                removing={pendingRemoveId === agent.id}
                             />
                         ) : (
-                            <div className="px-3.5 py-3 text-center">
+                            <div className="px-3.5 py-3.5 text-center">
                                 <p className="mb-2.5 text-xs text-[#5b6472]">
                                     {td(
                                         "No agent assigned — this deal is unowned and won't appear in anyone's pipeline.",
@@ -310,55 +275,52 @@ export default function DealTeamModal({
                                     <DealButton
                                         variant="primary"
                                         size="sm"
-                                        onClick={() =>
-                                            setChangingAgent((v) => !v)
-                                        }
+                                        onClick={() => toggleAdding("agent")}
                                     >
-                                        {changingAgent
+                                        {adding === "agent"
                                             ? td("Cancel")
                                             : td("Assign agent")}
                                     </DealButton>
                                 )}
                             </div>
                         )}
-                        {canEdit && changingAgent && (
-                            <div
-                                className="border-t px-3 py-2.5"
-                                style={{
-                                    borderColor: T.BORDER_SOFT,
-                                    background: T.SURFACE_2,
-                                }}
-                            >
-                                <AgentSelector
-                                    size="small"
-                                    currentAgent={null}
-                                    onSelect={handleAgentChange}
-                                    placeholder={
-                                        isSaving("agent_id")
-                                            ? td("Saving…")
-                                            : td("Search agents…")
-                                    }
-                                    disabled={isSaving("agent_id")}
+                        {canEdit && adding === "agent" && (
+                            <PickerSlot>
+                                <DealAgentPicker
+                                    exclude={taken}
+                                    autoFocus
+                                    pendingId={pendingPickId}
+                                    onPick={(picked) => handleAgentPick(picked.id)}
                                 />
-                            </div>
+                            </PickerSlot>
                         )}
-                    </TeamRoleBlock>
+                    </TeamSection>
 
-                    <TeamRoleBlock
+                    <TeamSection
                         title={td("Participants")}
-                        dotColor={T.GREEN}
                         tag={td("Can edit")}
-                        tagStyle={{
-                            background: T.GREEN_LIGHT,
-                            color: T.GREEN,
-                            border: `1px solid ${T.GREEN_MID}`,
-                        }}
-                        onAdd={
-                            canEdit && availableParticipantEmployees.length > 0
-                                ? () => setAddingParticipants(true)
-                                : undefined
+                        tagVariant="green"
+                        action={
+                            canEdit ? (
+                                <DealButton
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleAdding("participants")}
+                                >
+                                    {adding === "participants"
+                                        ? td("Cancel")
+                                        : `+ ${td("Add")}`}
+                                </DealButton>
+                            ) : undefined
                         }
                     >
+                        {participants.length === 0 && (
+                            <div className="px-3.5 py-3 text-xs italic text-[#5b6472]">
+                                {td(
+                                    "No participants — only the agent is working this deal.",
+                                )}
+                            </div>
+                        )}
                         {participants.map((member) => (
                             <TeamMemberRow
                                 key={member.id}
@@ -369,39 +331,47 @@ export default function DealTeamModal({
                                         ? () => handleRemoveParticipant(member.id)
                                         : undefined
                                 }
-                                removing={isSaving("deal_participant")}
+                                removing={pendingRemoveId === member.id}
                             />
                         ))}
-                        {participants.length === 0 && !addingParticipants && (
-                            <div className="px-3.5 py-3 text-[13px] italic text-[#5b6472]">
-                                {td("No participants added.")}
-                            </div>
+                        {canEdit && adding === "participants" && (
+                            <PickerSlot>
+                                <DealPeoplePicker
+                                    people={employeeOptions}
+                                    exclude={taken}
+                                    autoFocus
+                                    pendingId={pendingPickId}
+                                    onPick={(picked) =>
+                                        handleAddParticipant(picked.id)
+                                    }
+                                />
+                            </PickerSlot>
                         )}
-                        {addingParticipants && (
-                            <AddMemberRow
-                                employees={availableParticipantEmployees}
-                                onAdd={handleAddParticipant}
-                                onCancel={() => setAddingParticipants(false)}
-                                saving={isSaving("deal_participant")}
-                            />
-                        )}
-                    </TeamRoleBlock>
+                    </TeamSection>
 
-                    <TeamRoleBlock
+                    <TeamSection
                         title={td("Watchers")}
-                        dotColor={T.TEXT_MUTED}
                         tag={td("View only")}
-                        tagStyle={{
-                            background: T.GRAY,
-                            color: T.TEXT_MUTED,
-                            border: `1px solid ${T.GRAY_MID}`,
-                        }}
-                        onAdd={
-                            canEdit && availableWatcherEmployees.length > 0
-                                ? () => setAddingWatchers(true)
-                                : undefined
+                        tagVariant="gray"
+                        action={
+                            canEdit ? (
+                                <DealButton
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleAdding("watchers")}
+                                >
+                                    {adding === "watchers"
+                                        ? td("Cancel")
+                                        : `+ ${td("Add")}`}
+                                </DealButton>
+                            ) : undefined
                         }
                     >
+                        {watchers.length === 0 && (
+                            <div className="px-3.5 py-3 text-xs italic text-[#5b6472]">
+                                {td("No watchers — nobody is following this deal.")}
+                            </div>
+                        )}
                         {watchers.map((member) => (
                             <TeamMemberRow
                                 key={member.id}
@@ -412,23 +382,21 @@ export default function DealTeamModal({
                                         ? () => handleRemoveWatcher(member.id)
                                         : undefined
                                 }
-                                removing={isSaving("deal_watcher")}
+                                removing={pendingRemoveId === member.id}
                             />
                         ))}
-                        {watchers.length === 0 && !addingWatchers && (
-                            <div className="px-3.5 py-3 text-[13px] italic text-[#5b6472]">
-                                {td("No watchers added.")}
-                            </div>
+                        {canEdit && adding === "watchers" && (
+                            <PickerSlot>
+                                <DealPeoplePicker
+                                    people={employeeOptions}
+                                    exclude={taken}
+                                    autoFocus
+                                    pendingId={pendingPickId}
+                                    onPick={(picked) => handleAddWatcher(picked.id)}
+                                />
+                            </PickerSlot>
                         )}
-                        {addingWatchers && (
-                            <AddMemberRow
-                                employees={availableWatcherEmployees}
-                                onAdd={handleAddWatcher}
-                                onCancel={() => setAddingWatchers(false)}
-                                saving={isSaving("deal_watcher")}
-                            />
-                        )}
-                    </TeamRoleBlock>
+                    </TeamSection>
                 </div>
             </div>
         </div>

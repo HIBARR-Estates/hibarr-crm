@@ -17,12 +17,14 @@ const VALID_TABS: DealTab[] = [
 
 const VALID_CORE_INFO_SECTIONS = [
     "general",
+    "contact",
     "experience",
     "income",
     "location",
     "preftimeline",
     "funding",
     "support",
+    "gdpr",
 ] as const;
 
 function isValidInfoSection(section: string): section is DealInfoSectionId {

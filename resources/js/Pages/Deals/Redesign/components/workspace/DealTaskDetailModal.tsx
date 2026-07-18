@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { taskApi } from "@/lib/api/tasks";
 import TaskStatusDropdownPill, {
     isCompletedColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -14,7 +13,9 @@ import DealPriorityBadge from "../primitives/DealPriorityBadge";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
+import useDealTaskStatus from "../../hooks/useDealTaskStatus";
 import useDealTaskUpdate from "../../hooks/useDealTaskUpdate";
+import { extractLocalTime } from "../../hooks/taskDateUtils";
 import DealAssigneeField from "./DealAssigneeField";
 
 interface DealTaskDetailModalProps {
@@ -27,6 +28,7 @@ interface EditFormState {
     title: string;
     description: string;
     dueDate: string;
+    dueTime: string;
     priority: "low" | "medium" | "high";
     assignees: number[];
 }
@@ -54,6 +56,7 @@ function toFormState(task: Task): EditFormState {
         title: task.heading,
         description: task.description || "",
         dueDate: task.due_date ? task.due_date.slice(0, 10) : "",
+        dueTime: extractLocalTime(task.due_date),
         priority: task.priority,
         assignees: (task.users ?? []).map((user) => user.id),
     };
@@ -65,6 +68,7 @@ function isDirty(form: EditFormState, task: Task): boolean {
         form.title !== original.title ||
         form.description !== original.description ||
         form.dueDate !== original.dueDate ||
+        (!!form.dueDate && form.dueTime !== original.dueTime) ||
         form.priority !== original.priority ||
         JSON.stringify([...form.assignees].sort()) !==
             JSON.stringify([...original.assignees].sort())
@@ -81,8 +85,7 @@ export default function DealTaskDetailModal({
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState<EditFormState | null>(null);
-    const { mutate: updateStatus, isPending: isStatusUpdating } =
-        taskApi.useUpdateStatus();
+    const { setStatus, isPending: isStatusPending } = useDealTaskStatus();
     const { setTasks } = useDealWorkspace();
     const { updateTask, isUpdating, errors, clearErrors } = useDealTaskUpdate(
         task ?? ({ id: 0 } as Task),
@@ -103,30 +106,21 @@ export default function DealTaskDetailModal({
         isCompletedColumn(statusSlug, taskBoardColumns) || Boolean(task.completed_on);
     const dueDate = task.due_date ? new Date(task.due_date) : null;
     const dueLabel = dueDate
-        ? dueDate.toLocaleDateString("en-GB", {
+        ? `${dueDate.toLocaleDateString("en-GB", {
               day: "numeric",
               month: "short",
               year: "numeric",
-          })
+          })} · ${dueDate.toLocaleTimeString("en-GB", {
+              hour: "numeric",
+              minute: "2-digit",
+          })}`
         : "—";
     const overdue =
         !done && dueDate != null && dueDate.getTime() < Date.now();
     const assignees = task.users ?? [];
     const dirty = isDirty(form, task);
 
-    const handleStatusChange = (slug: string) => {
-        updateStatus(
-            { taskId: task.id, status: slug },
-            {
-                onSuccess: () =>
-                    setTasks((prev) =>
-                        prev.map((item) =>
-                            item.id === task.id ? { ...item, status: slug } : item,
-                        ),
-                    ),
-            },
-        );
-    };
+    const handleStatusChange = (slug: string) => setStatus(task.id, slug);
 
     const startEditing = () => {
         setForm(toFormState(task));
@@ -146,6 +140,7 @@ export default function DealTaskDetailModal({
                 title: form.title,
                 description: form.description,
                 dueDate: form.dueDate,
+                dueTime: form.dueTime,
                 priority: form.priority,
                 assignees: form.assignees,
             },
@@ -220,7 +215,7 @@ export default function DealTaskDetailModal({
                 <TaskStatusDropdownPill
                     status={statusSlug}
                     columns={taskBoardColumns}
-                    loading={isStatusUpdating}
+                    loading={isStatusPending(task.id)}
                     disabled={editing}
                     onChange={(slug) => handleStatusChange(slug)}
                 />
@@ -240,7 +235,7 @@ export default function DealTaskDetailModal({
                             }
                         />
                     </DealModalField>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-3 gap-3">
                         <DealModalField label={td("Due date")}>
                             <input
                                 type="date"
@@ -248,6 +243,16 @@ export default function DealTaskDetailModal({
                                 disabled={isUpdating}
                                 onChange={(e) =>
                                     setForm({ ...form, dueDate: e.target.value })
+                                }
+                            />
+                        </DealModalField>
+                        <DealModalField label={td("Due time")}>
+                            <input
+                                type="time"
+                                value={form.dueTime}
+                                disabled={isUpdating || !form.dueDate}
+                                onChange={(e) =>
+                                    setForm({ ...form, dueTime: e.target.value })
                                 }
                             />
                         </DealModalField>
@@ -300,7 +305,7 @@ export default function DealTaskDetailModal({
                         {task.heading}
                     </div>
 
-                    <div className="mb-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                    <div className="mb-3.5">
                         {field(
                             td("Due date"),
                             <div
@@ -314,6 +319,9 @@ export default function DealTaskDetailModal({
                                 {dueLabel}
                             </div>,
                         )}
+                    </div>
+
+                    <div className="mb-3.5">
                         {field(
                             td("Assignees"),
                             assignees.length === 0 ? (
@@ -324,14 +332,18 @@ export default function DealTaskDetailModal({
                                     {td("Unassigned")}
                                 </div>
                             ) : (
-                                <div className="flex flex-wrap items-center gap-1.5">
+                                <div className="flex flex-wrap items-center gap-2">
                                     {assignees.map((user) => (
                                         <span
                                             key={user.id}
-                                            className="inline-flex items-center gap-1.5"
+                                            className="inline-flex items-center gap-1.5 rounded-full border py-[3px] pl-1 pr-2.5"
+                                            style={{
+                                                background: T.SURFACE_2,
+                                                borderColor: T.BORDER,
+                                            }}
                                         >
                                             <DealAvatar
-                                                size={18}
+                                                size={20}
                                                 initials={initialsFromName(user.name)}
                                             />
                                             <span className="text-xs">{user.name}</span>

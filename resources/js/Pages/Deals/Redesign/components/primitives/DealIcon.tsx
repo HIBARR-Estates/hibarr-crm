@@ -1,6 +1,9 @@
 import { ReactNode } from "react";
 
 const ICON_PATHS: Record<string, ReactNode> = {
+    spark: (
+        <path d="M12 2l1.2 4.2L17.5 7.5 13.2 8.8 12 13l-1.2-4.2L6.5 7.5l4.3-1.3L12 2zm6 9l.7 2.4L21 14l-2.3.6L18 17l-.7-2.4L15 14l2.3-.6L18 11zM5 14l.8 2.6L8.5 18 5.8 18.7 5 21.5l-.8-2.8L1.5 18l2.7-.4L5 14z" />
+    ),
     calendar: (
         <>
             <rect x="3" y="4" width="18" height="18" rx="2" />

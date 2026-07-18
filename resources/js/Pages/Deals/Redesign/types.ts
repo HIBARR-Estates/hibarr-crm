@@ -36,12 +36,14 @@ export interface DealTabCount {
 }
 export type DealInfoCoreSectionId =
     | "general"
+    | "contact"
     | "experience"
     | "income"
     | "location"
     | "preftimeline"
     | "funding"
-    | "support";
+    | "support"
+    | "gdpr";
 
 export type DealInfoSectionId =
     | DealInfoCoreSectionId

@@ -12,6 +12,7 @@ import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 interface WorkspaceRecommendationsTabProps {
     deal: Deal;
     permissions: Record<string, string>;
+    restrictPackageOrProperty?: boolean;
     onCountChange?: (count: number) => void;
 }
 
@@ -33,9 +34,15 @@ function RecommendationSkeleton() {
 
 export default function WorkspaceRecommendationsTab({
     deal,
+    restrictPackageOrProperty = false,
     onCountChange,
 }: WorkspaceRecommendationsTabProps) {
     const { td } = useTd();
+    // v2.2 gate (deal-v2-2.jsx:2841): with the "1 package or property" CRM
+    // config, adding is blocked once anything is already attached.
+    const addBlocked =
+        restrictPackageOrProperty &&
+        (deal.packages?.length ?? 0) + (deal.products?.length ?? 0) > 0;
     const {
         recommendations,
         cached,
@@ -107,34 +114,41 @@ export default function WorkspaceRecommendationsTab({
 
     return (
         <div>
-            <div className="mb-3.5 flex items-center justify-between gap-3">
-                <span className="text-xs text-[#5b6472]">
-                    {recommendationItems.length}{" "}
-                    {recommendationItems.length === 1
-                        ? td("property")
-                        : td("properties")}{" "}
-                    {td("recommended")}
-                </span>
-
-                <div className="flex items-center gap-2">
-                    {cached && (
+            <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <div className="mb-[3px] flex items-center gap-[7px]">
+                        <span
+                            aria-hidden="true"
+                            className="flex"
+                            style={{ color: T.BLUE }}
+                        >
+                            <DealIcon name="spark" size={14} />
+                        </span>
+                        <span className="text-sm font-semibold text-[#1a1f2e]">
+                            {td("Property recommendations")}
+                        </span>
                         <DealBadge variant="blue">
-                            <span className="inline-flex items-center gap-1">
-                                <DealIcon name="info" size={11} />
-                                {td("Cached")}
-                            </span>
+                            {recommendationItems.length}
                         </DealBadge>
-                    )}
-                    <DealButton
-                        variant="ghost"
-                        size="sm"
-                        icon={<DealIcon name="refresh" size={12} />}
-                        onClick={refreshRecommendations}
-                        loading={loading}
-                    >
-                        {td("Refresh")}
-                    </DealButton>
+                        {cached && (
+                            <DealBadge variant="gray">{td("cached")}</DealBadge>
+                        )}
+                    </div>
+                    <div className="text-xs" style={{ color: T.TEXT_MUTED }}>
+                        {td(
+                            "Ranked against the deal's qualification fields — budget, interest, timeline and motivation.",
+                        )}
+                    </div>
                 </div>
+                <DealButton
+                    variant="ghost"
+                    size="sm"
+                    icon={<DealIcon name="spark" size={12} />}
+                    onClick={refreshRecommendations}
+                    loading={loading}
+                >
+                    {td("Refresh")}
+                </DealButton>
             </div>
 
             {apiError && (
@@ -169,7 +183,6 @@ export default function WorkspaceRecommendationsTab({
             ) : (
                 recommendationItems.map((item) => {
                     const metaParts = [
-                        `#${item.rank}`,
                         item.typeLabel,
                         item.locationLabel,
                         item.specsLabel,
@@ -178,48 +191,66 @@ export default function WorkspaceRecommendationsTab({
                     return (
                         <article
                             key={item.id}
-                            className="mb-2.5 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3.5 last:mb-0"
+                            className="dr-card last:mb-0"
                         >
-                            <div className="mb-2 flex items-start justify-between gap-3">
+                            <div className="mb-2 flex items-start justify-between gap-2.5">
                                 <div className="min-w-0">
-                                    <div className="mb-0.5 text-sm font-semibold text-[#1a1f2e]">
-                                        {item.propertyTitle}
+                                    <div className="mb-[3px] flex flex-wrap items-center gap-[7px]">
+                                        <span
+                                            className="text-[11px] font-bold"
+                                            style={{ color: T.TEXT_MUTED }}
+                                        >
+                                            #{item.rank}
+                                        </span>
+                                        <span className="text-sm font-semibold text-[#1a1f2e]">
+                                            {item.propertyTitle}
+                                        </span>
+                                        {item.statusLabel && (
+                                            <DealBadge
+                                                variant={item.statusBadgeVariant}
+                                            >
+                                                {item.statusLabel}
+                                            </DealBadge>
+                                        )}
                                     </div>
                                     <div
-                                        className="text-base font-semibold"
+                                        className="text-base font-bold"
                                         style={{ color: T.NAVY }}
                                     >
                                         {item.priceLabel}
                                     </div>
                                 </div>
 
-                                <div className="flex shrink-0 flex-col items-end gap-1">
-                                    {item.matchPercentage !== null && (
-                                        <DealBadge
-                                            variant={item.matchBadgeVariant}
-                                        >
-                                            {item.matchPercentage}% {td("match")}
-                                        </DealBadge>
-                                    )}
-                                    {item.statusLabel && (
-                                        <DealBadge
-                                            variant={item.statusBadgeVariant}
-                                        >
-                                            {item.statusLabel}
-                                        </DealBadge>
-                                    )}
-                                </div>
+                                {item.matchPercentage !== null && (
+                                    <DealBadge
+                                        className="shrink-0"
+                                        variant={item.matchBadgeVariant}
+                                    >
+                                        {item.matchPercentage}% {td("match")}
+                                    </DealBadge>
+                                )}
                             </div>
 
                             {metaParts.length > 0 && (
-                                <div className="mb-2 text-[11px] capitalize text-[#9ca3af]">
+                                <div
+                                    className="mb-1 text-xs capitalize"
+                                    style={{ color: T.TEXT_MUTED }}
+                                >
                                     {metaParts.join(" · ")}
                                 </div>
                             )}
 
                             {item.reasoningNotes && (
-                                <div className="mb-2.5 text-xs italic leading-relaxed text-[#5b6472]">
-                                    {item.reasoningNotes}
+                                <div className="mb-2.5">
+                                    <div className="dr-label mb-[3px]">
+                                        {td("Why it matches")}
+                                    </div>
+                                    <div
+                                        className="text-xs leading-normal"
+                                        style={{ color: T.TEXT_MUTED }}
+                                    >
+                                        {item.reasoningNotes}
+                                    </div>
                                 </div>
                             )}
 
@@ -234,6 +265,17 @@ export default function WorkspaceRecommendationsTab({
                                             {td("Added to Deal")}
                                         </span>
                                     </DealBadge>
+                                ) : addBlocked ? (
+                                    <DealButton
+                                        variant="ghost"
+                                        size="sm"
+                                        disabled
+                                        title={td(
+                                            "This CRM is configured to allow only one package or property per deal",
+                                        )}
+                                    >
+                                        {td("Add to Deal")}
+                                    </DealButton>
                                 ) : (
                                     <DealButton
                                         variant="primary"

@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import useTranslation from "@/Hooks/useTranslation";
 import DealBadge from "../primitives/DealBadge";
 import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -9,9 +8,10 @@ interface SidebarItem {
     id: DealInfoSectionId;
     label: string;
     icon: string;
-    badge: string;
+    badge?: string;
     badgeVariant: "blue" | "gray";
     later?: boolean;
+    searchTerms?: string[];
 }
 
 interface NavGroup {
@@ -30,7 +30,6 @@ export default function DealInfoSidebar({
     activeSection,
     onSectionChange,
 }: DealInfoSidebarProps) {
-    const { t } = useTranslation();
     const [search, setSearch] = useState("");
 
     const query = search.trim().toLowerCase();
@@ -39,8 +38,12 @@ export default function DealInfoSidebar({
         return navGroups
             .map((group) => ({
                 ...group,
-                items: group.items.filter((item) =>
-                    item.label.toLowerCase().includes(query),
+                items: group.items.filter(
+                    (item) =>
+                        item.label.toLowerCase().includes(query) ||
+                        (item.searchTerms ?? []).some((term) =>
+                            term.toLowerCase().includes(query),
+                        ),
                 ),
             }))
             .filter((group) => group.items.length > 0);
@@ -52,14 +55,17 @@ export default function DealInfoSidebar({
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
+            <div className="dr-label px-2.5 pb-1 pt-2.5" style={{ fontSize: 11 }}>
+                Deal information
+            </div>
             <div className="px-2.5 pb-2">
                 <input
                     className="dr-input"
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t("app.search")}
-                    aria-label="Search deal information sections"
+                    placeholder="Search sections & fields…"
+                    aria-label="Search deal information sections and fields"
                     style={{ fontSize: 12, padding: "6px 9px" }}
                 />
             </div>
@@ -110,9 +116,11 @@ export default function DealInfoSidebar({
                                     />
                                     {item.label}
                                 </span>
-                                <DealBadge variant={item.badgeVariant}>
-                                    {item.badge}
-                                </DealBadge>
+                                {item.badge != null && (
+                                    <DealBadge variant={item.badgeVariant}>
+                                        {item.badge}
+                                    </DealBadge>
+                                )}
                             </button>
                         );
                     })}

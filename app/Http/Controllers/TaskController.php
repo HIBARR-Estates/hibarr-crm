@@ -476,7 +476,15 @@ class TaskController extends AccountBaseController
             ]);
         }
         else {
-            Task::whereIn('id', $taskIds)->update(['board_column_id' => $request->status]);
+            // Mirrors TaskService::changeStatus's completion bookkeeping —
+            // without clearing completed_on here, a task bulk-moved out of
+            // "done" kept its old completion date forever, so it stayed
+            // struck-through/filed under "done" everywhere completed_on is
+            // read as a completion flag.
+            Task::whereIn('id', $taskIds)->update([
+                'board_column_id' => $request->status,
+                'completed_on' => null,
+            ]);
         }
 
     }

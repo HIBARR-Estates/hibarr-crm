@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { Deal } from "@/Types/api/deals";
 import {
     buildCoreNavItem,
+    CORE_SECTION_FIELD_LABELS,
     DEAL_INFO_CORE_SECTION_ORDER,
     DEAL_INFO_NOW_SECTION_COUNT,
     getCategoriesForCoreSection,
@@ -25,9 +26,11 @@ interface NavGroup {
         id: DealInfoSectionId;
         label: string;
         icon: string;
-        badge: string;
+        badge?: string;
         badgeVariant: "blue" | "gray";
         later?: boolean;
+        /** Field labels inside the section, matched by the sidebar search. */
+        searchTerms?: string[];
     }>;
 }
 
@@ -97,6 +100,14 @@ function countSectionCompletion(
         if (isFilledValue(value)) filled += 1;
     };
 
+    if (sectionId === "contact") {
+        track(deal.contact?.client_name ?? deal.contact?.client_name_salutation);
+        track(deal.contact?.client_email);
+        track(deal.contact?.mobile ?? deal.contact?.cell);
+        track(deal.contact?.company_name);
+        return { filled, total };
+    }
+
     for (const key of dealKeysBySection[sectionId] ?? []) {
         if (key === "products") {
             track(deal.products?.length ? deal.products : null);
@@ -160,6 +171,32 @@ export default function useDealInfoNavigation(
         );
         const unmappedCategories = getUnmappedCategories(customFieldCategories);
 
+        const coreSearchTerms = (
+            sectionId: (typeof DEAL_INFO_CORE_SECTION_ORDER)[number],
+        ) => [
+            ...(CORE_SECTION_FIELD_LABELS[sectionId] ?? []),
+            ...getCategoriesForCoreSection(sectionId, customFieldCategories)
+                .flatMap((category) =>
+                    fields
+                        .filter(
+                            (field) =>
+                                Number(field.custom_field_category_id) ===
+                                category.id,
+                        )
+                        .map((field) => field.label ?? field.name ?? ""),
+                )
+                .filter(Boolean),
+        ];
+
+        const categorySearchTerms = (categoryId: number) =>
+            fields
+                .filter(
+                    (field) =>
+                        Number(field.custom_field_category_id) === categoryId,
+                )
+                .map((field) => field.label ?? field.name ?? "")
+                .filter(Boolean);
+
         const nowItems = nowSections.map((sectionId) => {
             const { filled, total } = countSectionCompletion(
                 sectionId,
@@ -171,6 +208,7 @@ export default function useDealInfoNavigation(
             return {
                 ...item,
                 badge: total > 0 ? `${filled}/${total}` : "--",
+                searchTerms: coreSearchTerms(sectionId),
             };
         });
 
@@ -188,6 +226,7 @@ export default function useDealInfoNavigation(
                     badge:
                         item.stageBadge ??
                         (total > 0 ? `${filled}/${total}` : "--"),
+                    searchTerms: coreSearchTerms(sectionId),
                 };
             }),
             ...unmappedCategories.map((category) => {
@@ -203,8 +242,15 @@ export default function useDealInfoNavigation(
                     badge: total > 0 ? `${filled}/${total}` : "--",
                     badgeVariant: "gray" as const,
                     later: true,
+                    searchTerms: categorySearchTerms(category.id),
                 };
             }),
+            // v2.2 places GDPR & consents as the very last nav item.
+            {
+                ...buildCoreNavItem("gdpr", true),
+                badge: undefined,
+                searchTerms: CORE_SECTION_FIELD_LABELS.gdpr ?? [],
+            },
         ];
 
         const navGroups: NavGroup[] = [

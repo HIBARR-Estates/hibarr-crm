@@ -1,7 +1,7 @@
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../types";
 
 /** First N core sections appear under "Now — in progress". Adjust when field-to-section mapping is formalized. */
-export const DEAL_INFO_NOW_SECTION_COUNT = 3;
+export const DEAL_INFO_NOW_SECTION_COUNT = 4;
 
 /**
  * Optional mapping from custom field category id → core section id.
@@ -30,8 +30,13 @@ export interface DealInfoSectionMeta {
     subtitle: string;
 }
 
+/**
+ * "gdpr" is deliberately absent — it is appended manually as the very last
+ * nav item (after unmapped categories), matching v2.2's sidebar order.
+ */
 export const DEAL_INFO_CORE_SECTION_ORDER: DealInfoCoreSectionId[] = [
     "general",
+    "contact",
     // "experience",
     // "income",
     // "location",
@@ -47,6 +52,14 @@ export const DEAL_INFO_SECTION_META: Record<
     general: {
         title: "General information",
         subtitle: "Stage relevant — In progress",
+    },
+    contact: {
+        title: "Contact information",
+        subtitle: "From the linked lead record",
+    },
+    gdpr: {
+        title: "GDPR & consents",
+        subtitle: "Lead-level consent records — read only",
     },
     experience: {
         title: "Investment experience & goals",
@@ -76,22 +89,61 @@ export const DEAL_INFO_SECTION_META: Record<
 
 const CORE_NAV_ICONS: Record<DealInfoCoreSectionId, string> = {
     general: "info",
+    contact: "mail",
     experience: "award",
     income: "wallet",
     location: "map-pin",
     preftimeline: "clock",
     funding: "bank",
     support: "lifebuoy",
+    gdpr: "check-square",
 };
 
 const CORE_NAV_LABELS: Record<DealInfoCoreSectionId, string> = {
     general: "General info",
+    contact: "Contact info",
     experience: "Inv. experience",
     income: "Income & savings",
     location: "Location pref.",
     preftimeline: "Pref. & timeline",
     funding: "Funding & liquidity",
     support: "Support & collab.",
+    gdpr: "GDPR & consents",
+};
+
+/**
+ * Built-in (non-custom) field labels per core section — feeds the sidebar
+ * search so queries match field names as well as section names (v2.2's
+ * "Search sections & fields…" behaviour).
+ */
+export const CORE_SECTION_FIELD_LABELS: Partial<
+    Record<DealInfoCoreSectionId, string[]>
+> = {
+    general: [
+        "Deal name",
+        "Close date",
+        "Category",
+        "Lead source",
+        "Packages",
+        "Properties",
+        "Interested in",
+        "Budget range",
+    ],
+    contact: ["Lead contact", "Email", "Mobile", "Company"],
+    preftimeline: [
+        "Purchase timeline",
+        "Strategy meeting booked",
+        "Motivation",
+        "Downpayment paid",
+        "Inspection trip date",
+    ],
+    funding: [
+        "Deposit confirmation",
+        "Reservation agreement",
+        "Sales contract",
+    ],
+    support: ["Message", "Deal agent", "Participants", "Watchers"],
+    gdpr: ["Consents", "Marketing", "Data processing"],
 };
 
 const LATER_STAGE_BADGES: Partial<Record<DealInfoCoreSectionId, string>> = {

@@ -1,9 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { useFormData } from "@/Hooks/useFormData";
-import { useDebounce } from "@/Hooks/useDebounce";
 import DealAvatar from "../primitives/DealAvatar";
+import DealAgentPicker from "../primitives/DealAgentPicker";
 import DealIcon from "../primitives/DealIcon";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 import useDealTeamMutations from "../../hooks/useDealTeamMutations";
@@ -15,34 +14,11 @@ interface AgentInfo {
     initials: string;
 }
 
-interface LeadAgentOption {
-    id: number;
-    name: string;
-    user?: {
-        id: number;
-        name: string;
-        email?: string;
-        employee_detail?: {
-            designation?: { name?: string } | null;
-        } | null;
-    };
-}
-
 interface DealAgentCardProps {
     dealId: number;
     agent: AgentInfo | null;
     canEdit: boolean;
     onManageTeam: () => void;
-}
-
-function initialsFromName(name?: string | null): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
 }
 
 /** Ported from v2.2's AgentCard + PeoplePicker (deal-v2-2.jsx:877-1017). */
@@ -54,27 +30,14 @@ export default function DealAgentCard({
 }: DealAgentCardProps) {
     const { td } = useTd();
     const [open, setOpen] = useState(false);
-    const [search, setSearch] = useState("");
-    const debouncedSearch = useDebounce(search, 300);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const floatStyle = useFloatingMenuPosition(open, btnRef, { align: "right" });
     const { saveTeamField, isSaving } = useDealTeamMutations(dealId);
     const isAssigning = isSaving("agent_id");
 
-    const { data, loading } = useFormData<LeadAgentOption>("lead-agents", {
-        search: debouncedSearch,
-        per_page: 20,
-        paginate: false,
-        enabled: open && canEdit,
-    });
-    const agents: LeadAgentOption[] = (data as LeadAgentOption[] | undefined) ?? [];
-
     useEffect(() => {
-        if (!open) {
-            setSearch("");
-            return undefined;
-        }
+        if (!open) return undefined;
         const onDoc = (e: MouseEvent) => {
             const target = e.target as Node;
             if (btnRef.current?.contains(target)) return;
@@ -92,10 +55,24 @@ export default function DealAgentCard({
         };
     }, [open]);
 
+    const [pendingPickId, setPendingPickId] = useState<number | null>(null);
+
     const pick = (agentId: number | null) => {
-        saveTeamField("agent_id", agentId);
-        setOpen(false);
+        if (agentId === null) {
+            // Unassign has no picker row to show a spinner on — close as before.
+            saveTeamField("agent_id", null);
+            setOpen(false);
+            return;
+        }
+        // Keep the menu open (with a spinner on the picked row) until the
+        // assignment settles, instead of closing instantly on click.
+        setPendingPickId(agentId);
+        saveTeamField("agent_id", agentId)
+            .then(() => setOpen(false))
+            .finally(() => setPendingPickId(null));
     };
+
+    const exclude = agent ? [agent.id] : [];
 
     return (
         <div style={{ display: "inline-flex" }}>
@@ -190,94 +167,12 @@ export default function DealAgentCard({
                                 <div className="dr-label" style={{ marginBottom: 6 }}>
                                     {td("Assign deal agent")}
                                 </div>
-                                <input
-                                    className="dr-input"
-                                    type="search"
+                                <DealAgentPicker
+                                    exclude={exclude}
+                                    onPick={(picked) => pick(picked.id)}
+                                    pendingId={pendingPickId}
                                     autoFocus
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    placeholder={td("Search agents…")}
-                                    aria-label={td("Search agents")}
-                                    style={{
-                                        marginBottom: 6,
-                                        fontSize: 12,
-                                        padding: "8px 10px",
-                                    }}
                                 />
-                                <div style={{ maxHeight: 220, overflowY: "auto" }}>
-                                    {loading ? (
-                                        <div
-                                            className="px-1.5 py-2 text-xs italic"
-                                            style={{ color: T.TEXT_MUTED }}
-                                        >
-                                            {td("Loading…")}
-                                        </div>
-                                    ) : agents.length === 0 ? (
-                                        <div
-                                            className="px-1.5 py-2 text-xs italic"
-                                            style={{ color: T.TEXT_MUTED }}
-                                        >
-                                            {td("No agents match")}
-                                        </div>
-                                    ) : (
-                                        agents
-                                            .filter((option) => option.id !== agent?.id)
-                                            .map((option) => {
-                                                const name =
-                                                    option.user?.name ?? option.name;
-                                                const designation =
-                                                    option.user?.employee_detail
-                                                        ?.designation?.name;
-                                                return (
-                                                    <button
-                                                        key={option.id}
-                                                        type="button"
-                                                        className="dr-menu-item"
-                                                        onClick={() => pick(option.id)}
-                                                    >
-                                                        <DealAvatar
-                                                            type="agent"
-                                                            size={24}
-                                                            initials={initialsFromName(name)}
-                                                        />
-                                                        <span
-                                                            style={{
-                                                                flex: 1,
-                                                                minWidth: 0,
-                                                                textAlign: "left",
-                                                            }}
-                                                        >
-                                                            <span
-                                                                style={{
-                                                                    display: "block",
-                                                                    fontSize: 13,
-                                                                }}
-                                                            >
-                                                                {name}
-                                                            </span>
-                                                            {designation && (
-                                                                <span
-                                                                    style={{
-                                                                        display: "block",
-                                                                        marginTop: 2,
-                                                                        fontSize: 11,
-                                                                        color: T.TEXT_MUTED,
-                                                                        overflow: "hidden",
-                                                                        textOverflow:
-                                                                            "ellipsis",
-                                                                        whiteSpace:
-                                                                            "nowrap",
-                                                                    }}
-                                                                >
-                                                                    {designation}
-                                                                </span>
-                                                            )}
-                                                        </span>
-                                                    </button>
-                                                );
-                                            })
-                                    )}
-                                </div>
                                 <div
                                     className="dr-menu-sep"
                                     role="separator"

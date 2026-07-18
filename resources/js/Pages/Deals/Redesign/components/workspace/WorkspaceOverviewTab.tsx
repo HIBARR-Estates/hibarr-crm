@@ -10,6 +10,7 @@ import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
+import useDealTaskStatus from "../../hooks/useDealTaskStatus";
 import { DealTab } from "../../types";
 import DealNoteDetailModal from "./DealNoteDetailModal";
 import DealTaskDetailModal from "./DealTaskDetailModal";
@@ -131,6 +132,7 @@ export default function WorkspaceOverviewTab({
 }: WorkspaceOverviewTabProps) {
     const { td } = useTd();
     const overview = useWorkspaceOverview({ notes, tasks, dealFollowUps });
+    const { setStatus, isPending } = useDealTaskStatus();
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [selectedMeeting, setSelectedMeeting] = useState<DealFollowup | null>(null);
@@ -250,7 +252,8 @@ export default function WorkspaceOverviewTab({
                                         "to_do"
                                     }
                                     columns={taskBoardColumns}
-                                    onChange={() => setSelectedTask(raw)}
+                                    loading={isPending(raw.id)}
+                                    onChange={(slug) => setStatus(raw.id, slug)}
                                 />
                             )}
                         </div>

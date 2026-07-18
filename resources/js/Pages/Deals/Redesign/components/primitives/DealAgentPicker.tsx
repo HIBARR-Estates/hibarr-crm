@@ -1,27 +1,39 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useFormData } from "@/Hooks/useFormData";
+import { useDebounce } from "@/Hooks/useDebounce";
 import DealAvatar from "./DealAvatar";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
-export interface DealPersonOption {
+export interface DealAgentOption {
     id: number;
     name: string;
-    designation?: string;
 }
 
-interface DealPeoplePickerProps {
-    people: DealPersonOption[];
+interface LeadAgentRecord {
+    id: number;
+    name: string;
+    user?: {
+        id: number;
+        name: string;
+        email?: string;
+        employee_detail?: {
+            designation?: { name?: string } | null;
+        } | null;
+    };
+}
+
+interface DealAgentPickerProps {
     exclude?: number[];
-    onPick: (person: DealPersonOption) => void;
+    onPick: (agent: DealAgentOption) => void;
     autoFocus?: boolean;
-    placeholder?: string;
-    /** Id of the person currently being assigned — shows a spinner on their
+    /** Id of the agent currently being assigned — shows a spinner on their
      * row (far right) instead of leaving the pick unacknowledged, and blocks
      * further picks until it settles. */
     pendingId?: number | null;
 }
 
-function initialsFromName(name?: string): string {
+function initialsFromName(name?: string | null): string {
     if (!name) return "--";
     return name
         .split(" ")
@@ -31,30 +43,29 @@ function initialsFromName(name?: string): string {
         .toUpperCase();
 }
 
-/** Ported from v2.2's PeoplePicker (deal-v2-2.jsx:877-905) — search over employees. */
-export default function DealPeoplePicker({
-    people,
+/**
+ * Remote-search agent picker (paginated `lead-agents` endpoint) rendered in
+ * the same look as DealPeoplePicker's local list. Ported from v2.2's
+ * PeoplePicker (deal-v2-2.jsx:877-905); extracted so DealAgentCard's header
+ * picker and the Team modal's agent picker share one implementation.
+ */
+export default function DealAgentPicker({
     exclude = [],
     onPick,
     autoFocus,
-    placeholder,
     pendingId,
-}: DealPeoplePickerProps) {
+}: DealAgentPickerProps) {
     const { td } = useTd();
-    const [query, setQuery] = useState("");
-    const q = query.trim().toLowerCase();
+    const [search, setSearch] = useState("");
+    const debouncedSearch = useDebounce(search, 300);
 
-    const results = useMemo(
-        () =>
-            people
-                .filter((person) => !exclude.includes(person.id))
-                .filter(
-                    (person) =>
-                        !q ||
-                        person.name.toLowerCase().includes(q) ||
-                        (person.designation || "").toLowerCase().includes(q),
-                ),
-        [people, exclude, q],
+    const { data, loading } = useFormData<LeadAgentRecord>("lead-agents", {
+        search: debouncedSearch,
+        per_page: 20,
+        paginate: false,
+    });
+    const agents = ((data as LeadAgentRecord[] | undefined) ?? []).filter(
+        (option) => !exclude.includes(option.id),
     );
 
     return (
@@ -62,27 +73,37 @@ export default function DealPeoplePicker({
             <input
                 className="dr-input"
                 type="search"
-                aria-label={placeholder || td("Search employees…")}
-                placeholder={placeholder || td("Search employees…")}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
                 autoFocus={autoFocus}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={td("Search agents…")}
+                aria-label={td("Search agents")}
                 style={{ marginBottom: 6, fontSize: 12, padding: "8px 10px" }}
             />
-            <div style={{ maxHeight: 200, overflowY: "auto" }}>
-                {results.length === 0 ? (
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+                {loading ? (
                     <div
                         className="px-1.5 py-2 text-xs italic"
                         style={{ color: T.TEXT_MUTED }}
                     >
-                        {td("No employees match")} "{query}"
+                        {td("Loading…")}
+                    </div>
+                ) : agents.length === 0 ? (
+                    <div
+                        className="px-1.5 py-2 text-xs italic"
+                        style={{ color: T.TEXT_MUTED }}
+                    >
+                        {td("No agents match")}
                     </div>
                 ) : (
-                    results.map((person) => {
-                        const isPending = person.id === pendingId;
+                    agents.map((option) => {
+                        const name = option.user?.name ?? option.name;
+                        const designation =
+                            option.user?.employee_detail?.designation?.name;
+                        const isPending = option.id === pendingId;
                         return (
                             <button
-                                key={person.id}
+                                key={option.id}
                                 type="button"
                                 className="dr-menu-item"
                                 disabled={pendingId != null}
@@ -96,12 +117,12 @@ export default function DealPeoplePicker({
                                             ? "default"
                                             : "pointer",
                                 }}
-                                onClick={() => onPick(person)}
+                                onClick={() => onPick({ id: option.id, name })}
                             >
                                 <DealAvatar
                                     type="agent"
                                     size={24}
-                                    initials={initialsFromName(person.name)}
+                                    initials={initialsFromName(name)}
                                 />
                                 <span
                                     style={{
@@ -111,17 +132,21 @@ export default function DealPeoplePicker({
                                     }}
                                 >
                                     <span style={{ display: "block", fontSize: 13 }}>
-                                        {person.name}
+                                        {name}
                                     </span>
-                                    {person.designation && (
+                                    {designation && (
                                         <span
                                             style={{
                                                 display: "block",
+                                                marginTop: 2,
                                                 fontSize: 11,
                                                 color: T.TEXT_MUTED,
+                                                overflow: "hidden",
+                                                textOverflow: "ellipsis",
+                                                whiteSpace: "nowrap",
                                             }}
                                         >
-                                            {person.designation}
+                                            {designation}
                                         </span>
                                     )}
                                 </span>
