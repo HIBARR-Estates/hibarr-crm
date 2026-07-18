@@ -66,6 +66,10 @@ interface EditableFieldProps {
     alwaysEditing?: boolean;
     /** Called when value changes in alwaysEditing mode (for tracking pending changes) */
     onChange?: (fieldName: string, value: any) => void;
+    /** Enter edit mode on a single click instead of the default double-click
+     * (v2.2's click-to-edit pattern — opt-in so existing double-click
+     * consumers elsewhere in the app are unaffected). */
+    activateOnSingleClick?: boolean;
 }
 
 export default function EditableField({
@@ -84,6 +88,7 @@ export default function EditableField({
     loading = false,
     alwaysEditing = false,
     onChange,
+    activateOnSingleClick = false,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
     const { countries } = useCountries();
@@ -313,10 +318,22 @@ export default function EditableField({
     const startEditingRef = useRef(startEditing);
     startEditingRef.current = startEditing;
 
-    // Register/unregister with the nearest parent DetailField via context
+    // Register/unregister with the nearest parent DetailField via context —
+    // this is what makes DetailField show its own pencil next to the label.
+    // Skipped in v2.2 mode (activateOnSingleClick): that mode already shows
+    // its own pencil next to the value below, so registering here would
+    // double up (a second pencil beside the label, not in v2.2).
     const detailFieldCtx = useContext(DetailFieldEditContext);
     useEffect(() => {
         if (!detailFieldCtx) return;
+        if (activateOnSingleClick) {
+            detailFieldCtx.setEditHandler(null);
+            detailFieldCtx.setIsEditing(editing);
+            return () => {
+                detailFieldCtx.setEditHandler(null);
+                detailFieldCtx.setIsEditing(false);
+            };
+        }
         if (canStartEditing && !editing) {
             detailFieldCtx.setEditHandler(() => startEditingRef.current());
         } else {
@@ -327,7 +344,7 @@ export default function EditableField({
             detailFieldCtx.setEditHandler(null);
             detailFieldCtx.setIsEditing(false);
         };
-    }, [detailFieldCtx, canStartEditing, editing]);
+    }, [detailFieldCtx, canStartEditing, editing, activateOnSingleClick]);
 
     const handleSave = async () => {
         // Clear any pending blur timeout to prevent double save
@@ -895,16 +912,53 @@ export default function EditableField({
         );
     }
 
+    // v2.2 mode (activateOnSingleClick): dashed underline + pencil beside the
+    // value, single click to edit — no DetailField label-pencil (see the
+    // context registration above). Everything else keeps its original look:
+    // plain text, double-click, and DetailField's own label-pencil.
+    if (!activateOnSingleClick) {
+        return (
+            <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
+                <div
+                    className={`w-full ${
+                        isLocked ? "cursor-not-allowed opacity-50" : ""
+                    } ${className}`}
+                    onDoubleClick={canStartEditing ? startEditing : undefined}
+                >
+                    <span className="break-words whitespace-normal">
+                        {displayText}
+                    </span>
+                </div>
+            </Skeleton>
+        );
+    }
+
     return (
         <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
             <div
-                className={`w-full ${
+                className={`group/editable w-full ${
                     isLocked ? "cursor-not-allowed opacity-50" : ""
-                } ${className}`}
+                } ${canStartEditing ? "cursor-pointer" : ""} ${className}`}
                 onDoubleClick={canStartEditing ? startEditing : undefined}
+                onClick={canStartEditing ? startEditing : undefined}
             >
-                <span className="break-words whitespace-normal">
-                    {displayText}
+                <span className="inline-flex max-w-full items-center gap-1.5">
+                    <span
+                        className={`break-words whitespace-normal border-b border-dashed ${
+                            canStartEditing
+                                ? "border-transparent transition-colors group-hover/editable:border-blue-300"
+                                : ""
+                        }`}
+                    >
+                        {displayText}
+                    </span>
+                    {canStartEditing && (
+                        <EditOutlined
+                            aria-hidden="true"
+                            className="shrink-0 text-blue-600 opacity-0 transition-opacity group-hover/editable:opacity-100"
+                            style={{ fontSize: 11 }}
+                        />
+                    )}
                 </span>
             </div>
         </Skeleton>

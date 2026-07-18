@@ -217,7 +217,7 @@ export default function WorkspaceNotesTab({
                                 <DealSelectCheckbox
                                     checked={selected.has(note.id)}
                                     onChange={() => toggleSelect(note.id)}
-                                    label={`Select note ${note.title}`}
+                                    label={`Select note ${note.title || note.authorName}`}
                                 />
                             </div>
                         )}
@@ -230,8 +230,8 @@ export default function WorkspaceNotesTab({
                             }
                             aria-label={
                                 selectMode
-                                    ? `Select note ${note.title}`
-                                    : `Open note — ${note.title}`
+                                    ? `Select note ${note.title || note.authorName}`
+                                    : `Open note — ${note.title || note.authorName}`
                             }
                             className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
                             style={{ color: T.TEXT }}
@@ -243,26 +243,45 @@ export default function WorkspaceNotesTab({
                                         initials={note.authorInitials}
                                     />
                                     <span className="min-w-0">
-                                        <span className="block truncate text-[13px] font-semibold">
-                                            {note.title}
-                                            {note.edited && (
-                                                <span
-                                                    className="text-[11px] font-normal italic"
-                                                    style={{
-                                                        color: T.TEXT_MUTED,
-                                                    }}
-                                                >
-                                                    {" "}
-                                                    ({td("edited")})
+                                        {note.title ? (
+                                            <>
+                                                <span className="block truncate text-[13px] font-semibold">
+                                                    {note.title}
+                                                    {note.edited && (
+                                                        <span
+                                                            className="text-[11px] font-normal italic"
+                                                            style={{
+                                                                color: T.TEXT_MUTED,
+                                                            }}
+                                                        >
+                                                            {" "}
+                                                            ({td("edited")})
+                                                        </span>
+                                                    )}
                                                 </span>
-                                            )}
-                                        </span>
-                                        <span
-                                            className="block text-[11px]"
-                                            style={{ color: T.TEXT_MUTED }}
-                                        >
-                                            {note.authorName}
-                                        </span>
+                                                <span
+                                                    className="block text-[11px]"
+                                                    style={{ color: T.TEXT_MUTED }}
+                                                >
+                                                    {note.authorName}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="block truncate text-[13px] font-semibold">
+                                                {note.authorName}
+                                                {note.edited && (
+                                                    <span
+                                                        className="text-[11px] font-normal italic"
+                                                        style={{
+                                                            color: T.TEXT_MUTED,
+                                                        }}
+                                                    >
+                                                        {" "}
+                                                        ({td("edited")})
+                                                    </span>
+                                                )}
+                                            </span>
+                                        )}
                                     </span>
                                 </span>
                                 <span

@@ -184,6 +184,7 @@ export default function DealInfoSectionPanel({
                         editable={editing}
                         loadingField={updatingField}
                         disabled={!canEdit}
+                        activateOnSingleClick
                     />
                 </div>
             );
@@ -629,43 +630,6 @@ export default function DealInfoSectionPanel({
         </>
     );
 
-    // v2.2 Contact info section (deal-v2-2.jsx:3449-3468) — read-only lead data.
-    const renderContact = () => {
-        const contact = deal.contact;
-        const leadName =
-            contact?.client_name_salutation || contact?.client_name || null;
-        const leadUrl = contact?.id
-            ? route("lead-contact.show", contact.id)
-            : null;
-        const empty = <span className="text-gray-400">--</span>;
-
-        return (
-            <FieldGrid>
-                <DetailField label={td("Lead contact")}>
-                    {leadName && leadUrl ? (
-                        <a
-                            href={leadUrl}
-                            className="text-[13px] font-semibold text-[#1a6bb5] no-underline"
-                        >
-                            {leadName} ↗
-                        </a>
-                    ) : (
-                        leadName || empty
-                    )}
-                </DetailField>
-                <DetailField label={td("Email")}>
-                    {contact?.client_email || empty}
-                </DetailField>
-                <DetailField label={td("Mobile")}>
-                    {contact?.mobile || contact?.cell || empty}
-                </DetailField>
-                <DetailField label={td("Company")}>
-                    {contact?.company_name || empty}
-                </DetailField>
-            </FieldGrid>
-        );
-    };
-
     // v2.2 GDPR & consents section (deal-v2-2.jsx:3513-3541) — read-only table.
     const renderGdpr = () => {
         if (!gdprSetting?.enable_gdpr) {
@@ -771,6 +735,7 @@ export default function DealInfoSectionPanel({
                 editable={editing}
                 loadingField={updatingField}
                 disabled={!canEdit}
+                activateOnSingleClick
             />
         );
     };
@@ -780,8 +745,6 @@ export default function DealInfoSectionPanel({
         switch (sectionId as DealInfoCoreSectionId) {
             case "general":
                 return renderGeneral();
-            case "contact":
-                return renderContact();
             case "preftimeline":
                 return renderPrefTimeline();
             case "funding":
@@ -795,8 +758,8 @@ export default function DealInfoSectionPanel({
         }
     };
 
-    // v2.2: contact + GDPR are read-only sections with no edit toggle.
-    const editableSection = sectionId !== "contact" && sectionId !== "gdpr";
+    // v2.2: GDPR is a read-only section with no edit toggle.
+    const editableSection = sectionId !== "gdpr";
 
     return (
         <section className="pl-[26px] pt-1">

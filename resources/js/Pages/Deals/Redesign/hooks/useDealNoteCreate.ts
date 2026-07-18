@@ -13,7 +13,7 @@ export interface DealNoteCreateInput {
 }
 
 interface SaveNotePayload {
-    title: string;
+    title?: string;
     details: string;
     lead_id: number;
 }
@@ -39,7 +39,12 @@ export default function useDealNoteCreate(dealId: number) {
             setErrors([]);
             mutate(
                 {
-                    title: input.title?.trim() || trimmed.slice(0, 80),
+                    // Left blank when the user leaves the title field empty —
+                    // `deal_notes.title` is nullable (StoreDealNote has no
+                    // rule for it) and the note list already falls back to
+                    // "Untitled note" for display, so there's no need to
+                    // synthesize one from the body here.
+                    title: input.title?.trim() || undefined,
                     details: `<p>${trimmed}</p>`,
                     lead_id: dealId,
                 },

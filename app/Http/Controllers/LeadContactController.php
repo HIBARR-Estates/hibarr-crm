@@ -43,6 +43,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
 use App\Services\PermissionService;
+use App\Services\DealAgentAssignmentService;
 use App\Services\LeadService;
 class LeadContactController extends AccountBaseController
 {
@@ -517,7 +518,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->category_id = $request->category_id;
         $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
         $leadContact->client_id = $existingUser?->id;
-        $leadContact->lead_owner = $request->lead_owner;
+        $leadContact->lead_owner = $request->lead_owner ?: user()?->id;
         $leadContact->company_name = $request->company_name;
         $leadContact->website = $request->website;
         $leadContact->address = $request->address;
@@ -541,7 +542,7 @@ class LeadContactController extends AccountBaseController
             $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
         }
 
-        if ($request->has('create_deal') && $request->create_deal == 'on') {
+        if ($request->boolean('create_deal')) {
             Session::put('create_deal_with_lead', true);
             Session::put('deal_name', $request->name);
         }
@@ -552,7 +553,7 @@ class LeadContactController extends AccountBaseController
         ]));
         $leadContact->save();
 
-        if ($request->has('create_deal') && $request->create_deal == 'on') {
+        if ($request->boolean('create_deal')) {
             $this->storeDeal($request, $leadContact);
         }
 
@@ -1376,32 +1377,55 @@ class LeadContactController extends AccountBaseController
             }
             abort(403);
         }
-        $agentId = null;
-
-        if (!is_null($request->agent_id)) {
-            $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
-            $agentId = isset($leadAgent) ? $leadAgent->id : null;
+        $explicitAgentId = null;
+        if ($request->filled('agent_id')) {
+            // Prefer lead_agents.id; fall back to legacy user_id (+ category) lookup.
+            $leadAgent = LeadAgent::find($request->agent_id);
+            if (!$leadAgent) {
+                $leadAgent = LeadAgent::where('user_id', $request->agent_id)
+                    ->when($request->category_id, fn ($q) => $q->where('lead_category_id', $request->category_id))
+                    ->first();
+            }
+            $explicitAgentId = $leadAgent?->id;
         }
+
+        $agentId = app(DealAgentAssignmentService::class)->resolveAgentId(
+            $explicitAgentId,
+            $leadContact->lead_owner ? (int) $leadContact->lead_owner : null,
+            user()?->id,
+            $request->filled('category_id') ? (int) $request->category_id : null
+        );
 
         $deal = new Deal();
         $deal->name = $request->name;
         $deal->lead_id = $leadContact->id;
         $deal->next_follow_up = 'yes';
         $deal->category_id = $request->category_id;
+        $deal->lead_pipeline_id = $request->pipeline;
+        $deal->pipeline_stage_id = $request->stage_id;
+        $deal->create_client = $request->boolean('create_client') ? '1' : '0';
+        $deal->agent_id = $agentId;
+        $deal->close_date = null;
+        if ($request->filled('close_date')) {
+            try {
+                $deal->close_date = companyToYmd($request->close_date);
+            } catch (\Throwable $e) {
+                // Accept ISO dates from the React form when company format differs.
+                try {
+                    $deal->close_date = \Carbon\Carbon::parse($request->close_date)->format('Y-m-d');
+                } catch (\Throwable $ignored) {
+                    $deal->close_date = null;
+                }
+            }
+        }
+        $deal->value = ($request->value) ?: 0;
+        $deal->currency_id = $this->company->currency_id;
         $deal->save();
 
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
             $deal->dealWatchers()->sync($request->deal_watcher);
         }
-        $deal->lead_pipeline_id = $request->pipeline;
-        $deal->pipeline_stage_id = $request->stage_id;
-        $deal->create_client = $request->create_client == "on" ? '1' : '0';
-        $deal->agent_id = $agentId;
-        $deal->close_date = companyToYmd($request->close_date);
-        $deal->value = ($request->value) ?: 0;
-        $deal->currency_id = $this->company->currency_id;
-        $deal->save();
 
         if (!is_null($request->product_id)) {
 

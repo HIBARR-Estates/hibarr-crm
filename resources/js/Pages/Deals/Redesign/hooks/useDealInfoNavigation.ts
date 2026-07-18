@@ -100,14 +100,6 @@ function countSectionCompletion(
         if (isFilledValue(value)) filled += 1;
     };
 
-    if (sectionId === "contact") {
-        track(deal.contact?.client_name ?? deal.contact?.client_name_salutation);
-        track(deal.contact?.client_email);
-        track(deal.contact?.mobile ?? deal.contact?.cell);
-        track(deal.contact?.company_name);
-        return { filled, total };
-    }
-
     for (const key of dealKeysBySection[sectionId] ?? []) {
         if (key === "products") {
             track(deal.products?.length ? deal.products : null);
@@ -160,6 +152,7 @@ export default function useDealInfoNavigation(
     deal: Deal,
     fields: CustomFieldDefinition[] = [],
     customFieldCategories: Array<{ id: number; name: string }> = [],
+    consents: Array<{ name?: string }> = [],
 ) {
     return useMemo(() => {
         const nowSections = DEAL_INFO_CORE_SECTION_ORDER.slice(
@@ -245,11 +238,17 @@ export default function useDealInfoNavigation(
                     searchTerms: categorySearchTerms(category.id),
                 };
             }),
-            // v2.2 places GDPR & consents as the very last nav item.
+            // v2.2 places GDPR & consents as the very last nav item. Search
+            // terms come from the deal's actual consent purposes (rendered
+            // as the GDPR table's rows) — falls back to the generic labels
+            // when consents haven't loaded, so the item stays findable.
             {
                 ...buildCoreNavItem("gdpr", true),
                 badge: undefined,
-                searchTerms: CORE_SECTION_FIELD_LABELS.gdpr ?? [],
+                searchTerms: [
+                    ...(CORE_SECTION_FIELD_LABELS.gdpr ?? []),
+                    ...consents.map((consent) => consent.name ?? "").filter(Boolean),
+                ],
             },
         ];
 
@@ -259,5 +258,5 @@ export default function useDealInfoNavigation(
         ];
 
         return { navGroups };
-    }, [customFieldCategories, deal, fields]);
+    }, [consents, customFieldCategories, deal, fields]);
 }

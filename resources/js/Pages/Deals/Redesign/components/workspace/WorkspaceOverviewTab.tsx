@@ -179,7 +179,7 @@ export default function WorkspaceOverviewTab({
                             <span className="flex min-w-0 items-center gap-1.5">
                                 <DealAvatar size={20} initials={note.authorInitials} />
                                 <span className="truncate text-xs font-semibold">
-                                    {note.title}
+                                    {note.title || note.authorName}
                                 </span>
                             </span>
                             <span
@@ -337,6 +337,27 @@ export default function WorkspaceOverviewTab({
                                     </span>
                                 )}
                             </button>
+                            {/* v2.2's Join button on upcoming video meetings
+                                (deal-v2-2.jsx:1561-1567) */}
+                            {meeting.locationType === "video" &&
+                                meeting.status === "scheduled" && (
+                                    <DealButton
+                                        variant="primary"
+                                        size="sm"
+                                        className="self-start"
+                                        onClick={(event) => {
+                                            event.stopPropagation();
+                                            window.open(
+                                                meeting.location,
+                                                "_blank",
+                                                "noopener,noreferrer",
+                                            );
+                                        }}
+                                    >
+                                        <DealIcon name="video" size={12} />
+                                        {td("Join")}
+                                    </DealButton>
+                                )}
                         </div>
                     );
                 })}

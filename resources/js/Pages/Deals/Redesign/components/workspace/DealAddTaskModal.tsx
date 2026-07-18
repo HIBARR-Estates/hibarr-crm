@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useDealTaskCreate from "../../hooks/useDealTaskCreate";
-import { DEFAULT_DUE_TIME } from "../../hooks/taskDateUtils";
+import { DEFAULT_DUE_TIME, todayIsoDate } from "../../hooks/taskDateUtils";
 import DealButton from "../primitives/DealButton";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 import DealAssigneeField from "./DealAssigneeField";
@@ -17,20 +17,22 @@ type TaskPriority = "low" | "medium" | "high";
 
 interface TaskFormState {
     title: string;
+    description: string;
+    startDate: string;
     dueDate: string;
     dueTime: string;
     priority: TaskPriority;
-    description: string;
     assignees: number[];
 }
 
 function buildInitialForm(currentUserId?: number): TaskFormState {
     return {
         title: "",
+        description: "",
+        startDate: todayIsoDate(),
         dueDate: "",
         dueTime: DEFAULT_DUE_TIME,
         priority: "medium",
-        description: "",
         assignees: currentUserId ? [currentUserId] : [],
     };
 }
@@ -61,14 +63,24 @@ export default function DealAddTaskModal({
         onClose();
     };
 
+    // Mirrors the backend's due_date after_or_equal:start_date rule
+    // (StoreTask::rules) so the user sees this before submitting, not as a
+    // server error after the fact.
+    const dateRangeError =
+        form.startDate && form.dueDate && form.dueDate < form.startDate
+            ? td("Due date can't be before the start date")
+            : null;
+
     const handleSubmit = () => {
+        if (dateRangeError) return;
         createTask(
             {
                 title: form.title,
+                description: form.description,
+                startDate: form.startDate,
                 dueDate: form.dueDate,
                 dueTime: form.dueTime,
                 priority: form.priority,
-                description: form.description,
                 assignees: form.assignees,
             },
             handleClose,
@@ -93,7 +105,9 @@ export default function DealAddTaskModal({
                         variant="primary"
                         onClick={handleSubmit}
                         loading={isCreating}
-                        disabled={isCreating}
+                        disabled={
+                            isCreating || !!dateRangeError || !form.title.trim()
+                        }
                     >
                         {td("Create task")}
                     </DealButton>
@@ -123,7 +137,35 @@ export default function DealAddTaskModal({
                 />
             </DealModalField>
 
-            <div className="grid grid-cols-3 gap-3">
+            <DealModalField label={td("Description")}>
+                <textarea
+                    value={form.description}
+                    onChange={(event) =>
+                        setForm((current) => ({
+                            ...current,
+                            description: event.target.value,
+                        }))
+                    }
+                    placeholder={td("Optional details...")}
+                    rows={3}
+                    style={{ resize: "vertical" }}
+                />
+            </DealModalField>
+
+            <div className="grid grid-cols-2 gap-3">
+                <DealModalField label={td("Start date")}>
+                    <input
+                        type="date"
+                        value={form.startDate}
+                        onChange={(event) =>
+                            setForm((current) => ({
+                                ...current,
+                                startDate: event.target.value,
+                            }))
+                        }
+                    />
+                </DealModalField>
+
                 <DealModalField label={td("Due date")}>
                     <input
                         type="date"
@@ -136,12 +178,16 @@ export default function DealAddTaskModal({
                         }
                     />
                 </DealModalField>
+            </div>
+            {dateRangeError && (
+                <p className="-mt-2 mb-3 text-xs text-red-600">{dateRangeError}</p>
+            )}
 
+            <div className="grid grid-cols-2 gap-3">
                 <DealModalField label={td("Due time")}>
                     <input
                         type="time"
                         value={form.dueTime}
-                        disabled={!form.dueDate}
                         onChange={(event) =>
                             setForm((current) => ({
                                 ...current,
@@ -175,21 +221,6 @@ export default function DealAddTaskModal({
                         setForm((current) => ({ ...current, assignees }))
                     }
                     disabled={isCreating}
-                />
-            </DealModalField>
-
-            <DealModalField label={td("Description")}>
-                <textarea
-                    value={form.description}
-                    onChange={(event) =>
-                        setForm((current) => ({
-                            ...current,
-                            description: event.target.value,
-                        }))
-                    }
-                    placeholder={td("Optional details...")}
-                    rows={3}
-                    style={{ resize: "vertical" }}
                 />
             </DealModalField>
         </DealModal>

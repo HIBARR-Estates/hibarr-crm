@@ -138,7 +138,6 @@ export default function DealEditMeetingModal({
                 }
                 meetingTypes={meetingTypes}
                 disabled={isUpdating}
-                meetingLinkReadOnly
                 showExistingMeetingLinkHint={Boolean(form.meetingLink)}
             />
         </DealModal>

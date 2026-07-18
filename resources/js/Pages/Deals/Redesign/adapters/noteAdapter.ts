@@ -50,7 +50,10 @@ export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
     const authorName = note.added_by?.name ?? "Unknown";
     return {
         id: note.id,
-        title: note.title?.trim() || "Untitled note",
+        // Left empty (not "Untitled note") when the note has no title —
+        // consumers fall back to showing the author name instead of a
+        // placeholder string in that slot.
+        title: note.title?.trim() || "",
         preview: body || "No note details yet.",
         body: body || "No note details yet.",
         authorName,

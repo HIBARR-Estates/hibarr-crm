@@ -50,6 +50,10 @@ export default function useDealItinerary(dealId: number) {
         setDeletingId(legId);
         router.delete(route("lead-flight-itineraries.destroy", legId), {
             preserveScroll: true,
+            // Scoped the same way createLeg's reload is — itineraries only
+            // ever change deal.lead_flight_itineraries, so there's no reason
+            // to re-fetch every other prop on the page for a delete either.
+            only: ["deal"],
             onSuccess: () => {
                 message.success("Flight deleted");
                 onSuccess?.();

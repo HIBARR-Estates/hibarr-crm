@@ -1,4 +1,4 @@
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { createPortal } from "react-dom";
 import DealPanelHeader from "./DealPanelHeader";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -18,6 +18,17 @@ export function DealModal({
     children,
     footer,
 }: DealModalProps) {
+    // v2.2's Modal binds Escape-to-close (deal-v2-2.jsx:747-752); this one
+    // didn't, unlike DealConfirmDialog which already does.
+    useEffect(() => {
+        if (!open) return undefined;
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") onClose();
+        };
+        window.addEventListener("keydown", onKeyDown);
+        return () => window.removeEventListener("keydown", onKeyDown);
+    }, [open, onClose]);
+
     if (!open || typeof document === "undefined") return null;
 
     return createPortal(

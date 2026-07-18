@@ -17,7 +17,6 @@ const VALID_TABS: DealTab[] = [
 
 const VALID_CORE_INFO_SECTIONS = [
     "general",
-    "contact",
     "experience",
     "income",
     "location",

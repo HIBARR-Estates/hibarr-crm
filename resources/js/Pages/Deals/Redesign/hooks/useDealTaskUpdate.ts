@@ -1,16 +1,20 @@
 import { useCallback, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import dayjs from "dayjs";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import type { Task } from "@/Types/api/tasks";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
-import { formatDueDateForApi, formatDueDateTimeForApi } from "./taskDateUtils";
+import {
+    DEFAULT_START_TIME,
+    formatDueDateTimeForApi,
+    todayIsoDate,
+} from "./taskDateUtils";
 
 export interface DealTaskUpdateInput {
     title: string;
+    startDate?: string;
     dueDate?: string;
     dueTime?: string;
     priority: "low" | "medium" | "high";
@@ -49,13 +53,23 @@ export default function useDealTaskUpdate(task: Task) {
 
             const company = props.company;
             const dateFormat = `${company?.date_format || "d-m-Y"} ${company?.time_format || "H:i"}`;
-            const startDateSource = task.start_date || dayjs().format("YYYY-MM-DD");
 
             const payload: UpdateTaskRequest = {
                 heading: title,
                 description: input.description?.trim() || "",
                 priority: input.priority,
-                start_date: formatDueDateForApi(startDateSource, dateFormat),
+                // `task.start_date` is a full ISO datetime (Task model casts it
+                // `datetime`, same as due_date) — it must never be fed back into
+                // the date-only formatter below as-is: appending "THH:mm" to an
+                // already-complete "...Z" string produced an unparsable date,
+                // which dayjs silently turned into the literal string "Invalid
+                // Date", tripping the backend's date_format validation. The
+                // start date now always comes from the form's date-only input.
+                start_date: formatDueDateTimeForApi(
+                    input.startDate?.trim() || todayIsoDate(),
+                    DEFAULT_START_TIME,
+                    dateFormat,
+                ),
                 user_id: input.assignees,
             };
 
@@ -96,7 +110,7 @@ export default function useDealTaskUpdate(task: Task) {
                 },
             });
         },
-        [mutate, props.company, setTasks, task.start_date],
+        [mutate, props.company, setTasks],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

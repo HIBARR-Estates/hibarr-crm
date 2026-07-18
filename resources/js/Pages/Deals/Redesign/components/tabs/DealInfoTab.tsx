@@ -30,6 +30,7 @@ export default function DealInfoTab({
         initialDeal,
         fields,
         customFieldCategories,
+        consents,
     );
     const {
         deal,

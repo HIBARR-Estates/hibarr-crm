@@ -146,17 +146,25 @@ class DealGatheringService
             ->first();
         $pipelineStageId = $firstStage?->id ?? 1;
         
+        $agentId = app(DealAgentAssignmentService::class)->resolveAgentId(
+            null,
+            $lead->lead_owner ? (int) $lead->lead_owner : null,
+            user()?->id,
+            $lead->category_id ? (int) $lead->category_id : null
+        );
+
         $deal = Deal::create([
             'lead_id' => $lead->id,
             'name' => $dealName,
             'lead_pipeline_id' => $leadPipelineId,
             'pipeline_stage_id' => $pipelineStageId,
+            'agent_id' => $agentId,
             'value' => 0,
             'manual_value' => 0,
             'calculated_value' => 0,
             'value_source' => DealValueResolver::SOURCE_CALCULATED,
             'added_by' => user()->id,
-            'close_date' => now()->addDays(30),
+            'close_date' => null,
         ]);
 
         return $deal;

@@ -68,7 +68,9 @@ export default function DealNoteDetailModal({
         if (!text.trim()) return;
         updateNote(
             {
-                title: title.trim() || note.title,
+                // Clearing the title should clear it, not silently revert to
+                // the previous value — title is a nullable field server-side.
+                title: title.trim(),
                 details: `<p>${text.trim()}</p>`,
             },
             () => setEditing(false),
@@ -147,23 +149,39 @@ export default function DealNoteDetailModal({
                             initials={initialsFromName(note.added_by?.name)}
                         />
                         <span className="min-w-0">
-                            <span className="block text-sm font-semibold">
-                                {td(note.title)}
-                                {note.updated_at !== note.created_at && (
+                            {note.title?.trim() ? (
+                                <>
+                                    <span className="block text-sm font-semibold">
+                                        {td(note.title)}
+                                        {note.updated_at !== note.created_at && (
+                                            <span
+                                                className="ml-1 text-[11px] font-normal italic"
+                                                style={{ color: T.TEXT_MUTED }}
+                                            >
+                                                ({td("edited")})
+                                            </span>
+                                        )}
+                                    </span>
                                     <span
-                                        className="ml-1 text-[11px] font-normal italic"
+                                        className="block text-xs"
                                         style={{ color: T.TEXT_MUTED }}
                                     >
-                                        ({td("edited")})
+                                        {note.added_by?.name ?? td("Unknown")}
                                     </span>
-                                )}
-                            </span>
-                            <span
-                                className="block text-xs"
-                                style={{ color: T.TEXT_MUTED }}
-                            >
-                                {note.added_by?.name ?? td("Unknown")}
-                            </span>
+                                </>
+                            ) : (
+                                <span className="block text-sm font-semibold">
+                                    {note.added_by?.name ?? td("Unknown")}
+                                    {note.updated_at !== note.created_at && (
+                                        <span
+                                            className="ml-1 text-[11px] font-normal italic"
+                                            style={{ color: T.TEXT_MUTED }}
+                                        >
+                                            ({td("edited")})
+                                        </span>
+                                    )}
+                                </span>
+                            )}
                         </span>
                     </div>
                     <div

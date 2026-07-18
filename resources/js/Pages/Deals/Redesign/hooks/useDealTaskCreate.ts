@@ -6,10 +6,15 @@ import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
 import type { Task } from "@/Types/api/tasks";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
-import { formatDueDateTimeForApi } from "./taskDateUtils";
+import {
+    DEFAULT_START_TIME,
+    formatDueDateTimeForApi,
+    todayIsoDate,
+} from "./taskDateUtils";
 
 export interface DealTaskCreateInput {
     title: string;
+    startDate?: string;
     dueDate?: string;
     dueTime?: string;
     priority: "low" | "medium" | "high";
@@ -20,6 +25,7 @@ export interface DealTaskCreateInput {
 interface CreateTaskRequest {
     heading: string;
     description?: string;
+    start_date?: string;
     due_date?: string;
     without_duedate?: boolean;
     priority: "low" | "medium" | "high";
@@ -71,6 +77,12 @@ export default function useDealTaskCreate(dealId: number) {
             if (assignees) {
                 payload.user_id = assignees;
             }
+
+            payload.start_date = formatDueDateTimeForApi(
+                input.startDate?.trim() || todayIsoDate(),
+                DEFAULT_START_TIME,
+                dateFormat,
+            );
 
             if (input.dueDate?.trim()) {
                 payload.due_date = formatDueDateTimeForApi(

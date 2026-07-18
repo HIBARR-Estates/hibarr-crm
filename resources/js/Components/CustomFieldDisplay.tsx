@@ -493,6 +493,9 @@ interface Props {
     sectionId?: string;
     isOpen?: boolean;
     onToggle?: () => void;
+    /** Forwarded to the underlying EditableField — v2.2's single-click-to-edit
+     * pattern, opt-in so other CustomFieldDisplay consumers keep double-click. */
+    activateOnSingleClick?: boolean;
 }
 
 export default function CustomFieldDisplay({
@@ -513,6 +516,7 @@ export default function CustomFieldDisplay({
     sectionId,
     isOpen = false,
     onToggle,
+    activateOnSingleClick = false,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
@@ -1469,6 +1473,7 @@ export default function CustomFieldDisplay({
                 alwaysEditing={effectiveAlwaysEditing}
                 onChange={onChange}
                 disabled={disabled}
+                activateOnSingleClick={activateOnSingleClick}
             />
         );
     };

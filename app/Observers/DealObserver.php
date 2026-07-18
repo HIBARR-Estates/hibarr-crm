@@ -87,7 +87,8 @@ class DealObserver
 
                 $ticketSettings = LeadSetting::select('status')->first();
 
-                if ($ticketSettings && $ticketSettings->status == 1) {
+                // Skip round-robin when triage (or the request) already assigned an agent.
+                if ($ticketSettings && $ticketSettings->status == 1 && is_null($deal->agent_id)) {
                     $agentCategoryData = LeadAgent::where('company_id', $deal->company_id)
                     ->where('status', 'enabled')
                     ->where('lead_category_id', $categoryId)
@@ -103,7 +104,7 @@ class DealObserver
 
                     $diffAgent = array_diff($agentCategoryData, $dealData);
 
-                    if (is_null(request()->agent_id)) {
+                    if (is_null(request()->agent_id) || request()->agent_id === '') {
                         if (!empty($diffAgent)) {
                             $deal->agent_id = current($diffAgent);
                         }
@@ -118,9 +119,13 @@ class DealObserver
                         }
                     }
                     else {
-                        $leadAgent = LeadAgent::where('user_id', request()->agent_id)->where('lead_category_id', $categoryId)->first();
-                        if(!is_null($leadAgent))
-                        {
+                        // Prefer lead_agents.id; fall back to legacy user_id lookup.
+                        $leadAgent = LeadAgent::find(request()->agent_id)
+                            ?: LeadAgent::where('user_id', request()->agent_id)
+                                ->where('lead_category_id', $categoryId)
+                                ->first();
+
+                        if (!is_null($leadAgent)) {
                             $deal->agent_id = $leadAgent->id;
                         }
                     }

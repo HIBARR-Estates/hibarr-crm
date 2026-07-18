@@ -89,8 +89,7 @@ export default function DealConfirmDialog({
                 >
                     <button
                         type="button"
-                        className="dr-btn dr-btn-sm"
-                        style={{ background: T.WHITE, color: T.TEXT_MUTED, border: `1px solid ${T.BORDER}` }}
+                        className="dr-btn dr-btn-ghost"
                         onClick={onCancel}
                         disabled={confirmLoading}
                     >
@@ -98,7 +97,7 @@ export default function DealConfirmDialog({
                     </button>
                     <button
                         type="button"
-                        className="dr-btn dr-btn-sm"
+                        className="dr-btn"
                         autoFocus
                         style={{
                             background: danger ? T.RED : T.BLUE,

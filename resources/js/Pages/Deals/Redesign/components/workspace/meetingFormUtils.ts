@@ -16,11 +16,15 @@ export const MEETING_DURATION_OPTIONS = [
     { value: 240, label: "4 hrs" },
 ] as const;
 
+// "office" is a valid, distinct backend location value (FollowUp\StoreRequest)
+// but v2.2 doesn't ask the user to distinguish it from a generic in-person
+// meeting — merged into one "In person" choice. buildMeetingFormFromFollowup
+// below maps existing "office" meetings onto "physical" so they still show
+// correctly selected when reopened for editing.
 export const MEETING_PLATFORM_OPTIONS = [
     { value: "zoho", label: "Video call" },
     { value: "physical", label: "In person" },
     { value: "phone", label: "Phone" },
-    { value: "office", label: "Office" },
 ] as const;
 
 export type MeetingPlatform = (typeof MEETING_PLATFORM_OPTIONS)[number]["value"];
@@ -136,27 +140,16 @@ export function buildEmptyMeetingForm(
     };
 }
 
-export function formatDefaultRemindersLabel(reminders: Reminder[]): string {
-    return reminders
-        .map((reminder) => {
-            const unit =
-                reminder.type === "hour"
-                    ? reminder.time === 1
-                        ? "hour"
-                        : "hours"
-                    : reminder.type === "minute"
-                      ? reminder.time === 1
-                          ? "minute"
-                          : "minutes"
-                      : reminder.type === "day"
-                        ? reminder.time === 1
-                            ? "day"
-                            : "days"
-                        : reminder.type;
+/** v2.2 reminderLabel (deal-v2-2.jsx:2281-2283). */
+export function reminderLabel(reminder: Reminder): string {
+    return `${reminder.time} ${reminder.type}${reminder.time > 1 ? "s" : ""} before`;
+}
 
-            return `${reminder.time} ${unit}`;
-        })
-        .join(", ");
+/** Maps a stored `location` onto a value the (merged) platform selector
+ * actually offers — legacy "office" meetings become "In person". */
+function normalizePlatform(location: string | undefined): MeetingPlatform {
+    if (location === "office") return "physical";
+    return (location || "zoho") as MeetingPlatform;
 }
 
 function toIsoDate(value: dayjs.Dayjs): string {
@@ -185,7 +178,7 @@ export function buildMeetingFormFromFollowup(
         startTime,
         endTime: addMinutesToTime(startTime, duration),
         duration,
-        platform: (followup.location || "zoho") as MeetingPlatform,
+        platform: normalizePlatform(followup.location),
         meetingLink: followup.meeting_link || "",
         participants:
             followup.participants?.length && followup.participants.length > 0

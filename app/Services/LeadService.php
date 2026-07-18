@@ -79,7 +79,7 @@ class LeadService
      */
     public function getDropdownLeads(int $limit = 100): \Illuminate\Support\Collection
     {
-        return Lead::select('id', 'client_name', 'salutation')
+        return Lead::select('id', 'client_name', 'salutation', 'lead_owner')
             ->where('company_id', company()->id)
             ->orderBy('client_name')
             ->limit($limit)
@@ -89,12 +89,13 @@ class LeadService
                 if ($salutation instanceof \App\Enums\Salutation) {
                     $salutation = $salutation->label();
                 }
-                
+
                 $salutationDisplay = $salutation ? $salutation . ' ' : '';
                 return [
                     'id' => $contact->id,
                     'client_name' => $contact->client_name,
                     'client_name_salutation' => $salutationDisplay . $contact->client_name,
+                    'lead_owner' => $contact->lead_owner,
                 ];
             });
     }

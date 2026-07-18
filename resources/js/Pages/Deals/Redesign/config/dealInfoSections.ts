@@ -1,7 +1,7 @@
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../types";
 
 /** First N core sections appear under "Now — in progress". Adjust when field-to-section mapping is formalized. */
-export const DEAL_INFO_NOW_SECTION_COUNT = 4;
+export const DEAL_INFO_NOW_SECTION_COUNT = 3;
 
 /**
  * Optional mapping from custom field category id → core section id.
@@ -36,7 +36,6 @@ export interface DealInfoSectionMeta {
  */
 export const DEAL_INFO_CORE_SECTION_ORDER: DealInfoCoreSectionId[] = [
     "general",
-    "contact",
     // "experience",
     // "income",
     // "location",
@@ -52,10 +51,6 @@ export const DEAL_INFO_SECTION_META: Record<
     general: {
         title: "General information",
         subtitle: "Stage relevant — In progress",
-    },
-    contact: {
-        title: "Contact information",
-        subtitle: "From the linked lead record",
     },
     gdpr: {
         title: "GDPR & consents",
@@ -89,7 +84,6 @@ export const DEAL_INFO_SECTION_META: Record<
 
 const CORE_NAV_ICONS: Record<DealInfoCoreSectionId, string> = {
     general: "info",
-    contact: "mail",
     experience: "award",
     income: "wallet",
     location: "map-pin",
@@ -101,7 +95,6 @@ const CORE_NAV_ICONS: Record<DealInfoCoreSectionId, string> = {
 
 const CORE_NAV_LABELS: Record<DealInfoCoreSectionId, string> = {
     general: "General info",
-    contact: "Contact info",
     experience: "Inv. experience",
     income: "Income & savings",
     location: "Location pref.",
@@ -129,7 +122,6 @@ export const CORE_SECTION_FIELD_LABELS: Partial<
         "Interested in",
         "Budget range",
     ],
-    contact: ["Lead contact", "Email", "Mobile", "Company"],
     preftimeline: [
         "Purchase timeline",
         "Strategy meeting booked",

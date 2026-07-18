@@ -84,7 +84,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                 gap: 2,
             }}
         >
-            <span style={{ fontSize: 11, color: T.TEXT_HINT }}>
+            <span style={{ fontSize: 12, color: T.TEXT_MUTED }}>
                 {t("pages.deals.info.fields.deal_value")}
             </span>
             <button

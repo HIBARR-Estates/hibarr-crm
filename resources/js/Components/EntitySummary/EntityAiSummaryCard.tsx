@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Skeleton } from "antd";
 import useEntityAiSummary from "@/Hooks/useEntityAiSummary";
 import type { EntityAiSummaryCardProps } from "@/Types/entity-summary";
 import { isLeadSummaryPayload } from "@/Types/entity-summary";
+import AiThinkingIndicator from "./AiThinkingIndicator";
 import EntityAiSummaryChipGrid from "./EntityAiSummaryChipGrid";
 import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
@@ -83,6 +83,7 @@ export default function EntityAiSummaryCard({
         >
             <EntityAiSummaryHeader
                 title={TITLES[entityType]}
+                entityType={entityType}
                 generatedAt={summary?.meta?.generated_at}
                 loading={loading}
                 onRegenerate={summary ? regenerate : generate}
@@ -97,15 +98,12 @@ export default function EntityAiSummaryCard({
                 statusLine={isRedesign ? summary?.status_line : undefined}
                 riskLevel={isRedesign ? summary?.risk_level : undefined}
                 chips={isRedesign ? summary?.chips : undefined}
+                hasSummary={Boolean(summary)}
             />
 
             {showDetailBody && (
                 <>
-                    {loading && (
-                        <div className="entity-ai-summary-body">
-                            <Skeleton active paragraph={{ rows: 4 }} />
-                        </div>
-                    )}
+                    {loading && <AiThinkingIndicator />}
 
                     {error && !loading && (
                         <div className="entity-ai-summary-error">
@@ -116,7 +114,12 @@ export default function EntityAiSummaryCard({
                         </div>
                     )}
 
-                    {!summary && !loading && !error && (
+                    {/* Redesign's equivalent lives in the header banner now
+                        (EntityAiSummaryHeader, !hasSummary branch) — this
+                        stays legacy-only since showDetailBody can't be true
+                        pre-summary for redesign (nothing ever un-collapses
+                        it before a summary exists). */}
+                    {!isRedesign && !summary && !loading && !error && (
                         <div className="entity-ai-summary-empty">
                             <p>
                                 Generate an AI summary to see key facts, risk

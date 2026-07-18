@@ -389,25 +389,20 @@ export default function WorkspaceTasksTab({
                                 }
                                 className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
                             >
-                                <div
-                                    className="mb-1 text-[13px] font-semibold text-[#1a1f2e]"
-                                    style={{
-                                        textDecoration: done
-                                            ? "line-through"
-                                            : "none",
-                                    }}
-                                >
-                                    {task.title}
-                                </div>
-                                <div className="mb-1 flex flex-wrap items-center gap-1.5">
+                                <div className="mb-1 flex items-start justify-between gap-2">
+                                    <span
+                                        className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#1a1f2e]"
+                                        style={{
+                                            textDecoration: done
+                                                ? "line-through"
+                                                : "none",
+                                        }}
+                                    >
+                                        {task.title}
+                                    </span>
                                     <DealPriorityBadge
                                         priority={task.priority}
                                     />
-                                    {overdue && (
-                                        <span className="dr-pill dr-pill-red">
-                                            {td("Overdue")}
-                                        </span>
-                                    )}
                                 </div>
                                 {task.descriptionText && (
                                     <div
@@ -430,6 +425,7 @@ export default function WorkspaceTasksTab({
                                     >
                                         <DealIcon name="calendar" size={11} />
                                         {task.dueDateLabel}
+                                        {overdue && ` · ${td("Overdue")}`}
                                     </span>
                                     {task.assignees.length > 0 && (
                                         <span className="inline-flex items-center gap-1.5">

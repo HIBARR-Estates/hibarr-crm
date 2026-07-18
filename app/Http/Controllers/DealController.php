@@ -60,6 +60,7 @@ use App\Services\MeetingVisibilityService;
 use App\Services\PermissionService;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
+use App\Services\DealAgentAssignmentService;
 
 class DealController extends AccountBaseController
 {
@@ -877,12 +878,15 @@ class DealController extends AccountBaseController
         $this->addPermission = user()->permission('add_deals');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
-        $agentId = null;
-        if (!is_null($request->agent_id)) {
-            // $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
-            $leadAgent = LeadAgent::find($request->agent_id);
-            $agentId = isset($leadAgent) ? $leadAgent->id : null;
-        }
+        $lead = $request->lead_contact ? Lead::find($request->lead_contact) : null;
+        $explicitAgentId = $request->filled('agent_id') ? (int) $request->agent_id : null;
+        $agentId = app(DealAgentAssignmentService::class)->resolveAgentId(
+            $explicitAgentId,
+            $lead?->lead_owner ? (int) $lead->lead_owner : null,
+            user()?->id,
+            $request->filled('category_id') ? (int) $request->category_id : null
+        );
+
         $deal = new Deal();
         $deal->name = $request->name;
         $deal->lead_id = $request->lead_contact;
@@ -891,7 +895,9 @@ class DealController extends AccountBaseController
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
-        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
+        $deal->close_date = $request->filled('close_date')
+            ? $this->safeCompanyToYmd($request->close_date)
+            : null;
         $manualValue = $request->manual_value ?? $request->value ?? 0;
         $hasExplicitManualValue = $request->filled('manual_value') || $request->filled('value');
         $valueSource = $request->filled('value_source')

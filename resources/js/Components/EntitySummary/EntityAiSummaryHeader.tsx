@@ -2,7 +2,12 @@ import { ReloadOutlined, RobotOutlined } from "@ant-design/icons";
 import { Button } from "antd";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import type { EntitySummaryChip, EntitySummaryRiskLevel } from "@/Types/entity-summary";
+import type {
+    EntitySummaryChip,
+    EntitySummaryEntityType,
+    EntitySummaryRiskLevel,
+} from "@/Types/entity-summary";
+import AiThinkingIndicator from "./AiThinkingIndicator";
 
 dayjs.extend(relativeTime);
 
@@ -22,6 +27,7 @@ const CHIP_TONE_CLASS: Record<string, string> = {
 
 interface EntityAiSummaryHeaderProps {
     title: string;
+    entityType: EntitySummaryEntityType;
     generatedAt?: string | null;
     loading: boolean;
     onRegenerate: () => void;
@@ -32,10 +38,14 @@ interface EntityAiSummaryHeaderProps {
     statusLine?: string;
     riskLevel?: EntitySummaryRiskLevel;
     chips?: EntitySummaryChip[];
+    /** No summary exists yet — the banner isn't collapse/expand-toggleable
+     * (there's nothing to expand into) and instead shows what to do next. */
+    hasSummary?: boolean;
 }
 
 export default function EntityAiSummaryHeader({
     title,
+    entityType,
     generatedAt,
     loading,
     onRegenerate,
@@ -46,33 +56,82 @@ export default function EntityAiSummaryHeader({
     statusLine,
     riskLevel,
     chips = [],
+    hasSummary = false,
 }: EntityAiSummaryHeaderProps) {
     const timestampLabel = generatedAt
         ? `generated ${dayjs(generatedAt).fromNow()}`
         : null;
 
     if (variant === "redesign") {
+        const sparkIcon = (
+            <svg
+                width={15}
+                height={15}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+            >
+                <path d="M12 3l1.9 4.8L19 9.5l-4.2 2.9L15 18l-3-3-3 3 .2-5.6L5 9.5l5.1-1.7z" />
+            </svg>
+        );
+
+        if (!hasSummary) {
+            // Not toggleable — there's no detail to expand into until a
+            // summary exists, so this is a plain banner, not a button.
+            return (
+                <div className="entity-ai-summary-header entity-ai-summary-header--redesign entity-ai-summary-header--empty">
+                    <span
+                        className="entity-ai-summary-header__spark"
+                        aria-hidden="true"
+                    >
+                        {sparkIcon}
+                    </span>
+                    <span className="entity-ai-summary-header__redesign-body">
+                        <span className="entity-ai-summary-header__redesign-meta">
+                            <span className="entity-ai-summary-header__title-text">
+                                {title}
+                            </span>
+                        </span>
+                        {loading ? (
+                            <AiThinkingIndicator size={14} />
+                        ) : (
+                            <span className="entity-ai-summary-header__status-line entity-ai-summary-header__status-line--muted">
+                                {`Generate an AI summary to see key facts, risk signals, and a suggested next step for this ${entityType}.`}
+                            </span>
+                        )}
+                    </span>
+                    <button
+                        type="button"
+                        className="entity-ai-summary-header__quick-generate"
+                        disabled={loading}
+                        onClick={onRegenerate}
+                    >
+                        {loading ? "Generating…" : "Generate summary"}
+                    </button>
+                </div>
+            );
+        }
+
         const expanded = !collapsed;
         return (
-            <button
-                type="button"
+            <div
+                role="button"
+                tabIndex={0}
                 className="entity-ai-summary-header entity-ai-summary-header--redesign"
                 aria-expanded={expanded}
                 onClick={onToggleCollapse}
+                onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        onToggleCollapse?.();
+                    }
+                }}
             >
                 <span className="entity-ai-summary-header__spark" aria-hidden="true">
-                    <svg
-                        width={15}
-                        height={15}
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                    >
-                        <path d="M12 3l1.9 4.8L19 9.5l-4.2 2.9L15 18l-3-3-3 3 .2-5.6L5 9.5l5.1-1.7z" />
-                    </svg>
+                    {sparkIcon}
                 </span>
                 <span className="entity-ai-summary-header__redesign-body">
                     <span className="entity-ai-summary-header__redesign-meta">
@@ -115,7 +174,7 @@ export default function EntityAiSummaryHeader({
                 <span className="entity-ai-summary-header__chevron" aria-hidden="true">
                     {expanded ? "▴" : "▾"}
                 </span>
-            </button>
+            </div>
         );
     }
 

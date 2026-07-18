@@ -15,7 +15,7 @@ import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealTaskStatus from "../../hooks/useDealTaskStatus";
 import useDealTaskUpdate from "../../hooks/useDealTaskUpdate";
-import { extractLocalTime } from "../../hooks/taskDateUtils";
+import { extractLocalTime, todayIsoDate } from "../../hooks/taskDateUtils";
 import DealAssigneeField from "./DealAssigneeField";
 
 interface DealTaskDetailModalProps {
@@ -27,6 +27,7 @@ interface DealTaskDetailModalProps {
 interface EditFormState {
     title: string;
     description: string;
+    startDate: string;
     dueDate: string;
     dueTime: string;
     priority: "low" | "medium" | "high";
@@ -51,10 +52,21 @@ function taskStatusSlug(task: Task): string {
     );
 }
 
+function formatDateLabel(date: Date | null): string {
+    return date
+        ? date.toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+          })
+        : "—";
+}
+
 function toFormState(task: Task): EditFormState {
     return {
         title: task.heading,
         description: task.description || "",
+        startDate: task.start_date ? task.start_date.slice(0, 10) : todayIsoDate(),
         dueDate: task.due_date ? task.due_date.slice(0, 10) : "",
         dueTime: extractLocalTime(task.due_date),
         priority: task.priority,
@@ -67,6 +79,7 @@ function isDirty(form: EditFormState, task: Task): boolean {
     return (
         form.title !== original.title ||
         form.description !== original.description ||
+        form.startDate !== original.startDate ||
         form.dueDate !== original.dueDate ||
         (!!form.dueDate && form.dueTime !== original.dueTime) ||
         form.priority !== original.priority ||
@@ -104,13 +117,10 @@ export default function DealTaskDetailModal({
     const statusSlug = taskStatusSlug(task);
     const done =
         isCompletedColumn(statusSlug, taskBoardColumns) || Boolean(task.completed_on);
+    const startDate = task.start_date ? new Date(task.start_date) : null;
     const dueDate = task.due_date ? new Date(task.due_date) : null;
     const dueLabel = dueDate
-        ? `${dueDate.toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-          })} · ${dueDate.toLocaleTimeString("en-GB", {
+        ? `${formatDateLabel(dueDate)} · ${dueDate.toLocaleTimeString("en-GB", {
               hour: "numeric",
               minute: "2-digit",
           })}`
@@ -119,6 +129,13 @@ export default function DealTaskDetailModal({
         !done && dueDate != null && dueDate.getTime() < Date.now();
     const assignees = task.users ?? [];
     const dirty = isDirty(form, task);
+    // Mirrors the backend's due_date after_or_equal:start_date rule
+    // (UpdateTask::rules) so the user sees this before saving, not as a
+    // server error after the fact.
+    const dateRangeError =
+        form.startDate && form.dueDate && form.dueDate < form.startDate
+            ? td("Due date can't be before the start date")
+            : null;
 
     const handleStatusChange = (slug: string) => setStatus(task.id, slug);
 
@@ -135,10 +152,12 @@ export default function DealTaskDetailModal({
     };
 
     const saveChanges = () => {
+        if (dateRangeError) return;
         updateTask(
             {
                 title: form.title,
                 description: form.description,
+                startDate: form.startDate,
                 dueDate: form.dueDate,
                 dueTime: form.dueTime,
                 priority: form.priority,
@@ -175,7 +194,7 @@ export default function DealTaskDetailModal({
                         <DealButton
                             variant="primary"
                             onClick={saveChanges}
-                            disabled={!dirty || isUpdating}
+                            disabled={!dirty || isUpdating || !!dateRangeError}
                             loading={isUpdating}
                         >
                             {td("Save changes")}
@@ -235,7 +254,31 @@ export default function DealTaskDetailModal({
                             }
                         />
                     </DealModalField>
-                    <div className="grid grid-cols-3 gap-3">
+
+                    <DealModalField label={td("Description")}>
+                        <textarea
+                            value={form.description}
+                            disabled={isUpdating}
+                            onChange={(e) =>
+                                setForm({ ...form, description: e.target.value })
+                            }
+                            placeholder={td("Optional details...")}
+                            rows={4}
+                            style={{ resize: "vertical" }}
+                        />
+                    </DealModalField>
+
+                    <div className="grid grid-cols-2 gap-3">
+                        <DealModalField label={td("Start date")}>
+                            <input
+                                type="date"
+                                value={form.startDate}
+                                disabled={isUpdating}
+                                onChange={(e) =>
+                                    setForm({ ...form, startDate: e.target.value })
+                                }
+                            />
+                        </DealModalField>
                         <DealModalField label={td("Due date")}>
                             <input
                                 type="date"
@@ -246,11 +289,19 @@ export default function DealTaskDetailModal({
                                 }
                             />
                         </DealModalField>
+                    </div>
+                    {dateRangeError && (
+                        <p className="-mt-2 mb-3 text-xs text-red-600">
+                            {dateRangeError}
+                        </p>
+                    )}
+
+                    <div className="grid grid-cols-2 gap-3">
                         <DealModalField label={td("Due time")}>
                             <input
                                 type="time"
                                 value={form.dueTime}
-                                disabled={isUpdating || !form.dueDate}
+                                disabled={isUpdating}
                                 onChange={(e) =>
                                     setForm({ ...form, dueTime: e.target.value })
                                 }
@@ -274,6 +325,7 @@ export default function DealTaskDetailModal({
                             </select>
                         </DealModalField>
                     </div>
+
                     <DealModalField label={td("Assignees")}>
                         <DealAssigneeField
                             value={form.assignees}
@@ -281,18 +333,6 @@ export default function DealTaskDetailModal({
                                 setForm({ ...form, assignees })
                             }
                             disabled={isUpdating}
-                        />
-                    </DealModalField>
-                    <DealModalField label={td("Description")}>
-                        <textarea
-                            value={form.description}
-                            disabled={isUpdating}
-                            onChange={(e) =>
-                                setForm({ ...form, description: e.target.value })
-                            }
-                            placeholder={td("Optional details...")}
-                            rows={4}
-                            style={{ resize: "vertical" }}
                         />
                     </DealModalField>
                 </>
@@ -306,6 +346,32 @@ export default function DealTaskDetailModal({
                     </div>
 
                     <div className="mb-3.5">
+                        {field(
+                            td("Description"),
+                            <div
+                                className="text-[13px] leading-relaxed"
+                                style={{
+                                    color: task.description ? T.TEXT : T.TEXT_MUTED,
+                                    fontStyle: task.description ? "normal" : "italic",
+                                    whiteSpace: "pre-wrap",
+                                }}
+                            >
+                                {task.description || td("No description")}
+                            </div>,
+                        )}
+                    </div>
+
+                    <div className="mb-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                        {field(
+                            td("Start date"),
+                            <div
+                                className="flex items-center gap-1.5 text-[13px]"
+                                style={{ color: T.TEXT }}
+                            >
+                                <DealIcon name="calendar" size={12} />
+                                {formatDateLabel(startDate)}
+                            </div>,
+                        )}
                         {field(
                             td("Due date"),
                             <div
@@ -353,20 +419,6 @@ export default function DealTaskDetailModal({
                             ),
                         )}
                     </div>
-
-                    {field(
-                        td("Description"),
-                        <div
-                            className="text-[13px] leading-relaxed"
-                            style={{
-                                color: task.description ? T.TEXT : T.TEXT_MUTED,
-                                fontStyle: task.description ? "normal" : "italic",
-                                whiteSpace: "pre-wrap",
-                            }}
-                        >
-                            {task.description || td("No description")}
-                        </div>,
-                    )}
                 </>
             )}
 
