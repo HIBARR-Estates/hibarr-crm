@@ -425,6 +425,10 @@ class TaskController extends AccountBaseController
                 }
 
                 return Reply::success(__('messages.updateSuccess'));
+            case 'change-assignee':
+                $this->changeBulkAssignee($request, $ids);
+
+                return Reply::success(__('messages.updateSuccess'));
             case 'milestone':
                 $milestone = ProjectMilestone::find($request->milestone);
                 $milestoneLabel = $milestone?->milestone_title ?? ('ID ' . $request->milestone);
@@ -487,6 +491,37 @@ class TaskController extends AccountBaseController
             ]);
         }
 
+    }
+
+    /**
+     * Bulk-reassign the selected tasks to a new set of users. Mirrors the
+     * single-task assignee sync ($task->users()->sync) used by update(),
+     * applied atomically per task inside one request so the whole selection
+     * lands together instead of racing N separate calls from the client.
+     *
+     * @param array<int, int> $taskIds
+     */
+    protected function changeBulkAssignee($request, array $taskIds): void
+    {
+        abort_403(user()->permission('edit_tasks') != 'all');
+
+        if (empty($taskIds)) {
+            abort_403(true);
+        }
+
+        $userIds = is_array($request->user_id)
+            ? $request->user_id
+            : array_filter(explode(',', (string) $request->user_id));
+        $userIds = array_values(array_filter(array_map('intval', $userIds)));
+
+        $tasks = Task::withTrashed()->whereIn('id', $taskIds)->get();
+
+        foreach ($tasks as $task) {
+            if ($task->trashed()) {
+                continue;
+            }
+            $task->users()->sync($userIds);
+        }
     }
 
     /**

@@ -13,6 +13,12 @@
 .entity-ai-summary-card--redesign {
     margin: 0;
     border: 1px solid #e2e5ea;
+    /* Single continuous blue accent for the whole card — collapsed, expanded,
+       loading and error alike. Previously the 3px accent lived separately on
+       the header and body elements (and never the footer), so an expanded
+       card showed a broken line with a seam between header and body and no
+       accent on the navy footer. One border on the card can never gap. */
+    border-left: 3px solid #1a6bb5;
     border-radius: 12px;
     background: #ffffff;
 }
@@ -39,9 +45,8 @@
     align-items: flex-start;
     gap: 10px;
     padding: 12px 16px;
+    /* Accent lives on the card now (see .entity-ai-summary-card--redesign). */
     border: none;
-    border-left: 3px solid #1a6bb5;
-    border-bottom: none;
     background: transparent;
     cursor: pointer;
     text-align: left;
@@ -185,7 +190,6 @@
 
 .entity-ai-summary-card--redesign .entity-ai-summary-body {
     padding: 0 16px 12px 16px;
-    border-left: 3px solid #1a6bb5;
 }
 
 .entity-ai-summary-status-line {
@@ -416,6 +420,23 @@
 
 .entity-ai-summary-next-step__button:hover {
     background: #f3f4f6;
+}
+
+/* Non-clickable hint for advice-only suggestions (no in-app action exists) —
+   deliberately not a button, so it never implies a click does something. */
+.entity-ai-summary-next-step__manual {
+    flex-shrink: 0;
+    align-self: center;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: #b8d4f0;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(184, 212, 240, 0.35);
+    border-radius: 999px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    cursor: default;
 }
 
 .entity-ai-summary-card--redesign .entity-ai-summary-empty__cta {

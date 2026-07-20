@@ -1,5 +1,37 @@
 import { router } from "@inertiajs/react";
-import type { EntitySummaryNextStep } from "@/Types/entity-summary";
+import type {
+    EntitySummaryActionType,
+    EntitySummaryNextStep,
+} from "@/Types/entity-summary";
+
+/**
+ * Actions the CRM cannot actually perform from the summary card. The model is
+ * still allowed to *suggest* these (they're legitimate off-platform next steps
+ * — send an email, escalate to a manager, chase missing info), but there is no
+ * in-app feature that a button click could carry out, so we must NOT render a
+ * clickable "do it" button that pretends otherwise. These render as advice
+ * text only. NO_ACTION_NEEDED hides the footer entirely (handled separately).
+ */
+const ADVICE_ONLY_ACTIONS = new Set<EntitySummaryActionType>([
+    "SEND_FOLLOWUP_EMAIL",
+    "ESCALATE_TO_MANAGER",
+    "REQUEST_MISSING_INFO",
+    "NO_ACTION_NEEDED",
+]);
+
+/**
+ * Whether a click on the next-step button maps to a real, in-app action.
+ * ADVANCE_STAGE is only executable when the caller actually wired a stage
+ * handler (i.e. the user can change stages) — otherwise it's a dead button.
+ */
+export function isExecutableAction(
+    actionType: EntitySummaryActionType,
+    opts?: { canAdvanceStage?: boolean },
+): boolean {
+    if (ADVICE_ONLY_ACTIONS.has(actionType)) return false;
+    if (actionType === "ADVANCE_STAGE") return Boolean(opts?.canAdvanceStage);
+    return true;
+}
 
 interface ExecuteSummaryActionOptions {
     nextStep: EntitySummaryNextStep;
@@ -101,6 +133,11 @@ export function executeSummaryAction({
     }
 }
 
+/**
+ * Button labels for EXECUTABLE actions only — each describes what the click
+ * actually does in-app, not what the human should ultimately achieve. Advice-
+ * only actions never reach here (no button is rendered for them).
+ */
 export function nextStepButtonLabel(nextStep: EntitySummaryNextStep): string {
     switch (nextStep.action_type) {
         case "OPEN_DEAL":
@@ -109,12 +146,19 @@ export function nextStepButtonLabel(nextStep: EntitySummaryNextStep): string {
             return "Review deals";
         case "CREATE_TASK":
             return "Create task";
+        case "SCHEDULE_CALL":
+        case "CONTACT_LEAD":
+            return "Schedule meeting";
+        case "QUALIFY_LEAD":
+            return "Open qualification";
+        // The CRM can't SEND a document request; the honest in-app action is
+        // reviewing which documents are on file / outstanding.
         case "REQUEST_DOCUMENTS":
-            return "Request documents";
+            return "Review documents";
         case "ADVANCE_STAGE":
             return "Advance stage";
         case "REVIEW_STALE_DEAL":
-            return "Review deal";
+            return "Review timeline";
         default:
             return nextStep.label;
     }

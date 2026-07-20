@@ -6,7 +6,7 @@ import AiThinkingIndicator from "./AiThinkingIndicator";
 import EntityAiSummaryChipGrid from "./EntityAiSummaryChipGrid";
 import EntityAiSummaryHeader from "./EntityAiSummaryHeader";
 import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
-import { executeSummaryAction } from "./summaryActions";
+import { executeSummaryAction, isExecutableAction } from "./summaryActions";
 import "./entity-summary.css";
 
 const TITLES: Record<EntityAiSummaryCardProps["entityType"], string> = {
@@ -176,6 +176,10 @@ export default function EntityAiSummaryCard({
                             <EntityAiSummaryNextStep
                                 nextStep={summary.next_step}
                                 onAction={handleAction}
+                                actionable={isExecutableAction(
+                                    summary.next_step.action_type,
+                                    { canAdvanceStage: Boolean(onAdvanceStage) },
+                                )}
                             />
                         </>
                     )}

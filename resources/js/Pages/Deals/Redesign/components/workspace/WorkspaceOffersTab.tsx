@@ -42,6 +42,9 @@ export default function WorkspaceOffersTab({
 
     const { data, isLoading, refetch } = useApiQuery<DealOffersResponse>({
         path: route("deals.offers.index", deal.id),
+        // Keep results fresh for 30s so flipping between tabs doesn't refire
+        // the request every time the tab remounts.
+        options: { staleTime: 30_000 },
     });
 
     const { mutate: removeAllOffers, isPending: isRemoving } = useApiMutate<

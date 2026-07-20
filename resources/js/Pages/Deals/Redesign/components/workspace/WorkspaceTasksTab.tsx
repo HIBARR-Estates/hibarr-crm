@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -9,6 +11,7 @@ import { isLoading } from "@/lib/utils";
 import type { Task } from "@/Types/api/tasks";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealTaskStatus from "../../hooks/useDealTaskStatus";
+import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 import DealTaskDetailModal from "./DealTaskDetailModal";
 import {
     toWorkspaceTaskListItem,
@@ -20,11 +23,99 @@ import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
 import DealMenuSelect from "../primitives/DealMenuSelect";
+import DealPeoplePicker, {
+    type DealPersonOption,
+} from "../primitives/DealPeoplePicker";
 import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
 import DealPriorityBadge from "../primitives/DealPriorityBadge";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 type TaskFilter = "open" | "done" | "all";
+
+interface EmployeeRecord {
+    id: number;
+    name: string;
+    designation_name?: string;
+}
+
+/** Searchable "reassign to…" popover for the bulk bar — same DealPeoplePicker
+ * used by the task/meeting/team assignee fields, floated over the navy bar. */
+function BulkReassignButton({
+    people,
+    disabled,
+    onPick,
+}: {
+    people: DealPersonOption[];
+    disabled: boolean;
+    onPick: (userId: number) => void;
+}) {
+    const { td } = useTd();
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const floatStyle = useFloatingMenuPosition(open, btnRef, {
+        align: "left",
+        maxHeight: 300,
+    });
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDoc = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (btnRef.current?.contains(target)) return;
+            if (menuRef.current?.contains(target)) return;
+            setOpen(false);
+        };
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setOpen(false);
+        };
+        document.addEventListener("mousedown", onDoc);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("mousedown", onDoc);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [open]);
+
+    return (
+        <div style={{ display: "inline-flex" }}>
+            <button
+                ref={btnRef}
+                type="button"
+                className="dr-btn dr-btn-sm"
+                style={{ background: T.WHITE, color: T.NAVY }}
+                disabled={disabled}
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                onClick={() => setOpen((v) => !v)}
+            >
+                {td("Reassign to…")}
+            </button>
+            {open &&
+                floatStyle &&
+                typeof document !== "undefined" &&
+                createPortal(
+                    <div
+                        ref={menuRef}
+                        className="dr-menu"
+                        role="dialog"
+                        aria-label={td("Reassign to…")}
+                        style={{ ...floatStyle, minWidth: 240, padding: 8 }}
+                    >
+                        <DealPeoplePicker
+                            people={people}
+                            autoFocus
+                            onPick={(person) => {
+                                setOpen(false);
+                                onPick(person.id);
+                            }}
+                        />
+                    </div>,
+                    document.body,
+                )}
+        </div>
+    );
+}
 
 interface WorkspaceTasksTabProps {
     tasks: Task[];
@@ -135,6 +226,8 @@ export default function WorkspaceTasksTab({
     onAddTask,
 }: WorkspaceTasksTabProps) {
     const { td } = useTd();
+    const { props } = usePage();
+    const employees = (props as { employees?: EmployeeRecord[] }).employees;
     const [filter, setFilter] = useState<TaskFilter>("open");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -145,17 +238,38 @@ export default function WorkspaceTasksTab({
     const selectedTask =
         tasks.find((task) => task.id === selectedTaskId) ?? null;
 
-    // Single bulk endpoint backing both actions below — mirrors the legacy
+    const employeeOptions: DealPersonOption[] = useMemo(
+        () =>
+            (employees ?? []).map((employee) => ({
+                id: employee.id,
+                name: employee.name,
+                designation: employee.designation_name,
+            })),
+        [employees],
+    );
+
+    // Single bulk endpoint backing all actions below — mirrors the legacy
     // BulkChangeTaskStatus/BulkDeleteTasks components (Features/Tasks/BulkActions).
     // Looping the single-task status mutation per selected id (the previous
     // approach) fired N concurrent requests through one shared mutation
     // observer, which is why only some rows ever reflected the new status.
     const { mutate: applyBulkAction, status: bulkActionStatus } = useApiMutate<
-        { row_ids: string; action_type: string; status?: number },
+        {
+            row_ids: string;
+            action_type: string;
+            status?: number;
+            user_id?: number[];
+        },
         unknown,
         ApiResponse<unknown>
     >("/account/tasks/apply-quick-action", "POST");
     const isBulkActing = isLoading({ status: bulkActionStatus });
+
+    // Backend requires the full edit_tasks scope for bulk reassign
+    // (TaskController::changeBulkAssignee aborts otherwise) — only surface the
+    // control when it's allowed and there are employees to assign.
+    const canBulkReassign =
+        permissions.edit_tasks === "all" && employeeOptions.length > 0;
 
     const taskItems = useMemo(
         () => tasks.map((task) => toWorkspaceTaskListItem(task)),
@@ -221,6 +335,42 @@ export default function WorkspaceTasksTab({
                                                     .toISOString()
                                                     .slice(0, 10)
                                               : undefined,
+                                  } as Task)
+                                : task,
+                        ),
+                    );
+                    exitSelectMode();
+                },
+            },
+        );
+    };
+
+    const handleBulkReassign = (userId: number) => {
+        const ids = Array.from(selected);
+        const assignee = employees?.find(
+            (employee) => employee.id === userId,
+        );
+        applyBulkAction(
+            {
+                row_ids: ids.join(","),
+                action_type: "change-assignee",
+                user_id: [userId],
+            },
+            {
+                onSuccess: () => {
+                    setTasks((prev) =>
+                        prev.map((task) =>
+                            ids.includes(task.id)
+                                ? ({
+                                      ...task,
+                                      users: assignee
+                                          ? [
+                                                {
+                                                    id: assignee.id,
+                                                    name: assignee.name,
+                                                },
+                                            ]
+                                          : [],
                                   } as Task)
                                 : task,
                         ),
@@ -316,6 +466,13 @@ export default function WorkspaceTasksTab({
                             }))}
                         onChange={(value) => handleBulkStatusChange(Number(value))}
                     />
+                    {canBulkReassign && (
+                        <BulkReassignButton
+                            people={employeeOptions}
+                            disabled={!selected.size || isBulkActing}
+                            onPick={handleBulkReassign}
+                        />
+                    )}
                     {canBulkDelete && (
                         <button
                             type="button"

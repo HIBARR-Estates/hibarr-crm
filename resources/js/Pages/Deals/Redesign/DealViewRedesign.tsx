@@ -28,6 +28,7 @@ import DealAddNoteModal from "./components/workspace/DealAddNoteModal";
 import DealScheduleMeetingModal from "./components/workspace/DealScheduleMeetingModal";
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
+import useDealPipeline from "./hooks/useDealPipeline";
 import { DealShowProps, DealTab } from "./types";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
@@ -80,6 +81,25 @@ function DealViewRedesignInner(props: DealShowProps) {
     const employees = props.employees ?? [];
     const taskBoardColumns = props.taskBoardColumns ?? [];
     const dealPermissions = useDealPermissions(deal);
+
+    // Wire the AI summary's ADVANCE_STAGE action to a real stage change (the
+    // same mutation the pipeline stepper uses). Only actionable when the user
+    // may change stages — otherwise the summary card renders it as advice, not
+    // a dead button.
+    const canChangeStages = permissions.change_deal_stages === "all";
+    const pipeline = useDealPipeline(deal, canChangeStages);
+    const advanceToNextStage = useMemo(() => {
+        if (!canChangeStages) return undefined;
+        const ordered = [...pipeline.stages].sort(
+            (a, b) => (a.priority ?? 0) - (b.priority ?? 0),
+        );
+        const currentIndex = ordered.findIndex(
+            (stage) => stage.id === pipeline.currentStageId,
+        );
+        const next = ordered[currentIndex + 1];
+        if (!next) return undefined;
+        return () => pipeline.updateStage(next.id);
+    }, [canChangeStages, pipeline]);
 
     const overview = useWorkspaceOverview({
         notes,
@@ -188,10 +208,14 @@ function DealViewRedesignInner(props: DealShowProps) {
                                         entityId={deal.id}
                                         initialSummary={props.dealAiSummary}
                                         variant="redesign"
-                                        onCreateTask={() => nav.setTab("tasks")}
-                                        onScheduleCall={() => nav.setTab("meetings")}
+                                        // Executable actions perform the real
+                                        // thing (open the modal / advance the
+                                        // stage), not just switch tabs.
+                                        onCreateTask={() => setAddTaskOpen(true)}
+                                        onScheduleCall={() => setAddMeetingOpen(true)}
                                         onRequestDocuments={() => nav.setTab("files")}
                                         onReviewStaleDeal={() => nav.setTab("timeline")}
+                                        onAdvanceStage={advanceToNextStage}
                                     />
                                 )}
 

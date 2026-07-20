@@ -5,6 +5,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import { FlightDirection, ILeadFlightItinerary } from "@/Types/api/lead-flight-itinerary";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface DealItineraryCreateInput {
     direction: FlightDirection;
@@ -16,6 +17,7 @@ export interface DealItineraryCreateInput {
 
 export default function useDealItinerary(dealId: number) {
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const { deal, setDeal } = useDealWorkspace();
 
     const { mutate: createMutate, status: createStatus } = useApiMutate<
         DealItineraryCreateInput & { deal_id: number; status: string },
@@ -35,32 +37,62 @@ export default function useDealItinerary(dealId: number) {
                             : "not departed",
                 },
                 {
-                    onSuccess: () => {
+                    onSuccess: (response) => {
                         message.success("Flight added to itinerary");
                         onSuccess?.();
-                        router.reload({ only: ["deal"] });
+                        // Patch the new leg into the deal locally (like every
+                        // other section) so it appears instantly instead of
+                        // waiting on a partial Inertia reload round-trip.
+                        const created = response?.data;
+                        if (created) {
+                            setDeal((prev) => ({
+                                ...prev,
+                                lead_flight_itineraries: [
+                                    ...(prev.lead_flight_itineraries ?? []),
+                                    created,
+                                ],
+                            }));
+                        } else {
+                            router.reload({ only: ["deal"] });
+                        }
                     },
                 },
             );
         },
-        [createMutate, dealId],
+        [createMutate, dealId, setDeal],
     );
 
-    const deleteLeg = useCallback((legId: number, onSuccess?: () => void) => {
-        setDeletingId(legId);
-        router.delete(route("lead-flight-itineraries.destroy", legId), {
-            preserveScroll: true,
-            // Scoped the same way createLeg's reload is — itineraries only
-            // ever change deal.lead_flight_itineraries, so there's no reason
-            // to re-fetch every other prop on the page for a delete either.
-            only: ["deal"],
-            onSuccess: () => {
-                message.success("Flight deleted");
-                onSuccess?.();
-            },
-            onFinish: () => setDeletingId(null),
-        });
-    }, []);
+    const deleteLeg = useCallback(
+        (legId: number, onSuccess?: () => void) => {
+            setDeletingId(legId);
+            // Optimistically drop the leg so it disappears instantly; restore
+            // the previous list if the server rejects the delete.
+            const snapshot = deal.lead_flight_itineraries ?? [];
+            setDeal((prev) => ({
+                ...prev,
+                lead_flight_itineraries: (
+                    prev.lead_flight_itineraries ?? []
+                ).filter((leg) => leg.id !== legId),
+            }));
+            router.delete(route("lead-flight-itineraries.destroy", legId), {
+                preserveScroll: true,
+                preserveState: true,
+                onSuccess: () => {
+                    message.success("Flight deleted");
+                    onSuccess?.();
+                },
+                onError: () => {
+                    message.error("Couldn't delete flight");
+                    setDeal((prev) => ({
+                        ...prev,
+                        lead_flight_itineraries: snapshot,
+                    }));
+                },
+                onFinish: () => setDeletingId(null),
+            });
+        },
+        [deal.lead_flight_itineraries, setDeal],
+    );
 
     return {
         createLeg,
