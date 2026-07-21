@@ -9,7 +9,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $isMysql = Schema::getConnection()->getDriverName() === 'mysql';
+        $driver = Schema::getConnection()->getDriverName();
+        $isMysql = $driver === 'mysql';
+        $usesStageNorm = in_array($driver, ['mysql', 'sqlite', 'pgsql'], true);
 
         // A previous partial run of this migration may have created the table
         // and then failed before adding the generated column/unique index
@@ -24,7 +26,7 @@ return new class extends Migration
         }
 
         if (!Schema::hasTable('custom_field_category_scopes')) {
-            Schema::create('custom_field_category_scopes', function (Blueprint $table) use ($isMysql) {
+            Schema::create('custom_field_category_scopes', function (Blueprint $table) use ($usesStageNorm) {
                 $table->id();
                 $table->unsignedInteger('company_id')->nullable();
                 $table->unsignedBigInteger('category_id');
@@ -32,16 +34,9 @@ return new class extends Migration
                 $table->unsignedInteger('pipeline_stage_id')->nullable();
                 $table->timestamps();
 
-                if ($isMysql) {
-                    // A stored generated column normalizes NULL -> 0 so a plain unique
-                    // index can enforce "one row per (category, pipeline, stage-or-
-                    // pipeline-wide)". Generated columns are supported identically by
-                    // MySQL 5.7+ and MariaDB, unlike functional indexes directly on an
-                    // expression, which MariaDB does not support at all. Defined here
-                    // (inside CREATE TABLE) rather than via a later ALTER TABLE, because
-                    // MySQL rebuilds the table to add a stored generated column and that
-                    // rebuild fails (#1215 Cannot add foreign key constraint) once the
-                    // table's foreign keys already exist.
+                if ($usesStageNorm) {
+                    // Normalize NULL stage -> 0 so pipeline-wide rows cannot duplicate under
+                    // SQLite/PostgreSQL/MySQL (NULL is otherwise distinct in plain UNIQUE).
                     $table->unsignedInteger('pipeline_stage_id_norm')
                         ->storedAs('COALESCE(pipeline_stage_id, 0)');
                 }
@@ -51,19 +46,24 @@ return new class extends Migration
                 $table->foreign('pipeline_id')->references('id')->on('lead_pipelines')->onDelete('cascade')->onUpdate('cascade');
                 $table->foreign('pipeline_stage_id')->references('id')->on('pipeline_stages')->onDelete('cascade')->onUpdate('cascade');
             });
+        } elseif ($usesStageNorm && !Schema::hasColumn('custom_field_category_scopes', 'pipeline_stage_id_norm')) {
+            Schema::table('custom_field_category_scopes', function (Blueprint $table) {
+                $table->unsignedInteger('pipeline_stage_id_norm')
+                    ->storedAs('COALESCE(pipeline_stage_id, 0)');
+            });
         }
 
-        if ($isMysql) {
+        if ($usesStageNorm) {
+            if ($this->indexExists('custom_field_category_scopes', 'cfc_scope_unique')) {
+                $this->dropIndexIfExists('custom_field_category_scopes', 'cfc_scope_unique');
+            }
+
             if (!$this->indexExists('custom_field_category_scopes', 'cfc_scope_unique')) {
                 DB::statement(
                     'CREATE UNIQUE INDEX cfc_scope_unique ON custom_field_category_scopes '
                     . '(category_id, pipeline_id, pipeline_stage_id_norm)'
                 );
             }
-        } elseif (!$this->indexExists('custom_field_category_scopes', 'cfc_scope_unique')) {
-            Schema::table('custom_field_category_scopes', function (Blueprint $table) {
-                $table->unique(['category_id', 'pipeline_id', 'pipeline_stage_id'], 'cfc_scope_unique');
-            });
         }
 
         if (Schema::hasTable('custom_field_category_pipeline')) {
@@ -115,6 +115,26 @@ return new class extends Migration
                 ->contains(fn ($index) => $index->name === $indexName);
         }
 
+        if ($driver === 'pgsql') {
+            return count(DB::select(
+                'SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = ?',
+                [$indexName]
+            )) > 0;
+        }
+
         return false;
+    }
+
+    private function dropIndexIfExists(string $table, string $indexName): void
+    {
+        $driver = Schema::getConnection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::statement("ALTER TABLE `{$table}` DROP INDEX `{$indexName}`");
+        } elseif ($driver === 'sqlite') {
+            DB::statement("DROP INDEX IF EXISTS \"{$indexName}\"");
+        } elseif ($driver === 'pgsql') {
+            DB::statement("DROP INDEX IF EXISTS \"{$indexName}\"");
+        }
     }
 };

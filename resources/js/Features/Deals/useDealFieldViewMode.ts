@@ -4,13 +4,12 @@ const STORAGE_KEY = "deal-field-view-mode";
 
 export type DealFieldViewMode = "scoped" | "all";
 
-export function useDealFieldViewMode(
-    defaultMode: DealFieldViewMode = "scoped",
-) {
-    const [mode, setModeState] = useState<DealFieldViewMode>(() => {
-        if (typeof window === "undefined") {
-            return defaultMode;
-        }
+function readStoredMode(defaultMode: DealFieldViewMode): DealFieldViewMode {
+    if (typeof window === "undefined") {
+        return defaultMode;
+    }
+
+    try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored === "all") {
             return "all";
@@ -18,12 +17,27 @@ export function useDealFieldViewMode(
         if (stored === "scoped") {
             return "scoped";
         }
+    } catch {
         return defaultMode;
-    });
+    }
+
+    return defaultMode;
+}
+
+export function useDealFieldViewMode(
+    defaultMode: DealFieldViewMode = "scoped",
+) {
+    const [mode, setModeState] = useState<DealFieldViewMode>(() =>
+        readStoredMode(defaultMode),
+    );
 
     const setMode = useCallback((next: DealFieldViewMode) => {
         setModeState(next);
-        localStorage.setItem(STORAGE_KEY, next);
+        try {
+            localStorage.setItem(STORAGE_KEY, next);
+        } catch {
+            // Preference is optional; toggling must still work without storage.
+        }
     }, []);
 
     const showAllFields = mode === "all";

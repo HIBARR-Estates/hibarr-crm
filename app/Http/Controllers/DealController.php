@@ -1227,9 +1227,7 @@ class DealController extends AccountBaseController
         if ($request->has('package_id')) {
             $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
             $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
-            $newPackageIds = $packageRouter->normalizePackageIds(
-                $request->package_id && is_array($request->package_id) ? $request->package_id : []
-            );
+            $newPackageIds = $packageRouter->normalizePackageIds($request->package_id);
 
             $packageRouter->syncDealPackages($deal, $newPackageIds);
 

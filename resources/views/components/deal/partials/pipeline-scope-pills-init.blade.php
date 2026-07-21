@@ -149,6 +149,7 @@
             }
 
             function syncHiddenInputs() {
+                var currentInputName = $root.attr('data-input-name') || inputName;
                 $hiddenInputs.empty();
                 selected.forEach(function (value) {
                     if (!optionByValue(value)) {
@@ -157,7 +158,7 @@
 
                     $('<input>', {
                         type: 'hidden',
-                        name: inputName,
+                        name: currentInputName,
                         value: value,
                     }).appendTo($hiddenInputs);
                 });

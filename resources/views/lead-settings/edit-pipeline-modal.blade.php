@@ -196,7 +196,7 @@
     <div class="modal-footer">
         <x-forms.button-cancel data-dismiss="modal" class="border-0 mr-3">@lang('app.close')</x-forms.button-cancel>
         @if(!$pipeline->default)
-            <x-forms.button-secondary type="button" class="delete-pipeline text-danger border-danger">
+            <x-forms.button-secondary type="button" class="delete-pipeline-from-modal text-danger border-danger">
                 <i class="fa fa-trash mr-1"></i>@lang('app.delete')
             </x-forms.button-secondary>
         @endif
@@ -232,7 +232,7 @@
         })
     });
 
-    $('body').off('click.deletePipeline', '.delete-pipeline').on('click.deletePipeline', '.delete-pipeline', function() {
+    $('body').off('click.deletePipelineModal', '.delete-pipeline-from-modal').on('click.deletePipelineModal', '.delete-pipeline-from-modal', function() {
         var id = {{ $pipeline->id }};
         Swal.fire({
             title: "@lang('messages.sweetAlertTitle')",

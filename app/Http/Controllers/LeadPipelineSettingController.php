@@ -6,9 +6,13 @@ use App\Helper\Reply;
 use App\Http\Requests\LeadSetting\StoreLeadPipeline;
 use App\Http\Requests\LeadSetting\UpdateLeadPipeline;
 use App\Models\CustomFieldCategory;
+use App\Models\CustomFieldCategoryScope;
 use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Models\LeadPipeline;
+use App\Models\PackagePipeline;
+use App\Models\PackageRoutingTrigger;
+use App\Models\PipelineFieldScope;
 use App\Models\PipelineStage;
 use App\Services\PipelineScopeResolverService;
 use App\Support\FeatureFlags;
@@ -147,10 +151,26 @@ class LeadPipelineSettingController extends AccountBaseController
      */
     public function destroy($id)
     {
-        \App\Models\Deal::where('lead_pipeline_id', $id)->where('is_locked', false)->delete();
-        PipelineStage::where('lead_pipeline_id', $id)->delete();
+        $pipeline = LeadPipeline::where('company_id', company()->id)
+            ->where('id', $id)
+            ->firstOrFail();
 
-        LeadPipeline::destroy($id);
+        DB::transaction(function () use ($pipeline) {
+            Deal::where('lead_pipeline_id', $pipeline->id)->where('is_locked', false)->delete();
+            PipelineStage::where('lead_pipeline_id', $pipeline->id)->delete();
+
+            CustomFieldCategoryScope::where('pipeline_id', $pipeline->id)->delete();
+            PipelineFieldScope::where('pipeline_id', $pipeline->id)->delete();
+
+            $packageIds = PackagePipeline::where('pipeline_id', $pipeline->id)->pluck('package_id');
+            if ($packageIds->isNotEmpty()) {
+                PackageRoutingTrigger::whereIn('package_id', $packageIds)->delete();
+            }
+
+            PackagePipeline::where('pipeline_id', $pipeline->id)->delete();
+
+            $pipeline->delete();
+        });
 
         return Reply::success(__('messages.deleteSuccess'));
     }

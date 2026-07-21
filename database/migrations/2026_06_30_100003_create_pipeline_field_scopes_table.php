@@ -9,7 +9,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        $isMysql = Schema::getConnection()->getDriverName() === 'mysql';
+        $driver = Schema::getConnection()->getDriverName();
+        $isMysql = $driver === 'mysql';
+        $usesStageNorm = in_array($driver, ['mysql', 'sqlite', 'pgsql'], true);
 
         // See 2026_06_30_100002_create_custom_field_category_scopes_table for why a
         // previous partial run may need to be recreated cleanly here.
@@ -22,7 +24,7 @@ return new class extends Migration
         }
 
         if (!Schema::hasTable('pipeline_field_scopes')) {
-            Schema::create('pipeline_field_scopes', function (Blueprint $table) use ($isMysql) {
+            Schema::create('pipeline_field_scopes', function (Blueprint $table) use ($usesStageNorm) {
                 $table->id();
                 $table->unsignedInteger('company_id')->nullable();
                 $table->string('scopeable_type', 50);
@@ -32,11 +34,7 @@ return new class extends Migration
                 $table->unsignedInteger('pipeline_stage_id')->nullable();
                 $table->timestamps();
 
-                if ($isMysql) {
-                    // See 2026_06_30_100002_create_custom_field_category_scopes_table for
-                    // why a stored generated column is used instead of a functional index,
-                    // and why it must be defined here (inside CREATE TABLE) rather than via
-                    // a later ALTER TABLE.
+                if ($usesStageNorm) {
                     $table->unsignedInteger('pipeline_stage_id_norm')
                         ->storedAs('COALESCE(pipeline_stage_id, 0)');
                 }
@@ -45,22 +43,24 @@ return new class extends Migration
                 $table->foreign('pipeline_id')->references('id')->on('lead_pipelines')->onDelete('cascade')->onUpdate('cascade');
                 $table->foreign('pipeline_stage_id')->references('id')->on('pipeline_stages')->onDelete('cascade')->onUpdate('cascade');
             });
+        } elseif ($usesStageNorm && !Schema::hasColumn('pipeline_field_scopes', 'pipeline_stage_id_norm')) {
+            Schema::table('pipeline_field_scopes', function (Blueprint $table) {
+                $table->unsignedInteger('pipeline_stage_id_norm')
+                    ->storedAs('COALESCE(pipeline_stage_id, 0)');
+            });
         }
 
-        if ($isMysql) {
+        if ($usesStageNorm) {
+            if ($this->indexExists('pipeline_field_scopes', 'pipeline_field_scope_unique')) {
+                $this->dropIndexIfExists('pipeline_field_scopes', 'pipeline_field_scope_unique');
+            }
+
             if (!$this->indexExists('pipeline_field_scopes', 'pipeline_field_scope_unique')) {
                 DB::statement(
                     'CREATE UNIQUE INDEX pipeline_field_scope_unique ON pipeline_field_scopes '
                     . '(scopeable_type, scopeable_key, model, pipeline_id, pipeline_stage_id_norm)'
                 );
             }
-        } elseif (!$this->indexExists('pipeline_field_scopes', 'pipeline_field_scope_unique')) {
-            Schema::table('pipeline_field_scopes', function (Blueprint $table) {
-                $table->unique(
-                    ['scopeable_type', 'scopeable_key', 'model', 'pipeline_id', 'pipeline_stage_id'],
-                    'pipeline_field_scope_unique'
-                );
-            });
         }
     }
 
@@ -82,6 +82,26 @@ return new class extends Migration
                 ->contains(fn ($index) => $index->name === $indexName);
         }
 
+        if ($driver === 'pgsql') {
+            return count(DB::select(
+                'SELECT 1 FROM pg_indexes WHERE schemaname = current_schema() AND indexname = ?',
+                [$indexName]
+            )) > 0;
+        }
+
         return false;
+    }
+
+    private function dropIndexIfExists(string $table, string $indexName): void
+    {
+        $driver = Schema::getConnection()->getDriverName();
+
+        if ($driver === 'mysql') {
+            DB::statement("ALTER TABLE `{$table}` DROP INDEX `{$indexName}`");
+        } elseif ($driver === 'sqlite') {
+            DB::statement("DROP INDEX IF EXISTS \"{$indexName}\"");
+        } elseif ($driver === 'pgsql') {
+            DB::statement("DROP INDEX IF EXISTS \"{$indexName}\"");
+        }
     }
 };

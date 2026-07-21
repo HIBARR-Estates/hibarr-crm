@@ -369,7 +369,7 @@ class PipelineScopeResolverService
         $scopes = $scopesQuery->get();
 
         if ($scopes->isEmpty()) {
-            return $this->hasFieldScopes($pipelineId, $model, $companyId) ? [] : null;
+            return null;
         }
 
         $stageAssignedKeys = $scopes->whereNotNull('pipeline_stage_id')
@@ -441,7 +441,7 @@ class PipelineScopeResolverService
         $scopes = $scopesQuery->get();
 
         if ($scopes->isEmpty()) {
-            return $this->hasFieldScopes($pipelineId, $model, $companyId) ? [] : null;
+            return null;
         }
 
         $stageAssignedKeys = $scopes->whereNotNull('pipeline_stage_id')

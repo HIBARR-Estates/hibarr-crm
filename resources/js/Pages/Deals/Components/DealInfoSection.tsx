@@ -231,6 +231,7 @@ export default function DealInfoSection({
         "interested_in",
         "purchase_timeline",
         "motivation",
+        "budget_range",
         "strategy_meeting_booked",
         "downpayment_paid",
         "inspection_trip_date",
