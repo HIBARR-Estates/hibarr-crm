@@ -5,7 +5,7 @@ import type { Note } from "@/Types/api/note";
 import type { Task } from "@/Types/api/tasks";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
@@ -57,7 +57,7 @@ function OverviewColumn({
     isEmpty: boolean;
     children: ReactNode;
 }) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     return (
         <div className="dr-ov-col">
             <div className="mb-2.5 flex items-center justify-between gap-2">
@@ -69,9 +69,9 @@ function OverviewColumn({
                         variant="ghost"
                         size="sm"
                         onClick={onAdd}
-                        aria-label={`${td("Add")} — ${title}`}
+                        aria-label={`${t("pages.deals.workspace.overview.add")} — ${title}`}
                     >
-                        + {td("Add")}
+                        + {t("pages.deals.workspace.overview.add")}
                     </DealButton>
                 )}
             </div>
@@ -90,13 +90,13 @@ function OverviewColumn({
                             <DealIcon name={empty.icon} size={17} color="#14538c" />
                         </div>
                         <div className="mb-[3px] text-[13px] font-semibold text-[#1a1f2e]">
-                            {td(empty.title)}
+                            {empty.title}
                         </div>
                         <div className="mb-3 text-xs leading-relaxed text-[#5b6472]">
-                            {td(empty.hint)}
+                            {empty.hint}
                         </div>
                         <DealButton variant="primary" onClick={onAdd}>
-                            + {td(empty.actionLabel)}
+                            + {empty.actionLabel}
                         </DealButton>
                     </div>
                 ) : (
@@ -110,7 +110,7 @@ function OverviewColumn({
                     className="mt-2 cursor-pointer border-none bg-transparent px-0 py-1.5 text-left text-xs font-semibold"
                     style={{ color: T.BLUE }}
                 >
-                    {td("View all")} {total} →
+                    {t("pages.deals.workspace.overview.view_all")} {total} →
                 </button>
             )}
         </div>
@@ -130,7 +130,7 @@ export default function WorkspaceOverviewTab({
     onAddMeeting,
     onAddNote,
 }: WorkspaceOverviewTabProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const overview = useWorkspaceOverview({ notes, tasks, dealFollowUps });
     const { setStatus, isPending } = useDealTaskStatus();
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -154,7 +154,7 @@ export default function WorkspaceOverviewTab({
     return (
         <div className="dr-overview">
             <OverviewColumn
-                title={td("Notes")}
+                title={t("pages.deals.tabs.notes")}
                 count={notes.length}
                 total={notes.length}
                 onAdd={onAddNote}
@@ -162,9 +162,9 @@ export default function WorkspaceOverviewTab({
                 isEmpty={topNotes.length === 0}
                 empty={{
                     icon: "file-text",
-                    title: "No notes yet",
-                    hint: "Log calls, emails and updates so the team stays in sync.",
-                    actionLabel: "Add note",
+                    title: t("pages.deals.workspace.overview.notes_empty_title"),
+                    hint: t("pages.deals.workspace.overview.notes_empty_hint"),
+                    actionLabel: t("pages.deals.workspace.notes.add_note"),
                 }}
             >
                 {topNotes.map((note) => (
@@ -200,7 +200,7 @@ export default function WorkspaceOverviewTab({
             </OverviewColumn>
 
             <OverviewColumn
-                title={td("Open tasks")}
+                title={t("pages.deals.workspace.overview.open_tasks_col")}
                 count={openTasks.length}
                 total={tasks.length}
                 onAdd={onAddTask}
@@ -208,9 +208,9 @@ export default function WorkspaceOverviewTab({
                 isEmpty={topTasks.length === 0}
                 empty={{
                     icon: "check-square",
-                    title: "No open tasks",
-                    hint: "Nothing is due right now. Create the next step for this deal.",
-                    actionLabel: "Add task",
+                    title: t("pages.deals.workspace.overview.tasks_empty_title"),
+                    hint: t("pages.deals.workspace.overview.tasks_empty_hint"),
+                    actionLabel: t("pages.deals.workspace.tasks.add_task"),
                 }}
             >
                 {topTasks.map((task) => {
@@ -240,7 +240,9 @@ export default function WorkspaceOverviewTab({
                                 >
                                     <DealIcon name="calendar" size={11} />
                                     {task.dueDateLabel}
-                                    {overdue ? ` · ${td("Overdue")}` : ""}
+                                    {overdue
+                                        ? ` · ${t("pages.deals.workspace.tasks.overdue")}`
+                                        : ""}
                                 </div>
                             </button>
                             {raw && (
@@ -262,7 +264,7 @@ export default function WorkspaceOverviewTab({
             </OverviewColumn>
 
             <OverviewColumn
-                title={td("Upcoming meetings")}
+                title={t("pages.deals.workspace.overview.upcoming_meetings_col")}
                 count={upcomingMeetings.length}
                 total={dealFollowUps.length}
                 onAdd={onAddMeeting}
@@ -270,9 +272,9 @@ export default function WorkspaceOverviewTab({
                 isEmpty={topMeetings.length === 0}
                 empty={{
                     icon: "calendar",
-                    title: "No upcoming meetings",
-                    hint: "Schedule the next follow-up with the client.",
-                    actionLabel: "Schedule meeting",
+                    title: t("pages.deals.workspace.overview.meetings_empty_title"),
+                    hint: t("pages.deals.workspace.overview.meetings_empty_hint"),
+                    actionLabel: t("pages.deals.workspace.meetings.schedule"),
                 }}
             >
                 {topMeetings.map((meeting) => {
@@ -355,7 +357,7 @@ export default function WorkspaceOverviewTab({
                                         }}
                                     >
                                         <DealIcon name="video" size={12} />
-                                        {td("Join")}
+                                        {t("pages.deals.workspace.overview.join")}
                                     </DealButton>
                                 )}
                         </div>

@@ -1,6 +1,5 @@
 import { ReactNode, useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealAgentPicker from "../primitives/DealAgentPicker";
 import DealBadge from "../primitives/DealBadge";
@@ -46,7 +45,7 @@ interface TeamMemberRowProps {
 
 /** v2.2 TeamRow (deal-v2-2.jsx:1019-1032). */
 function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     return (
         <div
             className="flex items-center justify-between gap-2.5 px-3 py-2.5 last:border-b-0"
@@ -73,7 +72,7 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
                     disabled={removing}
                     loading={removing}
                 >
-                    {td("Remove")}
+                    {t("pages.deals.common.remove")}
                 </DealButton>
             )}
         </div>
@@ -134,7 +133,6 @@ export default function DealTeamModal({
     canEdit = true,
 }: DealTeamModalProps) {
     const { t } = useTranslation();
-    const { td } = useTd();
     const { saveTeamField, isSaving } = useDealTeamMutations(dealId);
     const [adding, setAdding] = useState<AddingRole>(null);
     // Tracks which specific picker row is being assigned, so the picker can
@@ -233,11 +231,16 @@ export default function DealTeamModal({
                 onClick={(event) => event.stopPropagation()}
                 style={{ maxWidth: 520 }}
             >
-                <DealPanelHeader title={td("Deal team")} onClose={onClose} />
+                <DealPanelHeader
+                    title={t("pages.deals.header.team.modal_title")}
+                    onClose={onClose}
+                />
                 <div className="px-[18px] py-4">
                     <TeamSection
                         title={t("pages.deals.info.fields.deal_agent")}
-                        tag={`${td("Owner")} · ${td("Can edit")}`}
+                        tag={`${t("pages.deals.header.team.owner_tag")} · ${t(
+                            "pages.deals.header.team.can_edit_tag",
+                        )}`}
                         tagVariant="blue"
                         action={
                             canEdit && agent ? (
@@ -247,7 +250,9 @@ export default function DealTeamModal({
                                     onClick={() => toggleAdding("agent")}
                                     disabled={isSaving("agent_id")}
                                 >
-                                    {adding === "agent" ? td("Cancel") : td("Change")}
+                                    {adding === "agent"
+                                        ? t("pages.deals.common.cancel")
+                                        : t("pages.deals.header.team.change")}
                                 </DealButton>
                             ) : undefined
                         }
@@ -256,7 +261,7 @@ export default function DealTeamModal({
                             <TeamMemberRow
                                 member={{
                                     ...agent,
-                                    meta: agent.meta ?? td("Primary owner"),
+                                    meta: agent.meta ?? t("pages.deals.header.team.primary_owner"),
                                 }}
                                 type="agent"
                                 onRemove={
@@ -267,9 +272,7 @@ export default function DealTeamModal({
                         ) : (
                             <div className="px-3.5 py-3.5 text-center">
                                 <p className="mb-2.5 text-xs text-[#5b6472]">
-                                    {td(
-                                        "No agent assigned — this deal is unowned and won't appear in anyone's pipeline.",
-                                    )}
+                                    {t("pages.deals.header.team.no_agent_hint")}
                                 </p>
                                 {canEdit && (
                                     <DealButton
@@ -278,8 +281,8 @@ export default function DealTeamModal({
                                         onClick={() => toggleAdding("agent")}
                                     >
                                         {adding === "agent"
-                                            ? td("Cancel")
-                                            : td("Assign agent")}
+                                            ? t("pages.deals.common.cancel")
+                                            : t("pages.deals.header.team.assign_agent")}
                                     </DealButton>
                                 )}
                             </div>
@@ -297,8 +300,8 @@ export default function DealTeamModal({
                     </TeamSection>
 
                     <TeamSection
-                        title={td("Participants")}
-                        tag={td("Can edit")}
+                        title={t("pages.deals.header.team.participants_title")}
+                        tag={t("pages.deals.header.team.can_edit_tag")}
                         tagVariant="green"
                         action={
                             canEdit ? (
@@ -308,17 +311,15 @@ export default function DealTeamModal({
                                     onClick={() => toggleAdding("participants")}
                                 >
                                     {adding === "participants"
-                                        ? td("Cancel")
-                                        : `+ ${td("Add")}`}
+                                        ? t("pages.deals.common.cancel")
+                                        : `+ ${t("pages.deals.common.add")}`}
                                 </DealButton>
                             ) : undefined
                         }
                     >
                         {participants.length === 0 && (
                             <div className="px-3.5 py-3 text-xs italic text-[#5b6472]">
-                                {td(
-                                    "No participants — only the agent is working this deal.",
-                                )}
+                                {t("pages.deals.header.team.no_participants_hint")}
                             </div>
                         )}
                         {participants.map((member) => (
@@ -350,8 +351,8 @@ export default function DealTeamModal({
                     </TeamSection>
 
                     <TeamSection
-                        title={td("Watchers")}
-                        tag={td("View only")}
+                        title={t("pages.deals.header.watchers_label")}
+                        tag={t("pages.deals.header.team.view_only_tag")}
                         tagVariant="gray"
                         action={
                             canEdit ? (
@@ -361,15 +362,15 @@ export default function DealTeamModal({
                                     onClick={() => toggleAdding("watchers")}
                                 >
                                     {adding === "watchers"
-                                        ? td("Cancel")
-                                        : `+ ${td("Add")}`}
+                                        ? t("pages.deals.common.cancel")
+                                        : `+ ${t("pages.deals.common.add")}`}
                                 </DealButton>
                             ) : undefined
                         }
                     >
                         {watchers.length === 0 && (
                             <div className="px-3.5 py-3 text-xs italic text-[#5b6472]">
-                                {td("No watchers — nobody is following this deal.")}
+                                {t("pages.deals.header.team.no_watchers_hint")}
                             </div>
                         )}
                         {watchers.map((member) => (

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -49,7 +50,7 @@ function BulkReassignButton({
     disabled: boolean;
     onPick: (userId: number) => void;
 }) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -89,7 +90,7 @@ function BulkReassignButton({
                 aria-expanded={open}
                 onClick={() => setOpen((v) => !v)}
             >
-                {td("Reassign to…")}
+                {t("pages.deals.workspace.tasks.reassign_to")}
             </button>
             {open &&
                 floatStyle &&
@@ -99,7 +100,7 @@ function BulkReassignButton({
                         ref={menuRef}
                         className="dr-menu"
                         role="dialog"
-                        aria-label={td("Reassign to…")}
+                        aria-label={t("pages.deals.workspace.tasks.reassign_to")}
                         style={{ ...floatStyle, minWidth: 240, padding: 8 }}
                     >
                         <DealPeoplePicker
@@ -226,6 +227,7 @@ export default function WorkspaceTasksTab({
     onAddTask,
 }: WorkspaceTasksTabProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const employees = (props as { employees?: EmployeeRecord[] }).employees;
     const [filter, setFilter] = useState<TaskFilter>("open");
@@ -280,6 +282,12 @@ export default function WorkspaceTasksTab({
         () => filterTasks(taskItems, tasks, taskBoardColumns, filter),
         [filter, taskBoardColumns, taskItems, tasks],
     );
+
+    const filterLabels: Record<TaskFilter, string> = {
+        open: t("pages.deals.workspace.tasks.filter_open"),
+        done: t("pages.deals.workspace.tasks.filter_done"),
+        all: t("pages.deals.workspace.tasks.filter_all"),
+    };
 
     const showAddTask = canAddTasks(permissions);
     // Backend hard-requires the full delete_tasks scope for bulk delete
@@ -403,7 +411,7 @@ export default function WorkspaceTasksTab({
                 <div
                     className="flex gap-1"
                     role="group"
-                    aria-label="Filter tasks"
+                    aria-label={t("pages.deals.workspace.tasks.filter_aria_label")}
                 >
                     {(["open", "done", "all"] as const).map((option) => (
                         <button
@@ -413,7 +421,7 @@ export default function WorkspaceTasksTab({
                             aria-pressed={filter === option}
                             onClick={() => setFilter(option)}
                         >
-                            {td(option)}
+                            {filterLabels[option]}
                         </button>
                     ))}
                 </div>
@@ -425,11 +433,11 @@ export default function WorkspaceTasksTab({
                             selectMode ? exitSelectMode() : setSelectMode(true)
                         }
                     >
-                        {selectMode ? td("Cancel") : td("Select")}
+                        {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
                     </DealButton>
                     {showAddTask && (
                         <DealButton variant="primary" size="sm" onClick={onAddTask}>
-                            + {td("Add task")}
+                            + {t("pages.deals.workspace.tasks.add_task")}
                         </DealButton>
                     )}
                 </div>
@@ -439,7 +447,7 @@ export default function WorkspaceTasksTab({
                 <DealBulkActionBar
                     count={selected.size}
                     onClear={() => setSelected(new Set())}
-                    clearLabel={td("Clear")}
+                    clearLabel={t("pages.deals.common.clear")}
                 >
                     <button
                         type="button"
@@ -447,11 +455,13 @@ export default function WorkspaceTasksTab({
                         style={{ background: T.WHITE, color: T.NAVY }}
                         onClick={toggleSelectAll}
                     >
-                        {allSelected ? td("Deselect all") : td("Select all")}
+                        {allSelected
+                            ? t("pages.deals.common.deselect_all")
+                            : t("pages.deals.common.select_all")}
                     </button>
                     <DealMenuSelect
                         value={null}
-                        placeholder={td("Set status…")}
+                        placeholder={t("pages.deals.workspace.tasks.set_status_placeholder")}
                         size="sm"
                         disabled={!selected.size || isBulkActing}
                         width={140}
@@ -481,7 +491,7 @@ export default function WorkspaceTasksTab({
                             disabled={!selected.size || isBulkActing}
                             onClick={() => setConfirmBulkDelete(true)}
                         >
-                            {td("Delete")}
+                            {t("pages.deals.common.delete")}
                         </button>
                     )}
                 </DealBulkActionBar>
@@ -496,11 +506,12 @@ export default function WorkspaceTasksTab({
                         className="mx-auto mb-2 opacity-50"
                     />
                     <p className="mb-3 text-[13px] text-[#5b6472]">
-                        {td("No")} {filter} {td("tasks")}
+                        {t("pages.deals.workspace.tasks.no_items_prefix")} {filterLabels[filter]}{" "}
+                        {t("pages.deals.workspace.tasks.tasks_label")}
                     </p>
                     {showAddTask && (
                         <DealButton variant="primary" size="sm" onClick={onAddTask}>
-                            + {td("Add task")}
+                            + {t("pages.deals.workspace.tasks.add_task")}
                         </DealButton>
                     )}
                 </div>
@@ -582,7 +593,8 @@ export default function WorkspaceTasksTab({
                                     >
                                         <DealIcon name="calendar" size={11} />
                                         {task.dueDateLabel}
-                                        {overdue && ` · ${td("Overdue")}`}
+                                        {overdue &&
+                                            ` · ${t("pages.deals.workspace.tasks.overdue")}`}
                                     </span>
                                     {task.assignees.length > 0 && (
                                         <span className="inline-flex items-center gap-1.5">
@@ -591,7 +603,9 @@ export default function WorkspaceTasksTab({
                                             />
                                             {task.assignees.length === 1
                                                 ? task.assignees[0].name
-                                                : `${task.assignees.length} ${td("assignees")}`}
+                                                : `${task.assignees.length} ${t(
+                                                      "pages.deals.workspace.tasks.assignees_label",
+                                                  )}`}
                                         </span>
                                     )}
                                 </div>
@@ -617,13 +631,13 @@ export default function WorkspaceTasksTab({
 
             <DealConfirmDialog
                 open={confirmBulkDelete}
-                title={`${td("Delete")} ${selected.size} ${
-                    selected.size === 1 ? td("task") : td("tasks")
+                title={`${t("pages.deals.common.delete")} ${selected.size} ${
+                    selected.size === 1
+                        ? t("pages.deals.workspace.tasks.item_singular")
+                        : t("pages.deals.workspace.tasks.item_plural")
                 }?`}
-                message={td(
-                    "These tasks will be permanently removed from the deal. This cannot be undone.",
-                )}
-                confirmLabel={td("Delete tasks")}
+                message={t("pages.deals.workspace.tasks.delete_confirm_message")}
+                confirmLabel={t("pages.deals.workspace.tasks.delete_tasks")}
                 danger
                 confirmLoading={isBulkActing}
                 onConfirm={handleBulkDelete}

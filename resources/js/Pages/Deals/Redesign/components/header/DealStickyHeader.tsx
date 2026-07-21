@@ -95,12 +95,14 @@ export default function DealStickyHeader({
                                             : "dr-pill-red"
                                     }`}
                                 >
-                                    {outcome === "won" ? td("Won") : td("Lost")}
+                                    {outcome === "won"
+                                        ? t("pages.deals.header.won")
+                                        : t("pages.deals.header.lost")}
                                 </span>
                             )}
                             {isLocked && (
                                 <span className="dr-pill dr-pill-amber">
-                                    {td("Locked")}
+                                    {t("pages.deals.header.locked")}
                                 </span>
                             )}
                             <DealActionsMenu
@@ -116,22 +118,24 @@ export default function DealStickyHeader({
                                 onClick={onRefresh}
                                 disabled={isRefreshing}
                             >
-                                {isRefreshing ? td("Refreshing…") : td("Refresh")}
+                                {isRefreshing
+                                    ? t("pages.deals.common.refreshing")
+                                    : t("pages.deals.common.refresh")}
                             </DealButton>
                         </div>
 
                         <div className="mt-1 text-xs text-[#5b6472]">
-                            {td("Created")} {createdRel} · {td("Updated")}{" "}
-                            {updatedRel}
+                            {t("pages.deals.header.created_label")} {createdRel} ·{" "}
+                            {t("pages.deals.header.updated_label")} {updatedRel}
                         </div>
 
                         <div className="mt-2 flex flex-wrap items-center gap-2">
                             <span className="text-xs text-[#5b6472]">
-                                {td("Participants")}
+                                {t("pages.deals.header.participants_label")}
                             </span>
                             {team.participants.length === 0 && (
                                 <span className="text-xs italic text-[#5b6472]">
-                                    {td("None")}
+                                    {t("pages.deals.common.none")}
                                 </span>
                             )}
                             {team.participants.map((participant) => (
@@ -150,11 +154,11 @@ export default function DealStickyHeader({
                                 </span>
                             ))}
                             <span className="ml-1 text-xs text-[#5b6472]">
-                                {td("Watchers")}
+                                {t("pages.deals.header.watchers_label")}
                             </span>
                             {team.watchers.length === 0 && (
                                 <span className="text-xs italic text-[#5b6472]">
-                                    {td("None")}
+                                    {t("pages.deals.common.none")}
                                 </span>
                             )}
                             {team.watchers.map((watcher) => (
@@ -177,7 +181,7 @@ export default function DealStickyHeader({
                                 size="sm"
                                 onClick={() => team.setTeamModalOpen(true)}
                             >
-                                {td("Manage team")}
+                                {t("pages.deals.header.manage_team")}
                             </DealButton>
                         </div>
                     </div>

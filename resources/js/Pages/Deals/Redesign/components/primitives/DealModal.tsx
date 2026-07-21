@@ -35,13 +35,14 @@ export function DealModal({
         <div className="modal-overlay redesign-modal-overlay" onClick={onClose}>
             <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
                 <DealPanelHeader title={title} onClose={onClose} />
-                <div style={{ padding: "16px 18px" }}>{children}</div>
+                <div style={{ padding: "20px 22px" }}>{children}</div>
                 {footer && (
                     <div
                         style={{
-                            padding: "12px 18px",
+                            padding: "14px 22px",
                             borderTop: `1px solid ${T.BORDER}`,
                             display: "flex",
+                            alignItems: "center",
                             justifyContent: "flex-end",
                             gap: 8,
                         }}
@@ -62,7 +63,7 @@ interface DealModalFieldProps {
 
 export function DealModalField({ label, children }: DealModalFieldProps) {
     return (
-        <div className="modal-field" style={{ marginBottom: 12 }}>
+        <div className="modal-field" style={{ marginBottom: 16 }}>
             <label>{label}</label>
             {children}
         </div>

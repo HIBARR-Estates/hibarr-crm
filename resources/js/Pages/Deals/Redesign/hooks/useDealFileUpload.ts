@@ -5,6 +5,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { IUploadResponseItem } from "@/Types/uploads";
 import type { DealFile } from "@/Types/api/file";
+import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 interface StoreExternalPayload {
@@ -13,6 +14,7 @@ interface StoreExternalPayload {
 }
 
 export default function useDealFileUpload(dealId: number) {
+    const { t } = useTranslation();
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const { setFiles } = useDealWorkspace();
@@ -73,7 +75,9 @@ export default function useDealFileUpload(dealId: number) {
                         {
                             onSuccess: (response) => {
                                 if (response?.status === "success") {
-                                    message.success("Files uploaded");
+                                    message.success(
+                                        t("pages.deals.workspace.files.messages.uploaded"),
+                                    );
                                     if (response.data) {
                                         const uploaded = response.data;
                                         setFiles((prev) => [...uploaded, ...prev]);
@@ -92,14 +96,14 @@ export default function useDealFileUpload(dealId: number) {
                 const messageText =
                     error instanceof Error
                         ? error.message
-                        : "Failed to upload files. Please try again.";
+                        : t("pages.deals.workspace.files.messages.upload_failed");
                 message.error(messageText);
             } finally {
                 setIsUploading(false);
                 setUploadProgress(0);
             }
         },
-        [dealId, saveMutation],
+        [dealId, saveMutation, t],
     );
 
     return {

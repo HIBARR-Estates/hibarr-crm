@@ -1,10 +1,16 @@
+import useTranslation from "@/Hooks/useTranslation";
 import DealPriorityBadge from "../../primitives/DealPriorityBadge";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 
 const VERTICAL_STYLES = {
-    high: { bg: T.RED_SOFT, color: T.RED, border: T.RED_MID, label: "High" },
-    medium: { bg: T.AMBER_SOFT, color: T.AMBER, border: T.AMBER_MID, label: "Medium" },
-    low: { bg: T.GRAY, color: T.GRAY_DARK, border: T.BORDER, label: "Low" },
+    high: { bg: T.RED_SOFT, color: T.RED, border: T.RED_MID, labelKey: "priority_high" },
+    medium: {
+        bg: T.AMBER_SOFT,
+        color: T.AMBER,
+        border: T.AMBER_MID,
+        labelKey: "priority_medium",
+    },
+    low: { bg: T.GRAY, color: T.GRAY_DARK, border: T.BORDER, labelKey: "priority_low" },
 } as const;
 
 interface OverviewPriorityBadgeProps {
@@ -20,6 +26,7 @@ export default function OverviewPriorityBadge({
     priority,
     vertical = false,
 }: OverviewPriorityBadgeProps) {
+    const { t } = useTranslation();
     if (!vertical) {
         return <DealPriorityBadge priority={priority ?? "medium"} />;
     }
@@ -39,7 +46,7 @@ export default function OverviewPriorityBadge({
                 letterSpacing: "0.02em",
             }}
         >
-            {style.label}
+            {t(`pages.deals.common.${style.labelKey}`)}
         </span>
     );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import type { Deal } from "@/Types/api/deals";
@@ -36,7 +36,7 @@ export default function WorkspaceOffersTab({
     deal,
     onCountChange,
 }: WorkspaceOffersTabProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [confirmRemoveAll, setConfirmRemoveAll] = useState(false);
     const symbol = deal.currency?.currency_symbol || "£";
 
@@ -75,12 +75,10 @@ export default function WorkspaceOffersTab({
             <div className="mb-3.5 flex items-center justify-between gap-3">
                 <div>
                     <div className="text-[13px] font-semibold text-[#1a1f2e]">
-                        {td("Applied offers")}
+                        {t("pages.deals.workspace.offers.applied_title")}
                     </div>
                     <div className="text-xs text-[#5b6472]">
-                        {td(
-                            "Offers apply automatically from projects and unit types — they reduce the calculated deal value.",
-                        )}
+                        {t("pages.deals.workspace.offers.applied_hint")}
                     </div>
                 </div>
                 {items.length > 0 && (
@@ -91,7 +89,7 @@ export default function WorkspaceOffersTab({
                         disabled={deal.is_locked}
                         onClick={() => setConfirmRemoveAll(true)}
                     >
-                        {td("Remove all")}
+                        {t("pages.deals.workspace.offers.remove_all")}
                     </button>
                 )}
             </div>
@@ -110,12 +108,10 @@ export default function WorkspaceOffersTab({
                         <DealIcon name="award" size={17} color={T.GREEN} />
                     </div>
                     <div className="mb-[3px] text-[13px] font-semibold text-[#1a1f2e]">
-                        {td("No offers applied")}
+                        {t("pages.deals.workspace.offers.empty")}
                     </div>
                     <div className="text-xs leading-relaxed text-[#5b6472]">
-                        {td(
-                            "Eligible offers apply when properties with active promotions are added to the deal.",
-                        )}
+                        {t("pages.deals.workspace.offers.empty_hint")}
                     </div>
                 </div>
             ) : (
@@ -124,14 +120,14 @@ export default function WorkspaceOffersTab({
                         <table className="dr-table">
                             <thead>
                                 <tr>
-                                    <th scope="col">{td("Offer")}</th>
-                                    <th scope="col">{td("Property")}</th>
-                                    <th scope="col">{td("Type")}</th>
+                                    <th scope="col">{t("pages.deals.workspace.offers.col_offer")}</th>
+                                    <th scope="col">{t("pages.deals.workspace.offers.col_property")}</th>
+                                    <th scope="col">{t("pages.deals.workspace.offers.col_type")}</th>
                                     <th scope="col" style={{ textAlign: "right" }}>
-                                        {td("Original")}
+                                        {t("pages.deals.workspace.offers.col_original")}
                                     </th>
                                     <th scope="col" style={{ textAlign: "right" }}>
-                                        {td("Discount")}
+                                        {t("pages.deals.workspace.offers.col_discount")}
                                     </th>
                                 </tr>
                             </thead>
@@ -180,7 +176,7 @@ export default function WorkspaceOffersTab({
                     </div>
                     <div className="flex items-baseline justify-end gap-2">
                         <span className="text-xs text-[#5b6472]">
-                            {td("Total discount")}
+                            {t("pages.deals.workspace.offers.total_discount")}
                         </span>
                         <span
                             className="text-base font-bold"
@@ -194,11 +190,9 @@ export default function WorkspaceOffersTab({
 
             <DealConfirmDialog
                 open={confirmRemoveAll}
-                title={td("Remove all offers?")}
-                message={td(
-                    "All applied discounts will be removed and the calculated deal value will increase accordingly.",
-                )}
-                confirmLabel={td("Remove all")}
+                title={t("pages.deals.workspace.offers.remove_all_confirm_title")}
+                message={t("pages.deals.workspace.offers.remove_all_confirm_message")}
+                confirmLabel={t("pages.deals.workspace.offers.remove_all")}
                 danger
                 onConfirm={() => removeAllOffers(undefined)}
                 onCancel={() => setConfirmRemoveAll(false)}

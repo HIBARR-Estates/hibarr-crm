@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import useDealTaskCreate from "../../hooks/useDealTaskCreate";
 import { DEFAULT_DUE_TIME, todayIsoDate } from "../../hooks/taskDateUtils";
 import DealButton from "../primitives/DealButton";
@@ -43,6 +44,7 @@ export default function DealAddTaskModal({
     dealId,
 }: DealAddTaskModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const [form, setForm] = useState<TaskFormState>(() =>
@@ -68,7 +70,7 @@ export default function DealAddTaskModal({
     // server error after the fact.
     const dateRangeError =
         form.startDate && form.dueDate && form.dueDate < form.startDate
-            ? td("Due date can't be before the start date")
+            ? t("pages.deals.workspace.tasks.date_range_error")
             : null;
 
     const handleSubmit = () => {
@@ -90,7 +92,7 @@ export default function DealAddTaskModal({
     return (
         <DealModal
             open={open}
-            title={td("Add task")}
+            title={t("pages.deals.workspace.tasks.add_task")}
             onClose={handleClose}
             footer={
                 <>
@@ -99,7 +101,7 @@ export default function DealAddTaskModal({
                         onClick={handleClose}
                         disabled={isCreating}
                     >
-                        {td("Cancel")}
+                        {t("pages.deals.common.cancel")}
                     </DealButton>
                     <DealButton
                         variant="primary"
@@ -109,7 +111,7 @@ export default function DealAddTaskModal({
                             isCreating || !!dateRangeError || !form.title.trim()
                         }
                     >
-                        {td("Create task")}
+                        {t("pages.deals.workspace.tasks.create_task")}
                     </DealButton>
                 </>
             }
@@ -118,13 +120,13 @@ export default function DealAddTaskModal({
                 <div className="mb-3 space-y-1">
                     {errors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {error}
+                            {td(error)}
                         </p>
                     ))}
                 </div>
             )}
 
-            <DealModalField label={td("Task title")}>
+            <DealModalField label={t("pages.deals.workspace.tasks.title_field")}>
                 <input
                     value={form.title}
                     onChange={(event) =>
@@ -133,11 +135,11 @@ export default function DealAddTaskModal({
                             title: event.target.value,
                         }))
                     }
-                    placeholder={td("e.g. Send property listings")}
+                    placeholder={t("pages.deals.workspace.tasks.title_placeholder")}
                 />
             </DealModalField>
 
-            <DealModalField label={td("Description")}>
+            <DealModalField label={t("pages.deals.common.description")}>
                 <textarea
                     value={form.description}
                     onChange={(event) =>
@@ -146,14 +148,14 @@ export default function DealAddTaskModal({
                             description: event.target.value,
                         }))
                     }
-                    placeholder={td("Optional details...")}
+                    placeholder={t("pages.deals.common.optional_details_placeholder")}
                     rows={3}
                     style={{ resize: "vertical" }}
                 />
             </DealModalField>
 
             <div className="grid grid-cols-2 gap-3">
-                <DealModalField label={td("Start date")}>
+                <DealModalField label={t("pages.deals.common.start_date")}>
                     <input
                         type="date"
                         value={form.startDate}
@@ -166,7 +168,7 @@ export default function DealAddTaskModal({
                     />
                 </DealModalField>
 
-                <DealModalField label={td("Due date")}>
+                <DealModalField label={t("pages.deals.common.due_date")}>
                     <input
                         type="date"
                         value={form.dueDate}
@@ -184,7 +186,7 @@ export default function DealAddTaskModal({
             )}
 
             <div className="grid grid-cols-2 gap-3">
-                <DealModalField label={td("Due time")}>
+                <DealModalField label={t("pages.deals.common.due_time")}>
                     <input
                         type="time"
                         value={form.dueTime}
@@ -197,7 +199,7 @@ export default function DealAddTaskModal({
                     />
                 </DealModalField>
 
-                <DealModalField label={td("Priority")}>
+                <DealModalField label={t("pages.deals.common.priority")}>
                     <select
                         value={form.priority}
                         onChange={(event) =>
@@ -207,14 +209,14 @@ export default function DealAddTaskModal({
                             }))
                         }
                     >
-                        <option value="high">{td("High")}</option>
-                        <option value="medium">{td("Medium")}</option>
-                        <option value="low">{td("Low")}</option>
+                        <option value="high">{t("pages.deals.common.priority_high")}</option>
+                        <option value="medium">{t("pages.deals.common.priority_medium")}</option>
+                        <option value="low">{t("pages.deals.common.priority_low")}</option>
                     </select>
                 </DealModalField>
             </div>
 
-            <DealModalField label={td("Assignees")}>
+            <DealModalField label={t("pages.deals.common.assignees")}>
                 <DealAssigneeField
                     value={form.assignees}
                     onChange={(assignees) =>

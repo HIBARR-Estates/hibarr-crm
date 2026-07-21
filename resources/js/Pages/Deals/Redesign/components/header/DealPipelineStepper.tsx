@@ -76,7 +76,7 @@ export default function DealPipelineStepper({
                         dir="left"
                         enabled={scroll.overflow.left}
                         onClick={() => scroll.nudge(-1)}
-                        label="Scroll pipeline stages left"
+                        label={t("pages.deals.header.pipeline.scroll_left")}
                     />
                 )}
                 <div
@@ -173,7 +173,7 @@ export default function DealPipelineStepper({
                         dir="right"
                         enabled={scroll.overflow.right}
                         onClick={() => scroll.nudge(1)}
-                        label="Scroll pipeline stages right"
+                        label={t("pages.deals.header.pipeline.scroll_right")}
                     />
                 )}
             </div>

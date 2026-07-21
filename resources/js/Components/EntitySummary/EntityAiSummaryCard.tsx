@@ -11,7 +11,7 @@ import "./entity-summary.css";
 
 const TITLES: Record<EntityAiSummaryCardProps["entityType"], string> = {
     lead: "AI Lead Summary",
-    deal: "AI Deal Summary",
+    deal: "AI Summary",
 };
 
 export default function EntityAiSummaryCard({
@@ -29,10 +29,9 @@ export default function EntityAiSummaryCard({
     onReviewStaleDeal,
 }: EntityAiSummaryCardProps) {
     const isRedesign = variant === "redesign";
-    // v2.2's AiSummary is collapsed by default (deal-v2-2.jsx:1268).
     const [collapsed, setCollapsed] = useState(isRedesign);
 
-    const { summary, loading, error, generate, regenerate } =
+    const { summary, loading, error, isStale, generate, regenerate } =
         useEntityAiSummary({
             entityType,
             entityId,
@@ -45,6 +44,8 @@ export default function EntityAiSummaryCard({
         (entityType === "deal" ||
             (isLeadSummaryPayload(summary) &&
                 summary.primary_risk_source === "linked_deal"));
+
+    const isHeuristic = summary?.meta?.source === "heuristic";
 
     const handleAction = () => {
         if (!summary) return;
@@ -66,21 +67,17 @@ export default function EntityAiSummaryCard({
         "entity-ai-summary-card",
         `entity-ai-summary-card--${variant}`,
         entityType === "deal" ? "entity-ai-summary-card--deal" : "",
+        isStale ? "entity-ai-summary-card--stale" : "",
         isRedesign ? "section-card" : "",
         className,
     ]
         .filter(Boolean)
         .join(" ");
 
-    // Redesign variant: collapsed shows only the header (status line + chip
-    // preview live inside it); expanded reveals the detail grid/bullets/footer.
     const showDetailBody = !isRedesign || !collapsed;
 
     return (
-        <section
-            className={cardClassName}
-            // style={{ marginTop: "1.5rem", marginBottom: "1.5rem" }}
-        >
+        <section className={cardClassName}>
             <EntityAiSummaryHeader
                 title={TITLES[entityType]}
                 entityType={entityType}
@@ -99,6 +96,8 @@ export default function EntityAiSummaryCard({
                 riskLevel={isRedesign ? summary?.risk_level : undefined}
                 chips={isRedesign ? summary?.chips : undefined}
                 hasSummary={Boolean(summary)}
+                isStale={isStale}
+                isHeuristic={isHeuristic}
             />
 
             {showDetailBody && (
@@ -106,7 +105,7 @@ export default function EntityAiSummaryCard({
                     {loading && <AiThinkingIndicator />}
 
                     {error && !loading && (
-                        <div className="entity-ai-summary-error">
+                        <div className="entity-ai-summary-error" role="alert">
                             {error}{" "}
                             <button type="button" onClick={generate}>
                                 Retry
@@ -114,11 +113,26 @@ export default function EntityAiSummaryCard({
                         </div>
                     )}
 
-                    {/* Redesign's equivalent lives in the header banner now
-                        (EntityAiSummaryHeader, !hasSummary branch) — this
-                        stays legacy-only since showDetailBody can't be true
-                        pre-summary for redesign (nothing ever un-collapses
-                        it before a summary exists). */}
+                    {isStale && summary && !loading && (
+                        <div className="entity-ai-summary-stale-banner">
+                            This summary may be out of date because the{" "}
+                            {entityType} changed.{" "}
+                            <button type="button" onClick={regenerate}>
+                                Refresh
+                            </button>
+                        </div>
+                    )}
+
+                    {isHeuristic && summary && !loading && !error && (
+                        <div className="entity-ai-summary-heuristic-banner">
+                            Showing a fallback summary because AI was
+                            unavailable.{" "}
+                            <button type="button" onClick={regenerate}>
+                                Retry AI
+                            </button>
+                        </div>
+                    )}
+
                     {!isRedesign && !summary && !loading && !error && (
                         <div className="entity-ai-summary-empty">
                             <p>
@@ -136,7 +150,7 @@ export default function EntityAiSummaryCard({
                         </div>
                     )}
 
-                    {summary && !loading && !error && (
+                    {summary && !loading && (
                         <>
                             <div className="entity-ai-summary-body">
                                 {!isRedesign && (
@@ -169,7 +183,9 @@ export default function EntityAiSummaryCard({
                                     >
                                         {loading
                                             ? "Regenerating…"
-                                            : "Regenerate summary"}
+                                            : isStale
+                                              ? "Refresh summary"
+                                              : "Regenerate summary"}
                                     </button>
                                 )}
                             </div>
@@ -178,7 +194,10 @@ export default function EntityAiSummaryCard({
                                 onAction={handleAction}
                                 actionable={isExecutableAction(
                                     summary.next_step.action_type,
-                                    { canAdvanceStage: Boolean(onAdvanceStage) },
+                                    {
+                                        canAdvanceStage:
+                                            Boolean(onAdvanceStage),
+                                    },
                                 )}
                             />
                         </>

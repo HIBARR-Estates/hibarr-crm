@@ -114,7 +114,9 @@ export default function DealAddItineraryModal({
                         onChange={(e) =>
                             setForm({ ...form, flight_number: e.target.value })
                         }
-                        placeholder="e.g. PC 1234"
+                        placeholder={t(
+                            "pages.deals.workspace.itinerary.flight_number_placeholder",
+                        )}
                     />
                 </DealModalField>
                 <DealModalField label={ft("airport_name")}>

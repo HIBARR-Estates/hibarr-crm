@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import useDealMeetingCreate from "../../hooks/useDealMeetingCreate";
 import DealButton from "../primitives/DealButton";
@@ -25,6 +26,7 @@ export default function DealScheduleMeetingModal({
     meetingTypes,
 }: DealScheduleMeetingModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const [form, setForm] = useState<MeetingFormState>(() =>
@@ -66,7 +68,7 @@ export default function DealScheduleMeetingModal({
     return (
         <DealModal
             open={open}
-            title={td("Schedule meeting")}
+            title={t("pages.deals.workspace.meetings.schedule")}
             onClose={handleClose}
             footer={
                 <>
@@ -75,7 +77,7 @@ export default function DealScheduleMeetingModal({
                         onClick={handleClose}
                         disabled={isCreating}
                     >
-                        {td("Cancel")}
+                        {t("pages.deals.common.cancel")}
                     </DealButton>
                     <DealButton
                         variant="primary"
@@ -83,7 +85,7 @@ export default function DealScheduleMeetingModal({
                         loading={isCreating}
                         disabled={isCreating}
                     >
-                        {td("Schedule")}
+                        {t("pages.deals.workspace.meetings.schedule_button")}
                     </DealButton>
                 </>
             }
@@ -92,7 +94,7 @@ export default function DealScheduleMeetingModal({
                 <div className="mb-3 space-y-1">
                     {errors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {error}
+                            {td(error)}
                         </p>
                     ))}
                 </div>

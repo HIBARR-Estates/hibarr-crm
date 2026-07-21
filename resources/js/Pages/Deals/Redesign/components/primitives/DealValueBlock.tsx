@@ -134,7 +134,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                         ref={menuRef}
                         className="dr-menu"
                         role="dialog"
-                        aria-label="Value breakdown"
+                        aria-label={t("pages.deals.info.value_insight.title")}
                         style={{
                             ...floatStyle,
                             minWidth: 280,
@@ -187,7 +187,9 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                 <div
                                     style={{ display: "flex", gap: 6, marginBottom: 10 }}
                                     role="group"
-                                    aria-label="Value source"
+                                    aria-label={t(
+                                        "pages.deals.info.value_insight.value_source_aria",
+                                    )}
                                 >
                                     <button
                                         type="button"
@@ -225,7 +227,9 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                     <input
                                         className="dr-input"
                                         inputMode="numeric"
-                                        aria-label="Manual deal value"
+                                        aria-label={t(
+                                            "pages.deals.info.value_insight.manual_value_aria",
+                                        )}
                                         value={manualDraft}
                                         placeholder={`${symbol}0`}
                                         disabled={isUpdating}

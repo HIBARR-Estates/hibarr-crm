@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -19,6 +20,7 @@ interface RescheduleResponse {
 }
 
 export default function useDealMeetingReschedule(followupId: number | null) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { setDealFollowUps } = useDealWorkspace();
@@ -71,7 +73,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                 const json = (await response.json()) as RescheduleResponse;
 
                 if (json.success) {
-                    message.success("Meeting rescheduled");
+                    message.success(t("pages.deals.workspace.meetings.messages.rescheduled"));
                     const newDate = new Date(
                         `${input.date}T${input.startTime}`,
                     ).toISOString();
@@ -99,7 +101,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                 setIsSubmitting(false);
             }
         },
-        [followupId, setDealFollowUps],
+        [followupId, setDealFollowUps, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import { useDebounce } from "@/Hooks/useDebounce";
 import DealAvatar from "./DealAvatar";
@@ -55,7 +55,7 @@ export default function DealAgentPicker({
     autoFocus,
     pendingId,
 }: DealAgentPickerProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [search, setSearch] = useState("");
     const debouncedSearch = useDebounce(search, 300);
 
@@ -76,8 +76,8 @@ export default function DealAgentPicker({
                 autoFocus={autoFocus}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={td("Search agents…")}
-                aria-label={td("Search agents")}
+                placeholder={t("pages.deals.header.team.search_agents")}
+                aria-label={t("pages.deals.header.team.search_agents")}
                 style={{ marginBottom: 6, fontSize: 12, padding: "8px 10px" }}
             />
             <div style={{ maxHeight: 220, overflowY: "auto" }}>
@@ -86,14 +86,14 @@ export default function DealAgentPicker({
                         className="px-1.5 py-2 text-xs italic"
                         style={{ color: T.TEXT_MUTED }}
                     >
-                        {td("Loading…")}
+                        {t("pages.deals.common.loading")}
                     </div>
                 ) : agents.length === 0 ? (
                     <div
                         className="px-1.5 py-2 text-xs italic"
                         style={{ color: T.TEXT_MUTED }}
                     >
-                        {td("No agents match")}
+                        {t("pages.deals.header.team.no_agents_match")}
                     </div>
                 ) : (
                     agents.map((option) => {

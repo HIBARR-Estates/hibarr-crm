@@ -134,6 +134,12 @@ const ICON_PATHS: Record<string, ReactNode> = {
         </>
     ),
     check: <polyline points="20 6 9 17 4 12" />,
+    edit: (
+        <>
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+        </>
+    ),
     "external-link": (
         <>
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />

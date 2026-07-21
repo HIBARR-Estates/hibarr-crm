@@ -138,16 +138,21 @@ class LeadSummaryInputBuilder
 
     public function inputHash(Lead $lead): string
     {
-        $lead->loadMissing(['lifecycleStatus']);
-
         $fingerprint = [
             'id' => $lead->id,
             'updated_at' => $lead->updated_at?->toIso8601String(),
             'lifecycle' => $lead->lead_lifecycle_status_id,
+            'lead_owner' => $lead->lead_owner,
+            'source_id' => $lead->source_id,
+            'category_id' => $lead->category_id,
             'deals_count' => Deal::where('lead_id', $lead->id)->count(),
+            'deals_max_updated_at' => Deal::where('lead_id', $lead->id)->max('updated_at'),
             'notes_count' => LeadNote::where('lead_id', $lead->id)->count(),
+            'notes_max_updated_at' => LeadNote::where('lead_id', $lead->id)->max('updated_at'),
             'tasks_count' => $lead->tasks()->count(),
+            'tasks_max_updated_at' => $lead->tasks()->max('tasks.updated_at'),
             'followups_count' => DealFollowUp::where('lead_id', $lead->id)->count(),
+            'followups_max_updated_at' => DealFollowUp::where('lead_id', $lead->id)->max('updated_at'),
         ];
 
         return hash('sha256', json_encode($fingerprint));

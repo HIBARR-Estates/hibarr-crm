@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
@@ -33,6 +34,7 @@ export default function PackagePropertyManager({
     restrictPackageOrProperty,
 }: PackagePropertyManagerProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const permissions = useDealPermissions(deal);
     const { addPackage, removePackage, saving } = useDealPackages(deal);
     const { setDeal } = useDealWorkspace();
@@ -94,18 +96,12 @@ export default function PackagePropertyManager({
         value == null ? "" : `${currencySymbol}${Number(value).toLocaleString()}`;
 
     const bannerMessage = overLimit
-        ? td(
-              "This deal has more packages/properties attached than the current CRM limit of one. Remove items to get back under the limit.",
-          )
+        ? t("pages.deals.dossier.banner_over_limit")
         : hasPackage
-          ? td(
-                "This is a package deal. To attach a property instead, remove the package first.",
-            )
+          ? t("pages.deals.dossier.banner_package_deal")
           : hasProperty
-            ? td(
-                  "This is a property deal. To attach a package instead, remove the property first.",
-              )
-            : td("This CRM is configured to allow only one package or property per deal.");
+            ? t("pages.deals.dossier.banner_property_deal")
+            : t("pages.deals.dossier.banner_single_limit");
 
     return (
         <div>
@@ -132,11 +128,13 @@ export default function PackagePropertyManager({
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,
                         }}
                     >
-                        {restrictPackageOrProperty ? td("Package") : td("Packages")}
+                        {restrictPackageOrProperty
+                            ? t("pages.deals.dossier.package_singular")
+                            : t("pages.deals.dossier.package_plural")}
                     </div>
                     {packages.length === 0 ? (
                         <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
-                            {td("No packages attached")}
+                            {t("pages.deals.dossier.no_packages")}
                         </div>
                     ) : (
                         packages.map((pkg) => (
@@ -167,10 +165,10 @@ export default function PackagePropertyManager({
                                             border: "none",
                                         }}
                                         disabled={saving}
-                                        aria-label={`${td("Remove")} ${pkg.name}`}
+                                        aria-label={`${t("pages.deals.common.remove")} ${pkg.name}`}
                                         onClick={() => removePackage(pkg.id)}
                                     >
-                                        {td("Remove")}
+                                        {t("pages.deals.common.remove")}
                                     </button>
                                 )}
                             </div>
@@ -180,7 +178,7 @@ export default function PackagePropertyManager({
                         <div className="mb-2">
                             <DealMenuSelect
                                 value={null}
-                                placeholder={`+ ${td("Add package")}`}
+                                placeholder={`+ ${t("pages.deals.dossier.add_package")}`}
                                 size="sm"
                                 width={150}
                                 disabled={saving || availablePackages.length === 0}
@@ -206,7 +204,9 @@ export default function PackagePropertyManager({
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,
                         }}
                     >
-                        {restrictPackageOrProperty ? td("Property") : td("Properties")}
+                        {restrictPackageOrProperty
+                            ? t("pages.deals.dossier.property_singular")
+                            : t("pages.deals.dossier.property_plural")}
                         {refreshing && (
                             <span
                                 aria-hidden="true"
@@ -217,7 +217,7 @@ export default function PackagePropertyManager({
                     </div>
                     {products.length === 0 ? (
                         <div className="mb-2 text-xs italic" style={{ color: T.TEXT_MUTED }}>
-                            {td("No properties attached")}
+                            {t("pages.deals.dossier.no_properties_attached")}
                         </div>
                     ) : (
                         products.map((product) => (
@@ -237,7 +237,7 @@ export default function PackagePropertyManager({
                         ))
                     )}
                     {showPropertyAdd && (
-                        <div className="mb-1">
+                        <div className="mb-4">
                             <button
                                 type="button"
                                 className="dr-btn dr-btn-sm cursor-pointer"
@@ -250,7 +250,7 @@ export default function PackagePropertyManager({
                                 disabled={refreshing}
                                 onClick={() => setPropertyModalOpen(true)}
                             >
-                                + {td("Add property")}
+                                + {t("pages.deals.dossier.add_property")}
                             </button>
                         </div>
                     )}

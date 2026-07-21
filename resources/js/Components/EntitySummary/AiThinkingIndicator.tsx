@@ -2,8 +2,16 @@ import { useEffect, useState } from "react";
 
 const PHRASES = [
     "Reading recent activity",
+    "Checking notes and meetings",
+    "Reviewing open tasks",
+    "Tracing the stage history",
+    "Looking over attached documents",
     "Weighing risk signals",
+    "Checking what's overdue",
+    "Piecing the timeline together",
+    "Working out the next step",
     "Drafting the summary",
+    "Tidying up the wording",
 ];
 
 interface AiThinkingIndicatorProps {
@@ -18,7 +26,11 @@ export default function AiThinkingIndicator({
     size = 18,
     className,
 }: AiThinkingIndicatorProps) {
-    const [phraseIndex, setPhraseIndex] = useState(0);
+    // Random start so short generations don't always show the same first two
+    // phrases — otherwise most of the list is never seen.
+    const [phraseIndex, setPhraseIndex] = useState(() =>
+        Math.floor(Math.random() * PHRASES.length),
+    );
 
     useEffect(() => {
         const interval = window.setInterval(() => {

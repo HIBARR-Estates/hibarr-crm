@@ -4,6 +4,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Note } from "@/Types/api/note";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
@@ -19,6 +20,7 @@ interface SaveNotePayload {
 }
 
 export default function useDealNoteCreate(dealId: number) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const { setNotes } = useDealWorkspace();
 
@@ -52,7 +54,7 @@ export default function useDealNoteCreate(dealId: number) {
                     onSuccess: (response) => {
                         if (response?.status === "success") {
                             setErrors([]);
-                            message.success("Note saved");
+                            message.success(t("pages.deals.workspace.notes.messages.saved"));
                             if (response.data) {
                                 setNotes((prev) => [response.data as Note, ...prev]);
                             }
@@ -76,7 +78,7 @@ export default function useDealNoteCreate(dealId: number) {
                 },
             );
         },
-        [dealId, mutate, setNotes],
+        [dealId, mutate, setNotes, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

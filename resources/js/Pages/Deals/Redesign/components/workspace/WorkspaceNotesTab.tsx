@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
@@ -35,6 +36,7 @@ export default function WorkspaceNotesTab({
     permissions,
 }: WorkspaceNotesTabProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { deal, setNotes } = useDealWorkspace();
     const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
     const [title, setTitle] = useState("");
@@ -115,7 +117,7 @@ export default function WorkspaceNotesTab({
                         <div className="mb-2 space-y-1">
                             {errors.map((error, index) => (
                                 <p key={index} className="text-xs text-red-600">
-                                    {error}
+                                    {td(error)}
                                 </p>
                             ))}
                         </div>
@@ -126,15 +128,15 @@ export default function WorkspaceNotesTab({
                         value={title}
                         disabled={isSaving}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder={td("Note title (optional)")}
-                        aria-label={td("Note title")}
+                        placeholder={t("pages.deals.workspace.notes.title_placeholder")}
+                        aria-label={t("pages.deals.workspace.notes.title_aria_label")}
                     />
                     <textarea
                         value={text}
                         disabled={isSaving}
                         onChange={(e) => setText(e.target.value)}
-                        placeholder={td("Log a note about this interaction...")}
-                        aria-label={td("New note")}
+                        placeholder={t("pages.deals.workspace.notes.body_placeholder")}
+                        aria-label={t("pages.deals.workspace.notes.body_aria_label")}
                         className="w-full border-none bg-transparent outline-none"
                         style={{
                             fontSize: 13,
@@ -156,7 +158,7 @@ export default function WorkspaceNotesTab({
                             loading={isSaving}
                             onClick={saveNote}
                         >
-                            {td("Save note")}
+                            {t("pages.deals.workspace.notes.save")}
                         </DealButton>
                     </div>
                 </div>
@@ -171,7 +173,7 @@ export default function WorkspaceNotesTab({
                             selectMode ? exitSelect() : setSelectMode(true)
                         }
                     >
-                        {selectMode ? td("Cancel") : td("Select")}
+                        {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
                     </DealButton>
                 </div>
             )}
@@ -180,7 +182,7 @@ export default function WorkspaceNotesTab({
                 <DealBulkActionBar
                     count={selected.size}
                     onClear={() => setSelected(new Set())}
-                    clearLabel={td("Clear")}
+                    clearLabel={t("pages.deals.common.clear")}
                 >
                     <button
                         type="button"
@@ -188,7 +190,9 @@ export default function WorkspaceNotesTab({
                         style={{ background: T.WHITE, color: T.NAVY }}
                         onClick={toggleAll}
                     >
-                        {allSelected ? td("Deselect all") : td("Select all")}
+                        {allSelected
+                            ? t("pages.deals.common.deselect_all")
+                            : t("pages.deals.common.select_all")}
                     </button>
                     <button
                         type="button"
@@ -197,14 +201,14 @@ export default function WorkspaceNotesTab({
                         disabled={!selected.size}
                         onClick={() => setConfirmBulkDelete(true)}
                     >
-                        {td("Delete")}
+                        {t("pages.deals.common.delete")}
                     </button>
                 </DealBulkActionBar>
             )}
 
             {noteItems.length === 0 ? (
                 <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {td("No notes yet")}
+                    {t("pages.deals.workspace.notes.empty")}
                 </p>
             ) : (
                 noteItems.map((note) => (
@@ -255,7 +259,7 @@ export default function WorkspaceNotesTab({
                                                             }}
                                                         >
                                                             {" "}
-                                                            ({td("edited")})
+                                                            ({t("pages.deals.workspace.notes.edited_tag")})
                                                         </span>
                                                     )}
                                                 </span>
@@ -277,7 +281,7 @@ export default function WorkspaceNotesTab({
                                                         }}
                                                     >
                                                         {" "}
-                                                        ({td("edited")})
+                                                        ({t("pages.deals.workspace.notes.edited_tag")})
                                                     </span>
                                                 )}
                                             </span>
@@ -310,13 +314,13 @@ export default function WorkspaceNotesTab({
 
             <DealConfirmDialog
                 open={confirmBulkDelete}
-                title={`${td("Delete")} ${selected.size} ${
-                    selected.size === 1 ? td("note") : td("notes")
+                title={`${t("pages.deals.common.delete")} ${selected.size} ${
+                    selected.size === 1
+                        ? t("pages.deals.workspace.notes.item_singular")
+                        : t("pages.deals.workspace.notes.item_plural")
                 }?`}
-                message={td(
-                    "These notes will be permanently removed from the deal. This cannot be undone.",
-                )}
-                confirmLabel={td("Delete notes")}
+                message={t("pages.deals.workspace.notes.delete_confirm_message")}
+                confirmLabel={t("pages.deals.workspace.notes.delete_notes")}
                 danger
                 confirmLoading={isBulkDeleting}
                 onConfirm={bulkDelete}

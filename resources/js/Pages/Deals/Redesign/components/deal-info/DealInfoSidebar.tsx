@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealBadge from "../primitives/DealBadge";
 import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -30,6 +32,8 @@ export default function DealInfoSidebar({
     activeSection,
     onSectionChange,
 }: DealInfoSidebarProps) {
+    const { td } = useTd();
+    const { t } = useTranslation();
     const [search, setSearch] = useState("");
 
     const query = search.trim().toLowerCase();
@@ -56,7 +60,7 @@ export default function DealInfoSidebar({
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
             <div className="dr-label px-2.5 pb-1 pt-2.5" style={{ fontSize: 11 }}>
-                Deal information
+                {t("pages.deals.sidebar.title")}
             </div>
             <div className="px-2.5 pb-2">
                 <input
@@ -64,8 +68,8 @@ export default function DealInfoSidebar({
                     type="search"
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search sections & fields…"
-                    aria-label="Search deal information sections and fields"
+                    placeholder={t("pages.deals.sidebar.search_placeholder")}
+                    aria-label={t("pages.deals.sidebar.search_aria")}
                     style={{ fontSize: 12, padding: "6px 9px" }}
                 />
             </div>
@@ -74,7 +78,7 @@ export default function DealInfoSidebar({
                     className="px-2.5 py-1.5 text-xs italic"
                     style={{ color: T.TEXT_MUTED }}
                 >
-                    No sections match "{search}"
+                    {t("pages.deals.sidebar.no_match")} "{search}"
                 </div>
             )}
             {filteredGroups.map((group) => (
@@ -83,7 +87,7 @@ export default function DealInfoSidebar({
                         className="px-2.5 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.05em]"
                         style={{ color: T.TEXT_HINT }}
                     >
-                        {group.label}
+                        {td(group.label)}
                     </div>
                     {group.items.map((item) => {
                         const isActive = item.id === activeSection;
@@ -114,11 +118,11 @@ export default function DealInfoSidebar({
                                             isActive ? T.BLUE : T.TEXT_MUTED
                                         }
                                     />
-                                    {item.label}
+                                    {td(item.label)}
                                 </span>
                                 {item.badge != null && (
                                     <DealBadge variant={item.badgeVariant}>
-                                        {item.badge}
+                                        {td(item.badge)}
                                     </DealBadge>
                                 )}
                             </button>

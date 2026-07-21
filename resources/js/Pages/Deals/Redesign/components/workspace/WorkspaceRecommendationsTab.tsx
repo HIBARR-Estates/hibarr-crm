@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import { toWorkspaceRecommendationListItem } from "../../adapters/recommendationAdapter";
 import useDealRecommendationAdd from "../../hooks/useDealRecommendationAdd";
@@ -38,6 +39,7 @@ export default function WorkspaceRecommendationsTab({
     onCountChange,
 }: WorkspaceRecommendationsTabProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     // v2.2 gate (deal-v2-2.jsx:2841): with the "1 package or property" CRM
     // config, adding is blocked once anything is already attached.
     const addBlocked =
@@ -53,7 +55,7 @@ export default function WorkspaceRecommendationsTab({
         refreshRecommendations,
     } = useDealRecommendations(deal.id);
     const {
-        existingProductIds,
+        existingPropertyIds,
         addPropertiesToDeal,
         isPropertyAdding,
         isPropertyInDeal,
@@ -67,7 +69,7 @@ export default function WorkspaceRecommendationsTab({
         () =>
             recommendations.map((recommendation) => {
                 const item = toWorkspaceRecommendationListItem(recommendation, {
-                    existingProductIds,
+                    existingPropertyIds,
                 });
 
                 return {
@@ -78,7 +80,7 @@ export default function WorkspaceRecommendationsTab({
             }),
         [
             recommendations,
-            existingProductIds,
+            existingPropertyIds,
             isPropertyAdding,
             isPropertyInDeal,
         ],
@@ -98,15 +100,13 @@ export default function WorkspaceRecommendationsTab({
         return (
             <div className="rounded-lg border border-[#fde68a] bg-[#fffbeb] px-3.5 py-3.5">
                 <p className="mb-1 text-sm font-medium text-[#92400e]">
-                    {td(
-                        "Please complete the deal information to generate property recommendations.",
-                    )}
+                    {t("pages.deals.workspace.recommendations.incomplete_hint")}
                 </p>
                 {apiError && (
-                    <p className="mb-2 text-xs text-[#b45309]">{apiError}</p>
+                    <p className="mb-2 text-xs text-[#b45309]">{td(apiError)}</p>
                 )}
                 <DealButton variant="ghost" size="sm" onClick={() => refetch()}>
-                    {td("Try Again")}
+                    {t("pages.deals.workspace.recommendations.try_again")}
                 </DealButton>
             </div>
         );
@@ -125,19 +125,19 @@ export default function WorkspaceRecommendationsTab({
                             <DealIcon name="spark" size={14} />
                         </span>
                         <span className="text-sm font-semibold text-[#1a1f2e]">
-                            {td("Property recommendations")}
+                            {t("pages.deals.workspace.recommendations.title")}
                         </span>
                         <DealBadge variant="blue">
                             {recommendationItems.length}
                         </DealBadge>
                         {cached && (
-                            <DealBadge variant="gray">{td("cached")}</DealBadge>
+                            <DealBadge variant="gray">
+                                {t("pages.deals.workspace.recommendations.cached_tag")}
+                            </DealBadge>
                         )}
                     </div>
                     <div className="text-xs" style={{ color: T.TEXT_MUTED }}>
-                        {td(
-                            "Ranked against the deal's qualification fields — budget, interest, timeline and motivation.",
-                        )}
+                        {t("pages.deals.workspace.recommendations.hint")}
                     </div>
                 </div>
                 <DealButton
@@ -147,7 +147,7 @@ export default function WorkspaceRecommendationsTab({
                     onClick={refreshRecommendations}
                     loading={loading}
                 >
-                    {td("Refresh")}
+                    {t("pages.deals.common.refresh")}
                 </DealButton>
             </div>
 
@@ -163,12 +163,10 @@ export default function WorkspaceRecommendationsTab({
                         <DealIcon name="building" size={28} />
                     </div>
                     <p className="mb-1 text-[13px] font-medium text-[#5b6472]">
-                        {td("No recommendations yet")}
+                        {t("pages.deals.workspace.recommendations.empty")}
                     </p>
                     <p className="mb-3 text-xs text-[#9ca3af]">
-                        {td(
-                            "Recommendations are generated based on customer preferences and property matching algorithms.",
-                        )}
+                        {t("pages.deals.workspace.recommendations.empty_hint")}
                     </p>
                     <DealButton
                         variant="primary"
@@ -177,7 +175,7 @@ export default function WorkspaceRecommendationsTab({
                         onClick={refreshRecommendations}
                         loading={loading}
                     >
-                        {td("Generate Recommendations")}
+                        {t("pages.deals.workspace.recommendations.generate")}
                     </DealButton>
                 </div>
             ) : (
@@ -209,7 +207,7 @@ export default function WorkspaceRecommendationsTab({
                                             <DealBadge
                                                 variant={item.statusBadgeVariant}
                                             >
-                                                {item.statusLabel}
+                                                {td(item.statusLabel)}
                                             </DealBadge>
                                         )}
                                     </div>
@@ -226,7 +224,8 @@ export default function WorkspaceRecommendationsTab({
                                         className="shrink-0"
                                         variant={item.matchBadgeVariant}
                                     >
-                                        {item.matchPercentage}% {td("match")}
+                                        {item.matchPercentage}%{" "}
+                                        {t("pages.deals.workspace.recommendations.match_suffix")}
                                     </DealBadge>
                                 )}
                             </div>
@@ -243,7 +242,7 @@ export default function WorkspaceRecommendationsTab({
                             {item.reasoningNotes && (
                                 <div className="mb-2.5">
                                     <div className="dr-label mb-[3px]">
-                                        {td("Why it matches")}
+                                        {t("pages.deals.workspace.recommendations.why_matches")}
                                     </div>
                                     <div
                                         className="text-xs leading-normal"
@@ -262,7 +261,7 @@ export default function WorkspaceRecommendationsTab({
                                                 name="check"
                                                 size={11}
                                             />
-                                            {td("Added to Deal")}
+                                            {t("pages.deals.workspace.recommendations.added_to_deal")}
                                         </span>
                                     </DealBadge>
                                 ) : addBlocked ? (
@@ -270,11 +269,11 @@ export default function WorkspaceRecommendationsTab({
                                         variant="ghost"
                                         size="sm"
                                         disabled
-                                        title={td(
-                                            "This CRM is configured to allow only one package or property per deal",
+                                        title={t(
+                                            "pages.deals.workspace.recommendations.add_blocked_hint",
                                         )}
                                     >
-                                        {td("Add to Deal")}
+                                        {t("pages.deals.workspace.recommendations.add_to_deal")}
                                     </DealButton>
                                 ) : (
                                     <DealButton
@@ -291,7 +290,7 @@ export default function WorkspaceRecommendationsTab({
                                             !item.propertyId || item.isAdding
                                         }
                                     >
-                                        {td("Add to Deal")}
+                                        {t("pages.deals.workspace.recommendations.add_to_deal")}
                                     </DealButton>
                                 )}
 
@@ -312,7 +311,7 @@ export default function WorkspaceRecommendationsTab({
                                             )
                                         }
                                     >
-                                        {td("View listing")}
+                                        {t("pages.deals.workspace.recommendations.view_listing")}
                                     </DealButton>
                                 )}
                             </div>

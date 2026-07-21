@@ -2,9 +2,11 @@ import axios from "axios";
 import { message } from "antd";
 import { useCallback, useMemo, useState } from "react";
 import { Deal } from "@/Types/api/deals";
+import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export default function useDealPipeline(deal: Deal, canChangeStages: boolean) {
+    const { t } = useTranslation();
     const [isUpdating, setIsUpdating] = useState(false);
     const { setDeal } = useDealWorkspace();
 
@@ -26,15 +28,15 @@ export default function useDealPipeline(deal: Deal, canChangeStages: boolean) {
                 );
                 if (response.data?.success && response.data?.data) {
                     setDeal(response.data.data);
-                    message.success("Deal stage updated");
+                    message.success(t("pages.deals.header.pipeline.messages.stage_updated"));
                 }
             } catch {
-                message.error("Failed to update stage");
+                message.error(t("pages.deals.header.pipeline.messages.update_failed"));
             } finally {
                 setIsUpdating(false);
             }
         },
-        [canChangeStages, currentStageId, deal.id, isUpdating, setDeal],
+        [canChangeStages, currentStageId, deal.id, isUpdating, setDeal, t],
     );
 
     return {

@@ -2,6 +2,7 @@ import axios from "axios";
 import { message } from "antd";
 import { useCallback, useState } from "react";
 import { Deal } from "@/Types/api/deals";
+import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 interface DealValuePayload {
@@ -10,6 +11,7 @@ interface DealValuePayload {
 }
 
 export default function useDealValueUpdate(deal: Deal, canEdit: boolean) {
+    const { t } = useTranslation();
     const [isUpdating, setIsUpdating] = useState(false);
     const { setDeal } = useDealWorkspace();
 
@@ -29,12 +31,12 @@ export default function useDealValueUpdate(deal: Deal, canEdit: boolean) {
                     setDeal(response.data.data);
                 }
             } catch {
-                message.error("Failed to update deal value");
+                message.error(t("pages.deals.info.value_insight.messages.update_failed"));
             } finally {
                 setIsUpdating(false);
             }
         },
-        [canEdit, deal.id, isUpdating, setDeal],
+        [canEdit, deal.id, isUpdating, setDeal, t],
     );
 
     return { isUpdating, update };

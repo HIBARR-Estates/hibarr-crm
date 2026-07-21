@@ -6,6 +6,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { MeetingPlatform } from "../components/workspace/meetingFormUtils";
 import {
     formatMeetingDateForApi,
@@ -49,6 +50,7 @@ function dealHasAgent(deal: Deal): boolean {
 }
 
 export default function useDealMeetingCreate(deal: Deal) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const { setDealFollowUps } = useDealWorkspace();
 
@@ -125,7 +127,7 @@ export default function useDealMeetingCreate(deal: Deal) {
             mutate(payload, {
                 onSuccess: (response) => {
                     setErrors([]);
-                    message.success("Meeting scheduled");
+                    message.success(t("pages.deals.workspace.meetings.messages.scheduled"));
                     if (response?.data) {
                         const created = response.data;
                         setDealFollowUps((prev) => [created, ...prev]);
@@ -145,7 +147,7 @@ export default function useDealMeetingCreate(deal: Deal) {
                 },
             });
         },
-        [deal, mutate, setDealFollowUps],
+        [deal, mutate, setDealFollowUps, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

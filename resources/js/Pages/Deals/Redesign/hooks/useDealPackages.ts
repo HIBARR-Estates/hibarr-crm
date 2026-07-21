@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
+import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 /**
@@ -10,6 +11,7 @@ import { useDealWorkspace } from "../context/DealWorkspaceContext";
  * field `package_id`). Lets the Dossier add a package inline.
  */
 export default function useDealPackages(deal: Deal) {
+    const { t } = useTranslation();
     const [saving, setSaving] = useState(false);
     const { setDeal } = useDealWorkspace();
 
@@ -30,12 +32,12 @@ export default function useDealPackages(deal: Deal) {
                     setDeal(response.data.data);
                 }
             } catch {
-                message.error("Failed to update packages");
+                message.error(t("pages.deals.workspace.packages.messages.update_failed"));
             } finally {
                 setSaving(false);
             }
         },
-        [deal.id, setDeal],
+        [deal.id, setDeal, t],
     );
 
     const addPackage = useCallback(

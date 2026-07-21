@@ -1,13 +1,17 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
-import { toWorkspaceMeetingListItem } from "../../adapters/meetingListAdapter";
+import {
+    getMeetingStatusTone,
+    toWorkspaceMeetingListItem,
+} from "../../adapters/meetingListAdapter";
 import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
@@ -65,11 +69,6 @@ function canDeleteMeeting(
 }
 
 /** v2.2 status pill tones (deal-v2-2.jsx:2293). */
-function statusPillClass(status: string): string {
-    if (status === "completed") return "dr-pill-green";
-    if (status === "canceled" || status === "cancelled") return "dr-pill-gray";
-    return "dr-pill-blue";
-}
 
 const PLATFORM_PILL: Record<string, string> = {
     blue: "dr-pill-blue",
@@ -87,6 +86,7 @@ export default function WorkspaceMeetingsTab({
     onScheduleMeeting,
 }: WorkspaceMeetingsTabProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const { setDealFollowUps } = useDealWorkspace();
@@ -174,8 +174,8 @@ export default function WorkspaceMeetingsTab({
         <>
             <div className="mb-3.5 flex items-center justify-between gap-3">
                 <span className="text-xs text-[#5b6472]">
-                    {upcoming.length} {td("upcoming")} · {past.length}{" "}
-                    {td("past")}
+                    {upcoming.length} {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
+                    {past.length} {t("pages.deals.workspace.meetings.past_label")}
                 </span>
                 <div className="flex gap-1.5">
                     {meetings.length > 0 && canBulkEdit && (
@@ -186,7 +186,7 @@ export default function WorkspaceMeetingsTab({
                                 selectMode ? exitSelect() : setSelectMode(true)
                             }
                         >
-                            {selectMode ? td("Cancel") : td("Select")}
+                            {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
                         </DealButton>
                     )}
                     {showSchedule && (
@@ -195,7 +195,7 @@ export default function WorkspaceMeetingsTab({
                             size="sm"
                             onClick={onScheduleMeeting}
                         >
-                            + {td("Schedule meeting")}
+                            + {t("pages.deals.workspace.meetings.schedule")}
                         </DealButton>
                     )}
                 </div>
@@ -205,7 +205,7 @@ export default function WorkspaceMeetingsTab({
                 <DealBulkActionBar
                     count={selected.size}
                     onClear={() => setSelected(new Set())}
-                    clearLabel={td("Clear")}
+                    clearLabel={t("pages.deals.common.clear")}
                 >
                     <button
                         type="button"
@@ -213,16 +213,9 @@ export default function WorkspaceMeetingsTab({
                         style={{ background: T.WHITE, color: T.NAVY }}
                         onClick={toggleAll}
                     >
-                        {allSelected ? td("Deselect all") : td("Select all")}
-                    </button>
-                    <button
-                        type="button"
-                        className="dr-btn dr-btn-sm"
-                        style={{ background: T.WHITE, color: T.NAVY }}
-                        disabled={!selected.size || isBulkUpdating}
-                        onClick={() => applyBulkStatus("completed")}
-                    >
-                        {td("Mark completed")}
+                        {allSelected
+                            ? t("pages.deals.common.deselect_all")
+                            : t("pages.deals.common.select_all")}
                     </button>
                     <button
                         type="button"
@@ -231,7 +224,7 @@ export default function WorkspaceMeetingsTab({
                         disabled={!selected.size || isBulkUpdating}
                         onClick={() => setConfirmBulkCancel(true)}
                     >
-                        {td("Cancel meetings")}
+                        {t("pages.deals.workspace.meetings.cancel_meetings")}
                     </button>
                 </DealBulkActionBar>
             )}
@@ -245,7 +238,7 @@ export default function WorkspaceMeetingsTab({
                         className="mx-auto mb-2 opacity-50"
                     />
                     <p className="mb-3 text-[13px] text-[#9ca3af]">
-                        {td("No meetings yet")}
+                        {t("pages.deals.workspace.meetings.empty")}
                     </p>
                     {showSchedule && (
                         <DealButton
@@ -253,7 +246,7 @@ export default function WorkspaceMeetingsTab({
                             size="sm"
                             onClick={onScheduleMeeting}
                         >
-                            + {td("Schedule meeting")}
+                            + {t("pages.deals.workspace.meetings.schedule")}
                         </DealButton>
                     )}
                 </div>
@@ -268,7 +261,9 @@ export default function WorkspaceMeetingsTab({
                         return (
                             <section key={section.label} className="mb-2">
                                 <div className="dr-label mb-2">
-                                    {td(section.label)}
+                                    {section.label === "Upcoming"
+                                        ? t("pages.deals.workspace.meetings.section_upcoming")
+                                        : t("pages.deals.workspace.meetings.section_past")}
                                 </div>
                                 {section.items.map((meeting) => (
                                     <div
@@ -348,7 +343,9 @@ export default function WorkspaceMeetingsTab({
                                                                 meeting.typeColor ??
                                                                 T.TEXT_MUTED,
                                                         }}
-                                                        title={`${td("Meeting type")}: ${meeting.title}`}
+                                                        title={`${t(
+                                                            "pages.deals.workspace.meetings.meeting_type",
+                                                        )}: ${meeting.title}`}
                                                     />
                                                     <span className="text-[13px] font-semibold">
                                                         {meeting.title}
@@ -366,7 +363,7 @@ export default function WorkspaceMeetingsTab({
                                                         )}
                                                     </span>
                                                     <span
-                                                        className={`dr-pill ${statusPillClass(
+                                                        className={`dr-pill ${getMeetingStatusTone(
                                                             meeting.statusLabel,
                                                         )}`}
                                                     >
@@ -374,8 +371,9 @@ export default function WorkspaceMeetingsTab({
                                                             meeting.statusLabel,
                                                         )}
                                                     </span>
-                                                    {meeting.summaryStatus !==
-                                                        "none" &&
+                                                    {meeting.isConcluded &&
+                                                        meeting.summaryStatus !==
+                                                            "none" &&
                                                         (meeting.summaryStatus ===
                                                         "available" ? (
                                                             <span
@@ -404,14 +402,14 @@ export default function WorkspaceMeetingsTab({
                                                                     }
                                                                 }}
                                                             >
-                                                                {td(
-                                                                    "AI summary available",
+                                                                {t(
+                                                                    "pages.deals.workspace.meetings.view_summary",
                                                                 )}
                                                             </span>
                                                         ) : (
                                                             <span className="dr-pill dr-pill-gray">
-                                                                {td(
-                                                                    "AI summary pending",
+                                                                {t(
+                                                                    "pages.deals.workspace.meetings.ai_summary_pending",
                                                                 )}
                                                             </span>
                                                         ))}
@@ -424,8 +422,8 @@ export default function WorkspaceMeetingsTab({
                                                 >
                                                     {meeting.timeRangeLabel} ·{" "}
                                                     {meeting.durationMinutes}{" "}
-                                                    {td("min")} ·{" "}
-                                                    {meeting.locationDisplay}
+                                                    {t("pages.deals.workspace.meetings.min_label")} ·{" "}
+                                                    {td(meeting.locationDisplay)}
                                                 </span>
                                                 {meeting.attendeesLabel && (
                                                     <span
@@ -482,13 +480,15 @@ export default function WorkspaceMeetingsTab({
 
             <DealConfirmDialog
                 open={confirmBulkCancel}
-                title={`${td("Cancel")} ${selected.size} ${
-                    selected.size === 1 ? td("meeting") : td("meetings")
+                title={`${t("pages.deals.common.cancel")} ${selected.size} ${
+                    selected.size === 1
+                        ? t("pages.deals.workspace.meetings.item_singular")
+                        : t("pages.deals.workspace.meetings.item_plural")
                 }?`}
-                message={td(
-                    "Attendees will no longer be reminded for the selected scheduled meetings.",
+                message={t(
+                    "pages.deals.workspace.meetings.cancel_meetings_confirm_message",
                 )}
-                confirmLabel={td("Cancel meetings")}
+                confirmLabel={t("pages.deals.workspace.meetings.cancel_meetings")}
                 danger
                 confirmLoading={isBulkUpdating}
                 onConfirm={() =>

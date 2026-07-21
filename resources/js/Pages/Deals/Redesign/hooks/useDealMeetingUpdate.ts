@@ -6,6 +6,7 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { DealMeetingCreateInput } from "./useDealMeetingCreate";
 import {
     formatMeetingDateForApi,
@@ -30,6 +31,7 @@ interface FollowUpUpdatePayload {
 }
 
 export default function useDealMeetingUpdate(deal: Deal) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const { setDealFollowUps } = useDealWorkspace();
 
@@ -68,7 +70,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
             mutate(payload, {
                 onSuccess: (response) => {
                     setErrors([]);
-                    message.success("Meeting updated");
+                    message.success(t("pages.deals.workspace.meetings.messages.updated"));
                     if (response?.data) {
                         const updated = response.data;
                         setDealFollowUps((prev) =>
@@ -90,7 +92,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 },
             });
         },
-        [deal.id, mutate, setDealFollowUps],
+        [deal.id, mutate, setDealFollowUps, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

@@ -1,10 +1,12 @@
 import { useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealButton from "../../primitives/DealButton";
 import DealIcon from "../../primitives/DealIcon";
 import { DealModalField } from "../../primitives/DealModal";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 import DealAssigneeField from "../DealAssigneeField";
+import type { Reminder } from "@/Types/api/deal-followup";
 import {
     DEFAULT_MEETING_REMINDERS,
     MEETING_DURATION_OPTIONS,
@@ -24,6 +26,18 @@ interface DealMeetingFormFieldsProps {
     showExistingMeetingLinkHint?: boolean;
 }
 
+const REMINDER_UNIT_OPTIONS: Array<{ value: Reminder["type"]; labelKey: string }> = [
+    { value: "minute", labelKey: "reminder_unit_minutes" },
+    { value: "hour", labelKey: "reminder_unit_hours" },
+    { value: "day", labelKey: "reminder_unit_days" },
+];
+
+const PLATFORM_LABEL_KEYS: Record<MeetingPlatform, string> = {
+    zoho: "platform_video_call",
+    physical: "platform_in_person",
+    phone: "platform_phone",
+};
+
 export default function DealMeetingFormFields({
     form,
     onChange,
@@ -32,10 +46,11 @@ export default function DealMeetingFormFields({
     showExistingMeetingLinkHint = false,
 }: DealMeetingFormFieldsProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [showDuration, setShowDuration] = useState(Boolean(form.duration));
-    const [showMore, setShowMore] = useState(
-        Boolean(form.remark.trim() || form.reminders.length > 0),
-    );
+    const [showMore, setShowMore] = useState(form.reminders.length > 0);
+    const [reminderTime, setReminderTime] = useState(1);
+    const [reminderUnit, setReminderUnit] = useState<Reminder["type"]>("day");
 
     const isVideoMeeting = form.platform === "zoho";
 
@@ -83,9 +98,35 @@ export default function DealMeetingFormFields({
         });
     };
 
+    const isReminderAlreadyAdded = (candidate: Reminder) =>
+        DEFAULT_MEETING_REMINDERS.some(
+            (reminder) =>
+                reminder.time === candidate.time &&
+                reminder.type === candidate.type,
+        ) ||
+        form.reminders.some(
+            (reminder) =>
+                reminder.time === candidate.time &&
+                reminder.type === candidate.type,
+        );
+
+    const canAddReminder =
+        reminderTime >= 1 &&
+        !isReminderAlreadyAdded({ time: reminderTime, type: reminderUnit });
+
+    const handleAddReminder = () => {
+        if (disabled || !canAddReminder) return;
+        updateForm({
+            reminders: [
+                ...form.reminders,
+                { time: reminderTime, type: reminderUnit },
+            ],
+        });
+    };
+
     return (
         <>
-            <DealModalField label={td("Meeting type")}>
+            <DealModalField label={t("pages.deals.workspace.meetings.meeting_type")}>
                 <select
                     value={form.meetingTypeId ?? ""}
                     disabled={disabled}
@@ -97,7 +138,9 @@ export default function DealMeetingFormFields({
                         })
                     }
                 >
-                    <option value="">{td("Select meeting type")}</option>
+                    <option value="">
+                        {t("pages.deals.workspace.meetings.select_meeting_type")}
+                    </option>
                     {meetingTypes.map((meetingType) => (
                         <option key={meetingType.id} value={meetingType.id}>
                             {meetingType.name}
@@ -106,8 +149,21 @@ export default function DealMeetingFormFields({
                 </select>
             </DealModalField>
 
+            <DealModalField label={t("pages.deals.workspace.meetings.agenda")}>
+                <textarea
+                    value={form.remark}
+                    disabled={disabled}
+                    onChange={(event) =>
+                        updateForm({ remark: event.target.value })
+                    }
+                    placeholder={t("pages.deals.workspace.meetings.agenda_placeholder")}
+                    rows={3}
+                    style={{ resize: "vertical" }}
+                />
+            </DealModalField>
+
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <DealModalField label={td("Date")}>
+                <DealModalField label={t("pages.deals.workspace.meetings.date_label")}>
                     <input
                         type="date"
                         value={form.date}
@@ -119,7 +175,7 @@ export default function DealMeetingFormFields({
                     />
                 </DealModalField>
 
-                <DealModalField label={td("Platform")}>
+                <DealModalField label={t("pages.deals.workspace.meetings.platform")}>
                     <select
                         value={form.platform}
                         disabled={disabled}
@@ -131,7 +187,9 @@ export default function DealMeetingFormFields({
                     >
                         {MEETING_PLATFORM_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>
-                                {td(option.label)}
+                                {t(
+                                    `pages.deals.workspace.meetings.${PLATFORM_LABEL_KEYS[option.value]}`,
+                                )}
                             </option>
                         ))}
                     </select>
@@ -139,7 +197,7 @@ export default function DealMeetingFormFields({
             </div>
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <DealModalField label={td("Start time")}>
+                <DealModalField label={t("pages.deals.workspace.meetings.start_time")}>
                     <input
                         type="time"
                         value={form.startTime}
@@ -150,7 +208,7 @@ export default function DealMeetingFormFields({
                     />
                 </DealModalField>
 
-                <DealModalField label={td("End time")}>
+                <DealModalField label={t("pages.deals.workspace.meetings.end_time")}>
                     <input
                         type="time"
                         value={form.endTime}
@@ -162,69 +220,136 @@ export default function DealMeetingFormFields({
                 </DealModalField>
             </div>
 
-            <div className="mb-3">
-                <button
-                    type="button"
-                    onClick={() => setShowDuration((current) => !current)}
-                    className="border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
-                >
-                    {showDuration ? td("Hide duration") : `+ ${td("Add duration")}`}
-                </button>
-                {showDuration && (
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                        {MEETING_DURATION_OPTIONS.map((option) => {
-                            const active = form.duration === option.value;
+            {form.startTime && (
+                <div className="mb-3">
+                    <button
+                        type="button"
+                        onClick={() => setShowDuration((current) => !current)}
+                        className="border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                    >
+                        {showDuration
+                            ? t("pages.deals.workspace.meetings.hide_duration")
+                            : `+ ${t("pages.deals.workspace.meetings.add_duration")}`}
+                    </button>
+                    {showDuration && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                            {MEETING_DURATION_OPTIONS.map((option) => {
+                                const active = form.duration === option.value;
 
-                            return (
-                                <button
-                                    key={option.value}
-                                    type="button"
-                                    disabled={disabled}
-                                    onClick={() =>
-                                        handleDurationSelect(option.value)
-                                    }
-                                    className="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
-                                    style={{
-                                        borderColor: active ? T.NAVY : T.BORDER,
-                                        background: active ? T.NAVY : T.WHITE,
-                                        color: active ? T.WHITE : T.TEXT_MUTED,
-                                    }}
-                                >
-                                    {option.label}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        disabled={disabled}
+                                        onClick={() =>
+                                            handleDurationSelect(option.value)
+                                        }
+                                        className="rounded-lg border px-4 py-2 text-[13px] font-semibold transition-colors"
+                                        style={{
+                                            borderColor: active
+                                                ? T.NAVY
+                                                : T.BORDER,
+                                            background: active
+                                                ? T.NAVY
+                                                : T.WHITE,
+                                            color: active
+                                                ? T.WHITE
+                                                : T.TEXT_MUTED,
+                                        }}
+                                    >
+                                        {option.label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {isVideoMeeting && (
-                <DealModalField label={td("Meeting link")}>
+                <DealModalField label={t("pages.deals.workspace.meetings.meeting_link")}>
                     {form.meetingLink ? (
-                        <div>
+                        <div
+                            className="flex items-center gap-2.5 rounded-lg px-3 py-2.5"
+                            style={{
+                                background: T.BLUE_LIGHT,
+                                border: `1px solid ${T.BLUE_MID}`,
+                            }}
+                        >
+                            <span
+                                className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-md"
+                                style={{ background: T.WHITE }}
+                            >
+                                <DealIcon
+                                    name="video"
+                                    size={14}
+                                    color={T.BLUE}
+                                />
+                            </span>
+                            <div className="min-w-0 flex-1">
+                                <div
+                                    className="text-[11px] font-semibold uppercase tracking-wide"
+                                    style={{ color: T.BLUE }}
+                                >
+                                    {t("pages.deals.workspace.meetings.video_call")}
+                                </div>
+                                <a
+                                    href={form.meetingLink}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="block truncate text-xs font-medium no-underline"
+                                    style={{ color: T.NAVY }}
+                                    title={form.meetingLink}
+                                >
+                                    {form.meetingLink}
+                                </a>
+                            </div>
                             <a
                                 href={form.meetingLink}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-[13px] font-medium text-[#1a6bb5] no-underline hover:text-[#145890]"
+                                aria-label={t("pages.deals.workspace.meetings.open_meeting_link")}
+                                className="flex flex-shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold no-underline"
+                                style={{ background: T.BLUE, color: T.WHITE }}
                             >
-                                {form.meetingLink}
+                                <DealIcon
+                                    name="external-link"
+                                    size={12}
+                                    color={T.WHITE}
+                                />
+                                {t("pages.deals.workspace.meetings.join")}
                             </a>
-                            {showExistingMeetingLinkHint && (
-                                <p className="mt-1.5 text-[11px] text-[#9ca3af]">
-                                    {td("Existing meeting link is shown for reference.")}
-                                </p>
-                            )}
                         </div>
                     ) : (
-                        <p className="text-[13px] italic" style={{ color: T.TEXT_MUTED }}>
-                            {td("Auto-generated for video meetings after scheduling.")}
+                        <div
+                            className="flex items-center gap-2 rounded-lg px-3 py-2.5"
+                            style={{
+                                background: T.SURFACE_2,
+                                border: `1px dashed ${T.BORDER}`,
+                            }}
+                        >
+                            <DealIcon
+                                name="video"
+                                size={14}
+                                color={T.TEXT_HINT}
+                            />
+                            <p
+                                className="text-[12px] italic"
+                                style={{ color: T.TEXT_MUTED }}
+                            >
+                                {t("pages.deals.workspace.meetings.auto_generated_link_hint")}
+                            </p>
+                        </div>
+                    )}
+                    {form.meetingLink && showExistingMeetingLinkHint && (
+                        <p className="mt-1.5 text-[11px]" style={{ color: T.TEXT_HINT }}>
+                            {t("pages.deals.workspace.meetings.existing_link_hint")}
                         </p>
                     )}
                 </DealModalField>
             )}
 
-            <DealModalField label={td("Meeting participants")}>
+            <DealModalField label={t("pages.deals.workspace.meetings.participants_field")}>
                 <DealAssigneeField
                     value={form.participants}
                     onChange={(participants) => updateForm({ participants })}
@@ -243,37 +368,23 @@ export default function DealMeetingFormFields({
                         size={12}
                         color={T.BLUE}
                     />
-                    {showMore ? td("Less") : td("More")}
+                    {showMore ? t("pages.deals.common.less") : t("pages.deals.common.more")}
                 </button>
             </div>
 
             {showMore && (
                 <div className="space-y-3 border-t border-[#e2e5ea] pt-3">
-                    <DealModalField label={td("Meeting agenda")}>
-                        <textarea
-                            value={form.remark}
-                            disabled={disabled}
-                            onChange={(event) =>
-                                updateForm({ remark: event.target.value })
-                            }
-                            placeholder={td(
-                                "Enter meeting agenda, details, or remarks...",
-                            )}
-                            rows={4}
-                            style={{ resize: "vertical" }}
-                        />
-                    </DealModalField>
-
                     {/* v2.2 Reminders field (deal-v2-2.jsx:2660-2682) — default
-                       (non-removable) pills + custom (removable) pills in one
-                       row, replacing the separate "automatic reminders" info
-                       box and number/select editor rows this used to be. */}
-                    <DealModalField label={td("Reminders")}>
-                        <div className="flex flex-wrap items-center gap-1.5">
+                       (non-removable) pills + custom (removable) pills, plus a
+                       customizable adder (choose amount + minutes/hours/days)
+                       replacing the old fixed "+ 1 day before" button. */}
+                    <DealModalField label={t("pages.deals.workspace.meetings.reminders")}>
+                        <div className="flex flex-wrap items-center gap-2">
                             {DEFAULT_MEETING_REMINDERS.map((reminder) => (
                                 <span
                                     key={reminderLabel(reminder)}
                                     className="dr-pill dr-pill-gray"
+                                    style={{ fontSize: 12, padding: "5px 12px" }}
                                 >
                                     {td(reminderLabel(reminder))}
                                 </span>
@@ -281,15 +392,18 @@ export default function DealMeetingFormFields({
                             {form.reminders.map((reminder, index) => (
                                 <span
                                     key={`custom-${index}`}
-                                    className="inline-flex items-center gap-1"
+                                    className="dr-pill dr-pill-blue"
+                                    style={{
+                                        fontSize: 12,
+                                        padding: "5px 6px 5px 12px",
+                                        gap: 6,
+                                    }}
                                 >
-                                    <span className="dr-pill dr-pill-blue">
-                                        {td(reminderLabel(reminder))}
-                                    </span>
+                                    {td(reminderLabel(reminder))}
                                     <button
                                         type="button"
                                         disabled={disabled}
-                                        aria-label={`${td("Remove reminder")} ${reminderLabel(reminder)}`}
+                                        aria-label={`${t("pages.deals.workspace.meetings.remove_reminder")} ${reminderLabel(reminder)}`}
                                         onClick={() =>
                                             updateForm({
                                                 reminders: form.reminders.filter(
@@ -298,36 +412,107 @@ export default function DealMeetingFormFields({
                                             })
                                         }
                                         style={{
-                                            background: "none",
+                                            background: "rgba(20,83,140,0.12)",
                                             border: "none",
                                             cursor: "pointer",
-                                            color: T.TEXT_MUTED,
+                                            color: "#14538c",
                                             display: "flex",
-                                            padding: 2,
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            borderRadius: "50%",
+                                            width: 16,
+                                            height: 16,
+                                            padding: 0,
                                         }}
                                     >
                                         <DealIcon name="x" size={11} />
                                     </button>
                                 </span>
                             ))}
-                            <DealButton
-                                variant="ghost"
-                                size="sm"
-                                disabled={disabled}
-                                onClick={() =>
-                                    updateForm({
-                                        reminders: [
-                                            ...form.reminders,
-                                            { time: 1, type: "day" },
-                                        ],
-                                    })
-                                }
-                            >
-                                + {td("1 day before")}
-                            </DealButton>
                         </div>
-                        <p className="mt-1.5 text-[11px]" style={{ color: T.TEXT_HINT }}>
-                            {td("Default reminders always apply and can't be removed.")}
+
+                        <div
+                            className="mt-3 rounded-lg"
+                            style={{
+                                background: T.SURFACE_2,
+                                border: `1px solid ${T.BORDER}`,
+                                padding: "11px 12px",
+                            }}
+                        >
+                            <div
+                                className="mb-2 text-[11px] font-semibold uppercase"
+                                style={{
+                                    color: T.TEXT_HINT,
+                                    letterSpacing: "0.05em",
+                                }}
+                            >
+                                {t("pages.deals.workspace.meetings.add_custom_reminder")}
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    min={1}
+                                    value={reminderTime}
+                                    disabled={disabled}
+                                    aria-label={t("pages.deals.workspace.meetings.reminder_amount")}
+                                    onChange={(event) =>
+                                        setReminderTime(
+                                            Math.max(
+                                                1,
+                                                Math.floor(
+                                                    Number(event.target.value) ||
+                                                        1,
+                                                ),
+                                            ),
+                                        )
+                                    }
+                                    style={{ width: 68, textAlign: "center" }}
+                                />
+                                <select
+                                    value={reminderUnit}
+                                    disabled={disabled}
+                                    aria-label={t("pages.deals.workspace.meetings.reminder_unit")}
+                                    onChange={(event) =>
+                                        setReminderUnit(
+                                            event.target
+                                                .value as Reminder["type"],
+                                        )
+                                    }
+                                    style={{ flex: 1, width: "auto", minWidth: 0 }}
+                                >
+                                    {REMINDER_UNIT_OPTIONS.map((option) => (
+                                        <option
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {t(
+                                                `pages.deals.workspace.meetings.${option.labelKey}`,
+                                            )}
+                                        </option>
+                                    ))}
+                                </select>
+                                <span
+                                    className="text-[12px]"
+                                    style={{
+                                        color: T.TEXT_MUTED,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    {t("pages.deals.workspace.meetings.before")}
+                                </span>
+                                <DealButton
+                                    variant="primary"
+                                    size="sm"
+                                    disabled={disabled || !canAddReminder}
+                                    onClick={handleAddReminder}
+                                >
+                                    {t("pages.deals.common.add")}
+                                </DealButton>
+                            </div>
+                        </div>
+
+                        <p className="mt-2 text-[11px]" style={{ color: T.TEXT_HINT }}>
+                            {t("pages.deals.workspace.meetings.default_reminders_hint")}
                         </p>
                     </DealModalField>
                 </div>

@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
 import DeleteFile from "@/Pages/Deals/Components/Tabs/files/DeleteFile";
@@ -9,8 +9,11 @@ import {
     toWorkspaceFilePreview,
 } from "../../adapters/fileAdapter";
 import useDealFileUpload from "../../hooks/useDealFileUpload";
+import useDealDocuments from "../../hooks/useDealDocuments";
+import useDealDocumentUpload from "../../hooks/useDealDocumentUpload";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
+import DealDocumentSlotRow from "./DealDocumentSlotRow";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
@@ -18,6 +21,16 @@ interface WorkspaceFilesTabProps {
     deal: Deal;
     files: DealFile[];
     permissions: Record<string, string>;
+    /** Custom field definitions — file-typed ones become document slots. */
+    fields?: Array<{
+        id: number;
+        label?: string;
+        name?: string;
+        type?: string;
+        custom_field_category_id?: string | number;
+    }>;
+    /** Pipeline-linked category ids — scopes which custom file fields show. */
+    categoryIds?: number[];
 }
 
 function canViewFile(
@@ -55,8 +68,10 @@ export default function WorkspaceFilesTab({
     deal,
     files,
     permissions,
+    fields = [],
+    categoryIds,
 }: WorkspaceFilesTabProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const inputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +91,16 @@ export default function WorkspaceFilesTab({
     );
 
     const showUpload = canAddFiles(permissions);
+
+    // Document slots = HIBARR document fields + file-typed custom fields from
+    // the pipeline's categories. These are updated in place on their own
+    // field, not uploaded as loose deal files.
+    const { slots } = useDealDocuments(deal, files, fields, categoryIds);
+    const {
+        uploadToSlot,
+        isUploadingField,
+        canEdit: canEditFields,
+    } = useDealDocumentUpload();
 
     const handleFilesSelected = async (fileList: FileList | File[] | null) => {
         if (!fileList || isUploading) return;
@@ -97,6 +122,35 @@ export default function WorkspaceFilesTab({
 
     return (
         <>
+            {slots.length > 0 && (
+                <section className="mb-5">
+                    <div className="mb-1 text-[14px] font-bold text-[#1a1f2e]">
+                        {t("pages.deals.workspace.documents.section_title")}
+                    </div>
+                    <div className="mb-2 text-[12px]" style={{ color: T.TEXT_HINT }}>
+                        {t("pages.deals.workspace.documents.section_hint")}
+                    </div>
+                    <div className="rounded-lg border border-[#e2e5ea] bg-white px-3.5">
+                        {slots.map((doc) => (
+                            <DealDocumentSlotRow
+                                key={doc.id}
+                                doc={doc}
+                                variant="full"
+                                onUpload={uploadToSlot}
+                                uploading={isUploadingField(doc.fieldName)}
+                                disabled={!canEditFields}
+                            />
+                        ))}
+                    </div>
+                </section>
+            )}
+
+            {slots.length > 0 && (
+                <div className="mb-2 text-[14px] font-bold text-[#1a1f2e]">
+                    {t("pages.deals.workspace.files.other_files")}
+                </div>
+            )}
+
             {showUpload && (
                 <div
                     role="button"
@@ -138,18 +192,18 @@ export default function WorkspaceFilesTab({
                     />
                     <div className="mb-1 text-[13px] font-medium text-[#1a1f2e]">
                         {isUploading
-                            ? `${td("Uploading")}... ${uploadProgress}%`
-                            : td("Drop files here or click to upload")}
+                            ? `${t("pages.deals.workspace.files.uploading")}... ${uploadProgress}%`
+                            : t("pages.deals.workspace.files.drop_hint")}
                     </div>
                     <div className="text-[11px] text-[#9ca3af]">
-                        {td("PDF, images, ZIP — max 200 MB")}
+                        {t("pages.deals.workspace.files.size_hint")}
                     </div>
                 </div>
             )}
 
             {visibleFiles.length === 0 ? (
                 <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {td("No files uploaded")}
+                    {t("pages.deals.workspace.files.empty")}
                 </p>
             ) : (
                 visibleFiles.map((file) => (
@@ -173,7 +227,7 @@ export default function WorkspaceFilesTab({
                                 {file.name}
                             </div>
                             <div className="text-[11px] text-[#9ca3af]">
-                                {file.sizeLabel} · {td("Uploaded")}{" "}
+                                {file.sizeLabel} · {t("pages.deals.workspace.files.uploaded_label")}{" "}
                                 {file.uploadedLabel}
                             </div>
                         </div>
@@ -183,7 +237,7 @@ export default function WorkspaceFilesTab({
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => downloadDealFile(file.file)}
-                                aria-label={td("Download")}
+                                aria-label={t("pages.deals.workspace.files.download")}
                             >
                                 <DealIcon name="external-link" size={13} />
                             </DealButton>
@@ -192,7 +246,7 @@ export default function WorkspaceFilesTab({
                                     variant="ghost"
                                     size="sm"
                                     onClick={() => setDeleteFile(file.file)}
-                                    aria-label={td("Delete")}
+                                    aria-label={t("pages.deals.common.delete")}
                                 >
                                     <DealIcon name="x" size={13} />
                                 </DealButton>

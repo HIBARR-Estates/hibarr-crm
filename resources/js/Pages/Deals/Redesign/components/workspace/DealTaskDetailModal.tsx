@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import TaskStatusDropdownPill, {
     isCompletedColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -95,6 +96,7 @@ export default function DealTaskDetailModal({
     onClose,
 }: DealTaskDetailModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState<EditFormState | null>(null);
@@ -120,7 +122,7 @@ export default function DealTaskDetailModal({
     const startDate = task.start_date ? new Date(task.start_date) : null;
     const dueDate = task.due_date ? new Date(task.due_date) : null;
     const dueLabel = dueDate
-        ? `${formatDateLabel(dueDate)} · ${dueDate.toLocaleTimeString("en-GB", {
+        ? `${formatDateLabel(dueDate)} · ${dueDate.toLocaleTimeString("en", {
               hour: "numeric",
               minute: "2-digit",
           })}`
@@ -134,7 +136,7 @@ export default function DealTaskDetailModal({
     // server error after the fact.
     const dateRangeError =
         form.startDate && form.dueDate && form.dueDate < form.startDate
-            ? td("Due date can't be before the start date")
+            ? t("pages.deals.workspace.tasks.date_range_error")
             : null;
 
     const handleStatusChange = (slug: string) => setStatus(task.id, slug);
@@ -180,7 +182,11 @@ export default function DealTaskDetailModal({
         <DealModal
             open={!!task}
             onClose={onClose}
-            title={editing ? td("Edit task") : td("Task")}
+            title={
+                editing
+                    ? t("pages.deals.workspace.tasks.edit_task")
+                    : t("pages.deals.workspace.tasks.view_title")
+            }
             footer={
                 editing ? (
                     <>
@@ -189,7 +195,7 @@ export default function DealTaskDetailModal({
                             onClick={cancelEditing}
                             disabled={isUpdating}
                         >
-                            {td("Cancel")}
+                            {t("pages.deals.common.cancel")}
                         </DealButton>
                         <DealButton
                             variant="primary"
@@ -197,7 +203,7 @@ export default function DealTaskDetailModal({
                             disabled={!dirty || isUpdating || !!dateRangeError}
                             loading={isUpdating}
                         >
-                            {td("Save changes")}
+                            {t("pages.deals.common.save_changes")}
                         </DealButton>
                     </>
                 ) : (
@@ -207,14 +213,11 @@ export default function DealTaskDetailModal({
                             style={{ color: T.RED }}
                             onClick={() => setDeleteOpen(true)}
                         >
-                            {td("Delete task")}
+                            {t("pages.deals.workspace.tasks.delete_task")}
                         </DealButton>
                         <span style={{ flex: 1 }} />
-                        <DealButton variant="ghost" onClick={onClose}>
-                            {td("Close")}
-                        </DealButton>
                         <DealButton variant="primary" onClick={startEditing}>
-                            {td("Edit task")}
+                            {t("pages.deals.workspace.tasks.edit_task")}
                         </DealButton>
                     </>
                 )
@@ -224,13 +227,31 @@ export default function DealTaskDetailModal({
                 <div className="mb-3 space-y-1">
                     {errors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {error}
+                            {td(error)}
                         </p>
                     ))}
                 </div>
             )}
 
-            <div className="mb-4 flex flex-wrap items-center gap-2.5">
+            {/* In view mode the task title leads — it is what the reader came
+                for — with status/priority as supporting metadata beneath it.
+                While editing the title lives in its own field, so only the
+                badge row is shown. */}
+            {!editing && (
+                <div
+                    className="mb-1.5 font-bold"
+                    style={{
+                        fontSize: 19,
+                        lineHeight: 1.3,
+                        color: T.TEXT,
+                        textDecoration: done ? "line-through" : "none",
+                    }}
+                >
+                    {task.heading}
+                </div>
+            )}
+
+            <div className="mb-5 flex flex-wrap items-center gap-2.5">
                 <TaskStatusDropdownPill
                     status={statusSlug}
                     columns={taskBoardColumns}
@@ -239,12 +260,19 @@ export default function DealTaskDetailModal({
                     onChange={(slug) => handleStatusChange(slug)}
                 />
                 <DealPriorityBadge priority={task.priority} />
-                {overdue && <span className="dr-pill dr-pill-red">{td("Overdue")}</span>}
+                {overdue && (
+                    <span
+                        className="dr-pill dr-pill-red"
+                        style={{ fontSize: 12, padding: "4px 11px" }}
+                    >
+                        {t("pages.deals.workspace.tasks.overdue")}
+                    </span>
+                )}
             </div>
 
             {editing ? (
                 <>
-                    <DealModalField label={td("Task title")}>
+                    <DealModalField label={t("pages.deals.workspace.tasks.title_field")}>
                         <input
                             value={form.title}
                             autoFocus
@@ -255,21 +283,21 @@ export default function DealTaskDetailModal({
                         />
                     </DealModalField>
 
-                    <DealModalField label={td("Description")}>
+                    <DealModalField label={t("pages.deals.common.description")}>
                         <textarea
                             value={form.description}
                             disabled={isUpdating}
                             onChange={(e) =>
                                 setForm({ ...form, description: e.target.value })
                             }
-                            placeholder={td("Optional details...")}
+                            placeholder={t("pages.deals.common.optional_details_placeholder")}
                             rows={4}
                             style={{ resize: "vertical" }}
                         />
                     </DealModalField>
 
                     <div className="grid grid-cols-2 gap-3">
-                        <DealModalField label={td("Start date")}>
+                        <DealModalField label={t("pages.deals.common.start_date")}>
                             <input
                                 type="date"
                                 value={form.startDate}
@@ -279,7 +307,7 @@ export default function DealTaskDetailModal({
                                 }
                             />
                         </DealModalField>
-                        <DealModalField label={td("Due date")}>
+                        <DealModalField label={t("pages.deals.common.due_date")}>
                             <input
                                 type="date"
                                 value={form.dueDate}
@@ -297,7 +325,7 @@ export default function DealTaskDetailModal({
                     )}
 
                     <div className="grid grid-cols-2 gap-3">
-                        <DealModalField label={td("Due time")}>
+                        <DealModalField label={t("pages.deals.common.due_time")}>
                             <input
                                 type="time"
                                 value={form.dueTime}
@@ -307,7 +335,7 @@ export default function DealTaskDetailModal({
                                 }
                             />
                         </DealModalField>
-                        <DealModalField label={td("Priority")}>
+                        <DealModalField label={t("pages.deals.common.priority")}>
                             <select
                                 value={form.priority}
                                 disabled={isUpdating}
@@ -319,14 +347,14 @@ export default function DealTaskDetailModal({
                                     })
                                 }
                             >
-                                <option value="high">{td("High")}</option>
-                                <option value="medium">{td("Medium")}</option>
-                                <option value="low">{td("Low")}</option>
+                                <option value="high">{t("pages.deals.common.priority_high")}</option>
+                                <option value="medium">{t("pages.deals.common.priority_medium")}</option>
+                                <option value="low">{t("pages.deals.common.priority_low")}</option>
                             </select>
                         </DealModalField>
                     </div>
 
-                    <DealModalField label={td("Assignees")}>
+                    <DealModalField label={t("pages.deals.common.assignees")}>
                         <DealAssigneeField
                             value={form.assignees}
                             onChange={(assignees) =>
@@ -338,64 +366,72 @@ export default function DealTaskDetailModal({
                 </>
             ) : (
                 <>
+                    {/* Due date is the operational fact people open a task for,
+                        so it gets a panel and the largest type in the body —
+                        turning red when overdue. */}
                     <div
-                        className="mb-3.5 text-[15px] font-bold"
-                        style={{ textDecoration: done ? "line-through" : "none" }}
+                        className="mb-5 grid gap-3 rounded-xl sm:grid-cols-2"
+                        style={{
+                            background: overdue ? T.RED_SOFT : T.SURFACE_2,
+                            border: `1px solid ${overdue ? T.RED_MID : T.BORDER}`,
+                            padding: "14px 16px",
+                        }}
                     >
-                        {task.heading}
+                        <div>
+                            <div className="dr-label" style={{ marginBottom: 5 }}>
+                                {t("pages.deals.common.due_date")}
+                            </div>
+                            <div
+                                className="flex items-center gap-1.5"
+                                style={{
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    color: overdue ? T.RED : T.TEXT,
+                                }}
+                            >
+                                <DealIcon name="calendar" size={14} />
+                                {dueLabel}
+                            </div>
+                        </div>
+                        <div>
+                            <div className="dr-label" style={{ marginBottom: 5 }}>
+                                {t("pages.deals.common.start_date")}
+                            </div>
+                            <div
+                                className="flex items-center gap-1.5"
+                                style={{ fontSize: 14, color: T.TEXT_MUTED }}
+                            >
+                                <DealIcon name="calendar" size={14} />
+                                {formatDateLabel(startDate)}
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="mb-3.5">
+                    <div className="mb-5">
                         {field(
-                            td("Description"),
+                            t("pages.deals.common.description"),
                             <div
-                                className="text-[13px] leading-relaxed"
+                                className="text-[14px] leading-relaxed"
                                 style={{
                                     color: task.description ? T.TEXT : T.TEXT_MUTED,
                                     fontStyle: task.description ? "normal" : "italic",
                                     whiteSpace: "pre-wrap",
                                 }}
                             >
-                                {task.description || td("No description")}
+                                {task.description || t("pages.deals.common.no_description")}
                             </div>,
                         )}
                     </div>
 
-                    <div className="mb-3.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                    <div className="mb-2">
                         {field(
-                            td("Start date"),
-                            <div
-                                className="flex items-center gap-1.5 text-[13px]"
-                                style={{ color: T.TEXT }}
-                            >
-                                <DealIcon name="calendar" size={12} />
-                                {formatDateLabel(startDate)}
-                            </div>,
-                        )}
-                        {field(
-                            td("Due date"),
-                            <div
-                                className="flex items-center gap-1.5 text-[13px]"
-                                style={{
-                                    color: overdue ? T.RED : T.TEXT,
-                                    fontWeight: overdue ? 600 : 400,
-                                }}
-                            >
-                                <DealIcon name="calendar" size={12} />
-                                {dueLabel}
-                            </div>,
-                        )}
-                    </div>
-
-                    <div className="mb-3.5">
-                        {field(
-                            td("Assignees"),
+                            t("pages.deals.common.assignees"),
                             assignees.length === 0 ? (
                                 <div
-                                    className="text-[13px] italic"
+                                    className="text-[14px] italic"
                                     style={{ color: T.TEXT_MUTED }}
                                 >
-                                    {td("Unassigned")}
+                                    {t("pages.deals.common.unassigned")}
                                 </div>
                             ) : (
                                 <div className="flex flex-wrap items-center gap-2">
@@ -409,10 +445,12 @@ export default function DealTaskDetailModal({
                                             }}
                                         >
                                             <DealAvatar
-                                                size={20}
+                                                size={22}
                                                 initials={initialsFromName(user.name)}
                                             />
-                                            <span className="text-xs">{user.name}</span>
+                                            <span className="text-[13px]">
+                                                {user.name}
+                                            </span>
                                         </span>
                                     ))}
                                 </div>

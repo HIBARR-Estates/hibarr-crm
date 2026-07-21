@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import useDealNoteCreate from "../../hooks/useDealNoteCreate";
 import DealButton from "../primitives/DealButton";
 import { DealModal, DealModalField } from "../primitives/DealModal";
@@ -24,6 +25,7 @@ export default function DealAddNoteModal({
     dealId,
 }: DealAddNoteModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [form, setForm] = useState<NoteFormState>(INITIAL_FORM);
     const { createNote, isSaving, errors, clearErrors } =
         useDealNoteCreate(dealId);
@@ -53,7 +55,7 @@ export default function DealAddNoteModal({
     return (
         <DealModal
             open={open}
-            title={td("Add note")}
+            title={t("pages.deals.workspace.notes.add_note")}
             onClose={handleClose}
             footer={
                 <>
@@ -62,7 +64,7 @@ export default function DealAddNoteModal({
                         onClick={handleClose}
                         disabled={isSaving}
                     >
-                        {td("Cancel")}
+                        {t("pages.deals.common.cancel")}
                     </DealButton>
                     <DealButton
                         variant="primary"
@@ -70,7 +72,7 @@ export default function DealAddNoteModal({
                         disabled={!form.text.trim() || isSaving}
                         loading={isSaving}
                     >
-                        {td("Save note")}
+                        {t("pages.deals.workspace.notes.save")}
                     </DealButton>
                 </>
             }
@@ -79,13 +81,13 @@ export default function DealAddNoteModal({
                 <div className="mb-3 space-y-1">
                     {errors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {error}
+                            {td(error)}
                         </p>
                     ))}
                 </div>
             )}
 
-            <DealModalField label={td("Title")}>
+            <DealModalField label={t("pages.deals.workspace.notes.title_label")}>
                 <input
                     value={form.title}
                     autoFocus
@@ -96,11 +98,11 @@ export default function DealAddNoteModal({
                             title: event.target.value,
                         }))
                     }
-                    placeholder={td("Note title (optional)")}
+                    placeholder={t("pages.deals.workspace.notes.title_placeholder")}
                 />
             </DealModalField>
 
-            <DealModalField label={td("Details")}>
+            <DealModalField label={t("pages.deals.workspace.notes.details_label")}>
                 <textarea
                     value={form.text}
                     disabled={isSaving}
@@ -110,7 +112,7 @@ export default function DealAddNoteModal({
                             text: event.target.value,
                         }))
                     }
-                    placeholder={td("Log a note about this interaction...")}
+                    placeholder={t("pages.deals.workspace.notes.body_placeholder")}
                     rows={6}
                     style={{ resize: "vertical" }}
                 />

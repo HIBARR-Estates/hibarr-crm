@@ -78,6 +78,15 @@ function DealViewRedesignInner(props: DealShowProps) {
     const permissions = props.permissions ?? {};
     const fields = props.fields ?? [];
     const customFieldCategories = props.customFieldCategories ?? [];
+    // Already pipeline-filtered server-side (DealController@show) — scopes the
+    // document slots to the categories this pipeline actually uses.
+    const pipelineCategoryIds = useMemo(
+        () =>
+            customFieldCategories.map((category: { id: number }) =>
+                Number(category.id),
+            ),
+        [customFieldCategories],
+    );
     const employees = props.employees ?? [];
     const taskBoardColumns = props.taskBoardColumns ?? [];
     const dealPermissions = useDealPermissions(deal);
@@ -159,7 +168,10 @@ function DealViewRedesignInner(props: DealShowProps) {
             title={pageTitle}
             breadcrumbs={[
                 { name: t("app.menu.dashboard"), url: route("dashboard") },
-                { name: td("Deals"), url: route("deals.index") },
+                {
+                    name: t("pages.deals.header.breadcrumb_deals"),
+                    url: route("deals.index"),
+                },
                 { name: td(pageTitle) },
             ]}
         >
@@ -295,6 +307,8 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                     deal={deal}
                                                     files={files}
                                                     permissions={permissions}
+                                                    fields={fields}
+                                                    categoryIds={pipelineCategoryIds}
                                                 />
                                             </Deferred>
                                         )}
@@ -351,6 +365,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                     deal={deal}
                                     files={files}
                                     fields={fields}
+                                    categoryIds={pipelineCategoryIds}
                                     restrictPackageOrProperty={
                                         props.restrictPackageOrProperty
                                     }

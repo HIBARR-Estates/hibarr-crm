@@ -41,6 +41,8 @@ interface EntityAiSummaryHeaderProps {
     /** No summary exists yet — the banner isn't collapse/expand-toggleable
      * (there's nothing to expand into) and instead shows what to do next. */
     hasSummary?: boolean;
+    isStale?: boolean;
+    isHeuristic?: boolean;
 }
 
 export default function EntityAiSummaryHeader({
@@ -57,6 +59,8 @@ export default function EntityAiSummaryHeader({
     riskLevel,
     chips = [],
     hasSummary = false,
+    isStale = false,
+    isHeuristic = false,
 }: EntityAiSummaryHeaderProps) {
     const timestampLabel = generatedAt
         ? `generated ${dayjs(generatedAt).fromNow()}`
@@ -145,6 +149,16 @@ export default function EntityAiSummaryHeader({
                                 Risk: {riskLevel}
                             </span>
                         )}
+                        {isStale && (
+                            <span className="entity-ai-summary-stale-pill">
+                                Out of date
+                            </span>
+                        )}
+                        {isHeuristic && (
+                            <span className="entity-ai-summary-heuristic-pill">
+                                Fallback
+                            </span>
+                        )}
                         {(timestampLabel || dataConfidence) && (
                             <span className="entity-ai-summary-header__timestamp entity-ai-summary-header__timestamp--redesign">
                                 {timestampLabel}
@@ -190,6 +204,16 @@ export default function EntityAiSummaryHeader({
                         {timestampLabel}
                     </span>
                 )}
+                {isStale && (
+                    <span className="entity-ai-summary-stale-pill">
+                        Out of date
+                    </span>
+                )}
+                {isHeuristic && (
+                    <span className="entity-ai-summary-heuristic-pill">
+                        Fallback
+                    </span>
+                )}
                 {dataConfidence === "low" && (
                     <span className="entity-ai-summary-confidence">
                         Low confidence
@@ -202,7 +226,7 @@ export default function EntityAiSummaryHeader({
                 onClick={onRegenerate}
                 size="small"
             >
-                Regenerate
+                {isStale ? "Refresh" : "Regenerate"}
             </Button>
         </header>
     );

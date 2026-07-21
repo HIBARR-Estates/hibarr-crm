@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { Note } from "@/Types/api/note";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
@@ -36,6 +37,7 @@ export default function DealNoteDetailModal({
     onClose,
 }: DealNoteDetailModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const [editing, setEditing] = useState(false);
@@ -81,12 +83,16 @@ export default function DealNoteDetailModal({
         <DealModal
             open={!!note}
             onClose={onClose}
-            title={editing ? td("Edit note") : td("Note")}
+            title={
+                editing
+                    ? t("pages.deals.workspace.notes.edit_note")
+                    : t("pages.deals.workspace.notes.view_title")
+            }
             footer={
                 editing ? (
                     <>
                         <DealButton variant="ghost" onClick={() => setEditing(false)}>
-                            {td("Cancel")}
+                            {t("pages.deals.common.cancel")}
                         </DealButton>
                         <DealButton
                             variant="primary"
@@ -94,7 +100,7 @@ export default function DealNoteDetailModal({
                             loading={isUpdating}
                             onClick={handleSave}
                         >
-                            {td("Save changes")}
+                            {t("pages.deals.common.save_changes")}
                         </DealButton>
                     </>
                 ) : (
@@ -105,16 +111,16 @@ export default function DealNoteDetailModal({
                                 style={{ color: T.RED }}
                                 onClick={() => setConfirmDelete(true)}
                             >
-                                {td("Delete")}
+                                {t("pages.deals.common.delete")}
                             </DealButton>
                         )}
                         <span style={{ flex: 1 }} />
                         <DealButton variant="ghost" onClick={onClose}>
-                            {td("Close")}
+                            {t("pages.deals.common.close")}
                         </DealButton>
                         {canEdit && (
                             <DealButton variant="primary" onClick={() => setEditing(true)}>
-                                {td("Edit note")}
+                                {t("pages.deals.workspace.notes.edit_note")}
                             </DealButton>
                         )}
                     </>
@@ -123,7 +129,7 @@ export default function DealNoteDetailModal({
         >
             {editing ? (
                 <>
-                    <DealModalField label={td("Title")}>
+                    <DealModalField label={t("pages.deals.workspace.notes.title_label")}>
                         <input
                             className="dr-input"
                             value={title}
@@ -131,7 +137,7 @@ export default function DealNoteDetailModal({
                             autoFocus
                         />
                     </DealModalField>
-                    <DealModalField label={td("Details")}>
+                    <DealModalField label={t("pages.deals.workspace.notes.details_label")}>
                         <textarea
                             className="dr-input"
                             rows={7}
@@ -155,29 +161,31 @@ export default function DealNoteDetailModal({
                                         {td(note.title)}
                                         {note.updated_at !== note.created_at && (
                                             <span
-                                                className="ml-1 text-[11px] font-normal italic"
+                                                className="ml-1 text-[12px] font-normal italic"
                                                 style={{ color: T.TEXT_MUTED }}
                                             >
-                                                ({td("edited")})
+                                                ({t("pages.deals.workspace.notes.edited_tag")})
                                             </span>
                                         )}
                                     </span>
                                     <span
-                                        className="block text-xs"
+                                        className="block text-[13px]"
                                         style={{ color: T.TEXT_MUTED }}
                                     >
-                                        {note.added_by?.name ?? td("Unknown")}
+                                        {note.added_by?.name ??
+                                            t("pages.deals.workspace.notes.unknown_author")}
                                     </span>
                                 </>
                             ) : (
                                 <span className="block text-sm font-semibold">
-                                    {note.added_by?.name ?? td("Unknown")}
+                                    {note.added_by?.name ??
+                                        t("pages.deals.workspace.notes.unknown_author")}
                                     {note.updated_at !== note.created_at && (
                                         <span
-                                            className="ml-1 text-[11px] font-normal italic"
+                                            className="ml-1 text-[12px] font-normal italic"
                                             style={{ color: T.TEXT_MUTED }}
                                         >
-                                            ({td("edited")})
+                                            ({t("pages.deals.workspace.notes.edited_tag")})
                                         </span>
                                     )}
                                 </span>
@@ -185,7 +193,7 @@ export default function DealNoteDetailModal({
                         </span>
                     </div>
                     <div
-                        className="text-[13px] leading-[1.7]"
+                        className="text-[14px] leading-[1.7]"
                         style={{ color: T.TEXT, whiteSpace: "pre-wrap" }}
                     >
                         {stripHtml(note.details || "")}
@@ -195,11 +203,11 @@ export default function DealNoteDetailModal({
 
             <DealConfirmDialog
                 open={confirmDelete}
-                title={td("Delete note?")}
-                message={td(
-                    "This note will be permanently removed from the deal. This cannot be undone.",
+                title={t("pages.deals.workspace.notes.delete_confirm_title")}
+                message={t(
+                    "pages.deals.workspace.notes.delete_single_confirm_message",
                 )}
-                confirmLabel={td("Delete note")}
+                confirmLabel={t("pages.deals.workspace.notes.delete_note")}
                 danger
                 confirmLoading={isDeleting}
                 onConfirm={() => {

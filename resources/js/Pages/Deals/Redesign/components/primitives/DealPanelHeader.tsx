@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import DealIcon from "./DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
@@ -14,6 +15,7 @@ export default function DealPanelHeader({
     rightSlot,
     onClose,
 }: DealPanelHeaderProps) {
+    const { t } = useTranslation();
     return (
         <div
             style={{
@@ -41,7 +43,7 @@ export default function DealPanelHeader({
                     <button
                         type="button"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label={t("pages.deals.common.close")}
                         className="dr-btn dr-btn-sm"
                         style={{
                             background: T.WHITE,

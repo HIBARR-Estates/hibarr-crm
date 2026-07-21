@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
@@ -37,7 +37,7 @@ export default function DealAssigneeField({
     onChange,
     disabled = false,
 }: DealAssigneeFieldProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage<{ employees?: EmployeeRecord[] }>();
     const [adding, setAdding] = useState(false);
 
@@ -91,7 +91,7 @@ export default function DealAssigneeField({
                             {!disabled && (
                                 <button
                                     type="button"
-                                    aria-label={`${td("Remove")} ${person.name}`}
+                                    aria-label={`${t("pages.deals.common.remove")} ${person.name}`}
                                     onClick={() =>
                                         onChange(value.filter((x) => x !== id))
                                     }
@@ -116,7 +116,9 @@ export default function DealAssigneeField({
                     disabled={disabled}
                     onClick={() => setAdding((current) => !current)}
                 >
-                    {adding ? td("Done") : `+ ${td("Add")}`}
+                    {adding
+                        ? t("pages.deals.common.done")
+                        : `+ ${t("pages.deals.common.add")}`}
                 </DealButton>
             </div>
             {adding && !disabled && (

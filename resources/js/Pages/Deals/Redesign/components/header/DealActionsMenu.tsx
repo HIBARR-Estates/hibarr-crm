@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealIcon from "../primitives/DealIcon";
 import useFloatingMenuPosition from "../../hooks/useFloatingMenuPosition";
 
@@ -24,7 +24,7 @@ export default function DealActionsMenu({
     onDelete,
     canDelete,
 }: DealActionsMenuProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -55,9 +55,12 @@ export default function DealActionsMenu({
     };
 
     const items: Array<{ label: string; action: () => void; danger?: boolean }> = [
-        { label: td("Add note"), action: onAddNote },
-        { label: td("Add task"), action: onAddTask },
-        { label: td("Schedule meeting"), action: onScheduleMeeting },
+        { label: t("pages.deals.workspace.notes.add_note"), action: onAddNote },
+        { label: t("pages.deals.workspace.tasks.add_task"), action: onAddTask },
+        {
+            label: t("pages.deals.workspace.meetings.schedule"),
+            action: onScheduleMeeting,
+        },
     ];
 
     return (
@@ -67,7 +70,7 @@ export default function DealActionsMenu({
                 type="button"
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label={td("Deal actions")}
+                aria-label={t("pages.deals.header.actions_aria")}
                 onClick={() => setOpen((v) => !v)}
                 className="dr-btn dr-btn-sm dr-btn-ghost"
                 style={{ padding: "5px 8px" }}
@@ -104,7 +107,7 @@ export default function DealActionsMenu({
                                     className="dr-menu-item danger"
                                     onClick={() => run(onDelete)}
                                 >
-                                    {td("Delete deal")}
+                                    {t("pages.deals.header.delete_deal")}
                                 </button>
                             </>
                         )}

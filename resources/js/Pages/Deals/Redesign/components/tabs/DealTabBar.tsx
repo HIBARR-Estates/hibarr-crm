@@ -1,6 +1,5 @@
 import { KeyboardEvent } from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DealTab, DealTabCount } from "../../types";
 import useHScroll from "../../hooks/useHScroll";
 import DealScrollArrow from "../primitives/DealScrollArrow";
@@ -32,21 +31,20 @@ export default function DealTabBar({
     onChange,
 }: DealTabBarProps) {
     const { t } = useTranslation();
-    const { td } = useTd();
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
 
     const labels: Record<DealTab, string> = {
-        overview: td("Overview"),
+        overview: t("pages.deals.header.tabs.overview"),
         notes: t("pages.deals.tabs.notes"),
-        tasks: td("Tasks"),
+        tasks: t("pages.deals.header.tabs.tasks"),
         meetings: t("pages.deals.tabs.meeting"),
         files: t("pages.deals.tabs.files"),
         offers: t("pages.deals.tabs.offers"),
         recommendations: t("pages.deals.tabs.recommendations"),
         itinerary: t("pages.flight_itinerary.tab"),
-        dealinfo: td("Deal info"),
-        timeline: td("Timeline"),
+        dealinfo: t("pages.deals.header.tabs.deal_info"),
+        timeline: t("pages.deals.header.tabs.timeline"),
     };
 
     const recordTabs = RECORD_TABS.filter((tab) => visibleTabs.includes(tab.id));
@@ -97,7 +95,7 @@ export default function DealTabBar({
                     dir="left"
                     enabled={scroll.overflow.left}
                     onClick={() => scroll.nudge(-1)}
-                    label="Scroll tabs left"
+                    label={t("pages.deals.header.tabs.scroll_left")}
                 />
             )}
             <div
@@ -105,7 +103,7 @@ export default function DealTabBar({
                 onScroll={scroll.update}
                 onKeyDown={handleKeyDown}
                 role="tablist"
-                aria-label="Deal records"
+                aria-label={t("pages.deals.header.tabs.records_aria")}
                 className="dr-tabs-scroll"
             >
                 {recordTabs.map((tab) => renderTab(tab.id, tab.countKey))}
@@ -115,7 +113,7 @@ export default function DealTabBar({
                     dir="right"
                     enabled={scroll.overflow.right}
                     onClick={() => scroll.nudge(1)}
-                    label="Scroll tabs right"
+                    label={t("pages.deals.header.tabs.scroll_right")}
                 />
             )}
             {metaTabs.length > 0 && (
@@ -124,7 +122,7 @@ export default function DealTabBar({
                     <div
                         className="dr-tabs-meta"
                         role="tablist"
-                        aria-label="Deal info and timeline"
+                        aria-label={t("pages.deals.header.tabs.meta_aria")}
                         onKeyDown={handleKeyDown}
                     >
                         {metaTabs.map((id) => renderTab(id))}

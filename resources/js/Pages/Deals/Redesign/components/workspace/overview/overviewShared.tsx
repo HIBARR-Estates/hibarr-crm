@@ -1,5 +1,5 @@
 import { ReactNode } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealButton from "../../primitives/DealButton";
 import DealIcon from "../../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
@@ -141,8 +141,12 @@ export function OverviewColumnPendingSkeleton() {
  * loaded state so nothing reflows/pops when data arrives.
  */
 export function OverviewDeferredSkeleton() {
-    const { td } = useTd();
-    const columns = [td("Notes"), td("Open tasks"), td("Upcoming meetings")];
+    const { t } = useTranslation();
+    const columns = [
+        t("pages.deals.tabs.notes"),
+        t("pages.deals.workspace.overview.open_tasks_col"),
+        t("pages.deals.workspace.overview.upcoming_meetings_col"),
+    ];
     return (
         <div className="dr-overview">
             {columns.map((title) => (

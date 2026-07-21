@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "./DealAvatar";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
@@ -40,7 +40,7 @@ export default function DealPeoplePicker({
     placeholder,
     pendingId,
 }: DealPeoplePickerProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [query, setQuery] = useState("");
     const q = query.trim().toLowerCase();
 
@@ -62,8 +62,12 @@ export default function DealPeoplePicker({
             <input
                 className="dr-input"
                 type="search"
-                aria-label={placeholder || td("Search employees…")}
-                placeholder={placeholder || td("Search employees…")}
+                aria-label={
+                    placeholder || t("pages.deals.header.team.search_employees")
+                }
+                placeholder={
+                    placeholder || t("pages.deals.header.team.search_employees")
+                }
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoFocus={autoFocus}
@@ -75,7 +79,7 @@ export default function DealPeoplePicker({
                         className="px-1.5 py-2 text-xs italic"
                         style={{ color: T.TEXT_MUTED }}
                     >
-                        {td("No employees match")} "{query}"
+                        {t("pages.deals.header.team.no_employees_match")} "{query}"
                     </div>
                 ) : (
                     results.map((person) => {

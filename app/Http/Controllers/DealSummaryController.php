@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\EntityAiSummaryGenerationException;
 use App\Models\Deal;
 use App\Services\EntitySummary\DealSummaryService;
+use App\Services\PermissionService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 
@@ -20,8 +22,11 @@ class DealSummaryController extends AccountBaseController
         $this->assertFeatureEnabled();
         $this->assertCanViewDeal($deal);
 
+        $summary = $this->dealSummaryService->getCached($deal);
+
         return response()->json([
-            'summary' => $this->dealSummaryService->getCached($deal),
+            'summary' => $summary,
+            'is_stale' => (bool) ($summary['meta']['is_stale'] ?? false),
         ]);
     }
 
@@ -30,8 +35,19 @@ class DealSummaryController extends AccountBaseController
         $this->assertFeatureEnabled();
         $this->assertCanViewDeal($deal);
 
+        try {
+            $summary = $this->dealSummaryService->regenerate($deal);
+        } catch (EntityAiSummaryGenerationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'summary' => $e->existingSummary(),
+                'is_stale' => (bool) (($e->existingSummary()['meta']['is_stale'] ?? false)),
+            ], $e->getCode() >= 400 ? $e->getCode() : 503);
+        }
+
         return response()->json([
-            'summary' => $this->dealSummaryService->regenerate($deal),
+            'summary' => $summary,
+            'is_stale' => false,
         ]);
     }
 
@@ -44,12 +60,20 @@ class DealSummaryController extends AccountBaseController
     {
         abort_if((int) $deal->company_id !== (int) company()->id, 404);
 
-        $permission = user()->permission('view_deals');
+        $deal->loadMissing(['leadAgent', 'dealWatchers']);
 
-        abort_unless(in_array($permission, ['all', 'added'], true), 403);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => function ($user, $model) {
+                $isAgent = $model->leadAgent && (int) $model->leadAgent->user_id === (int) $user->id;
+                $isWatcher = $model->dealWatchers->contains('id', $user->id);
 
-        if ($permission === 'added' && (int) $deal->added_by !== (int) user()->id) {
-            abort(403);
-        }
+                return $isAgent || $isWatcher;
+            },
+        ];
+
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+
+        abort_unless($access['canAccess'], 403);
     }
 }

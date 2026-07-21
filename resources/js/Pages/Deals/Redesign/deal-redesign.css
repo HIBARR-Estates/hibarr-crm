@@ -67,12 +67,12 @@
 
 .deal-redesign .modal-field label {
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: #5b6472;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 6px;
+    margin-bottom: 7px;
 }
 
 .deal-redesign .modal-field input,
@@ -81,8 +81,8 @@
     width: 100%;
     border: 1px solid #e2e5ea;
     border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 13px;
+    padding: 11px 12px;
+    font-size: 14px;
     color: #1a1f2e;
     outline: none;
 }
@@ -121,12 +121,12 @@
 
 .redesign-modal-overlay .modal-field label {
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     color: #5b6472;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 6px;
+    margin-bottom: 7px;
 }
 
 .redesign-modal-overlay .modal-field input,
@@ -135,8 +135,8 @@
     width: 100%;
     border: 1px solid #e2e5ea;
     border-radius: 8px;
-    padding: 10px 12px;
-    font-size: 13px;
+    padding: 11px 12px;
+    font-size: 14px;
     color: #1a1f2e;
     outline: none;
 }
@@ -177,6 +177,9 @@
     top: 16px;
     max-height: calc(100vh - 32px);
     overflow-y: auto;
+    /* overflow-y:auto alone makes the x axis compute to auto too, so any
+       overflowing child gives the rail a sideways scrollbar. Pin it shut. */
+    overflow-x: hidden;
     background: #ffffff;
     border: 1px solid #e2e5ea;
     border-radius: 12px;

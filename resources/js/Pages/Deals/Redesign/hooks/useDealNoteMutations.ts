@@ -3,6 +3,7 @@ import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Note } from "@/Types/api/note";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
@@ -12,6 +13,7 @@ interface UpdateNotePayload {
 }
 
 export default function useDealNoteMutations(noteId: number) {
+    const { t } = useTranslation();
     const { setNotes } = useDealWorkspace();
     const { mutate: updateMutate, status: updateStatus } = useApiMutate<
         UpdateNotePayload,
@@ -30,7 +32,7 @@ export default function useDealNoteMutations(noteId: number) {
             updateMutate(payload, {
                 onSuccess: (response) => {
                     if (response?.status === "success") {
-                        message.success("Note updated");
+                        message.success(t("pages.deals.workspace.notes.messages.updated"));
                         if (response.data) {
                             const updated = response.data;
                             setNotes((prev) =>
@@ -44,20 +46,20 @@ export default function useDealNoteMutations(noteId: number) {
                 },
             });
         },
-        [updateMutate, noteId, setNotes],
+        [updateMutate, noteId, setNotes, t],
     );
 
     const deleteNote = useCallback(
         (onSuccess?: () => void) => {
             deleteMutate(null, {
                 onSuccess: () => {
-                    message.success("Note deleted");
+                    message.success(t("pages.deals.workspace.notes.messages.deleted"));
                     setNotes((prev) => prev.filter((note) => note.id !== noteId));
                     onSuccess?.();
                 },
             });
         },
-        [deleteMutate, noteId, setNotes],
+        [deleteMutate, noteId, setNotes, t],
     );
 
     return {

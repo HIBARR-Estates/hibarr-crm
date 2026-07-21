@@ -108,20 +108,12 @@ export default function DealInfoSectionPanel({
             <InfoCircleOutlined className="mt-0.5 shrink-0" />
             <span>
                 {overPackagePropertyLimit
-                    ? td(
-                          "This deal has more packages/properties attached than the current CRM limit of one. Remove items to get back under the limit.",
-                      )
+                    ? t("pages.deals.dossier.banner_over_limit")
                     : hasPackage
-                      ? td(
-                            "This is a package deal. To attach a property instead, remove the package first.",
-                        )
+                      ? t("pages.deals.dossier.banner_package_deal")
                       : hasProperty
-                        ? td(
-                              "This is a property deal. To attach a package instead, remove the property first.",
-                          )
-                        : td(
-                              "This CRM is configured to allow only one package or property per deal.",
-                          )}
+                        ? t("pages.deals.dossier.banner_property_deal")
+                        : t("pages.deals.dossier.banner_single_limit")}
             </span>
         </div>
     );
@@ -132,11 +124,10 @@ export default function DealInfoSectionPanel({
 
     const sectionMeta = categoryId
         ? {
-              title: td(
+              title:
                   customFieldCategories.find(
                       (category) => category.id === categoryId,
                   )?.name || "Custom fields",
-              ),
               subtitle: "Custom field category",
           }
         : DEAL_INFO_SECTION_META[sectionId as DealInfoCoreSectionId];
@@ -151,11 +142,11 @@ export default function DealInfoSectionPanel({
     const renderBoolean = (value: boolean | undefined) =>
         value ? (
             <Tag color="success" icon={<CheckCircleOutlined />}>
-                Yes
+                {t("pages.deals.common.yes")}
             </Tag>
         ) : (
             <Tag color="default" icon={<CloseCircleOutlined />}>
-                No
+                {t("pages.deals.common.no")}
             </Tag>
         );
 
@@ -243,7 +234,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Lead source">
+                <DetailField label={t("pages.deals.info.fields.lead_source")}>
                     {deal.contact?.lead_source?.type ? (
                         <span className="text-gray-700">
                             {deal.contact.lead_source.type}
@@ -305,9 +296,11 @@ export default function DealInfoSectionPanel({
                 )}
             </FieldGrid>
 
-            <DealInfoGroupTitle>Interest & Budget</DealInfoGroupTitle>
+            <DealInfoGroupTitle>
+                {t("pages.deals.info.sections.interest_budget")}
+            </DealInfoGroupTitle>
             <FieldGrid>
-                <DetailField label="Interested In">
+                <DetailField label={t("pages.deals.info.fields.interested_in")}>
                     <DealEditableField
                         value={hibarrFields.interested_in}
                         fieldName="interested_in"
@@ -320,7 +313,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Budget range">
+                <DetailField label={t("pages.deals.info.fields.budget_range")}>
                     <DealEditableField
                         value={hibarrFields.budget_range}
                         fieldName="budget_range"
@@ -352,7 +345,7 @@ export default function DealInfoSectionPanel({
     const renderPrefTimeline = () => (
         <>
             <FieldGrid>
-                <DetailField label="Purchase Timeline">
+                <DetailField label={t("pages.deals.info.fields.purchase_timeline")}>
                     <DealEditableField
                         value={hibarrFields.purchase_timeline}
                         fieldName="purchase_timeline"
@@ -369,7 +362,9 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Strategy Meeting Booked">
+                <DetailField
+                    label={t("pages.deals.info.fields.strategy_meeting_booked")}
+                >
                     <DealEditableField
                         value={hibarrFields.strategy_meeting_booked ? 1 : 0}
                         fieldName="strategy_meeting_booked"
@@ -389,7 +384,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Motivation" span={2}>
+                <DetailField label={t("pages.deals.info.fields.motivation")} span={2}>
                     <DealEditableField
                         value={hibarrFields.motivation}
                         fieldName="motivation"
@@ -402,7 +397,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Downpayment Paid">
+                <DetailField label={t("pages.deals.info.fields.downpayment_paid")}>
                     <DealEditableField
                         value={hibarrFields.downpayment_paid ? 1 : 0}
                         fieldName="downpayment_paid"
@@ -420,7 +415,9 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Inspection Trip Date">
+                <DetailField
+                    label={t("pages.deals.info.fields.inspection_trip_date")}
+                >
                     <DealEditableField
                         value={hibarrFields.inspection_trip_date}
                         fieldName="inspection_trip_date"
@@ -453,7 +450,9 @@ export default function DealInfoSectionPanel({
     const renderFunding = () => (
         <>
             <FieldGrid>
-                <DetailField label="Deposit Confirmation">
+                <DetailField
+                    label={t("pages.deals.info.fields.deposit_confirmation")}
+                >
                     <DealEditableField
                         value={hibarrFields.deposit_confirmation}
                         fieldName="deposit_confirmation"
@@ -470,7 +469,9 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Reservation Agreement">
+                <DetailField
+                    label={t("pages.deals.info.fields.reservation_agreement")}
+                >
                     <DealEditableField
                         value={hibarrFields.reservation_agreement}
                         fieldName="reservation_agreement"
@@ -487,7 +488,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Sales Contract">
+                <DetailField label={t("pages.deals.info.fields.sales_contract")}>
                     <DealEditableField
                         value={hibarrFields.sales_contract}
                         fieldName="sales_contract"
@@ -511,7 +512,7 @@ export default function DealInfoSectionPanel({
     const renderSupport = () => (
         <>
             <FieldGrid>
-                <DetailField label="Message" span={2}>
+                <DetailField label={t("pages.deals.info.fields.message")} span={2}>
                     <DealEditableField
                         value={hibarrFields.message}
                         fieldName="message"
@@ -635,14 +636,14 @@ export default function DealInfoSectionPanel({
         if (!gdprSetting?.enable_gdpr) {
             return (
                 <p className="text-[13px] italic text-[#9ca3af]">
-                    {td("GDPR is not enabled")}
+                    {t("pages.deals.info.gdpr.not_enabled")}
                 </p>
             );
         }
         if (consents.length === 0) {
             return (
                 <p className="text-[13px] italic text-[#9ca3af]">
-                    {td("No GDPR consents found")}
+                    {t("pages.deals.info.gdpr.no_consents")}
                 </p>
             );
         }
@@ -652,10 +653,10 @@ export default function DealInfoSectionPanel({
                     <table className="dr-table">
                         <thead>
                             <tr>
-                                <th scope="col">{td("Purpose")}</th>
-                                <th scope="col">{td("Description")}</th>
-                                <th scope="col">{td("Status")}</th>
-                                <th scope="col">{td("Date")}</th>
+                                <th scope="col">{t("pages.deals.info.gdpr.purpose")}</th>
+                                <th scope="col">{t("pages.deals.info.gdpr.description")}</th>
+                                <th scope="col">{t("pages.deals.info.gdpr.status")}</th>
+                                <th scope="col">{t("pages.deals.info.gdpr.date")}</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -680,8 +681,10 @@ export default function DealInfoSectionPanel({
                                                 }`}
                                             >
                                                 {granted
-                                                    ? td("Granted")
-                                                    : td("Not granted")}
+                                                    ? t("pages.deals.info.gdpr.granted")
+                                                    : t(
+                                                          "pages.deals.info.gdpr.not_granted",
+                                                      )}
                                             </span>
                                         </td>
                                         <td className="text-[#5b6472]">
@@ -698,9 +701,7 @@ export default function DealInfoSectionPanel({
                     </table>
                 </div>
                 <div className="mt-2 text-[11px] leading-normal text-[#5b6472]">
-                    {td(
-                        "Consent records are captured on the linked lead. Erasure requests are handled from the lead's GDPR panel.",
-                    )}
+                    {t("pages.deals.info.gdpr.consent_hint")}
                 </div>
             </div>
         );
@@ -714,9 +715,9 @@ export default function DealInfoSectionPanel({
             )
         ) : (
             <p className="text-xs text-[#8b95a7]">
-                No fields are mapped to this section yet. Assign categories in{" "}
+                {t("pages.deals.info.mapped_only_hint_prefix")}{" "}
                 <code className="text-[11px]">DEAL_INFO_CATEGORY_SECTION_MAP</code>{" "}
-                or use a custom category tab in Later stages.
+                {t("pages.deals.info.mapped_only_hint_suffix")}
             </p>
         );
 
@@ -727,7 +728,7 @@ export default function DealInfoSectionPanel({
                 fields={fields}
                 customFieldsData={deal.custom_fields_data || {}}
                 categoryId={categoryId}
-                title={sectionMeta.title}
+                title={td(sectionMeta.title)}
                 column={2}
                 onUpdate={(field, value) =>
                     onFieldUpdate(field, value, "custom_field")
@@ -766,9 +767,11 @@ export default function DealInfoSectionPanel({
             <div className="mb-3.5 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
-                        {sectionMeta.title}
+                        {td(sectionMeta.title)}
                     </h3>
-                    <p className="text-xs text-[#5b6472]">{sectionMeta.subtitle}</p>
+                    <p className="text-xs text-[#5b6472]">
+                        {td(sectionMeta.subtitle)}
+                    </p>
                 </div>
                 {canEdit && editableSection && (
                     <DealButton
@@ -776,7 +779,9 @@ export default function DealInfoSectionPanel({
                         size="sm"
                         onClick={() => setIsEditing((previous) => !previous)}
                     >
-                        {isEditing ? "Done editing" : "Edit fields"}
+                        {isEditing
+                            ? t("pages.deals.info.done_editing")
+                            : t("pages.deals.info.edit_fields")}
                     </DealButton>
                 )}
             </div>

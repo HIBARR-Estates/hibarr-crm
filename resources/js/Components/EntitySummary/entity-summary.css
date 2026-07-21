@@ -603,3 +603,63 @@
         color: #5b6472;
     }
 }
+
+.entity-ai-summary-stale-banner,
+.entity-ai-summary-heuristic-banner {
+    margin: 0 16px 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+.entity-ai-summary-stale-banner {
+    background: #fff8e8;
+    color: #8a5b00;
+    border: 1px solid #f0d9a0;
+}
+
+.entity-ai-summary-heuristic-banner {
+    background: #f4f6f8;
+    color: #44505f;
+    border: 1px solid #d7dde5;
+}
+
+.entity-ai-summary-stale-banner button,
+.entity-ai-summary-heuristic-banner button {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    color: inherit;
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+.entity-ai-summary-stale-pill,
+.entity-ai-summary-heuristic-pill {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.4;
+}
+
+.entity-ai-summary-stale-pill {
+    background: #fff3d6;
+    color: #8a5b00;
+}
+
+.entity-ai-summary-heuristic-pill {
+    background: #e8edf3;
+    color: #44505f;
+}
+
+.entity-ai-summary-card--stale.entity-ai-summary-card--redesign {
+    border-left-color: #d4a017;
+}
+

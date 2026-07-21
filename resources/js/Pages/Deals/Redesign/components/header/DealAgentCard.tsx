@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealAgentPicker from "../primitives/DealAgentPicker";
 import DealIcon from "../primitives/DealIcon";
@@ -28,7 +28,7 @@ export default function DealAgentCard({
     canEdit,
     onManageTeam,
 }: DealAgentCardProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -83,8 +83,8 @@ export default function DealAgentCard({
                 aria-expanded={open}
                 aria-label={
                     agent
-                        ? `${td("Deal agent")}: ${agent.name}`
-                        : td("Assign a deal agent")
+                        ? `${t("pages.deals.header.team.agent_label")}: ${agent.name}`
+                        : t("pages.deals.header.team.assign_agent_aria")
                 }
                 onClick={() => setOpen((v) => !v)}
                 disabled={isAssigning}
@@ -124,7 +124,7 @@ export default function DealAgentCard({
                 )}
                 <span>
                     <span className="dr-label" style={{ display: "block", fontSize: 11 }}>
-                        {td("Deal agent")}
+                        {t("pages.deals.header.team.agent_label")}
                     </span>
                     <span
                         style={{
@@ -134,7 +134,9 @@ export default function DealAgentCard({
                             color: agent ? T.TEXT : T.BLUE,
                         }}
                     >
-                        {agent ? agent.name : td("Assign agent")}
+                        {agent
+                            ? agent.name
+                            : t("pages.deals.header.team.assign_agent")}
                     </span>
                 </span>
                 <span style={{ color: T.TEXT_MUTED, display: "flex", marginLeft: 2 }}>
@@ -159,13 +161,13 @@ export default function DealAgentCard({
                         ref={menuRef}
                         className="dr-menu"
                         role="dialog"
-                        aria-label={td("Assign deal agent")}
+                        aria-label={t("pages.deals.header.team.assign_deal_agent")}
                         style={{ ...floatStyle, minWidth: 270, padding: 10 }}
                     >
                         {canEdit && (
                             <>
                                 <div className="dr-label" style={{ marginBottom: 6 }}>
-                                    {td("Assign deal agent")}
+                                    {t("pages.deals.header.team.assign_deal_agent")}
                                 </div>
                                 <DealAgentPicker
                                     exclude={exclude}
@@ -184,7 +186,7 @@ export default function DealAgentCard({
                                         className="dr-menu-item danger"
                                         onClick={() => pick(null)}
                                     >
-                                        {td("Unassign")} {agent.name}
+                                        {t("pages.deals.header.team.unassign")} {agent.name}
                                     </button>
                                 )}
                             </>
@@ -197,7 +199,7 @@ export default function DealAgentCard({
                                 onManageTeam();
                             }}
                         >
-                            {td("Manage team…")}
+                            {t("pages.deals.header.team.manage_team_ellipsis")}
                         </button>
                     </div>,
                     document.body,

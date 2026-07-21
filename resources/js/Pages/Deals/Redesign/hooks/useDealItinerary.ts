@@ -4,6 +4,7 @@ import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import { FlightDirection, ILeadFlightItinerary } from "@/Types/api/lead-flight-itinerary";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
@@ -16,6 +17,7 @@ export interface DealItineraryCreateInput {
 }
 
 export default function useDealItinerary(dealId: number) {
+    const { t } = useTranslation();
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const { deal, setDeal } = useDealWorkspace();
 
@@ -38,7 +40,7 @@ export default function useDealItinerary(dealId: number) {
                 },
                 {
                     onSuccess: (response) => {
-                        message.success("Flight added to itinerary");
+                        message.success(t("pages.deals.workspace.itinerary.messages.added"));
                         onSuccess?.();
                         // Patch the new leg into the deal locally (like every
                         // other section) so it appears instantly instead of
@@ -59,7 +61,7 @@ export default function useDealItinerary(dealId: number) {
                 },
             );
         },
-        [createMutate, dealId, setDeal],
+        [createMutate, dealId, setDeal, t],
     );
 
     const deleteLeg = useCallback(
@@ -78,11 +80,11 @@ export default function useDealItinerary(dealId: number) {
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
-                    message.success("Flight deleted");
+                    message.success(t("pages.deals.workspace.itinerary.messages.deleted"));
                     onSuccess?.();
                 },
                 onError: () => {
-                    message.error("Couldn't delete flight");
+                    message.error(t("pages.deals.workspace.itinerary.messages.delete_failed"));
                     setDeal((prev) => ({
                         ...prev,
                         lead_flight_itineraries: snapshot,
@@ -91,7 +93,7 @@ export default function useDealItinerary(dealId: number) {
                 onFinish: () => setDeletingId(null),
             });
         },
-        [deal.lead_flight_itineraries, setDeal],
+        [deal.lead_flight_itineraries, setDeal, t],
     );
 
     return {

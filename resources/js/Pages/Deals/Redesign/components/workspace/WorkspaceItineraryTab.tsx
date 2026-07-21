@@ -56,7 +56,11 @@ export default function WorkspaceItineraryTab({
     return (
         <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
-                <div className="flex flex-wrap gap-1" role="group" aria-label="Filter flights">
+                <div
+                    className="flex flex-wrap gap-1"
+                    role="group"
+                    aria-label={t("pages.deals.workspace.itinerary.filter_aria_label")}
+                >
                     {filterOptions.map((option) => (
                         <button
                             key={option.id}

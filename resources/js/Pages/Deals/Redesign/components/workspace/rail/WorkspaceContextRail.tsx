@@ -2,12 +2,15 @@ import { ReactNode, useMemo, useState } from "react";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import { formatPhoneNumber } from "@/lib/utils";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealTab } from "../../../types";
 import useDealDocuments from "../../../hooks/useDealDocuments";
+import useDealDocumentUpload from "../../../hooks/useDealDocumentUpload";
 import DealAvatar from "../../primitives/DealAvatar";
 import DealIcon from "../../primitives/DealIcon";
+import DealDocumentSlotRow from "../DealDocumentSlotRow";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
 
@@ -20,12 +23,21 @@ interface WorkspaceContextRailProps {
         label?: string;
         name?: string;
         type?: string;
+        custom_field_category_id?: string | number;
     }>;
+    /** Pipeline-linked categories — scopes which custom file fields show. */
+    categoryIds?: number[];
     restrictPackageOrProperty?: boolean;
     onNavigateToSubTab: (tab: DealTab) => void;
     onSwitchToDealInfo: () => void;
     onManagePackagesProperties?: () => void;
 }
+
+const SECTION_TITLE_KEYS: Record<string, string> = {
+    Lead: "section_lead",
+    "Deal details": "section_deal_details",
+    Documents: "section_documents",
+};
 
 function initialsFromName(name?: string | null): string {
     if (!name) return "--";
@@ -46,17 +58,20 @@ export default function WorkspaceContextRail({
     deal,
     files,
     fields = [],
+    categoryIds,
     restrictPackageOrProperty = false,
     onNavigateToSubTab,
     onSwitchToDealInfo,
     onManagePackagesProperties,
 }: WorkspaceContextRailProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [open, setOpen] = useState<Set<string>>(
         () => new Set(["Lead", "Deal details"]),
     );
     const [emailCopied, setEmailCopied] = useState(false);
-    const documents = useDealDocuments(deal, files ?? [], fields);
+    const documents = useDealDocuments(deal, files ?? [], fields, categoryIds);
+    const { td } = useTd();
+    const { uploadToSlot, isUploadingField, canEdit } = useDealDocumentUpload();
 
     const toggle = (title: string) =>
         setOpen((prev) => {
@@ -70,7 +85,7 @@ export default function WorkspaceContextRail({
     const leadName =
         contact?.client_name_salutation ||
         contact?.client_name ||
-        td("Unknown lead");
+        t("pages.deals.dossier.unknown_lead");
     const email = contact?.client_email || null;
     const phone = formatPhoneNumber(contact?.mobile || contact?.cell || null);
     const leadUrl = contact?.id ? route("lead-contact.show", contact.id) : null;
@@ -80,10 +95,10 @@ export default function WorkspaceContextRail({
         try {
             await navigator.clipboard.writeText(email);
             setEmailCopied(true);
-            message.success(td("Email copied"));
+            message.success(t("pages.deals.dossier.messages.email_copied"));
             window.setTimeout(() => setEmailCopied(false), 2000);
         } catch {
-            message.error(td("Copy failed"));
+            message.error(t("pages.deals.dossier.messages.copy_failed"));
         }
     };
 
@@ -91,9 +106,11 @@ export default function WorkspaceContextRail({
         deal.packages?.map((pkg) => pkg.name).filter(Boolean).join(", ") ||
         (deal.products?.length
             ? `${deal.products.length} ${
-                  deal.products.length === 1 ? td("property") : td("properties")
+                  deal.products.length === 1
+                      ? t("pages.deals.dossier.property_singular")
+                      : t("pages.deals.dossier.property_plural")
               }`
-            : td("No package"));
+            : t("pages.deals.dossier.no_package"));
 
     const sections: Array<{
         title: string;
@@ -116,7 +133,7 @@ export default function WorkspaceContextRail({
                                     {leadName}
                                 </div>
                                 <div className="text-xs text-[#5b6472]">
-                                    {td("Lead contact")}
+                                    {t("pages.deals.dossier.lead_contact")}
                                 </div>
                             </div>
                         </a>
@@ -132,7 +149,9 @@ export default function WorkspaceContextRail({
                                     className="ml-auto flex items-center gap-1 text-[11px] font-semibold"
                                     style={{ color: emailCopied ? T.GREEN : T.BLUE }}
                                 >
-                                    {emailCopied ? td("Copied") : td("Copy")}
+                                    {emailCopied
+                                        ? t("pages.deals.dossier.copied")
+                                        : t("pages.deals.dossier.copy")}
                                 </span>
                             </button>
                         )}
@@ -147,7 +166,7 @@ export default function WorkspaceContextRail({
                                     className="ml-auto text-[11px] font-semibold"
                                     style={{ color: T.BLUE }}
                                 >
-                                    {td("Call")}
+                                    {t("pages.deals.dossier.call")}
                                 </span>
                             </a>
                         )}
@@ -157,7 +176,7 @@ export default function WorkspaceContextRail({
                                     href={leadUrl}
                                     className="text-xs font-semibold text-[#1a6bb5] no-underline"
                                 >
-                                    {td("View lead profile ↗")}
+                                    {t("pages.deals.dossier.view_lead_profile")}
                                 </a>
                             </div>
                         )}
@@ -179,7 +198,7 @@ export default function WorkspaceContextRail({
                                 onClick={onManagePackagesProperties ?? onSwitchToDealInfo}
                                 className="cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
                             >
-                                {td("Open Deal info →")}
+                                {t("pages.deals.dossier.open_deal_info")}
                             </button>
                         </div>
                     </>
@@ -192,33 +211,47 @@ export default function WorkspaceContextRail({
                     <div>
                         {documents.documents.length === 0 ? (
                             <p className="py-2 text-xs italic text-[#9ca3af]">
-                                {td("No document slots configured.")}
+                                {t("pages.deals.dossier.no_document_slots")}
                             </p>
                         ) : (
-                            documents.documents.map((doc) => (
-                                <button
-                                    key={doc.id}
-                                    type="button"
-                                    onClick={() => onNavigateToSubTab("files")}
-                                    className="flex w-full cursor-pointer items-center justify-between border-b border-[#eef0f3] px-0 py-2.5 text-left last:border-b-0"
-                                >
-                                    <span className="flex items-center gap-1.5 text-xs text-[#1a1f2e]">
-                                        <DealIcon
-                                            name="file-text"
-                                            size={13}
-                                            color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
-                                        />
-                                        {doc.label}
-                                    </span>
-                                    <span
-                                        className={`dr-pill ${
-                                            doc.uploaded ? "dr-pill-green" : "dr-pill-gray"
-                                        }`}
+                            documents.documents.map((doc) =>
+                                doc.fieldName ? (
+                                    <DealDocumentSlotRow
+                                        key={doc.id}
+                                        doc={doc}
+                                        onUpload={uploadToSlot}
+                                        uploading={isUploadingField(doc.fieldName)}
+                                        disabled={!canEdit}
+                                    />
+                                ) : (
+                                    // Loose attachments have no slot to upload
+                                    // into — they still lead to the Files tab.
+                                    <button
+                                        key={doc.id}
+                                        type="button"
+                                        onClick={() => onNavigateToSubTab("files")}
+                                        className="flex w-full cursor-pointer items-center justify-between border-b border-[#eef0f3] px-0 py-2.5 text-left last:border-b-0"
                                     >
-                                        {doc.uploaded ? td("Uploaded") : td("Missing")}
-                                    </span>
-                                </button>
-                            ))
+                                        <span className="flex items-center gap-1.5 text-xs text-[#1a1f2e]">
+                                            <DealIcon
+                                                name="file-text"
+                                                size={13}
+                                                color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
+                                            />
+                                            {td(doc.label)}
+                                        </span>
+                                        <span
+                                            className={`dr-pill ${
+                                                doc.uploaded ? "dr-pill-green" : "dr-pill-gray"
+                                            }`}
+                                        >
+                                            {doc.uploaded
+                                                ? t("pages.deals.dossier.doc_uploaded")
+                                                : t("pages.deals.dossier.doc_missing")}
+                                        </span>
+                                    </button>
+                                ),
+                            )
                         )}
                     </div>
                 ),
@@ -226,10 +259,13 @@ export default function WorkspaceContextRail({
         ],
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [
+            canEdit,
             deal,
             documents,
             email,
             emailCopied,
+            // Drives the per-slot "Uploading…" state.
+            isUploadingField,
             leadName,
             leadUrl,
             packageSummary,
@@ -239,8 +275,10 @@ export default function WorkspaceContextRail({
     );
 
     return (
-        <aside aria-label={td("Deal dossier")}>
-            <h2 className="mb-1 text-sm font-bold text-[#1a1f2e]">{td("Dossier")}</h2>
+        <aside aria-label={t("pages.deals.dossier.aria_label")}>
+            <h2 className="mb-1 text-sm font-bold text-[#1a1f2e]">
+                {t("pages.deals.dossier.title")}
+            </h2>
             {sections.map((section, index) => {
                 const isOpen = open.has(section.title);
                 return (
@@ -259,7 +297,11 @@ export default function WorkspaceContextRail({
                             aria-expanded={isOpen}
                             className="flex w-full cursor-pointer items-center gap-2 border-none bg-transparent py-3 text-left text-[#1a1f2e]"
                         >
-                            <span className="dr-label flex-1">{td(section.title)}</span>
+                            <span className="dr-label flex-1">
+                                {t(
+                                    `pages.deals.dossier.${SECTION_TITLE_KEYS[section.title]}`,
+                                )}
+                            </span>
                             {!isOpen && (
                                 <span className="max-w-[140px] truncate text-xs font-medium text-[#5b6472]">
                                     {section.summary}
