@@ -64,8 +64,14 @@
             stageSelect.selectpicker('refresh');
         }
 
-        pipelineSelect.selectpicker();
-        stageSelect.selectpicker();
+        var selectPickerModalOptions = {
+            container: 'body',
+            dropupAuto: true,
+            windowPadding: 12,
+        };
+
+        pipelineSelect.selectpicker(selectPickerModalOptions);
+        stageSelect.selectpicker(selectPickerModalOptions);
 
         pipelineSelect.on('changed.bs.select', function () {
             filterPackageStages(true);

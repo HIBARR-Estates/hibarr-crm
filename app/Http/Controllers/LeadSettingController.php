@@ -69,7 +69,9 @@ class LeadSettingController extends AccountBaseController
 
         if ($this->activeTab === 'deal-packages') {
             $catalog = app(PackageRoutingFieldCatalog::class);
-            $this->routingFieldOptions = $catalog->allFieldOptions((int) company()->id);
+            $companyId = (int) company()->id;
+            $this->routingFieldGroups = $catalog->groupedFieldItems($companyId);
+            $this->routingFieldOptions = $catalog->allFieldOptions($companyId);
             $selected = company()->package_pipeline_routing_trigger_fields;
             if (is_string($selected)) {
                 $selected = json_decode($selected, true);

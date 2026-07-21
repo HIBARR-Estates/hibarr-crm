@@ -491,7 +491,7 @@ class DealCreationService
                     // Handle custom fields (non-critical, can be retried)
                     $this->upsertCustomFields($deal, $request);
 
-                    $this->attemptFieldTriggeredPackageRouting($deal, $companyId);
+                    $this->attemptFieldTriggeredPackageRouting($deal, $companyId, $request->has('package_id'));
 
                     // Sync deal watchers and participants (non-critical)
                     $dealWatchers = $this->extractUserIdList($request, 'deal_watcher');
@@ -973,7 +973,7 @@ class DealCreationService
     /**
      * Run field-triggered package routing using persisted deal data.
      */
-    private function attemptFieldTriggeredPackageRouting(Deal $deal, int $companyId): void
+    private function attemptFieldTriggeredPackageRouting(Deal $deal, int $companyId, bool $packageExplicitlySelected = false): void
     {
         $deal = $deal->fresh(['packages', 'company', 'hibarrFields', 'products']);
         $packageRouter = app(\App\Services\PackagePipelineRouterService::class);
@@ -1001,6 +1001,7 @@ class DealCreationService
         $packageRouter->attemptRoutingFromFieldUpdates(
             $deal,
             $packageRouter->extractTriggerFieldsFromPayload($routingPayload, $companyId),
+            $packageExplicitlySelected,
         );
     }
 

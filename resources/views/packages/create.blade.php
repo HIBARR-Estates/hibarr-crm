@@ -74,6 +74,10 @@
 
 <script>
     $('#save-package-setting').click(function () {
+        if (typeof window.syncPipelineScopePillsInputs === 'function') {
+            window.syncPipelineScopePillsInputs($('#createPackage'));
+        }
+
         $.easyAjax({
             container: '#createPackage',
             type: "POST",

@@ -148,4 +148,24 @@ class PipelineScopeServicesTest extends TestCase
 
         $this->assertCount(0, $normalized);
     }
+
+    public function test_normalize_trigger_rows_dedupes_by_field_key_keeping_last(): void
+    {
+        $company = new Company([
+            'id' => 1,
+            'package_pipeline_routing_trigger_fields' => ['category_id'],
+        ]);
+        session(['company' => $company]);
+
+        $catalog = app(PackageRoutingFieldCatalog::class);
+        $normalized = $catalog->normalizeTriggerRows([
+            ['field_key' => 'category_id', 'match_mode' => 'exact', 'match_value' => 'first'],
+            ['field_key' => 'category_id', 'match_mode' => 'exact', 'match_value' => 'second'],
+        ]);
+
+        // package_routing_triggers has unique(package_id, field_key) — two rows for
+        // the same field would otherwise throw on save, so the later one must win.
+        $this->assertCount(1, $normalized);
+        $this->assertSame('second', $normalized[0]['match_value']);
+    }
 }

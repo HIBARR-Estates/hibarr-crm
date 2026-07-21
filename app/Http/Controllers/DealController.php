@@ -1006,6 +1006,7 @@ class DealController extends AccountBaseController
                 ),
                 $deal->company_id,
             ),
+            $request->has('package_id') && $request->package_id,
         );
 
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
@@ -1292,6 +1293,7 @@ class DealController extends AccountBaseController
                 ),
                 $deal->company_id,
             ),
+            $request->has('package_id'),
         );
 
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');

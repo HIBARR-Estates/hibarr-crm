@@ -14,6 +14,9 @@
     {{-- ✅ Then load your Vite entrypoints --}}
     @vite(['resources/js/inertia.tsx', 'resources/css/tailwind.css'])
 
+    {{-- Optional Mix assets for legacy --}}
+    <link type="text/css" rel="stylesheet" media="all" href="{{ mix('css/tailwind.css') }}">
+
     @inertiaHead
 </head>
 <body class="font-sans leading-none text-gray-700 antialiased">

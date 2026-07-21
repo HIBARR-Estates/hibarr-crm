@@ -60,11 +60,28 @@ class UpdateLeadPipeline extends CoreRequest
 
         foreach ($catalog as $model => $fields) {
             foreach (array_keys($fields) as $fieldKey) {
-                $keys[] = $model . '|native_field|' . $fieldKey;
+                $keys[] = $model . '|' . $this->scopeableTypeFor($fieldKey) . '|' . $fieldKey;
             }
         }
 
         return $keys;
+    }
+
+    /**
+     * Mirrors the type re-derivation in LeadPipelineSettingController::syncFieldScopes()
+     * so the validation whitelist matches what's actually accepted on save.
+     */
+    protected function scopeableTypeFor(string $fieldKey): string
+    {
+        if (str_starts_with($fieldKey, 'custom_field_')) {
+            return \App\Models\PipelineFieldScope::TYPE_CUSTOM_FIELD;
+        }
+
+        if (in_array($fieldKey, array_keys(PipelineScopeResolverService::HIBARR_FIELDS), true)) {
+            return \App\Models\PipelineFieldScope::TYPE_HIBARR_FIELD;
+        }
+
+        return \App\Models\PipelineFieldScope::TYPE_NATIVE_FIELD;
     }
 
 }

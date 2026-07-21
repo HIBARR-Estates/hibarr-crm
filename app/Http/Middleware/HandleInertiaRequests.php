@@ -18,8 +18,8 @@ class HandleInertiaRequests extends Middleware
     /**
      * The root template that's loaded on the first page visit.
      */
-    protected $rootView = 'layouts.inertia_vite';
-   // protected $rootView = 'layouts.inertia_alt';
+    // protected $rootView = 'layouts.inertia_vite';
+    protected $rootView = 'layouts.inertia_alt';
 
     /**
      * Get the root view based on the bundler configuration.
@@ -85,44 +85,68 @@ class HandleInertiaRequests extends Middleware
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
             'featureFlags' => fn () => FeatureFlags::forInertia(),
-            'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap(),
-            'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap(),
-            'stages' => fn () => $this->getPipelineStages(),
+            'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap($request),
+            'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
+            'stages' => fn () => $this->getPipelineStages($request),
         ]);
     }
 
-    private function getPipelineCategoryScopeMap(): array
+    /**
+     * Routes whose UI actually consumes pipeline scope data (deal show/edit/create
+     * and the boards that embed the deal save modal). Kept narrow so the scope
+     * resolver isn't queried on every Inertia response.
+     */
+    private function routeNeedsPipelineScopeData(Request $request): bool
+    {
+        $routeName = $request->route()?->getName();
+
+        if (!$routeName) {
+            return false;
+        }
+
+        return str_starts_with($routeName, 'deals.') || str_starts_with($routeName, 'leadboards.');
+    }
+
+    private function getPipelineCategoryScopeMap(Request $request): array
     {
         try {
-            if (!function_exists('company') || !company()) {
+            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
                 return [];
             }
 
             return app(\App\Services\PipelineScopeResolverService::class)
                 ->buildCategoryScopeMapForCompany(company()->id);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to build pipeline category scope map for Inertia share', [
+                'message' => $e->getMessage(),
+            ]);
+
             return [];
         }
     }
 
-    private function getPipelineFieldScopeMap(): array
+    private function getPipelineFieldScopeMap(Request $request): array
     {
         try {
-            if (!function_exists('company') || !company()) {
+            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
                 return [];
             }
 
             return app(\App\Services\PipelineScopeResolverService::class)
                 ->buildFieldScopeMapForCompany(company()->id);
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to build pipeline field scope map for Inertia share', [
+                'message' => $e->getMessage(),
+            ]);
+
             return [];
         }
     }
 
-    private function getPipelineStages(): array
+    private function getPipelineStages(Request $request): array
     {
         try {
-            if (!function_exists('company') || !company()) {
+            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
                 return [];
             }
 
@@ -133,6 +157,10 @@ class HandleInertiaRequests extends Middleware
                 ->get()
                 ->toArray();
         } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to load pipeline stages for Inertia share', [
+                'message' => $e->getMessage(),
+            ]);
+
             return [];
         }
     }

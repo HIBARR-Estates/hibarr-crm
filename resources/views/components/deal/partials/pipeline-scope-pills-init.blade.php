@@ -41,8 +41,14 @@
         border-radius: 4px;
         max-height: 220px;
         overflow-y: auto;
-        z-index: 1060;
+        z-index: 1070;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    }
+
+    .pipeline-scope-pills__dropdown.pipeline-scope-pills__dropdown--portaled {
+        position: fixed;
+        right: auto;
+        z-index: 1070;
     }
 
     .pipeline-scope-pills__dropdown-item {
@@ -73,13 +79,51 @@
             var $root = $(this);
             $root.attr('data-pills-init', '1');
 
-            var options = $root.data('options') || [];
-            var selected = ($root.data('selected') || []).map(String).filter(function (value) {
+            function readJsonDataset($el, camelKey) {
+                var value = $el.data(camelKey);
+                if (Array.isArray(value)) {
+                    return value;
+                }
+                if (value && typeof value === 'object') {
+                    return value;
+                }
+                if (typeof value === 'string' && value !== '') {
+                    try {
+                        var parsed = JSON.parse(value);
+                        return Array.isArray(parsed) ? parsed : [];
+                    } catch (error) {
+                        return [];
+                    }
+                }
+
+                var dashedKey = camelKey.replace(/[A-Z]/g, function (char) {
+                    return '-' + char.toLowerCase();
+                });
+                var raw = $el.attr('data-' + dashedKey);
+                if (!raw) {
+                    return [];
+                }
+
+                try {
+                    var fallback = JSON.parse(raw);
+                    return Array.isArray(fallback) ? fallback : [];
+                } catch (error) {
+                    return [];
+                }
+            }
+
+            var options = readJsonDataset($root, 'options');
+            var selected = readJsonDataset($root, 'selected').map(String).filter(function (value) {
                 return options.some(function (option) {
                     return String(option.value) === String(value);
                 });
             });
             var inputName = $root.data('input-name');
+            var maxSelection = parseInt($root.data('max-selection'), 10);
+            if (isNaN(maxSelection) || maxSelection <= 0) {
+                maxSelection = 0;
+            }
+            var showCount = String($root.data('show-count')) !== '0';
             var countLabelTemplate = $root.data('count-label') || ':count selected';
             var noMatchesLabel = $root.data('no-matches') || 'No matches';
             var allSelectedLabel = $root.data('all-selected') || 'All options selected';
@@ -120,6 +164,11 @@
             }
 
             function updateCount() {
+                if (!showCount) {
+                    $count.text('');
+                    return;
+                }
+
                 $count.text(countLabelTemplate.replace(':count', selected.length));
             }
 
@@ -155,7 +204,11 @@
             }
 
             function selectOption(option) {
-                selected.push(String(option.value));
+                if (maxSelection === 1) {
+                    selected = [String(option.value)];
+                } else {
+                    selected.push(String(option.value));
+                }
                 $search.val('');
                 highlightedIndex = -1;
                 renderPills();
@@ -212,9 +265,75 @@
                 });
             }
 
+            function ensureDropdownPortaled() {
+                if ($dropdown.data('portaled')) {
+                    return;
+                }
+
+                $dropdown
+                    .addClass('pipeline-scope-pills__dropdown--portaled')
+                    .data('portaled', true)
+                    .data('portal-widget-id', $root.data('widget-id'));
+                $('body').append($dropdown);
+            }
+
+            function positionDropdown() {
+                if (!$search.length || !$search[0]) {
+                    return;
+                }
+
+                var rect = $search[0].getBoundingClientRect();
+                var viewportPadding = 8;
+                var preferredMaxHeight = 220;
+                var spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+                var spaceAbove = rect.top - viewportPadding;
+                var openUpward = spaceBelow < 140 && spaceAbove > spaceBelow;
+                var maxHeight = Math.max(
+                    80,
+                    Math.min(preferredMaxHeight, openUpward ? spaceAbove : spaceBelow)
+                );
+
+                $dropdown.css({
+                    left: Math.max(viewportPadding, rect.left),
+                    width: Math.min(rect.width, window.innerWidth - (viewportPadding * 2)),
+                    maxHeight: maxHeight,
+                    top: openUpward ? 'auto' : rect.bottom + 4,
+                    bottom: openUpward ? (window.innerHeight - rect.top + 4) : 'auto',
+                });
+            }
+
+            function bindDropdownReposition() {
+                var widgetId = $root.data('widget-id') || 'default';
+                var eventNamespace = '.pipelineScopePills_' + widgetId;
+
+                if ($root.data('reposition-bound')) {
+                    return;
+                }
+
+                $root.data('reposition-bound', true);
+
+                var reposition = function () {
+                    if (!$dropdown.hasClass('d-none')) {
+                        positionDropdown();
+                    }
+                };
+
+                $(window).on('scroll' + eventNamespace + ' resize' + eventNamespace, reposition);
+                $root.closest('.modal-body').on('scroll' + eventNamespace, reposition);
+                $root.data('reposition-handler', reposition);
+                $root.data('reposition-namespace', eventNamespace);
+            }
+
             function openDropdown() {
-                $('.pipeline-scope-pills').not($root).find('.pipeline-scope-pills__dropdown').addClass('d-none');
+                $('.pipeline-scope-pills').not($root).each(function () {
+                    $(this).find('.pipeline-scope-pills__dropdown').addClass('d-none');
+                });
+                $('.pipeline-scope-pills__dropdown--portaled').not($dropdown).addClass('d-none');
+
                 renderDropdown();
+                ensureDropdownPortaled();
+                bindDropdownReposition();
+                positionDropdown();
                 $dropdown.removeClass('d-none');
             }
 
@@ -283,7 +402,8 @@
         if (!window._pipelineScopePillsDocBound) {
             window._pipelineScopePillsDocBound = true;
             $(document).on('click', function (event) {
-                if (!$(event.target).closest('.pipeline-scope-pills').length) {
+                if (!$(event.target).closest('.pipeline-scope-pills').length
+                    && !$(event.target).closest('.pipeline-scope-pills__dropdown').length) {
                     $('.pipeline-scope-pills__dropdown').addClass('d-none');
                 }
             });

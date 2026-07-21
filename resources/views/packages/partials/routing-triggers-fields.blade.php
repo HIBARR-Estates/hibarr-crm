@@ -9,7 +9,7 @@
             'match_value' => '',
         ]];
     }
-    $fieldOptions = $routingFieldOptions ?? [];
+    $fieldItems = $routingTriggerFieldItems ?? [];
     $matchModeOptions = $routingMatchModeOptions ?? PackageRoutingFieldCatalog::MATCH_MODES;
 @endphp
 
@@ -27,7 +27,7 @@
                 'trigger' => $trigger,
                 'showLabels' => $loop->first,
                 'showRemove' => count($triggerRows) > 1,
-                'fieldOptions' => $fieldOptions,
+                'fieldItems' => $fieldItems,
                 'matchModeOptions' => $matchModeOptions,
             ])
         @endforeach
@@ -48,10 +48,12 @@
         ],
         'showLabels' => false,
         'showRemove' => true,
-        'fieldOptions' => $fieldOptions,
+        'fieldItems' => $fieldItems,
         'matchModeOptions' => $matchModeOptions,
     ])
 </div>
+
+@include('components.deal.partials.pipeline-scope-pills-init')
 
 <script>
     (function () {
@@ -71,11 +73,16 @@
         }
 
         function initSelectPickers(scope) {
-            scope.find('.select-picker').each(function () {
-                if ($(this).data('selectpicker')) {
-                    $(this).selectpicker('destroy');
+            scope.find('select.select-picker[name*="[match_mode]"]').each(function () {
+                const $select = $(this);
+                if ($select.data('selectpicker')) {
+                    $select.selectpicker('destroy');
                 }
-                $(this).selectpicker();
+                $select.selectpicker({
+                    container: 'body',
+                    dropupAuto: true,
+                    windowPadding: 12,
+                });
             });
         }
 
@@ -84,11 +91,14 @@
                 const row = $(this);
                 row.attr('data-index', rowIndex);
 
-                row.find('select[name*="[field_key]"]').attr({
-                    name: `routing_triggers[${rowIndex}][field_key]`,
-                    id: `routing_trigger_field_${rowIndex}`,
-                });
-                row.find('select[name*="[match_mode]"]').attr({
+                const fieldInputName = `routing_triggers[${rowIndex}][field_key]`;
+                row.find('.pipeline-scope-pills').attr('data-input-name', fieldInputName);
+
+                const modeSelect = row.find('select[name*="[match_mode]"]');
+                if (modeSelect.data('selectpicker')) {
+                    modeSelect.selectpicker('destroy');
+                }
+                modeSelect.attr({
                     name: `routing_triggers[${rowIndex}][match_mode]`,
                     id: `routing_trigger_mode_${rowIndex}`,
                 });
@@ -98,12 +108,19 @@
                 });
             });
 
+            initSelectPickers(container);
+
+            if (typeof window.syncPipelineScopePillsInputs === 'function') {
+                window.syncPipelineScopePillsInputs(container);
+            }
+
             const rowCount = container.find('.package-routing-trigger-row').length;
             container.find('.remove-routing-trigger').toggle(rowCount > 1);
-            container.find('.package-routing-trigger-row').each(function (rowIndex) {
-                $(this).find('label').toggleClass('d-none', rowIndex !== 0);
-            });
         }
+
+        container.on('changed.bs.select', 'select[name*="[match_mode]"]', function () {
+            toggleMatchValueInput($(this).closest('.package-routing-trigger-row'));
+        });
 
         container.on('change', 'select[name*="[match_mode]"]', function () {
             toggleMatchValueInput($(this).closest('.package-routing-trigger-row'));
@@ -111,16 +128,25 @@
 
         container.find('.package-routing-trigger-row').each(function (rowIndex) {
             toggleMatchValueInput($(this));
-            $(this).find('label').toggleClass('d-none', rowIndex !== 0);
         });
+
+        if (typeof window.initPipelineScopePills === 'function') {
+            window.initPipelineScopePills(container);
+        }
+
+        initSelectPickers(container);
 
         $('#add-routing-trigger').on('click', function () {
             const rowIndex = container.find('.package-routing-trigger-row').length;
             const rowHtml = templateHtml.replace(/__INDEX__/g, rowIndex);
             const row = $(rowHtml.trim());
+            row.find('.pipeline-scope-pills').removeAttr('data-pills-init');
 
             container.append(row);
             initSelectPickers(row);
+            if (typeof window.initPipelineScopePills === 'function') {
+                window.initPipelineScopePills(row);
+            }
             reindexRows();
         });
 

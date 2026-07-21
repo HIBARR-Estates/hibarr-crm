@@ -40,17 +40,26 @@
             </div>
 
             <div class="col-md-12 mt-3">
-                <x-forms.select
-                    fieldId="package_pipeline_routing_trigger_fields"
-                    :fieldLabel="__('modules.deal.packagePipelineRoutingTriggerFields')"
-                    fieldName="package_pipeline_routing_trigger_fields[]"
-                    multiple="true"
-                    search="true">
-                    @foreach($routingFieldOptions ?? [] as $fieldKey => $fieldLabel)
-                        <option value="{{ $fieldKey }}" @selected(in_array($fieldKey, $selectedRoutingTriggerFields ?? [], true))>{{ $fieldLabel }}</option>
+                <x-forms.label fieldId="package_pipeline_routing_trigger_fields" :fieldLabel="__('modules.deal.packagePipelineRoutingTriggerFields')" />
+                <p class="f-11 text-lightest mb-2">@lang('modules.deal.packagePipelineRoutingTriggerFieldsHint')</p>
+
+                <div class="bg-light rounded p-3">
+                    @foreach($routingFieldGroups ?? [] as $groupLabel => $groupItems)
+                        <x-forms.label :fieldId="'routing_trigger_group_' . md5($groupLabel)" :fieldLabel="$groupLabel" />
+                        @php
+                            $selectedInGroup = collect($selectedRoutingTriggerFields ?? [])
+                                ->filter(fn ($key) => collect($groupItems)->contains(fn ($item) => $item['value'] === $key))
+                                ->values()
+                                ->all();
+                        @endphp
+                        <x-deal.pipeline-scope-pills
+                            inputName="package_pipeline_routing_trigger_fields[]"
+                            :items="$groupItems"
+                            :selected="$selectedInGroup"
+                            :fieldIdPrefix="'routing_trigger_' . md5($groupLabel)"
+                            :searchPlaceholder="__('app.search')" />
                     @endforeach
-                </x-forms.select>
-                <p class="f-11 text-lightest mt-1 mb-0">@lang('modules.deal.packagePipelineRoutingTriggerFieldsHint')</p>
+                </div>
             </div>
         </div>
 
@@ -62,8 +71,18 @@
     </x-form>
 </div>
 
+@include('components.deal.partials.pipeline-scope-pills-init')
+
 <script>
+    if (typeof window.initPipelineScopePills === 'function') {
+        window.initPipelineScopePills($('#dealPackageSettingsForm'));
+    }
+
     $('#save-deal-package-settings').click(function () {
+        if (typeof window.syncPipelineScopePillsInputs === 'function') {
+            window.syncPipelineScopePillsInputs($('#dealPackageSettingsForm'));
+        }
+
         $.easyAjax({
             url: "{{ route('lead-settings.deal-package-settings') }}",
             container: '#dealPackageSettingsForm',

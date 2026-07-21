@@ -5,6 +5,8 @@
     'fieldIdPrefix' => 'scope',
     'hint' => null,
     'searchPlaceholder' => null,
+    'maxSelection' => null,
+    'showCount' => true,
 ])
 
 @php
@@ -27,7 +29,11 @@
     data-search-placeholder="{{ $searchPlaceholder ?? __('app.search') }}"
     data-count-label="{{ __('modules.deal.pipelineScopeSelectedCount', ['count' => ':count']) }}"
     data-no-matches="{{ __('modules.deal.pipelineScopeNoMatches') }}"
-    data-all-selected="{{ __('modules.deal.pipelineScopeAllSelected') }}">
+    data-all-selected="{{ __('modules.deal.pipelineScopeAllSelected') }}"
+    @if($maxSelection !== null)
+    data-max-selection="{{ (int) $maxSelection }}"
+    @endif
+    data-show-count="{{ $showCount ? '1' : '0' }}">
 
     <div class="pipeline-scope-pills__pills d-flex flex-wrap"></div>
 

@@ -421,10 +421,12 @@ class DealGatheringService
 
     protected function attemptFieldTriggerRouting(Deal $deal, array $data): void
     {
+        $fieldCatalog = app(PackageRoutingFieldCatalog::class);
+
         $fieldTriggerData = collect($data)
             ->except(['package_id'])
             ->mapWithKeys(fn ($value, $key) => [$this->normalizeRoutingFieldKey((string) $key) => $value])
-            ->filter(fn ($value, $key) => app(PackageRoutingFieldCatalog::class)->isFieldEnabled(
+            ->filter(fn ($value, $key) => $fieldCatalog->isFieldEnabled(
                 (string) $key,
                 $deal->company_id,
             ))
@@ -434,7 +436,11 @@ class DealGatheringService
             return;
         }
 
-        $this->packageRouter->attemptRoutingFromFieldUpdates($deal->fresh(), $fieldTriggerData);
+        $this->packageRouter->attemptRoutingFromFieldUpdates(
+            $deal->fresh(),
+            $fieldTriggerData,
+            array_key_exists('package_id', $data) && $data['package_id'],
+        );
     }
 
     protected function normalizeRoutingFieldKey(string $key): string

@@ -82,6 +82,10 @@
 
 <script>
     $('#save-package-setting').click(function () {
+        if (typeof window.syncPipelineScopePillsInputs === 'function') {
+            window.syncPipelineScopePillsInputs($('#editPackage'));
+        }
+
         var formData = $('#editPackage').serialize();
         formData += '&_method=PUT';
 

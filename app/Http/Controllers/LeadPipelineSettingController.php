@@ -168,7 +168,9 @@ class LeadPipelineSettingController extends AccountBaseController
                 $displayKey = 'custom_field_' . $scope->scopeable_key;
             }
 
-            $key = $scope->model . '|native_field|' . $displayKey;
+            // syncFieldScopes() re-derives the real type from the key suffix, so this
+            // segment is purely informational — keep it truthful rather than hardcoded.
+            $key = $scope->model . '|' . $scope->scopeable_type . '|' . $displayKey;
 
             if ($scope->pipeline_stage_id === null) {
                 $map['__pipeline__'][] = $key;

@@ -207,27 +207,27 @@ class PackagePipelineRouterService
         return true;
     }
 
-    public function attemptRoutingFromFieldUpdates(Deal $deal, array $updatedFields): bool
-    {
-        $routed = false;
-
-        foreach ($updatedFields as $fieldKey => $value) {
-            if ($fieldKey === 'package_id') {
-                continue;
-            }
-
-            if ($this->routeDealFromFieldChange($deal, (string) $fieldKey, $value)) {
-                $routed = true;
-                $deal = $deal->fresh(['packages', 'company']);
-            }
+    /**
+     * Route a deal to a package based on custom-field trigger values.
+     *
+     * Candidates are collected across all updated fields before anything is
+     * written: routing only happens when every matching field agrees on a
+     * single package, so the result no longer depends on payload/array order.
+     *
+     * @param bool $packageExplicitlySelected Set when the same request already
+     *   set package_id directly — field-trigger routing must not override a
+     *   package the user picked themselves.
+     */
+    public function attemptRoutingFromFieldUpdates(
+        Deal $deal,
+        array $updatedFields,
+        bool $packageExplicitlySelected = false,
+    ): bool {
+        if ($packageExplicitlySelected) {
+            return false;
         }
 
-        return $routed;
-    }
-
-    public function routeDealFromFieldChange(Deal $deal, string $fieldKey, mixed $value): bool
-    {
-        $deal->loadMissing('company');
+        $deal->loadMissing(['company', 'packages']);
 
         if ($deal->is_locked) {
             return false;
@@ -246,19 +246,66 @@ class PackagePipelineRouterService
             return false;
         }
 
-        $matchingPackages = $this->fieldCatalog->packagesMatchingFieldValue(
-            (int) $deal->company_id,
-            $fieldKey,
-            $value,
-        );
+        if ($deal->packages->count() > 1) {
+            Log::debug('Package pipeline field routing skipped', [
+                'deal_id' => $deal->id,
+                'reason' => 'multiple_packages',
+                'package_ids' => $deal->packages->pluck('id')->all(),
+            ]);
 
-        if ($matchingPackages->count() !== 1) {
-            if ($matchingPackages->count() > 1) {
+            return false;
+        }
+
+        /** @var array<int, Package> $candidatePackages */
+        $candidatePackages = [];
+
+        foreach ($updatedFields as $fieldKey => $value) {
+            if ($fieldKey === 'package_id') {
+                continue;
+            }
+
+            $matchingPackages = $this->fieldCatalog->packagesMatchingFieldValue(
+                (int) $deal->company_id,
+                (string) $fieldKey,
+                $value,
+            );
+
+            if ($matchingPackages->count() !== 1) {
+                if ($matchingPackages->count() > 1) {
+                    Log::debug('Package pipeline field routing skipped', [
+                        'deal_id' => $deal->id,
+                        'field_key' => $fieldKey,
+                        'reason' => 'ambiguous_package_match',
+                        'package_ids' => $matchingPackages->pluck('id')->all(),
+                    ]);
+                }
+
+                continue;
+            }
+
+            /** @var Package $package */
+            $package = $matchingPackages->first();
+
+            if (!$package->packagePipeline) {
                 Log::debug('Package pipeline field routing skipped', [
                     'deal_id' => $deal->id,
                     'field_key' => $fieldKey,
-                    'reason' => 'ambiguous_package_match',
-                    'package_ids' => $matchingPackages->pluck('id')->all(),
+                    'package_id' => $package->id,
+                    'reason' => 'no_package_pipeline_mapping',
+                ]);
+
+                continue;
+            }
+
+            $candidatePackages[$package->id] = $package;
+        }
+
+        if (count($candidatePackages) !== 1) {
+            if (count($candidatePackages) > 1) {
+                Log::debug('Package pipeline field routing skipped', [
+                    'deal_id' => $deal->id,
+                    'reason' => 'conflicting_field_triggers',
+                    'package_ids' => array_keys($candidatePackages),
                 ]);
             }
 
@@ -266,31 +313,7 @@ class PackagePipelineRouterService
         }
 
         /** @var Package $package */
-        $package = $matchingPackages->first();
-
-        if (!$package->packagePipeline) {
-            Log::debug('Package pipeline field routing skipped', [
-                'deal_id' => $deal->id,
-                'field_key' => $fieldKey,
-                'package_id' => $package->id,
-                'reason' => 'no_package_pipeline_mapping',
-            ]);
-
-            return false;
-        }
-
-        $deal->loadMissing('packages');
-
-        if ($deal->packages->count() > 1) {
-            Log::debug('Package pipeline field routing skipped', [
-                'deal_id' => $deal->id,
-                'field_key' => $fieldKey,
-                'reason' => 'multiple_packages',
-                'package_ids' => $deal->packages->pluck('id')->all(),
-            ]);
-
-            return false;
-        }
+        $package = reset($candidatePackages);
 
         $normalizedPackageIds = $this->normalizePackageIds([$package->id], $deal->company_id);
         $deal->packages()->sync($normalizedPackageIds);

@@ -43,7 +43,10 @@ class PackageController extends AccountBaseController
             ->orderBy('lead_pipeline_id')
             ->orderBy('priority')
             ->get();
-        $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions(company()->id);
+        $companyId = (int) company()->id;
+        $this->routingFieldGroups = $this->routingFieldCatalog->groupedFieldItems($companyId);
+        $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions($companyId);
+        $this->routingTriggerFieldItems = $this->routingFieldCatalog->flatFieldItems($companyId);
         $this->routingMatchModeOptions = [
             PackageRoutingFieldCatalog::MATCH_MODE_EXACT => __('modules.deal.routingTriggerMatchModeExact'),
             PackageRoutingFieldCatalog::MATCH_MODE_PRESENT => __('modules.deal.routingTriggerMatchModePresent'),
@@ -82,7 +85,10 @@ class PackageController extends AccountBaseController
             ->orderBy('lead_pipeline_id')
             ->orderBy('priority')
             ->get();
-        $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions(company()->id);
+        $companyId = (int) company()->id;
+        $this->routingFieldGroups = $this->routingFieldCatalog->groupedFieldItems($companyId);
+        $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions($companyId);
+        $this->routingTriggerFieldItems = $this->routingFieldCatalog->flatFieldItems($companyId);
         $this->routingMatchModeOptions = [
             PackageRoutingFieldCatalog::MATCH_MODE_EXACT => __('modules.deal.routingTriggerMatchModeExact'),
             PackageRoutingFieldCatalog::MATCH_MODE_PRESENT => __('modules.deal.routingTriggerMatchModePresent'),
@@ -128,7 +134,10 @@ class PackageController extends AccountBaseController
             return Reply::error('Package not found.');
         }
 
-        PackagePipeline::where('package_id', $package->id)->delete();
+        // Package is soft-deleted, so its pipeline mapping is left intact —
+        // it comes back automatically if the package is restored. The FK
+        // (package_pipeline.package_id -> packages.id, cascade) cleans it up
+        // if the package is ever force-deleted.
         $package->delete();
 
         return Reply::success(__('messages.deleteSuccess'));

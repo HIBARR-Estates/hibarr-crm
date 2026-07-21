@@ -111,8 +111,9 @@ class PipelineScopeResolverService
                     ? $scopes->whereIn('pipeline_stage_id', $previousStageIds)->pluck('category_id')
                     : collect();
 
-                return $pipelineWide
-                    ->merge($previousCategoryIds)
+                // Current stage has its own scoped categories: those (plus earlier
+                // stages) fully take over from pipeline-wide for this view.
+                return $previousCategoryIds
                     ->merge($currentStageCategoryIds)
                     ->unique()
                     ->values()
@@ -395,7 +396,9 @@ class PipelineScopeResolverService
                     ? $scopes->whereIn('pipeline_stage_id', $previousStageIds)
                     : collect();
 
-                return $pipelineWide->merge($previousScopes)->merge($currentStageScopes)
+                // Current stage has its own scoped fields: those (plus earlier
+                // stages) fully take over from pipeline-wide for this view.
+                return $previousScopes->merge($currentStageScopes)
                     ->map(fn ($scope) => $scope->scopeable_type . ':' . $scope->scopeable_key)
                     ->unique()
                     ->values()
@@ -488,11 +491,19 @@ class PipelineScopeResolverService
     {
         $companyId = $companyId ?? company()->id;
 
+        $validStageIds = $pipeline->stages()->pluck('id')->map(fn ($stageId) => (int) $stageId)->all();
+
         $rows = [];
 
         foreach ($categoryScopes as $stageKey => $categoryIds) {
             if (!is_array($categoryIds)) {
                 continue;
+            }
+
+            if ($stageKey !== '__pipeline__' && !in_array((int) $stageKey, $validStageIds, true)) {
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'category_scopes' => __('validation.exists', ['attribute' => 'category_scopes']),
+                ]);
             }
 
             $stageId = $stageKey === '__pipeline__' ? null : (int) $stageKey;

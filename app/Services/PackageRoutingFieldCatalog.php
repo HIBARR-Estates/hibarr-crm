@@ -11,6 +11,9 @@ use Illuminate\Support\Collection;
 
 class PackageRoutingFieldCatalog
 {
+    /** @var array<int|string, array<int, string>> */
+    private array $enabledFieldKeysCache = [];
+
     public const MATCH_MODE_EXACT = 'exact';
     public const MATCH_MODE_PRESENT = 'present';
 
@@ -84,10 +87,110 @@ class PackageRoutingFieldCatalog
     }
 
     /**
+     * Scopeable deal/lead fields grouped for admin UI (aligned with pipeline field linking).
+     *
+     * @return array<string, array<int, array{value: string, label: string}>>
+     */
+    public function groupedFieldItems(?int $companyId = null): array
+    {
+        $companyId = $companyId ?? company()?->id;
+        $allowed = array_flip($this->allFieldOptions($companyId));
+
+        $catalog = app(PipelineScopeResolverService::class)->getScopeableFieldsCatalog();
+        $groups = [];
+
+        foreach ($catalog as $model => $fields) {
+            $groupLabel = class_basename($model);
+            $items = [];
+
+            foreach ($fields as $fieldKey => $fieldLabel) {
+                $routingKey = $this->scopeKeyToRoutingKey($fieldKey);
+                if (!isset($allowed[$routingKey])) {
+                    continue;
+                }
+
+                $items[] = [
+                    'value' => $routingKey,
+                    'label' => $fieldLabel,
+                ];
+            }
+
+            if ($items !== []) {
+                $groups[$groupLabel] = $items;
+            }
+        }
+
+        foreach ($this->nativeFieldOptions() as $key => $label) {
+            if (!isset($allowed[$key])) {
+                continue;
+            }
+
+            $alreadyListed = false;
+            foreach ($groups as $items) {
+                foreach ($items as $item) {
+                    if ($item['value'] === $key) {
+                        $alreadyListed = true;
+                        break 2;
+                    }
+                }
+            }
+
+            if (!$alreadyListed) {
+                $groups['Deal'] = array_merge(
+                    [['value' => $key, 'label' => $label]],
+                    $groups['Deal'] ?? [],
+                );
+            }
+        }
+
+        if ($groups === [] && $allowed !== []) {
+            $groups['Deal'] = collect($this->allFieldOptions($companyId))
+                ->map(fn (string $label, string $value) => [
+                    'value' => $value,
+                    'label' => $label,
+                ])
+                ->values()
+                ->all();
+        }
+
+        return $groups;
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    public function flatFieldItems(?int $companyId = null): array
+    {
+        $flat = [];
+        foreach ($this->groupedFieldItems($companyId) as $items) {
+            foreach ($items as $item) {
+                $flat[] = $item;
+            }
+        }
+
+        return $flat;
+    }
+
+    protected function scopeKeyToRoutingKey(string $scopeKey): string
+    {
+        if (str_starts_with($scopeKey, 'custom_field_')) {
+            return 'field_' . substr($scopeKey, strlen('custom_field_'));
+        }
+
+        return $scopeKey;
+    }
+
+    /**
      * @return array<int, string>
      */
     public function enabledFieldKeys(?int $companyId = null): array
     {
+        $cacheKey = $companyId ?? 'current';
+
+        if (array_key_exists($cacheKey, $this->enabledFieldKeysCache)) {
+            return $this->enabledFieldKeysCache[$cacheKey];
+        }
+
         $company = $companyId ? \App\Models\Company::find($companyId) : company();
         $configured = $company?->package_pipeline_routing_trigger_fields;
 
@@ -95,11 +198,11 @@ class PackageRoutingFieldCatalog
             $configured = json_decode($configured, true);
         }
 
-        if (is_array($configured)) {
-            return array_values($configured);
-        }
+        $keys = is_array($configured)
+            ? array_values($configured)
+            : array_keys($this->allFieldOptions($companyId));
 
-        return array_keys($this->allFieldOptions($companyId));
+        return $this->enabledFieldKeysCache[$cacheKey] = $keys;
     }
 
     public function isFieldEnabled(string $fieldKey, ?int $companyId = null): bool
@@ -135,14 +238,16 @@ class PackageRoutingFieldCatalog
                 continue;
             }
 
-            $normalized[] = [
+            // package_routing_triggers has a unique(package_id, field_key) constraint,
+            // so only one row per field can survive; later rows win.
+            $normalized[$fieldKey] = [
                 'field_key' => $fieldKey,
                 'match_mode' => $matchMode,
                 'match_value' => $matchMode === self::MATCH_MODE_PRESENT ? null : $matchValue,
             ];
         }
 
-        return $normalized;
+        return array_values($normalized);
     }
 
     /**
