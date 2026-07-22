@@ -25,11 +25,6 @@ export interface DealInfoNavItemConfig {
     stageBadge?: string;
 }
 
-export interface DealInfoSectionMeta {
-    title: string;
-    subtitle: string;
-}
-
 /**
  * "gdpr" is deliberately absent — it is appended manually as the very last
  * nav item (after unmapped categories), matching v2.2's sidebar order.
@@ -40,46 +35,22 @@ export const DEAL_INFO_CORE_SECTION_ORDER: DealInfoCoreSectionId[] = [
     // "income",
     // "location",
     "preftimeline",
-    "funding",
-    "support",
 ];
 
-export const DEAL_INFO_SECTION_META: Record<
-    DealInfoCoreSectionId,
-    DealInfoSectionMeta
-> = {
-    general: {
-        title: "General information",
-        subtitle: "Stage relevant — In progress",
-    },
-    gdpr: {
-        title: "GDPR & consents",
-        subtitle: "Lead-level consent records — read only",
-    },
-    experience: {
-        title: "Investment experience & goals",
-        subtitle: "Stage relevant — In progress",
-    },
-    income: {
-        title: "Income & savings",
-        subtitle: "Stage relevant — In progress",
-    },
-    location: {
-        title: "Location & building preference",
-        subtitle: "Becomes relevant at Prospect stage",
-    },
-    preftimeline: {
-        title: "Preferences & timeline",
-        subtitle: "Becomes relevant at Prospect stage",
-    },
-    funding: {
-        title: "Funding & liquidity",
-        subtitle: "Becomes relevant at Customer stage",
-    },
-    support: {
-        title: "Support & collaboration",
-        subtitle: "Becomes relevant at Customer stage",
-    },
+/**
+ * Section titles. Subtitles are computed dynamically in
+ * DealInfoSectionPanel (v2.2's lock/gdpr-aware copy, deal-v2-2.jsx:3417-3420)
+ * rather than stored per section here.
+ */
+export const DEAL_INFO_SECTION_TITLES: Record<DealInfoCoreSectionId, string> = {
+    general: "General information",
+    gdpr: "GDPR & consents",
+    experience: "Investment experience & goals",
+    income: "Income & savings",
+    location: "Location & building preference",
+    preftimeline: "Preferences & timeline",
+    funding: "Funding & liquidity",
+    support: "Support & collaboration",
 };
 
 const CORE_NAV_ICONS: Record<DealInfoCoreSectionId, string> = {
@@ -119,8 +90,6 @@ export const CORE_SECTION_FIELD_LABELS: Partial<
         "Lead source",
         "Packages",
         "Properties",
-        "Interested in",
-        "Budget range",
     ],
     preftimeline: [
         "Purchase timeline",
@@ -128,6 +97,8 @@ export const CORE_SECTION_FIELD_LABELS: Partial<
         "Motivation",
         "Downpayment paid",
         "Inspection trip date",
+        "Interested in",
+        "Budget range",
     ],
     funding: [
         "Deposit confirmation",

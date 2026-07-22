@@ -205,6 +205,12 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <line x1="5" y1="12" x2="19" y2="12" />
         </>
     ),
+    briefcase: (
+        <>
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+        </>
+    ),
 };
 
 interface DealIconProps {

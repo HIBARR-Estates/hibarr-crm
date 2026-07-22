@@ -1262,7 +1262,24 @@ class DealController extends AccountBaseController
 
     private function loadFullDeal($id): Deal
     {
-        $deal = Deal::with(['currency', 'contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline.stages', 'packages', 'products.property', 'dealWatchers', 'dealParticipants'])->findOrFail($id);
+        $deal = Deal::with([
+            'currency',
+            'contact',
+            'hibarrFields',
+            'leadAgent.user',
+            'addedBy',
+            'leadSource',
+            'category',
+            'leadStage',
+            'pipeline.stages',
+            'packages',
+            'products.property',
+            'dealWatchers',
+            'dealParticipants',
+            // Required for redesign workspace: setDeal(response.data) replaces
+            // local deal state; omitting this relation clears the itinerary tab.
+            'leadFlightItineraries',
+        ])->findOrFail($id);
         $deal->withCustomFields();
         $deal->setAttribute('value_breakdown', app(DealValueResolver::class)->getBreakdown($deal));
 

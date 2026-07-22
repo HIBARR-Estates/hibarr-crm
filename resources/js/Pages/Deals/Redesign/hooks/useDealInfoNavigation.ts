@@ -72,13 +72,14 @@ function countSectionCompletion(
     );
 
     const hibarrKeysBySection: Partial<Record<DealInfoCoreSectionId, string[]>> = {
-        general: ["interested_in", "budget_range"],
         preftimeline: [
             "purchase_timeline",
             "motivation",
             "strategy_meeting_booked",
             "downpayment_paid",
             "inspection_trip_date",
+            "interested_in",
+            "budget_range",
         ],
         funding: [
             "deposit_confirmation",

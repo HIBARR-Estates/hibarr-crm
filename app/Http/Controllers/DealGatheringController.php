@@ -320,8 +320,25 @@ class DealGatheringController extends AccountBaseController
             $data
         );
 
-        // Refresh deal with all relationships and custom fields data
-        $freshDeal = $updatedDeal->fresh(['currency', 'contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline.stages', 'packages', 'products.property', 'dealWatchers', 'dealParticipants']);
+        // Refresh deal with all relationships and custom fields data.
+        // Include leadFlightItineraries so redesign setDeal() patches do not
+        // wipe the itinerary tab (same relation set as DealController::loadFullDeal).
+        $freshDeal = $updatedDeal->fresh([
+            'currency',
+            'contact',
+            'hibarrFields',
+            'leadAgent.user',
+            'addedBy',
+            'leadSource',
+            'category',
+            'leadStage',
+            'pipeline.stages',
+            'packages',
+            'products.property',
+            'dealWatchers',
+            'dealParticipants',
+            'leadFlightItineraries',
+        ]);
         $freshDeal->withCustomFields();
         $freshDeal->setAttribute('value_breakdown', app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal));
 

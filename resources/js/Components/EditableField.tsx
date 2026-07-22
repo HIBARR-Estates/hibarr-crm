@@ -23,6 +23,7 @@ import {
 import PhoneInput, { PhoneNumber } from "antd-phone-input";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType, useCountries, useCurrencies } from "@/Hooks/useFormData";
+import useTranslation from "@/Hooks/useTranslation";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
 import {
@@ -91,6 +92,7 @@ export default function EditableField({
     activateOnSingleClick = false,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
+    const { t } = useTranslation();
     const { countries } = useCountries();
     const { currencies } = useCurrencies();
     const {
@@ -590,7 +592,23 @@ export default function EditableField({
                 })()
               : formatValue
                 ? formatValue(normalizedValue)
-                : (normalizedValue?.toString() ?? "--");
+                : normalizedValue?.toString() ||
+                  // v2.2 mode shows "Not set" for empty values (deal-v2-2.jsx:866);
+                  // other consumers keep the legacy "--" placeholder.
+                  (activateOnSingleClick
+                      ? t("pages.deals.common.not_set")
+                      : "--");
+
+    // v2.2 renders "Not set" in muted italics so it reads as a placeholder,
+    // not a real value (deal-v2-2.jsx:860-861: color MUTED, fontStyle
+    // italic when empty). Only applies when this component generated the
+    // fallback text itself — a caller-supplied displayValue/currency format
+    // manages its own styling.
+    const isEmptyValue =
+        activateOnSingleClick &&
+        displayValue === undefined &&
+        fieldType !== "currency" &&
+        !normalizedValue;
 
     if (editing) {
         return (
@@ -744,7 +762,13 @@ export default function EditableField({
                             options={options}
                             className="flex-1 min-w-[120px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            // Auto-open only for the deliberate single-field
+                            // click-to-edit case — in bulk "edit whole
+                            // section" mode (alwaysEditing) every select
+                            // field enters edit simultaneously, so forcing
+                            // them all open at once would be a wall of
+                            // dropdowns nobody asked to see.
+                            defaultOpen={!alwaysEditing}
                             allowClear
                         />
                     ) : fieldType === "multiselect" ? (
@@ -755,7 +779,7 @@ export default function EditableField({
                             mode="multiple"
                             className="flex-1 min-w-[200px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                             allowClear
                             placeholder="Select options..."
                         />
@@ -769,7 +793,7 @@ export default function EditableField({
                             ]}
                             className="flex-1 min-w-[80px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                         />
                     ) : fieldType === "textarea" ? (
                         <Input.TextArea
@@ -795,7 +819,7 @@ export default function EditableField({
                             onChange={(val) => handleValueChange(val)}
                             className="flex-1 min-w-[200px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                             allowClear
                             showSearch
                             placeholder="Select country"
@@ -948,7 +972,7 @@ export default function EditableField({
                             canStartEditing
                                 ? "border-transparent transition-colors group-hover/editable:border-blue-300"
                                 : ""
-                        }`}
+                        } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     >
                         {displayText}
                     </span>

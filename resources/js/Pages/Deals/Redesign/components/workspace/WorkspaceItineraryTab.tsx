@@ -1,14 +1,25 @@
 import { useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
-import { FlightDirection } from "@/Types/api/lead-flight-itinerary";
-import { toWorkspaceItineraryItem } from "../../adapters/itineraryAdapter";
+import {
+    FlightDirection,
+    ILeadFlightItinerary,
+} from "@/Types/api/lead-flight-itinerary";
+import {
+    sortItineraryItems,
+    toWorkspaceItineraryItem,
+    type WorkspaceItineraryItem,
+} from "../../adapters/itineraryAdapter";
 import useDealItinerary from "../../hooks/useDealItinerary";
-import DealAddItineraryModal from "./DealAddItineraryModal";
+import DealItineraryModal from "./DealItineraryModal";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import {
+    DEAL_REDESIGN_RADIUS as R,
+    DEAL_REDESIGN_TOKENS as T,
+    DEAL_REDESIGN_TYPE as TY,
+} from "../../tokens";
 
 type ItineraryFilter = "all" | "arrival" | "departure" | "transfer";
 
@@ -18,10 +29,187 @@ interface WorkspaceItineraryTabProps {
     canDelete: boolean;
 }
 
-/** Ported from v2.2's ItineraryTab (deal-v2-2.jsx:2953-3086), backed by the
- * real lead-flight-itineraries routes (see legacy LeadFlightItineraryTab).
- * Scoped to what v2.2 actually shows — add + delete, no roundtrip/edit/image
- * upload, which the legacy tab supports but v2.2's design doesn't surface. */
+interface ItineraryCardProps {
+    leg: WorkspaceItineraryItem;
+    isPastSection: boolean;
+    canAdd: boolean;
+    canDelete: boolean;
+    deletingId: number | null;
+    onEdit: (leg: ILeadFlightItinerary) => void;
+    onDelete: (id: number) => void;
+    ft: (key: string) => string;
+    t: (key: string) => string;
+}
+
+function ItineraryCard({
+    leg,
+    isPastSection,
+    canAdd,
+    canDelete,
+    deletingId,
+    onEdit,
+    onDelete,
+    ft,
+    t,
+}: ItineraryCardProps) {
+    const isArrival = leg.direction === FlightDirection.ARRIVAL;
+
+    return (
+        <div
+            className="flex items-stretch gap-3"
+            style={{
+                background: T.SURFACE,
+                border: `1px solid ${T.BORDER}`,
+                borderRadius: R.LG,
+                padding: "14px 16px",
+                opacity: isPastSection ? 0.8 : 1,
+            }}
+        >
+            <div
+                className="flex flex-col overflow-hidden"
+                style={{
+                    width: 52,
+                    flexShrink: 0,
+                    borderRadius: R.MD,
+                    border: `1px solid ${
+                        isPastSection
+                            ? T.BORDER
+                            : isArrival
+                              ? T.GREEN_MID
+                              : T.BLUE_MID
+                    }`,
+                    background: isPastSection ? T.SURFACE_2 : T.WHITE,
+                }}
+                aria-hidden
+            >
+                <span
+                    className="text-center font-semibold uppercase"
+                    style={{
+                        fontSize: TY.CAPTION,
+                        letterSpacing: "0.06em",
+                        color: T.WHITE,
+                        background: isPastSection
+                            ? T.GRAY_DARK
+                            : isArrival
+                              ? T.GREEN
+                              : T.BLUE,
+                        padding: "5px 0 4px",
+                        lineHeight: 1,
+                    }}
+                >
+                    {leg.monthLabel}
+                </span>
+                <span
+                    className="flex flex-1 items-center justify-center font-bold leading-none"
+                    style={{
+                        fontSize: TY.DISPLAY,
+                        color: isPastSection ? T.TEXT_MUTED : T.NAVY,
+                        padding: "8px 0 10px",
+                    }}
+                >
+                    {leg.dayLabel}
+                </span>
+            </div>
+
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span
+                        className={`dr-pill dr-pill-${
+                            isArrival ? "green" : "blue"
+                        }`}
+                    >
+                        {isArrival ? ft("arrival") : ft("departure")}
+                    </span>
+                    <span
+                        className={`dr-pill ${
+                            leg.isTransferRequired
+                                ? "dr-pill-amber"
+                                : "dr-pill-gray"
+                        }`}
+                    >
+                        {leg.isTransferRequired
+                            ? ft("transfer_needed")
+                            : ft("no_transfer")}
+                    </span>
+                </div>
+
+                <div
+                    className="truncate font-semibold"
+                    style={{
+                        fontSize: TY.HEADING,
+                        color: T.TEXT,
+                        lineHeight: 1.3,
+                    }}
+                    title={leg.airportLabel}
+                >
+                    {leg.airportLabel}
+                </div>
+
+                <div
+                    className="flex flex-wrap items-center gap-x-2 gap-y-0.5"
+                    style={{
+                        fontSize: TY.BODY,
+                        color: T.TEXT_MUTED,
+                    }}
+                >
+                    <span
+                        className="inline-flex items-center gap-1.5 font-semibold"
+                        style={{
+                            color: isPastSection ? T.TEXT_MUTED : T.NAVY,
+                        }}
+                    >
+                        <DealIcon
+                            name="clock"
+                            size={13}
+                            color={isPastSection ? T.TEXT_MUTED : T.BLUE}
+                        />
+                        {leg.timeLabel}
+                    </span>
+                    <span style={{ color: T.TEXT_HINT }}>·</span>
+                    <span>{leg.dateLabel}</span>
+                    {leg.flightNumberLabel !== "—" && (
+                        <>
+                            <span style={{ color: T.TEXT_HINT }}>·</span>
+                            <span style={{ color: T.TEXT_HINT }}>
+                                {leg.flightNumberLabel}
+                            </span>
+                        </>
+                    )}
+                </div>
+            </div>
+
+            <div className="flex flex-shrink-0 flex-col items-end justify-center gap-1.5 sm:flex-row sm:items-center">
+                {canAdd && (
+                    <DealButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(leg.raw)}
+                    >
+                        {t("pages.deals.common.edit")}
+                    </DealButton>
+                )}
+                {canDelete && (
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-sm"
+                        style={{
+                            color: T.RED,
+                            background: "transparent",
+                            border: "none",
+                        }}
+                        disabled={deletingId === leg.id}
+                        onClick={() => onDelete(leg.id)}
+                    >
+                        {t("pages.deals.common.delete")}
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+}
+
+/** Flight itinerary list for the deal workspace — cards emphasise airport,
+ * date/time, direction, and transfer need. Create/edit share DealItineraryModal. */
 export default function WorkspaceItineraryTab({
     deal,
     canAdd,
@@ -30,7 +218,10 @@ export default function WorkspaceItineraryTab({
     const { t } = useTranslation();
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const [filter, setFilter] = useState<ItineraryFilter>("all");
-    const [addOpen, setAddOpen] = useState(false);
+    const [modalOpen, setModalOpen] = useState(false);
+    const [editingLeg, setEditingLeg] = useState<ILeadFlightItinerary | null>(
+        null,
+    );
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
     const { deleteLeg, deletingId } = useDealItinerary(deal.id);
 
@@ -39,12 +230,37 @@ export default function WorkspaceItineraryTab({
         [deal.lead_flight_itineraries],
     );
 
-    const filtered = items.filter((leg) => {
-        if (filter === "arrival") return leg.direction === FlightDirection.ARRIVAL;
-        if (filter === "departure") return leg.direction === FlightDirection.DEPARTURE;
-        if (filter === "transfer") return leg.isTransferRequired;
-        return true;
-    });
+    const filtered = useMemo(
+        () =>
+            items.filter((leg) => {
+                if (filter === "arrival") {
+                    return leg.direction === FlightDirection.ARRIVAL;
+                }
+                if (filter === "departure") {
+                    return leg.direction === FlightDirection.DEPARTURE;
+                }
+                if (filter === "transfer") return leg.isTransferRequired;
+                return true;
+            }),
+        [filter, items],
+    );
+
+    const upcoming = useMemo(
+        () =>
+            sortItineraryItems(
+                filtered.filter((leg) => leg.isUpcoming),
+                "upcoming",
+            ),
+        [filtered],
+    );
+    const past = useMemo(
+        () =>
+            sortItineraryItems(
+                filtered.filter((leg) => leg.isPast || !leg.startsAt),
+                "past",
+            ),
+        [filtered],
+    );
 
     const filterOptions: Array<{ id: ItineraryFilter; label: string }> = [
         { id: "all", label: ft("filter_all") },
@@ -53,13 +269,37 @@ export default function WorkspaceItineraryTab({
         { id: "transfer", label: ft("filter_transfer_needed") },
     ];
 
+    const openCreate = () => {
+        setEditingLeg(null);
+        setModalOpen(true);
+    };
+
+    const openEdit = (leg: ILeadFlightItinerary) => {
+        setEditingLeg(leg);
+        setModalOpen(true);
+    };
+
+    const closeModal = () => {
+        setModalOpen(false);
+        setEditingLeg(null);
+    };
+
+    const sections = (
+        [
+            { label: "Upcoming" as const, items: upcoming },
+            { label: "Past" as const, items: past },
+        ] as const
+    ).filter((section) => section.items.length > 0);
+
     return (
         <div>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2.5">
                 <div
                     className="flex flex-wrap gap-1"
                     role="group"
-                    aria-label={t("pages.deals.workspace.itinerary.filter_aria_label")}
+                    aria-label={t(
+                        "pages.deals.workspace.itinerary.filter_aria_label",
+                    )}
                 >
                     {filterOptions.map((option) => (
                         <button
@@ -77,12 +317,24 @@ export default function WorkspaceItineraryTab({
                     <DealButton
                         variant="primary"
                         size="sm"
-                        onClick={() => setAddOpen(true)}
+                        onClick={openCreate}
                     >
                         + {ft("add_flight")}
                     </DealButton>
                 )}
             </div>
+
+            {filtered.length > 0 && (
+                <div
+                    className="mb-3"
+                    style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}
+                >
+                    {upcoming.length}{" "}
+                    {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
+                    {past.length}{" "}
+                    {t("pages.deals.workspace.meetings.past_label")}
+                </div>
+            )}
 
             {filtered.length === 0 ? (
                 <div
@@ -90,79 +342,58 @@ export default function WorkspaceItineraryTab({
                     className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"
                     style={{ borderColor: T.BORDER, background: T.SURFACE_2 }}
                 >
-                    <div className="mb-[3px] text-[13px] font-semibold text-[#1a1f2e]">
+                    <div
+                        className="mb-[3px] font-semibold"
+                        style={{ fontSize: TY.BODY, color: T.TEXT }}
+                    >
                         {ft("empty")}
                     </div>
-                    <div className="text-xs text-[#5b6472]">
-                        {t("Track the client's inspection-trip flights and airport transfers here.")}
+                    <div style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}>
+                        {t(
+                            "Track the client's inspection-trip flights and airport transfers here.",
+                        )}
                     </div>
                 </div>
             ) : (
-                filtered.map((leg) => {
-                    const isArrival = leg.direction === FlightDirection.ARRIVAL;
+                sections.map((section) => {
+                    const isPastSection = section.label === "Past";
                     return (
-                        <div key={leg.id} className="dr-card flex items-center gap-3">
-                            <div
-                                aria-hidden="true"
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border"
-                                style={{
-                                    background: isArrival ? T.GREEN_LIGHT : T.BLUE_LIGHT,
-                                    borderColor: isArrival ? T.GREEN_MID : T.BLUE_MID,
-                                    color: isArrival ? T.GREEN : "#14538c",
-                                    transform: isArrival
-                                        ? "rotate(45deg)"
-                                        : "rotate(-45deg)",
-                                }}
-                            >
-                                <DealIcon name="external-link" size={15} />
+                        <section key={section.label} className="mb-3">
+                            <div className="dr-label mb-2">
+                                {section.label === "Upcoming"
+                                    ? t(
+                                          "pages.deals.workspace.meetings.section_upcoming",
+                                      )
+                                    : t(
+                                          "pages.deals.workspace.meetings.section_past",
+                                      )}
                             </div>
-                            <div className="min-w-0 flex-1">
-                                <div className="mb-[3px] flex flex-wrap items-center gap-2">
-                                    <span className="text-[13px] font-semibold">
-                                        {leg.flightNumberLabel}
-                                    </span>
-                                    <span
-                                        className={`dr-pill dr-pill-${isArrival ? "green" : "blue"}`}
-                                    >
-                                        {isArrival ? ft("arrival") : ft("departure")}
-                                    </span>
-                                    <span className={`dr-pill dr-pill-${leg.statusTone}`}>
-                                        {ft(`status_${leg.status.replace(/ /g, "_")}`)}
-                                    </span>
-                                    {leg.isTransferRequired && (
-                                        <span className="dr-pill dr-pill-amber">
-                                            {ft("transfer_required")}
-                                        </span>
-                                    )}
-                                </div>
-                                <div className="text-xs text-[#5b6472]">
-                                    {leg.airportLabel} · {leg.dateTimeLabel}
-                                </div>
+                            <div className="flex flex-col gap-2.5">
+                                {section.items.map((leg) => (
+                                    <ItineraryCard
+                                        key={leg.id}
+                                        leg={leg}
+                                        isPastSection={isPastSection}
+                                        canAdd={canAdd}
+                                        canDelete={canDelete}
+                                        deletingId={deletingId}
+                                        onEdit={openEdit}
+                                        onDelete={setConfirmDeleteId}
+                                        ft={ft}
+                                        t={t}
+                                    />
+                                ))}
                             </div>
-                            {canDelete && (
-                                <button
-                                    type="button"
-                                    className="dr-btn dr-btn-sm"
-                                    style={{
-                                        color: T.RED,
-                                        background: "transparent",
-                                        border: "none",
-                                    }}
-                                    disabled={deletingId === leg.id}
-                                    onClick={() => setConfirmDeleteId(leg.id)}
-                                >
-                                    {t("app.delete")}
-                                </button>
-                            )}
-                        </div>
+                        </section>
                     );
                 })
             )}
 
-            <DealAddItineraryModal
-                open={addOpen}
-                onClose={() => setAddOpen(false)}
+            <DealItineraryModal
+                open={modalOpen}
+                onClose={closeModal}
                 dealId={deal.id}
+                leg={editingLeg}
             />
 
             <DealConfirmDialog
@@ -171,10 +402,14 @@ export default function WorkspaceItineraryTab({
                 message={ft("delete_confirm")}
                 confirmLabel={ft("delete_flight")}
                 danger
-                confirmLoading={confirmDeleteId != null && deletingId === confirmDeleteId}
+                confirmLoading={
+                    confirmDeleteId != null && deletingId === confirmDeleteId
+                }
                 onConfirm={() => {
                     if (confirmDeleteId != null) {
-                        deleteLeg(confirmDeleteId, () => setConfirmDeleteId(null));
+                        deleteLeg(confirmDeleteId, () =>
+                            setConfirmDeleteId(null),
+                        );
                     }
                 }}
                 onCancel={() => setConfirmDeleteId(null)}

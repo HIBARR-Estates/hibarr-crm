@@ -12,6 +12,8 @@ use App\Models\Lead;
 
 use App\Models\LeadFlightItinerary;
 
+use App\Helper\Reply;
+
 use App\Services\PermissionService;
 
 use Illuminate\Http\RedirectResponse;
@@ -174,8 +176,10 @@ class LeadFlightItineraryController extends Controller
 
 
 
-        DB::transaction(function () use ($request, $data) {
-            LeadFlightItinerary::create($data);
+        $created = null;
+
+        DB::transaction(function () use ($request, $data, &$created) {
+            $created = LeadFlightItinerary::create($data);
 
             if ($request->input('is_roundtrip')) {
                 $returnLeg = [
@@ -197,7 +201,14 @@ class LeadFlightItineraryController extends Controller
             }
         });
 
-
+        // Axios / redesign workspace expects the created leg so the list can
+        // update without a full page reload (redirect alone leaves local state stale).
+        if ($request->wantsJson() || $request->ajax()) {
+            return Reply::successWithData(
+                __('pages.flight_itinerary.messages.added'),
+                ['data' => $created]
+            );
+        }
 
         return redirect()->back()->with('success', __('pages.flight_itinerary.messages.added'));
 

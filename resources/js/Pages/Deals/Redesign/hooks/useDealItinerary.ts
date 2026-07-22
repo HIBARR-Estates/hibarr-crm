@@ -2,13 +2,16 @@ import { useCallback, useState } from "react";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
 import useTranslation from "@/Hooks/useTranslation";
-import { FlightDirection, ILeadFlightItinerary } from "@/Types/api/lead-flight-itinerary";
+import {
+    FlightDirection,
+    ILeadFlightItinerary,
+} from "@/Types/api/lead-flight-itinerary";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
-export interface DealItineraryCreateInput {
+export interface DealItineraryFormInput {
     direction: FlightDirection;
     flight_number: string;
     airport_name: string;
@@ -19,16 +22,33 @@ export interface DealItineraryCreateInput {
 export default function useDealItinerary(dealId: number) {
     const { t } = useTranslation();
     const [deletingId, setDeletingId] = useState<number | null>(null);
+    const [isUpdating, setIsUpdating] = useState(false);
     const { deal, setDeal } = useDealWorkspace();
 
     const { mutate: createMutate, status: createStatus } = useApiMutate<
-        DealItineraryCreateInput & { deal_id: number; status: string },
+        DealItineraryFormInput & { deal_id: number; status: string },
         ILeadFlightItinerary,
         ApiResponse<ILeadFlightItinerary>
     >(route("lead-flight-itineraries.store"), "POST");
 
+    const appendLeg = useCallback(
+        (created: ILeadFlightItinerary) => {
+            setDeal((prev) => {
+                const existing = prev.lead_flight_itineraries ?? [];
+                if (created.id && existing.some((leg) => leg.id === created.id)) {
+                    return prev;
+                }
+                return {
+                    ...prev,
+                    lead_flight_itineraries: [...existing, created],
+                };
+            });
+        },
+        [setDeal],
+    );
+
     const createLeg = useCallback(
-        (input: DealItineraryCreateInput, onSuccess?: () => void) => {
+        (input: DealItineraryFormInput, onSuccess?: () => void) => {
             createMutate(
                 {
                     ...input,
@@ -40,35 +60,83 @@ export default function useDealItinerary(dealId: number) {
                 },
                 {
                     onSuccess: (response) => {
-                        message.success(t("pages.deals.workspace.itinerary.messages.added"));
-                        onSuccess?.();
-                        // Patch the new leg into the deal locally (like every
-                        // other section) so it appears instantly instead of
-                        // waiting on a partial Inertia reload round-trip.
-                        const created = response?.data;
-                        if (created) {
-                            setDeal((prev) => ({
-                                ...prev,
-                                lead_flight_itineraries: [
-                                    ...(prev.lead_flight_itineraries ?? []),
-                                    created,
-                                ],
-                            }));
-                        } else {
-                            router.reload({ only: ["deal"] });
+                        if (!isSuccessResponse(response) || !response.data) {
+                            // Fallback: pull the fresh deal (includes itineraries).
+                            router.reload({
+                                only: ["deal"],
+                                onSuccess: () => onSuccess?.(),
+                            });
+                            return;
                         }
+
+                        appendLeg(response.data);
+                        onSuccess?.();
                     },
                 },
             );
         },
-        [createMutate, dealId, setDeal, t],
+        [appendLeg, createMutate, dealId],
+    );
+
+    const updateLeg = useCallback(
+        (
+            leg: ILeadFlightItinerary,
+            input: DealItineraryFormInput,
+            onSuccess?: () => void,
+        ) => {
+            const legId = leg.id as number;
+            const status =
+                leg.direction === input.direction
+                    ? leg.status
+                    : input.direction === FlightDirection.ARRIVAL
+                      ? "not arrived"
+                      : "not departed";
+
+            setIsUpdating(true);
+            router.put(
+                route("lead-flight-itineraries.update", legId),
+                {
+                    ...input,
+                    status,
+                },
+                {
+                    preserveScroll: true,
+                    preserveState: true,
+                    onSuccess: () => {
+                        message.success(
+                            t(
+                                "pages.deals.workspace.itinerary.messages.updated",
+                            ),
+                        );
+                        setDeal((prev) => ({
+                            ...prev,
+                            lead_flight_itineraries: (
+                                prev.lead_flight_itineraries ?? []
+                            ).map((item) =>
+                                item.id === legId
+                                    ? { ...item, ...input, status }
+                                    : item,
+                            ),
+                        }));
+                        onSuccess?.();
+                    },
+                    onError: () => {
+                        message.error(
+                            t(
+                                "pages.deals.workspace.itinerary.messages.update_failed",
+                            ),
+                        );
+                    },
+                    onFinish: () => setIsUpdating(false),
+                },
+            );
+        },
+        [setDeal, t],
     );
 
     const deleteLeg = useCallback(
         (legId: number, onSuccess?: () => void) => {
             setDeletingId(legId);
-            // Optimistically drop the leg so it disappears instantly; restore
-            // the previous list if the server rejects the delete.
             const snapshot = deal.lead_flight_itineraries ?? [];
             setDeal((prev) => ({
                 ...prev,
@@ -80,11 +148,17 @@ export default function useDealItinerary(dealId: number) {
                 preserveScroll: true,
                 preserveState: true,
                 onSuccess: () => {
-                    message.success(t("pages.deals.workspace.itinerary.messages.deleted"));
+                    message.success(
+                        t("pages.deals.workspace.itinerary.messages.deleted"),
+                    );
                     onSuccess?.();
                 },
                 onError: () => {
-                    message.error(t("pages.deals.workspace.itinerary.messages.delete_failed"));
+                    message.error(
+                        t(
+                            "pages.deals.workspace.itinerary.messages.delete_failed",
+                        ),
+                    );
                     setDeal((prev) => ({
                         ...prev,
                         lead_flight_itineraries: snapshot,
@@ -99,6 +173,8 @@ export default function useDealItinerary(dealId: number) {
     return {
         createLeg,
         isCreating: isLoading({ status: createStatus }),
+        updateLeg,
+        isUpdating,
         deleteLeg,
         deletingId,
     };

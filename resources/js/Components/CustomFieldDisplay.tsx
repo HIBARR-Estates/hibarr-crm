@@ -18,6 +18,7 @@ import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useCurrencies } from "@/Hooks/useFormData";
+import useTranslation from "@/Hooks/useTranslation";
 
 const DEFAULT_CURRENCY_CODE = "USD";
 
@@ -224,6 +225,8 @@ interface EditableFileFieldProps {
     loading?: boolean;
     editable?: boolean;
     multiple?: boolean;
+    /** v2.2's "Not set" copy for empty values, opt-in so other consumers keep "--". */
+    activateOnSingleClick?: boolean;
 }
 
 const EditableFileField: React.FC<EditableFileFieldProps> = ({
@@ -233,7 +236,9 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     loading = false,
     editable = true,
     multiple = true, // Default to supporting multiple files
+    activateOnSingleClick = false,
 }) => {
+    const { t } = useTranslation();
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -429,7 +434,11 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     }
 
     if (!editable) {
-        return <span className="text-gray-500">--</span>;
+        return (
+            <span className="text-gray-500">
+                {activateOnSingleClick ? t("pages.deals.common.not_set") : "--"}
+            </span>
+        );
     }
 
     return (
@@ -521,6 +530,16 @@ export default function CustomFieldDisplay({
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
     const { default_currency_code } = props;
+    const { t } = useTranslation();
+    // v2.2 mode shows "Not set" for empty values, styled as a muted italic
+    // placeholder so it doesn't read as a real value (deal-v2-2.jsx:860-861);
+    // other consumers keep the legacy "--" placeholder.
+    const notSetLabel = activateOnSingleClick
+        ? t("pages.deals.common.not_set")
+        : "--";
+    const notSetClassName = activateOnSingleClick
+        ? "italic text-gray-400"
+        : "text-gray-500";
 
     // Use the application's default currency (current company setting)
     const appDefaultCurrency: string =
@@ -659,7 +678,7 @@ export default function CustomFieldDisplay({
     // Format field value based on type
     const formatFieldValue = (field: Field, value: any) => {
         if (!value && value !== 0) {
-            if (!editable) return <span className="text-gray-500">--</span>;
+            if (!editable) return <span className={notSetClassName}>{notSetLabel}</span>;
             // If editable, proceed to render component or empty string wrapper
         }
 
@@ -704,7 +723,7 @@ export default function CustomFieldDisplay({
                         {value}
                     </Tag>
                 ) : (
-                    <span className="text-gray-500">--</span>
+                    <span className={notSetClassName}>{notSetLabel}</span>
                 );
 
             case "multiselect":
@@ -743,7 +762,7 @@ export default function CustomFieldDisplay({
                 }
                 // Empty array or no value
                 if (Array.isArray(value) && value.length === 0) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
                 // Single checkbox value (boolean-like)
                 if (
@@ -763,7 +782,7 @@ export default function CustomFieldDisplay({
                 }
                 // No value at all
                 if (!value) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
                 return value;
 
@@ -771,7 +790,7 @@ export default function CustomFieldDisplay({
                 // Parse file value - can be single string, JSON array, or comma-separated
                 const files = parseFileValue(value);
                 if (files.length === 0) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
 
                 return (
@@ -932,7 +951,7 @@ export default function CustomFieldDisplay({
             case "repeatable": {
                 const items = parseRepeatableItems(value);
                 if (items.length === 0) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
                 const schemaMap = getRepeatableSchemaMap(field.values);
                 const formatPart = (v: unknown): string => {
@@ -971,7 +990,7 @@ export default function CustomFieldDisplay({
                         .map((obj) => obj[key])
                         .filter((v) => v != null && v !== "");
                     if (rawValues.length === 0) {
-                        return <span className="text-gray-500">--</span>;
+                        return <span className={notSetClassName}>{notSetLabel}</span>;
                     }
                     let displayValue: string | number | React.ReactNode;
                     switch (dc.aggregateBy) {
@@ -1046,7 +1065,7 @@ export default function CustomFieldDisplay({
                                 .join(sep);
                     }
                     if (displayValue == null) {
-                        return <span className="text-gray-500">--</span>;
+                        return <span className={notSetClassName}>{notSetLabel}</span>;
                     }
                     if (React.isValidElement(displayValue)) {
                         if (!dc.format) return displayValue;
@@ -1133,7 +1152,7 @@ export default function CustomFieldDisplay({
                 return str ? (
                     <span>{str}</span>
                 ) : (
-                    <span className="text-gray-500">--</span>
+                    <span className={notSetClassName}>{notSetLabel}</span>
                 );
             }
 
@@ -1248,7 +1267,7 @@ export default function CustomFieldDisplay({
                         );
                     }
                 }
-                return <span className="text-gray-500">--</span>;
+                return <span className={notSetClassName}>{notSetLabel}</span>;
             }
 
             default:
@@ -1399,6 +1418,7 @@ export default function CustomFieldDisplay({
                     onSave={onUpdate!}
                     loading={isFieldLoading}
                     editable={editable && !disabled}
+                    activateOnSingleClick={activateOnSingleClick}
                 />
             );
         }
