@@ -17,10 +17,11 @@ import DealIcon from "../primitives/DealIcon";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 import DealEditMeetingModal from "./DealEditMeetingModal";
 import DealRescheduleMeetingModal from "./DealRescheduleMeetingModal";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { DEAL_REDESIGN_RADIUS as R, DEAL_REDESIGN_TOKENS as T, DEAL_REDESIGN_TYPE as TY } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
 import { buildMeetingFormFromFollowup } from "./meetingFormUtils";
+import { formatDateLong } from "../../adapters/dateFormat";
 
 interface DealMeetingDetailModalProps {
     meeting: DealFollowup | null;
@@ -65,14 +66,7 @@ export default function DealMeetingDetailModal({
     if (!meeting) return null;
 
     const item = toWorkspaceMeetingListItem(meeting);
-    const dateLine = item.startsAt
-        ? item.startsAt.toLocaleDateString("en-GB", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-          })
-        : "—";
+    const dateLine = formatDateLong(item.startsAt, "-");
     const attendees = meeting.participant_users ?? [];
     const reminders = meeting.reminders ?? [];
     const isActionable = item.isUpcoming && item.statusLabel === "scheduled";
@@ -138,13 +132,11 @@ export default function DealMeetingDetailModal({
             <div className="mb-4 flex flex-wrap items-center gap-2">
                 <span
                     className={`dr-pill ${PLATFORM_PILL[item.locationType] ?? "dr-pill-gray"}`}
-                    style={{ fontSize: 12, padding: "4px 11px" }}
                 >
                     {td(item.platformLabel)}
                 </span>
                 <span
                     className={`dr-pill ${getMeetingStatusTone(item.statusLabel)}`}
-                    style={{ fontSize: 12, padding: "4px 11px" }}
                 >
                     {td(item.statusLabel)}
                 </span>
@@ -165,92 +157,100 @@ export default function DealMeetingDetailModal({
                             {t("pages.deals.workspace.meetings.view_summary")}
                         </button>
                     ) : (
-                        <span
-                            className="dr-pill dr-pill-gray"
-                            style={{ fontSize: 12, padding: "4px 11px" }}
-                        >
+                        <span className="dr-pill dr-pill-gray">
                             {t("pages.deals.workspace.meetings.ai_summary_pending")}
                         </span>
                     ))}
             </div>
 
-            {/* Prominent date/time — the single most-scanned block in this
-                modal, so it gets a calendar-tile treatment rather than a flat
-                grey panel. */}
+            {/* Schedule — calendar tile + when, mirrored after the meeting-link
+                rail below so the modal’s two highlight blocks read as a set. */}
             <div
-                className="mb-4 flex flex-wrap items-center gap-4 rounded-xl"
+                className="mb-4 flex items-stretch gap-3"
                 style={{
-                    background: `linear-gradient(135deg, ${T.BLUE_LIGHT} 0%, ${T.SURFACE} 65%)`,
-                    border: `1px solid ${T.BLUE_MID}`,
-                    padding: "16px 18px",
+                    background: T.SURFACE_2,
+                    border: `1px solid ${T.BORDER}`,
+                    borderRadius: R.LG,
+                    padding: "12px 14px",
                 }}
             >
                 <div
-                    className="flex flex-col items-center justify-center rounded-lg"
+                    className="flex flex-col overflow-hidden"
                     style={{
-                        background: T.WHITE,
-                        border: `1px solid ${T.BLUE_MID}`,
-                        width: 56,
-                        padding: "8px 0",
+                        width: 52,
                         flexShrink: 0,
-                        boxShadow: "0 1px 3px rgba(22,41,77,0.08)",
+                        borderRadius: R.MD,
+                        border: `1px solid ${T.BLUE_MID}`,
+                        background: T.WHITE,
                     }}
+                    aria-hidden
                 >
                     <span
-                        className="font-semibold uppercase"
+                        className="text-center font-semibold uppercase"
                         style={{
-                            fontSize: 11,
+                            fontSize: TY.CAPTION,
                             letterSpacing: "0.06em",
-                            color: T.BLUE,
+                            color: T.WHITE,
+                            background: T.BLUE,
+                            padding: "5px 0 4px",
+                            lineHeight: 1,
                         }}
                     >
                         {item.monthLabel}
                     </span>
                     <span
-                        className="font-bold leading-none"
-                        style={{ fontSize: 24, color: T.NAVY }}
+                        className="flex flex-1 items-center justify-center font-bold leading-none"
+                        style={{
+                            fontSize: TY.DISPLAY,
+                            color: T.NAVY,
+                            padding: "8px 0 10px",
+                        }}
                     >
                         {item.dayLabel}
                     </span>
                 </div>
 
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
                     <div
-                        className="mb-1.5 font-bold"
-                        style={{ fontSize: 17, color: T.TEXT, lineHeight: 1.3 }}
+                        className="font-semibold"
+                        style={{
+                            fontSize: TY.BODY_LG,
+                            color: T.TEXT,
+                            lineHeight: 1.3,
+                        }}
                     >
                         {dateLine}
                     </div>
                     <div
-                        className="inline-flex items-center gap-1.5 rounded-md"
-                        style={{
-                            fontSize: 14,
-                            fontWeight: 600,
-                            color: T.NAVY,
-                            background: T.WHITE,
-                            border: `1px solid ${T.BLUE_MID}`,
-                            padding: "4px 10px",
-                        }}
+                        className="flex flex-wrap items-center gap-x-2 gap-y-0.5"
+                        style={{ fontSize: TY.BODY, color: T.TEXT_MUTED }}
                     >
-                        <DealIcon name="clock" size={14} color={T.BLUE} />
-                        {item.timeRangeLabel}
-                        <span style={{ color: T.TEXT_HINT, fontWeight: 400 }}>
-                            · {item.durationMinutes}{" "}
+                        <span
+                            className="inline-flex items-center gap-1.5 font-medium text-sm"
+                            style={{ color: T.NAVY }}
+                        >
+                            <DealIcon name="clock" size={13} color={T.BLUE} />
+                            {item.timeRangeLabel}
+                        </span>
+                        <span style={{ color: T.TEXT_HINT }}>·</span>
+                        <span>
+                            {item.durationMinutes}{" "}
                             {t("pages.deals.workspace.meetings.min_label")}
                         </span>
                     </div>
                 </div>
 
                 {showReschedule && (
-                    <DealButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setRescheduleOpen(true)}
-                        disabled={isUpdating}
-                        style={{ background: T.WHITE }}
-                    >
-                        {t("pages.deals.workspace.meetings.reschedule")}
-                    </DealButton>
+                    <div className="flex flex-shrink-0 items-center">
+                        <DealButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setRescheduleOpen(true)}
+                            disabled={isUpdating}
+                        >
+                            {t("pages.deals.workspace.meetings.reschedule")}
+                        </DealButton>
+                    </div>
                 )}
             </div>
 
@@ -276,7 +276,7 @@ export default function DealMeetingDetailModal({
                             <div
                                 className="mb-0.5 font-semibold uppercase"
                                 style={{
-                                    fontSize: 11,
+                                    fontSize: 12,
                                     letterSpacing: "0.05em",
                                     color: T.BLUE,
                                 }}
@@ -366,7 +366,6 @@ export default function DealMeetingDetailModal({
                             <span
                                 key={index}
                                 className="dr-pill dr-pill-gray"
-                                style={{ fontSize: 12, padding: "5px 12px" }}
                             >
                                 {td(reminderLabel(reminder))}
                             </span>

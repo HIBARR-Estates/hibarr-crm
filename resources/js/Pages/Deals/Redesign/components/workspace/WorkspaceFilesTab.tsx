@@ -195,7 +195,7 @@ export default function WorkspaceFilesTab({
                             ? `${t("pages.deals.workspace.files.uploading")}... ${uploadProgress}%`
                             : t("pages.deals.workspace.files.drop_hint")}
                     </div>
-                    <div className="text-[11px] text-[#9ca3af]">
+                    <div className="text-[12px] text-[#9ca3af]">
                         {t("pages.deals.workspace.files.size_hint")}
                     </div>
                 </div>
@@ -226,7 +226,7 @@ export default function WorkspaceFilesTab({
                             <div className="truncate text-[13px] font-medium text-[#1a1f2e]">
                                 {file.name}
                             </div>
-                            <div className="text-[11px] text-[#9ca3af]">
+                            <div className="text-[12px] text-[#9ca3af]">
                                 {file.sizeLabel} · {t("pages.deals.workspace.files.uploaded_label")}{" "}
                                 {file.uploadedLabel}
                             </div>

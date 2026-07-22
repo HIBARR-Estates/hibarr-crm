@@ -243,9 +243,9 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    padding: 3px 10px;
+    padding: 4px 11px;
     border-radius: 999px;
     border: 1px solid transparent;
     white-space: nowrap;

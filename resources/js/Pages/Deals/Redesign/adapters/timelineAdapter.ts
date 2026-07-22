@@ -3,7 +3,6 @@ import relativeTime from "dayjs/plugin/relativeTime";
 import type {
     CrmEvent,
     CrmEventDirection,
-    CrmEventGenerationType,
     CrmEventStatus,
 } from "@/Types/api/crm-event";
 
@@ -30,8 +29,6 @@ export interface TimelineEventViewModel {
     categoryName?: string;
     status: CrmEventStatus;
     direction?: CrmEventDirection | null;
-    /** Underlying generation type. */
-    generationType: CrmEventGenerationType;
     /**
      * Recorded by hand via Log Action (custom event type) rather than written
      * by the system as an audit trail. Only these may be edited/deleted.
@@ -178,7 +175,6 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
         categoryName: event.event_type?.category?.name,
         status: event.status,
         direction: event.direction,
-        generationType: event.generation_type,
         // Mirrors CrmEventController::isAgentLoggedEvent — a custom (non
         // system-seeded) event type means a person logged this by hand.
         isAgentLogged: event.event_type?.is_system === false,

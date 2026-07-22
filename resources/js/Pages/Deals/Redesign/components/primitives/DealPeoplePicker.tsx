@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "./DealAvatar";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { initialsFromName } from "../../adapters/initials";
 
 export interface DealPersonOption {
     id: number;
@@ -19,16 +20,6 @@ interface DealPeoplePickerProps {
      * row (far right) instead of leaving the pick unacknowledged, and blocks
      * further picks until it settles. */
     pendingId?: number | null;
-}
-
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
 }
 
 /** Ported from v2.2's PeoplePicker (deal-v2-2.jsx:877-905) — search over employees. */
@@ -121,7 +112,7 @@ export default function DealPeoplePicker({
                                         <span
                                             style={{
                                                 display: "block",
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: T.TEXT_MUTED,
                                             }}
                                         >

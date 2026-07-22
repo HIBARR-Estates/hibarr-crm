@@ -59,7 +59,7 @@ export default function DealInfoSidebar({
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
-            <div className="dr-label px-2.5 pb-1 pt-2.5" style={{ fontSize: 11 }}>
+            <div className="dr-label px-2.5 pb-1 pt-2.5" style={{ fontSize: 12 }}>
                 {t("pages.deals.sidebar.title")}
             </div>
             <div className="px-2.5 pb-2">
@@ -84,7 +84,7 @@ export default function DealInfoSidebar({
             {filteredGroups.map((group) => (
                 <div key={group.label}>
                     <div
-                        className="px-2.5 pb-1 pt-2.5 text-[11px] font-semibold uppercase tracking-[0.05em]"
+                        className="px-2.5 pb-1 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.05em]"
                         style={{ color: T.TEXT_HINT }}
                     >
                         {td(group.label)}

@@ -315,7 +315,7 @@ export default function WorkspaceMeetingsTab({
                                                 }}
                                             >
                                                 <span
-                                                    className="block text-[11px] uppercase"
+                                                    className="block text-[12px] uppercase"
                                                     style={{
                                                         color: T.TEXT_MUTED,
                                                     }}
@@ -427,7 +427,7 @@ export default function WorkspaceMeetingsTab({
                                                 </span>
                                                 {meeting.attendeesLabel && (
                                                     <span
-                                                        className="flex items-center gap-1 text-[11px]"
+                                                        className="flex items-center gap-1 text-[12px]"
                                                         style={{
                                                             color: T.TEXT_MUTED,
                                                         }}

@@ -17,6 +17,24 @@
 
 return [
 
+    'entity_summary' => [
+        'title_deal' => 'AI Summary',
+        'title_lead' => 'AI Lead Summary',
+        'thinking' => [
+            '0' => 'Reading recent activity',
+            '1' => 'Checking notes and meetings',
+            '2' => 'Reviewing open tasks',
+            '3' => 'Tracing the stage history',
+            '4' => 'Looking over attached documents',
+            '5' => 'Weighing risk signals',
+            '6' => "Checking what's overdue",
+            '7' => 'Piecing the timeline together',
+            '8' => 'Working out the next step',
+            '9' => 'Drafting the summary',
+            '10' => 'Tidying up the wording',
+        ],
+    ],
+
     'dashboard' => [
         'stats' => [
             'total_tasks'       => 'Total Tasks',
@@ -352,6 +370,9 @@ return [
             'none'                       => 'None',
             'unassigned'                 => 'Unassigned',
             'no_description'             => 'No description',
+            'no_due_date'                => 'No due date',
+            'select_note'                => 'Select note',
+            'open_note'                  => 'Open note',
             'description'                => 'Description',
             'optional_details_placeholder' => 'Optional details...',
             'start_date'                 => 'Start date',

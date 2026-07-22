@@ -58,7 +58,7 @@ function TeamMemberRow({ member, type, onRemove, removing }: TeamMemberRowProps)
                         {member.name}
                     </div>
                     {member.meta && (
-                        <div className="mt-0.5 truncate text-[11px] text-[#5b6472]">
+                        <div className="mt-0.5 truncate text-[12px] text-[#5b6472]">
                             {member.meta}
                         </div>
                     )}

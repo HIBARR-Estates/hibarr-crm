@@ -57,6 +57,7 @@ export default function DealAddNoteModal({
             open={open}
             title={t("pages.deals.workspace.notes.add_note")}
             onClose={handleClose}
+            dirty={Boolean(form.title.trim() || form.text.trim())}
             footer={
                 <>
                     <DealButton

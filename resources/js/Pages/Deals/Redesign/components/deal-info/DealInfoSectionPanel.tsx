@@ -6,7 +6,7 @@ import {
     InfoCircleOutlined,
 } from "@ant-design/icons";
 import axios from "axios";
-import { Button, Tag } from "antd";
+import { Tag } from "antd";
 import dayjs from "dayjs";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import { DetailField } from "@/Components/DetailSection";
@@ -274,22 +274,46 @@ export default function DealInfoSectionPanel({
                         span={2}
                     >
                         <div className="w-full">
-                            <Button
-                                type="link"
-                                size="small"
-                                icon={<EditOutlined />}
-                                onClick={() => setPropertyModalOpen(true)}
-                                loading={refreshingProperties}
-                                className="!px-0 !text-xs"
+                            {/* v2.2 click-to-edit access — mirrors
+                                DealEditableField's view mode (dashed underline +
+                                hover pencil, single click) but opens the
+                                manage-properties modal instead of an inline
+                                editor, since properties are attached entities. */}
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    canEdit && setPropertyModalOpen(true)
+                                }
+                                disabled={!canEdit || refreshingProperties}
+                                className={`group/editable inline-flex max-w-full items-center gap-1.5 border-0 bg-transparent p-0 text-left text-[15px] text-gray-900 ${
+                                    canEdit ? "cursor-pointer" : "cursor-default"
+                                } ${refreshingProperties ? "opacity-50" : ""}`}
                             >
-                                {t("pages.deals.info.actions.manage_properties")}
-                            </Button>
+                                <span
+                                    className={`break-words border-b border-dashed border-transparent ${
+                                        canEdit
+                                            ? "transition-colors group-hover/editable:border-blue-300"
+                                            : ""
+                                    }`}
+                                >
+                                    {t(
+                                        "pages.deals.info.actions.manage_properties",
+                                    )}
+                                </span>
+                                {canEdit && (
+                                    <EditOutlined
+                                        aria-hidden="true"
+                                        className="shrink-0 text-blue-600 opacity-0 transition-opacity group-hover/editable:opacity-100"
+                                        style={{ fontSize: 11 }}
+                                    />
+                                )}
+                            </button>
                             {deal.products && deal.products.length > 0 ? (
                                 <PropertyCarousel products={deal.products} />
                             ) : (
-                                <span className="text-sm text-gray-400">
+                                <div className="mt-1 text-sm italic text-gray-400">
                                     {t("pages.deals.info.no_properties")}
-                                </span>
+                                </div>
                             )}
                         </div>
                     </DetailField>
@@ -700,7 +724,7 @@ export default function DealInfoSectionPanel({
                         </tbody>
                     </table>
                 </div>
-                <div className="mt-2 text-[11px] leading-normal text-[#5b6472]">
+                <div className="mt-2 text-[12px] leading-normal text-[#5b6472]">
                     {t("pages.deals.info.gdpr.consent_hint")}
                 </div>
             </div>
@@ -716,7 +740,7 @@ export default function DealInfoSectionPanel({
         ) : (
             <p className="text-xs text-[#8b95a7]">
                 {t("pages.deals.info.mapped_only_hint_prefix")}{" "}
-                <code className="text-[11px]">DEAL_INFO_CATEGORY_SECTION_MAP</code>{" "}
+                <code className="text-[12px]">DEAL_INFO_CATEGORY_SECTION_MAP</code>{" "}
                 {t("pages.deals.info.mapped_only_hint_suffix")}
             </p>
         );

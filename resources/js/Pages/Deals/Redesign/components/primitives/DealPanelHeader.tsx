@@ -5,6 +5,8 @@ import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface DealPanelHeaderProps {
     title: string;
+    /** Wired to the dialog's aria-labelledby when used as a modal header. */
+    titleId?: string;
     rightSlot?: ReactNode;
     onClose?: () => void;
 }
@@ -12,6 +14,7 @@ interface DealPanelHeaderProps {
 /** Ported from v2.2's Modal header (deal-v2-2.jsx:757-760). */
 export default function DealPanelHeader({
     title,
+    titleId,
     rightSlot,
     onClose,
 }: DealPanelHeaderProps) {
@@ -28,6 +31,7 @@ export default function DealPanelHeader({
             }}
         >
             <span
+                id={titleId}
                 style={{
                     fontSize: 16,
                     fontWeight: 700,

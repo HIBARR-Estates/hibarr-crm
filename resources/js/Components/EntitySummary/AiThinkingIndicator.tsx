@@ -1,18 +1,8 @@
 import { useEffect, useState } from "react";
+import useTranslation from "@/Hooks/useTranslation";
 
-const PHRASES = [
-    "Reading recent activity",
-    "Checking notes and meetings",
-    "Reviewing open tasks",
-    "Tracing the stage history",
-    "Looking over attached documents",
-    "Weighing risk signals",
-    "Checking what's overdue",
-    "Piecing the timeline together",
-    "Working out the next step",
-    "Drafting the summary",
-    "Tidying up the wording",
-];
+/** Number of phrases in `pages.entity_summary.thinking`. */
+const PHRASE_COUNT = 11;
 
 interface AiThinkingIndicatorProps {
     size?: number;
@@ -26,15 +16,16 @@ export default function AiThinkingIndicator({
     size = 18,
     className,
 }: AiThinkingIndicatorProps) {
+    const { t } = useTranslation();
     // Random start so short generations don't always show the same first two
     // phrases — otherwise most of the list is never seen.
     const [phraseIndex, setPhraseIndex] = useState(() =>
-        Math.floor(Math.random() * PHRASES.length),
+        Math.floor(Math.random() * PHRASE_COUNT),
     );
 
     useEffect(() => {
         const interval = window.setInterval(() => {
-            setPhraseIndex((current) => (current + 1) % PHRASES.length);
+            setPhraseIndex((current) => (current + 1) % PHRASE_COUNT);
         }, 1800);
         return () => window.clearInterval(interval);
     }, []);
@@ -60,7 +51,7 @@ export default function AiThinkingIndicator({
                 </svg>
             </span>
             <span className="entity-ai-summary-loading__text entity-ai-summary-loading__text--shimmer">
-                {PHRASES[phraseIndex]}
+                {t(`pages.entity_summary.thinking.${phraseIndex}`)}
                 <span className="entity-ai-summary-loading__dot" aria-hidden="true">
                     .
                 </span>

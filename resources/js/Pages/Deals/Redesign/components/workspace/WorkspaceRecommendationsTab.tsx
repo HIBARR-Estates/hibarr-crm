@@ -195,7 +195,7 @@ export default function WorkspaceRecommendationsTab({
                                 <div className="min-w-0">
                                     <div className="mb-[3px] flex flex-wrap items-center gap-[7px]">
                                         <span
-                                            className="text-[11px] font-bold"
+                                            className="text-[12px] font-bold"
                                             style={{ color: T.TEXT_MUTED }}
                                         >
                                             #{item.rank}

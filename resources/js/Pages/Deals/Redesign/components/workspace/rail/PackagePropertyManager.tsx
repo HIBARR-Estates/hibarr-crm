@@ -107,7 +107,7 @@ export default function PackagePropertyManager({
         <div>
             {restrictPackageOrProperty && (
                 <div
-                    className="mb-3 flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[11px] leading-relaxed"
+                    className="mb-3 flex items-start gap-2 rounded-lg border px-2.5 py-2 text-[12px] leading-relaxed"
                     style={{
                         color: T.AMBER,
                         background: T.AMBER_SOFT,
@@ -122,7 +122,7 @@ export default function PackagePropertyManager({
             {showPackagesSection && (
                 <>
                     <div
-                        className="mb-2 pb-1.5 text-[11px] font-bold uppercase tracking-[0.05em]"
+                        className="mb-2 pb-1.5 text-[12px] font-bold uppercase tracking-[0.05em]"
                         style={{
                             color: T.TEXT_MUTED,
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,
@@ -150,7 +150,7 @@ export default function PackagePropertyManager({
                                         {td(pkg.name)}
                                     </div>
                                     {pkg.value != null && (
-                                        <div className="text-[11px]" style={{ color: T.TEXT_MUTED }}>
+                                        <div className="text-[12px]" style={{ color: T.TEXT_MUTED }}>
                                             {money(pkg.value)}
                                         </div>
                                     )}
@@ -198,7 +198,7 @@ export default function PackagePropertyManager({
             {showPropertiesSection && (
                 <>
                     <div
-                        className="mb-2 mt-1 flex items-center gap-1.5 pb-1.5 text-[11px] font-bold uppercase tracking-[0.05em]"
+                        className="mb-2 mt-1 flex items-center gap-1.5 pb-1.5 text-[12px] font-bold uppercase tracking-[0.05em]"
                         style={{
                             color: T.TEXT_MUTED,
                             borderBottom: `1px solid ${T.BORDER_SOFT}`,

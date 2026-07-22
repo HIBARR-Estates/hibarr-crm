@@ -9,6 +9,7 @@ import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 import useDealNoteMutations from "../../hooks/useDealNoteMutations";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { initialsFromName } from "../../adapters/initials";
 
 interface DealNoteDetailModalProps {
     note: Note | null;
@@ -18,16 +19,6 @@ interface DealNoteDetailModalProps {
 
 function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
-}
-
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
 }
 
 /** Ported from v2.2's NoteDetailModal (deal-v2-2.jsx:1695-1771). */
@@ -115,9 +106,6 @@ export default function DealNoteDetailModal({
                             </DealButton>
                         )}
                         <span style={{ flex: 1 }} />
-                        <DealButton variant="ghost" onClick={onClose}>
-                            {t("pages.deals.common.close")}
-                        </DealButton>
                         {canEdit && (
                             <DealButton variant="primary" onClick={() => setEditing(true)}>
                                 {t("pages.deals.workspace.notes.edit_note")}

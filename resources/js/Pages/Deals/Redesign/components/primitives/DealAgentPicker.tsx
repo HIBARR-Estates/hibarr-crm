@@ -4,6 +4,7 @@ import { useFormData } from "@/Hooks/useFormData";
 import { useDebounce } from "@/Hooks/useDebounce";
 import DealAvatar from "./DealAvatar";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { initialsFromName } from "../../adapters/initials";
 
 export interface DealAgentOption {
     id: number;
@@ -31,16 +32,6 @@ interface DealAgentPickerProps {
      * row (far right) instead of leaving the pick unacknowledged, and blocks
      * further picks until it settles. */
     pendingId?: number | null;
-}
-
-function initialsFromName(name?: string | null): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
 }
 
 /**
@@ -139,7 +130,7 @@ export default function DealAgentPicker({
                                             style={{
                                                 display: "block",
                                                 marginTop: 2,
-                                                fontSize: 11,
+                                                fontSize: 12,
                                                 color: T.TEXT_MUTED,
                                                 overflow: "hidden",
                                                 textOverflow: "ellipsis",

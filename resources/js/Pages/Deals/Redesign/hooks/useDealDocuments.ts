@@ -161,14 +161,17 @@ export default function useDealDocuments(
             knownLabels.add(normalized);
         }
 
-        const uploadedCount = items.filter((item) => item.uploaded).length;
+        // Counts cover document SLOTS only. Loose attachments are always
+        // `uploaded: true`, so including them inflated both halves of the
+        // ratio and made "documents complete" drift upward as unrelated files
+        // were uploaded.
+        const slots = items.filter((item) => item.source !== "attachment");
 
         return {
             documents: items,
-            /** Slot-backed rows only — what "3/5 documents" should count. */
-            slots: items.filter((item) => item.source !== "attachment"),
-            uploadedCount,
-            totalCount: items.length,
+            slots,
+            uploadedCount: slots.filter((item) => item.uploaded).length,
+            totalCount: slots.length,
         };
     }, [categoryIds, customFields, deal, files]);
 }

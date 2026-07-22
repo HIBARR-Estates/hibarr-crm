@@ -1,6 +1,8 @@
 import type { Note } from "@/Types/api/note";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { formatDate } from "./dateFormat";
+import { initialsFromName } from "./initials";
 
 dayjs.extend(relativeTime);
 
@@ -17,35 +19,22 @@ export interface WorkspaceNotePreview {
     edited: boolean;
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-});
-
-function formatDate(value: string | undefined): { date: Date | null; label: string } {
+function parseNoteDate(value: string | undefined): {
+    date: Date | null;
+    label: string;
+} {
     if (!value) return { date: null, label: "No date" };
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return { date: null, label: "No date" };
-    return { date, label: DATE_FORMAT.format(date) };
+    return { date, label: formatDate(date, "No date") };
 }
 
 function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
 }
 
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
-}
-
 export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
-    const { date, label } = formatDate(note.created_at);
+    const { date, label } = parseNoteDate(note.created_at);
     const body = stripHtml(note.details?.trim() || "");
     const authorName = note.added_by?.name ?? "Unknown";
     return {

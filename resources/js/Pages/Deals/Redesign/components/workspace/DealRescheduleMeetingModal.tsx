@@ -154,7 +154,7 @@ export default function DealRescheduleMeetingModal({
                 <button
                     type="button"
                     onClick={() => setShowDuration((current) => !current)}
-                    className="mb-2 border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                    className="mb-2 border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
                 >
                     {showDuration
                         ? t("pages.deals.workspace.meetings.hide_duration")
@@ -173,7 +173,7 @@ export default function DealRescheduleMeetingModal({
                                     onClick={() =>
                                         handleDurationSelect(option.value)
                                     }
-                                    className="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
+                                    className="rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors"
                                     style={{
                                         borderColor: active
                                             ? T.NAVY

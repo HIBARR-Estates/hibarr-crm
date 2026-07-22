@@ -13,6 +13,7 @@ import DealIcon from "../../primitives/DealIcon";
 import DealDocumentSlotRow from "../DealDocumentSlotRow";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
 import PackagePropertyManager from "./PackagePropertyManager";
+import { initialsFromName } from "../../../adapters/initials";
 
 interface WorkspaceContextRailProps {
     deal: Deal;
@@ -38,16 +39,6 @@ const SECTION_TITLE_KEYS: Record<string, string> = {
     "Deal details": "section_deal_details",
     Documents: "section_documents",
 };
-
-function initialsFromName(name?: string | null): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
-}
 
 /**
  * v2.2 Dossier (deal-v2-2.jsx:3643-3775): a single sticky panel with three
@@ -146,7 +137,7 @@ export default function WorkspaceContextRail({
                                 <DealIcon name="mail" size={12} />
                                 <span className="min-w-0 flex-1 truncate">{email}</span>
                                 <span
-                                    className="ml-auto flex items-center gap-1 text-[11px] font-semibold"
+                                    className="ml-auto flex items-center gap-1 text-[12px] font-semibold"
                                     style={{ color: emailCopied ? T.GREEN : T.BLUE }}
                                 >
                                     {emailCopied
@@ -163,7 +154,7 @@ export default function WorkspaceContextRail({
                                 <DealIcon name="phone" size={12} />
                                 <span className="min-w-0 flex-1 truncate">{phone}</span>
                                 <span
-                                    className="ml-auto text-[11px] font-semibold"
+                                    className="ml-auto text-[12px] font-semibold"
                                     style={{ color: T.BLUE }}
                                 >
                                     {t("pages.deals.dossier.call")}

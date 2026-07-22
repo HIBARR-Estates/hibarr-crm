@@ -1,4 +1,6 @@
 import type { Task } from "@/Types/api/tasks";
+import { formatDateWithTime } from "./dateFormat";
+import { initialsFromName } from "./initials";
 
 export interface WorkspaceTaskPreview {
     id: number;
@@ -30,16 +32,6 @@ const PRIORITY_WEIGHT: Record<WorkspaceTaskPreview["priority"], number> = {
     low: 1,
 };
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-});
-
-const TIME_FORMAT = new Intl.DateTimeFormat("en", {
-    hour: "numeric",
-    minute: "2-digit",
-});
 
 function parseDueDate(value: string | undefined): Date | null {
     if (!value) return null;
@@ -48,9 +40,8 @@ function parseDueDate(value: string | undefined): Date | null {
 }
 
 function formatDueDate(date: Date | null): string {
-    return date
-        ? `${DATE_FORMAT.format(date)} · ${TIME_FORMAT.format(date)}`
-        : "No due date";
+    // Empty, not English - the render site supplies the localised label.
+    return date ? formatDateWithTime(date) : "";
 }
 
 function isOpenTask(task: Task): boolean {
@@ -61,16 +52,6 @@ function isOpenTask(task: Task): boolean {
 
 export function getTaskPriorityWeight(priority: WorkspaceTaskPreview["priority"]): number {
     return PRIORITY_WEIGHT[priority] ?? 0;
-}
-
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
 }
 
 export function toWorkspaceTaskPreview(task: Task): WorkspaceTaskPreview {

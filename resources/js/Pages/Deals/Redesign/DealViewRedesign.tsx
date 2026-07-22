@@ -32,6 +32,7 @@ import useDealPipeline from "./hooks/useDealPipeline";
 import { DealShowProps, DealTab } from "./types";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
+import { setDealDateLocale } from "./adapters/dateFormat";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspaceContext";
 
@@ -71,7 +72,10 @@ function DealViewRedesignInner(props: DealShowProps) {
     });
     const { deal, notes, tasks, dealFollowUps, files } = useDealWorkspace();
     const pageTitle = props?.pageTitle || deal?.name;
-    const { t } = useTranslation();
+    const { t, locale } = useTranslation();
+    // Adapters are plain functions with no hook access, so publish the active
+    // locale once here; every date/time in the redesign reads it.
+    setDealDateLocale(locale);
     const { td } = useTd();
 
     const meetingTypes = props.meetingTypes ?? [];
@@ -122,7 +126,11 @@ function DealViewRedesignInner(props: DealShowProps) {
         if (permissions.view_tasks !== "none") tabs.push("tasks");
         if (permissions.view_lead_follow_up !== "none") tabs.push("meetings");
         if (permissions.view_lead_files !== "none") tabs.push("files");
-        tabs.push("offers", "recommendations", "itinerary", "dealinfo", "timeline");
+        if (permissions.view_lead_proposals !== "none") tabs.push("offers");
+        // recommendations / itinerary / dealinfo / timeline have no matching
+        // permission in this system, so they follow deal visibility itself.
+        // Note `view_events` is the calendar module, not the CRM timeline.
+        tabs.push("recommendations", "itinerary", "dealinfo", "timeline");
         return tabs;
     }, [permissions]);
 

@@ -29,6 +29,59 @@ export const DEAL_REDESIGN_TOKENS = {
     TEXT_MUTED: "#5b6472",
     TEXT_HINT: "#9ca3af",
     WHITE: "#ffffff",
+
+    // Colours that were previously only ever inline literals. Added so the
+    // palette is complete and greppable; `#eef1f5` was folded into
+    // BORDER_SOFT, which it duplicated to within one channel step.
+    /** Deep blue for icons/numerals on light blue surfaces. */
+    BLUE_DARK: "#14538c",
+    /** Hover state for BLUE links and ghost buttons. */
+    BLUE_HOVER: "#145890",
+    /** Skeleton / shimmer fill. */
+    SKELETON: "#eef1f5",
+    /** Warning banner (recommendations incomplete-data notice). */
+    AMBER_TEXT: "#b45309",
+    AMBER_BG: "#fffbeb",
+    AMBER_BORDER: "#fde68a",
+    /** Navy pill (dr-pill-navy). */
+    NAVY_SOFT: "#e8ecf2",
+    NAVY_MID: "#c7d0de",
+} as const;
+
+/**
+ * Type scale. The redesign had drifted to 17 distinct sizes across three
+ * notations (`text-[13px]`, `text-xs`, `fontSize: 13`); these are the only
+ * sizes new code should use.
+ *
+ * CAPTION is the floor - nothing smaller than 12px for readable text, which
+ * is also the practical minimum for sustained reading on the web.
+ */
+export const DEAL_REDESIGN_TYPE = {
+    /** Uppercase field labels, meta rows. */
+    CAPTION: 12,
+    /** Default body / table / form text. */
+    BODY: 14,
+    /** Emphasised body, card titles. */
+    BODY_LG: 15,
+    /** Panel + modal headings. */
+    HEADING: 16,
+    /** Prominent facts (meeting date, task title). */
+    DISPLAY: 19,
+} as const;
+
+/**
+ * Radius scale. Replaces the previous 8 ad-hoc values (5/6/8/10/12/20/999
+ * plus four Tailwind classes).
+ */
+export const DEAL_REDESIGN_RADIUS = {
+    /** Inputs, small chips. */
+    SM: 6,
+    /** Buttons, cards, panels - the default. */
+    MD: 8,
+    /** Emphasis containers (date tile, highlight panels). */
+    LG: 12,
+    /** Pills and avatars. */
+    FULL: 999,
 } as const;
 
 export const DEAL_REDESIGN_FONT_STACK =

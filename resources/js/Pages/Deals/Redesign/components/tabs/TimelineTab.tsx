@@ -1,4 +1,4 @@
-import { usePage } from "@inertiajs/react";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import useDealTimeline from "../../hooks/useDealTimeline";
 import DealTimelineEventList from "../timeline/DealTimelineEventList";
 import DealTimelineFilters from "../timeline/DealTimelineFilters";
@@ -14,14 +14,9 @@ export default function TimelineTab({
     dealName,
     userId,
 }: TimelineTabProps) {
-    const { props } = usePage<any>();
-    // Editing/deleting agent-logged events is admin-only, mirroring the backend
-    // gate in CrmEventController@update/@destroy (hasRole('admin')).
-    const canManage = Boolean(
-        props.auth?.user?.roles?.some(
-            (role: { name?: string }) => role?.name === "admin",
-        ),
-    );
+    // Editing/deleting agent-logged events is admin-only, mirroring the
+    // backend gate in CrmEventController@update/@destroy (hasRole('admin')).
+    const canManage = useIsAdminRole();
 
     const {
         filter,

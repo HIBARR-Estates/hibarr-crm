@@ -8,6 +8,7 @@ import DealPeoplePicker, {
     DealPersonOption,
 } from "../primitives/DealPeoplePicker";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { initialsFromName } from "../../adapters/initials";
 
 interface EmployeeRecord {
     id: number;
@@ -19,16 +20,6 @@ interface DealAssigneeFieldProps {
     value: number[];
     onChange: (ids: number[]) => void;
     disabled?: boolean;
-}
-
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
 }
 
 /** Ported from v2.2's assignee chip field (deal-v2-2.jsx:2055-2081). */

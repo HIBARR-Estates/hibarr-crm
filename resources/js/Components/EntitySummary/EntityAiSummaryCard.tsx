@@ -1,5 +1,6 @@
 import { useState } from "react";
 import useEntityAiSummary from "@/Hooks/useEntityAiSummary";
+import useTranslation from "@/Hooks/useTranslation";
 import type { EntityAiSummaryCardProps } from "@/Types/entity-summary";
 import { isLeadSummaryPayload } from "@/Types/entity-summary";
 import AiThinkingIndicator from "./AiThinkingIndicator";
@@ -9,9 +10,9 @@ import EntityAiSummaryNextStep from "./EntityAiSummaryNextStep";
 import { executeSummaryAction, isExecutableAction } from "./summaryActions";
 import "./entity-summary.css";
 
-const TITLES: Record<EntityAiSummaryCardProps["entityType"], string> = {
-    lead: "AI Lead Summary",
-    deal: "AI Summary",
+const TITLE_KEYS: Record<EntityAiSummaryCardProps["entityType"], string> = {
+    lead: "pages.entity_summary.title_lead",
+    deal: "pages.entity_summary.title_deal",
 };
 
 export default function EntityAiSummaryCard({
@@ -28,6 +29,7 @@ export default function EntityAiSummaryCard({
     onAdvanceStage,
     onReviewStaleDeal,
 }: EntityAiSummaryCardProps) {
+    const { t } = useTranslation();
     const isRedesign = variant === "redesign";
     const [collapsed, setCollapsed] = useState(isRedesign);
 
@@ -79,7 +81,7 @@ export default function EntityAiSummaryCard({
     return (
         <section className={cardClassName}>
             <EntityAiSummaryHeader
-                title={TITLES[entityType]}
+                title={t(TITLE_KEYS[entityType])}
                 entityType={entityType}
                 generatedAt={summary?.meta?.generated_at}
                 loading={loading}

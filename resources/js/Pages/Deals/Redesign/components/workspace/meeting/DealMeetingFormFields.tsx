@@ -225,7 +225,7 @@ export default function DealMeetingFormFields({
                     <button
                         type="button"
                         onClick={() => setShowDuration((current) => !current)}
-                        className="border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                        className="border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
                     >
                         {showDuration
                             ? t("pages.deals.workspace.meetings.hide_duration")
@@ -288,7 +288,7 @@ export default function DealMeetingFormFields({
                             </span>
                             <div className="min-w-0 flex-1">
                                 <div
-                                    className="text-[11px] font-semibold uppercase tracking-wide"
+                                    className="text-[12px] font-semibold uppercase tracking-wide"
                                     style={{ color: T.BLUE }}
                                 >
                                     {t("pages.deals.workspace.meetings.video_call")}
@@ -309,7 +309,7 @@ export default function DealMeetingFormFields({
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 aria-label={t("pages.deals.workspace.meetings.open_meeting_link")}
-                                className="flex flex-shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[11px] font-semibold no-underline"
+                                className="flex flex-shrink-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] font-semibold no-underline"
                                 style={{ background: T.BLUE, color: T.WHITE }}
                             >
                                 <DealIcon
@@ -342,7 +342,7 @@ export default function DealMeetingFormFields({
                         </div>
                     )}
                     {form.meetingLink && showExistingMeetingLinkHint && (
-                        <p className="mt-1.5 text-[11px]" style={{ color: T.TEXT_HINT }}>
+                        <p className="mt-1.5 text-[12px]" style={{ color: T.TEXT_HINT }}>
                             {t("pages.deals.workspace.meetings.existing_link_hint")}
                         </p>
                     )}
@@ -361,7 +361,7 @@ export default function DealMeetingFormFields({
                 <button
                     type="button"
                     onClick={() => setShowMore((current) => !current)}
-                    className="flex items-center gap-1.5 border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                    className="flex items-center gap-1.5 border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
                 >
                     <DealIcon
                         name={showMore ? "chevron-up" : "chevron-down"}
@@ -384,7 +384,6 @@ export default function DealMeetingFormFields({
                                 <span
                                     key={reminderLabel(reminder)}
                                     className="dr-pill dr-pill-gray"
-                                    style={{ fontSize: 12, padding: "5px 12px" }}
                                 >
                                     {td(reminderLabel(reminder))}
                                 </span>
@@ -440,7 +439,7 @@ export default function DealMeetingFormFields({
                             }}
                         >
                             <div
-                                className="mb-2 text-[11px] font-semibold uppercase"
+                                className="mb-2 text-[12px] font-semibold uppercase"
                                 style={{
                                     color: T.TEXT_HINT,
                                     letterSpacing: "0.05em",
@@ -511,7 +510,7 @@ export default function DealMeetingFormFields({
                             </div>
                         </div>
 
-                        <p className="mt-2 text-[11px]" style={{ color: T.TEXT_HINT }}>
+                        <p className="mt-2 text-[12px]" style={{ color: T.TEXT_HINT }}>
                             {t("pages.deals.workspace.meetings.default_reminders_hint")}
                         </p>
                     </DealModalField>

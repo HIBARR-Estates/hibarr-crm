@@ -221,7 +221,7 @@ export default function WorkspaceNotesTab({
                                 <DealSelectCheckbox
                                     checked={selected.has(note.id)}
                                     onChange={() => toggleSelect(note.id)}
-                                    label={`Select note ${note.title || note.authorName}`}
+                                    label={`${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`}
                                 />
                             </div>
                         )}
@@ -234,8 +234,8 @@ export default function WorkspaceNotesTab({
                             }
                             aria-label={
                                 selectMode
-                                    ? `Select note ${note.title || note.authorName}`
-                                    : `Open note — ${note.title || note.authorName}`
+                                    ? `${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`
+                                    : `${t("pages.deals.common.open_note")}: ${note.title || note.authorName}`
                             }
                             className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
                             style={{ color: T.TEXT }}
@@ -253,7 +253,7 @@ export default function WorkspaceNotesTab({
                                                     {note.title}
                                                     {note.edited && (
                                                         <span
-                                                            className="text-[11px] font-normal italic"
+                                                            className="text-[12px] font-normal italic"
                                                             style={{
                                                                 color: T.TEXT_MUTED,
                                                             }}
@@ -264,7 +264,7 @@ export default function WorkspaceNotesTab({
                                                     )}
                                                 </span>
                                                 <span
-                                                    className="block text-[11px]"
+                                                    className="block text-[12px]"
                                                     style={{ color: T.TEXT_MUTED }}
                                                 >
                                                     {note.authorName}
@@ -275,7 +275,7 @@ export default function WorkspaceNotesTab({
                                                 {note.authorName}
                                                 {note.edited && (
                                                     <span
-                                                        className="text-[11px] font-normal italic"
+                                                        className="text-[12px] font-normal italic"
                                                         style={{
                                                             color: T.TEXT_MUTED,
                                                         }}
@@ -289,7 +289,7 @@ export default function WorkspaceNotesTab({
                                     </span>
                                 </span>
                                 <span
-                                    className="shrink-0 text-[11px]"
+                                    className="shrink-0 text-[12px]"
                                     style={{ color: T.TEXT_MUTED }}
                                 >
                                     {note.timeLabel}

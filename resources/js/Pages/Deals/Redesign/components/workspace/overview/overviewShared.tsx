@@ -104,7 +104,7 @@ export function OverviewViewLink({
     return (
         <button
             type="button"
-            className="text-[11px] text-[#1a6bb5] hover:text-[#145890]"
+            className="text-[12px] text-[#1a6bb5] hover:text-[#145890]"
             onClick={(event) => {
                 event.stopPropagation();
                 onClick();

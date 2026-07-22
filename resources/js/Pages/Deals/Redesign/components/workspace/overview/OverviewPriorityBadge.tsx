@@ -35,7 +35,7 @@ export default function OverviewPriorityBadge({
 
     return (
         <span
-            className="rounded text-[9px] font-semibold leading-none"
+            className="rounded text-[12px] font-semibold leading-none"
             style={{
                 padding: "4px 2px",
                 background: style.bg,

@@ -46,6 +46,7 @@ function OverviewColumn({
     onViewAll,
     empty,
     isEmpty,
+    canAdd = true,
     children,
 }: {
     title: string;
@@ -55,6 +56,8 @@ function OverviewColumn({
     onViewAll: () => void;
     empty: EmptyMeta;
     isEmpty: boolean;
+    /** Hides the add affordances when the user lacks the add permission. */
+    canAdd?: boolean;
     children: ReactNode;
 }) {
     const { t } = useTranslation();
@@ -64,12 +67,12 @@ function OverviewColumn({
                 <span className="dr-label">
                     {title} <span style={{ fontWeight: 400 }}>· {count}</span>
                 </span>
-                {!isEmpty && (
+                {!isEmpty && canAdd && (
                     <DealButton
                         variant="ghost"
                         size="sm"
                         onClick={onAdd}
-                        aria-label={`${t("pages.deals.workspace.overview.add")} — ${title}`}
+                        aria-label={`${t("pages.deals.workspace.overview.add")} - ${title}`}
                     >
                         + {t("pages.deals.workspace.overview.add")}
                     </DealButton>
@@ -95,9 +98,11 @@ function OverviewColumn({
                         <div className="mb-3 text-xs leading-relaxed text-[#5b6472]">
                             {empty.hint}
                         </div>
-                        <DealButton variant="primary" onClick={onAdd}>
-                            + {empty.actionLabel}
-                        </DealButton>
+                        {canAdd && (
+                            <DealButton variant="primary" onClick={onAdd}>
+                                + {empty.actionLabel}
+                            </DealButton>
+                        )}
                     </div>
                 ) : (
                     children
@@ -140,6 +145,16 @@ export default function WorkspaceOverviewTab({
     const canEditMeetings = permissions.edit_lead_follow_up !== "none";
     const canDeleteMeetings = permissions.delete_lead_follow_up !== "none";
 
+    // Overview aggregates notes/tasks/meetings, so it must honour the same view
+    // permissions that gate their dedicated tabs — otherwise hiding the Notes
+    // tab still leaks note titles, bodies and authors through this summary.
+    const canViewNotes = permissions.view_deal_note !== "none";
+    const canViewTasks = permissions.view_tasks !== "none";
+    const canViewMeetings = permissions.view_lead_follow_up !== "none";
+    const canAddNote = permissions.add_deal_note !== "none";
+    const canAddTask = permissions.add_tasks !== "none";
+    const canAddMeeting = permissions.add_lead_follow_up !== "none";
+
     const topNotes = overview.notes.slice(0, 5);
     const openTasks = overview.tasks.filter((task) => task.isOpen);
     const topTasks = openTasks.slice(0, 5);
@@ -153,7 +168,9 @@ export default function WorkspaceOverviewTab({
 
     return (
         <div className="dr-overview">
+            {canViewNotes && (
             <OverviewColumn
+                canAdd={canAddNote}
                 title={t("pages.deals.tabs.notes")}
                 count={notes.length}
                 total={notes.length}
@@ -183,7 +200,7 @@ export default function WorkspaceOverviewTab({
                                 </span>
                             </span>
                             <span
-                                className="shrink-0 text-[11px]"
+                                className="shrink-0 text-[12px]"
                                 style={{ color: T.TEXT_MUTED }}
                             >
                                 {note.timeLabel}
@@ -198,8 +215,11 @@ export default function WorkspaceOverviewTab({
                     </button>
                 ))}
             </OverviewColumn>
+            )}
 
+            {canViewTasks && (
             <OverviewColumn
+                canAdd={canAddTask}
                 title={t("pages.deals.workspace.overview.open_tasks_col")}
                 count={openTasks.length}
                 total={tasks.length}
@@ -232,14 +252,14 @@ export default function WorkspaceOverviewTab({
                             >
                                 <div className="text-xs font-semibold">{task.title}</div>
                                 <div
-                                    className="mt-[3px] flex items-center gap-1 text-[11px]"
+                                    className="mt-[3px] flex items-center gap-1 text-[12px]"
                                     style={{
                                         color: overdue ? T.RED : T.TEXT_MUTED,
                                         fontWeight: overdue ? 600 : 400,
                                     }}
                                 >
                                     <DealIcon name="calendar" size={11} />
-                                    {task.dueDateLabel}
+                                    {task.dueDateLabel || t("pages.deals.common.no_due_date")}
                                     {overdue
                                         ? ` · ${t("pages.deals.workspace.tasks.overdue")}`
                                         : ""}
@@ -262,8 +282,11 @@ export default function WorkspaceOverviewTab({
                     );
                 })}
             </OverviewColumn>
+            )}
 
+            {canViewMeetings && (
             <OverviewColumn
+                canAdd={canAddMeeting}
                 title={t("pages.deals.workspace.overview.upcoming_meetings_col")}
                 count={upcomingMeetings.length}
                 total={dealFollowUps.length}
@@ -296,7 +319,7 @@ export default function WorkspaceOverviewTab({
                                 }}
                             >
                                 <span
-                                    className="block text-[11px] uppercase"
+                                    className="block text-[12px] uppercase"
                                     style={{ color: T.TEXT_MUTED }}
                                 >
                                     {meeting.monthLabel}
@@ -324,14 +347,14 @@ export default function WorkspaceOverviewTab({
                                     </span>
                                 </span>
                                 <span
-                                    className="mt-[3px] block text-[11px]"
+                                    className="mt-[3px] block text-[12px]"
                                     style={{ color: T.TEXT_MUTED }}
                                 >
                                     {meeting.timeLabel}
                                 </span>
                                 {meeting.attendeesLabel && (
                                     <span
-                                        className="mt-[3px] flex items-center gap-1 text-[11px]"
+                                        className="mt-[3px] flex items-center gap-1 text-[12px]"
                                         style={{ color: T.TEXT_MUTED }}
                                     >
                                         <DealIcon name="users" size={11} />
@@ -364,6 +387,7 @@ export default function WorkspaceOverviewTab({
                     );
                 })}
             </OverviewColumn>
+            )}
 
             <DealNoteDetailModal
                 note={selectedNote}

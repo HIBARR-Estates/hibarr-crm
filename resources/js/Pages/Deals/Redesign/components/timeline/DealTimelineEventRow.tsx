@@ -180,7 +180,7 @@ export default function DealTimelineEventRow({
                 <Tooltip
                     title={dayjs(event.occurredAt).format("MMM D, YYYY · h:mm A")}
                 >
-                    <div style={{ fontSize: 11, color: T.TEXT_HINT }}>
+                    <div style={{ fontSize: 12, color: T.TEXT_HINT }}>
                         {event.meta}
                     </div>
                 </Tooltip>

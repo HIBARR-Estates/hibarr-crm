@@ -592,7 +592,7 @@ export default function WorkspaceTasksTab({
                                         }}
                                     >
                                         <DealIcon name="calendar" size={11} />
-                                        {task.dueDateLabel}
+                                        {task.dueDateLabel || t("pages.deals.common.no_due_date")}
                                         {overdue &&
                                             ` · ${t("pages.deals.workspace.tasks.overdue")}`}
                                     </span>

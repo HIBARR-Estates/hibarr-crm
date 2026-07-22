@@ -22,8 +22,13 @@ export interface DealPermissions {
     isWatcher: boolean;
     /** Whether the user is a participant on the deal */
     isParticipant: boolean;
-    /** Whether the user is an admin */
-    isAdmin: boolean;
+    /**
+     * The user's `edit_deals` scope is "all", i.e. they can act on any deal.
+     * This is NOT the admin role - a manager can hold this without being an
+     * admin. For real role checks use `useIsAdminRole()`, which is what the
+     * backend's `hasRole('admin')` gates correspond to.
+     */
+    hasFullDealAccess: boolean;
     /** Whether the deal is locked (no modifications allowed) */
     isLocked: boolean;
     /** Whether the user can edit the deal (creator, agent, or admin — and not locked) */
@@ -64,7 +69,7 @@ export function useDealPermissions(
             isAgent: false,
             isWatcher: false,
             isParticipant: false,
-            isAdmin: false,
+            hasFullDealAccess: false,
             isLocked: false,
             canEdit: false,
             canDelete: false,
@@ -80,10 +85,10 @@ export function useDealPermissions(
         const roles: DealRole[] = [];
         const isLocked = !!deal.is_locked;
 
-        // Check if user is an admin (has edit_deals permission set to 'all')
-        const isAdmin =
+        // Full-access scope, not the admin role (see hasFullDealAccess docs).
+        const hasFullDealAccess =
             permissions?.edit_deals === "all" || permissions?.edit_deals === 4;
-        if (isAdmin) roles.push("admin");
+        if (hasFullDealAccess) roles.push("admin");
 
         // Check if user is the creator
         const isCreator = deal.added_by === userId;
@@ -118,11 +123,11 @@ export function useDealPermissions(
         const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
         // Admins, creators, and agents can edit/delete — unless the deal is locked
-        const canEdit = !isLocked && (isAdmin || isCreator || isAgent);
-        const canDelete = !isLocked && (isAdmin || isCreator || isAgent);
+        const canEdit = !isLocked && (hasFullDealAccess || isCreator || isAgent);
+        const canDelete = !isLocked && (hasFullDealAccess || isCreator || isAgent);
 
         // Anyone with a role can view (including admins)
-        const canView = hasAnyRole || isAdmin;
+        const canView = hasAnyRole || hasFullDealAccess;
 
         return {
             roles,
@@ -130,7 +135,7 @@ export function useDealPermissions(
             isAgent,
             isWatcher,
             isParticipant,
-            isAdmin,
+            hasFullDealAccess,
             isLocked,
             canEdit,
             canDelete,
@@ -159,7 +164,7 @@ export function getDealPermissions(
         isAgent: false,
         isWatcher: false,
         isParticipant: false,
-        isAdmin: false,
+        hasFullDealAccess: false,
         isLocked: false,
         canEdit: false,
         canDelete: false,
@@ -174,9 +179,10 @@ export function getDealPermissions(
     const roles: DealRole[] = [];
     const isLocked = !!deal.is_locked;
 
-    // Check if user is an admin (has edit_deals permission set to 'all')
-    const isAdmin = editDealsPermission === "all" || editDealsPermission === 4;
-    if (isAdmin) roles.push("admin");
+    // Full-access scope, not the admin role (see hasFullDealAccess docs).
+    const hasFullDealAccess =
+        editDealsPermission === "all" || editDealsPermission === 4;
+    if (hasFullDealAccess) roles.push("admin");
 
     // Check if user is the creator
     const isCreator = deal.added_by === userId;
@@ -209,11 +215,11 @@ export function getDealPermissions(
     const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
     // Admins, creators, and agents can edit/delete — unless the deal is locked
-    const canEdit = !isLocked && (isAdmin || isCreator || isAgent);
-    const canDelete = !isLocked && (isAdmin || isCreator || isAgent);
+    const canEdit = !isLocked && (hasFullDealAccess || isCreator || isAgent);
+    const canDelete = !isLocked && (hasFullDealAccess || isCreator || isAgent);
 
     // Anyone with a role can view (including admins)
-    const canView = hasAnyRole || isAdmin;
+    const canView = hasAnyRole || hasFullDealAccess;
 
     return {
         roles,
@@ -221,7 +227,7 @@ export function getDealPermissions(
         isAgent,
         isWatcher,
         isParticipant,
-        isAdmin,
+        hasFullDealAccess,
         isLocked,
         canEdit,
         canDelete,

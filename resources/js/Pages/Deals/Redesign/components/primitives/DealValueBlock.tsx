@@ -116,7 +116,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
             {breakdown && (
                 <span
                     style={{
-                        fontSize: 10,
+                        fontSize: 12,
                         color: T.TEXT_HINT,
                         textTransform: "capitalize",
                     }}

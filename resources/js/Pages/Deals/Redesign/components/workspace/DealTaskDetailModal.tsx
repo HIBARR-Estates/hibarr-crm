@@ -18,6 +18,8 @@ import useDealTaskStatus from "../../hooks/useDealTaskStatus";
 import useDealTaskUpdate from "../../hooks/useDealTaskUpdate";
 import { extractLocalTime, todayIsoDate } from "../../hooks/taskDateUtils";
 import DealAssigneeField from "./DealAssigneeField";
+import { formatDate, formatDateWithTime } from "../../adapters/dateFormat";
+import { initialsFromName } from "../../adapters/initials";
 
 interface DealTaskDetailModalProps {
     task: Task | null;
@@ -35,32 +37,12 @@ interface EditFormState {
     assignees: number[];
 }
 
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
-}
-
 function taskStatusSlug(task: Task): string {
     return (
         (task as Task & { board_column?: { slug?: string } }).board_column?.slug ||
         task.status ||
         "to_do"
     );
-}
-
-function formatDateLabel(date: Date | null): string {
-    return date
-        ? date.toLocaleDateString("en-GB", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-          })
-        : "—";
 }
 
 function toFormState(task: Task): EditFormState {
@@ -121,12 +103,7 @@ export default function DealTaskDetailModal({
         isCompletedColumn(statusSlug, taskBoardColumns) || Boolean(task.completed_on);
     const startDate = task.start_date ? new Date(task.start_date) : null;
     const dueDate = task.due_date ? new Date(task.due_date) : null;
-    const dueLabel = dueDate
-        ? `${formatDateLabel(dueDate)} · ${dueDate.toLocaleTimeString("en", {
-              hour: "numeric",
-              minute: "2-digit",
-          })}`
-        : "—";
+    const dueLabel = formatDateWithTime(dueDate, "-");
     const overdue =
         !done && dueDate != null && dueDate.getTime() < Date.now();
     const assignees = task.users ?? [];
@@ -182,6 +159,7 @@ export default function DealTaskDetailModal({
         <DealModal
             open={!!task}
             onClose={onClose}
+            dirty={editing && dirty}
             title={
                 editing
                     ? t("pages.deals.workspace.tasks.edit_task")
@@ -263,7 +241,6 @@ export default function DealTaskDetailModal({
                 {overdue && (
                     <span
                         className="dr-pill dr-pill-red"
-                        style={{ fontSize: 12, padding: "4px 11px" }}
                     >
                         {t("pages.deals.workspace.tasks.overdue")}
                     </span>
@@ -402,7 +379,7 @@ export default function DealTaskDetailModal({
                                 style={{ fontSize: 14, color: T.TEXT_MUTED }}
                             >
                                 <DealIcon name="calendar" size={14} />
-                                {formatDateLabel(startDate)}
+                                {formatDate(startDate, "-")}
                             </div>
                         </div>
                     </div>

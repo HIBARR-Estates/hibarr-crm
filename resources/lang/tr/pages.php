@@ -9,6 +9,24 @@
 
 return [
 
+    'entity_summary' => [
+        'title_deal' => 'Yapay Zeka Özeti',
+        'title_lead' => 'Yapay Zeka Aday Özeti',
+        'thinking' => [
+            '0' => 'Son etkinlikler okunuyor',
+            '1' => 'Notlar ve toplantılar kontrol ediliyor',
+            '2' => 'Açık görevler inceleniyor',
+            '3' => 'Aşama geçmişi izleniyor',
+            '4' => 'Ekli belgeler gözden geçiriliyor',
+            '5' => 'Risk sinyalleri değerlendiriliyor',
+            '6' => 'Geciken işler kontrol ediliyor',
+            '7' => 'Zaman çizelgesi birleştiriliyor',
+            '8' => 'Sonraki adım belirleniyor',
+            '9' => 'Özet hazırlanıyor',
+            '10' => 'İfadeler düzenleniyor',
+        ],
+    ],
+
     'dashboard' => [
         'stats' => [
             'total_tasks'       => 'Toplam Görevler',
@@ -348,6 +366,9 @@ return [
             'none'                       => 'Yok',
             'unassigned'                 => 'Atanmamış',
             'no_description'             => 'Açıklama yok',
+            'no_due_date'                => 'Son tarih yok',
+            'select_note'                => 'Notu seç',
+            'open_note'                  => 'Notu aç',
             'description'                => 'Açıklama',
             'optional_details_placeholder' => 'Opsiyonel detaylar...',
             'start_date'                 => 'Başlangıç tarihi',

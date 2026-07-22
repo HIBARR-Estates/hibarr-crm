@@ -9,6 +9,24 @@
 
 return [
 
+    'entity_summary' => [
+        'title_deal' => 'KI-Zusammenfassung',
+        'title_lead' => 'KI-Lead-Zusammenfassung',
+        'thinking' => [
+            '0' => 'Aktuelle Aktivitäten werden gelesen',
+            '1' => 'Notizen und Meetings werden geprüft',
+            '2' => 'Offene Aufgaben werden geprüft',
+            '3' => 'Phasenverlauf wird nachvollzogen',
+            '4' => 'Angehängte Dokumente werden gesichtet',
+            '5' => 'Risikosignale werden abgewogen',
+            '6' => 'Überfällige Punkte werden geprüft',
+            '7' => 'Zeitleiste wird zusammengesetzt',
+            '8' => 'Nächster Schritt wird ermittelt',
+            '9' => 'Zusammenfassung wird erstellt',
+            '10' => 'Formulierung wird überarbeitet',
+        ],
+    ],
+
     'dashboard' => [
         'stats' => [
             'total_tasks'       => 'Aufgaben gesamt',
@@ -344,6 +362,9 @@ return [
             'none'                       => 'Keine',
             'unassigned'                 => 'Nicht zugewiesen',
             'no_description'             => 'Keine Beschreibung',
+            'no_due_date'                => 'Kein Fälligkeitsdatum',
+            'select_note'                => 'Notiz auswählen',
+            'open_note'                  => 'Notiz öffnen',
             'description'                => 'Beschreibung',
             'optional_details_placeholder' => 'Optionale Details...',
             'start_date'                 => 'Startdatum',

@@ -123,7 +123,7 @@ export default function DealAgentCard({
                     </span>
                 )}
                 <span>
-                    <span className="dr-label" style={{ display: "block", fontSize: 11 }}>
+                    <span className="dr-label" style={{ display: "block", fontSize: 12 }}>
                         {t("pages.deals.header.team.agent_label")}
                     </span>
                     <span

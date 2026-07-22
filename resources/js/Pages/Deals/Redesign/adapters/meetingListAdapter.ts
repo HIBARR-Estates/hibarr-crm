@@ -5,6 +5,7 @@ import {
     toWorkspaceMeetingPreview,
     type WorkspaceMeetingPreview,
 } from "./meetingAdapter";
+import { formatTime } from "./dateFormat";
 
 dayjs.extend(utc);
 
@@ -110,7 +111,7 @@ export function toWorkspaceMeetingListItem(
     const endDate = startsAt
         ? new Date(startsAt.getTime() + duration * 60 * 1000)
         : null;
-    const endTimeLabel = endDate ? TIME_FORMAT.format(endDate) : "--";
+    const endTimeLabel = formatTime(endDate);
     const timeRangeLabel = `${preview.timeLabel} – ${endTimeLabel}`;
     const meetingLink =
         meeting.meeting_link && /^https?:\/\//i.test(meeting.meeting_link)
