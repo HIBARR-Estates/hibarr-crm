@@ -29,10 +29,13 @@ interface CustomFieldDefinition {
 const HIBARR_DOCUMENT_FIELDS: Array<{
     key: keyof NonNullable<Deal["hibarr_fields"]>;
     label: string;
+    /** deposit_confirmation is a free-text field, not an uploaded file, so it
+     * has no viewable URL — only the other two are real file uploads. */
+    isFile: boolean;
 }> = [
-    { key: "deposit_confirmation", label: "Deposit confirmation" },
-    { key: "reservation_agreement", label: "Reservation agreement" },
-    { key: "sales_contract", label: "Sales contract" },
+    { key: "deposit_confirmation", label: "Deposit confirmation", isFile: false },
+    { key: "reservation_agreement", label: "Reservation agreement", isFile: true },
+    { key: "sales_contract", label: "Sales contract", isFile: true },
 ];
 
 const NON_FILE_STRINGS = new Set([
@@ -61,20 +64,6 @@ function hasUploadedValue(value: unknown): boolean {
     return Boolean(value);
 }
 
-function readHibarrDocumentValue(
-    deal: Deal,
-    key: (typeof HIBARR_DOCUMENT_FIELDS)[number]["key"],
-): unknown {
-    const fields = deal.hibarr_fields;
-    if (!fields) return null;
-
-    const urlKey = `${String(key)}_url` as keyof typeof fields;
-    const urlValue = fields[urlKey];
-    if (hasUploadedValue(urlValue)) return urlValue;
-
-    return fields[key];
-}
-
 function readCustomFieldValue(
     deal: Deal,
     fieldId: number,
@@ -87,12 +76,39 @@ function normalizeLabel(field: CustomFieldDefinition): string {
     return field.label?.trim() || field.name?.trim() || `Field ${field.id}`;
 }
 
-/** A stored value is only linkable when it actually looks like a URL/path. */
-function toFileUrl(value: unknown): string | undefined {
-    if (typeof value !== "string") return undefined;
-    const trimmed = value.trim();
-    if (!trimmed) return undefined;
-    return /^(https?:\/\/|\/)/i.test(trimmed) ? trimmed : undefined;
+const IS_URL = /^(https?:\/\/|\/)/i;
+
+/**
+ * Resolve a stored file value into a viewable URL. Handles an already-absolute
+ * URL/path, a bare stored filename (served from `/user-uploads/<dir>/`), and
+ * an array/JSON list of filenames (takes the first). `dir` is the storage
+ * subfolder — `hibarr_fields` or `custom_fields`, matching how EditableField /
+ * CustomFieldDisplay build their own links.
+ */
+function resolveFileUrl(value: unknown, dir: string): string | undefined {
+    let filename: string | undefined;
+
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return undefined;
+        if (IS_URL.test(trimmed)) return trimmed;
+        if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+            try {
+                const parsed = JSON.parse(trimmed);
+                const first = Array.isArray(parsed) ? parsed[0] : parsed;
+                filename = typeof first === "string" ? first : undefined;
+            } catch {
+                filename = trimmed;
+            }
+        } else {
+            filename = trimmed;
+        }
+    } else if (Array.isArray(value) && value.length > 0) {
+        filename = typeof value[0] === "string" ? value[0] : undefined;
+    }
+
+    if (!filename) return undefined;
+    return IS_URL.test(filename) ? filename : `/user-uploads/${dir}/${filename}`;
 }
 
 export default function useDealDocuments(
@@ -111,15 +127,30 @@ export default function useDealDocuments(
             categoryIds && categoryIds.length > 0 ? new Set(categoryIds) : null;
 
         for (const doc of HIBARR_DOCUMENT_FIELDS) {
-            const value = readHibarrDocumentValue(deal, doc.key);
+            const fields = deal.hibarr_fields;
+            const rawValue = fields ? fields[doc.key] : null;
+            // The model appends `<key>_url` accessors (HibarrDealFields.php)
+            // that resolve the correct href for both local storage
+            // (public/user-uploads) and S3 (a signed URL) — authoritative, so
+            // we never hand-build the path for hibarr documents.
+            const urlValue = fields
+                ? (fields as unknown as Record<string, unknown>)[
+                      `${String(doc.key)}_url`
+                  ]
+                : null;
             items.push({
                 id: `hibarr-${doc.key}`,
                 label: doc.label,
-                uploaded: hasUploadedValue(value),
+                uploaded: hasUploadedValue(rawValue),
                 source: "hibarr",
                 fieldName: String(doc.key),
                 updateType: "hibarr_field",
-                fileUrl: toFileUrl(value),
+                fileUrl:
+                    doc.isFile &&
+                    typeof urlValue === "string" &&
+                    urlValue.trim()
+                        ? urlValue
+                        : undefined,
             });
         }
 
@@ -139,7 +170,7 @@ export default function useDealDocuments(
                 source: "custom",
                 fieldName: `field_${field.id}`,
                 updateType: "custom_field",
-                fileUrl: toFileUrl(value),
+                fileUrl: resolveFileUrl(value, "custom_fields"),
             });
         }
 

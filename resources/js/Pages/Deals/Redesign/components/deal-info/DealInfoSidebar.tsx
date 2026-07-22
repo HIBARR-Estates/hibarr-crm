@@ -59,10 +59,10 @@ export default function DealInfoSidebar({
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
-            <div className="dr-label px-2.5 pb-1 pt-2.5" style={{ fontSize: 12 }}>
+            <div className="dr-label pr-2.5 pb-1" style={{ fontSize: 12 }}>
                 {t("pages.deals.sidebar.title")}
             </div>
-            <div className="px-2.5 pb-2">
+            <div className="pr-2.5 pb-2">
                 <input
                     className="dr-input"
                     type="search"
@@ -96,28 +96,18 @@ export default function DealInfoSidebar({
                                 key={item.id}
                                 type="button"
                                 onClick={() => onSectionChange(item.id)}
-                                className="flex w-full items-center justify-between px-2.5 py-1.5 text-left"
-                                style={{
-                                    fontSize: 13,
-                                    background: isActive ? T.BLUE_LIGHT : "transparent",
-                                    color: isActive
-                                        ? T.BLUE
+                                className={[
+                                    "flex w-full cursor-pointer items-center justify-between border-l-2 px-2.5 py-1.5 text-left text-[13px] font-normal",
+                                    "hover:border-[#1a6bb5] hover:bg-[#e8f1fb] hover:font-medium hover:text-[#1a6bb5]",
+                                    isActive
+                                        ? "border-[#1a6bb5] bg-[#e8f1fb] font-medium text-[#1a6bb5]"
                                         : item.later
-                                          ? T.TEXT_HINT
-                                          : T.TEXT_MUTED,
-                                    fontWeight: isActive ? 500 : 400,
-                                    borderLeft: `2px solid ${isActive ? T.BLUE : "transparent"}`,
-                                    opacity: item.later ? 0.7 : 1,
-                                }}
+                                          ? "border-transparent text-[#9ca3af] opacity-70"
+                                          : "border-transparent text-[#5b6472]",
+                                ].join(" ")}
                             >
                                 <span className="flex items-center gap-1.5">
-                                    <DealIcon
-                                        name={item.icon}
-                                        size={14}
-                                        color={
-                                            isActive ? T.BLUE : T.TEXT_MUTED
-                                        }
-                                    />
+                                    <DealIcon name={item.icon} size={14} />
                                     {td(item.label)}
                                 </span>
                                 {item.badge != null && (

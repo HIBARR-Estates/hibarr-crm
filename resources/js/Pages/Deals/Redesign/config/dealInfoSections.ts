@@ -87,7 +87,6 @@ export const CORE_SECTION_FIELD_LABELS: Partial<
         "Deal name",
         "Close date",
         "Category",
-        "Lead source",
         "Packages",
         "Properties",
     ],

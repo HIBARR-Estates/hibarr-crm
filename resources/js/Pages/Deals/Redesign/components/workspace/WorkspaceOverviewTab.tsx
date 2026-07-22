@@ -115,7 +115,7 @@ function OverviewColumn({
                     className="mt-2 cursor-pointer border-none bg-transparent px-0 py-1.5 text-left text-xs font-semibold"
                     style={{ color: T.BLUE }}
                 >
-                    {t("pages.deals.workspace.overview.view_all")} {total} →
+                    {t("pages.deals.workspace.overview.view_all")} →
                 </button>
             )}
         </div>

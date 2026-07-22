@@ -36,6 +36,15 @@ interface DealInfoSectionPanelProps {
         value: unknown,
         type?: "details" | "contact" | "custom_field" | "hibarr_field",
     ) => Promise<void>;
+    /** Batched save for edit mode — persists every changed field grouped by
+     * type in ≤4 requests instead of one PATCH per field. */
+    onFieldsUpdate: (
+        changes: Array<{
+            fieldName: string;
+            value: unknown;
+            type?: "details" | "contact" | "custom_field" | "hibarr_field";
+        }>,
+    ) => Promise<void>;
     restrictPackageOrProperty?: boolean;
     consents?: any[];
     gdprSetting?: { enable_gdpr?: boolean } | null;
@@ -59,6 +68,7 @@ export default function DealInfoSectionPanel({
     isFieldLoading,
     updatingField,
     onFieldUpdate,
+    onFieldsUpdate,
     restrictPackageOrProperty = false,
     consents = [],
     gdprSetting = null,
@@ -120,17 +130,16 @@ export default function DealInfoSectionPanel({
         if (!hasUnsavedChanges) return;
         setIsSavingAll(true);
         try {
-            // Sequential, not Promise.all: each PATCH responds with the full
-            // deal as of that write. Firing them concurrently races their
-            // responses — whichever lands last wins and can overwrite newer
-            // field values with a snapshot taken before they were saved, so
-            // the view shows stale data until a manual refresh even though
-            // every change did land in the DB. Awaiting one at a time makes
-            // each response's snapshot include every prior save in this
-            // batch, so the final setDeal() reflects all of them.
-            for (const [fieldName, change] of Object.entries(pendingChanges)) {
-                await onFieldUpdate(fieldName, change.value, change.type);
-            }
+            // One batched save: onFieldsUpdate groups every change by type and
+            // sends a single request per type (≤4 total), rather than a PATCH
+            // per field.
+            await onFieldsUpdate(
+                Object.entries(pendingChanges).map(([fieldName, change]) => ({
+                    fieldName,
+                    value: change.value,
+                    type: change.type,
+                })),
+            );
             message.success(t("pages.deals.info.save_all_success"));
             setPendingChanges({});
             setIsEditing(false);
@@ -255,17 +264,6 @@ export default function DealInfoSectionPanel({
                         loading={isFieldLoading("category_id")}
                         disabled={!canEdit}
                     />
-                </DetailField>
-                <DetailField label={t("pages.deals.info.fields.lead_source")}>
-                    {deal.contact?.lead_source?.type ? (
-                        <span className="text-gray-700">
-                            {deal.contact.lead_source.type}
-                        </span>
-                    ) : (
-                        <span className="italic text-gray-400">
-                            {t("pages.deals.common.not_set")}
-                        </span>
-                    )}
                 </DetailField>
             </FieldGrid>
 

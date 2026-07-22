@@ -13,7 +13,7 @@ import { formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import EditableRepeatableField from "@/Components/EditableRepeatableField";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { getFileUploadService } from "@/Services/FileUploadService";
@@ -531,6 +531,23 @@ export default function CustomFieldDisplay({
     const { currencies } = useCurrencies();
     const { default_currency_code } = props;
     const { t } = useTranslation();
+
+    // In bulk "edit whole section" mode, edited values only reach
+    // customFieldsData once the batch is actually saved — visibility rules
+    // that depend on a field being edited right now would otherwise stay
+    // stuck until then. Track in-flight edits locally and layer them over
+    // customFieldsData for visibility evaluation only, so a dependent field
+    // appears/disappears as soon as its trigger value changes, not once
+    // the whole edit session is saved. Cleared whenever edit mode exits
+    // (save or cancel) so the freshly-persisted customFieldsData takes over.
+    const [liveValues, setLiveValues] = useState<Record<string, unknown>>({});
+    useEffect(() => {
+        if (!editable) setLiveValues({});
+    }, [editable]);
+    const handleFieldChange = (fieldName: string, value: any) => {
+        setLiveValues((previous) => ({ ...previous, [fieldName]: value }));
+        onChange?.(fieldName, value);
+    };
     // v2.2 mode shows "Not set" for empty values, styled as a muted italic
     // placeholder so it doesn't read as a real value (deal-v2-2.jsx:860-861);
     // other consumers keep the legacy "--" placeholder.
@@ -604,6 +621,9 @@ export default function CustomFieldDisplay({
             }
         });
     }
+    // Live edits (bulk edit mode, not yet saved) take priority over the
+    // persisted value so visibility reacts immediately — see liveValues above.
+    Object.assign(fieldValuesForVisibility, liveValues);
 
     // Evaluate visibility for all fields
     // Convert Field[] to CustomField[] format for evaluation
@@ -1491,7 +1511,7 @@ export default function CustomFieldDisplay({
                 displayValue={formatFieldValue(field, value)}
                 loading={isFieldLoading}
                 alwaysEditing={effectiveAlwaysEditing}
-                onChange={onChange}
+                onChange={handleFieldChange}
                 disabled={disabled}
                 activateOnSingleClick={activateOnSingleClick}
             />

@@ -25,6 +25,13 @@ const HIBARR_FIELD_NAMES = [
 ] as const;
 
 type UpdateType = "details" | "contact" | "custom_field" | "hibarr_field" | "recalculate_value";
+type ExplicitUpdateType = "details" | "contact" | "custom_field" | "hibarr_field";
+
+export interface DealFieldChange {
+    fieldName: string;
+    value: unknown;
+    type?: ExplicitUpdateType;
+}
 
 export default function useDealInfoFieldUpdate() {
     const { deal, setDeal } = useDealWorkspace();
@@ -76,6 +83,128 @@ export default function useDealInfoFieldUpdate() {
             return "details";
         },
         [],
+    );
+
+    // Turn one field change into { updateType, api-payload entries }. A
+    // currency object expands into currency_id + amount (both "details").
+    // Shared by the single-field and batched-save paths so the transforms
+    // (email→client_email, currency split, close_date null) live in one place.
+    const buildFieldEntries = useCallback(
+        (
+            fieldName: string,
+            value: unknown,
+            explicitType?: ExplicitUpdateType,
+        ): { type: ExplicitUpdateType; entries: Record<string, unknown> } => {
+            const type = resolveUpdateType(fieldName, explicitType);
+
+            if (
+                (fieldName === "value" || fieldName === "manual_value") &&
+                value &&
+                typeof value === "object" &&
+                ("amount" in value || "currency" in value)
+            ) {
+                const currencyCode =
+                    typeof (value as { currency?: string }).currency === "string"
+                        ? (value as { currency: string }).currency
+                        : defaultCurrencyCode;
+                const foundCurrency = currencies.find(
+                    (currency: { currency_code?: string; id?: number }) =>
+                        (currency.currency_code || "").toUpperCase() ===
+                        currencyCode.toUpperCase(),
+                );
+                const entries: Record<string, unknown> = {};
+                if (foundCurrency?.id) entries.currency_id = foundCurrency.id;
+                const amount = (value as { amount?: unknown }).amount;
+                if (amount !== null && amount !== undefined && amount !== "") {
+                    entries[fieldName] = Number(amount);
+                } else if (fieldName === "manual_value") {
+                    entries.manual_value = null;
+                }
+                return { type: "details", entries };
+            }
+
+            let apiFieldName = fieldName;
+            let processedValue: unknown = value;
+            if (fieldName === "email") {
+                apiFieldName = "client_email";
+            } else if (fieldName === "value" || fieldName === "manual_value") {
+                processedValue = value ? parseFloat(String(value)) : 0;
+            } else if (fieldName === "close_date") {
+                processedValue = value || null;
+            }
+            return { type, entries: { [apiFieldName]: processedValue } };
+        },
+        [currencies, defaultCurrencyCode, resolveUpdateType],
+    );
+
+    // Group N field changes by update type — the endpoint already accepts
+    // every field of a type in a single `data` map, so a whole edit-mode save
+    // is 1–3 requests, not one per field.
+    const applyGroupedUpdates = useCallback(
+        async (changes: DealFieldChange[]): Promise<void> => {
+            const grouped: Partial<
+                Record<ExplicitUpdateType, Record<string, unknown>>
+            > = {};
+            for (const { fieldName, value, type } of changes) {
+                const { type: groupType, entries } = buildFieldEntries(
+                    fieldName,
+                    value,
+                    type,
+                );
+                if (Object.keys(entries).length === 0) continue;
+                grouped[groupType] = { ...(grouped[groupType] ?? {}), ...entries };
+            }
+
+            const groups = Object.entries(grouped)
+                .filter(([, data]) => data && Object.keys(data).length > 0)
+                .map(([groupType, data]) => ({
+                    type: groupType as ExplicitUpdateType,
+                    data: data as Record<string, unknown>,
+                }));
+
+            if (groups.length === 0) return;
+
+            // One type → the single response is authoritative; reuse updateDeal
+            // so its onSuccess (setDeal + clearing updatingField) runs. This is
+            // also the path every single-field inline edit takes.
+            if (groups.length === 1) {
+                await updateDeal(groups[0]);
+                return;
+            }
+
+            // Multiple types → fire concurrently. Each PATCH returns a full
+            // deal snapshot, so letting each response setDeal() would race and
+            // could drop another group's changes. Instead we suppress the
+            // per-response setDeal (raw axios, not updateDeal), wait for every
+            // write to commit, then do one refresh for the authoritative,
+            // fully-merged snapshot — same rich shape updateDeal returns.
+            await Promise.all(
+                groups.map((group) =>
+                    axios.patch(
+                        route("deals.gathering.inline_update", { id: deal.id }),
+                        group,
+                        { headers: { Accept: "application/json" } },
+                    ),
+                ),
+            );
+            const refreshed = await axios.get(
+                route("deals.refresh", deal.id),
+            );
+            if (
+                refreshed.data?.status === "success" &&
+                refreshed.data?.data
+            ) {
+                setDeal(refreshed.data.data);
+            }
+        },
+        [buildFieldEntries, deal.id, setDeal, updateDeal],
+    );
+
+    // Public batched save — one request per changed type (see above).
+    const handleFieldsUpdate = useCallback(
+        (changes: DealFieldChange[]): Promise<void> =>
+            applyGroupedUpdates(changes),
+        [applyGroupedUpdates],
     );
 
     const handleFieldUpdate = useCallback(
@@ -133,76 +262,13 @@ export default function useDealInfoFieldUpdate() {
                     return;
                 }
 
-                let apiFieldName = fieldName;
-                let processedValue = value;
-
-                if (fieldName === "email") {
-                    apiFieldName = "client_email";
-                } else if (
-                    fieldName === "value" ||
-                    fieldName === "manual_value"
-                ) {
-                    if (
-                        value &&
-                        typeof value === "object" &&
-                        ("amount" in value || "currency" in value)
-                    ) {
-                        const currencyCode =
-                            typeof (value as { currency?: string }).currency ===
-                            "string"
-                                ? (value as { currency: string }).currency
-                                : defaultCurrencyCode;
-                        const foundCurrency = currencies.find(
-                            (currency: { currency_code?: string; id?: number }) =>
-                                (currency.currency_code || "").toUpperCase() ===
-                                currencyCode.toUpperCase(),
-                        );
-                        const payloadData: Record<string, unknown> = {};
-                        if (foundCurrency?.id) {
-                            payloadData.currency_id = foundCurrency.id;
-                        }
-                        const amount = (value as { amount?: unknown }).amount;
-                        if (
-                            amount !== null &&
-                            amount !== undefined &&
-                            amount !== ""
-                        ) {
-                            payloadData[fieldName] = Number(amount);
-                        } else if (fieldName === "manual_value") {
-                            payloadData.manual_value = null;
-                        }
-                        if (Object.keys(payloadData).length === 0) {
-                            setUpdatingField(null);
-                            return;
-                        }
-                        await updateDeal({
-                            type: "details",
-                            data: payloadData,
-                        });
-                        return;
-                    }
-                    processedValue = value ? parseFloat(String(value)) : 0;
-                } else if (fieldName === "close_date") {
-                    processedValue = value || null;
-                }
-
-                await updateDeal({
-                    type: effectiveType,
-                    data: { [apiFieldName]: processedValue },
-                });
+                await applyGroupedUpdates([{ fieldName, value, type }]);
             } catch {
                 setUpdatingField(null);
                 throw new Error("field_update_failed");
             }
         },
-        [
-            currencies,
-            deal.id,
-            defaultCurrencyCode,
-            resolveUpdateType,
-            t,
-            updateDeal,
-        ],
+        [applyGroupedUpdates, deal.id, resolveUpdateType, setDeal, t],
     );
 
     const handleRecalculateValue = useCallback(async () => {
@@ -231,6 +297,7 @@ export default function useDealInfoFieldUpdate() {
         isFieldLoading,
         isRecalculatingValue,
         handleFieldUpdate,
+        handleFieldsUpdate,
         handleRecalculateValue,
     };
 }

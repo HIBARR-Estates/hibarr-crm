@@ -16,9 +16,9 @@ interface DealDocumentSlotRowProps {
 }
 
 /**
- * One document slot. Clicking it opens a file picker and uploads straight into
- * the backing field — replacing the file when one is already there — rather
- * than bouncing the user to another tab.
+ * One document slot. An empty slot uploads on click; an uploaded slot with a
+ * resolvable file opens it (view/download) on click instead — replacing is
+ * still available via the explicit "Replace" action in the full variant.
  */
 export default function DealDocumentSlotRow({
     doc,
@@ -32,12 +32,26 @@ export default function DealDocumentSlotRow({
     const inputRef = useRef<HTMLInputElement>(null);
     const isFull = variant === "full";
     const canUpload = Boolean(doc.fieldName) && !disabled && !uploading;
+    // When a file is actually stored (and viewable), clicking opens it rather
+    // than prompting another upload.
+    const openHref = doc.uploaded ? doc.fileUrl : undefined;
 
     const statusLabel = uploading
         ? t("pages.deals.workspace.files.uploading")
         : doc.uploaded
           ? t("pages.deals.workspace.documents.replace")
           : t("pages.deals.workspace.documents.upload");
+
+    const pillClass = uploading
+        ? "dr-pill-blue"
+        : doc.uploaded
+          ? "dr-pill-green"
+          : "dr-pill-gray";
+    const pillLabel = uploading
+        ? t("pages.deals.workspace.files.uploading")
+        : doc.uploaded
+          ? t("pages.deals.workspace.documents.uploaded")
+          : t("pages.deals.workspace.documents.missing");
 
     const fileInput = (
         <input
@@ -56,45 +70,53 @@ export default function DealDocumentSlotRow({
     // click target and carries nothing but icon + label + status. Anything
     // more overflows and gives the rail a sideways scrollbar.
     if (!isFull) {
+        const inner = (
+            <>
+                <DealIcon
+                    name="file-text"
+                    size={13}
+                    color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
+                />
+                <span
+                    className="min-w-0 flex-1 truncate"
+                    style={{ fontSize: 12, color: T.TEXT }}
+                >
+                    {td(doc.label)}
+                </span>
+                <span className={`dr-pill ${pillClass}`} style={{ flexShrink: 0 }}>
+                    {pillLabel}
+                </span>
+            </>
+        );
+        const rowClass =
+            "flex w-full min-w-0 items-center gap-2 border-none bg-transparent px-0 py-2.5 text-left no-underline";
+
         return (
             <div className="w-full min-w-0 border-b border-[#eef0f3] last:border-b-0">
                 {fileInput}
-                <button
-                    type="button"
-                    disabled={!canUpload}
-                    onClick={() => inputRef.current?.click()}
-                    title={`${doc.label} — ${statusLabel}`}
-                    className="flex w-full min-w-0 items-center gap-2 border-none bg-transparent px-0 py-2.5 text-left"
-                    style={{ cursor: canUpload ? "pointer" : "default" }}
-                >
-                    <DealIcon
-                        name="file-text"
-                        size={13}
-                        color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
-                    />
-                    <span
-                        className="min-w-0 flex-1 truncate"
-                        style={{ fontSize: 12, color: T.TEXT }}
+                {openHref ? (
+                    <a
+                        href={openHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        title={`${doc.label} — ${t("pages.deals.workspace.documents.open")}`}
+                        className={rowClass}
+                        style={{ cursor: "pointer" }}
                     >
-                        {td(doc.label)}
-                    </span>
-                    <span
-                        className={`dr-pill ${
-                            uploading
-                                ? "dr-pill-blue"
-                                : doc.uploaded
-                                  ? "dr-pill-green"
-                                  : "dr-pill-gray"
-                        }`}
-                        style={{ flexShrink: 0 }}
+                        {inner}
+                    </a>
+                ) : (
+                    <button
+                        type="button"
+                        disabled={!canUpload}
+                        onClick={() => inputRef.current?.click()}
+                        title={`${doc.label} — ${statusLabel}`}
+                        className={rowClass}
+                        style={{ cursor: canUpload ? "pointer" : "default" }}
                     >
-                        {uploading
-                            ? t("pages.deals.workspace.files.uploading")
-                            : doc.uploaded
-                              ? t("pages.deals.workspace.documents.uploaded")
-                              : t("pages.deals.workspace.documents.missing")}
-                    </span>
-                </button>
+                        {inner}
+                    </button>
+                )}
             </div>
         );
     }
@@ -112,27 +134,27 @@ export default function DealDocumentSlotRow({
                 color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
             />
 
-            <span
-                className="min-w-0 flex-1 truncate"
-                style={{ fontSize: 14, color: T.TEXT }}
-                title={doc.label}
-            >
-                {td(doc.label)}
-            </span>
-
-            {/* An uploaded document is openable in its own right. */}
-            {doc.uploaded && doc.fileUrl && (
+            {/* Uploaded + viewable → the label itself opens the file. */}
+            {openHref ? (
                 <a
-                    href={doc.fileUrl}
+                    href={openHref}
                     target="_blank"
                     rel="noopener noreferrer"
-                    aria-label={t("pages.deals.workspace.documents.open")}
                     title={t("pages.deals.workspace.documents.open")}
-                    className="flex shrink-0 items-center"
-                    style={{ color: T.BLUE }}
+                    className="flex min-w-0 flex-1 items-center gap-1.5 truncate no-underline"
+                    style={{ fontSize: 14, color: T.BLUE }}
                 >
+                    <span className="truncate">{td(doc.label)}</span>
                     <DealIcon name="external-link" size={13} />
                 </a>
+            ) : (
+                <span
+                    className="min-w-0 flex-1 truncate"
+                    style={{ fontSize: 14, color: T.TEXT }}
+                    title={doc.label}
+                >
+                    {td(doc.label)}
+                </span>
             )}
 
             <span

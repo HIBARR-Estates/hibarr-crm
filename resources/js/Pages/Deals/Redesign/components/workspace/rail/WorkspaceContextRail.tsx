@@ -80,6 +80,7 @@ export default function WorkspaceContextRail({
     const email = contact?.client_email || null;
     const phone = formatPhoneNumber(contact?.mobile || contact?.cell || null);
     const leadUrl = contact?.id ? route("lead-contact.show", contact.id) : null;
+    const leadSource = contact?.lead_source?.type || null;
 
     const copyEmail = async () => {
         if (!email) return;
@@ -160,6 +161,15 @@ export default function WorkspaceContextRail({
                                     {t("pages.deals.dossier.call")}
                                 </span>
                             </a>
+                        )}
+                        {leadSource && (
+                            <div className="flex items-center gap-1.5 px-0 py-2 text-xs text-[#5b6472]">
+                                <DealIcon name="info" size={12} />
+                                <span className="min-w-0 flex-1 truncate">
+                                    {t("pages.deals.info.fields.lead_source")}:{" "}
+                                    {leadSource}
+                                </span>
+                            </div>
                         )}
                         {leadUrl && (
                             <div className="mt-2 border-t border-[#eef0f3] pt-2 text-right">

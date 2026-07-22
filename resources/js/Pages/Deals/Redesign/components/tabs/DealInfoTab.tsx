@@ -39,6 +39,7 @@ export default function DealInfoTab({
         isFieldLoading,
         updatingField,
         handleFieldUpdate,
+        handleFieldsUpdate,
     } = useDealInfoFieldUpdate();
 
     return (
@@ -62,6 +63,7 @@ export default function DealInfoTab({
                     isFieldLoading={isFieldLoading}
                     updatingField={updatingField}
                     onFieldUpdate={handleFieldUpdate}
+                    onFieldsUpdate={handleFieldsUpdate}
                     restrictPackageOrProperty={restrictPackageOrProperty}
                     consents={consents}
                     gdprSetting={gdprSetting}

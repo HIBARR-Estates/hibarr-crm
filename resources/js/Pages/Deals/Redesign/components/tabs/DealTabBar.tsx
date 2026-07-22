@@ -2,7 +2,16 @@ import { KeyboardEvent } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { DealTab, DealTabCount } from "../../types";
 import useHScroll from "../../hooks/useHScroll";
+import DealIcon from "../primitives/DealIcon";
 import DealScrollArrow from "../primitives/DealScrollArrow";
+
+// Icons for the meta tabs only — they sit past the divider and are easy to
+// miss, so an icon makes Deal info / Timeline stand out. Record tabs stay
+// text-only (matching v2.2).
+const META_TAB_ICONS: Partial<Record<DealTab, string>> = {
+    dealinfo: "info",
+    timeline: "clock",
+};
 
 interface DealTabBarProps {
     activeTab: DealTab;
@@ -71,6 +80,7 @@ export default function DealTabBar({
     const renderTab = (id: DealTab, countKey?: keyof DealTabCount) => {
         const isActive = activeTab === id;
         const count = countKey ? counts[countKey] : undefined;
+        const icon = META_TAB_ICONS[id];
         return (
             <button
                 key={id}
@@ -82,6 +92,7 @@ export default function DealTabBar({
                 className="dr-tab"
                 onClick={() => onChange(id)}
             >
+                {icon && <DealIcon name={icon} size={14} />}
                 {labels[id]}
                 {count != null && <span className="dr-tab-count">{count}</span>}
             </button>
