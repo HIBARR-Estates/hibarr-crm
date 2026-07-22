@@ -192,7 +192,14 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                     return implode(', ', $selected);
                 }
                 return 'Option 1, Option 2';
-                
+
+            case 'multiSelectCountry':
+                $countryNames = collect(\App\Models\Country::all())->pluck('nicename')->all();
+                if (!empty($countryNames)) {
+                    return implode(', ', array_slice($countryNames, 0, 2));
+                }
+                return 'Turkey, Germany';
+
             case 'textarea':
                 return 'This is a longer text sample for row ' . ($rowIndex + 1);
                 

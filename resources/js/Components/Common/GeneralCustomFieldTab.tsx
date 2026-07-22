@@ -392,6 +392,76 @@ const GeneralCustomFieldTab = <
         );
     };
 
+    const renderMultiSelectCountryField = (field: any) => {
+        if (!countries || countries.length === 0) {
+            console.warn('Countries not loaded for multi-select country field:', field.label);
+        }
+
+        return (
+            <Form.Item
+                label={field.label}
+                validateStatus={
+                    errors[`custom_fields_data.field_${field.id}`] ? "error" : ""
+                }
+                help={errors[`custom_fields_data.field_${field.id}`]}
+                name={[`custom_fields_data`, `field_${field.id}`]}
+                rules={[
+                    {
+                        required: field.required === "yes" && isFieldVisible(field.id),
+                        message: `Please enter ${field.label}`,
+                    },
+                ]}
+            >
+                <Select
+                    mode="multiple"
+                    placeholder={`Select ${field.label}`}
+                    allowClear
+                    showSearch
+                    filterOption={(input, option) => {
+                        const searchText = input.toLowerCase();
+                        const countryValue = option?.value as string;
+                        const country = countries?.find((c: any) => c.nicename === countryValue);
+
+                        if (!country) return false;
+
+                        return (
+                            country.nicename?.toLowerCase().includes(searchText) ||
+                            country.name?.toLowerCase().includes(searchText) ||
+                            country.iso?.toLowerCase().includes(searchText) ||
+                            country.iso3?.toLowerCase().includes(searchText) ||
+                            country.nationality?.toLowerCase().includes(searchText)
+                        );
+                    }}
+                    notFoundContent={
+                        !countries || countries.length === 0
+                            ? "Countries not available"
+                            : "No countries found"
+                    }
+                >
+                    {countries && countries.length > 0 ? (
+                        countries.map((country: any) => (
+                            <Select.Option key={country.iso || country.id} value={country.nicename}>
+                                <span className="flex items-center gap-2">
+                                    <span className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`} />
+                                    {country.nicename}
+                                    {country.nationality && country.nationality !== 'unknown' && (
+                                        <span className="text-gray-500 text-xs">
+                                            ({country.nationality})
+                                        </span>
+                                    )}
+                                </span>
+                            </Select.Option>
+                        ))
+                    ) : (
+                        <Select.Option disabled value="">
+                            No countries available
+                        </Select.Option>
+                    )}
+                </Select>
+            </Form.Item>
+        );
+    };
+
     const renderPhoneField = (field: any) => (
         <Form.Item
             label={field.label}
@@ -477,6 +547,8 @@ const GeneralCustomFieldTab = <
                 return renderDateField(field);
             case "country":
                 return renderCountryField(field);
+            case "multiSelectCountry":
+                return renderMultiSelectCountryField(field);
             case "currency":
                 return renderCurrencyField(field);
             case "phone":
@@ -530,6 +602,8 @@ const determineSpan = (type: string): number => {
         case "radio":
             return 24;
         case "checkbox":
+            return 24;
+        case "multiSelectCountry":
             return 24;
         case "file":
             return 24;

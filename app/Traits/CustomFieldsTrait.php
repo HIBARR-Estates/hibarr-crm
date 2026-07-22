@@ -291,6 +291,11 @@ trait CustomFieldsTrait
                 } elseif ($fieldType == 'repeatable') {
                     // Repeatable: store array of objects as JSON (same as multiselect pattern)
                     $value = json_encode($value);
+                } elseif ($fieldType == 'multiSelectCountry') {
+                    // JSON (not comma-separated like checkbox): several country nicenames
+                    // contain literal commas (e.g. "Congo, Democratic Republic of the"),
+                    // which would corrupt a comma-joined string on read-back.
+                    $value = json_encode(array_values($value));
                 } else {
                     // For other array types, convert to JSON string
                     $value = json_encode($value);

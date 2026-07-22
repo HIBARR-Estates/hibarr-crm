@@ -1521,6 +1521,7 @@ return array(
         'required' => 'Required',
         'visible' => 'Visible',
         'viewFields' => 'View Fields',
+        'searchFields' => 'Search by label, type, or module...',
         'category' => 'Category',
         'addCategory' => 'Add Category',
         'editCategory' => 'Edit Category',

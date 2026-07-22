@@ -3,12 +3,34 @@
 namespace App\Traits;
 
 use App\Models\CustomField;
+use Illuminate\Support\Facades\Validator;
 
 trait CustomFieldsRequestTrait
 {
 
     public function customFieldRules($rules = [])
     {
+        Validator::extend('valid_multiselect_country', function ($attribute, $value, $parameters, $validator) {
+            if ($value === null || $value === '') {
+                return true; // emptiness is enforced separately by the 'required' rule
+            }
+
+            if (!is_array($value)) {
+                $decoded = json_decode((string) $value, true);
+                $value = is_array($decoded) ? $decoded : [$value];
+            }
+            $items = $value;
+            $validNames = collect(countries())->pluck('nicename')->all();
+
+            foreach ($items as $item) {
+                if (!in_array($item, $validNames, true)) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+
         $fields = request()->custom_fields_data;
 
         if ($fields) {
@@ -18,10 +40,21 @@ trait CustomFieldsRequestTrait
                 $id = end($idarray);
 
                 $customField = CustomField::findOrFail($id);
+                $fieldRules = [];
 
                 if ($customField->required == 'yes') {
-                    $rules['custom_fields_data.' . $key] = 'required';
+                    $fieldRules[] = 'required';
+                }
 
+                if ($customField->type == 'multiSelectCountry') {
+                    $fieldRules[] = 'valid_multiselect_country';
+                }
+
+                if (!empty($fieldRules)) {
+                    $rules['custom_fields_data.' . $key] = implode('|', $fieldRules);
+                }
+
+                if ($customField->required == 'yes') {
                     if ($customField->type == 'file') {
                         // If the value is a URL string (already uploaded externally), accept it as-is
                         if (is_string($value) && \App\Services\FileStorageService::isExternalUrl($value)) {
