@@ -18,15 +18,21 @@ class DealGatheringService
     protected DealNotificationService $notificationService;
     protected DealAutomationService $dealAutomationService;
     protected DealValueResolver $dealValueResolver;
+    protected PipelineScopeResolverService $scopeResolver;
+    protected PackagePipelineRouterService $packageRouter;
 
     public function __construct(
         DealNotificationService $notificationService,
         DealAutomationService $dealAutomationService,
-        DealValueResolver $dealValueResolver
+        DealValueResolver $dealValueResolver,
+        PipelineScopeResolverService $scopeResolver,
+        PackagePipelineRouterService $packageRouter
     ) {
         $this->notificationService = $notificationService;
         $this->dealAutomationService = $dealAutomationService;
         $this->dealValueResolver = $dealValueResolver;
+        $this->scopeResolver = $scopeResolver;
+        $this->packageRouter = $packageRouter;
     }
 
     /**
@@ -164,63 +170,11 @@ class DealGatheringService
 
     /**
      * Get dynamic steps based on Custom Field Categories.
-     * When $pipelineId is provided and that pipeline has categories assigned (pivot),
-     * only those categories are returned; otherwise all deal categories (backward compatibility).
-     *
-     * @param int|null $pipelineId Optional. When set, steps are filtered to this pipeline's categories.
-     * @return array
+     * When $pipelineId is provided, steps are filtered to that pipeline's categories (and optional stage).
      */
-    public function getSteps(?int $pipelineId = null)
+    public function getSteps(?int $pipelineId = null, ?int $stageId = null)
     {
-        $group = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
-
-        if (!$group) {
-            return [];
-        }
-
-        $categoriesQuery = CustomFieldCategory::where('custom_field_group_id', $group->id)
-            ->where('company_id', company()->id)
-            ->orderBy(DB::raw('`order`'), 'asc')
-            ->orderBy('id', 'asc');
-
-        // Filter by pipeline's assigned categories when pipeline has any
-        if ($pipelineId) {
-            $pipeline = LeadPipeline::with('customFieldCategories:id')->find($pipelineId);
-            if ($pipeline && $pipeline->customFieldCategories->isNotEmpty()) {
-                $categoryIds = $pipeline->customFieldCategories->pluck('id')->toArray();
-                $categoriesQuery->whereIn('id', $categoryIds);
-            }
-        }
-
-        $categories = $categoriesQuery
-            ->with(['customFields' => function ($q) {
-                $q->orderBy('display_order')
-                    ->with([
-                        'showRuleSet' => function ($query) {
-                            $query->with([
-                                'groups' => function ($groupQuery) {
-                                    $groupQuery->where('enabled', true)
-                                        ->orderBy('id')
-                                        ->with('criteria.referenceField');
-                                },
-                                'group.criteria.referenceField'
-                            ]);
-                        }
-                    ]);
-            }])
-            ->get();
-
-        return $categories
-            ->filter(fn ($category) => $category->customFields->count() > 0)
-            ->map(function ($category) {
-                return [
-                    'id' => $category->id,
-                    'title' => $category->name,
-                    'fields' => $category->customFields,
-                ];
-            })
-            ->values()
-            ->all();
+        return $this->scopeResolver->getStepsForPipeline($pipelineId, $stageId);
     }
 
     /**
@@ -309,8 +263,13 @@ class DealGatheringService
                     $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
                     $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
 
-                    $newPackageIds = is_array($data['package_id']) ? $data['package_id'] : [$data['package_id']];
-                    $newPackageIds = array_filter($newPackageIds); // Remove empty values
+                    $newPackageIds = $this->packageRouter->normalizePackageIds($data['package_id'], $deal->company_id);
+                    $newPackageIds = Package::query()
+                        ->where('company_id', $deal->company_id)
+                        ->whereIn('id', $newPackageIds)
+                        ->pluck('id')
+                        ->map(fn ($id) => (int) $id)
+                        ->all();
 
                     // Detect added and removed packages
                     $addedPackageIds = array_diff($newPackageIds, $currentPackageIds);
@@ -343,6 +302,7 @@ class DealGatheringService
                         $newPackageNames
                     );
 
+                    $this->packageRouter->routeDeal($deal->fresh(['packages']));
                     $this->dealValueResolver->resolveAndPersist($deal->fresh());
                 }
 
@@ -385,6 +345,8 @@ class DealGatheringService
                         $newParticipantNames
                     );
                 }
+
+                $this->attemptFieldTriggerRouting($deal, $data);
                 break;
 
             case DealUpdateType::CONTACT:
@@ -406,6 +368,7 @@ class DealGatheringService
                 // Trigger deal automation for custom field updates
                 // This is needed because updating custom fields doesn't trigger the Deal model's observer
                 $this->dealAutomationService->process($deal, 'deal_updated');
+                $this->attemptFieldTriggerRouting($deal, $data);
                 break;
 
             case DealUpdateType::HIBARR_FIELD:
@@ -454,5 +417,42 @@ class DealGatheringService
         }
 
         return $deal->fresh();
+    }
+
+    protected function attemptFieldTriggerRouting(Deal $deal, array $data): void
+    {
+        $fieldCatalog = app(PackageRoutingFieldCatalog::class);
+
+        $fieldTriggerData = collect($data)
+            ->except(['package_id'])
+            ->mapWithKeys(fn ($value, $key) => [$this->normalizeRoutingFieldKey((string) $key) => $value])
+            ->filter(fn ($value, $key) => $fieldCatalog->isFieldEnabled(
+                (string) $key,
+                $deal->company_id,
+            ))
+            ->all();
+
+        if (empty($fieldTriggerData)) {
+            return;
+        }
+
+        $this->packageRouter->attemptRoutingFromFieldUpdates(
+            $deal->fresh(),
+            $fieldTriggerData,
+            array_key_exists('package_id', $data) && $data['package_id'],
+        );
+    }
+
+    protected function normalizeRoutingFieldKey(string $key): string
+    {
+        if (str_starts_with($key, 'field_')) {
+            return $key;
+        }
+
+        if (ctype_digit($key)) {
+            return 'field_' . $key;
+        }
+
+        return $key;
     }
 }

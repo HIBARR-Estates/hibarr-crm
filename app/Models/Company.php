@@ -249,7 +249,8 @@ class Company extends BaseModel
     public $dates = ['last_login'];
 
     protected $casts = [
-        'google_calendar_status' => 'string'
+        'google_calendar_status' => 'string',
+        'package_pipeline_routing_trigger_fields' => 'array',
     ];
     protected $appends = [
         'logo_url',

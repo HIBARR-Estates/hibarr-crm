@@ -36,6 +36,7 @@ interface DealDetailsTabProps extends Pick<
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
     onPipelineChange?: (pipelineId: number | undefined) => void;
+    onStageChange?: (stageId: number | undefined) => void;
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -48,8 +49,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onErrorsClear,
     setErrors,
     setDeal,
-    disableFields = [], // prop to disable fields
+    disableFields = [],
     onPipelineChange,
+    onStageChange,
     formReferenceData = {},
 }) => {
     const [form] = Form.useForm();
@@ -71,6 +73,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         company = {},
         stages = [],
         packages = [],
+        dealPackageMode = "multiple",
     } = {
         ...props,
         ...formReferenceData,
@@ -83,6 +86,26 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     useEffect(() => {
         pipelineIdRef.current = pipelineId;
     }, [pipelineId]);
+
+    const resolvePackageId = (
+        pkg: number | { id: number } | undefined,
+    ): number | undefined => {
+        if (pkg == null) {
+            return undefined;
+        }
+
+        return typeof pkg === "object" ? pkg.id : pkg;
+    };
+
+    const resolvePackageIds = (
+        pkgs: Array<number | { id: number }> | undefined,
+    ): number[] => {
+        if (!pkgs?.length) {
+            return [];
+        }
+
+        return pkgs.map((pkg) => resolvePackageId(pkg)!);
+    };
 
     // Populate form when data changes
     useEffect(() => {
@@ -135,9 +158,16 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 deal_watcher: data.deal_watcher || [],
                 deal_participant: data.deal_participant || [],
                 product_id: data.product_id || [],
-                package_id: data.packages
-                    ? data.packages.map((p: any) => p.id)
-                    : data.package_id || [],
+                package_id:
+                    dealPackageMode === "single"
+                        ? (resolvePackageId(data.packages?.[0]) ??
+                          (Array.isArray(data.package_id)
+                              ? data.package_id[0]
+                              : data.package_id) ??
+                          undefined)
+                        : data.packages
+                          ? resolvePackageIds(data.packages)
+                          : data.package_id || [],
             };
             setPipelineId(formData.pipeline);
             setSelectedCategoryId(formData.category_id);
@@ -189,6 +219,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         form.setFieldValue("stage_id", undefined); // Reset stage when pipeline changes
         setPipelineId(pipelineId);
         onPipelineChange?.(pipelineId);
+        onStageChange?.(undefined);
     };
 
     // Fetch agents when category changes
@@ -237,7 +268,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         // form.setFieldValue("value", total);
     };
 
-    const handlePackageChange = (packageIds: number[]) => {
+    const handlePackageChange = (value: number | number[] | undefined) => {
+        const packageIds = Array.isArray(value)
+            ? value
+            : value != null
+              ? [value]
+              : [];
         calculateTotalValue(packageIds);
     };
 
@@ -284,6 +320,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             product_id: values.product_id || [],
             strategy_accepted: values.strategy_accepted || false,
             downpayment_confirmed: values.downpayment_confirmed || false,
+            package_id:
+                dealPackageMode === "single"
+                    ? values.package_id != null
+                        ? [values.package_id]
+                        : []
+                    : values.package_id || [],
         };
 
         onSubmit(formData);
@@ -401,14 +443,22 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
+                                onChange={(value) => onStageChange?.(value)}
                             >
                                 {stages
-                                    .filter((stage: any) =>
-                                        pipelineId
-                                            ? stage.lead_pipeline_id ===
-                                              pipelineId
-                                            : false,
-                                    )
+                                    .filter((stage: any) => {
+                                        const stagePipelineId = Number(
+                                            stage.lead_pipeline_id,
+                                        );
+                                        const selectedPipeline = Number(
+                                            pipelineId,
+                                        );
+                                        return (
+                                            Number.isFinite(stagePipelineId) &&
+                                            Number.isFinite(selectedPipeline) &&
+                                            stagePipelineId === selectedPipeline
+                                        );
+                                    })
                                     .map((stage: any) => (
                                         <Select.Option
                                             key={stage.id}
@@ -568,7 +618,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={24}>
                         <Form.Item name="package_id" label="Packages">
                             <Select
-                                mode="multiple"
+                                mode={
+                                    dealPackageMode === "single"
+                                        ? undefined
+                                        : "multiple"
+                                }
                                 placeholder="Select Packages"
                                 allowClear
                                 showSearch
