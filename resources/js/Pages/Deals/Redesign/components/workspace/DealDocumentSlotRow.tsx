@@ -1,15 +1,19 @@
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealDocumentItem } from "../../hooks/useDealDocuments";
 import DealIcon from "../primitives/DealIcon";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface DealDocumentSlotRowProps {
     doc: DealDocumentItem;
     /** Uploads the picked file into this slot's field. */
     onUpload: (doc: DealDocumentItem, file: File) => void;
+    /** Clears the stored file from this slot's field. Omit to hide delete entirely. */
+    onDelete?: (doc: DealDocumentItem) => void | Promise<void>;
     uploading?: boolean;
+    deleting?: boolean;
     disabled?: boolean;
     /** `compact` is the dossier rail; `full` is the Files tab. */
     variant?: "compact" | "full";
@@ -17,24 +21,47 @@ interface DealDocumentSlotRowProps {
 
 /**
  * One document slot. An empty slot uploads on click; an uploaded slot with a
- * resolvable file opens it (view/download) on click instead — replacing is
- * still available via the explicit "Replace" action in the full variant.
+ * resolvable file opens it (view/download) on click instead — replacing and
+ * deleting are available via explicit actions, gated by the same `disabled`
+ * (deal edit permission) as upload.
  */
 export default function DealDocumentSlotRow({
     doc,
     onUpload,
+    onDelete,
     uploading = false,
+    deleting = false,
     disabled = false,
     variant = "compact",
 }: DealDocumentSlotRowProps) {
     const { t } = useTranslation();
     const { td } = useTd();
     const inputRef = useRef<HTMLInputElement>(null);
+    const [confirmingDelete, setConfirmingDelete] = useState(false);
     const isFull = variant === "full";
-    const canUpload = Boolean(doc.fieldName) && !disabled && !uploading;
+    const busy = uploading || deleting;
+    const canUpload = Boolean(doc.fieldName) && !disabled && !busy;
+    const canDelete = Boolean(onDelete) && !disabled && !busy;
     // When a file is actually stored (and viewable), clicking opens it rather
     // than prompting another upload.
     const openHref = doc.uploaded ? doc.fileUrl : undefined;
+
+    const confirmDialog = onDelete ? (
+        <DealConfirmDialog
+            open={confirmingDelete}
+            title={t("pages.deals.workspace.documents.delete_confirm_title")}
+            message={t("pages.deals.workspace.documents.delete_confirm_message")}
+            confirmLabel={t("pages.deals.common.delete")}
+            cancelLabel={t("pages.deals.common.cancel")}
+            danger
+            confirmLoading={deleting}
+            onConfirm={async () => {
+                await onDelete(doc);
+                setConfirmingDelete(false);
+            }}
+            onCancel={() => setConfirmingDelete(false)}
+        />
+    ) : null;
 
     const statusLabel = uploading
         ? t("pages.deals.workspace.files.uploading")
@@ -89,34 +116,48 @@ export default function DealDocumentSlotRow({
             </>
         );
         const rowClass =
-            "flex w-full min-w-0 items-center gap-2 border-none bg-transparent px-0 py-2.5 text-left no-underline";
+            "flex min-w-0 flex-1 items-center gap-2 border-none bg-transparent px-0 py-2.5 text-left no-underline";
 
         return (
             <div className="w-full min-w-0 border-b border-[#eef0f3] last:border-b-0">
                 {fileInput}
-                {openHref ? (
-                    <a
-                        href={openHref}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        title={`${doc.label} — ${t("pages.deals.workspace.documents.open")}`}
-                        className={rowClass}
-                        style={{ cursor: "pointer" }}
-                    >
-                        {inner}
-                    </a>
-                ) : (
-                    <button
-                        type="button"
-                        disabled={!canUpload}
-                        onClick={() => inputRef.current?.click()}
-                        title={`${doc.label} — ${statusLabel}`}
-                        className={rowClass}
-                        style={{ cursor: canUpload ? "pointer" : "default" }}
-                    >
-                        {inner}
-                    </button>
-                )}
+                <div className="flex w-full min-w-0 items-center gap-1">
+                    {openHref ? (
+                        <a
+                            href={openHref}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title={`${doc.label} — ${t("pages.deals.workspace.documents.open")}`}
+                            className={rowClass}
+                            style={{ cursor: "pointer" }}
+                        >
+                            {inner}
+                        </a>
+                    ) : (
+                        <button
+                            type="button"
+                            disabled={!canUpload}
+                            onClick={() => inputRef.current?.click()}
+                            title={`${doc.label} — ${statusLabel}`}
+                            className={rowClass}
+                            style={{ cursor: canUpload ? "pointer" : "default" }}
+                        >
+                            {inner}
+                        </button>
+                    )}
+                    {doc.uploaded && canDelete && (
+                        <button
+                            type="button"
+                            onClick={() => setConfirmingDelete(true)}
+                            title={`${doc.label} — ${t("pages.deals.common.delete")}`}
+                            className="shrink-0 cursor-pointer border-none bg-transparent p-0.5"
+                            style={{ color: T.RED }}
+                        >
+                            <DealIcon name="trash" size={12} />
+                        </button>
+                    )}
+                </div>
+                {confirmDialog}
             </div>
         );
     }
@@ -176,14 +217,25 @@ export default function DealDocumentSlotRow({
                     {statusLabel}
                 </button>
             )}
-            {uploading && (
+            {doc.uploaded && canDelete && (
+                <button
+                    type="button"
+                    onClick={() => setConfirmingDelete(true)}
+                    className="shrink-0 cursor-pointer border-none bg-transparent p-0 font-semibold"
+                    style={{ fontSize: 13, color: T.RED }}
+                >
+                    {t("pages.deals.common.delete")}
+                </button>
+            )}
+            {busy && (
                 <span
                     className="shrink-0 font-semibold"
                     style={{ fontSize: 13, color: T.TEXT_MUTED }}
                 >
-                    {statusLabel}…
+                    {uploading ? statusLabel : t("pages.deals.common.delete")}…
                 </span>
             )}
+            {confirmDialog}
         </div>
     );
 }

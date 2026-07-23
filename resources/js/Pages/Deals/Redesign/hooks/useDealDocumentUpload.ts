@@ -17,11 +17,17 @@ import type { DealDocumentItem } from "./useDealDocuments";
  * always-rendered dossier rail. Fold them back together if that hook ever
  * stops fetching.
  */
+function extractBackendMessage(error: unknown): string | undefined {
+    if (!axios.isAxiosError(error)) return undefined;
+    return (error.response?.data as { message?: string } | undefined)?.message;
+}
+
 export default function useDealDocumentUpload() {
     const { deal, setDeal } = useDealWorkspace();
     const { t } = useTranslation();
     const { canEdit } = useDealPermissions(deal);
     const [uploadingField, setUploadingField] = useState<string | null>(null);
+    const [deletingField, setDeletingField] = useState<string | null>(null);
 
     const uploadToSlot = useCallback(
         async (doc: DealDocumentItem, file: File) => {
@@ -48,12 +54,16 @@ export default function useDealDocumentUpload() {
                     message.success(t("pages.deals.info.file_upload_success"));
                 } else {
                     message.error(
-                        t("pages.deals.workspace.files.messages.upload_failed"),
+                        response.data?.message ??
+                            t("pages.deals.workspace.files.messages.upload_failed"),
                     );
                 }
-            } catch {
+            } catch (error) {
+                // In dev (app.debug=true) the backend includes the real error
+                // message — show it instead of the generic fallback.
                 message.error(
-                    t("pages.deals.workspace.files.messages.upload_failed"),
+                    extractBackendMessage(error) ??
+                        t("pages.deals.workspace.files.messages.upload_failed"),
                 );
             } finally {
                 setUploadingField(null);
@@ -62,10 +72,51 @@ export default function useDealDocumentUpload() {
         [deal.id, setDeal, t],
     );
 
+    const deleteSlot = useCallback(
+        async (doc: DealDocumentItem) => {
+            if (!doc.fieldName || !doc.updateType) return;
+
+            setDeletingField(doc.fieldName);
+            try {
+                const response = await axios.patch(
+                    route("deals.gathering.inline_update", { id: deal.id }),
+                    { type: doc.updateType, data: { [doc.fieldName]: null } },
+                    { headers: { Accept: "application/json" } },
+                );
+
+                if (
+                    response.data?.status === "success" &&
+                    response.data?.data
+                ) {
+                    setDeal(response.data.data);
+                    message.success(
+                        t("pages.deals.workspace.documents.delete_success"),
+                    );
+                } else {
+                    message.error(
+                        response.data?.message ??
+                            t("pages.deals.workspace.documents.delete_failed"),
+                    );
+                }
+            } catch (error) {
+                message.error(
+                    extractBackendMessage(error) ??
+                        t("pages.deals.workspace.documents.delete_failed"),
+                );
+            } finally {
+                setDeletingField(null);
+            }
+        },
+        [deal.id, setDeal, t],
+    );
+
     return {
         uploadToSlot,
+        deleteSlot,
         canEdit,
         isUploadingField: (fieldName?: string) =>
             Boolean(fieldName) && uploadingField === fieldName,
+        isDeletingField: (fieldName?: string) =>
+            Boolean(fieldName) && deletingField === fieldName,
     };
 }

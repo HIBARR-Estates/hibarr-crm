@@ -41,15 +41,7 @@ class PropertyRecommendationController extends AccountBaseController
     {
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function($user, $deal) {
-                // Check if user is the assigned agent
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                
-                // Check if user is a watcher
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-                
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);

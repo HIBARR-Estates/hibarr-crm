@@ -64,12 +64,7 @@ class DealSummaryController extends AccountBaseController
 
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function ($user, $model) {
-                $isAgent = $model->leadAgent && (int) $model->leadAgent->user_id === (int) $user->id;
-                $isWatcher = $model->dealWatchers->contains('id', $user->id);
-
-                return $isAgent || $isWatcher;
-            },
+            'owned' => fn ($user, $model) => $model->isVisibleToUser($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);

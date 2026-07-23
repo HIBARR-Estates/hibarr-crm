@@ -230,6 +230,21 @@ class DealGatheringController extends AccountBaseController
                 ], 403);
             }
 
+            // Write gate: agent/participant only, matching DealController::patch().
+            // Watchers stay view-only — see Deal::hasTeamMemberAccess().
+            $editPermission = user()->permission('edit_deals');
+            $canEditDeal = $editPermission == 'all'
+                || ($editPermission == 'added' && $deal->added_by == user()->id)
+                || ($editPermission == 'owned' && $deal->hasTeamMemberAccess(user()->id))
+                || ($editPermission == 'both' && ($deal->added_by == user()->id || $deal->hasTeamMemberAccess(user()->id)));
+
+            if (!$canEditDeal) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.permissionDenied'),
+                ], 403);
+            }
+
             // Process data to handle file uploads
             $data = [];
             
@@ -357,9 +372,16 @@ class DealGatheringController extends AccountBaseController
                 'message' => $e->getMessage(),
                 'type' => $request->input('type'),
             ]);
-            return response()->json([
-                'status' => 'error',
-            ], 500);
+
+            $payload = ['status' => 'error'];
+            if (config('app.debug')) {
+                $payload['message'] = $e->getMessage();
+                $payload['exception'] = get_class($e);
+                $payload['file'] = $e->getFile() . ':' . $e->getLine();
+                $payload['trace'] = collect($e->getTrace())->take(10)->toArray();
+            }
+
+            return response()->json($payload, 500);
         }
     }
 

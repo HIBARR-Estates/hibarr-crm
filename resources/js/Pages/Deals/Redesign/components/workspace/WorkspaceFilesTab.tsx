@@ -98,7 +98,9 @@ export default function WorkspaceFilesTab({
     const { slots } = useDealDocuments(deal, files, fields, categoryIds);
     const {
         uploadToSlot,
+        deleteSlot,
         isUploadingField,
+        isDeletingField,
         canEdit: canEditFields,
     } = useDealDocumentUpload();
 
@@ -137,7 +139,9 @@ export default function WorkspaceFilesTab({
                                 doc={doc}
                                 variant="full"
                                 onUpload={uploadToSlot}
+                                onDelete={deleteSlot}
                                 uploading={isUploadingField(doc.fieldName)}
+                                deleting={isDeletingField(doc.fieldName)}
                                 disabled={!canEditFields}
                             />
                         ))}

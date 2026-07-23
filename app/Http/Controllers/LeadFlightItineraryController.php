@@ -320,17 +320,8 @@ class LeadFlightItineraryController extends Controller
 
             'added' => 'added_by',
 
-            'owned' => function ($user, $deal) {
-
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-
-
-
-                return $isAgent || $isWatcher;
-
-            },
+            // Write gate (edit/delete): agent/participant only, watchers stay view-only.
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
 
         ];
 

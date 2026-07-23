@@ -302,6 +302,8 @@ class DealController extends AccountBaseController
                 $q->where(function($query) use ($user) {
                     $query->whereHas('leadAgent', function($q) use ($user) {
                         $q->where('user_id', $user->id);
+                    })->orWhereHas('dealParticipants', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
                     })->orWhereHas('dealWatchers', function($q) use ($user) {
                         $q->where('users.id', $user->id);
                     });
@@ -355,6 +357,8 @@ class DealController extends AccountBaseController
                     $q->where(function($query) use ($user) {
                         $query->whereHas('leadAgent', function($q) use ($user) {
                             $q->where('user_id', $user->id);
+                        })->orWhereHas('dealParticipants', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
                         })->orWhereHas('dealWatchers', function($q) use ($user) {
                             $q->where('users.id', $user->id);
                         });
@@ -388,6 +392,8 @@ class DealController extends AccountBaseController
                     $q->where(function($query) use ($user) {
                         $query->whereHas('leadAgent', function($q) use ($user) {
                             $q->where('user_id', $user->id);
+                        })->orWhereHas('dealParticipants', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
                         })->orWhereHas('dealWatchers', function($q) use ($user) {
                             $q->where('users.id', $user->id);
                         });
@@ -584,12 +590,7 @@ class DealController extends AccountBaseController
 
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function ($user, $deal) {
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
@@ -1037,17 +1038,11 @@ class DealController extends AccountBaseController
 
         $this->employees = User::allEmployees(null, false);
 
+        // edit_deals is a write gate: agent/participant only. Watchers stay view-only,
+        // see Deal::hasTeamMemberAccess().
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function($user, $deal) {
-                // Check if user is the assigned agent
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                
-                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-                
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'edit_deals', $this->deal, $dealRules);
@@ -1134,17 +1129,11 @@ class DealController extends AccountBaseController
             return Reply::error(__('messages.dealLocked'));
         }
 
+        // edit_deals is a write gate: agent/participant only. Watchers stay view-only,
+        // see Deal::hasTeamMemberAccess().
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function($user, $deal) {
-                // Check if user is the assigned agent
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                
-                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-                
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
@@ -1301,15 +1290,16 @@ class DealController extends AccountBaseController
             ], 403);
         }
 
-        // Check permissions
-        $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
+        // Check permissions. 'owned' includes deal participants (full write access,
+        // same as the agent) but never watchers — see Deal::hasTeamMemberAccess().
+        $hasTeamAccess = $deal->hasTeamMemberAccess(user()->id);
         $editPermission = user()->permission('edit_deals');
-        
+
         abort_403(!(
             $editPermission == 'all'
             || ($editPermission == 'added' && $deal->added_by == user()->id)
-            || ($editPermission == 'owned' && $leadAgentId == user()->id)
-            || ($editPermission == 'both' && ($deal->added_by == user()->id || $leadAgentId == user()->id))
+            || ($editPermission == 'owned' && $hasTeamAccess)
+            || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
         ));
 
         // Get validated data

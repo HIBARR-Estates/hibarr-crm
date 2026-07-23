@@ -61,8 +61,20 @@ export default function WorkspaceContextRail({
     );
     const [emailCopied, setEmailCopied] = useState(false);
     const documents = useDealDocuments(deal, files ?? [], fields, categoryIds);
+    // Dossier only shows the three HIBARR-linked document slots — custom
+    // file-type fields and loose attachments stay in the Files tab.
+    const hibarrDocuments = useMemo(
+        () => documents.documents.filter((doc) => doc.source === "hibarr"),
+        [documents],
+    );
     const { td } = useTd();
-    const { uploadToSlot, isUploadingField, canEdit } = useDealDocumentUpload();
+    const {
+        uploadToSlot,
+        deleteSlot,
+        isUploadingField,
+        isDeletingField,
+        canEdit,
+    } = useDealDocumentUpload();
 
     const toggle = (title: string) =>
         setOpen((prev) => {
@@ -207,52 +219,25 @@ export default function WorkspaceContextRail({
             },
             {
                 title: "Documents",
-                summary: `${documents.uploadedCount}/${documents.totalCount}`,
+                summary: `${hibarrDocuments.filter((doc) => doc.uploaded).length}/${hibarrDocuments.length}`,
                 body: (
                     <div>
-                        {documents.documents.length === 0 ? (
+                        {hibarrDocuments.length === 0 ? (
                             <p className="py-2 text-xs italic text-[#9ca3af]">
                                 {t("pages.deals.dossier.no_document_slots")}
                             </p>
                         ) : (
-                            documents.documents.map((doc) =>
-                                doc.fieldName ? (
-                                    <DealDocumentSlotRow
-                                        key={doc.id}
-                                        doc={doc}
-                                        onUpload={uploadToSlot}
-                                        uploading={isUploadingField(doc.fieldName)}
-                                        disabled={!canEdit}
-                                    />
-                                ) : (
-                                    // Loose attachments have no slot to upload
-                                    // into — they still lead to the Files tab.
-                                    <button
-                                        key={doc.id}
-                                        type="button"
-                                        onClick={() => onNavigateToSubTab("files")}
-                                        className="flex w-full cursor-pointer items-center justify-between border-b border-[#eef0f3] px-0 py-2.5 text-left last:border-b-0"
-                                    >
-                                        <span className="flex items-center gap-1.5 text-xs text-[#1a1f2e]">
-                                            <DealIcon
-                                                name="file-text"
-                                                size={13}
-                                                color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
-                                            />
-                                            {td(doc.label)}
-                                        </span>
-                                        <span
-                                            className={`dr-pill ${
-                                                doc.uploaded ? "dr-pill-green" : "dr-pill-gray"
-                                            }`}
-                                        >
-                                            {doc.uploaded
-                                                ? t("pages.deals.dossier.doc_uploaded")
-                                                : t("pages.deals.dossier.doc_missing")}
-                                        </span>
-                                    </button>
-                                ),
-                            )
+                            hibarrDocuments.map((doc) => (
+                                <DealDocumentSlotRow
+                                    key={doc.id}
+                                    doc={doc}
+                                    onUpload={uploadToSlot}
+                                    onDelete={deleteSlot}
+                                    uploading={isUploadingField(doc.fieldName)}
+                                    deleting={isDeletingField(doc.fieldName)}
+                                    disabled={!canEdit}
+                                />
+                            ))
                         )}
                     </div>
                 ),
@@ -262,7 +247,7 @@ export default function WorkspaceContextRail({
         [
             canEdit,
             deal,
-            documents,
+            hibarrDocuments,
             email,
             emailCopied,
             // Drives the per-slot "Uploading…" state.

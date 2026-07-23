@@ -31,7 +31,7 @@ export interface DealPermissions {
     hasFullDealAccess: boolean;
     /** Whether the deal is locked (no modifications allowed) */
     isLocked: boolean;
-    /** Whether the user can edit the deal (creator, agent, or admin — and not locked) */
+    /** Whether the user can edit the deal (creator, agent, participant, or admin — and not locked) */
     canEdit: boolean;
     /** Whether the user can delete the deal (creator, agent, or admin — and not locked) */
     canDelete: boolean;
@@ -48,8 +48,8 @@ export interface DealPermissions {
  * - Admin: Full access (edit, delete, view)
  * - Deal Creator: Full access (edit, delete, view)
  * - Deal Agent: Full access (edit, delete, view)
+ * - Deal Participant: Same as agent (edit, view — not delete)
  * - Deal Watcher: View only
- * - Deal Participant: View only
  *
  * @param deal - The deal to check permissions for
  * @returns DealPermissions object with role information and permission flags
@@ -122,8 +122,11 @@ export function useDealPermissions(
 
         const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
-        // Admins, creators, and agents can edit/delete — unless the deal is locked
-        const canEdit = !isLocked && (hasFullDealAccess || isCreator || isAgent);
+        // Admins, creators, agents, and participants can edit — participants act with the
+        // same rights as the agent. Watchers stay view-only. Deleting the deal itself is
+        // a heavier action and stays agent/creator/admin only.
+        const canEdit =
+            !isLocked && (hasFullDealAccess || isCreator || isAgent || isParticipant);
         const canDelete = !isLocked && (hasFullDealAccess || isCreator || isAgent);
 
         // Anyone with a role can view (including admins)
@@ -214,8 +217,10 @@ export function getDealPermissions(
 
     const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
-    // Admins, creators, and agents can edit/delete — unless the deal is locked
-    const canEdit = !isLocked && (hasFullDealAccess || isCreator || isAgent);
+    // Admins, creators, agents, and participants can edit — participants act with the
+    // same rights as the agent. Watchers stay view-only. Deleting the deal itself is
+    // a heavier action and stays agent/creator/admin only.
+    const canEdit = !isLocked && (hasFullDealAccess || isCreator || isAgent || isParticipant);
     const canDelete = !isLocked && (hasFullDealAccess || isCreator || isAgent);
 
     // Anyone with a role can view (including admins)
