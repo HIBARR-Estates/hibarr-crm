@@ -414,7 +414,10 @@ class ImportDealJob implements ShouldQueue
 
                 case 'multiSelectCountry':
                     if (is_string($value)) {
-                        $countryNames = array_filter(array_map('trim', preg_split('/[;,|]/', $value)));
+                        // Semicolon only: several country nicenames contain literal commas
+                        // (e.g. "Congo, Democratic Republic of the"), so comma can't be used
+                        // as a separator here without splitting a single name in two.
+                        $countryNames = array_filter(array_map('trim', explode(';', $value)));
                         $validNames = collect(countries())->pluck('nicename')->all();
                         $matched = array_values(array_filter($countryNames, fn ($name) => in_array($name, $validNames, true)));
 

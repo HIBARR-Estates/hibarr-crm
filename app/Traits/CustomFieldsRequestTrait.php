@@ -11,18 +11,27 @@ trait CustomFieldsRequestTrait
     public function customFieldRules($rules = [])
     {
         Validator::extend('valid_multiselect_country', function ($attribute, $value, $parameters, $validator) {
+            // Required-ness is passed as a rule parameter so this rule can independently
+            // reject an empty selection (including a JSON-encoded "[]" string, which
+            // Laravel's own 'required' rule treats as a non-empty, valid string).
+            $isRequired = ($parameters[0] ?? 'no') === 'yes';
+
             if ($value === null || $value === '') {
-                return true; // emptiness is enforced separately by the 'required' rule
+                return !$isRequired;
             }
 
             if (!is_array($value)) {
                 $decoded = json_decode((string) $value, true);
                 $value = is_array($decoded) ? $decoded : [$value];
             }
-            $items = $value;
+
+            if (empty($value)) {
+                return !$isRequired;
+            }
+
             $validNames = collect(countries())->pluck('nicename')->all();
 
-            foreach ($items as $item) {
+            foreach ($value as $item) {
                 if (!in_array($item, $validNames, true)) {
                     return false;
                 }
@@ -47,7 +56,7 @@ trait CustomFieldsRequestTrait
                 }
 
                 if ($customField->type == 'multiSelectCountry') {
-                    $fieldRules[] = 'valid_multiselect_country';
+                    $fieldRules[] = 'valid_multiselect_country:' . $customField->required;
                 }
 
                 if (!empty($fieldRules)) {

@@ -78,7 +78,7 @@
 
             <div class="table-responsive p-20 pipelineData">
                 <div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100" id="customFieldsContainer">
-                    <div id="customFieldSearchNoResults" class="align-items-center d-flex flex-column text-lightest p-20 w-100" style="display: none;">
+                    <div id="customFieldSearchNoResults" class="d-none align-items-center flex-column text-lightest p-20 w-100">
                         <i class="fa fa-search f-21 w-100"></i>
                         <div class="f-15 mt-4">
                             - @lang('messages.noRecordFound') -
@@ -238,7 +238,7 @@
                     $('.custom-field-module-block').show();
                     $('.custom-fields-table tr[draggable="true"]').show();
                     $('.custom-fields-table').hide();
-                    $('#customFieldSearchNoResults').hide();
+                    $('#customFieldSearchNoResults').removeClass('d-flex').addClass('d-none');
                     return;
                 }
 
@@ -265,7 +265,10 @@
                     }
                 });
 
-                $('#customFieldSearchNoResults').toggle(!anyModuleVisible);
+                var showNoResults = !anyModuleVisible;
+                $('#customFieldSearchNoResults')
+                    .toggleClass('d-flex', showNoResults)
+                    .toggleClass('d-none', !showNoResults);
             });
 
             // Drag and drop functionality

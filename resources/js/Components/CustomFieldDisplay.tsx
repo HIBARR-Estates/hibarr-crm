@@ -573,12 +573,31 @@ export default function CustomFieldDisplay({
     if (customFieldsData) {
         Object.keys(customFieldsData).forEach((key) => {
             // Ensure keys are in format "field_47"
-            if (key.startsWith("field_")) {
-                fieldValuesForVisibility[key] = customFieldsData[key];
-            } else {
-                fieldValuesForVisibility[`field_${key}`] =
-                    customFieldsData[key];
+            const normalizedKey = key.startsWith("field_")
+                ? key
+                : `field_${key}`;
+            let fieldValue = customFieldsData[key];
+
+            // multiSelectCountry is stored as a JSON-encoded array string; parse it so
+            // visibility rules that check array membership evaluate against a real array.
+            const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
+            const matchingField = fields.find((f) => {
+                const fId = typeof f.id === "string" ? parseInt(f.id) : f.id;
+                return fId === fieldId;
+            });
+            if (
+                matchingField?.type === "multiSelectCountry" &&
+                typeof fieldValue === "string"
+            ) {
+                try {
+                    const parsed = JSON.parse(fieldValue);
+                    if (Array.isArray(parsed)) fieldValue = parsed;
+                } catch {
+                    // leave as-is
+                }
             }
+
+            fieldValuesForVisibility[normalizedKey] = fieldValue;
         });
     }
 
