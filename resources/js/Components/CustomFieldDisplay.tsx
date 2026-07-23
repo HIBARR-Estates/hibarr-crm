@@ -583,12 +583,31 @@ export default function CustomFieldDisplay({
     if (customFieldsData) {
         Object.keys(customFieldsData).forEach((key) => {
             // Ensure keys are in format "field_47"
-            if (key.startsWith("field_")) {
-                fieldValuesForVisibility[key] = customFieldsData[key];
-            } else {
-                fieldValuesForVisibility[`field_${key}`] =
-                    customFieldsData[key];
+            const normalizedKey = key.startsWith("field_")
+                ? key
+                : `field_${key}`;
+            let fieldValue = customFieldsData[key];
+
+            // multiSelectCountry is stored as a JSON-encoded array string; parse it so
+            // visibility rules that check array membership evaluate against a real array.
+            const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
+            const matchingField = fields.find((f) => {
+                const fId = typeof f.id === "string" ? parseInt(f.id) : f.id;
+                return fId === fieldId;
+            });
+            if (
+                matchingField?.type === "multiSelectCountry" &&
+                typeof fieldValue === "string"
+            ) {
+                try {
+                    const parsed = JSON.parse(fieldValue);
+                    if (Array.isArray(parsed)) fieldValue = parsed;
+                } catch {
+                    // leave as-is
+                }
             }
+
+            fieldValuesForVisibility[normalizedKey] = fieldValue;
         });
     }
 
@@ -651,7 +670,9 @@ export default function CustomFieldDisplay({
 
         // Multiselect/checkbox with more than 3 selected values gets full row
         if (
-            (field.type === "multiselect" || field.type === "checkbox") &&
+            (field.type === "multiselect" ||
+                field.type === "checkbox" ||
+                field.type === "multiSelectCountry") &&
             Array.isArray(value) &&
             value.length > 3
         ) {
@@ -715,6 +736,7 @@ export default function CustomFieldDisplay({
 
             case "multiselect":
             case "checkbox":
+            case "multiSelectCountry":
                 if (Array.isArray(value) && value.length > 0) {
                     // Parse values - can be JSON string array or object
                     let multiValues = field.values;
@@ -1282,6 +1304,7 @@ export default function CustomFieldDisplay({
             | "boolean"
             | "textarea"
             | "country"
+            | "multiSelectCountry"
             | "phone"
             | "email"
             | "currency" = "text";
@@ -1302,6 +1325,9 @@ export default function CustomFieldDisplay({
                 break;
             case "country":
                 type = "country";
+                break;
+            case "multiSelectCountry":
+                type = "multiSelectCountry";
                 break;
             case "phone":
                 type = "phone";
@@ -1504,9 +1530,21 @@ export default function CustomFieldDisplay({
         >
             {filteredFields.map((field) => {
                 const fieldKey = `field_${field.id}`;
-                const value =
+                let value =
                     customFieldsData?.[fieldKey] ??
                     customFieldsData?.[String(field.id)];
+
+                // multiSelectCountry is stored as a JSON-encoded array string; parse it
+                // to an array here so span/format/edit logic can rely on Array.isArray.
+                if (field.type === "multiSelectCountry" && typeof value === "string") {
+                    try {
+                        const parsed = JSON.parse(value);
+                        if (Array.isArray(parsed)) value = parsed;
+                    } catch {
+                        // leave as-is
+                    }
+                }
+
                 const span = calculateSpan(field, value);
 
                 return (

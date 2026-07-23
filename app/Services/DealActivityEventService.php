@@ -569,6 +569,15 @@ class DealActivityEventService
             return '1 file';
         }
 
+        if ($fieldType === 'multiSelectCountry') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded) && !empty($decoded)) {
+                return implode(', ', $decoded);
+            }
+
+            return $trimmed;
+        }
+
         if (in_array($fieldType, ['checkbox', 'multiselect', 'select'], true)) {
             return $trimmed;
         }

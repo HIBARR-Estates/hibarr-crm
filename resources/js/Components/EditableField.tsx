@@ -50,6 +50,7 @@ interface EditableFieldProps {
         | "boolean"
         | "textarea"
         | "country"
+        | "multiSelectCountry"
         | "currency"
         | "file";
     selectorType?: FormDataType;
@@ -256,6 +257,7 @@ export default function EditableField({
             }
         } else if (
             fieldType === "multiselect" ||
+            fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
             setInputValue(
@@ -293,6 +295,7 @@ export default function EditableField({
             }
         } else if (
             fieldType === "multiselect" ||
+            fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
             setInputValue(
@@ -403,7 +406,11 @@ export default function EditableField({
         if (!alwaysEditing) {
             setEditing(false);
         }
-        if (fieldType === "multiselect" || Array.isArray(normalizedValue)) {
+        if (
+            fieldType === "multiselect" ||
+            fieldType === "multiSelectCountry" ||
+            Array.isArray(normalizedValue)
+        ) {
             setInputValue(
                 Array.isArray(normalizedValue)
                     ? normalizedValue
@@ -782,6 +789,73 @@ export default function EditableField({
                             allowClear
                             showSearch
                             placeholder="Select country"
+                            filterOption={(input, option) => {
+                                const searchText = input.toLowerCase();
+                                const countryValue = option?.value as string;
+                                const country = countries?.find(
+                                    (c: any) => c.nicename === countryValue,
+                                );
+
+                                if (!country) return false;
+
+                                // Search by nicename, name, iso, iso3, or nationality
+                                return (
+                                    country.nicename
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.name
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.iso
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.iso3
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.nationality
+                                        ?.toLowerCase()
+                                        .includes(searchText)
+                                );
+                            }}
+                        >
+                            {countries && countries.length > 0 ? (
+                                countries.map((country: any) => (
+                                    <Select.Option
+                                        key={country.iso || country.id}
+                                        value={country.nicename}
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span
+                                                className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`}
+                                            />
+                                            {country.nicename}
+                                            {country.nationality &&
+                                                country.nationality !==
+                                                    "unknown" && (
+                                                    <span className="text-gray-500 text-xs">
+                                                        ({country.nationality})
+                                                    </span>
+                                                )}
+                                        </span>
+                                    </Select.Option>
+                                ))
+                            ) : (
+                                <Select.Option disabled value="">
+                                    No countries available
+                                </Select.Option>
+                            )}
+                        </Select>
+                    ) : fieldType === "multiSelectCountry" ? (
+                        <Select
+                            mode="multiple"
+                            value={inputValue}
+                            onChange={(val) => handleValueChange(val)}
+                            className="flex-1 min-w-[200px]"
+                            disabled={saving || loading}
+                            defaultOpen
+                            allowClear
+                            showSearch
+                            placeholder="Select countries"
                             filterOption={(input, option) => {
                                 const searchText = input.toLowerCase();
                                 const countryValue = option?.value as string;
