@@ -2,16 +2,24 @@
 
 namespace App\Services\EntitySummary;
 
+use App\Exceptions\EntityAiSummaryGenerationException;
 use App\Contracts\EntitySummaryAgentInterface;
+use App\Models\Deal;
 use App\Models\EntityAiSummary;
 use App\Models\Lead;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 class LeadSummaryService
 {
     private const PROMPT_VERSION = 'v1';
+
+    private const REGEN_MAX_ATTEMPTS = 5;
+
+    private const REGEN_DECAY_SECONDS = 60;
 
     public function __construct(
         private EntitySummaryAgentInterface $agent,
@@ -22,17 +30,19 @@ class LeadSummaryService
     ) {}
 
     /**
+     * Return stored summary (even if stale). Null only when no row exists.
+     *
      * @return array<string, mixed>|null
      */
     public function getCached(Lead $lead): ?array
     {
-        $record = EntityAiSummary::query()
-            ->where('company_id', $lead->company_id)
-            ->where('entity_type', EntityAiSummary::TYPE_LEAD)
-            ->where('entity_id', $lead->id)
-            ->first();
+        $record = $this->findRecord($lead);
 
-        return $record?->summary_json;
+        if (! $record) {
+            return null;
+        }
+
+        return $this->enrichSummary($lead, $record);
     }
 
     /**
@@ -40,14 +50,55 @@ class LeadSummaryService
      */
     public function regenerate(Lead $lead): array
     {
+        $rateLimitKey = $this->rateLimitKey($lead);
+
+        if (RateLimiter::tooManyAttempts($rateLimitKey, self::REGEN_MAX_ATTEMPTS)) {
+            throw new EntityAiSummaryGenerationException(
+                'Too many AI summary requests. Please wait a minute and try again.',
+                $this->getCached($lead),
+                429,
+            );
+        }
+
+        $lock = Cache::lock($this->lockKey($lead), 90);
+
+        if (! $lock->get()) {
+            throw new EntityAiSummaryGenerationException(
+                'An AI summary is already being generated for this lead.',
+                $this->getCached($lead),
+                429,
+            );
+        }
+
+        RateLimiter::hit($rateLimitKey, self::REGEN_DECAY_SECONDS);
+
+        try {
+            return $this->generateAndPersist($lead);
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function generateAndPersist(Lead $lead): array
+    {
+        $existing = $this->findRecord($lead);
         $input = $this->inputBuilder->build($lead);
         $inputHash = $this->inputBuilder->inputHash($lead);
 
+        // Use cached/stale deal snapshots only — never force-regen all deals.
         if (! empty($input['sections']['deals'])) {
-            $deals = \App\Models\Deal::where('lead_id', $lead->id)->get();
+            $deals = Deal::where('lead_id', $lead->id)
+                ->orderByDesc('updated_at')
+                ->limit(5)
+                ->get();
+
             foreach ($deals as $deal) {
-                $this->dealSnapshotService->getOrGenerate($deal, forceRegenerate: true);
+                $this->dealSnapshotService->getOrGenerate($deal, forceRegenerate: false);
             }
+
             $input = $this->inputBuilder->build($lead);
         }
 
@@ -59,13 +110,31 @@ class LeadSummaryService
                 $input,
             );
             $this->validator->validateLeadSummary($summary);
+            $source = 'ai';
         } catch (\Throwable $e) {
-            Log::warning('LeadSummaryService: AI failed, using heuristic fallback', [
+            Log::warning('LeadSummaryService: AI generation failed', [
                 'lead_id' => $lead->id,
                 'message' => $e->getMessage(),
             ]);
+
+            if ($existing && $this->isPreferableExisting($existing->summary_json ?? [])) {
+                throw new EntityAiSummaryGenerationException(
+                    'Failed to generate AI summary. Your previous summary was kept.',
+                    $this->enrichSummary($lead, $existing),
+                    503,
+                    $e,
+                );
+            }
+
             $summary = $this->heuristicFallback($lead, $input);
+            $this->validator->validateLeadSummary($summary);
+            $source = 'heuristic';
         }
+
+        $summary['meta'] = array_merge($summary['meta'] ?? [], [
+            'source' => $source,
+            'is_stale' => false,
+        ]);
 
         EntityAiSummary::updateOrCreate(
             [
@@ -83,6 +152,52 @@ class LeadSummaryService
         );
 
         return $summary;
+    }
+
+    protected function findRecord(Lead $lead): ?EntityAiSummary
+    {
+        return EntityAiSummary::query()
+            ->where('company_id', $lead->company_id)
+            ->where('entity_type', EntityAiSummary::TYPE_LEAD)
+            ->where('entity_id', $lead->id)
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $summary
+     */
+    private function isPreferableExisting(array $summary): bool
+    {
+        $source = $summary['meta']['source'] ?? 'ai';
+
+        return $source !== 'heuristic';
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function enrichSummary(Lead $lead, EntityAiSummary $record): array
+    {
+        $summary = $record->summary_json ?? [];
+        $currentHash = $this->inputBuilder->inputHash($lead);
+        $isStale = $record->input_hash !== $currentHash;
+
+        $summary['meta'] = array_merge($summary['meta'] ?? [], [
+            'is_stale' => $isStale,
+            'source' => $summary['meta']['source'] ?? 'ai',
+        ]);
+
+        return $summary;
+    }
+
+    private function rateLimitKey(Lead $lead): string
+    {
+        return 'entity-ai-summary:lead:'.$lead->id.':user:'.(Auth::id() ?? 'guest');
+    }
+
+    private function lockKey(Lead $lead): string
+    {
+        return 'entity-ai-summary:lead:'.$lead->id;
     }
 
     /**
@@ -174,6 +289,7 @@ class LeadSummaryService
                 'generated_at' => $input['now'],
                 'data_confidence' => 'low',
                 'stale_data_warning' => false,
+                'source' => 'heuristic',
             ],
         ];
     }

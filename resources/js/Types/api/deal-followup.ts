@@ -33,6 +33,7 @@ export interface DealFollowup {
     meeting_type?: {
         id: number;
         name: string;
+        color?: string;
     };
     remark?: string;
     reminders?: Reminder[];

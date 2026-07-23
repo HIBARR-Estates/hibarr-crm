@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\EntityAiSummaryGenerationException;
 use App\Models\Lead;
 use App\Services\EntitySummary\LeadSummaryService;
+use App\Services\PermissionService;
 use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 
@@ -24,6 +26,7 @@ class LeadSummaryController extends AccountBaseController
 
         return response()->json([
             'summary' => $summary,
+            'is_stale' => (bool) ($summary['meta']['is_stale'] ?? false),
         ]);
     }
 
@@ -32,10 +35,19 @@ class LeadSummaryController extends AccountBaseController
         $this->assertFeatureEnabled();
         $this->assertCanViewLead($lead);
 
-        $summary = $this->leadSummaryService->regenerate($lead);
+        try {
+            $summary = $this->leadSummaryService->regenerate($lead);
+        } catch (EntityAiSummaryGenerationException $e) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'summary' => $e->existingSummary(),
+                'is_stale' => (bool) (($e->existingSummary()['meta']['is_stale'] ?? false)),
+            ], $e->getCode() >= 400 ? $e->getCode() : 503);
+        }
 
         return response()->json([
             'summary' => $summary,
+            'is_stale' => false,
         ]);
     }
 
@@ -48,12 +60,13 @@ class LeadSummaryController extends AccountBaseController
     {
         abort_if((int) $lead->company_id !== (int) company()->id, 404);
 
-        $permission = user()->permission('view_lead');
+        $leadRules = [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ];
 
-        abort_unless(in_array($permission, ['all', 'added'], true), 403);
+        $access = PermissionService::checkAccess(user(), 'view_lead', $lead, $leadRules);
 
-        if ($permission === 'added' && (int) $lead->added_by !== (int) user()->id) {
-            abort(403);
-        }
+        abort_unless($access['canAccess'], 403);
     }
 }

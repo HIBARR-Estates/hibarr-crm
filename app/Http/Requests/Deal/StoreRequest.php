@@ -16,6 +16,19 @@ class StoreRequest extends CoreRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('close_date') && $this->close_date === '') {
+            $this->merge(['close_date' => null]);
+        }
+    }
+
+    /**
+     * Get the validation rules that apply to the request.
+     *
+     * @return array
+     */
+
     public function rules()
     {
         $rules = array();
@@ -24,7 +37,7 @@ class StoreRequest extends CoreRequest
         $rules['name'] = 'required';
         $rules['pipeline'] = 'required';
         $rules['stage_id'] = 'required';
-        $rules['close_date'] = 'nullable';
+        $rules['close_date'] = 'nullable|date';
         $rules['value'] = 'nullable|numeric|min:0';
         $rules['manual_value'] = 'nullable|numeric|min:0';
         $rules['value_source'] = 'nullable|in:manual,calculated';

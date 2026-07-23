@@ -104,7 +104,7 @@ class ProjectLocationController extends AccountBaseController
      */
     public function allAirports()
     {
-        $airports = Airport::select('id', 'name', 'code')
+        $airports = Airport::select('id', 'name', 'label', 'code')
             ->orderBy('name')
             ->get();
 

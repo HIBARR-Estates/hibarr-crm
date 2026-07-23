@@ -1,4 +1,6 @@
 import type { Task } from "@/Types/api/tasks";
+import { formatDateWithTime } from "./dateFormat";
+import { initialsFromName } from "./initials";
 
 export interface WorkspaceTaskPreview {
     id: number;
@@ -10,9 +12,18 @@ export interface WorkspaceTaskPreview {
     isOpen: boolean;
 }
 
+export interface WorkspaceTaskAssignee {
+    id: number;
+    name: string;
+    initials: string;
+}
+
 export interface WorkspaceTaskListItem extends WorkspaceTaskPreview {
     assigneeName: string;
     assigneeInitials: string;
+    assignees: WorkspaceTaskAssignee[];
+    /** Plain-text description, empty when the task has none (v2.2 hides it). */
+    descriptionText: string;
 }
 
 const PRIORITY_WEIGHT: Record<WorkspaceTaskPreview["priority"], number> = {
@@ -21,11 +32,6 @@ const PRIORITY_WEIGHT: Record<WorkspaceTaskPreview["priority"], number> = {
     low: 1,
 };
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-});
 
 function parseDueDate(value: string | undefined): Date | null {
     if (!value) return null;
@@ -34,7 +40,8 @@ function parseDueDate(value: string | undefined): Date | null {
 }
 
 function formatDueDate(date: Date | null): string {
-    return date ? DATE_FORMAT.format(date) : "No due date";
+    // Empty, not English - the render site supplies the localised label.
+    return date ? formatDateWithTime(date) : "";
 }
 
 function isOpenTask(task: Task): boolean {
@@ -45,16 +52,6 @@ function isOpenTask(task: Task): boolean {
 
 export function getTaskPriorityWeight(priority: WorkspaceTaskPreview["priority"]): number {
     return PRIORITY_WEIGHT[priority] ?? 0;
-}
-
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
 }
 
 export function toWorkspaceTaskPreview(task: Task): WorkspaceTaskPreview {
@@ -72,13 +69,24 @@ export function toWorkspaceTaskPreview(task: Task): WorkspaceTaskPreview {
     };
 }
 
+function stripHtml(html: string): string {
+    return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+}
+
 export function toWorkspaceTaskListItem(task: Task): WorkspaceTaskListItem {
     const preview = toWorkspaceTaskPreview(task);
     const assigneeName = task.users?.[0]?.name?.trim() || "Unassigned";
+    const assignees = (task.users ?? []).map((user) => ({
+        id: user.id,
+        name: user.name?.trim() || "Unknown",
+        initials: initialsFromName(user.name),
+    }));
 
     return {
         ...preview,
         assigneeName,
         assigneeInitials: initialsFromName(assigneeName),
+        assignees,
+        descriptionText: stripHtml(task.description ?? ""),
     };
 }

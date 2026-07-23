@@ -1,11 +1,12 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
 } from "../components/workspace/meetingFormUtils";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface DealMeetingRescheduleInput {
     date: string;
@@ -19,8 +20,10 @@ interface RescheduleResponse {
 }
 
 export default function useDealMeetingReschedule(followupId: number | null) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { setDealFollowUps } = useDealWorkspace();
 
     const rescheduleMeeting = useCallback(
         async (input: DealMeetingRescheduleInput, onSuccess?: () => void) => {
@@ -70,9 +73,23 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                 const json = (await response.json()) as RescheduleResponse;
 
                 if (json.success) {
-                    message.success("Meeting rescheduled");
+                    message.success(t("pages.deals.workspace.meetings.messages.rescheduled"));
+                    const newDate = new Date(
+                        `${input.date}T${input.startTime}`,
+                    ).toISOString();
+                    setDealFollowUps((prev) =>
+                        prev.map((f) =>
+                            f.id === followupId
+                                ? {
+                                      ...f,
+                                      next_follow_up_date: newDate,
+                                      duration: input.duration,
+                                      status: "scheduled",
+                                  }
+                                : f,
+                        ),
+                    );
                     onSuccess?.();
-                    router.reload({ only: ["dealFollowUps"] });
                     return;
                 }
 
@@ -84,7 +101,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                 setIsSubmitting(false);
             }
         },
-        [followupId],
+        [followupId, setDealFollowUps, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

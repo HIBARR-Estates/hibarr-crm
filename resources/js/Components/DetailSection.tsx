@@ -75,7 +75,7 @@ export function DetailSection({
                     </button>
                 ) : (
                     <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/80">
-                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                        <h3 className="text-xs font-semibold uppercase tracking-wider text-gray-800">
                             {title}
                         </h3>
                     </div>

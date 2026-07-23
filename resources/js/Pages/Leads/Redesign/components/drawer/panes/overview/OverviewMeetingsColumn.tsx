@@ -34,8 +34,8 @@ export default function OverviewMeetingsColumn({
         <OverviewColumnShell borderSide="right">
             <OverviewColumnHeader
                 icon="calendar"
-                iconBg={T.GOLD_LIGHT}
-                iconColor={T.GOLD_TEXT}
+                iconBg={T.AMBER_SOFT}
+                iconColor={T.AMBER}
                 title={t("modules.lead.followUp")}
                 count={upcomingCount}
                 onAdd={canAdd ? onAddMeeting : undefined}

@@ -21,11 +21,14 @@ class LeadFileController extends AccountBaseController
      * ManageLeadFileController constructor.
      */
 
-    public function __construct()
+    protected FileStorageService $fileStorageService;
+
+    public function __construct(FileStorageService $fileStorageService)
     {
         parent::__construct();
         $this->pageIcon = 'icon-people';
         $this->pageTitle = 'app.menu.lead';
+        $this->fileStorageService = $fileStorageService;
     }
 
     /**
@@ -58,12 +61,25 @@ class LeadFileController extends AccountBaseController
                 $file = new DealFile();
 
                 $file->deal_id = $request->lead_id;
-                $filename = Files::uploadLocalOrS3($fileData, DealFile::FILE_PATH . '/' . $request->lead_id);
-
                 $file->user_id = $this->user->id;
+                $file->added_by = $this->user->id;
                 $file->filename = $fileData->getClientOriginalName();
-                $file->hashname = $filename;
                 $file->size = $fileData->getSize();
+
+                // Upload via the external FileStorageService (matches storeFromExternal /
+                // CustomFieldsTrait), falling back to legacy local/S3 storage if unavailable.
+                try {
+                    $result = $this->fileStorageService->upload($fileData, 'deal-files/' . $request->lead_id);
+                    $file->external_url = $result['downloadUrl'];
+                    $file->object_path = $result['objectPath'];
+                    $file->hashname = '';
+                } catch (\Exception $e) {
+                    Log::error('Deal file upload failed', [
+                        'error' => $e->getMessage(),
+                        'deal_id' => $request->lead_id,
+                    ]);
+                    $file->hashname = Files::uploadLocalOrS3($fileData, DealFile::FILE_PATH . '/' . $request->lead_id);
+                }
 
                 $file->save();
             }

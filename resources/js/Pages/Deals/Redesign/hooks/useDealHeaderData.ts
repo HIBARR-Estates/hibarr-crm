@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { formatDate, formatDateTime } from "../adapters/dateFormat";
 import { Deal } from "@/Types/api/deals";
 
 function formatCurrencyValue(deal: Deal): string {
@@ -11,9 +12,9 @@ export default function useDealHeaderData(deal: Deal) {
     return {
         title: deal.name,
         pipelineName: deal.pipeline?.name ?? "--",
-        createdAt: deal.created_at ? dayjs(deal.created_at).format("MMM DD, YYYY HH:mm") : "--",
-        updatedAt: deal.updated_at ? dayjs(deal.updated_at).format("MMM DD, YYYY HH:mm") : "--",
-        closeDate: deal.close_date ? dayjs(deal.close_date).format("MMM DD, YYYY") : "--",
+        createdAt: formatDateTime(deal.created_at),
+        updatedAt: formatDateTime(deal.updated_at),
+        closeDate: formatDate(deal.close_date),
         value: formatCurrencyValue(deal),
     };
 }

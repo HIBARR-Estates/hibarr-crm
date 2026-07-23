@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
@@ -44,6 +45,7 @@ export default function DealEditMeetingModal({
     meetingTypes,
 }: DealEditMeetingModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const [form, setForm] = useState<MeetingFormState | null>(null);
@@ -97,7 +99,7 @@ export default function DealEditMeetingModal({
     return (
         <DealModal
             open={open}
-            title={td("Edit meeting")}
+            title={t("pages.deals.workspace.meetings.edit_meeting")}
             onClose={handleClose}
             footer={
                 <>
@@ -106,15 +108,15 @@ export default function DealEditMeetingModal({
                         onClick={handleClose}
                         disabled={isUpdating}
                     >
-                        {td("Cancel")}
+                        {t("pages.deals.common.cancel")}
                     </DealButton>
                     <DealButton
-                        variant="navy"
+                        variant="primary"
                         onClick={handleSubmit}
                         loading={isUpdating}
                         disabled={isUpdating}
                     >
-                        {td("Save changes")}
+                        {t("pages.deals.common.save_changes")}
                     </DealButton>
                 </>
             }
@@ -123,7 +125,7 @@ export default function DealEditMeetingModal({
                 <div className="mb-3 space-y-1">
                     {displayErrors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {error}
+                            {td(error)}
                         </p>
                     ))}
                 </div>
@@ -138,7 +140,6 @@ export default function DealEditMeetingModal({
                 }
                 meetingTypes={meetingTypes}
                 disabled={isUpdating}
-                meetingLinkReadOnly
                 showExistingMeetingLinkHint={Boolean(form.meetingLink)}
             />
         </DealModal>

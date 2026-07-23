@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { Deal } from "@/Types/api/deals";
 import {
     buildCoreNavItem,
+    CORE_SECTION_FIELD_LABELS,
     DEAL_INFO_CORE_SECTION_ORDER,
     DEAL_INFO_NOW_SECTION_COUNT,
     getCategoriesForCoreSection,
@@ -25,9 +26,11 @@ interface NavGroup {
         id: DealInfoSectionId;
         label: string;
         icon: string;
-        badge: string;
+        badge?: string;
         badgeVariant: "blue" | "gray";
         later?: boolean;
+        /** Field labels inside the section, matched by the sidebar search. */
+        searchTerms?: string[];
     }>;
 }
 
@@ -69,13 +72,14 @@ function countSectionCompletion(
     );
 
     const hibarrKeysBySection: Partial<Record<DealInfoCoreSectionId, string[]>> = {
-        general: ["interested_in", "budget_range"],
         preftimeline: [
             "purchase_timeline",
             "motivation",
             "strategy_meeting_booked",
             "downpayment_paid",
             "inspection_trip_date",
+            "interested_in",
+            "budget_range",
         ],
         funding: [
             "deposit_confirmation",
@@ -86,17 +90,7 @@ function countSectionCompletion(
     };
 
     const dealKeysBySection: Partial<Record<DealInfoCoreSectionId, string[]>> = {
-        general: [
-            "name",
-            "value",
-            "close_date",
-            "lead_id",
-            "category_id",
-            "email",
-            "mobile",
-            "company_name",
-        ],
-        property: ["products"],
+        general: ["name", "close_date", "category_id", "products"],
     };
 
     let filled = 0;
@@ -110,18 +104,6 @@ function countSectionCompletion(
     for (const key of dealKeysBySection[sectionId] ?? []) {
         if (key === "products") {
             track(deal.products?.length ? deal.products : null);
-            continue;
-        }
-        if (key === "email") {
-            track(deal.contact?.client_email);
-            continue;
-        }
-        if (key === "mobile") {
-            track(deal.contact?.mobile);
-            continue;
-        }
-        if (key === "company_name") {
-            track(deal.contact?.company_name);
             continue;
         }
         track((deal as unknown as Record<string, unknown>)[key]);
@@ -171,6 +153,7 @@ export default function useDealInfoNavigation(
     deal: Deal,
     fields: CustomFieldDefinition[] = [],
     customFieldCategories: Array<{ id: number; name: string }> = [],
+    consents: Array<{ name?: string }> = [],
 ) {
     return useMemo(() => {
         const nowSections = DEAL_INFO_CORE_SECTION_ORDER.slice(
@@ -181,6 +164,32 @@ export default function useDealInfoNavigation(
             DEAL_INFO_NOW_SECTION_COUNT,
         );
         const unmappedCategories = getUnmappedCategories(customFieldCategories);
+
+        const coreSearchTerms = (
+            sectionId: (typeof DEAL_INFO_CORE_SECTION_ORDER)[number],
+        ) => [
+            ...(CORE_SECTION_FIELD_LABELS[sectionId] ?? []),
+            ...getCategoriesForCoreSection(sectionId, customFieldCategories)
+                .flatMap((category) =>
+                    fields
+                        .filter(
+                            (field) =>
+                                Number(field.custom_field_category_id) ===
+                                category.id,
+                        )
+                        .map((field) => field.label ?? field.name ?? ""),
+                )
+                .filter(Boolean),
+        ];
+
+        const categorySearchTerms = (categoryId: number) =>
+            fields
+                .filter(
+                    (field) =>
+                        Number(field.custom_field_category_id) === categoryId,
+                )
+                .map((field) => field.label ?? field.name ?? "")
+                .filter(Boolean);
 
         const nowItems = nowSections.map((sectionId) => {
             const { filled, total } = countSectionCompletion(
@@ -193,6 +202,7 @@ export default function useDealInfoNavigation(
             return {
                 ...item,
                 badge: total > 0 ? `${filled}/${total}` : "--",
+                searchTerms: coreSearchTerms(sectionId),
             };
         });
 
@@ -210,6 +220,7 @@ export default function useDealInfoNavigation(
                     badge:
                         item.stageBadge ??
                         (total > 0 ? `${filled}/${total}` : "--"),
+                    searchTerms: coreSearchTerms(sectionId),
                 };
             }),
             ...unmappedCategories.map((category) => {
@@ -225,8 +236,21 @@ export default function useDealInfoNavigation(
                     badge: total > 0 ? `${filled}/${total}` : "--",
                     badgeVariant: "gray" as const,
                     later: true,
+                    searchTerms: categorySearchTerms(category.id),
                 };
             }),
+            // v2.2 places GDPR & consents as the very last nav item. Search
+            // terms come from the deal's actual consent purposes (rendered
+            // as the GDPR table's rows) — falls back to the generic labels
+            // when consents haven't loaded, so the item stays findable.
+            {
+                ...buildCoreNavItem("gdpr", true),
+                badge: undefined,
+                searchTerms: [
+                    ...(CORE_SECTION_FIELD_LABELS.gdpr ?? []),
+                    ...consents.map((consent) => consent.name ?? "").filter(Boolean),
+                ],
+            },
         ];
 
         const navGroups: NavGroup[] = [
@@ -235,5 +259,5 @@ export default function useDealInfoNavigation(
         ];
 
         return { navGroups };
-    }, [customFieldCategories, deal, fields]);
+    }, [consents, customFieldCategories, deal, fields]);
 }

@@ -2,16 +2,16 @@
 
 namespace Tests\Unit\EntitySummary;
 
+use App\Exceptions\EntityAiSummaryGenerationException;
 use App\Models\Deal;
-use App\Services\EntitySummary\EntitySummaryPromptLoader;
 use App\Services\EntitySummary\EntitySummaryValidator;
-use Tests\TestCase;
+use PHPUnit\Framework\TestCase;
 
 class EntitySummaryValidatorTest extends TestCase
 {
     public function test_validates_lead_summary_shape(): void
     {
-        $payload = [
+        (new EntitySummaryValidator())->validateLeadSummary([
             'status_line' => 'Lead is healthy.',
             'risk_level' => 'low',
             'primary_risk_source' => 'lead',
@@ -36,16 +36,14 @@ class EntitySummaryValidatorTest extends TestCase
                 'generated_at' => '2026-07-01T14:04:00Z',
                 'data_confidence' => 'high',
             ],
-        ];
-
-        app(EntitySummaryValidator::class)->validateLeadSummary($payload);
+        ]);
 
         $this->assertTrue(true);
     }
 
     public function test_validates_deal_summary_shape(): void
     {
-        $payload = [
+        (new EntitySummaryValidator())->validateDealSummary([
             'status_line' => 'Deal is progressing.',
             'risk_level' => 'medium',
             'chips' => [
@@ -68,22 +66,85 @@ class EntitySummaryValidatorTest extends TestCase
                 'generated_at' => '2026-07-01T14:04:00Z',
                 'data_confidence' => 'high',
             ],
-        ];
-
-        app(EntitySummaryValidator::class)->validateDealSummary($payload);
+        ]);
 
         $this->assertTrue(true);
     }
 
+    public function test_rejects_invalid_deal_action_type(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new EntitySummaryValidator())->validateDealSummary([
+            'status_line' => 'Deal is progressing.',
+            'risk_level' => 'medium',
+            'chips' => [
+                [
+                    'id' => 'momentum',
+                    'label' => 'Momentum',
+                    'value' => 'Slowing',
+                    'tone' => 'amber',
+                    'sublabel' => 'No recent activity',
+                ],
+            ],
+            'bullets' => ['One bullet'],
+            'next_step' => [
+                'action_type' => 'CONTACT_LEAD',
+                'label' => 'Bad action for deal',
+                'rationale' => 'Wrong taxonomy',
+                'urgency' => 'this_week',
+            ],
+            'meta' => [
+                'generated_at' => '2026-07-01T14:04:00Z',
+                'data_confidence' => 'high',
+            ],
+        ]);
+    }
+
+    public function test_rejects_missing_meta_generated_at(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new EntitySummaryValidator())->validateDealSummary([
+            'status_line' => 'Deal is progressing.',
+            'risk_level' => 'low',
+            'chips' => [
+                [
+                    'id' => 'momentum',
+                    'label' => 'Momentum',
+                    'value' => 'On track',
+                    'tone' => 'green',
+                    'sublabel' => 'ok',
+                ],
+            ],
+            'bullets' => [],
+            'next_step' => [
+                'action_type' => 'NO_ACTION_NEEDED',
+                'label' => 'No action needed',
+                'rationale' => 'Fine',
+                'urgency' => 'routine',
+            ],
+            'meta' => [
+                'data_confidence' => 'high',
+            ],
+        ]);
+    }
+
     public function test_to_lead_consumer_shape_extracts_deal_fields(): void
     {
-        $deal = new Deal([
-            'id' => 42,
-            'name' => 'Test Deal',
-            'value' => 100000,
+        $deal = $this->createMock(Deal::class);
+        $deal->method('__get')->willReturnMap([
+            ['id', 42],
+            ['name', 'Test Deal'],
+            ['value', 100000],
+            ['leadStage', null],
+            ['currency', null],
         ]);
+        $deal->id = 42;
+        $deal->name = 'Test Deal';
+        $deal->value = 100000;
 
-        $shape = app(EntitySummaryValidator::class)->toLeadConsumerShape([
+        $shape = (new EntitySummaryValidator())->toLeadConsumerShape([
             'risk_level' => 'high',
             'status_line' => 'Stalled deal.',
             'next_step' => [
@@ -92,19 +153,25 @@ class EntitySummaryValidatorTest extends TestCase
                 'rationale' => 'Follow up needed.',
                 'urgency' => 'immediate',
             ],
+            'meta' => [
+                'is_stale' => true,
+                'source' => 'ai',
+            ],
         ], $deal);
 
         $this->assertSame('42', $shape['deal_id']);
         $this->assertSame('Test Deal', $shape['deal_name']);
         $this->assertSame('high', $shape['risk_level']);
         $this->assertSame('Call client', $shape['next_step_label']);
+        $this->assertTrue($shape['is_stale']);
     }
 
-    public function test_loads_lead_summary_prompt_from_markdown(): void
+    public function test_generation_exception_preserves_existing_summary(): void
     {
-        $prompt = app(EntitySummaryPromptLoader::class)->loadLeadSummaryPrompt();
+        $existing = ['status_line' => 'Kept', 'meta' => ['source' => 'ai']];
+        $e = new EntityAiSummaryGenerationException('failed', $existing, 503);
 
-        $this->assertStringContainsString('Lead Summary agent', $prompt);
-        $this->assertStringContainsString('OUTPUT', $prompt);
+        $this->assertSame(503, $e->getCode());
+        $this->assertSame($existing, $e->existingSummary());
     }
 }

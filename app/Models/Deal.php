@@ -203,6 +203,33 @@ class Deal extends BaseModel
         return $this->belongsToMany(User::class, 'deal_participants', 'deal_id', 'user_id')->using(DealParticipant::class);
     }
 
+    /**
+     * Whether $userId has full team access to this deal — participants act with the
+     * same read/write rights as the assigned agent. Use this for any "can edit/write"
+     * gate. Watchers are intentionally excluded here (view-only, see isVisibleToUser()).
+     */
+    public function hasTeamMemberAccess(int $userId): bool
+    {
+        if ($this->leadAgent && (int) $this->leadAgent->user_id === $userId) {
+            return true;
+        }
+
+        return $this->dealParticipants()->where('users.id', $userId)->exists();
+    }
+
+    /**
+     * Whether $userId may view this deal — team members (agent/participant) plus
+     * watchers, who can see everything but never write. Use this for any "can view" gate.
+     */
+    public function isVisibleToUser(int $userId): bool
+    {
+        if ($this->hasTeamMemberAccess($userId)) {
+            return true;
+        }
+
+        return $this->dealWatchers()->where('users.id', $userId)->exists();
+    }
+
     public function contact(): BelongsTo
     {
         return $this->belongsTo(Lead::class, 'lead_id');

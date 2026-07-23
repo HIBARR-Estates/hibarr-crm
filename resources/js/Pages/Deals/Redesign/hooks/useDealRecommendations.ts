@@ -14,6 +14,9 @@ export default function useDealRecommendations(dealId: number) {
         useApiQuery<RecommendationsResponse>({
             path: queryPath,
             params: { limit: 10 },
+            // Recommendations are expensive to compute — keep them fresh for a
+            // minute so tab-switching doesn't refire the query each remount.
+            options: { staleTime: 60_000 },
         });
 
     const recommendations = data?.recommendations ?? [];

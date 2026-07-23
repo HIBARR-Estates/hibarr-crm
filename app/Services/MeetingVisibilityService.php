@@ -52,6 +52,8 @@ class MeetingVisibilityService
                     $q->where(function ($query) use ($user) {
                         $query->whereHas('leadAgent', function ($q) use ($user) {
                             $q->where('user_id', $user->id);
+                        })->orWhereHas('dealParticipants', function ($q) use ($user) {
+                            $q->where('users.id', $user->id);
                         })->orWhereHas('dealWatchers', function ($q) use ($user) {
                             $q->where('users.id', $user->id);
                         });

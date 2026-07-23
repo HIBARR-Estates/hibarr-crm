@@ -264,8 +264,13 @@ class FormDataService
 
     private function getLeadAgents(Request $request)
     {
-        $query = LeadAgent::select('id', 'user_id')
-            ->with('user:id,name,email,image,status')
+        $query = LeadAgent::select('id', 'user_id', 'lead_category_id', 'status')
+            ->with([
+                'user:id,name,email,image,status',
+                'user.employeeDetail:id,user_id,designation_id',
+                'user.employeeDetail.designation:id,name',
+            ])
+            ->where('status', 'enabled')
             ->whereHas('user', fn($q) => $q->where('status', 'active'));
 
         if ($request->filled('search')) {

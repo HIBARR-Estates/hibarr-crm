@@ -49,6 +49,8 @@ export interface EntitySummaryMeta {
     generated_at: string;
     data_confidence: "high" | "medium" | "low";
     stale_data_warning?: boolean;
+    is_stale?: boolean;
+    source?: "ai" | "heuristic";
 }
 
 export interface LeadSummaryPayload {

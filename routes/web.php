@@ -661,6 +661,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/create', [DealController::class, 'create'])->name('deals.create');
     Route::post('deals', [DealController::class, 'store'])->name('deals.store');
     Route::get('deals/{deal}', [DealController::class, 'show'])->name('deals.show');
+    Route::get('deals/{deal}/refresh', [DealController::class, 'refresh'])->name('deals.refresh');
     Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
     Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');

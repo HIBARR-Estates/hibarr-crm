@@ -7,33 +7,42 @@ import type { Note } from "@/Types/api/note";
 import type { Proposal } from "@/Types/api/proposal";
 import type { Task } from "@/Types/api/tasks";
 
-export type DealMainTab = "workspace" | "dealinfo" | "timeline";
-export type WorkspaceSubTab =
+/**
+ * v2.2 uses a single flat tab bar: record tabs, then a divider, then meta tabs.
+ * There is no separate "workspace" wrapper tab.
+ */
+export type DealRecordTab =
     | "overview"
     | "notes"
     | "tasks"
     | "meetings"
     | "files"
     | "offers"
-    | "recommendations";
+    | "recommendations"
+    | "itinerary";
 
-export interface WorkspaceSubTabCount {
+export type DealMetaTab = "dealinfo" | "timeline";
+
+export type DealTab = DealRecordTab | DealMetaTab;
+
+export interface DealTabCount {
     notes?: number;
     tasks?: number;
     meetings?: number;
     files?: number;
     offers?: number;
     recommendations?: number;
+    itinerary?: number;
 }
 export type DealInfoCoreSectionId =
     | "general"
     | "experience"
-    | "property"
     | "income"
     | "location"
     | "preftimeline"
     | "funding"
-    | "support";
+    | "support"
+    | "gdpr";
 
 export type DealInfoSectionId =
     | DealInfoCoreSectionId
@@ -48,6 +57,7 @@ export interface DealShowProps extends PageProps {
     permissions: Record<string, string>;
     pageTitle: string;
     dealAiSummary?: DealSummaryPayload | null;
+    restrictPackageOrProperty?: boolean;
     // C1 deferred — may be undefined until Inertia resolves them
     notes?: Note[];
     dealFollowUps?: DealFollowup[];

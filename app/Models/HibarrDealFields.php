@@ -77,6 +77,8 @@ class HibarrDealFields extends Model
             return $value;
         }
 
-        return asset_url_local_s3('custom_fields/' . $value);
+        // Legacy local/S3 fallback — hibarr documents are stored under
+        // hibarr_fields/, not custom_fields/ (see DealGatheringService::deleteHibarrFieldFile()).
+        return asset_url_local_s3('hibarr_fields/' . $value);
     }
 }

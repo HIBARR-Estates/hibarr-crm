@@ -5,19 +5,19 @@ import { LEAD_REDESIGN_TOKENS as T } from "../../types";
 import { formatPhoneNumber } from "@/lib/utils";
 
 const URGENCY_BG: Record<LeadMission["urgency"], string> = {
-    amber: T.GOLD_LIGHT,
+    amber: T.AMBER_SOFT,
     blue: T.BLUE_LIGHT,
     green: T.GREEN_LIGHT,
 };
 
 const URGENCY_BORDER: Record<LeadMission["urgency"], string> = {
-    amber: "#fbe389",
+    amber: T.AMBER_MID,
     blue: T.BLUE_MID,
     green: T.GREEN_MID,
 };
 
 const URGENCY_LABEL: Record<LeadMission["urgency"], string> = {
-    amber: T.GOLD_TEXT,
+    amber: T.AMBER,
     blue: T.BLUE,
     green: T.GREEN,
 };

@@ -11,9 +11,18 @@ import dayjs from "dayjs";
 
 interface Props extends IModalProps {
     followup?: DealFollowup;
+    onDeleted?: (followupId: number) => void;
+    /** When true, skip the Inertia reload after delete (parent updates local state). */
+    skipReload?: boolean;
 }
 
-const DeleteFollowup: React.FC<Props> = ({ followup, onClose, open }) => {
+const DeleteFollowup: React.FC<Props> = ({
+    followup,
+    onClose,
+    open,
+    onDeleted,
+    skipReload,
+}) => {
     const handleCancel = () => {
         onClose();
     };
@@ -29,8 +38,10 @@ const DeleteFollowup: React.FC<Props> = ({ followup, onClose, open }) => {
     const onSubmit = () => {
         mutate(null, {
             onSuccess: () => {
-                console.log("Follow-up deleted successfully");
-                router.reload();
+                if (followup?.id) onDeleted?.(followup.id);
+                if (!skipReload) {
+                    router.reload();
+                }
             },
         });
     };

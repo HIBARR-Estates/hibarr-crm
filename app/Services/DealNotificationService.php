@@ -75,11 +75,16 @@ class DealNotificationService
         $userIds = collect();
 
         // Load relationships if not already loaded
-        $deal->loadMissing(['leadAgent.user', 'dealWatchers']);
+        $deal->loadMissing(['leadAgent.user', 'dealWatchers', 'dealParticipants']);
 
         // Add the assigned agent's user ID
         if ($deal->leadAgent && $deal->leadAgent->user_id) {
             $userIds->push($deal->leadAgent->user_id);
+        }
+
+        // Participants receive every notification the agent does — same access, same visibility.
+        if ($deal->dealParticipants && $deal->dealParticipants->isNotEmpty()) {
+            $userIds = $userIds->merge($deal->dealParticipants->pluck('id')->toArray());
         }
 
         // Add all watcher user IDs

@@ -1,9 +1,14 @@
 import { useState } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { TimelineEventViewModel } from "../../adapters/timelineAdapter";
+import useDealTimelineEventMutations, {
+    TimelineEventUpdateInput,
+} from "../../hooks/useDealTimelineEventMutations";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import DealButton from "../primitives/DealButton";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealTimelineEventRow from "./DealTimelineEventRow";
+import DealTimelineEventEditModal from "./DealTimelineEventEditModal";
 
 interface DealTimelineEventListProps {
     events: TimelineEventViewModel[];
@@ -11,6 +16,10 @@ interface DealTimelineEventListProps {
     hasNextPage: boolean;
     isFetchingNextPage: boolean;
     onLoadMore: () => void;
+    /** Whether the current user may edit/delete agent-logged events (admin). */
+    canManage?: boolean;
+    /** Called after a successful edit/delete to refresh the list. */
+    onChanged?: () => void;
 }
 
 function TimelineSkeleton() {
@@ -35,9 +44,18 @@ export default function DealTimelineEventList({
     hasNextPage,
     isFetchingNextPage,
     onLoadMore,
+    canManage = false,
+    onChanged,
 }: DealTimelineEventListProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [expandedId, setExpandedId] = useState<string | null>(null);
+    const [editingEvent, setEditingEvent] =
+        useState<TimelineEventViewModel | null>(null);
+    const [deletingEvent, setDeletingEvent] =
+        useState<TimelineEventViewModel | null>(null);
+
+    const { updateEvent, deleteEvent, savingUuid, deletingUuid } =
+        useDealTimelineEventMutations(() => onChanged?.());
 
     if (isLoading) {
         return <TimelineSkeleton />;
@@ -46,10 +64,20 @@ export default function DealTimelineEventList({
     if (events.length === 0) {
         return (
             <div style={{ fontSize: 12, color: T.TEXT_HINT, padding: "8px 0" }}>
-                {td("No events yet")}
+                {t("pages.deals.timeline.empty")}
             </div>
         );
     }
+
+    const handleEditSubmit = (input: TimelineEventUpdateInput) => {
+        if (!editingEvent) return;
+        updateEvent(editingEvent.id, input, () => setEditingEvent(null));
+    };
+
+    const handleDeleteConfirm = () => {
+        if (!deletingEvent) return;
+        deleteEvent(deletingEvent.id, () => setDeletingEvent(null));
+    };
 
     return (
         <>
@@ -63,6 +91,9 @@ export default function DealTimelineEventList({
                             current === event.id ? null : event.id,
                         )
                     }
+                    canManage={canManage}
+                    onEdit={setEditingEvent}
+                    onDelete={setDeletingEvent}
                 />
             ))}
 
@@ -73,10 +104,30 @@ export default function DealTimelineEventList({
                         onClick={onLoadMore}
                         loading={isFetchingNextPage}
                     >
-                        {td("Load more")}
+                        {t("pages.deals.timeline.load_more")}
                     </DealButton>
                 </div>
             )}
+
+            <DealTimelineEventEditModal
+                event={editingEvent}
+                open={editingEvent !== null}
+                saving={savingUuid !== null}
+                onClose={() => setEditingEvent(null)}
+                onSubmit={handleEditSubmit}
+            />
+
+            <DealConfirmDialog
+                open={deletingEvent !== null}
+                title={t("pages.deals.timeline.delete_confirm_title")}
+                message={t("pages.deals.timeline.delete_confirm_message")}
+                confirmLabel={t("pages.deals.timeline.delete_event")}
+                cancelLabel={t("pages.deals.common.cancel")}
+                danger
+                confirmLoading={deletingUuid !== null}
+                onConfirm={handleDeleteConfirm}
+                onCancel={() => setDeletingEvent(null)}
+            />
         </>
     );
 }

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Helper\Files;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\LeadPipeline;
@@ -18,6 +19,7 @@ class DealGatheringService
     protected DealNotificationService $notificationService;
     protected DealAutomationService $dealAutomationService;
     protected DealValueResolver $dealValueResolver;
+    protected FileStorageService $fileStorageService;
     protected PipelineScopeResolverService $scopeResolver;
     protected PackagePipelineRouterService $packageRouter;
 
@@ -25,12 +27,14 @@ class DealGatheringService
         DealNotificationService $notificationService,
         DealAutomationService $dealAutomationService,
         DealValueResolver $dealValueResolver,
+        FileStorageService $fileStorageService,
         PipelineScopeResolverService $scopeResolver,
         PackagePipelineRouterService $packageRouter
     ) {
         $this->notificationService = $notificationService;
         $this->dealAutomationService = $dealAutomationService;
         $this->dealValueResolver = $dealValueResolver;
+        $this->fileStorageService = $fileStorageService;
         $this->scopeResolver = $scopeResolver;
         $this->packageRouter = $packageRouter;
     }
@@ -152,17 +156,25 @@ class DealGatheringService
             ->first();
         $pipelineStageId = $firstStage?->id ?? 1;
         
+        $agentId = app(DealAgentAssignmentService::class)->resolveAgentId(
+            null,
+            $lead->lead_owner ? (int) $lead->lead_owner : null,
+            user()?->id,
+            $lead->category_id ? (int) $lead->category_id : null
+        );
+
         $deal = Deal::create([
             'lead_id' => $lead->id,
             'name' => $dealName,
             'lead_pipeline_id' => $leadPipelineId,
             'pipeline_stage_id' => $pipelineStageId,
+            'agent_id' => $agentId,
             'value' => 0,
             'manual_value' => 0,
             'calculated_value' => 0,
             'value_source' => DealValueResolver::SOURCE_CALCULATED,
             'added_by' => user()->id,
-            'close_date' => now()->addDays(30),
+            'close_date' => null,
         ]);
 
         return $deal;
@@ -382,15 +394,26 @@ class DealGatheringService
                         // Get existing file to delete if exists
                         $existingFields = $deal->hibarrFields;
                         if ($existingFields && $existingFields->{$key}) {
-                            Files::deleteFile($existingFields->{$key}, 'hibarr_fields');
+                            $this->deleteHibarrFieldFile($existingFields->{$key});
                         }
-                        // Upload new file
-                        $hibarrData[$key] = Files::uploadLocalOrS3($value, 'hibarr_fields');
+                        // Upload new file via the external FileStorageService (matches
+                        // CustomFieldsTrait's file-type custom fields), falling back to
+                        // legacy local/S3 storage if the external service is unavailable.
+                        try {
+                            $result = $this->fileStorageService->upload($value, 'hibarr_fields');
+                            $hibarrData[$key] = $result['downloadUrl'];
+                        } catch (\Exception $e) {
+                            \Log::error('Hibarr field file upload failed', [
+                                'error' => $e->getMessage(),
+                                'field' => $key,
+                            ]);
+                            $hibarrData[$key] = Files::uploadLocalOrS3($value, 'hibarr_fields');
+                        }
                     } elseif (in_array($key, $fileFields) && ($value === '' || $value === null)) {
                         // Handle file deletion (empty string or null)
                         $existingFields = $deal->hibarrFields;
                         if ($existingFields && $existingFields->{$key}) {
-                            Files::deleteFile($existingFields->{$key}, 'hibarr_fields');
+                            $this->deleteHibarrFieldFile($existingFields->{$key});
                         }
                         $hibarrData[$key] = null;
                     } else {
@@ -419,6 +442,37 @@ class DealGatheringService
         return $deal->fresh();
     }
 
+    /**
+     * Delete a hibarr field file, handling both external URLs (FileStorageService)
+     * and legacy local/S3 files — same approach as CustomFieldsTrait::deleteCustomFieldFile().
+     */
+    private function deleteHibarrFieldFile(string $fileRef): void
+    {
+        if (empty($fileRef)) {
+            return;
+        }
+
+        if (FileStorageService::isExternalUrl($fileRef)) {
+            $objectPath = FileStorageService::extractObjectPathFromUrl($fileRef);
+            if ($objectPath) {
+                try {
+                    $this->fileStorageService->delete($objectPath);
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to delete external hibarr field file', [
+                        'url' => $fileRef,
+                        'objectPath' => $objectPath,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        } else {
+            Files::deleteFile($fileRef, 'hibarr_fields');
+        }
+    }
+
+    /**
+     * Route package pipeline when field triggers match, for dynamic gathering.
+     */
     protected function attemptFieldTriggerRouting(Deal $deal, array $data): void
     {
         $fieldCatalog = app(PackageRoutingFieldCatalog::class);
@@ -454,5 +508,6 @@ class DealGatheringService
         }
 
         return $key;
+    }
     }
 }

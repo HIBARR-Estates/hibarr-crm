@@ -1,23 +1,29 @@
 import { ReactNode } from "react";
+import useTranslation from "@/Hooks/useTranslation";
+import DealIcon from "./DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
 interface DealPanelHeaderProps {
     title: string;
+    /** Wired to the dialog's aria-labelledby when used as a modal header. */
+    titleId?: string;
     rightSlot?: ReactNode;
     onClose?: () => void;
 }
 
+/** Ported from v2.2's Modal header (deal-v2-2.jsx:757-760). */
 export default function DealPanelHeader({
     title,
+    titleId,
     rightSlot,
     onClose,
 }: DealPanelHeaderProps) {
+    const { t } = useTranslation();
     return (
         <div
             style={{
-                background: T.NAVY,
-                color: T.WHITE,
-                padding: "12px 18px",
+                padding: "16px 18px",
+                borderBottom: `1px solid ${T.BORDER}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
@@ -25,11 +31,11 @@ export default function DealPanelHeader({
             }}
         >
             <span
+                id={titleId}
                 style={{
-                    fontSize: 12,
+                    fontSize: 16,
                     fontWeight: 700,
-                    letterSpacing: "0.08em",
-                    textTransform: "uppercase",
+                    color: T.TEXT,
                     whiteSpace: "nowrap",
                 }}
             >
@@ -39,19 +45,17 @@ export default function DealPanelHeader({
                 {rightSlot}
                 {onClose && (
                     <button
+                        type="button"
                         onClick={onClose}
-                        aria-label="Close"
+                        aria-label={t("pages.deals.common.close")}
+                        className="dr-btn dr-btn-sm"
                         style={{
-                            background: "transparent",
+                            background: T.WHITE,
+                            color: T.TEXT_MUTED,
                             border: "none",
-                            color: "rgba(255,255,255,0.75)",
-                            cursor: "pointer",
-                            fontSize: 16,
-                            lineHeight: 1,
-                            padding: 2,
                         }}
                     >
-                        X
+                        <DealIcon name="x" size={16} />
                     </button>
                 )}
             </div>

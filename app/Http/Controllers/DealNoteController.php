@@ -104,7 +104,7 @@ class DealNoteController extends AccountBaseController
             ]);
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes']);
+        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes', 'data' => $note->load('addedBy')]);
     }
 
     public function edit($id)
@@ -141,7 +141,7 @@ class DealNoteController extends AccountBaseController
         $note->details = trim_editor($request->details);
         $note->save();
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes']);
+        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes', 'data' => $note->load('addedBy')]);
     }
 
     public function destroy($id)

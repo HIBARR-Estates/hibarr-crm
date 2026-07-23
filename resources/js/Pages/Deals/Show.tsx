@@ -48,6 +48,7 @@ export interface DealShowPageProps extends PageProps {
     permissions: Record<string, string>;
     pageTitle: string;
     dealAiSummary?: DealSummaryPayload | null;
+    restrictPackageOrProperty?: boolean;
     // C1 deferred — may be undefined until Inertia resolves them
     notes?: Note[];
     dealFollowUps?: DealFollowup[];

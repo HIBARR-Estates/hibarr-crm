@@ -1,19 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import type { Deal } from "@/Types/api/deals";
+import useTranslation from "@/Hooks/useTranslation";
+import { useApiMutate } from "@/lib/api/client";
+import type { ApiResponse } from "@/lib/api/types";
+import { isLoading } from "@/lib/utils";
 import type { Note } from "@/Types/api/note";
 import { toWorkspaceNotePreview } from "../../adapters/noteAdapter";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealNoteCreate from "../../hooks/useDealNoteCreate";
 import DealAvatar from "../primitives/DealAvatar";
+import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import DealNoteDetailModal from "./DealNoteDetailModal";
 
 interface WorkspaceNotesTabProps {
-    deal: Deal;
     notes: Note[];
     permissions: Record<string, string>;
-    onAttachFiles?: () => void;
 }
 
 function canAddNote(permissions: Record<string, string>): boolean {
@@ -24,17 +29,30 @@ function canAddNote(permissions: Record<string, string>): boolean {
     );
 }
 
+/** v2.2 NotesTab (deal-v2-2.jsx:1581-1692): inline composer + select mode +
+ * bulk delete + title-first note cards. */
 export default function WorkspaceNotesTab({
-    deal,
     notes,
     permissions,
-    onAttachFiles,
 }: WorkspaceNotesTabProps) {
     const { td } = useTd();
-    const [noteText, setNoteText] = useState("");
-    const { createNote, isSaving, errors, clearErrors } = useDealNoteCreate(
-        deal.id,
-    );
+    const { t } = useTranslation();
+    const { deal, setNotes } = useDealWorkspace();
+    const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
+    const [title, setTitle] = useState("");
+    const [text, setText] = useState("");
+    const [selectMode, setSelectMode] = useState(false);
+    const [selected, setSelected] = useState<Set<number>>(() => new Set());
+    const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+    const { createNote, isSaving, errors } = useDealNoteCreate(deal.id);
+    const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
+
+    const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
+        { row_ids: string; action_type: string },
+        null,
+        ApiResponse<null>
+    >(route("deal-notes.apply_quick_action"), "POST");
+    const isBulkDeleting = isLoading({ status: bulkStatus });
 
     const noteItems = useMemo(
         () => notes.map((note) => toWorkspaceNotePreview(note)),
@@ -42,111 +60,272 @@ export default function WorkspaceNotesTab({
     );
 
     const showComposer = canAddNote(permissions);
+    // Bulk delete acts across authors, so only expose it with the full scope.
+    const canBulkDelete = permissions.delete_deal_note === "all";
 
-    useEffect(() => {
-        if (!showComposer) {
-            setNoteText("");
-            clearErrors();
-        }
-    }, [clearErrors, showComposer]);
-
-    const handleSave = () => {
-        createNote({ text: noteText }, () => {
-            setNoteText("");
+    const saveNote = () => {
+        createNote({ title, text }, () => {
+            setTitle("");
+            setText("");
         });
+    };
+
+    const toggleSelect = (id: number) =>
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    const exitSelect = () => {
+        setSelectMode(false);
+        setSelected(new Set());
+    };
+    const allSelected =
+        noteItems.length > 0 && selected.size === noteItems.length;
+    const toggleAll = () =>
+        setSelected(
+            allSelected ? new Set() : new Set(noteItems.map((note) => note.id)),
+        );
+
+    const bulkDelete = () => {
+        applyBulkAction(
+            {
+                row_ids: Array.from(selected).join(","),
+                action_type: "delete",
+            },
+            {
+                onSuccess: () => {
+                    setNotes((prev) =>
+                        prev.filter((note) => !selected.has(note.id)),
+                    );
+                    setConfirmBulkDelete(false);
+                    exitSelect();
+                },
+            },
+        );
     };
 
     return (
         <div>
             {showComposer && (
-                <section className="mb-3.5 overflow-hidden rounded-lg border border-[#e2e5ea] bg-white px-[13px] py-[11px]">
+                <div
+                    className="mb-3 rounded-[10px] border p-3"
+                    style={{ background: T.SURFACE_2, borderColor: T.BORDER }}
+                >
                     {errors.length > 0 && (
                         <div className="mb-2 space-y-1">
                             {errors.map((error, index) => (
                                 <p key={index} className="text-xs text-red-600">
-                                    {error}
+                                    {td(error)}
                                 </p>
                             ))}
                         </div>
                     )}
-
-                    <div
-                        className="mb-2.5 rounded-md border px-3 py-2.5"
+                    <input
+                        className="dr-input mb-2"
+                        style={{ fontSize: 13 }}
+                        value={title}
+                        disabled={isSaving}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder={t("pages.deals.workspace.notes.title_placeholder")}
+                        aria-label={t("pages.deals.workspace.notes.title_aria_label")}
+                    />
+                    <textarea
+                        value={text}
+                        disabled={isSaving}
+                        onChange={(e) => setText(e.target.value)}
+                        placeholder={t("pages.deals.workspace.notes.body_placeholder")}
+                        aria-label={t("pages.deals.workspace.notes.body_aria_label")}
+                        className="w-full border-none bg-transparent outline-none"
                         style={{
-                            background: T.BLUE_LIGHT,
-                            borderColor: T.BLUE_MID,
+                            fontSize: 13,
+                            color: T.TEXT,
+                            resize: "none",
+                            height: 64,
+                            fontFamily: "inherit",
+                            lineHeight: 1.55,
                         }}
+                    />
+                    <div
+                        className="flex justify-end gap-1.5 pt-2"
+                        style={{ borderTop: `1px solid ${T.BORDER}` }}
                     >
-                        <textarea
-                            value={noteText}
-                            onChange={(event) => setNoteText(event.target.value)}
-                            placeholder={td(
-                                "Log a note about this interaction...",
-                            )}
-                            className="h-[68px] w-full resize-none border-none bg-transparent text-[13px] leading-relaxed text-[#1a1f2e] outline-none"
-                        />
-                    </div>
-
-                    <div className="flex justify-end gap-1.5 border-t border-[#e2e5ea] pt-2">
-                        {onAttachFiles && (
-                            <DealButton
-                                variant="ghost"
-                                onClick={onAttachFiles}
-                                icon={
-                                    <DealIcon
-                                        name="paperclip"
-                                        size={12}
-                                        color={T.TEXT_MUTED}
-                                    />
-                                }
-                                style={{ fontSize: 12, padding: "6px 11px" }}
-                            >
-                                {td("Attach")}
-                            </DealButton>
-                        )}
                         <DealButton
-                            variant="navy"
-                            onClick={handleSave}
-                            disabled={!noteText.trim() || isSaving}
+                            variant="primary"
+                            size="sm"
+                            disabled={!text.trim() || isSaving}
                             loading={isSaving}
-                            style={{ fontSize: 12, padding: "6px 11px" }}
+                            onClick={saveNote}
                         >
-                            {td("Save note")}
+                            {t("pages.deals.workspace.notes.save")}
                         </DealButton>
                     </div>
-                </section>
+                </div>
+            )}
+
+            {noteItems.length > 0 && canBulkDelete && (
+                <div className="mb-2 flex justify-end">
+                    <DealButton
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                            selectMode ? exitSelect() : setSelectMode(true)
+                        }
+                    >
+                        {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
+                    </DealButton>
+                </div>
+            )}
+
+            {selectMode && (
+                <DealBulkActionBar
+                    count={selected.size}
+                    onClear={() => setSelected(new Set())}
+                    clearLabel={t("pages.deals.common.clear")}
+                >
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-sm"
+                        style={{ background: T.WHITE, color: T.NAVY }}
+                        onClick={toggleAll}
+                    >
+                        {allSelected
+                            ? t("pages.deals.common.deselect_all")
+                            : t("pages.deals.common.select_all")}
+                    </button>
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-sm"
+                        style={{ background: T.RED, color: T.WHITE }}
+                        disabled={!selected.size}
+                        onClick={() => setConfirmBulkDelete(true)}
+                    >
+                        {t("pages.deals.common.delete")}
+                    </button>
+                </DealBulkActionBar>
             )}
 
             {noteItems.length === 0 ? (
                 <p className="px-1 text-[13px] italic text-[#9ca3af]">
-                    {td("No notes yet")}
+                    {t("pages.deals.workspace.notes.empty")}
                 </p>
             ) : (
                 noteItems.map((note) => (
-                    <article
+                    <div
                         key={note.id}
-                        className="mb-2 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
+                        className="dr-card flex items-start gap-2.5"
                     >
-                        <div className="mb-1.5 flex items-center justify-between gap-3">
-                            <div className="flex min-w-0 items-center gap-1.5">
-                                <DealAvatar
-                                    size={24}
-                                    initials={note.authorInitials}
+                        {selectMode && (
+                            <div className="pt-0.5">
+                                <DealSelectCheckbox
+                                    checked={selected.has(note.id)}
+                                    onChange={() => toggleSelect(note.id)}
+                                    label={`${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`}
                                 />
-                                <span className="truncate text-xs font-medium text-[#1a1f2e]">
-                                    {note.authorName}
+                            </div>
+                        )}
+                        <button
+                            type="button"
+                            onClick={() =>
+                                selectMode
+                                    ? toggleSelect(note.id)
+                                    : setSelectedNoteId(note.id)
+                            }
+                            aria-label={
+                                selectMode
+                                    ? `${t("pages.deals.common.select_note")}: ${note.title || note.authorName}`
+                                    : `${t("pages.deals.common.open_note")}: ${note.title || note.authorName}`
+                            }
+                            className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
+                            style={{ color: T.TEXT }}
+                        >
+                            <div className="mb-[7px] flex items-center justify-between gap-2">
+                                <span className="flex min-w-0 items-center gap-[7px]">
+                                    <DealAvatar
+                                        size={24}
+                                        initials={note.authorInitials}
+                                    />
+                                    <span className="min-w-0">
+                                        {note.title ? (
+                                            <>
+                                                <span className="block truncate text-[13px] font-semibold">
+                                                    {note.title}
+                                                    {note.edited && (
+                                                        <span
+                                                            className="text-[12px] font-normal italic"
+                                                            style={{
+                                                                color: T.TEXT_MUTED,
+                                                            }}
+                                                        >
+                                                            {" "}
+                                                            ({t("pages.deals.workspace.notes.edited_tag")})
+                                                        </span>
+                                                    )}
+                                                </span>
+                                                <span
+                                                    className="block text-[12px]"
+                                                    style={{ color: T.TEXT_MUTED }}
+                                                >
+                                                    {note.authorName}
+                                                </span>
+                                            </>
+                                        ) : (
+                                            <span className="block truncate text-[13px] font-semibold">
+                                                {note.authorName}
+                                                {note.edited && (
+                                                    <span
+                                                        className="text-[12px] font-normal italic"
+                                                        style={{
+                                                            color: T.TEXT_MUTED,
+                                                        }}
+                                                    >
+                                                        {" "}
+                                                        ({t("pages.deals.workspace.notes.edited_tag")})
+                                                    </span>
+                                                )}
+                                            </span>
+                                        )}
+                                    </span>
+                                </span>
+                                <span
+                                    className="shrink-0 text-[12px]"
+                                    style={{ color: T.TEXT_MUTED }}
+                                >
+                                    {note.timeLabel}
                                 </span>
                             </div>
-                            <span className="shrink-0 text-[11px] text-[#9ca3af]">
-                                {note.timeLabel}
-                            </span>
-                        </div>
-                        <div className="text-[13px] leading-[1.65] text-[#6b7280]">
-                            {note.body}
-                        </div>
-                    </article>
+                            <div
+                                className="dr-clamp-2 text-[13px]"
+                                style={{ color: T.TEXT_MUTED, lineHeight: 1.6 }}
+                            >
+                                {note.body}
+                            </div>
+                        </button>
+                    </div>
                 ))
             )}
+
+            <DealNoteDetailModal
+                note={selectedNote}
+                permissions={permissions}
+                onClose={() => setSelectedNoteId(null)}
+            />
+
+            <DealConfirmDialog
+                open={confirmBulkDelete}
+                title={`${t("pages.deals.common.delete")} ${selected.size} ${
+                    selected.size === 1
+                        ? t("pages.deals.workspace.notes.item_singular")
+                        : t("pages.deals.workspace.notes.item_plural")
+                }?`}
+                message={t("pages.deals.workspace.notes.delete_confirm_message")}
+                confirmLabel={t("pages.deals.workspace.notes.delete_notes")}
+                danger
+                confirmLoading={isBulkDeleting}
+                onConfirm={bulkDelete}
+                onCancel={() => setConfirmBulkDelete(false)}
+            />
         </div>
     );
 }

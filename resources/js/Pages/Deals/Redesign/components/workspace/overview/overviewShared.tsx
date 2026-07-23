@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import useTranslation from "@/Hooks/useTranslation";
 import DealButton from "../../primitives/DealButton";
 import DealIcon from "../../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../../tokens";
@@ -39,11 +40,7 @@ export function OverviewColumnHeader({
             </div>
             <div className="flex justify-end">
                 {onAdd && (
-                    <DealButton
-                        variant="ghost"
-                        onClick={onAdd}
-                        style={{ fontSize: 11, padding: "3px 8px" }}
-                    >
+                    <DealButton variant="ghost" size="sm" onClick={onAdd}>
                         {addActive ? "Cancel" : addLabel}
                     </DealButton>
                 )}
@@ -107,7 +104,7 @@ export function OverviewViewLink({
     return (
         <button
             type="button"
-            className="text-[11px] text-[#1a6bb5] hover:text-[#145890]"
+            className="text-[12px] text-[#1a6bb5] hover:text-[#145890]"
             onClick={(event) => {
                 event.stopPropagation();
                 onClick();
@@ -136,19 +133,52 @@ export function OverviewColumnPendingSkeleton() {
     );
 }
 
-/** Three-column overview skeleton while notes/tasks/meetings deferred props resolve. */
+/**
+ * Deals overview skeleton. Mirrors the loaded WorkspaceOverviewTab exactly —
+ * same `dr-overview`/`dr-ov-col` columns, and the real column titles are shown
+ * (not hidden behind gray bars) so the user knows which column is which while
+ * data resolves. Only the card rows are skeletoned, and the layout matches the
+ * loaded state so nothing reflows/pops when data arrives.
+ */
 export function OverviewDeferredSkeleton() {
+    const { t } = useTranslation();
+    const columns = [
+        t("pages.deals.tabs.notes"),
+        t("pages.deals.workspace.overview.open_tasks_col"),
+        t("pages.deals.workspace.overview.upcoming_meetings_col"),
+    ];
     return (
-        <div className="grid grid-cols-1 gap-0 xl:grid-cols-3">
-            <OverviewColumnShell borderSide="left">
-                <OverviewColumnPendingSkeleton />
-            </OverviewColumnShell>
-            <OverviewColumnShell borderSide="middle">
-                <OverviewColumnPendingSkeleton />
-            </OverviewColumnShell>
-            <OverviewColumnShell borderSide="right">
-                <OverviewColumnPendingSkeleton />
-            </OverviewColumnShell>
+        <div className="dr-overview">
+            {columns.map((title) => (
+                <div key={title} className="dr-ov-col">
+                    <div className="mb-2.5 flex items-center justify-between gap-2">
+                        <span className="dr-label">{title}</span>
+                    </div>
+                    <div className="flex-1 space-y-2">
+                        {Array.from({ length: 3 }).map((_, index) => (
+                            <div
+                                key={index}
+                                className="rounded-[10px] border border-[#e2e5ea] bg-white px-3 py-2.5"
+                            >
+                                <div className="mb-2 h-3.5 w-2/3 animate-pulse rounded bg-[#eef1f5]" />
+                                <div className="h-3 w-2/5 animate-pulse rounded bg-[#eef1f5]" />
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/** Small card skeleton for context-rail deferred sections (re-exported and
+ * used by the Leads drawer's overviewShared barrel). */
+export function RailCardDeferredSkeleton() {
+    return (
+        <div className="mb-3 animate-pulse rounded-[10px] border border-[#e2e5ea] bg-white p-3.5">
+            <div className="mb-3 h-4 w-1/2 rounded bg-[#eef1f5]" />
+            <div className="mb-2 h-3 w-full rounded bg-[#eef1f5]" />
+            <div className="h-3 w-2/3 rounded bg-[#eef1f5]" />
         </div>
     );
 }
@@ -170,13 +200,3 @@ export function TabDeferredSkeleton({ rows = 4 }: { rows?: number }) {
     );
 }
 
-/** Small card skeleton for context-rail deferred sections. */
-export function RailCardDeferredSkeleton() {
-    return (
-        <div className="mb-3 animate-pulse rounded-[10px] border border-[#e2e5ea] bg-white p-3.5">
-            <div className="mb-3 h-4 w-1/2 rounded bg-[#eef1f5]" />
-            <div className="mb-2 h-3 w-full rounded bg-[#eef1f5]" />
-            <div className="h-3 w-2/3 rounded bg-[#eef1f5]" />
-        </div>
-    );
-}

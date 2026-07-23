@@ -1,31 +1,16 @@
-import { type ReactNode, useMemo, useState } from "react";
-import {
-    CalendarOutlined,
-    CheckCircleOutlined,
-    CloseCircleOutlined,
-    EditOutlined,
-    GiftOutlined,
-    InfoCircleOutlined,
-    LinkOutlined,
-    MailOutlined,
-    PhoneOutlined,
-    ReloadOutlined,
-} from "@ant-design/icons";
-import { Link, router, usePage } from "@inertiajs/react";
-import { Button, Tag, Tooltip } from "antd";
+import { type ReactNode, useState } from "react";
+import { message } from "antd";
+import axios from "axios";
 import dayjs from "dayjs";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import { DetailField } from "@/Components/DetailSection";
-import MultiUserIndicator from "@/Components/MultiUserIndicator";
-import UserIndicator from "@/Components/UserIndicator";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
-import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { Deal, HibarrDealFields } from "@/Types/api/deals";
-import PropertyCarousel from "@/Pages/Deals/Components/PropertyCarousel";
+import DealPackagePropertyManager from "./DealPackagePropertyManager";
 import {
-    DEAL_INFO_SECTION_META,
+    DEAL_INFO_SECTION_TITLES,
     getCategoriesForCoreSection,
     isCategorySectionId,
     parseCategorySectionId,
@@ -33,7 +18,9 @@ import {
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../../types";
 import DealButton from "../primitives/DealButton";
 import DealEditableField from "../primitives/DealEditableField";
+import DealSwitch from "../primitives/DealSwitch";
 import DealInfoGroupTitle from "./DealInfoGroupTitle";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
 interface DealInfoSectionPanelProps {
     sectionId: DealInfoSectionId;
@@ -44,36 +31,28 @@ interface DealInfoSectionPanelProps {
     isLocked: boolean;
     isFieldLoading: (fieldName: string) => boolean;
     updatingField: string | null;
-    isRecalculatingValue: boolean;
     onFieldUpdate: (
         fieldName: string,
         value: unknown,
         type?: "details" | "contact" | "custom_field" | "hibarr_field",
     ) => Promise<void>;
-    onRecalculateValue: () => Promise<void>;
-}
-
-function getMobileNumber(mobile: string | null | undefined) {
-    if (!mobile) return "--";
-    if (typeof mobile === "string" && mobile.trim().startsWith("{")) {
-        try {
-            const mobileData = JSON.parse(mobile.trim());
-            return mobileData?.phone || mobile;
-        } catch {
-            return mobile;
-        }
-    }
-    return mobile;
-}
-
-function formatCurrency(value: number, currencySymbol = "£") {
-    if (!value) return "--";
-    return `${currencySymbol}${value.toLocaleString()}`;
+    /** Batched save for edit mode — persists every changed field grouped by
+     * type in ≤4 requests instead of one PATCH per field. */
+    onFieldsUpdate: (
+        changes: Array<{
+            fieldName: string;
+            value: unknown;
+            type?: "details" | "contact" | "custom_field" | "hibarr_field";
+        }>,
+    ) => Promise<void>;
+    restrictPackageOrProperty?: boolean;
+    consents?: any[];
+    gdprSetting?: { enable_gdpr?: boolean } | null;
 }
 
 function FieldGrid({ children }: { children: ReactNode }) {
     return (
-        <div className="mb-5 grid grid-cols-1 gap-1 gap-x-6 md:grid-cols-2">
+        <div className="mb-5 grid grid-cols-1 gap-4 gap-x-6 md:grid-cols-2">
             {children}
         </div>
     );
@@ -88,53 +67,113 @@ export default function DealInfoSectionPanel({
     isLocked,
     isFieldLoading,
     updatingField,
-    isRecalculatingValue,
     onFieldUpdate,
-    onRecalculateValue,
+    onFieldsUpdate,
+    restrictPackageOrProperty = false,
+    consents = [],
+    gdprSetting = null,
 }: DealInfoSectionPanelProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
-    const { props } = usePage<any>();
+    // Tracks unsaved edits made while the section is in bulk "Edit fields"
+    // mode (v2.2's "switch the whole section into edit mode" — see
+    // sectionSubtitle below), keyed by field name so Save can persist all of
+    // them and Cancel can discard them without touching the deal. Mirrors
+    // the pendingChanges/handleSaveAll pattern already established in the
+    // legacy Deal info tab (Pages/Deals/Components/DealInfoSection.tsx).
+    const [pendingChanges, setPendingChanges] = useState<
+        Record<
+            string,
+            {
+                value: unknown;
+                type?: "details" | "contact" | "custom_field" | "hibarr_field";
+            }
+        >
+    >({});
+    const [isSavingAll, setIsSavingAll] = useState(false);
+    const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
     const { t } = useTranslation();
     const { td } = useTd();
-    const defaultCurrencyCode = props.default_currency_code || "TRY";
+    const { setDeal } = useDealWorkspace();
     const hibarrFields: Partial<HibarrDealFields> = deal.hibarr_fields || {};
-    const valueInsight = useMemo(() => getDealValueInsight(deal), [deal]);
-    const currentCurrencySymbol = deal.currency?.currency_symbol || "£";
     const editing = isEditing && canEdit;
+
+    const refreshDeal = async () => {
+        const response = await axios.get(route("deals.refresh", deal.id));
+        if (response.data?.status === "success" && response.data?.data) {
+            setDeal(response.data.data);
+        }
+    };
+
+    const handleFieldChange = (
+        fieldName: string,
+        value: unknown,
+        type?: "details" | "contact" | "custom_field" | "hibarr_field",
+    ) => {
+        setPendingChanges((previous) => ({
+            ...previous,
+            [fieldName]: { value, type },
+        }));
+    };
+
+    const handleEnterEdit = () => {
+        setPendingChanges({});
+        setIsEditing(true);
+    };
+
+    const handleCancelEdit = () => {
+        setPendingChanges({});
+        setIsEditing(false);
+    };
+
+    const handleSaveAll = async () => {
+        if (!hasUnsavedChanges) return;
+        setIsSavingAll(true);
+        try {
+            // One batched save: onFieldsUpdate groups every change by type and
+            // sends a single request per type (≤4 total), rather than a PATCH
+            // per field.
+            await onFieldsUpdate(
+                Object.entries(pendingChanges).map(([fieldName, change]) => ({
+                    fieldName,
+                    value: change.value,
+                    type: change.type,
+                })),
+            );
+            message.success(t("pages.deals.info.save_all_success"));
+            setPendingChanges({});
+            setIsEditing(false);
+        } catch {
+            message.error(t("pages.deals.info.save_all_error"));
+        } finally {
+            setIsSavingAll(false);
+        }
+    };
 
     const categoryId = isCategorySectionId(sectionId)
         ? parseCategorySectionId(sectionId)
         : null;
 
-    const sectionMeta = categoryId
-        ? {
-              title: td(
-                  customFieldCategories.find(
-                      (category) => category.id === categoryId,
-                  )?.name || "Custom fields",
-              ),
-              subtitle: "Custom field category",
-          }
-        : DEAL_INFO_SECTION_META[sectionId as DealInfoCoreSectionId];
+    const sectionTitle = categoryId
+        ? customFieldCategories.find((category) => category.id === categoryId)
+            ?.name || "Custom fields"
+        : DEAL_INFO_SECTION_TITLES[sectionId as DealInfoCoreSectionId];
+
+    // v2.2's lock/gdpr-aware subtitle copy (deal-v2-2.jsx:3417-3420) — no
+    // per-section static text, since none of it was actually per-section.
+    const sectionSubtitle =
+        sectionId === "gdpr"
+            ? "Lead-level consent records — read only"
+            : isLocked
+                ? "Deal is locked — fields are read only"
+                : "Click any field to edit, or switch the whole section into edit mode";
 
     const mappedCategories = !categoryId
         ? getCategoriesForCoreSection(
-              sectionId as DealInfoCoreSectionId,
-              customFieldCategories,
-          )
+            sectionId as DealInfoCoreSectionId,
+            customFieldCategories,
+        )
         : [];
-
-    const renderBoolean = (value: boolean | undefined) =>
-        value ? (
-            <Tag color="success" icon={<CheckCircleOutlined />}>
-                Yes
-            </Tag>
-        ) : (
-            <Tag color="default" icon={<CloseCircleOutlined />}>
-                No
-            </Tag>
-        );
 
     const renderCustomFields = (
         categoryIds: number[],
@@ -159,8 +198,10 @@ export default function DealInfoSectionPanel({
                             onFieldUpdate(field, value, "custom_field")
                         }
                         editable={editing}
+                        onChange={handleFieldChange}
                         loadingField={updatingField}
                         disabled={!canEdit}
+                        activateOnSingleClick
                     />
                 </div>
             );
@@ -179,105 +220,10 @@ export default function DealInfoSectionPanel({
                         fieldType="text"
                         onSave={(value) => onFieldUpdate("name", value)}
                         alwaysEditing={editing}
+                        onChange={handleFieldChange}
                         loading={isFieldLoading("name")}
                         disabled={!canEdit}
                     />
-                </DetailField>
-                <DetailField label={t("pages.deals.info.fields.deal_value")}>
-                    <div className="flex flex-col items-start gap-2 md:flex-row md:items-center">
-                        <DealEditableField
-                            value={{
-                                amount: deal.value ?? null,
-                                currency:
-                                    deal.currency?.currency_code ||
-                                    defaultCurrencyCode,
-                            }}
-                            fieldName="value"
-                            fieldType="currency"
-                            onSave={(value) => onFieldUpdate("value", value)}
-                            alwaysEditing={editing}
-                            loading={isFieldLoading("value")}
-                            disabled={!canEdit || isLocked}
-                        />
-                        {!editing && (
-                            <>
-                                <Tooltip
-                                    placement="topLeft"
-                                    title={
-                                        <div style={{ minWidth: 220 }}>
-                                            <div>
-                                                {t(
-                                                    "pages.deals.info.value_insight.properties",
-                                                )}
-                                                :{" "}
-                                                {valueInsight.productsTotal !==
-                                                null
-                                                    ? formatCurrency(
-                                                          valueInsight.productsTotal,
-                                                          currentCurrencySymbol,
-                                                      )
-                                                    : "--"}
-                                            </div>
-                                            <div>
-                                                {t(
-                                                    "pages.deals.info.value_insight.packages",
-                                                )}
-                                                :{" "}
-                                                {formatCurrency(
-                                                    valueInsight.packagesTotal,
-                                                    currentCurrencySymbol,
-                                                )}
-                                            </div>
-                                            <div>
-                                                {t(
-                                                    "pages.deals.info.value_insight.total",
-                                                )}
-                                                :{" "}
-                                                {formatCurrency(
-                                                    valueInsight.finalValue,
-                                                    currentCurrencySymbol,
-                                                )}
-                                            </div>
-                                        </div>
-                                    }
-                                >
-                                    <InfoCircleOutlined className="cursor-help text-blue-500" />
-                                </Tooltip>
-                                <Tooltip
-                                    title={t(
-                                        "pages.deals.info.actions.recalculate_value_tooltip",
-                                    )}
-                                >
-                                    <Button
-                                        type="text"
-                                        size="small"
-                                        icon={
-                                            <ReloadOutlined
-                                                spin={isRecalculatingValue}
-                                            />
-                                        }
-                                        onClick={onRecalculateValue}
-                                        disabled={
-                                            !canEdit ||
-                                            isLocked ||
-                                            isRecalculatingValue
-                                        }
-                                    />
-                                </Tooltip>
-                            </>
-                        )}
-                        {!editing &&
-                            deal.total_discount != null &&
-                            deal.total_discount > 0 && (
-                                <Tag color="green" icon={<GiftOutlined />}>
-                                    -
-                                    {formatCurrency(
-                                        Number(deal.total_discount),
-                                        currentCurrencySymbol,
-                                    )}
-                                </Tag>
-                            )}
-                    </div>
                 </DetailField>
                 <DetailField label={t("pages.deals.info.fields.close_date")}>
                     <DealEditableField
@@ -288,71 +234,11 @@ export default function DealInfoSectionPanel({
                         formatValue={(value) =>
                             value
                                 ? dayjs(String(value)).format("MMM DD, YYYY")
-                                : "--"
+                                : t("pages.deals.common.not_set")
                         }
                         alwaysEditing={editing}
+                        onChange={handleFieldChange}
                         loading={isFieldLoading("close_date")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label={t("pages.deals.info.fields.packages")}>
-                    <DealEditableField
-                        value={deal.packages?.map((pkg) => pkg.id) || []}
-                        fieldName="package_id"
-                        selectorType="packages"
-                        mode="multiple"
-                        displayValue={
-                            deal.packages?.length
-                                ? deal.packages
-                                      .map((pkg) => pkg?.name || pkg)
-                                      .join(", ")
-                                : "--"
-                        }
-                        onSave={(value) => onFieldUpdate("package_id", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("package_id")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label={t("pages.deals.info.fields.lead_contact")}>
-                    <DealEditableField
-                        value={deal.lead_id}
-                        fieldName="lead_id"
-                        selectorType="leads"
-                        displayValue={
-                            deal.contact ? (
-                                <div className="flex min-w-0 flex-col gap-1.5">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="font-medium text-gray-900">
-                                            {deal.contact.client_name_salutation ||
-                                                deal.contact.client_name}
-                                        </span>
-                                        {deal.contact.client_id && (
-                                            <Tag color="blue" className="text-xs">
-                                                {t("pages.deals.info.client_tag")}
-                                            </Tag>
-                                        )}
-                                    </div>
-                                    <Link
-                                        href={route(
-                                            "lead-contact.show",
-                                            deal.contact.id,
-                                        )}
-                                        className="inline-flex w-fit items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-800"
-                                    >
-                                        <LinkOutlined />
-                                        {t(
-                                            "pages.deals.info.actions.view_lead_profile",
-                                        )}
-                                    </Link>
-                                </div>
-                            ) : (
-                                <span className="text-gray-400">--</span>
-                            )
-                        }
-                        onSave={(value) => onFieldUpdate("lead_id", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("lead_id")}
                         disabled={!canEdit}
                     />
                 </DetailField>
@@ -367,114 +253,48 @@ export default function DealInfoSectionPanel({
                                     {deal.category.category_name}
                                 </span>
                             ) : (
-                                <span className="text-gray-400">--</span>
+                                <span className="italic text-gray-400">
+                                    {t("pages.deals.common.not_set")}
+                                </span>
                             )
                         }
                         onSave={(value) => onFieldUpdate("category_id", value)}
                         alwaysEditing={editing}
+                        onChange={handleFieldChange}
                         loading={isFieldLoading("category_id")}
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.created_at")}>
-                    {deal.created_at ? (
-                        <span className="flex items-center gap-1">
-                            <CalendarOutlined className="text-gray-400" />
-                            {dayjs(deal.created_at).format("MMM DD, YYYY HH:mm")}
-                        </span>
-                    ) : (
-                        <span className="text-gray-400">--</span>
-                    )}
-                </DetailField>
-                <DetailField label={t("pages.deals.info.fields.updated_at")}>
-                    {deal.updated_at ? (
-                        <span className="flex items-center gap-1">
-                            <CalendarOutlined className="text-gray-400" />
-                            {dayjs(deal.updated_at).format("MMM DD, YYYY HH:mm")}
-                        </span>
-                    ) : (
-                        <span className="text-gray-400">--</span>
-                    )}
-                </DetailField>
-                {deal.lead_status && (
-                    <DetailField label={t("pages.deals.info.fields.status")}>
-                        <Tag
-                            color={deal.lead_status.label_color}
-                            className="font-medium"
-                        >
-                            {deal.lead_status.type}
-                        </Tag>
-                    </DetailField>
+            </FieldGrid>
+
+            <DealPackagePropertyManager
+                deal={deal}
+                canEdit={canEdit}
+                restrictPackageOrProperty={restrictPackageOrProperty}
+                onFieldUpdate={onFieldUpdate}
+                packagesLoading={isFieldLoading("package_id")}
+                onManageProperties={() => setPropertyModalOpen(true)}
+                onRefresh={refreshDeal}
+            />
+
+            {mappedCategories.length > 0 &&
+                renderCustomFields(
+                    mappedCategories.map((category) => category.id),
                 )}
-            </FieldGrid>
 
-            <DealInfoGroupTitle>
-                {t("pages.deals.info.sections.contact_info")}
-            </DealInfoGroupTitle>
-            <FieldGrid>
-                <DetailField
-                    label={t("pages.deals.info.fields.email")}
-                    copyValue={deal.contact?.client_email || undefined}
-                >
-                    <div className="flex w-full items-center gap-x-2">
-                        {deal.contact?.client_email && (
-                            <MailOutlined className="flex-shrink-0 text-gray-400" />
-                        )}
-                        {deal.contact?.client_email ? (
-                            <DealEditableField
-                                value={deal.contact.client_email}
-                                fieldName="email"
-                                fieldType="email"
-                                onSave={(value) => onFieldUpdate("email", value)}
-                                alwaysEditing={editing}
-                                loading={isFieldLoading("email")}
-                                disabled={!canEdit}
-                            />
-                        ) : (
-                            <span className="text-gray-400">--</span>
-                        )}
-                    </div>
-                </DetailField>
-                <DetailField
-                    label={t("pages.deals.info.fields.mobile")}
-                    copyValue={getMobileNumber(deal.contact?.mobile) || undefined}
-                >
-                    {deal.contact ? (
-                        <div className="flex items-center gap-x-2">
-                            <PhoneOutlined className="flex-shrink-0 text-gray-400" />
-                            <DealEditableField
-                                value={getMobileNumber(deal.contact.mobile)}
-                                fieldName="mobile"
-                                fieldType="phone"
-                                onSave={(value) => onFieldUpdate("mobile", value)}
-                                alwaysEditing={editing}
-                                loading={isFieldLoading("mobile")}
-                                disabled={!canEdit}
-                            />
-                        </div>
-                    ) : (
-                        <span className="text-gray-400">--</span>
-                    )}
-                </DetailField>
-                <DetailField
-                    label={t("pages.deals.info.fields.company_name")}
-                    span={2}
-                >
-                    <DealEditableField
-                        value={deal.contact?.company_name}
-                        fieldName="company_name"
-                        fieldType="text"
-                        onSave={(value) => onFieldUpdate("company_name", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("company_name")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-            </FieldGrid>
+            <ManageDealPropertiesModal
+                open={propertyModalOpen}
+                onClose={() => setPropertyModalOpen(false)}
+                deal={deal}
+                onRefresh={refreshDeal}
+            />
+        </>
+    );
 
-            <DealInfoGroupTitle>Interest & Budget</DealInfoGroupTitle>
+    const renderPrefTimeline = () => (
+        <>
             <FieldGrid>
-                <DetailField label="Interested In">
+                <DetailField label={t("pages.deals.info.fields.interested_in")}>
                     <DealEditableField
                         value={hibarrFields.interested_in}
                         fieldName="interested_in"
@@ -483,11 +303,14 @@ export default function DealInfoSectionPanel({
                             onFieldUpdate("interested_in", value, "hibarr_field")
                         }
                         alwaysEditing={editing}
+                        onChange={(fieldName, value) =>
+                            handleFieldChange(fieldName, value, "hibarr_field")
+                        }
                         loading={isFieldLoading("interested_in")}
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Budget range">
+                <DetailField label={t("pages.deals.info.fields.budget_range")}>
                     <DealEditableField
                         value={hibarrFields.budget_range}
                         fieldName="budget_range"
@@ -496,63 +319,14 @@ export default function DealInfoSectionPanel({
                             onFieldUpdate("budget_range", value, "hibarr_field")
                         }
                         alwaysEditing={editing}
+                        onChange={(fieldName, value) =>
+                            handleFieldChange(fieldName, value, "hibarr_field")
+                        }
                         loading={isFieldLoading("budget_range")}
                         disabled={!canEdit}
                     />
                 </DetailField>
-            </FieldGrid>
-
-            {mappedCategories.length > 0 &&
-                renderCustomFields(
-                    mappedCategories.map((category) => category.id),
-                )}
-        </>
-    );
-
-    const renderProperty = () => (
-        <>
-            <FieldGrid>
-                <DetailField
-                    label={t("pages.deals.info.fields.properties")}
-                    span={2}
-                >
-                    <div className="w-full">
-                        <Button
-                            type="link"
-                            size="small"
-                            icon={<EditOutlined />}
-                            onClick={() => setPropertyModalOpen(true)}
-                            className="!px-0 !text-xs"
-                        >
-                            {t("pages.deals.info.actions.manage_properties")}
-                        </Button>
-                        {deal.products && deal.products.length > 0 ? (
-                            <PropertyCarousel products={deal.products} />
-                        ) : (
-                            <span className="text-sm text-gray-400">
-                                {t("pages.deals.info.no_properties")}
-                            </span>
-                        )}
-                    </div>
-                </DetailField>
-            </FieldGrid>
-            {mappedCategories.length > 0 &&
-                renderCustomFields(
-                    mappedCategories.map((category) => category.id),
-                )}
-            <ManageDealPropertiesModal
-                open={propertyModalOpen}
-                onClose={() => setPropertyModalOpen(false)}
-                deal={deal}
-                onRefresh={() => router.reload({ only: ["deal"] })}
-            />
-        </>
-    );
-
-    const renderPrefTimeline = () => (
-        <>
-            <FieldGrid>
-                <DetailField label="Purchase Timeline">
+                <DetailField label={t("pages.deals.info.fields.purchase_timeline")}>
                     <DealEditableField
                         value={hibarrFields.purchase_timeline}
                         fieldName="purchase_timeline"
@@ -565,62 +339,16 @@ export default function DealInfoSectionPanel({
                             )
                         }
                         alwaysEditing={editing}
+                        onChange={(fieldName, value) =>
+                            handleFieldChange(fieldName, value, "hibarr_field")
+                        }
                         loading={isFieldLoading("purchase_timeline")}
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label="Strategy Meeting Booked">
-                    <DealEditableField
-                        value={hibarrFields.strategy_meeting_booked ? 1 : 0}
-                        fieldName="strategy_meeting_booked"
-                        fieldType="boolean"
-                        displayValue={renderBoolean(
-                            hibarrFields.strategy_meeting_booked,
-                        )}
-                        onSave={(value) =>
-                            onFieldUpdate(
-                                "strategy_meeting_booked",
-                                value,
-                                "hibarr_field",
-                            )
-                        }
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("strategy_meeting_booked")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label="Motivation" span={2}>
-                    <DealEditableField
-                        value={hibarrFields.motivation}
-                        fieldName="motivation"
-                        fieldType="textarea"
-                        onSave={(value) =>
-                            onFieldUpdate("motivation", value, "hibarr_field")
-                        }
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("motivation")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label="Downpayment Paid">
-                    <DealEditableField
-                        value={hibarrFields.downpayment_paid ? 1 : 0}
-                        fieldName="downpayment_paid"
-                        fieldType="boolean"
-                        displayValue={renderBoolean(hibarrFields.downpayment_paid)}
-                        onSave={(value) =>
-                            onFieldUpdate(
-                                "downpayment_paid",
-                                value,
-                                "hibarr_field",
-                            )
-                        }
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("downpayment_paid")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label="Inspection Trip Date">
+                <DetailField
+                    label={t("pages.deals.info.fields.inspection_trip_date")}
+                >
                     <DealEditableField
                         value={hibarrFields.inspection_trip_date}
                         fieldName="inspection_trip_date"
@@ -635,189 +363,75 @@ export default function DealInfoSectionPanel({
                         formatValue={(value) =>
                             value
                                 ? dayjs(String(value)).format("MMM DD, YYYY")
-                                : "--"
+                                : t("pages.deals.common.not_set")
                         }
                         alwaysEditing={editing}
+                        onChange={(fieldName, value) =>
+                            handleFieldChange(fieldName, value, "hibarr_field")
+                        }
                         loading={isFieldLoading("inspection_trip_date")}
                         disabled={!canEdit}
                     />
                 </DetailField>
-            </FieldGrid>
-            {mappedCategories.length > 0 &&
-                renderCustomFields(
-                    mappedCategories.map((category) => category.id),
-                )}
-        </>
-    );
-
-    const renderFunding = () => (
-        <>
-            <FieldGrid>
-                <DetailField label="Deposit Confirmation">
-                    <DealEditableField
-                        value={hibarrFields.deposit_confirmation}
-                        fieldName="deposit_confirmation"
-                        fieldType="text"
-                        onSave={(value) =>
+                <DetailField
+                    label={t("pages.deals.info.fields.strategy_meeting_booked")}
+                >
+                    <DealSwitch
+                        checked={!!hibarrFields.strategy_meeting_booked}
+                        onChange={() =>
                             onFieldUpdate(
-                                "deposit_confirmation",
-                                value,
+                                "strategy_meeting_booked",
+                                hibarrFields.strategy_meeting_booked ? 0 : 1,
                                 "hibarr_field",
                             )
                         }
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("deposit_confirmation")}
+                        label={
+                            hibarrFields.strategy_meeting_booked
+                                ? t("pages.deals.common.yes")
+                                : t("pages.deals.common.no")
+                        }
+                        aria-label={t(
+                            "pages.deals.info.fields.strategy_meeting_booked",
+                        )}
                         disabled={!canEdit}
+                        loading={isFieldLoading("strategy_meeting_booked")}
                     />
                 </DetailField>
-                <DetailField label="Reservation Agreement">
-                    <DealEditableField
-                        value={hibarrFields.reservation_agreement}
-                        fieldName="reservation_agreement"
-                        fieldType="file"
-                        onSave={(value) =>
+                <DetailField label={t("pages.deals.info.fields.downpayment_paid")}>
+                    <DealSwitch
+                        checked={!!hibarrFields.downpayment_paid}
+                        onChange={() =>
                             onFieldUpdate(
-                                "reservation_agreement",
-                                value,
+                                "downpayment_paid",
+                                hibarrFields.downpayment_paid ? 0 : 1,
                                 "hibarr_field",
                             )
                         }
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("reservation_agreement")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label="Sales Contract">
-                    <DealEditableField
-                        value={hibarrFields.sales_contract}
-                        fieldName="sales_contract"
-                        fieldType="file"
-                        onSave={(value) =>
-                            onFieldUpdate("sales_contract", value, "hibarr_field")
+                        label={
+                            hibarrFields.downpayment_paid
+                                ? t("pages.deals.common.yes")
+                                : t("pages.deals.common.no")
                         }
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("sales_contract")}
+                        aria-label={t(
+                            "pages.deals.info.fields.downpayment_paid",
+                        )}
                         disabled={!canEdit}
+                        loading={isFieldLoading("downpayment_paid")}
                     />
                 </DetailField>
-            </FieldGrid>
-            {mappedCategories.length > 0 &&
-                renderCustomFields(
-                    mappedCategories.map((category) => category.id),
-                )}
-        </>
-    );
-
-    const renderSupport = () => (
-        <>
-            <FieldGrid>
-                <DetailField label="Message" span={2}>
+                <DetailField label={t("pages.deals.info.fields.motivation")} span={2}>
                     <DealEditableField
-                        value={hibarrFields.message}
-                        fieldName="message"
+                        value={hibarrFields.motivation}
+                        fieldName="motivation"
                         fieldType="textarea"
                         onSave={(value) =>
-                            onFieldUpdate("message", value, "hibarr_field")
+                            onFieldUpdate("motivation", value, "hibarr_field")
                         }
                         alwaysEditing={editing}
-                        loading={isFieldLoading("message")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-            </FieldGrid>
-
-            <DealInfoGroupTitle>
-                {t("pages.deals.info.sections.team")}
-            </DealInfoGroupTitle>
-            <FieldGrid>
-                <DetailField label={t("pages.deals.info.fields.deal_agent")}>
-                    <DealEditableField
-                        value={deal.agent_id}
-                        fieldName="agent_id"
-                        selectorType="lead-agents"
-                        displayValue={
-                            deal.lead_agent?.user ? (
-                                <UserIndicator
-                                    data={deal.lead_agent.user}
-                                    size="sm"
-                                    maxNameLength={40}
-                                />
-                            ) : (
-                                <span className="text-gray-400">--</span>
-                            )
+                        onChange={(fieldName, value) =>
+                            handleFieldChange(fieldName, value, "hibarr_field")
                         }
-                        onSave={(value) => onFieldUpdate("agent_id", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("agent_id")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField
-                    label={t("pages.deals.info.fields.deal_participants")}
-                >
-                    <DealEditableField
-                        value={
-                            deal.deal_participants?.map(
-                                (participant) => participant.id,
-                            ) || []
-                        }
-                        fieldName="deal_participant"
-                        selectorType="employees"
-                        mode="multiple"
-                        displayValue={
-                            deal.deal_participants &&
-                            deal.deal_participants.length > 0 ? (
-                                <MultiUserIndicator
-                                    users={deal.deal_participants.map(
-                                        (participant) => ({
-                                            id: participant.id,
-                                            image_url:
-                                                participant.image_url ||
-                                                participant.image,
-                                            name: participant.name,
-                                        }),
-                                    )}
-                                    size="sm"
-                                />
-                            ) : (
-                                <span className="text-gray-400">--</span>
-                            )
-                        }
-                        onSave={(value) =>
-                            onFieldUpdate("deal_participant", value)
-                        }
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("deal_participant")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label={t("pages.deals.info.fields.deal_watchers")}>
-                    <DealEditableField
-                        value={
-                            deal.deal_watchers?.map((watcher) => watcher.id) ||
-                            []
-                        }
-                        fieldName="deal_watcher"
-                        selectorType="employees"
-                        mode="multiple"
-                        displayValue={
-                            deal.deal_watchers && deal.deal_watchers.length > 0 ? (
-                                <MultiUserIndicator
-                                    users={deal.deal_watchers.map((watcher) => ({
-                                        id: watcher.id,
-                                        image_url:
-                                            watcher.image_url || watcher.image,
-                                        name: watcher.name,
-                                    }))}
-                                    size="sm"
-                                />
-                            ) : (
-                                <span className="text-gray-400">--</span>
-                            )
-                        }
-                        onSave={(value) => onFieldUpdate("deal_watcher", value)}
-                        alwaysEditing={editing}
-                        loading={isFieldLoading("deal_watcher")}
+                        loading={isFieldLoading("motivation")}
                         disabled={!canEdit}
                     />
                 </DetailField>
@@ -829,6 +443,81 @@ export default function DealInfoSectionPanel({
                 )}
         </>
     );
+
+    // v2.2 GDPR & consents section (deal-v2-2.jsx:3513-3541) — read-only table.
+    const renderGdpr = () => {
+        if (!gdprSetting?.enable_gdpr) {
+            return (
+                <p className="text-[13px] italic text-[#9ca3af]">
+                    {t("pages.deals.info.gdpr.not_enabled")}
+                </p>
+            );
+        }
+        if (consents.length === 0) {
+            return (
+                <p className="text-[13px] italic text-[#9ca3af]">
+                    {t("pages.deals.info.gdpr.no_consents")}
+                </p>
+            );
+        }
+        return (
+            <div style={{ maxWidth: 640 }}>
+                <div className="overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white">
+                    <table className="dr-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">{t("pages.deals.info.gdpr.purpose")}</th>
+                                <th scope="col">{t("pages.deals.info.gdpr.description")}</th>
+                                <th scope="col">{t("pages.deals.info.gdpr.status")}</th>
+                                <th scope="col">{t("pages.deals.info.gdpr.date")}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {consents.map((consent) => {
+                                const granted =
+                                    Array.isArray(consent.lead) &&
+                                    consent.lead.length > 0;
+                                return (
+                                    <tr key={consent.id}>
+                                        <td className="font-semibold text-[#1a1f2e]">
+                                            {consent.name}
+                                        </td>
+                                        <td className="text-[#5b6472]">
+                                            {consent.description}
+                                        </td>
+                                        <td>
+                                            <span
+                                                className={`dr-pill ${granted
+                                                    ? "dr-pill-green"
+                                                    : "dr-pill-red"
+                                                    }`}
+                                            >
+                                                {granted
+                                                    ? t("pages.deals.info.gdpr.granted")
+                                                    : t(
+                                                        "pages.deals.info.gdpr.not_granted",
+                                                    )}
+                                            </span>
+                                        </td>
+                                        <td className="text-[#5b6472]">
+                                            {granted && consent.lead[0]?.created_at
+                                                ? dayjs(
+                                                    consent.lead[0].created_at,
+                                                ).format("D MMM YYYY")
+                                                : "—"}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+                <div className="mt-2 text-[12px] leading-normal text-[#5b6472]">
+                    {t("pages.deals.info.gdpr.consent_hint")}
+                </div>
+            </div>
+        );
+    };
 
     const renderMappedOnly = () =>
         mappedCategories.length > 0 ? (
@@ -838,9 +527,9 @@ export default function DealInfoSectionPanel({
             )
         ) : (
             <p className="text-xs text-[#8b95a7]">
-                No fields are mapped to this section yet. Assign categories in{" "}
-                <code className="text-[11px]">DEAL_INFO_CATEGORY_SECTION_MAP</code>{" "}
-                or use a custom category tab in Later stages.
+                {t("pages.deals.info.mapped_only_hint_prefix")}{" "}
+                <code className="text-[12px]">DEAL_INFO_CATEGORY_SECTION_MAP</code>{" "}
+                {t("pages.deals.info.mapped_only_hint_suffix")}
             </p>
         );
 
@@ -851,14 +540,16 @@ export default function DealInfoSectionPanel({
                 fields={fields}
                 customFieldsData={deal.custom_fields_data || {}}
                 categoryId={categoryId}
-                title={sectionMeta.title}
+                title={td(sectionTitle)}
                 column={2}
                 onUpdate={(field, value) =>
                     onFieldUpdate(field, value, "custom_field")
                 }
                 editable={editing}
+                onChange={handleFieldChange}
                 loadingField={updatingField}
                 disabled={!canEdit}
+                activateOnSingleClick
             />
         );
     };
@@ -868,36 +559,67 @@ export default function DealInfoSectionPanel({
         switch (sectionId as DealInfoCoreSectionId) {
             case "general":
                 return renderGeneral();
-            case "property":
-                return renderProperty();
             case "preftimeline":
                 return renderPrefTimeline();
-            case "funding":
-                return renderFunding();
-            case "support":
-                return renderSupport();
+            case "gdpr":
+                return renderGdpr();
             default:
                 return renderMappedOnly();
         }
     };
+
+    // v2.2: GDPR is a read-only section with no edit toggle.
+    const editableSection = sectionId !== "gdpr";
 
     return (
         <section className="pl-[26px] pt-1">
             <div className="mb-3.5 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
-                        {sectionMeta.title}
+                        {td(sectionTitle)}
                     </h3>
-                    <p className="text-xs text-[#6b7280]">{sectionMeta.subtitle}</p>
+                    <p className="text-xs text-[#5b6472]">
+                        {td(sectionSubtitle)}
+                    </p>
                 </div>
-                {canEdit && (
-                    <DealButton
-                        variant="ghost"
-                        style={{ fontSize: 11, padding: "5px 10px" }}
-                        onClick={() => setIsEditing((previous) => !previous)}
-                    >
-                        {isEditing ? "Done editing" : "Edit fields"}
-                    </DealButton>
+                {canEdit && editableSection && (
+                    isEditing ? (
+                        <div className="flex shrink-0 items-center gap-2">
+                            {hasUnsavedChanges && (
+                                <span className="text-xs text-amber-600">
+                                    {t("pages.deals.info.unsaved_changes", {
+                                        count: Object.keys(pendingChanges)
+                                            .length,
+                                    })}
+                                </span>
+                            )}
+                            <DealButton
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleCancelEdit}
+                                disabled={isSavingAll}
+                            >
+                                {t("pages.deals.info.actions.cancel_edit")}
+                            </DealButton>
+                            <DealButton
+                                variant="primary"
+                                size="sm"
+                                onClick={handleSaveAll}
+                                disabled={!hasUnsavedChanges || isSavingAll}
+                                loading={isSavingAll}
+                            >
+                                {t("pages.deals.info.actions.save_all_tooltip")}
+                            </DealButton>
+                        </div>
+                    ) : (
+                        <DealButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleEnterEdit}
+                        >
+                            {t("pages.deals.info.edit_fields")}
+                        </DealButton>
+                    )
                 )}
             </div>
             {renderSectionBody()}

@@ -50,7 +50,7 @@ class DealValueResolver
 
         return in_array($source, [self::SOURCE_MANUAL, self::SOURCE_CALCULATED], true)
             ? $source
-            : self::SOURCE_MANUAL;
+            : self::SOURCE_CALCULATED;
     }
 
     public function calculateDealValue(Deal $deal): float
