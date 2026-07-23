@@ -1287,6 +1287,13 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::delete('/', [App\Http\Controllers\OfferController::class, 'removeFromDeal'])->name('remove');
     });
 
+    // Deal workspace tabs — each fetched independently by the frontend (not
+    // Inertia deferred props) so a slow/broken one can't stall the others.
+    Route::get('deals/{dealId}/notes', [DealNoteController::class, 'dealNotes'])->name('deals.notes.index');
+    Route::get('deals/{dealId}/tasks', [TaskController::class, 'dealTasks'])->name('deals.tasks.index');
+    Route::get('deals/{dealId}/meetings', [DealController::class, 'dealMeetings'])->name('deals.meetings.index');
+    Route::get('deals/{dealId}/files', [LeadFileController::class, 'dealFiles'])->name('deals.files.index');
+
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');
     Route::prefix('properties/{property}/assets')->name('properties.assets.')->group(function () {
