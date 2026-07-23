@@ -9,17 +9,25 @@ interface DealAvatarProps {
     className?: string;
 }
 
+/**
+ * v2.2 Avatar (deal-v2-panels.jsx:280-293): solid navy/green/blue fills with
+ * white text; watcher is the outlined light-gray variant. Inline-styled so it
+ * renders identically outside the deal page (Leads Redesign imports it too).
+ */
 export default function DealAvatar({
     initials,
     type = "default",
     size = 28,
     className,
 }: DealAvatarProps) {
-    const colors: Record<AvatarType, { bg: string; color: string }> = {
-        agent: { bg: T.BLUE_MID, color: "#0c447c" },
-        participant: { bg: T.GREEN_MID, color: "#085041" },
-        watcher: { bg: "#d1d5db", color: "#374151" },
-        default: { bg: T.BLUE_MID, color: "#0c447c" },
+    const colors: Record<
+        AvatarType,
+        { bg: string; color: string; border?: string }
+    > = {
+        agent: { bg: T.NAVY, color: T.WHITE },
+        participant: { bg: T.GREEN, color: T.WHITE },
+        watcher: { bg: T.BG, color: T.TEXT_MUTED, border: T.BORDER },
+        default: { bg: T.BLUE, color: T.WHITE },
     };
     const c = colors[type] ?? colors.default;
 
@@ -35,11 +43,10 @@ export default function DealAvatar({
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                fontSize: size * 0.38,
-                fontWeight: 500,
+                fontSize: Math.max(10, size * 0.38),
+                fontWeight: 700,
                 flexShrink: 0,
-                border: `1.5px solid ${T.WHITE}`,
-                letterSpacing: "0.02em",
+                border: c.border ? `1px solid ${c.border}` : "none",
             }}
         >
             {initials}

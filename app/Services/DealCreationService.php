@@ -201,7 +201,10 @@ class DealCreationService
             }
         }
         
-        $packageIds = $this->resolvePackageId($request, $companyId);
+        $packageIds = app(\App\Services\PackagePipelineRouterService::class)->normalizePackageIds(
+            $this->resolvePackageId($request, $companyId),
+            $companyId,
+        );
         
         // Wrap in try-catch to ensure locks are released on any error
         // Note: DB transaction starts inside the try block, so rollbacks only occur
@@ -397,6 +400,8 @@ class DealCreationService
                 // Attach packages using pivot table relationship (package_id column was removed in migration 2025_12_26_000002)
                 if (!empty($packageIds)) {
                     $deal->packages()->syncWithoutDetaching($packageIds);
+                    app(\App\Services\PackagePipelineRouterService::class)
+                        ->routeDeal($deal->fresh(['packages']));
                 }
 
                 // Update lead's lead_owner if deal_owner_id is provided and lead doesn't have an owner
@@ -485,7 +490,9 @@ class DealCreationService
                     
                     // Handle custom fields (non-critical, can be retried)
                     $this->upsertCustomFields($deal, $request);
-                    
+
+                    $this->attemptFieldTriggeredPackageRouting($deal, $companyId, $request->has('package_id'));
+
                     // Sync deal watchers and participants (non-critical)
                     $dealWatchers = $this->extractUserIdList($request, 'deal_watcher');
                     if ($dealWatchers !== null && !empty($dealWatchers)) {
@@ -961,6 +968,41 @@ class DealCreationService
         }
 
         return [];
+    }
+
+    /**
+     * Run field-triggered package routing using persisted deal data.
+     */
+    private function attemptFieldTriggeredPackageRouting(Deal $deal, int $companyId, bool $packageExplicitlySelected = false): void
+    {
+        $deal = $deal->fresh(['packages', 'company', 'hibarrFields', 'products']);
+        $packageRouter = app(\App\Services\PackagePipelineRouterService::class);
+
+        $routingPayload = array_filter([
+            'category_id' => $deal->category_id,
+            'product_id' => $deal->products->pluck('id')->all(),
+        ], fn ($value) => $value !== null && $value !== '' && $value !== []);
+
+        $customFieldData = $deal->getCustomFieldsData()->toArray();
+        if (is_array($customFieldData)) {
+            $routingPayload = array_merge($routingPayload, $customFieldData);
+        }
+
+        if ($deal->hibarrFields) {
+            $routingPayload = array_merge($routingPayload, $deal->hibarrFields->only([
+                'budget_range',
+                'motivation',
+                'message',
+                'interested_in',
+                'purchase_timeline',
+            ]));
+        }
+
+        $packageRouter->attemptRoutingFromFieldUpdates(
+            $deal,
+            $packageRouter->extractTriggerFieldsFromPayload($routingPayload, $companyId),
+            $packageExplicitlySelected,
+        );
     }
 
     /**

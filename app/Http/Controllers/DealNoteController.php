@@ -9,6 +9,7 @@ use App\Http\Requests\StoreDealNote;
 use App\Models\DealNote;
 use App\Models\Deal;
 use App\Models\User;
+use App\Services\PermissionService;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Http\Request;
 
@@ -30,6 +31,39 @@ class DealNoteController extends AccountBaseController
         abort_403(!(in_array(user()->permission('view_deal_note'), ['all', 'added'])));
 
         return $dataTable->render('leads.notes.index', $this->data);
+    }
+
+    /**
+     * JSON endpoint for the notes tab — fetched independently by the frontend
+     * instead of riding the deal page's deferred-prop bundle. Logic relocated
+     * verbatim from the former `notes` deferred prop on DealController::show().
+     */
+    public function dealNotes(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(!$access['canAccess']);
+
+        $notes = DealNote::with('addedBy')
+            ->where('deal_id', $dealId)
+            ->orderBy('created_at', 'desc')
+            ->get();
+
+        $viewNotesPermission = user()->permission('view_deal_note');
+
+        if ($viewNotesPermission == 'none') {
+            $notes = collect();
+        } elseif ($viewNotesPermission == 'added') {
+            $notes = $notes->where('added_by', user()->id)->values();
+        } elseif ($viewNotesPermission == 'owned') {
+            $notes = $notes->where('added_by', '!=', user()->id)->values();
+        }
+
+        return response()->json(['status' => 'success', 'data' => $notes]);
     }
 
     public function create()
@@ -104,7 +138,7 @@ class DealNoteController extends AccountBaseController
             ]);
         }
 
-        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes']);
+        return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes', 'data' => $note->load('addedBy')]);
     }
 
     public function edit($id)
@@ -141,7 +175,7 @@ class DealNoteController extends AccountBaseController
         $note->details = trim_editor($request->details);
         $note->save();
 
-        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes']);
+        return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes', 'data' => $note->load('addedBy')]);
     }
 
     public function destroy($id)

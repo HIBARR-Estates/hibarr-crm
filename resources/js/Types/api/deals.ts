@@ -92,6 +92,9 @@ export interface Deal {
     is_locked?: boolean;
     locked_at?: string | null;
 
+    // Outcome (read-only in the redesign; set by automation / stage movement)
+    outcome_status?: "won" | "lost" | null;
+
     // Offers
     offer_applications?: DealOfferApplication[];
     total_discount?: number;

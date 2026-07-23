@@ -1,17 +1,25 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
+import { useApiMutate } from "@/lib/api/client";
+import type { ApiResponse } from "@/lib/api/types";
+import { isLoading } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
-import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
-import { toWorkspaceMeetingListItem } from "../../adapters/meetingListAdapter";
-import DealBadge from "../primitives/DealBadge";
+import {
+    getMeetingStatusTone,
+    toWorkspaceMeetingListItem,
+} from "../../adapters/meetingListAdapter";
+import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
+import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import DealEditMeetingModal from "./DealEditMeetingModal";
-import DealRescheduleMeetingModal from "./DealRescheduleMeetingModal";
+import DealMeetingDetailModal from "./DealMeetingDetailModal";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 
 interface WorkspaceMeetingsTabProps {
     deal: Deal;
@@ -60,169 +68,16 @@ function canDeleteMeeting(
     );
 }
 
-function SummaryStatusBadge({
-    status,
-    onView,
-}: {
-    status: "available" | "pending" | "none";
-    onView?: () => void;
-}) {
-    const { td } = useTd();
+/** v2.2 status pill tones (deal-v2-2.jsx:2293). */
 
-    if (status === "none") {
-        return null;
-    }
+const PLATFORM_PILL: Record<string, string> = {
+    blue: "dr-pill-blue",
+    green: "dr-pill-green",
+    gray: "dr-pill-gray",
+};
 
-    if (status === "available") {
-        return (
-            <button
-                type="button"
-                onClick={onView}
-                className="border-none bg-transparent p-0"
-            >
-                <DealBadge variant="green">{td("View summary")}</DealBadge>
-            </button>
-        );
-    }
-
-    return <DealBadge variant="gray">{td("Summary pending")}</DealBadge>;
-}
-
-function MeetingCard({
-    meeting,
-    section,
-    canEdit,
-    canDelete,
-    onEdit,
-    onReschedule,
-    onDelete,
-    onViewSummary,
-}: {
-    meeting: ReturnType<typeof toWorkspaceMeetingListItem>;
-    section: "Upcoming" | "Past";
-    canEdit: boolean;
-    canDelete: boolean;
-    onEdit: () => void;
-    onReschedule: () => void;
-    onDelete: () => void;
-    onViewSummary: () => void;
-}) {
-    const { td } = useTd();
-    const isUpcoming = section === "Upcoming";
-    const showReschedule =
-        canEdit && meeting.statusLabel === "scheduled" && isUpcoming;
-
-    return (
-        <article className="mb-2 flex gap-3.5 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0">
-            <div
-                className="w-12 shrink-0 rounded-md border px-1.5 py-2 text-center"
-                style={{
-                    background: isUpcoming ? T.BLUE_LIGHT : T.GRAY,
-                    borderColor: isUpcoming ? T.BLUE_MID : T.BORDER,
-                }}
-            >
-                <div className="text-[10px] uppercase text-[#9ca3af]">
-                    {meeting.monthLabel}
-                </div>
-                <div
-                    className="text-lg font-semibold leading-tight"
-                    style={{ color: isUpcoming ? T.BLUE : T.TEXT_MUTED }}
-                >
-                    {meeting.dayLabel}
-                </div>
-            </div>
-
-            <div className="min-w-0 flex-1">
-                <div className="mb-1 flex flex-wrap items-center gap-2">
-                    <span className="text-[13px] font-medium text-[#1a1f2e]">
-                        {meeting.title}
-                    </span>
-                    <DealBadge variant={meeting.platformBadgeVariant}>
-                        {meeting.platformLabel}
-                    </DealBadge>
-                    <DealBadge variant="navy" className="capitalize">
-                        {meeting.statusLabel}
-                    </DealBadge>
-                    <SummaryStatusBadge
-                        status={meeting.summaryStatus}
-                        onView={onViewSummary}
-                    />
-                </div>
-
-                <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#6b7280]">
-                    <DealIcon name="clock" size={12} />
-                    {meeting.timeRangeLabel}
-                </div>
-
-                <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#6b7280]">
-                    <DealIcon
-                        name={
-                            meeting.locationType === "video"
-                                ? "video"
-                                : meeting.locationType === "phone"
-                                  ? "phone"
-                                  : "map-pin"
-                        }
-                        size={12}
-                    />
-                    {meeting.meetingLink ? (
-                        <a
-                            href={meeting.meetingLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="truncate text-[#1a6bb5] no-underline hover:text-[#145890]"
-                            onClick={(event) => event.stopPropagation()}
-                        >
-                            {td("Join meeting")}
-                        </a>
-                    ) : (
-                        <span className="truncate">
-                            {meeting.locationDisplay}
-                        </span>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-1.5 text-[11px] text-[#9ca3af]">
-                    <DealIcon name="users" size={11} />
-                    <span className="truncate">{meeting.attendeesLabel}</span>
-                </div>
-
-                {(canEdit || canDelete) && (
-                    <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-[#e2e5ea] pt-2">
-                        {canEdit && (
-                            <DealButton
-                                variant="ghost"
-                                onClick={onEdit}
-                                style={{ fontSize: 11, padding: "4px 10px" }}
-                            >
-                                {td("Edit")}
-                            </DealButton>
-                        )}
-                        {showReschedule && (
-                            <DealButton
-                                variant="ghost"
-                                onClick={onReschedule}
-                                style={{ fontSize: 11, padding: "4px 10px" }}
-                            >
-                                {td("Reschedule")}
-                            </DealButton>
-                        )}
-                        {canDelete && (
-                            <DealButton
-                                variant="ghost"
-                                onClick={onDelete}
-                                style={{ fontSize: 11, padding: "4px 10px" }}
-                            >
-                                {td("Delete")}
-                            </DealButton>
-                        )}
-                    </div>
-                )}
-            </div>
-        </article>
-    );
-}
-
+/** v2.2 MeetingsTab (deal-v2-2.jsx:2285-2414): clickable cards opening the
+ * detail modal, select mode with bulk complete/cancel, tone-mapped pills. */
 export default function WorkspaceMeetingsTab({
     deal,
     followUps,
@@ -231,14 +86,31 @@ export default function WorkspaceMeetingsTab({
     onScheduleMeeting,
 }: WorkspaceMeetingsTabProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
-    const [selectedFollowup, setSelectedFollowup] =
-        useState<DealFollowup | null>(null);
-    const [editOpen, setEditOpen] = useState(false);
-    const [rescheduleOpen, setRescheduleOpen] = useState(false);
-    const [deleteOpen, setDeleteOpen] = useState(false);
-    const [viewOpen, setViewOpen] = useState(false);
+    const { setDealFollowUps } = useDealWorkspace();
+    const [selectMode, setSelectMode] = useState(false);
+    const [selected, setSelected] = useState<Set<number>>(() => new Set());
+    const [confirmBulkCancel, setConfirmBulkCancel] = useState(false);
+    const [detailFollowupId, setDetailFollowupId] = useState<number | null>(
+        null,
+    );
+    const [summaryFollowupId, setSummaryFollowupId] = useState<number | null>(
+        null,
+    );
+
+    const detailFollowup =
+        followUps.find((followup) => followup.id === detailFollowupId) ?? null;
+    const summaryFollowup =
+        followUps.find((followup) => followup.id === summaryFollowupId) ?? null;
+
+    const { mutate: applyBulkAction, status: bulkStatus } = useApiMutate<
+        { row_ids: string; action_type: string; status: string },
+        null,
+        ApiResponse<null>
+    >("/account/deals/follow-up-apply-quick-action", "POST");
+    const isBulkUpdating = isLoading({ status: bulkStatus });
 
     const meetings = useMemo(
         () => followUps.map((followup) => toWorkspaceMeetingListItem(followup)),
@@ -255,48 +127,107 @@ export default function WorkspaceMeetingsTab({
     );
 
     const showSchedule = canAddMeeting(permissions, deal);
+    // Bulk status changes act across authors, so only the full scope gets them.
+    const canBulkEdit = permissions.edit_lead_follow_up === "all";
 
-    const openEdit = (followup: DealFollowup) => {
-        setSelectedFollowup(followup);
-        setEditOpen(true);
+    const toggleSelect = (id: number) =>
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    const exitSelect = () => {
+        setSelectMode(false);
+        setSelected(new Set());
     };
+    const allIds = meetings.map((meeting) => meeting.id);
+    const allSelected =
+        allIds.length > 0 && allIds.every((id) => selected.has(id));
+    const toggleAll = () =>
+        setSelected(allSelected ? new Set() : new Set(allIds));
 
-    const openReschedule = (followup: DealFollowup) => {
-        setSelectedFollowup(followup);
-        setRescheduleOpen(true);
-    };
-
-    const openDelete = (followup: DealFollowup) => {
-        setSelectedFollowup(followup);
-        setDeleteOpen(true);
-    };
-
-    const openView = (followup: DealFollowup) => {
-        setSelectedFollowup(followup);
-        setViewOpen(true);
-    };
-
-    const closeModals = () => {
-        setEditOpen(false);
-        setRescheduleOpen(false);
-        setDeleteOpen(false);
-        setViewOpen(false);
-        setSelectedFollowup(null);
+    const applyBulkStatus = (status: string, onDone?: () => void) => {
+        applyBulkAction(
+            {
+                row_ids: Array.from(selected).join(","),
+                action_type: "change-status",
+                status,
+            },
+            {
+                onSuccess: () => {
+                    setDealFollowUps((prev) =>
+                        prev.map((followup) =>
+                            selected.has(followup.id)
+                                ? { ...followup, status }
+                                : followup,
+                        ),
+                    );
+                    onDone?.();
+                    exitSelect();
+                },
+            },
+        );
     };
 
     return (
         <>
             <div className="mb-3.5 flex items-center justify-between gap-3">
-                <span className="text-xs text-[#6b7280]">
-                    {upcoming.length} {td("upcoming")} · {past.length}{" "}
-                    {td("past")}
+                <span className="text-xs text-[#5b6472]">
+                    {upcoming.length} {t("pages.deals.workspace.meetings.upcoming_label")} ·{" "}
+                    {past.length} {t("pages.deals.workspace.meetings.past_label")}
                 </span>
-                {showSchedule && (
-                    <DealButton variant="navy" onClick={onScheduleMeeting}>
-                        + {td("Schedule meeting")}
-                    </DealButton>
-                )}
+                <div className="flex gap-1.5">
+                    {meetings.length > 0 && canBulkEdit && (
+                        <DealButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                                selectMode ? exitSelect() : setSelectMode(true)
+                            }
+                        >
+                            {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
+                        </DealButton>
+                    )}
+                    {showSchedule && (
+                        <DealButton
+                            variant="primary"
+                            size="sm"
+                            onClick={onScheduleMeeting}
+                        >
+                            + {t("pages.deals.workspace.meetings.schedule")}
+                        </DealButton>
+                    )}
+                </div>
             </div>
+
+            {selectMode && (
+                <DealBulkActionBar
+                    count={selected.size}
+                    onClear={() => setSelected(new Set())}
+                    clearLabel={t("pages.deals.common.clear")}
+                >
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-sm"
+                        style={{ background: T.WHITE, color: T.NAVY }}
+                        onClick={toggleAll}
+                    >
+                        {allSelected
+                            ? t("pages.deals.common.deselect_all")
+                            : t("pages.deals.common.select_all")}
+                    </button>
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-sm"
+                        style={{ background: T.RED, color: T.WHITE }}
+                        disabled={!selected.size || isBulkUpdating}
+                        onClick={() => setConfirmBulkCancel(true)}
+                    >
+                        {t("pages.deals.workspace.meetings.cancel_meetings")}
+                    </button>
+                </DealBulkActionBar>
+            )}
 
             {meetings.length === 0 ? (
                 <div className="rounded-lg border border-[#e2e5ea] bg-white px-5 py-9 text-center">
@@ -307,11 +238,15 @@ export default function WorkspaceMeetingsTab({
                         className="mx-auto mb-2 opacity-50"
                     />
                     <p className="mb-3 text-[13px] text-[#9ca3af]">
-                        {td("No meetings yet")}
+                        {t("pages.deals.workspace.meetings.empty")}
                     </p>
                     {showSchedule && (
-                        <DealButton variant="navy" onClick={onScheduleMeeting}>
-                            + {td("Schedule meeting")}
+                        <DealButton
+                            variant="primary"
+                            size="sm"
+                            onClick={onScheduleMeeting}
+                        >
+                            + {t("pages.deals.workspace.meetings.schedule")}
                         </DealButton>
                     )}
                 </div>
@@ -321,74 +256,248 @@ export default function WorkspaceMeetingsTab({
                     { label: "Past" as const, items: past },
                 ] as const)
                     .filter((section) => section.items.length > 0)
-                    .map((section) => (
-                        <section key={section.label} className="mb-4 last:mb-0">
-                            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-[#9ca3af]">
-                                {td(section.label)}
-                            </h3>
-                            {section.items.map((meeting) => (
-                                <MeetingCard
-                                    key={meeting.id}
-                                    meeting={meeting}
-                                    section={section.label}
-                                    canEdit={canEditMeeting(
-                                        permissions,
-                                        meeting.followup,
-                                        userId,
-                                    )}
-                                    canDelete={canDeleteMeeting(
-                                        permissions,
-                                        meeting.followup,
-                                        userId,
-                                    )}
-                                    onEdit={() => openEdit(meeting.followup)}
-                                    onReschedule={() =>
-                                        openReschedule(meeting.followup)
-                                    }
-                                    onDelete={() => openDelete(meeting.followup)}
-                                    onViewSummary={() =>
-                                        openView(meeting.followup)
-                                    }
-                                />
-                            ))}
-                        </section>
-                    ))
+                    .map((section) => {
+                        const isPastSection = section.label === "Past";
+                        return (
+                            <section key={section.label} className="mb-2">
+                                <div className="dr-label mb-2">
+                                    {section.label === "Upcoming"
+                                        ? t("pages.deals.workspace.meetings.section_upcoming")
+                                        : t("pages.deals.workspace.meetings.section_past")}
+                                </div>
+                                {section.items.map((meeting) => (
+                                    <div
+                                        key={meeting.id}
+                                        className="dr-card flex items-start gap-2.5"
+                                        style={{
+                                            opacity: isPastSection ? 0.8 : 1,
+                                        }}
+                                    >
+                                        {selectMode && (
+                                            <div className="pt-0.5">
+                                                <DealSelectCheckbox
+                                                    checked={selected.has(
+                                                        meeting.id,
+                                                    )}
+                                                    onChange={() =>
+                                                        toggleSelect(meeting.id)
+                                                    }
+                                                    label={`Select meeting ${meeting.title}`}
+                                                />
+                                            </div>
+                                        )}
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                selectMode
+                                                    ? toggleSelect(meeting.id)
+                                                    : setDetailFollowupId(
+                                                          meeting.id,
+                                                      )
+                                            }
+                                            aria-label={
+                                                selectMode
+                                                    ? `Select meeting ${meeting.title}`
+                                                    : `Open meeting — ${meeting.title}`
+                                            }
+                                            className="flex min-w-0 flex-1 cursor-pointer gap-3.5 border-none bg-transparent p-0 text-left"
+                                            style={{ color: T.TEXT }}
+                                        >
+                                            <span
+                                                className="w-12 shrink-0 rounded-lg border px-1.5 py-2 text-center"
+                                                style={{
+                                                    background: isPastSection
+                                                        ? T.SURFACE_2
+                                                        : T.BLUE_LIGHT,
+                                                    borderColor: isPastSection
+                                                        ? T.BORDER
+                                                        : T.BLUE_MID,
+                                                }}
+                                            >
+                                                <span
+                                                    className="block text-[12px] uppercase"
+                                                    style={{
+                                                        color: T.TEXT_MUTED,
+                                                    }}
+                                                >
+                                                    {meeting.monthLabel}
+                                                </span>
+                                                <span
+                                                    className="block text-base font-bold leading-tight"
+                                                    style={{
+                                                        color: isPastSection
+                                                            ? T.TEXT_MUTED
+                                                            : "#14538c",
+                                                    }}
+                                                >
+                                                    {meeting.dayLabel}
+                                                </span>
+                                            </span>
+                                            <span className="min-w-0 flex-1">
+                                                <span className="mb-1 flex flex-wrap items-center gap-2">
+                                                    <span
+                                                        aria-hidden="true"
+                                                        className="inline-block h-2 w-2 shrink-0 rounded-full"
+                                                        style={{
+                                                            background:
+                                                                meeting.typeColor ??
+                                                                T.TEXT_MUTED,
+                                                        }}
+                                                        title={`${t(
+                                                            "pages.deals.workspace.meetings.meeting_type",
+                                                        )}: ${meeting.title}`}
+                                                    />
+                                                    <span className="text-[13px] font-semibold">
+                                                        {meeting.title}
+                                                    </span>
+                                                    <span
+                                                        className={`dr-pill ${
+                                                            PLATFORM_PILL[
+                                                                meeting
+                                                                    .platformBadgeVariant
+                                                            ] ?? "dr-pill-gray"
+                                                        }`}
+                                                    >
+                                                        {td(
+                                                            meeting.platformLabel,
+                                                        )}
+                                                    </span>
+                                                    <span
+                                                        className={`dr-pill ${getMeetingStatusTone(
+                                                            meeting.statusLabel,
+                                                        )}`}
+                                                    >
+                                                        {td(
+                                                            meeting.statusLabel,
+                                                        )}
+                                                    </span>
+                                                    {meeting.isConcluded &&
+                                                        meeting.summaryStatus !==
+                                                            "none" &&
+                                                        (meeting.summaryStatus ===
+                                                        "available" ? (
+                                                            <span
+                                                                role="button"
+                                                                tabIndex={0}
+                                                                className="dr-pill dr-pill-teal cursor-pointer"
+                                                                onClick={(
+                                                                    event,
+                                                                ) => {
+                                                                    event.stopPropagation();
+                                                                    setSummaryFollowupId(
+                                                                        meeting.id,
+                                                                    );
+                                                                }}
+                                                                onKeyDown={(
+                                                                    event,
+                                                                ) => {
+                                                                    if (
+                                                                        event.key ===
+                                                                        "Enter"
+                                                                    ) {
+                                                                        event.stopPropagation();
+                                                                        setSummaryFollowupId(
+                                                                            meeting.id,
+                                                                        );
+                                                                    }
+                                                                }}
+                                                            >
+                                                                {t(
+                                                                    "pages.deals.workspace.meetings.view_summary",
+                                                                )}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="dr-pill dr-pill-gray">
+                                                                {t(
+                                                                    "pages.deals.workspace.meetings.ai_summary_pending",
+                                                                )}
+                                                            </span>
+                                                        ))}
+                                                </span>
+                                                <span
+                                                    className="mb-0.5 block truncate text-xs"
+                                                    style={{
+                                                        color: T.TEXT_MUTED,
+                                                    }}
+                                                >
+                                                    {meeting.timeRangeLabel} ·{" "}
+                                                    {meeting.durationMinutes}{" "}
+                                                    {t("pages.deals.workspace.meetings.min_label")} ·{" "}
+                                                    {td(meeting.locationDisplay)}
+                                                </span>
+                                                {meeting.attendeesLabel && (
+                                                    <span
+                                                        className="flex items-center gap-1 text-[12px]"
+                                                        style={{
+                                                            color: T.TEXT_MUTED,
+                                                        }}
+                                                    >
+                                                        <DealIcon
+                                                            name="users"
+                                                            size={12}
+                                                        />
+                                                        <span className="truncate">
+                                                            {
+                                                                meeting.attendeesLabel
+                                                            }
+                                                        </span>
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </button>
+                                    </div>
+                                ))}
+                            </section>
+                        );
+                    })
             )}
 
-            <DealEditMeetingModal
-                open={editOpen}
-                onClose={() => {
-                    setEditOpen(false);
-                    setSelectedFollowup(null);
-                }}
+            <DealMeetingDetailModal
+                meeting={detailFollowup}
                 deal={deal}
-                followup={selectedFollowup}
                 meetingTypes={meetingTypes}
+                canEdit={
+                    detailFollowup
+                        ? canEditMeeting(permissions, detailFollowup, userId)
+                        : false
+                }
+                canDelete={
+                    detailFollowup
+                        ? canDeleteMeeting(permissions, detailFollowup, userId)
+                        : false
+                }
+                onClose={() => setDetailFollowupId(null)}
             />
 
-            <DealRescheduleMeetingModal
-                open={rescheduleOpen}
-                onClose={() => {
-                    setRescheduleOpen(false);
-                    setSelectedFollowup(null);
-                }}
-                followup={selectedFollowup}
-            />
-
-            <DeleteFollowup
-                open={deleteOpen}
-                onClose={closeModals}
-                followup={selectedFollowup ?? undefined}
-            />
-
-            {selectedFollowup && (
+            {summaryFollowup && (
                 <ViewFollowup
-                    open={viewOpen}
-                    onClose={closeModals}
-                    followup={selectedFollowup}
+                    open={!!summaryFollowup}
+                    onClose={() => setSummaryFollowupId(null)}
+                    followup={summaryFollowup}
                     deal={deal}
                 />
             )}
+
+            <DealConfirmDialog
+                open={confirmBulkCancel}
+                title={`${t("pages.deals.common.cancel")} ${selected.size} ${
+                    selected.size === 1
+                        ? t("pages.deals.workspace.meetings.item_singular")
+                        : t("pages.deals.workspace.meetings.item_plural")
+                }?`}
+                message={t(
+                    "pages.deals.workspace.meetings.cancel_meetings_confirm_message",
+                )}
+                confirmLabel={t("pages.deals.workspace.meetings.cancel_meetings")}
+                danger
+                confirmLoading={isBulkUpdating}
+                onConfirm={() =>
+                    applyBulkStatus("cancelled", () =>
+                        setConfirmBulkCancel(false),
+                    )
+                }
+                onCancel={() => setConfirmBulkCancel(false)}
+            />
         </>
     );
 }

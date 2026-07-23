@@ -60,6 +60,9 @@ use App\Services\MeetingVisibilityService;
 use App\Services\PermissionService;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
+use App\Services\DealAgentAssignmentService;
+use App\Services\PackagePipelineRouterService;
+use App\Services\PipelineScopeResolverService;
 
 class DealController extends AccountBaseController
 {
@@ -301,6 +304,8 @@ class DealController extends AccountBaseController
                 $q->where(function($query) use ($user) {
                     $query->whereHas('leadAgent', function($q) use ($user) {
                         $q->where('user_id', $user->id);
+                    })->orWhereHas('dealParticipants', function($q) use ($user) {
+                        $q->where('users.id', $user->id);
                     })->orWhereHas('dealWatchers', function($q) use ($user) {
                         $q->where('users.id', $user->id);
                     });
@@ -354,6 +359,8 @@ class DealController extends AccountBaseController
                     $q->where(function($query) use ($user) {
                         $query->whereHas('leadAgent', function($q) use ($user) {
                             $q->where('user_id', $user->id);
+                        })->orWhereHas('dealParticipants', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
                         })->orWhereHas('dealWatchers', function($q) use ($user) {
                             $q->where('users.id', $user->id);
                         });
@@ -387,6 +394,8 @@ class DealController extends AccountBaseController
                     $q->where(function($query) use ($user) {
                         $query->whereHas('leadAgent', function($q) use ($user) {
                             $q->where('user_id', $user->id);
+                        })->orWhereHas('dealParticipants', function($q) use ($user) {
+                            $q->where('users.id', $user->id);
                         })->orWhereHas('dealWatchers', function($q) use ($user) {
                             $q->where('users.id', $user->id);
                         });
@@ -536,10 +545,9 @@ class DealController extends AccountBaseController
 
         $deal = Deal::with([
             'leadAgent.user',
-            'contact',
+            'contact.leadSource',
             'category',
             'pipeline.stages',
-            'pipeline.customFieldCategories.customFields',
             'leadStage',
             'currency',
             'products' => function ($query) {
@@ -583,12 +591,7 @@ class DealController extends AccountBaseController
 
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function ($user, $deal) {
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
@@ -602,14 +605,20 @@ class DealController extends AccountBaseController
 
         $productNames = $deal->products->pluck('name')->toArray();
 
-        // Filter categories by deal's pipeline: if pipeline has categories assigned, show only those; else show all
-        if ($deal->pipeline && $deal->pipeline->customFieldCategories->isNotEmpty()) {
-            $customFieldCategories = $deal->pipeline->customFieldCategories
-                ->sortBy(fn ($c) => [($c->order ?? 0), $c->id])
-                ->values();
-        } else {
-            $customFieldCategories = $this->getDealCustomFieldCategories();
-        }
+        $scopeResolver = app(PipelineScopeResolverService::class);
+
+        $visibleDealFieldKeys = $scopeResolver->resolveFieldKeys(
+            $deal->lead_pipeline_id,
+            $deal->pipeline_stage_id,
+            Deal::CUSTOM_FIELD_MODEL,
+            $deal->company_id
+        );
+        $visibleLeadFieldKeys = $scopeResolver->resolveFieldKeys(
+            $deal->lead_pipeline_id,
+            $deal->pipeline_stage_id,
+            Lead::CUSTOM_FIELD_MODEL,
+            $deal->company_id
+        );
 
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
@@ -654,7 +663,17 @@ class DealController extends AccountBaseController
         return Inertia::render('Deals/Show', array_merge($formData, [
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
-            'customFieldCategories' => $customFieldCategories,
+            'visibleDealFieldKeys' => $visibleDealFieldKeys,
+            'visibleLeadFieldKeys' => $visibleLeadFieldKeys,
+            'scopedCustomFieldCategoryIds' => $scopeResolver->resolveCategoryIds(
+                $deal->lead_pipeline_id,
+                $deal->pipeline_stage_id,
+                $deal->company_id
+            ),
+            'allPipelineCustomFieldCategoryIds' => $scopeResolver->resolveAllCategoryIds(
+                $deal->lead_pipeline_id,
+                $deal->company_id
+            ),
             'fields' => $fields ?: ($formData['customFields'] ?? []),
             'meetingTypes' => $meetingTypes,
             'permissions' => $permissions,
@@ -662,62 +681,19 @@ class DealController extends AccountBaseController
             'dealAiSummary' => \App\Support\FeatureFlags::enabled('sales.ai-entity-summary')
                 ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($deal)
                 : null,
+            'restrictPackageOrProperty' => (bool) (\App\Models\LeadSetting::first()->restrict_package_or_property ?? false),
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
-            'notes' => Inertia::defer(function () use ($dealId) {
-                $notes = DealNote::with('addedBy')
-                    ->where('deal_id', $dealId)
-                    ->orderBy('created_at', 'desc')
-                    ->get();
-
-                $viewNotesPermission = user()->permission('view_deal_note');
-
-                if ($viewNotesPermission == 'none') {
-                    return collect();
-                }
-                if ($viewNotesPermission == 'added') {
-                    return $notes->where('added_by', user()->id)->values();
-                }
-                if ($viewNotesPermission == 'owned') {
-                    return $notes->where('added_by', '!=', user()->id)->values();
-                }
-
-                return $notes;
-            }),
-            'dealFollowUps' => Inertia::defer(function () use ($dealId) {
-                $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
-                    ->where('deal_id', $dealId)
-                    ->orderBy('next_follow_up_date', 'desc')
-                    ->get();
-
-                $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
-                $participantUsersMap = $allParticipantIds->isEmpty()
-                    ? collect()
-                    : User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
-
-                $dealFollowUps->each(function ($f) use ($participantUsersMap) {
-                    $f->participant_users = collect($f->participants ?? [])
-                        ->map(fn ($pid) => $participantUsersMap->get($pid))
-                        ->filter()
-                        ->map(fn ($u) => [
-                            'id' => $u->id,
-                            'name' => $u->name,
-                            'image' => $u->image ? $u->image_url : null,
-                        ])
-                        ->values()
-                        ->toArray();
-                });
-
-                return $dealFollowUps;
-            }),
-            'files' => Inertia::defer(function () use ($deal) {
-                $files = $deal->files()->orderBy('created_at', 'desc')->get();
-                if (user()->permission('view_lead_files') == 'added') {
-                    return $files->where('added_by', user()->id)->values();
-                }
-
-                return $files;
-            }),
+            // notes / dealFollowUps / files / tasks are no longer deferred props —
+            // they were all bundled into Inertia's single default group, so one
+            // slow/broken closure among the 17 here could stall every one of them
+            // at once (notes, tasks, meetings and files tabs all stuck loading
+            // together). Each now fetches independently via its own JSON endpoint
+            // (deals.notes.index / deals.tasks.index / deals.meetings.index /
+            // deals.files.index) the same way offers/recommendations already do —
+            // one tab's slow request can no longer block the others.
+            // The rest are still deferred, but split into explicit groups so a
+            // slow query in one group no longer blocks the others either.
             'proposals' => Inertia::defer(function () use ($dealId) {
                 if (!in_array(user()->permission('view_lead_proposals'), ['all', 'added'])) {
                     return collect();
@@ -737,31 +713,29 @@ class DealController extends AccountBaseController
                 }
 
                 return $proposals;
-            }),
+            }, 'timeline'),
             'histories' => Inertia::defer(fn () => DealHistory::where('deal_id', $dealId)
                 ->orderBy('created_at', 'desc')
-                ->get()),
+                ->limit(200)
+                ->get(), 'timeline'),
             'activities' => Inertia::defer(fn () => CommunicationActivity::where('deal_id', $dealId)
                 ->with(['deal', 'lead'])
                 ->orderBy('timestamp', 'desc')
-                ->get()),
+                ->limit(200)
+                ->get(), 'timeline'),
             'consents' => Inertia::defer(fn () => PurposeConsent::with(['lead' => function ($query) use ($dealId) {
                 $query->where('lead_id', $dealId)->orderByDesc('created_at');
-            }])->get()),
-            'gdprSetting' => Inertia::defer(fn () => GdprSetting::first()),
-            'tasks' => Inertia::defer(fn () => $deal->tasks()
-                ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
-                ->orderBy('id', 'desc')
-                ->get()),
-            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all()),
-            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all()),
-            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()),
-            'employees' => Inertia::defer(fn () => User::allEmployees()),
-            'projects' => Inertia::defer(fn () => \App\Models\Project::all()),
-            'leadContacts' => Inertia::defer(fn () => Lead::allLeads()),
+            }])->get(), 'timeline'),
+            'gdprSetting' => Inertia::defer(fn () => GdprSetting::first(), 'timeline'),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all(), 'taskMeta'),
+            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
+            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
+            'employees' => Inertia::defer(fn () => User::allEmployees(), 'formMeta'),
+            'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'formMeta'),
+            'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
             'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', '!=', 'active');
-            })->get()),
+            })->get(), 'formMeta'),
             'pipelineCustomFieldCategoryIdsByPipeline' => Inertia::defer(function () {
                 return LeadPipeline::query()
                     ->with('customFieldCategories:id')
@@ -772,8 +746,49 @@ class DealController extends AccountBaseController
                         ];
                     })
                     ->toArray();
-            }),
+            }, 'formMeta'),
         ]));
+    }
+
+    /**
+     * JSON endpoint for the meetings/follow-ups tab — fetched independently by
+     * the frontend instead of riding the page's deferred-prop bundle. Logic
+     * relocated verbatim from the former `dealFollowUps` deferred prop.
+     */
+    public function dealMeetings(Request $request, $id)
+    {
+        $deal = Deal::findOrFail($id);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(!$access['canAccess']);
+
+        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
+            ->where('deal_id', $id)
+            ->orderBy('next_follow_up_date', 'desc')
+            ->get();
+
+        $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+        $participantUsersMap = $allParticipantIds->isEmpty()
+            ? collect()
+            : User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+        $dealFollowUps->each(function ($f) use ($participantUsersMap) {
+            $f->participant_users = collect($f->participants ?? [])
+                ->map(fn ($pid) => $participantUsersMap->get($pid))
+                ->filter()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'image' => $u->image ? $u->image_url : null,
+                ])
+                ->values()
+                ->toArray();
+        });
+
+        return response()->json(['status' => 'success', 'data' => $dealFollowUps]);
     }
 
     private function prepareNotesTab(int $dealId): void
@@ -876,12 +891,15 @@ class DealController extends AccountBaseController
         $this->addPermission = user()->permission('add_deals');
         abort_403(!in_array($this->addPermission, ['all', 'added']));
 
-        $agentId = null;
-        if (!is_null($request->agent_id)) {
-            // $leadAgent = LeadAgent::where('user_id', $request->agent_id)->where('lead_category_id', $request->category_id)->first();
-            $leadAgent = LeadAgent::find($request->agent_id);
-            $agentId = isset($leadAgent) ? $leadAgent->id : null;
-        }
+        $lead = $request->lead_contact ? Lead::find($request->lead_contact) : null;
+        $explicitAgentId = $request->filled('agent_id') ? (int) $request->agent_id : null;
+        $agentId = app(DealAgentAssignmentService::class)->resolveAgentId(
+            $explicitAgentId,
+            $lead?->lead_owner ? (int) $lead->lead_owner : null,
+            user()?->id,
+            $request->filled('category_id') ? (int) $request->category_id : null
+        );
+
         $deal = new Deal();
         $deal->name = $request->name;
         $deal->lead_id = $request->lead_contact;
@@ -890,7 +908,9 @@ class DealController extends AccountBaseController
         $deal->lead_pipeline_id = $request->pipeline;
         $deal->pipeline_stage_id = $request->stage_id;
         $deal->agent_id = $agentId;
-        $deal->close_date = $request->close_date ? $this->safeCompanyToYmd($request->close_date) : null;
+        $deal->close_date = $request->filled('close_date')
+            ? $this->safeCompanyToYmd($request->close_date)
+            : null;
         $manualValue = $request->manual_value ?? $request->value ?? 0;
         $hasExplicitManualValue = $request->filled('manual_value') || $request->filled('value');
         $valueSource = $request->filled('value_source')
@@ -908,16 +928,20 @@ class DealController extends AccountBaseController
         $deal->save();
 
         // Handle packages
-        if ($request->package_id && is_array($request->package_id)) {
-            $packageIds = $request->package_id;
-            $deal->packages()->sync($packageIds);
-            app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
-                $deal,
-                [],
-                $packageIds,
-                [],
-                Package::whereIn('id', $packageIds)->pluck('name', 'id')->toArray()
-            );
+        $packageRouter = app(PackagePipelineRouterService::class);
+        if ($request->has('package_id') && $request->package_id) {
+            $packageIds = $packageRouter->normalizePackageIds($request->package_id);
+            $packageRouter->syncDealPackages($deal, $packageIds);
+
+            if (!empty($packageIds)) {
+                app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
+                    $deal,
+                    [],
+                    $packageIds,
+                    [],
+                    Package::whereIn('id', $packageIds)->pluck('name', 'id')->toArray()
+                );
+            }
         }
 
         // Handle deal watchers
@@ -976,6 +1000,18 @@ class DealController extends AccountBaseController
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
 
+        $packageRouter->attemptRoutingFromFieldUpdates(
+            $deal->fresh(),
+            app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
+                array_merge(
+                    $request->only(['category_id', 'product_id']),
+                    $request->custom_fields_data ?? [],
+                ),
+                $deal->company_id,
+            ),
+            $request->has('package_id') && $request->package_id,
+        );
+
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealCreationAutomation($request);
 
@@ -1030,17 +1066,11 @@ class DealController extends AccountBaseController
 
         $this->employees = User::allEmployees(null, false);
 
+        // edit_deals is a write gate: agent/participant only. Watchers stay view-only,
+        // see Deal::hasTeamMemberAccess().
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function($user, $deal) {
-                // Check if user is the assigned agent
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                
-                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-                
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'edit_deals', $this->deal, $dealRules);
@@ -1127,17 +1157,11 @@ class DealController extends AccountBaseController
             return Reply::error(__('messages.dealLocked'));
         }
 
+        // edit_deals is a write gate: agent/participant only. Watchers stay view-only,
+        // see Deal::hasTeamMemberAccess().
         $dealRules = [
             'added' => 'added_by',
-            'owned' => function($user, $deal) {
-                // Check if user is the assigned agent
-                $isAgent = $deal->leadAgent && $deal->leadAgent->user_id == $user->id;
-                
-                // Check if user is a watcher (check DB directly to avoid eager loading filter issues)
-                $isWatcher = $deal->dealWatchers()->where('user_id', $user->id)->exists();
-                
-                return $isAgent || $isWatcher;
-            }
+            'owned' => fn ($user, $deal) => $deal->hasTeamMemberAccess($user->id),
         ];
 
         $access = PermissionService::checkAccess(user(), 'edit_deals', $deal, $dealRules);
@@ -1189,11 +1213,31 @@ class DealController extends AccountBaseController
 
         $deal->save();
 
-        // Handle packages
-        if ($request->package_id && is_array($request->package_id)) {
-            $deal->packages()->sync($request->package_id);
-        } else {
-            $deal->packages()->detach();
+        // Handle packages — only touch when the field is actually present in the
+        // request, so partial updates (e.g. pipeline stage changes) don't wipe
+        // packages the caller never intended to change.
+        $packageRouter = app(PackagePipelineRouterService::class);
+        if ($request->has('package_id')) {
+            $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
+            $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
+            $newPackageIds = $packageRouter->normalizePackageIds($request->package_id);
+
+            $packageRouter->syncDealPackages($deal, $newPackageIds);
+
+            $sortedNew = $newPackageIds;
+            $sortedCurrent = $currentPackageIds;
+            sort($sortedNew);
+            sort($sortedCurrent);
+
+            if ($sortedNew !== $sortedCurrent) {
+                app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
+                    $deal,
+                    $currentPackageIds,
+                    $newPackageIds,
+                    $oldPackageNames,
+                    Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray()
+                );
+            }
         }
 
         // Handle deal watchers
@@ -1208,7 +1252,10 @@ class DealController extends AccountBaseController
 
         $oldProductIds = $deal->products()->pluck('products.id')->toArray();
 
-        $deal->products()->sync($request->product_id);
+        // Same as packages above: only sync products when the field is present.
+        if ($request->has('product_id')) {
+            $deal->products()->sync(is_array($request->product_id) ? $request->product_id : []);
+        }
 
         // Record CRM events for newly linked products
         $newProductIds = array_diff($request->product_id ?? [], $oldProductIds);
@@ -1228,6 +1275,19 @@ class DealController extends AccountBaseController
         if (!$deal->wasChanged() && $customFieldsUpdated) {
              app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
         }
+
+        app(PackagePipelineRouterService::class)->attemptRoutingFromFieldUpdates(
+            $deal->fresh(),
+            app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
+                array_merge(
+                    $request->only(['category_id', 'product_id']),
+                    $request->custom_fields_data ?? [],
+                ),
+                $deal->company_id,
+            ),
+            $request->has('package_id'),
+        );
+
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
 
 
@@ -1235,6 +1295,45 @@ class DealController extends AccountBaseController
         // $this->triggerDealUpdateAutomation($request, $deal);
 
         return Reply::successWithData(__('messages.dealUpdateSuccess'), ['redirectUrl' => $redirectTo]);
+    }
+
+    /**
+     * Refresh a single deal with the full relation set + value breakdown, for
+     * client-side state patching after a legacy modal (e.g. property attach/detach)
+     * mutates the deal via its own endpoint without echoing the deal back.
+     */
+    public function refresh($id)
+    {
+        return response()->json([
+            'status' => 'success',
+            'data' => $this->loadFullDeal($id),
+        ]);
+    }
+
+    private function loadFullDeal($id): Deal
+    {
+        $deal = Deal::with([
+            'currency',
+            'contact',
+            'hibarrFields',
+            'leadAgent.user',
+            'addedBy',
+            'leadSource',
+            'category',
+            'leadStage',
+            'pipeline.stages',
+            'packages',
+            'products.property',
+            'dealWatchers',
+            'dealParticipants',
+            // Required for redesign workspace: setDeal(response.data) replaces
+            // local deal state; omitting this relation clears the itinerary tab.
+            'leadFlightItineraries',
+        ])->findOrFail($id);
+        $deal->withCustomFields();
+        $deal->setAttribute('value_breakdown', app(DealValueResolver::class)->getBreakdown($deal));
+
+        return $deal;
     }
 
     /**
@@ -1252,15 +1351,16 @@ class DealController extends AccountBaseController
             ], 403);
         }
 
-        // Check permissions
-        $leadAgentId = ($deal->leadAgent != null) ? $deal->leadAgent->user->id : 0;
+        // Check permissions. 'owned' includes deal participants (full write access,
+        // same as the agent) but never watchers — see Deal::hasTeamMemberAccess().
+        $hasTeamAccess = $deal->hasTeamMemberAccess(user()->id);
         $editPermission = user()->permission('edit_deals');
-        
+
         abort_403(!(
             $editPermission == 'all'
             || ($editPermission == 'added' && $deal->added_by == user()->id)
-            || ($editPermission == 'owned' && $leadAgentId == user()->id)
-            || ($editPermission == 'both' && ($deal->added_by == user()->id || $leadAgentId == user()->id))
+            || ($editPermission == 'owned' && $hasTeamAccess)
+            || ($editPermission == 'both' && ($deal->added_by == user()->id || $hasTeamAccess))
         ));
 
         // Get validated data
@@ -1430,7 +1530,7 @@ class DealController extends AccountBaseController
                 return response()->json([
                     'success' => true,
                     'message' => __('messages.dealUpdateSuccess'),
-                    'data' => $deal->fresh()->load(['leadAgent.user', 'contact', 'pipeline', 'leadStage', 'category', 'products'])
+                    'data' => $this->loadFullDeal($deal->id),
                 ]);
             }
             
@@ -1954,7 +2054,31 @@ class DealController extends AccountBaseController
 
         event(new AutoFollowUpReminderEvent($followUp, true));
 
-        return Reply::success(__('messages.recordSaved'));
+        return Reply::successWithData(__('messages.recordSaved'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
+    }
+
+    /**
+     * Load a follow-up with the same relations + manually-computed
+     * `participant_users` shape the show() deferred prop produces, so create/
+     * update/reschedule responses can patch client state without a reload.
+     */
+    private function loadFollowUpWithParticipants($followUpId): DealFollowUp
+    {
+        $followUp = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])->findOrFail($followUpId);
+
+        $participantIds = collect($followUp->participants ?? []);
+        $participantUsersMap = $participantIds->isEmpty()
+            ? collect()
+            : User::whereIn('id', $participantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+        $followUp->participant_users = $participantIds
+            ->map(fn ($pid) => $participantUsersMap->get($pid))
+            ->filter()
+            ->map(fn ($u) => ['id' => $u->id, 'name' => $u->name, 'image' => $u->image ? $u->image_url : null])
+            ->values()
+            ->toArray();
+
+        return $followUp;
     }
 
     public function editFollow($id)
@@ -2060,7 +2184,7 @@ class DealController extends AccountBaseController
             // Continue without throwing exception - follow-up is already updated
         }
 
-        return Reply::success(__('messages.updateSuccess'));
+        return Reply::successWithData(__('messages.updateSuccess'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
     public function deleteFollow($id)

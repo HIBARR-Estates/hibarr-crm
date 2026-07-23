@@ -104,7 +104,7 @@ class DealSummaryInputBuilder
             $sections['properties'] = $products->map(fn ($product) => [
                 'type' => $product->name,
                 'price' => (float) ($product->price ?? 0),
-                'status' => 'Available',
+                'status' => 'linked',
             ])->values()->all();
         }
 
@@ -148,21 +148,37 @@ class DealSummaryInputBuilder
         return $payload;
     }
 
+    /**
+     * Stable fingerprint of deal state used for cache invalidation.
+     * Excludes wall-clock "now" so identical CRM state keeps the same hash.
+     */
     public function inputHash(Deal $deal): string
     {
-        $deal->loadMissing(['leadStage']);
+        $deal->loadMissing(['packages', 'products']);
 
         $fingerprint = [
             'id' => $deal->id,
             'stage' => $deal->pipeline_stage_id,
             'value' => $deal->value,
-            'close_date' => $deal->close_date,
-            'updated_at' => $deal->updated_at?->toIso8601String(),
+            'manual_value' => $deal->manual_value ?? null,
+            'close_date' => $deal->close_date
+                ? Carbon::parse($deal->close_date)->format('Y-m-d')
+                : null,
+            'agent_id' => $deal->agent_id,
+            'category_id' => $deal->category_id,
+            'lead_id' => $deal->lead_id,
+            'package_ids' => $deal->packages->pluck('id')->sort()->values()->all(),
+            'product_ids' => $deal->products->pluck('id')->sort()->values()->all(),
             'notes_count' => DealNote::where('deal_id', $deal->id)->count(),
+            'notes_max_updated_at' => DealNote::where('deal_id', $deal->id)->max('updated_at'),
             'tasks_count' => $deal->tasks()->count(),
+            'tasks_max_updated_at' => $deal->tasks()->max('tasks.updated_at'),
             'followups_count' => DealFollowUp::where('deal_id', $deal->id)->count(),
+            'followups_max_updated_at' => DealFollowUp::where('deal_id', $deal->id)->max('updated_at'),
             'files_count' => DealFile::where('deal_id', $deal->id)->count(),
+            'files_max_id' => DealFile::where('deal_id', $deal->id)->max('id'),
             'history_count' => DealHistory::where('deal_id', $deal->id)->count(),
+            'history_max_id' => DealHistory::where('deal_id', $deal->id)->max('id'),
         ];
 
         return hash('sha256', json_encode($fingerprint));

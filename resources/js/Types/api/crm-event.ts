@@ -59,6 +59,8 @@ export interface CrmEvent {
     event_type: {
         slug: string;
         name: string;
+        /** System-seeded type (auto-recorded) vs custom type (agent-logged). */
+        is_system?: boolean;
         category: CrmEventCategory | null;
     } | null;
     generation_type: CrmEventGenerationType;

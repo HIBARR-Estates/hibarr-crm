@@ -11,9 +11,17 @@ import { DealFile } from "@/Types/api";
 interface Props extends IModalProps {
     file?: DealFile;
     onSuccess?: () => void;
+    /** When true, skip the Inertia reload after delete (parent updates local state). */
+    skipReload?: boolean;
 }
 
-const DeleteFile: React.FC<Props> = ({ file, onClose, open, onSuccess }) => {
+const DeleteFile: React.FC<Props> = ({
+    file,
+    onClose,
+    open,
+    onSuccess,
+    skipReload,
+}) => {
     const handleCancel = () => {
         onClose();
     };
@@ -37,7 +45,9 @@ const DeleteFile: React.FC<Props> = ({ file, onClose, open, onSuccess }) => {
         mutate(null, {
             onSuccess: () => {
                 onSuccess?.();
-                router.reload();
+                if (!skipReload) {
+                    router.reload();
+                }
             },
         });
     };

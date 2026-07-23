@@ -152,10 +152,8 @@
                             </x-forms.input-group>
                         </div>
                         <div class="col-md-5 col-lg-4 dueDateBox mt-1">
-                            <x-forms.datepicker fieldId="close_date" fieldRequired="true" :fieldLabel="__('modules.deal.closeDate')"
-                                fieldName="close_date" :fieldPlaceholder="__('placeholders.date')" :fieldValue="now(company()->timezone)
-                                    ->addDays(30)
-                                    ->translatedFormat(company()->date_format)" />
+                            <x-forms.datepicker fieldId="close_date" :fieldLabel="__('modules.deal.closeDate')"
+                                fieldName="close_date" :fieldPlaceholder="__('placeholders.date')" fieldValue="" />
                         </div>
                         @if ($viewLeadCategoryPermission != 'none')
                             <div class="col-lg-4 col-md-6">

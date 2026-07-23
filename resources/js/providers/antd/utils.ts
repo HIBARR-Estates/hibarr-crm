@@ -26,6 +26,12 @@ export const antdMainThemeConfig: ThemeConfig = {
         paddingContentHorizontal: 12, // Horizontal padding
         paddingContentVertical: 8, // Vertical padding
         // colorBgContainer: "green",
+        // Default (1000) puts Modal/Select-dropdown/etc. behind the Deals
+        // Redesign's portaled modal (.redesign-modal-overlay, z-index 1100)
+        // and floating menus (useFloatingMenuPosition, z-index 1200) — any
+        // antd popup opened from within those (form selects, confirm
+        // dialogs) rendered invisibly underneath. Raised above both.
+        zIndexPopupBase: 1300,
     },
     components: {
         // Override Typography component link styling

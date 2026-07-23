@@ -87,7 +87,7 @@ export function getPropertyShowHref(
 export function toWorkspaceRecommendationListItem(
     recommendation: PropertyRecommendation,
     options: {
-        existingProductIds: number[];
+        existingPropertyIds: number[];
     },
 ): WorkspaceRecommendationListItem {
     const { property, match_percentage, rank, factors } = recommendation;
@@ -130,7 +130,7 @@ export function toWorkspaceRecommendationListItem(
         propertyHref: getPropertyShowHref(propertyId),
         propertyId,
         isInDeal: propertyId
-            ? options.existingProductIds.includes(propertyId)
+            ? options.existingPropertyIds.includes(propertyId)
             : false,
     };
 }

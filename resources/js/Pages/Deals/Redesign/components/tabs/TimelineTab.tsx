@@ -1,3 +1,4 @@
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import useDealTimeline from "../../hooks/useDealTimeline";
 import DealTimelineEventList from "../timeline/DealTimelineEventList";
 import DealTimelineFilters from "../timeline/DealTimelineFilters";
@@ -13,6 +14,10 @@ export default function TimelineTab({
     dealName,
     userId,
 }: TimelineTabProps) {
+    // Editing/deleting agent-logged events is admin-only, mirroring the
+    // backend gate in CrmEventController@update/@destroy (hasRole('admin')).
+    const canManage = useIsAdminRole();
+
     const {
         filter,
         setFilter,
@@ -28,7 +33,7 @@ export default function TimelineTab({
     } = useDealTimeline(dealId);
 
     return (
-        <div className="mx-auto w-full max-w-[680px]">
+        <div className="w-full">
             <DealTimelineFilters
                 dealId={dealId}
                 userId={userId}
@@ -46,6 +51,8 @@ export default function TimelineTab({
                 hasNextPage={hasNextPage}
                 isFetchingNextPage={isFetchingNextPage}
                 onLoadMore={() => fetchNextPage()}
+                canManage={canManage}
+                onChanged={() => refetch()}
             />
         </div>
     );

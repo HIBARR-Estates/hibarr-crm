@@ -372,6 +372,30 @@ class TaskController extends AccountBaseController
     }
 
     /**
+     * JSON endpoint for a deal's tasks tab — fetched independently by the
+     * frontend instead of riding the deal page's deferred-prop bundle. Logic
+     * relocated verbatim from the former `tasks` deferred prop on
+     * DealController::show().
+     */
+    public function dealTasks(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(!$access['canAccess']);
+
+        $tasks = $deal->tasks()
+            ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return response()->json(['status' => 'success', 'data' => $tasks]);
+    }
+
+    /**
      * XXXXXXXXXXX
      *
      * @return array
@@ -425,6 +449,10 @@ class TaskController extends AccountBaseController
                 }
 
                 return Reply::success(__('messages.updateSuccess'));
+            case 'change-assignee':
+                $this->changeBulkAssignee($request, $ids);
+
+                return Reply::success(__('messages.updateSuccess'));
             case 'milestone':
                 $milestone = ProjectMilestone::find($request->milestone);
                 $milestoneLabel = $milestone?->milestone_title ?? ('ID ' . $request->milestone);
@@ -476,9 +504,48 @@ class TaskController extends AccountBaseController
             ]);
         }
         else {
-            Task::whereIn('id', $taskIds)->update(['board_column_id' => $request->status]);
+            // Mirrors TaskService::changeStatus's completion bookkeeping —
+            // without clearing completed_on here, a task bulk-moved out of
+            // "done" kept its old completion date forever, so it stayed
+            // struck-through/filed under "done" everywhere completed_on is
+            // read as a completion flag.
+            Task::whereIn('id', $taskIds)->update([
+                'board_column_id' => $request->status,
+                'completed_on' => null,
+            ]);
         }
 
+    }
+
+    /**
+     * Bulk-reassign the selected tasks to a new set of users. Mirrors the
+     * single-task assignee sync ($task->users()->sync) used by update(),
+     * applied atomically per task inside one request so the whole selection
+     * lands together instead of racing N separate calls from the client.
+     *
+     * @param array<int, int> $taskIds
+     */
+    protected function changeBulkAssignee($request, array $taskIds): void
+    {
+        abort_403(user()->permission('edit_tasks') != 'all');
+
+        if (empty($taskIds)) {
+            abort_403(true);
+        }
+
+        $userIds = is_array($request->user_id)
+            ? $request->user_id
+            : array_filter(explode(',', (string) $request->user_id));
+        $userIds = array_values(array_filter(array_map('intval', $userIds)));
+
+        $tasks = Task::withTrashed()->whereIn('id', $taskIds)->get();
+
+        foreach ($tasks as $task) {
+            if ($task->trashed()) {
+                continue;
+            }
+            $task->users()->sync($userIds);
+        }
     }
 
     /**
@@ -928,7 +995,7 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task]);
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load('users')]);
 
         } catch (\Exception $e) {
             return Reply::error($e->getMessage());
@@ -1319,8 +1386,8 @@ class TaskController extends AccountBaseController
             $task = $this->taskService->updateTask($task, $data, user());
 
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
-                'project' => $task->project, 
-                'data' => $task, 
+                'project' => $task->project,
+                'data' => $task->load('users'),
                 'redirectUrl' => route('tasks.show', $task->id)
             ]);
 

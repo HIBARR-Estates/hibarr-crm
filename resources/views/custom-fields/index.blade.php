@@ -61,11 +61,32 @@
                 </div>
             </x-slot>
 
+            <div class="px-20 pt-20">
+                <form class="d-flex" onsubmit="return false;">
+                    <div class="input-group rounded border-grey" style="max-width: 360px;">
+                        <div class="input-group-prepend">
+                            <span class="input-group-text border-0 bg-white">
+                                <i class="fa fa-search f-12 text-lightest"></i>
+                            </span>
+                        </div>
+                        <input type="text" id="customFieldSearch" class="form-control border-0 f-14 pl-0"
+                               placeholder="@lang('modules.customFields.searchFields')"
+                               autocomplete="off">
+                    </div>
+                </form>
+            </div>
+
             <div class="table-responsive p-20 pipelineData">
-                <div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100">
+                <div class="col-lg-12 col-md-12 ntfcn-tab-content-left w-100" id="customFieldsContainer">
+                    <div id="customFieldSearchNoResults" class="d-none align-items-center flex-column text-lightest p-20 w-100">
+                        <i class="fa fa-search f-21 w-100"></i>
+                        <div class="f-15 mt-4">
+                            - @lang('messages.noRecordFound') -
+                        </div>
+                    </div>
                     @forelse($groupedCustomFields as $module => $fields)
 
-                        <div class="row no-gutters border rounded my-3 px-4 py-2" id="removeModule{{ $module }}">
+                        <div class="row no-gutters border rounded my-3 px-4 py-2 custom-field-module-block" id="removeModule{{ $module }}" data-module="{{ $module }}">
                             <div class="col-md-6">
                                 <div class="heading-h4">
                                     {{ $module }}
@@ -104,7 +125,8 @@
                                 </x-slot>
                                 <tbody class="sortable-fields" data-module="{{ $module }}">
                                 @forelse($fields as $field)
-                                    <tr class="row{{ $field->id }}" data-field-id="{{ $field->id }}" draggable="true">
+                                    <tr class="row{{ $field->id }}" data-field-id="{{ $field->id }}" draggable="true"
+                                        data-search="{{ strtolower($field->label . ' ' . $field->type . ' ' . $module) }}">
                                         <td>
                                             <div class="d-flex align-items-center justify-content-center" style="cursor: move;">
                                                 <i class="fa fa-arrows-alt text-gray-400" style="font-size: 16px;"></i>
@@ -206,6 +228,48 @@
 
             // Hide all custom field tables initially
             $('.custom-fields-table').hide();
+
+            // Search/filter custom fields by label, type, or module name
+            $('#customFieldSearch').on('input', function () {
+                var term = $.trim($(this).val()).toLowerCase();
+                var anyModuleVisible = false;
+
+                if (term === '') {
+                    $('.custom-field-module-block').show();
+                    $('.custom-fields-table tr[draggable="true"]').show();
+                    $('.custom-fields-table').hide();
+                    $('#customFieldSearchNoResults').removeClass('d-flex').addClass('d-none');
+                    return;
+                }
+
+                $('.custom-field-module-block').each(function () {
+                    var module = $(this).data('module');
+                    var $moduleBlock = $(this);
+                    var $table = $('.custom-fields-table[data-module="' + module + '"]');
+                    var matchCount = 0;
+
+                    $table.find('tr[draggable="true"]').each(function () {
+                        var haystack = $(this).data('search') || '';
+                        var isMatch = String(haystack).indexOf(term) !== -1;
+                        $(this).toggle(isMatch);
+                        if (isMatch) matchCount++;
+                    });
+
+                    if (matchCount > 0) {
+                        $moduleBlock.show();
+                        $table.show();
+                        anyModuleVisible = true;
+                    } else {
+                        $moduleBlock.hide();
+                        $table.hide();
+                    }
+                });
+
+                var showNoResults = !anyModuleVisible;
+                $('#customFieldSearchNoResults')
+                    .toggleClass('d-flex', showNoResults)
+                    .toggleClass('d-none', !showNoResults);
+            });
 
             // Drag and drop functionality
             var draggedElement = null;

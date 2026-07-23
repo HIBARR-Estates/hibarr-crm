@@ -1,16 +1,33 @@
 import { useCallback, useMemo, useState } from "react";
 import axios from "axios";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
+/**
+ * Attaching a recommended property to a deal.
+ *
+ * A deal holds `products`, and a Property is reached through `product.property`
+ * (Property.product_id). Recommendations carry a *property* id, so attaching
+ * goes through `deals.properties.store`, which resolves (or creates) the
+ * backing Product, guards duplicates, records the activity event and
+ * recalculates the deal value. Do not sync product ids with a property id —
+ * they are different entities.
+ */
 export default function useDealRecommendationAdd(deal: Deal) {
     const [addingPropertyIds, setAddingPropertyIds] = useState<Set<number>>(
         new Set(),
     );
+    const { setDeal } = useDealWorkspace();
+    const { t } = useTranslation();
 
-    const existingProductIds = useMemo(
-        () => deal.products?.map((product) => product.id) || [],
+    /** Property ids already on the deal, read through each product. */
+    const existingPropertyIds = useMemo(
+        () =>
+            (deal.products ?? [])
+                .map((product) => product.property?.id)
+                .filter((id): id is number => typeof id === "number"),
         [deal.products],
     );
 
@@ -25,9 +42,9 @@ export default function useDealRecommendationAdd(deal: Deal) {
     const isPropertyInDeal = useCallback(
         (propertyId: number | null): boolean => {
             if (!propertyId) return false;
-            return existingProductIds.includes(propertyId);
+            return existingPropertyIds.includes(propertyId);
         },
-        [existingProductIds],
+        [existingPropertyIds],
     );
 
     const addPropertiesToDeal = useCallback(
@@ -39,35 +56,53 @@ export default function useDealRecommendationAdd(deal: Deal) {
             );
 
             try {
-                const newProductIds = [
-                    ...new Set([...existingProductIds, ...propertyIds]),
-                ];
+                const failures: string[] = [];
 
-                await axios.patch(
-                    route("deals.gathering.inline_update", { id: deal.id }),
-                    {
-                        type: "details",
-                        data: { product_id: newProductIds },
-                    },
+                for (const propertyId of propertyIds) {
+                    const response = await axios.post(
+                        route("deals.properties.store", deal.id),
+                        { property_id: propertyId },
+                        { headers: { Accept: "application/json" } },
+                    );
+
+                    if (response.data?.status !== "success") {
+                        failures.push(
+                            response.data?.message ||
+                                t(
+                                    "pages.deals.workspace.recommendations.messages.add_failed",
+                                ),
+                        );
+                    }
+                }
+
+                // The attach endpoint returns only a status, so pull the deal
+                // back down to refresh products / value / offers.
+                const refreshed = await axios.get(
+                    route("deals.refresh", deal.id),
                 );
+                if (
+                    refreshed.data?.status === "success" &&
+                    refreshed.data?.data
+                ) {
+                    setDeal(refreshed.data.data);
+                }
+
+                if (failures.length > 0) {
+                    message.error(failures[0]);
+                    return;
+                }
 
                 message.success(
-                    `${propertyIds.length} ${
-                        propertyIds.length === 1 ? "property" : "properties"
-                    } added to deal`,
+                    t("pages.deals.workspace.recommendations.messages.added"),
                 );
-
-                router.reload({ only: ["deal", "productNames"] });
             } catch (error: unknown) {
                 const responseMessage =
-                    typeof error === "object" &&
-                    error !== null &&
-                    "response" in error &&
-                    typeof (error as { response?: { data?: { message?: string } } })
-                        .response?.data?.message === "string"
-                        ? (error as { response: { data: { message: string } } })
-                              .response.data.message
-                        : "Failed to add properties";
+                    axios.isAxiosError(error) &&
+                    typeof error.response?.data?.message === "string"
+                        ? error.response.data.message
+                        : t(
+                              "pages.deals.workspace.recommendations.messages.add_failed",
+                          );
                 message.error(responseMessage);
             } finally {
                 setAddingPropertyIds((previous) => {
@@ -77,11 +112,11 @@ export default function useDealRecommendationAdd(deal: Deal) {
                 });
             }
         },
-        [deal.id, existingProductIds],
+        [deal.id, setDeal, t],
     );
 
     return {
-        existingProductIds,
+        existingPropertyIds,
         addPropertiesToDeal,
         isPropertyAdding,
         isPropertyInDeal,

@@ -1,7 +1,7 @@
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../types";
 
 /** First N core sections appear under "Now — in progress". Adjust when field-to-section mapping is formalized. */
-export const DEAL_INFO_NOW_SECTION_COUNT = 4;
+export const DEAL_INFO_NOW_SECTION_COUNT = 3;
 
 /**
  * Optional mapping from custom field category id → core section id.
@@ -25,80 +25,87 @@ export interface DealInfoNavItemConfig {
     stageBadge?: string;
 }
 
-export interface DealInfoSectionMeta {
-    title: string;
-    subtitle: string;
-}
-
+/**
+ * "gdpr" is deliberately absent — it is appended manually as the very last
+ * nav item (after unmapped categories), matching v2.2's sidebar order.
+ */
 export const DEAL_INFO_CORE_SECTION_ORDER: DealInfoCoreSectionId[] = [
     "general",
     // "experience",
-    "property",
     // "income",
     // "location",
     "preftimeline",
-    "funding",
-    "support",
 ];
 
-export const DEAL_INFO_SECTION_META: Record<
-    DealInfoCoreSectionId,
-    DealInfoSectionMeta
-> = {
-    general: {
-        title: "General information",
-        subtitle: "Stage relevant — In progress",
-    },
-    experience: {
-        title: "Investment experience & goals",
-        subtitle: "Stage relevant — In progress",
-    },
-    property: {
-        title: "Property preferences",
-        subtitle: "Stage relevant — In progress",
-    },
-    income: {
-        title: "Income & savings",
-        subtitle: "Stage relevant — In progress",
-    },
-    location: {
-        title: "Location & building preference",
-        subtitle: "Becomes relevant at Prospect stage",
-    },
-    preftimeline: {
-        title: "Preferences & timeline",
-        subtitle: "Becomes relevant at Prospect stage",
-    },
-    funding: {
-        title: "Funding & liquidity",
-        subtitle: "Becomes relevant at Customer stage",
-    },
-    support: {
-        title: "Support & collaboration",
-        subtitle: "Becomes relevant at Customer stage",
-    },
+/**
+ * Section titles. Subtitles are computed dynamically in
+ * DealInfoSectionPanel (v2.2's lock/gdpr-aware copy, deal-v2-2.jsx:3417-3420)
+ * rather than stored per section here.
+ */
+export const DEAL_INFO_SECTION_TITLES: Record<DealInfoCoreSectionId, string> = {
+    general: "General information",
+    gdpr: "GDPR & consents",
+    experience: "Investment experience & goals",
+    income: "Income & savings",
+    location: "Location & building preference",
+    preftimeline: "Preferences & timeline",
+    funding: "Funding & liquidity",
+    support: "Support & collaboration",
 };
 
 const CORE_NAV_ICONS: Record<DealInfoCoreSectionId, string> = {
     general: "info",
     experience: "award",
-    property: "building",
     income: "wallet",
     location: "map-pin",
     preftimeline: "clock",
     funding: "bank",
     support: "lifebuoy",
+    gdpr: "check-square",
 };
 
 const CORE_NAV_LABELS: Record<DealInfoCoreSectionId, string> = {
     general: "General info",
     experience: "Inv. experience",
-    property: "Property pref.",
     income: "Income & savings",
     location: "Location pref.",
     preftimeline: "Pref. & timeline",
     funding: "Funding & liquidity",
     support: "Support & collab.",
+    gdpr: "GDPR & consents",
+};
+
+/**
+ * Built-in (non-custom) field labels per core section — feeds the sidebar
+ * search so queries match field names as well as section names (v2.2's
+ * "Search sections & fields…" behaviour).
+ */
+export const CORE_SECTION_FIELD_LABELS: Partial<
+    Record<DealInfoCoreSectionId, string[]>
+> = {
+    general: [
+        "Deal name",
+        "Close date",
+        "Category",
+        "Packages",
+        "Properties",
+    ],
+    preftimeline: [
+        "Purchase timeline",
+        "Strategy meeting booked",
+        "Motivation",
+        "Downpayment paid",
+        "Inspection trip date",
+        "Interested in",
+        "Budget range",
+    ],
+    funding: [
+        "Deposit confirmation",
+        "Reservation agreement",
+        "Sales contract",
+    ],
+    support: ["Message", "Deal agent", "Participants", "Watchers"],
+    gdpr: ["Consents", "Marketing", "Data processing"],
 };
 
 const LATER_STAGE_BADGES: Partial<Record<DealInfoCoreSectionId, string>> = {

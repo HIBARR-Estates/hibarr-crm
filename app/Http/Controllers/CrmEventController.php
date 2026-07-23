@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\CrmEventDirection;
 use App\Enums\CrmEventSource;
+use App\Enums\CrmEventStatus;
 use App\Models\CrmBusinessRule;
 use App\Models\CrmEvent;
 use App\Services\CrmEventService;
@@ -273,6 +275,171 @@ class CrmEventController extends Controller
     }
 
     /**
+     * Update an agent-logged (user-generated) CRM event.
+     *
+     * PATCH /api/crm-events/{uuid}
+     *
+     * Restricted to administrators. Only user-generated events may be edited —
+     * system-generated and external events are immutable records.
+     */
+    public function update(Request $request, string $uuid): JsonResponse
+    {
+        if (!$this->userCanManageEvents()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'You are not authorized to modify timeline events.',
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'status' => 'nullable|string|in:completed,error_occurred,missed,rejected',
+            'direction' => 'nullable|string|in:inbound,outbound',
+            'comment' => 'nullable|string|max:2000',
+            'occurred_at' => 'nullable|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Validation failed.',
+                'errors' => $validator->errors(),
+            ], 422);
+        }
+
+        $companyId = $this->resolveCompanyId($request);
+
+        $event = CrmEvent::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (!$event) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Event not found.',
+            ], 404);
+        }
+
+        if (!$this->isAgentLoggedEvent($event)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only agent-logged events can be edited.',
+            ], 403);
+        }
+
+        $data = $validator->validated();
+
+        if (array_key_exists('status', $data) && $data['status'] !== null) {
+            $event->status = CrmEventStatus::from($data['status']);
+        }
+
+        // `direction` is nullable — an explicit null clears it, an omitted key
+        // leaves it untouched (nullable keys absent from the request are not
+        // returned by validated()).
+        if (array_key_exists('direction', $data)) {
+            $event->direction = $data['direction'] !== null
+                ? CrmEventDirection::from($data['direction'])
+                : null;
+        }
+
+        if (array_key_exists('occurred_at', $data) && $data['occurred_at']) {
+            $event->occurred_at = $data['occurred_at'];
+        }
+
+        if (array_key_exists('comment', $data)) {
+            $metadata = $event->metadata ?? [];
+            if ($data['comment'] === null || $data['comment'] === '') {
+                unset($metadata['comment']);
+            } else {
+                $metadata['comment'] = $data['comment'];
+            }
+            $event->metadata = $metadata;
+        }
+
+        $event->save();
+        $event->load(['eventType.category', 'user']);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Event updated.',
+            'data' => $this->transformEvent($event),
+        ]);
+    }
+
+    /**
+     * Delete an agent-logged (user-generated) CRM event.
+     *
+     * DELETE /api/crm-events/{uuid}
+     *
+     * Restricted to administrators. Only user-generated events may be deleted.
+     */
+    public function destroy(Request $request, string $uuid): JsonResponse
+    {
+        if (!$this->userCanManageEvents()) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'You are not authorized to delete timeline events.',
+            ], 403);
+        }
+
+        $companyId = $this->resolveCompanyId($request);
+
+        $event = CrmEvent::withoutGlobalScopes()
+            ->where('company_id', $companyId)
+            ->where('uuid', $uuid)
+            ->first();
+
+        if (!$event) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Event not found.',
+            ], 404);
+        }
+
+        if (!$this->isAgentLoggedEvent($event)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Only agent-logged events can be deleted.',
+            ], 403);
+        }
+
+        $event->delete();
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Event deleted.',
+        ]);
+    }
+
+    /**
+     * An "agent-logged" event is one a person recorded by hand through the Log
+     * Action flow, which always uses a custom (admin-created) event type.
+     *
+     * This is deliberately NOT `generation_type === user_generated`: events the
+     * system records as a side effect of user activity (field edits, stage
+     * changes) are also user_generated, but they are an audit trail and must
+     * stay immutable. The system-seeded event types behind them carry
+     * `is_system = true`, which is what separates the two.
+     */
+    protected function isAgentLoggedEvent(CrmEvent $event): bool
+    {
+        $event->loadMissing('eventType');
+
+        return $event->eventType !== null && !$event->eventType->is_system;
+    }
+
+    /**
+     * Whether the current session user may edit/delete agent-logged events.
+     * Gated to administrators (see HIB-1038 — timeline event management).
+     */
+    protected function userCanManageEvents(): bool
+    {
+        $user = Auth::user();
+
+        return $user !== null && $user->hasRole('admin');
+    }
+
+    /**
      * Resolve company ID from the X-COMPANY-ID header (external API consumers)
      * or from the authenticated session user (frontend / Inertia requests).
      */
@@ -295,6 +462,9 @@ class CrmEventController extends Controller
             'event_type' => $event->eventType ? [
                 'slug' => $event->eventType->slug,
                 'name' => $event->eventType->name,
+                // Drives the "agent-logged vs system-recorded" distinction the
+                // timeline uses to decide what may be edited/deleted.
+                'is_system' => (bool) $event->eventType->is_system,
                 'category' => $event->eventType->category ? [
                     'slug' => $event->eventType->category->slug,
                     'name' => $event->eventType->category->name,

@@ -5,20 +5,37 @@ import {
     toWorkspaceMeetingPreview,
     type WorkspaceMeetingPreview,
 } from "./meetingAdapter";
+import { formatTime } from "./dateFormat";
 
 dayjs.extend(utc);
 
 export type MeetingSummaryStatus = "available" | "pending" | "none";
 
+/**
+ * Status → pill tone. Shared by the meetings list and the detail modal so the
+ * two can't drift. Tones are semantic: green = done, red = cancelled (a
+ * negative outcome, not a neutral one), blue = still ahead of you.
+ */
+export function getMeetingStatusTone(status: string): string {
+    if (status === "completed") return "dr-pill-green";
+    if (status === "canceled" || status === "cancelled") return "dr-pill-red";
+    if (status === "scheduled") return "dr-pill-blue";
+    return "dr-pill-gray";
+}
+
 export interface WorkspaceMeetingListItem extends WorkspaceMeetingPreview {
     endTimeLabel: string;
     timeRangeLabel: string;
+    durationMinutes: number;
     platformLabel: string;
     platformBadgeVariant: "blue" | "green" | "gray";
     locationDisplay: string;
     meetingLink: string | null;
     summaryStatus: MeetingSummaryStatus;
+    /** Meeting has actually happened — gates the AI-summary badge. */
+    isConcluded: boolean;
     statusLabel: string;
+    typeColor: string | null;
     followup: DealFollowup;
 }
 
@@ -94,7 +111,7 @@ export function toWorkspaceMeetingListItem(
     const endDate = startsAt
         ? new Date(startsAt.getTime() + duration * 60 * 1000)
         : null;
-    const endTimeLabel = endDate ? TIME_FORMAT.format(endDate) : "--";
+    const endTimeLabel = formatTime(endDate);
     const timeRangeLabel = `${preview.timeLabel} – ${endTimeLabel}`;
     const meetingLink =
         meeting.meeting_link && /^https?:\/\//i.test(meeting.meeting_link)
@@ -107,12 +124,16 @@ export function toWorkspaceMeetingListItem(
         locationType: platform.locationType,
         endTimeLabel,
         timeRangeLabel,
+        durationMinutes: duration,
         platformLabel: platform.label,
         platformBadgeVariant: platform.variant,
         locationDisplay: getLocationDisplay(meeting, platform.locationType),
         meetingLink,
         summaryStatus: getSummaryStatus(meeting),
+        isConcluded:
+            preview.isPast || (meeting.status?.trim() || "") === "completed",
         statusLabel: meeting.status?.trim() || "scheduled",
+        typeColor: meeting.meeting_type?.color?.trim() || null,
         followup: meeting,
     };
 }

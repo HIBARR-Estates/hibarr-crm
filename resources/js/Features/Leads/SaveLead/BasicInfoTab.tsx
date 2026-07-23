@@ -195,9 +195,10 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         // Transform the values to match the API expectations
         const formData = {
             ...values,
-            close_date: values.close_date
-                ? values.close_date.format("YYYY-MM-DD")
-                : "",
+            close_date:
+                values.close_date && values.close_date.isValid?.()
+                    ? values.close_date.format("YYYY-MM-DD")
+                    : null,
             date_of_birth: values.date_of_birth
                 ? values.date_of_birth.format("YYYY-MM-DD")
                 : null,

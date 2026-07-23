@@ -891,6 +891,7 @@ return array(
     'startTyping' => 'Start typing to search',
     'selectAction' => 'No Action',
     'country' => 'Country',
+    'multiSelectCountry' => 'Multi-Select Country',
     'dragDrop' => 'Choose a file',
     'dragDropReplace' => 'Drop a file or click to replace',
     'largeFile' => 'Sorry, the file is too large',

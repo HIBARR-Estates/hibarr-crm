@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { DatePicker } from "antd";
 import dayjs from "dayjs";
+import useTranslation from "@/Hooks/useTranslation";
 import DealButton from "../primitives/DealButton";
 import DealIcon from "../primitives/DealIcon";
 import type { DealTimelineDateRange } from "../../hooks/useDealTimeline";
@@ -15,11 +16,12 @@ export function DealTimelineDateRangeControl({
     value,
     onChange,
 }: DealTimelineDateRangeControlProps) {
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
 
     const label = value
         ? `${dayjs(value.from).format("MMM D")} – ${dayjs(value.to).format("MMM D")}`
-        : "Date range";
+        : t("pages.deals.timeline.date_range_placeholder");
 
     return (
         <div className="relative">

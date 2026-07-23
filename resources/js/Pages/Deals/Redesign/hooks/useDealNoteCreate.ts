@@ -1,24 +1,28 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { Note } from "@/Types/api/note";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 export interface DealNoteCreateInput {
     text: string;
+    title?: string;
 }
 
 interface SaveNotePayload {
-    title: string;
+    title?: string;
     details: string;
     lead_id: number;
 }
 
 export default function useDealNoteCreate(dealId: number) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
+    const { setNotes } = useDealWorkspace();
 
     const { mutate, status } = useApiMutate<
         SaveNotePayload,
@@ -37,7 +41,12 @@ export default function useDealNoteCreate(dealId: number) {
             setErrors([]);
             mutate(
                 {
-                    title: trimmed.slice(0, 80),
+                    // Left blank when the user leaves the title field empty —
+                    // `deal_notes.title` is nullable (StoreDealNote has no
+                    // rule for it) and the note list already falls back to
+                    // "Untitled note" for display, so there's no need to
+                    // synthesize one from the body here.
+                    title: input.title?.trim() || undefined,
                     details: `<p>${trimmed}</p>`,
                     lead_id: dealId,
                 },
@@ -45,9 +54,11 @@ export default function useDealNoteCreate(dealId: number) {
                     onSuccess: (response) => {
                         if (response?.status === "success") {
                             setErrors([]);
-                            message.success("Note saved");
+                            message.success(t("pages.deals.workspace.notes.messages.saved"));
+                            if (response.data) {
+                                setNotes((prev) => [response.data as Note, ...prev]);
+                            }
                             onSuccess?.();
-                            router.reload({ only: ["notes"] });
                             return;
                         }
 
@@ -67,7 +78,7 @@ export default function useDealNoteCreate(dealId: number) {
                 },
             );
         },
-        [dealId, mutate],
+        [dealId, mutate, setNotes, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

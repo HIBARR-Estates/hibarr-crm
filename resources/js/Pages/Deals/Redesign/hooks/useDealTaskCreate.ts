@@ -1,21 +1,31 @@
 import { useCallback, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
-import dayjs from "dayjs";
+import { usePage } from "@inertiajs/react";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import type { Task } from "@/Types/api/tasks";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
+import {
+    DEFAULT_START_TIME,
+    formatDueDateTimeForApi,
+    todayIsoDate,
+} from "./taskDateUtils";
 
 export interface DealTaskCreateInput {
     title: string;
+    startDate?: string;
     dueDate?: string;
+    dueTime?: string;
     priority: "low" | "medium" | "high";
     description?: string;
+    assignees?: number[];
 }
 
 interface CreateTaskRequest {
     heading: string;
     description?: string;
+    start_date?: string;
     due_date?: string;
     without_duedate?: boolean;
     priority: "low" | "medium" | "high";
@@ -26,51 +36,15 @@ interface CreateTaskRequest {
     estimate_minutes: number;
 }
 
-function mapPhpToDayjsFormat(format: string): string {
-    const replacements: Record<string, string> = {
-        d: "DD",
-        D: "ddd",
-        j: "D",
-        l: "dddd",
-        N: "E",
-        S: "Do",
-        w: "d",
-        z: "DDD",
-        W: "W",
-        F: "MMMM",
-        m: "MM",
-        M: "MMM",
-        n: "M",
-        Y: "YYYY",
-        y: "YY",
-        a: "a",
-        A: "A",
-        g: "h",
-        G: "H",
-        h: "hh",
-        H: "HH",
-        i: "mm",
-        s: "ss",
-    };
-
-    return format
-        .split("")
-        .map((char) => replacements[char] || char)
-        .join("");
-}
-
-function formatDueDateForApi(isoDate: string, dateFormat: string): string {
-    return dayjs(`${isoDate}T12:00:00`).format(mapPhpToDayjsFormat(dateFormat));
-}
-
 export default function useDealTaskCreate(dealId: number) {
     const { props } = usePage();
     const [errors, setErrors] = useState<string[]>([]);
+    const { setTasks } = useDealWorkspace();
 
     const { mutate, status } = useApiMutate<
         CreateTaskRequest,
-        unknown,
-        ApiResponse<unknown>
+        Task,
+        ApiResponse<Task>
     >(route("tasks.store"), "POST");
 
     const createTask = useCallback(
@@ -95,13 +69,25 @@ export default function useDealTaskCreate(dealId: number) {
                 estimate_minutes: 0,
             };
 
-            if (userId) {
-                payload.user_id = [userId];
+            const assignees = input.assignees?.length
+                ? input.assignees
+                : userId
+                  ? [userId]
+                  : undefined;
+            if (assignees) {
+                payload.user_id = assignees;
             }
 
+            payload.start_date = formatDueDateTimeForApi(
+                input.startDate?.trim() || todayIsoDate(),
+                DEFAULT_START_TIME,
+                dateFormat,
+            );
+
             if (input.dueDate?.trim()) {
-                payload.due_date = formatDueDateForApi(
+                payload.due_date = formatDueDateTimeForApi(
                     input.dueDate.trim(),
+                    input.dueTime,
                     dateFormat,
                 );
             } else {
@@ -110,10 +96,12 @@ export default function useDealTaskCreate(dealId: number) {
 
             setErrors([]);
             mutate(payload, {
-                onSuccess: () => {
+                onSuccess: (response) => {
                     setErrors([]);
+                    if (response?.data) {
+                        setTasks((prev) => [response.data as Task, ...prev]);
+                    }
                     onSuccess?.();
-                    router.reload({ only: ["tasks"] });
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);
@@ -128,7 +116,7 @@ export default function useDealTaskCreate(dealId: number) {
                 },
             });
         },
-        [dealId, mutate, props.auth?.user?.id, props.company],
+        [dealId, mutate, props.auth?.user?.id, props.company, setTasks],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

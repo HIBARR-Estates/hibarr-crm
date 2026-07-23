@@ -1,16 +1,18 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
+import type { DealFollowup } from "@/Types/api/deal-followup";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { DealMeetingCreateInput } from "./useDealMeetingCreate";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
 } from "../components/workspace/meetingFormUtils";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 interface FollowUpUpdatePayload {
     id: number;
@@ -25,15 +27,18 @@ interface FollowUpUpdatePayload {
     remark?: string;
     timezone?: string;
     participants?: number[];
+    status?: string;
 }
 
 export default function useDealMeetingUpdate(deal: Deal) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
+    const { setDealFollowUps } = useDealWorkspace();
 
     const { mutate, status } = useApiMutate<
         FollowUpUpdatePayload,
-        null,
-        ApiResponse<null>
+        DealFollowup,
+        ApiResponse<DealFollowup>
     >(route("deals.follow_up_update"), "POST");
 
     const updateMeeting = useCallback(
@@ -41,6 +46,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
             followupId: number,
             input: DealMeetingCreateInput,
             onSuccess?: () => void,
+            statusOverride?: string,
         ) => {
             const payload: FollowUpUpdatePayload = {
                 id: followupId,
@@ -57,15 +63,21 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 participants: input.participants,
                 timezone:
                     Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                status: statusOverride,
             };
 
             setErrors([]);
             mutate(payload, {
-                onSuccess: () => {
+                onSuccess: (response) => {
                     setErrors([]);
-                    message.success("Meeting updated");
+                    message.success(t("pages.deals.workspace.meetings.messages.updated"));
+                    if (response?.data) {
+                        const updated = response.data;
+                        setDealFollowUps((prev) =>
+                            prev.map((f) => (f.id === updated.id ? updated : f)),
+                        );
+                    }
                     onSuccess?.();
-                    router.reload({ only: ["dealFollowUps"] });
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);
@@ -80,7 +92,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 },
             });
         },
-        [deal.id, mutate],
+        [deal.id, mutate, setDealFollowUps, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

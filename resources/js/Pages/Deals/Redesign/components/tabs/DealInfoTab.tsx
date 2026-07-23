@@ -4,7 +4,6 @@ import useDealInfoNavigation from "../../hooks/useDealInfoNavigation";
 import type { DealInfoSectionId } from "../../types";
 import DealInfoSectionPanel from "../deal-info/DealInfoSectionPanel";
 import DealInfoSidebar from "../deal-info/DealInfoSidebar";
-import DealInfoToolbar from "../deal-info/DealInfoToolbar";
 
 interface DealInfoTabProps {
     deal: Deal;
@@ -12,6 +11,9 @@ interface DealInfoTabProps {
     fields: any[];
     activeSection: DealInfoSectionId;
     onSectionChange: (section: DealInfoSectionId) => void;
+    restrictPackageOrProperty?: boolean;
+    consents?: any[];
+    gdprSetting?: { enable_gdpr?: boolean } | null;
 }
 
 export default function DealInfoTab({
@@ -20,32 +22,28 @@ export default function DealInfoTab({
     fields,
     activeSection,
     onSectionChange,
+    restrictPackageOrProperty = false,
+    consents,
+    gdprSetting,
 }: DealInfoTabProps) {
     const { navGroups } = useDealInfoNavigation(
         initialDeal,
         fields,
         customFieldCategories,
+        consents,
     );
     const {
         deal,
         canEdit,
-        canDelete,
         isLocked,
         isFieldLoading,
         updatingField,
-        isRecalculatingValue,
         handleFieldUpdate,
-        handleRecalculateValue,
-    } = useDealInfoFieldUpdate(initialDeal);
+        handleFieldsUpdate,
+    } = useDealInfoFieldUpdate();
 
     return (
         <div>
-            <DealInfoToolbar
-                deal={deal}
-                canDelete={canDelete}
-                isLocked={isLocked}
-            />
-
             <div
                 className="grid min-h-[500px] gap-0"
                 style={{ gridTemplateColumns: "210px 1fr" }}
@@ -64,9 +62,11 @@ export default function DealInfoTab({
                     isLocked={isLocked}
                     isFieldLoading={isFieldLoading}
                     updatingField={updatingField}
-                    isRecalculatingValue={isRecalculatingValue}
                     onFieldUpdate={handleFieldUpdate}
-                    onRecalculateValue={handleRecalculateValue}
+                    onFieldsUpdate={handleFieldsUpdate}
+                    restrictPackageOrProperty={restrictPackageOrProperty}
+                    consents={consents}
+                    gdprSetting={gdprSetting}
                 />
             </div>
         </div>

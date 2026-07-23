@@ -661,6 +661,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/create', [DealController::class, 'create'])->name('deals.create');
     Route::post('deals', [DealController::class, 'store'])->name('deals.store');
     Route::get('deals/{deal}', [DealController::class, 'show'])->name('deals.show');
+    Route::get('deals/{deal}/refresh', [DealController::class, 'refresh'])->name('deals.refresh');
     Route::get('deals/{deal}/ai-summary', [\App\Http\Controllers\DealSummaryController::class, 'show'])->name('deals.ai-summary');
     Route::post('deals/{deal}/ai-summary/regenerate', [\App\Http\Controllers\DealSummaryController::class, 'regenerate'])->name('deals.ai-summary.regenerate');
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
@@ -1285,6 +1286,13 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
         Route::get('/', [App\Http\Controllers\OfferController::class, 'dealOffers'])->name('index');
         Route::delete('/', [App\Http\Controllers\OfferController::class, 'removeFromDeal'])->name('remove');
     });
+
+    // Deal workspace tabs — each fetched independently by the frontend (not
+    // Inertia deferred props) so a slow/broken one can't stall the others.
+    Route::get('deals/{dealId}/notes', [DealNoteController::class, 'dealNotes'])->name('deals.notes.index');
+    Route::get('deals/{dealId}/tasks', [TaskController::class, 'dealTasks'])->name('deals.tasks.index');
+    Route::get('deals/{dealId}/meetings', [DealController::class, 'dealMeetings'])->name('deals.meetings.index');
+    Route::get('deals/{dealId}/files', [LeadFileController::class, 'dealFiles'])->name('deals.files.index');
 
     // Property Asset Management (New System)
     Route::get('property-assets/options', [App\Http\Controllers\PropertyAssetController::class, 'getAssetOptions'])->name('properties.assets.options');

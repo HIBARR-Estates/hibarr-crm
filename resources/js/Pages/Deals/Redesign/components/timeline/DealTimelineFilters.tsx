@@ -1,6 +1,6 @@
 import { useState } from "react";
 import LogActionModal from "@/Components/CrmEvents/LogActionModal";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { DealTimelineDateRange } from "../../hooks/useDealTimeline";
 import { TimelineFilter } from "../../adapters/timelineAdapter";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -9,6 +9,12 @@ import DealIcon from "../primitives/DealIcon";
 import { DealTimelineDateRangeControl } from "./DealTimelineDateRange";
 
 const FILTERS: TimelineFilter[] = ["all", "agent", "system", "external"];
+const FILTER_LABEL_KEYS: Record<TimelineFilter, string> = {
+    all: "filter_all",
+    agent: "filter_agent",
+    system: "filter_system",
+    external: "filter_external",
+};
 
 interface DealTimelineFiltersProps {
     dealId: number;
@@ -31,7 +37,7 @@ export default function DealTimelineFilters({
     isRefetching,
     onRefresh,
 }: DealTimelineFiltersProps) {
-    const { td } = useTd();
+    const { t } = useTranslation();
     const [logModalOpen, setLogModalOpen] = useState(false);
 
     return (
@@ -48,27 +54,19 @@ export default function DealTimelineFilters({
                 <span
                     style={{ fontSize: 12, color: T.TEXT_MUTED, marginRight: 4 }}
                 >
-                    Filter:
+                    {t("pages.deals.timeline.filter_label")}:
                 </span>
                 {FILTERS.map((currentFilter) => (
                     <button
                         key={currentFilter}
                         type="button"
+                        className="dr-filter"
+                        aria-pressed={filter === currentFilter}
                         onClick={() => onFilterChange(currentFilter)}
-                        style={{
-                            fontSize: 12,
-                            padding: "4px 11px",
-                            borderRadius: 20,
-                            cursor: "pointer",
-                            background: filter === currentFilter ? T.NAVY : T.WHITE,
-                            color:
-                                filter === currentFilter ? T.WHITE : T.TEXT_MUTED,
-                            border: `1px solid ${filter === currentFilter ? T.NAVY : T.BORDER}`,
-                            fontWeight: filter === currentFilter ? 500 : 400,
-                            textTransform: "capitalize",
-                        }}
                     >
-                        {currentFilter}
+                        {t(
+                            `pages.deals.timeline.${FILTER_LABEL_KEYS[currentFilter]}`,
+                        )}
                     </button>
                 ))}
 
@@ -85,7 +83,7 @@ export default function DealTimelineFilters({
                         icon={<DealIcon name="plus" size={12} />}
                         onClick={() => setLogModalOpen(true)}
                     >
-                        {td("Log action")}
+                        {t("pages.deals.timeline.log_action")}
                     </DealButton>
                     <DealButton
                         variant="ghost"
@@ -93,7 +91,7 @@ export default function DealTimelineFilters({
                         onClick={onRefresh}
                         loading={isRefetching}
                     >
-                        {td("Refresh")}
+                        {t("pages.deals.common.refresh")}
                     </DealButton>
                     <DealTimelineDateRangeControl
                         value={dateRange}

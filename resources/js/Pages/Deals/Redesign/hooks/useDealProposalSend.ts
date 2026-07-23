@@ -1,8 +1,10 @@
 import { useCallback, useState } from "react";
 import { router } from "@inertiajs/react";
 import { message } from "antd";
+import useTranslation from "@/Hooks/useTranslation";
 
 export default function useDealProposalSend() {
+    const { t } = useTranslation();
     const [sendingId, setSendingId] = useState<number | null>(null);
 
     const sendProposal = useCallback((proposalId: number) => {
@@ -22,18 +24,22 @@ export default function useDealProposalSend() {
             .then((response) => response.json())
             .then((data) => {
                 if (data.status === "success") {
-                    message.success(data.message || "Offer sent to client");
+                    message.success(
+                        data.message || t("pages.deals.workspace.offers.messages.sent"),
+                    );
                     router.reload({ only: ["proposals"] });
                     return;
                 }
 
-                message.error(data.message || "Failed to send offer");
+                message.error(
+                    data.message || t("pages.deals.workspace.offers.messages.send_failed"),
+                );
             })
             .catch(() => {
-                message.error("Failed to send offer");
+                message.error(t("pages.deals.workspace.offers.messages.send_failed"));
             })
             .finally(() => setSendingId(null));
-    }, []);
+    }, [t]);
 
     return {
         sendProposal,
