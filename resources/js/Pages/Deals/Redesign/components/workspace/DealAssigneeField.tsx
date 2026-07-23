@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
+import type { PageProps } from "@/Components/DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
@@ -29,7 +30,7 @@ export default function DealAssigneeField({
     disabled = false,
 }: DealAssigneeFieldProps) {
     const { t } = useTranslation();
-    const { props } = usePage<{ employees?: EmployeeRecord[] }>();
+    const { props } = usePage<PageProps & { employees?: EmployeeRecord[] }>();
     const [adding, setAdding] = useState(false);
 
     const employees = props.employees ?? [];

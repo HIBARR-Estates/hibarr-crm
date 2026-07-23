@@ -229,6 +229,13 @@
 .dr-btn-primary:hover:not(:disabled) {
     background: #155fa0;
 }
+.dr-btn-navy {
+    background: #16294d;
+    color: #ffffff;
+}
+.dr-btn-navy:hover:not(:disabled) {
+    background: #0f1c38;
+}
 .dr-btn-ghost {
     background: #ffffff;
     color: #5b6472;
