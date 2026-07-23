@@ -61,6 +61,8 @@ use App\Services\PermissionService;
 use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
 use App\Services\DealAgentAssignmentService;
+use App\Services\PackagePipelineRouterService;
+use App\Services\PipelineScopeResolverService;
 
 class DealController extends AccountBaseController
 {
@@ -546,7 +548,6 @@ class DealController extends AccountBaseController
             'contact.leadSource',
             'category',
             'pipeline.stages',
-            'pipeline.customFieldCategories.customFields',
             'leadStage',
             'currency',
             'products' => function ($query) {
@@ -604,14 +605,20 @@ class DealController extends AccountBaseController
 
         $productNames = $deal->products->pluck('name')->toArray();
 
-        // Filter categories by deal's pipeline: if pipeline has categories assigned, show only those; else show all
-        if ($deal->pipeline && $deal->pipeline->customFieldCategories->isNotEmpty()) {
-            $customFieldCategories = $deal->pipeline->customFieldCategories
-                ->sortBy(fn ($c) => [($c->order ?? 0), $c->id])
-                ->values();
-        } else {
-            $customFieldCategories = $this->getDealCustomFieldCategories();
-        }
+        $scopeResolver = app(PipelineScopeResolverService::class);
+
+        $visibleDealFieldKeys = $scopeResolver->resolveFieldKeys(
+            $deal->lead_pipeline_id,
+            $deal->pipeline_stage_id,
+            Deal::CUSTOM_FIELD_MODEL,
+            $deal->company_id
+        );
+        $visibleLeadFieldKeys = $scopeResolver->resolveFieldKeys(
+            $deal->lead_pipeline_id,
+            $deal->pipeline_stage_id,
+            Lead::CUSTOM_FIELD_MODEL,
+            $deal->company_id
+        );
 
         $fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
@@ -656,7 +663,17 @@ class DealController extends AccountBaseController
         return Inertia::render('Deals/Show', array_merge($formData, [
             'deal' => $dealWithCustomFields,
             'productNames' => $productNames,
-            'customFieldCategories' => $customFieldCategories,
+            'visibleDealFieldKeys' => $visibleDealFieldKeys,
+            'visibleLeadFieldKeys' => $visibleLeadFieldKeys,
+            'scopedCustomFieldCategoryIds' => $scopeResolver->resolveCategoryIds(
+                $deal->lead_pipeline_id,
+                $deal->pipeline_stage_id,
+                $deal->company_id
+            ),
+            'allPipelineCustomFieldCategoryIds' => $scopeResolver->resolveAllCategoryIds(
+                $deal->lead_pipeline_id,
+                $deal->company_id
+            ),
             'fields' => $fields ?: ($formData['customFields'] ?? []),
             'meetingTypes' => $meetingTypes,
             'permissions' => $permissions,
@@ -916,16 +933,20 @@ class DealController extends AccountBaseController
         $deal->save();
 
         // Handle packages
-        if ($request->package_id && is_array($request->package_id)) {
-            $packageIds = $request->package_id;
-            $deal->packages()->sync($packageIds);
-            app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
-                $deal,
-                [],
-                $packageIds,
-                [],
-                Package::whereIn('id', $packageIds)->pluck('name', 'id')->toArray()
-            );
+        $packageRouter = app(PackagePipelineRouterService::class);
+        if ($request->has('package_id') && $request->package_id) {
+            $packageIds = $packageRouter->normalizePackageIds($request->package_id);
+            $packageRouter->syncDealPackages($deal, $packageIds);
+
+            if (!empty($packageIds)) {
+                app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
+                    $deal,
+                    [],
+                    $packageIds,
+                    [],
+                    Package::whereIn('id', $packageIds)->pluck('name', 'id')->toArray()
+                );
+            }
         }
 
         // Handle deal watchers
@@ -983,6 +1004,18 @@ class DealController extends AccountBaseController
         if ($request->custom_fields_data) {
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
+
+        $packageRouter->attemptRoutingFromFieldUpdates(
+            $deal->fresh(),
+            app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
+                array_merge(
+                    $request->only(['category_id', 'product_id']),
+                    $request->custom_fields_data ?? [],
+                ),
+                $deal->company_id,
+            ),
+            $request->has('package_id') && $request->package_id,
+        );
 
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealCreationAutomation($request);
@@ -1188,8 +1221,31 @@ class DealController extends AccountBaseController
         // Handle packages — only touch when the field is actually present in the
         // request, so partial updates (e.g. pipeline stage changes) don't wipe
         // packages the caller never intended to change.
+        $packageRouter = app(PackagePipelineRouterService::class);
         if ($request->has('package_id')) {
-            $deal->packages()->sync(is_array($request->package_id) ? $request->package_id : []);
+            $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
+            $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
+            $newPackageIds = $packageRouter->normalizePackageIds($request->package_id);
+
+            $packageRouter->syncDealPackages($deal, $newPackageIds);
+
+            $sortedNew = $newPackageIds;
+            $sortedCurrent = $currentPackageIds;
+            sort($sortedNew);
+            sort($sortedCurrent);
+
+            if ($sortedNew !== $sortedCurrent) {
+                app(\App\Services\DealActivityEventService::class)->recordPackagesUpdated(
+                    $deal,
+                    $currentPackageIds,
+                    $newPackageIds,
+                    $oldPackageNames,
+                    Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray()
+                );
+            }
+        } else {
+            $deal->packages()->detach();
+        }
         }
 
         // Handle deal watchers
@@ -1227,6 +1283,19 @@ class DealController extends AccountBaseController
         if (!$deal->wasChanged() && $customFieldsUpdated) {
              app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
         }
+
+        app(PackagePipelineRouterService::class)->attemptRoutingFromFieldUpdates(
+            $deal->fresh(),
+            app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
+                array_merge(
+                    $request->only(['category_id', 'product_id']),
+                    $request->custom_fields_data ?? [],
+                ),
+                $deal->company_id,
+            ),
+            $request->has('package_id'),
+        );
+
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
 
 

@@ -411,7 +411,24 @@ class ImportDealJob implements ShouldQueue
                         $value = str_replace([';', '|'], ',', $value);
                     }
                     break;
-                    
+
+                case 'multiSelectCountry':
+                    if (is_string($value)) {
+                        // Semicolon only: several country nicenames contain literal commas
+                        // (e.g. "Congo, Democratic Republic of the"), so comma can't be used
+                        // as a separator here without splitting a single name in two.
+                        $countryNames = array_filter(array_map('trim', explode(';', $value)));
+                        $validNames = collect(countries())->pluck('nicename')->all();
+                        $matched = array_values(array_filter($countryNames, fn ($name) => in_array($name, $validNames, true)));
+
+                        if (empty($matched)) {
+                            continue 2;
+                        }
+
+                        $value = json_encode($matched);
+                    }
+                    break;
+
                 case 'number':
                     if (!is_numeric($value)) {
                         continue 2;

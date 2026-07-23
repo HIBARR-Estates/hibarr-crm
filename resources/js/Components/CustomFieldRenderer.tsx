@@ -302,6 +302,74 @@ const CustomFieldRenderer: React.FC<Props> = ({
         </Form.Item>
     );
 
+    const renderMultiSelectCountryField = (field: CustomField) => (
+        <Form.Item
+            key={field.id}
+            name={[namePrefix, `field_${field.id}`]}
+            label={field.label}
+            rules={
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
+                    : []
+            }
+        >
+            <Select
+                mode="multiple"
+                placeholder={`Select ${field.label}`}
+                allowClear
+                showSearch
+                filterOption={(input, option) => {
+                    const searchText = input.toLowerCase();
+                    const countryValue = option?.value as string;
+                    const country = countries?.find(
+                        (c: any) => c.nicename === countryValue,
+                    );
+
+                    if (!country) return false;
+
+                    return (
+                        country.nicename?.toLowerCase().includes(searchText) ||
+                        country.name?.toLowerCase().includes(searchText) ||
+                        country.iso?.toLowerCase().includes(searchText) ||
+                        country.iso3?.toLowerCase().includes(searchText) ||
+                        country.nationality?.toLowerCase().includes(searchText)
+                    );
+                }}
+            >
+                {countries && countries.length > 0 ? (
+                    countries.map((country: any) => (
+                        <Select.Option
+                            key={country.iso || country.id}
+                            value={country.nicename}
+                        >
+                            <span className="flex items-center gap-2">
+                                <span
+                                    className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`}
+                                />
+                                {country.nicename}
+                                {country.nationality &&
+                                    country.nationality !== "unknown" && (
+                                        <span className="text-gray-500 text-xs">
+                                            ({country.nationality})
+                                        </span>
+                                    )}
+                            </span>
+                        </Select.Option>
+                    ))
+                ) : (
+                    <Select.Option disabled value="">
+                        No countries available
+                    </Select.Option>
+                )}
+            </Select>
+        </Form.Item>
+    );
+
     const renderCurrencyField = (field: CustomField) => (
         <Form.Item
             key={field.id}
@@ -439,6 +507,8 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 return renderDateField(field);
             case "country":
                 return renderCountryField(field);
+            case "multiSelectCountry":
+                return renderMultiSelectCountryField(field);
             case "currency":
                 return renderCurrencyField(field);
             case "repeatable":

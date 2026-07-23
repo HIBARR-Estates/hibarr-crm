@@ -40,7 +40,33 @@ import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropert
 import useTranslation from "@/Hooks/useTranslation";
 import { getDealValueInsight } from "@/Features/Deals/utils/valueInsights";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import {
+    filterCategoriesByScope,
+    filterCategoriesForAllFieldsView,
+    isFieldVisible,
+    resolveScopedFieldKeys,
+} from "@/Features/Deals/pipelineScopeUtils";
+import DealFieldViewModeToggle from "@/Features/Deals/DealFieldViewModeToggle";
+import {
+    pipelineHasFieldScopes,
+    useDealFieldViewMode,
+} from "@/Features/Deals/useDealFieldViewMode";
 import { useCurrencies } from "@/Hooks/useFormData";
+
+function normalizePackageFieldValue(value: unknown): number[] {
+    if (value === undefined || value === null || value === "") {
+        return [];
+    }
+
+    if (Array.isArray(value)) {
+        return value
+            .map((id) => Number(id))
+            .filter((id) => !Number.isNaN(id) && id > 0);
+    }
+
+    const id = Number(value);
+    return !Number.isNaN(id) && id > 0 ? [id] : [];
+}
 
 interface Props {
     deal: Deal;
@@ -76,6 +102,182 @@ export default function DealInfoSection({
     const { props } = usePage<any>();
     const { t } = useTranslation();
     const { td } = useTd();
+
+    const pipelineCategoryScopeMap = props.pipelineCategoryScopeMap || {};
+    const pipelineFieldScopeMap = props.pipelineFieldScopeMap || {};
+    const stages = props.stages || [];
+    const scopedCategoryIdsFromServer =
+        props.scopedCustomFieldCategoryIds ?? null;
+    const allPipelineCategoryIdsFromServer =
+        props.allPipelineCustomFieldCategoryIds ?? null;
+    const scopedDealFieldKeysFromServer = props.visibleDealFieldKeys as
+        | string[]
+        | null
+        | undefined;
+    const scopedLeadFieldKeysFromServer = props.visibleLeadFieldKeys as
+        | string[]
+        | null
+        | undefined;
+    const dealPackageMode = props.dealPackageMode || "multiple";
+
+    const allCustomFieldCategories =
+        props.customFieldCategories || customFieldCategories;
+
+    const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
+    const { mode: fieldViewMode, setMode: setFieldViewMode, showAllFields } =
+        useDealFieldViewMode();
+
+    const hasPipelineScopes = useMemo(
+        () =>
+            pipelineHasFieldScopes(
+                pipelineCategoryScopeMap,
+                pipelineFieldScopeMap,
+            ),
+        [pipelineCategoryScopeMap, pipelineFieldScopeMap],
+    );
+
+    const visibleCustomFieldCategories: any[] = useMemo(
+        () =>
+            showAllFields
+                ? filterCategoriesForAllFieldsView(
+                      allCustomFieldCategories,
+                      pipelineCategoryScopeMap,
+                      currentDeal.lead_pipeline_id,
+                      allPipelineCategoryIdsFromServer,
+                  )
+                : filterCategoriesByScope(
+                      allCustomFieldCategories,
+                      pipelineCategoryScopeMap,
+                      currentDeal.lead_pipeline_id,
+                      currentDeal.pipeline_stage_id,
+                      stages,
+                      scopedCategoryIdsFromServer,
+                  ),
+        [
+            showAllFields,
+            allCustomFieldCategories,
+            pipelineCategoryScopeMap,
+            currentDeal.lead_pipeline_id,
+            currentDeal.pipeline_stage_id,
+            stages,
+            scopedCategoryIdsFromServer,
+            allPipelineCategoryIdsFromServer,
+        ],
+    );
+
+    const resolvedDealFieldKeys = useMemo(() => {
+        // "All fields" shows every native/custom field; category scoping still applies separately.
+        if (showAllFields) {
+            return null;
+        }
+
+        if (scopedDealFieldKeysFromServer !== undefined) {
+            return scopedDealFieldKeysFromServer;
+        }
+
+        return resolveScopedFieldKeys(
+            pipelineFieldScopeMap,
+            "App\\Models\\Deal",
+            currentDeal.lead_pipeline_id,
+            currentDeal.pipeline_stage_id,
+            stages,
+        );
+    }, [
+        showAllFields,
+        pipelineFieldScopeMap,
+        currentDeal.lead_pipeline_id,
+        currentDeal.pipeline_stage_id,
+        stages,
+        scopedDealFieldKeysFromServer,
+    ]);
+
+    const resolvedLeadFieldKeys = useMemo(() => {
+        if (showAllFields) {
+            return null;
+        }
+
+        if (scopedLeadFieldKeysFromServer !== undefined) {
+            return scopedLeadFieldKeysFromServer;
+        }
+
+        return resolveScopedFieldKeys(
+            pipelineFieldScopeMap,
+            "App\\Models\\Lead",
+            currentDeal.lead_pipeline_id,
+            currentDeal.pipeline_stage_id,
+            stages,
+        );
+    }, [
+        showAllFields,
+        pipelineFieldScopeMap,
+        currentDeal.lead_pipeline_id,
+        currentDeal.pipeline_stage_id,
+        stages,
+        scopedLeadFieldKeysFromServer,
+    ]);
+
+    const showDealField = (fieldKey: string) =>
+        isFieldVisible(resolvedDealFieldKeys, fieldKey);
+
+    const showLeadField = (fieldKey: string) =>
+        isFieldVisible(resolvedLeadFieldKeys, fieldKey);
+
+    const hasActiveDealFieldScopes = resolvedDealFieldKeys !== null;
+    const hasActiveLeadFieldScopes = resolvedLeadFieldKeys !== null;
+    const showExtraDealField = () => !hasActiveDealFieldScopes;
+    const showExtraLeadField = () => !hasActiveLeadFieldScopes;
+
+    const HIBARR_FIELD_KEYS = [
+        "interested_in",
+        "purchase_timeline",
+        "motivation",
+        "budget_range",
+        "strategy_meeting_booked",
+        "downpayment_paid",
+        "inspection_trip_date",
+        "deposit_confirmation",
+        "reservation_agreement",
+        "sales_contract",
+        "message",
+    ] as const;
+
+    const showOverviewBlock = useMemo(
+        () =>
+            showDealField("name") ||
+            showDealField("value") ||
+            showDealField("close_date") ||
+            showExtraDealField() ||
+            showLeadField("client_name") ||
+            showDealField("category_id"),
+        [
+            resolvedDealFieldKeys,
+            resolvedLeadFieldKeys,
+            hasActiveDealFieldScopes,
+            hasActiveLeadFieldScopes,
+        ],
+    );
+
+    const showContactInfoBlock = useMemo(
+        () =>
+            showLeadField("client_email") ||
+            showLeadField("mobile") ||
+            showExtraLeadField(),
+        [resolvedLeadFieldKeys, hasActiveLeadFieldScopes],
+    );
+
+    const showTeamBlock = useMemo(
+        () => showDealField("agent_id") || showExtraDealField(),
+        [resolvedDealFieldKeys, hasActiveDealFieldScopes],
+    );
+
+    const showDetailsTab = useMemo(
+        () =>
+            resolvedDealFieldKeys === null ||
+            HIBARR_FIELD_KEYS.some((key) =>
+                isFieldVisible(resolvedDealFieldKeys, key),
+            ),
+        [resolvedDealFieldKeys],
+    );
     const user = props.auth.user;
     const { currencies } = useCurrencies();
     const defaultCurrencyCode = props.default_currency_code || "TRY";
@@ -87,18 +289,28 @@ export default function DealInfoSection({
 
     const ALL_SECTIONS = useMemo(
         () => [
-            "deal-overview",
-            "deal-contact-info",
-            "deal-team",
-            "deal-interest-budget",
-            "deal-progress",
-            "deal-documentation",
-            "deal-notes",
-            ...(customFieldCategories || []).map(
+            ...(showOverviewBlock ? ["deal-overview"] : []),
+            ...(showContactInfoBlock ? ["deal-contact-info"] : []),
+            ...(showTeamBlock ? ["deal-team"] : []),
+            ...(showDetailsTab
+                ? [
+                      "deal-interest-budget",
+                      "deal-progress",
+                      "deal-documentation",
+                      "deal-notes",
+                  ]
+                : []),
+            ...(visibleCustomFieldCategories || []).map(
                 (cat: any) => `deal-category-${cat.id}`,
             ),
         ],
-        [customFieldCategories],
+        [
+            showOverviewBlock,
+            showContactInfoBlock,
+            showTeamBlock,
+            showDetailsTab,
+            visibleCustomFieldCategories,
+        ],
     );
 
     const toggleSection = (id: string) => {
@@ -124,19 +336,27 @@ export default function DealInfoSection({
     const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
     const getSectionsForKey = useCallback((key: string): string[] => {
-        if (key === "overview")
-            return ["deal-overview", "deal-contact-info", "deal-team"];
-        if (key === "details")
+        if (key === "overview") {
             return [
-                "deal-interest-budget",
-                "deal-progress",
-                "deal-documentation",
-                "deal-notes",
+                ...(showOverviewBlock ? ["deal-overview"] : []),
+                ...(showContactInfoBlock ? ["deal-contact-info"] : []),
+                ...(showTeamBlock ? ["deal-team"] : []),
             ];
+        }
+        if (key === "details") {
+            return showDetailsTab
+                ? [
+                      "deal-interest-budget",
+                      "deal-progress",
+                      "deal-documentation",
+                      "deal-notes",
+                  ]
+                : [];
+        }
         if (key.startsWith("category-"))
             return [`deal-category-${key.replace("category-", "")}`];
         return [];
-    }, []);
+    }, [showOverviewBlock, showContactInfoBlock, showTeamBlock, showDetailsTab]);
 
     const handleNavClick = useCallback(
         (key: string) => {
@@ -187,8 +407,7 @@ export default function DealInfoSection({
             if (el) observer.observe(el);
         });
         return () => observer.disconnect();
-    }, [customFieldCategories?.length]);
-    const [currentDeal, setCurrentDeal] = useState<Deal>(deal);
+    }, [visibleCustomFieldCategories?.length]);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
 
@@ -419,6 +638,9 @@ export default function DealInfoSection({
                     } else if (fieldName === "close_date") {
                         processedValue = value || null;
                         detailsChanges[fieldName] = processedValue;
+                    } else if (fieldName === "package_id") {
+                        detailsChanges[fieldName] =
+                            normalizePackageFieldValue(value);
                     } else {
                         detailsChanges[fieldName] = processedValue;
                     }
@@ -626,14 +848,36 @@ export default function DealInfoSection({
                 }
             } else if (fieldName === "close_date") {
                 processedValue = value || null;
+            } else if (fieldName === "package_id") {
+                processedValue = normalizePackageFieldValue(value);
             }
 
             const payloadData = { [apiFieldName]: processedValue };
+            const previousPipelineId = currentDeal.lead_pipeline_id;
+            const previousStageId = currentDeal.pipeline_stage_id;
 
-            await updateDeal({
+            const response = await updateDeal({
                 type: effectiveType,
                 data: payloadData,
             });
+
+            if (
+                fieldName === "package_id" &&
+                response?.status === "success" &&
+                response.data &&
+                (response.data.lead_pipeline_id !== previousPipelineId ||
+                    response.data.pipeline_stage_id !== previousStageId)
+            ) {
+                router.reload({
+                    only: [
+                        "deal",
+                        "visibleDealFieldKeys",
+                        "visibleLeadFieldKeys",
+                        "scopedCustomFieldCategoryIds",
+                        "allPipelineCustomFieldCategoryIds",
+                    ],
+                });
+            }
         } catch (error: any) {
             // Clear the updating field on error
             setUpdatingField(null);
@@ -715,6 +959,7 @@ export default function DealInfoSection({
             key: "overview",
             children: (
                 <div className="p-4 space-y-4">
+                    {showOverviewBlock && (
                     <DetailSection
                         title={t("pages.deals.info.sections.overview")}
                         accordion
@@ -722,6 +967,7 @@ export default function DealInfoSection({
                         isOpen={openSections["deal-overview"] ?? false}
                         onToggle={() => toggleSection("deal-overview")}
                     >
+                        {showDealField("name") && (
                         <DetailField
                             label={t("pages.deals.info.fields.deal_name")}
                         >
@@ -739,7 +985,9 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
 
+                        {showDealField("value") && (
                         <DetailField
                             label={t("pages.deals.info.fields.deal_value")}
                         >
@@ -952,7 +1200,9 @@ export default function DealInfoSection({
                                     )}
                             </div>
                         </DetailField>
+                        )}
 
+                        {showDealField("close_date") && (
                         <DetailField
                             label={t("pages.deals.info.fields.close_date")}
                         >
@@ -978,19 +1228,27 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
 
+                        {showDealField("package_id") && (
                         <DetailField
                             label={t("pages.deals.info.fields.packages")}
                         >
                             <EditableField
                                 value={
-                                    currentDeal.packages?.map(
-                                        (p: any) => p.id,
-                                    ) || []
+                                    dealPackageMode === "single"
+                                        ? currentDeal.packages?.[0]?.id
+                                        : currentDeal.packages?.map(
+                                              (p: any) => p.id,
+                                          ) || []
                                 }
                                 fieldName="package_id"
                                 selectorType="packages"
-                                mode="multiple"
+                                mode={
+                                    dealPackageMode === "single"
+                                        ? undefined
+                                        : "multiple"
+                                }
                                 displayValue={
                                     currentDeal.packages?.length
                                         ? currentDeal.packages
@@ -1012,7 +1270,9 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
 
+                        {showLeadField("client_name") && (
                         <DetailField
                             label={t("pages.deals.info.fields.lead_contact")}
                         >
@@ -1072,7 +1332,9 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
 
+                        {showDealField("category_id") && (
                         <DetailField
                             label={t("pages.deals.info.fields.deal_category")}
                         >
@@ -1102,7 +1364,9 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
 
+                        {showExtraDealField() && (
                         <DetailField
                             label={t("pages.deals.info.fields.created_at")}
                         >
@@ -1117,7 +1381,9 @@ export default function DealInfoSection({
                                 <span className="text-gray-400">--</span>
                             )}
                         </DetailField>
+                        )}
 
+                        {showExtraDealField() && (
                         <DetailField
                             label={t("pages.deals.info.fields.updated_at")}
                         >
@@ -1132,7 +1398,9 @@ export default function DealInfoSection({
                                 <span className="text-gray-400">--</span>
                             )}
                         </DetailField>
+                        )}
 
+                        {showExtraDealField() && (
                         <DetailField
                             label={t("pages.deals.info.fields.properties")}
                             span={2}
@@ -1173,8 +1441,9 @@ export default function DealInfoSection({
                                 }
                             />
                         </DetailField>
+                        )}
 
-                        {currentDeal?.lead_status && (
+                        {showExtraDealField() && currentDeal?.lead_status && (
                             <DetailField
                                 label={t("pages.deals.info.fields.status")}
                             >
@@ -1187,7 +1456,9 @@ export default function DealInfoSection({
                             </DetailField>
                         )}
                     </DetailSection>
+                    )}
 
+                    {showContactInfoBlock && (
                     <DetailSection
                         title={t("pages.deals.info.sections.contact_info")}
                         accordion
@@ -1195,6 +1466,7 @@ export default function DealInfoSection({
                         isOpen={openSections["deal-contact-info"] ?? false}
                         onToggle={() => toggleSection("deal-contact-info")}
                     >
+                        {showLeadField("client_email") && (
                         <DetailField
                             label={t("pages.deals.info.fields.email")}
                             copyValue={
@@ -1227,7 +1499,9 @@ export default function DealInfoSection({
                                 )}
                             </div>
                         </DetailField>
+                        )}
 
+                        {showLeadField("mobile") && (
                         <DetailField
                             label={t("pages.deals.info.fields.mobile")}
                             copyValue={
@@ -1260,7 +1534,9 @@ export default function DealInfoSection({
                                 <span className="text-gray-400">--</span>
                             )}
                         </DetailField>
+                        )}
 
+                        {showExtraLeadField() && (
                         <DetailField
                             label={t("pages.deals.info.fields.company_name")}
                             span={2}
@@ -1281,8 +1557,11 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
                     </DetailSection>
+                    )}
 
+                    {showTeamBlock && (
                     <DetailSection
                         title={t("pages.deals.info.sections.team")}
                         accordion
@@ -1290,6 +1569,7 @@ export default function DealInfoSection({
                         isOpen={openSections["deal-team"] ?? false}
                         onToggle={() => toggleSection("deal-team")}
                     >
+                        {showDealField("agent_id") && (
                         <DetailField
                             label={t("pages.deals.info.fields.deal_agent")}
                         >
@@ -1321,7 +1601,9 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
 
+                        {showExtraDealField() && (
                         <DetailField
                             label={t(
                                 "pages.deals.info.fields.deal_participants",
@@ -1371,7 +1653,9 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
 
+                        {showExtraDealField() && (
                         <DetailField
                             label={t("pages.deals.info.fields.deal_watchers")}
                             span={2}
@@ -1420,13 +1704,15 @@ export default function DealInfoSection({
                                 disabled={!canEdit}
                             />
                         </DetailField>
+                        )}
                     </DetailSection>
+                    )}
                 </div>
             ),
         },
         {
             key: "details",
-            children: (
+            children: showDetailsTab ? (
                 <DealDetailsTab
                     deal={currentDeal}
                     onUpdate={(field, value) =>
@@ -1439,11 +1725,12 @@ export default function DealInfoSection({
                     disabled={!canEdit}
                     openSections={openSections}
                     onToggleSection={toggleSection}
+                    isFieldVisible={showDealField}
                 />
-            ),
+            ) : null,
         },
         // Custom field categories as scroll sections
-        ...(customFieldCategories || []).map((category) => ({
+        ...(visibleCustomFieldCategories || []).map((category) => ({
             key: `category-${category.id}`,
             children: (
                 <div className="p-4">
@@ -1453,6 +1740,7 @@ export default function DealInfoSection({
                         categoryId={category.id}
                         title={td(category.name)}
                         column={2}
+                        visibleFieldKeys={resolvedDealFieldKeys}
                         onUpdate={(field, value) =>
                             handleFieldUpdate(field, value, "custom_field")
                         }
@@ -1477,9 +1765,13 @@ export default function DealInfoSection({
     ];
 
     const sideNavItems = [
-        { key: "overview", label: t("pages.deals.info.tab_overview") },
-        { key: "details", label: t("pages.deals.info.tab_details") },
-        ...(customFieldCategories || []).map((cat) => ({
+        ...(showOverviewBlock || showContactInfoBlock || showTeamBlock
+            ? [{ key: "overview", label: t("pages.deals.info.tab_overview") }]
+            : []),
+        ...(showDetailsTab
+            ? [{ key: "details", label: t("pages.deals.info.tab_details") }]
+            : []),
+        ...(visibleCustomFieldCategories || []).map((cat) => ({
             key: `category-${cat.id}`,
             label: td(cat.name),
         })),
@@ -1540,6 +1832,17 @@ export default function DealInfoSection({
                                 {t("pages.deals.info.unsaved_changes", {
                                     count: Object.keys(pendingChanges).length,
                                 })}
+                            </Tag>
+                        )}
+                        {hasPipelineScopes && (
+                            <DealFieldViewModeToggle
+                                mode={fieldViewMode}
+                                onChange={setFieldViewMode}
+                            />
+                        )}
+                        {showAllFields && hasPipelineScopes && (
+                            <Tag color="purple" className="text-xs">
+                                {t("pages.deals.info.field_view_all")}
                             </Tag>
                         )}
                         <Button

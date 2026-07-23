@@ -10,8 +10,10 @@ use App\Models\PipelineStage;
 use App\Models\User;
 use App\Support\FeatureFlags;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use App\Models\LeadSetting;
 use App\Services\LeadLifecycleStatusService;
+use App\Services\PackageRoutingFieldCatalog;
 
 class LeadSettingController extends AccountBaseController
 {
@@ -58,11 +60,24 @@ class LeadSettingController extends AccountBaseController
             'category' => 'lead-settings.ajax.category',
             'method' => 'lead-settings.ajax.method',
             'lifecycle' => 'lead-settings.ajax.lifecycle',
+            'deal-packages' => 'lead-settings.ajax.deal-packages',
             default => 'lead-settings.ajax.source',
         };
 
         $this->activeTab = $tab ?: 'source';
         $this->pipelineNavVisibilityEnabled = FeatureFlags::enabled('crm.pipeline-nav-visibility');
+
+        if ($this->activeTab === 'deal-packages') {
+            $catalog = app(PackageRoutingFieldCatalog::class);
+            $companyId = (int) company()->id;
+            $this->routingFieldGroups = $catalog->groupedFieldItems($companyId);
+            $this->routingFieldOptions = $catalog->allFieldOptions($companyId);
+            $selected = company()->package_pipeline_routing_trigger_fields;
+            if (is_string($selected)) {
+                $selected = json_decode($selected, true);
+            }
+            $this->selectedRoutingTriggerFields = is_array($selected) ? $selected : array_keys($this->routingFieldOptions);
+        }
 
         if (request()->ajax()) {
             $html = view($this->view, $this->data)->render();
@@ -94,6 +109,36 @@ class LeadSettingController extends AccountBaseController
         $leadSetting->save();
 
         return reply::success(__('messages.updateSuccess'));
+    }
+
+    public function updateDealPackageSettings(Request $request)
+    {
+        $allowedFieldKeys = array_keys(
+            app(\App\Services\PackageRoutingFieldCatalog::class)->allFieldOptions(company()->id),
+        );
+
+        $request->validate([
+            'deal_package_mode' => 'required|in:single,multiple',
+            'package_pipeline_routing_trigger_fields' => 'nullable|array',
+            'package_pipeline_routing_trigger_fields.*' => ['string', 'max:100', Rule::in($allowedFieldKeys)],
+        ]);
+
+        $company = company();
+        $dealPackageMode = $request->deal_package_mode;
+        $company->deal_package_mode = $dealPackageMode;
+        $company->package_pipeline_routing_enabled = $dealPackageMode === 'single'
+            && $request->has('package_pipeline_routing_enabled')
+            ? 1
+            : 0;
+        $company->package_pipeline_routing_trigger_fields = $request->has('package_pipeline_routing_trigger_fields')
+            ? array_values(array_intersect(
+                $request->input('package_pipeline_routing_trigger_fields', []),
+                $allowedFieldKeys,
+            ))
+            : [];
+        $company->save();
+
+        return Reply::success(__('messages.updateSuccess'));
     }
 
 }

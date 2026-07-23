@@ -192,7 +192,16 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                     return implode(', ', $selected);
                 }
                 return 'Option 1, Option 2';
-                
+
+            case 'multiSelectCountry':
+                // Semicolon matches ImportDealJob's parsing delimiter (country nicenames
+                // can contain literal commas, so comma can't be the separator here).
+                $countryNames = collect(\App\Models\Country::all())->pluck('nicename')->all();
+                if (!empty($countryNames)) {
+                    return implode('; ', array_slice($countryNames, 0, 2));
+                }
+                return 'Turkey; Germany';
+
             case 'textarea':
                 return 'This is a longer text sample for row ' . ($rowIndex + 1);
                 

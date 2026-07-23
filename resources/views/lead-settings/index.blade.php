@@ -38,6 +38,10 @@ $addLeadCategoryPermission = user()->permission('add_lead_category');
                                 href="{{ route('lead-settings.index') }}?tab=lifecycle" role="tab"
                                 aria-controls="nav-lifecycle" aria-selected="true">@lang('modules.lead.lifecycleStatus')
                             </a>
+                            <a class="nav-item nav-link f-15 deal-packages"
+                                href="{{ route('lead-settings.index') }}?tab=deal-packages" role="tab"
+                                aria-controls="nav-deal-packages" aria-selected="true">@lang('modules.deal.dealPackageSettings')
+                            </a>
                         </div>
                     </nav>
                 </div>

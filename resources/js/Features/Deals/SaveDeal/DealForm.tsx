@@ -6,6 +6,12 @@ import { usePage } from "@inertiajs/react";
 
 import CustomFieldTab from "./CustomFieldTab";
 import DealDetailsTab from "./DealDetailsTab";
+import { filterCategoriesByScope, filterCategoriesForAllFieldsView } from "@/Features/Deals/pipelineScopeUtils";
+import DealFieldViewModeToggle from "@/Features/Deals/DealFieldViewModeToggle";
+import {
+    pipelineHasFieldScopes,
+    useDealFieldViewMode,
+} from "@/Features/Deals/useDealFieldViewMode";
 
 export interface DealFormProps {
     data?: CreateDealFormData;
@@ -43,6 +49,9 @@ const DealForm: React.FC<DealFormProps> = ({
     const [selectedPipelineId, setSelectedPipelineId] = useState<
         number | undefined
     >(data?.pipeline);
+    const [selectedStageId, setSelectedStageId] = useState<
+        number | undefined
+    >(data?.stage_id);
 
     const dealCustomFields: any[] =
         formReferenceData.dealCustomFields ||
@@ -58,32 +67,63 @@ const DealForm: React.FC<DealFormProps> = ({
         props.customFieldCategories ||
         [];
 
-    const pipelineCustomFieldCategoryIdsByPipeline: Record<string, number[]> =
-        formReferenceData.pipelineCustomFieldCategoryIdsByPipeline ||
-        props.pipelineCustomFieldCategoryIdsByPipeline ||
+    const pipelineCategoryScopeMap: Record<
+        string,
+        { pipelineWide?: number[]; byStage?: Record<string, number[]> }
+    > =
+        formReferenceData.pipelineCategoryScopeMap ||
+        props.pipelineCategoryScopeMap ||
         {};
+
+    const pipelineFieldScopeMap =
+        formReferenceData.pipelineFieldScopeMap ||
+        props.pipelineFieldScopeMap ||
+        {};
+    const stages = formReferenceData.stages || props.stages || [];
+    const { mode: fieldViewMode, setMode: setFieldViewMode, showAllFields } =
+        useDealFieldViewMode();
+
+    const hasPipelineScopes = useMemo(
+        () =>
+            pipelineHasFieldScopes(
+                pipelineCategoryScopeMap,
+                pipelineFieldScopeMap,
+            ),
+        [pipelineCategoryScopeMap, pipelineFieldScopeMap],
+    );
 
     useEffect(() => {
         if (data?.pipeline !== undefined) {
             setSelectedPipelineId(data.pipeline);
         }
-    }, [data?.pipeline]);
+        if (data?.stage_id !== undefined) {
+            setSelectedStageId(data.stage_id);
+        }
+    }, [data?.pipeline, data?.stage_id]);
 
     const customFieldCategories = useMemo(() => {
-        const key = selectedPipelineId != null ? String(selectedPipelineId) : "";
-        const allowedIds = key ? pipelineCustomFieldCategoryIdsByPipeline[key] : undefined;
-
-        // If pipeline has 0 associated categories, fall back to showing all (backward compatibility)
-        if (!allowedIds || allowedIds.length === 0) {
-            return allCustomFieldCategories;
+        if (showAllFields) {
+            return filterCategoriesForAllFieldsView(
+                allCustomFieldCategories,
+                pipelineCategoryScopeMap,
+                selectedPipelineId,
+            );
         }
 
-        const allowedSet = new Set<number>(allowedIds);
-        return allCustomFieldCategories.filter((c: any) => allowedSet.has(c.id));
+        return filterCategoriesByScope(
+            allCustomFieldCategories,
+            pipelineCategoryScopeMap,
+            selectedPipelineId,
+            selectedStageId,
+            stages,
+        );
     }, [
+        showAllFields,
         selectedPipelineId,
+        selectedStageId,
         allCustomFieldCategories,
-        pipelineCustomFieldCategoryIdsByPipeline,
+        pipelineCategoryScopeMap,
+        stages,
     ]);
 
     useEffect(() => {
@@ -115,13 +155,14 @@ const DealForm: React.FC<DealFormProps> = ({
                     onErrorsClear={onErrorsClear}
                     setErrors={setErrors}
                     formReferenceData={formReferenceData}
-                    onPipelineChange={(pipelineId) =>
-                        setSelectedPipelineId(pipelineId)
-                    }
+                    onPipelineChange={(pipelineId) => {
+                        setSelectedPipelineId(pipelineId);
+                        setSelectedStageId(undefined);
+                    }}
+                    onStageChange={setSelectedStageId}
                 />
             ),
         },
-        // Add custom field category tabs
         ...customFieldCategories.map((category: any) => ({
             key: `custom_${category.id}`,
             label: category.name,
@@ -143,9 +184,19 @@ const DealForm: React.FC<DealFormProps> = ({
         })),
     ];
 
+    const tabKeys = useMemo(
+        () => tabItems.map((item) => item?.key).filter(Boolean) as string[],
+        [tabItems],
+    );
+
+    useEffect(() => {
+        if (!tabKeys.includes(activeTab)) {
+            setActiveTab(tabKeys[0] ?? "deal");
+        }
+    }, [tabKeys, activeTab]);
+
     return (
         <>
-            {/* Display errors */}
             {errors.length > 0 && (
                 <div className="mb-4">
                     <Alert
@@ -165,11 +216,19 @@ const DealForm: React.FC<DealFormProps> = ({
                 </div>
             )}
 
+            {hasPipelineScopes && (
+                <div className="flex justify-end mb-3">
+                    <DealFieldViewModeToggle
+                        mode={fieldViewMode}
+                        onChange={setFieldViewMode}
+                    />
+                </div>
+            )}
+
             <Tabs
                 activeKey={activeTab}
                 onChange={setActiveTab}
                 items={tabItems}
-                type="line"
             />
         </>
     );

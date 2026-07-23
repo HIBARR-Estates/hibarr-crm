@@ -8,6 +8,9 @@ use App\Models\CrmEvent;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\DealNote;
+use App\Models\LeadPipeline;
+use App\Models\Package;
+use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\Property;
 use App\Models\Task;
@@ -201,6 +204,51 @@ class DealActivityEventService
             'added_package_names' => $addedNames ?: null,
             'removed_package_names' => $removedNames ?: null,
         ]);
+    }
+
+    public function recordPackagePipelineRouted(
+        Deal $deal,
+        Package $package,
+        int $fromPipelineId,
+        int $fromStageId,
+        LeadPipeline $toPipeline,
+        ?int $toStageId,
+    ): void {
+        $fromPipeline = LeadPipeline::find($fromPipelineId);
+        $fromStage = PipelineStage::find($fromStageId);
+        $toStage = $toStageId ? PipelineStage::find($toStageId) : null;
+
+        if ($fromPipelineId !== (int) $toPipeline->id) {
+            $this->record('deal_pipeline_changed', $deal, [
+                'comment' => CrmEventDescriptionBuilder::dealPipelineChanged(
+                    $fromPipeline?->name,
+                    $toPipeline->name,
+                ),
+                'from_pipeline_id' => $fromPipelineId,
+                'to_pipeline_id' => $toPipeline->id,
+                'from_pipeline_name' => $fromPipeline?->name,
+                'to_pipeline_name' => $toPipeline->name,
+                'package_id' => $package->id,
+                'package_name' => $package->name,
+                'trigger' => 'package_pipeline_routing',
+            ]);
+        }
+
+        if ($fromStageId !== (int) $toStageId && $toStage) {
+            $this->record('deal_stage_changed', $deal, [
+                'comment' => CrmEventDescriptionBuilder::dealStageChanged(
+                    $fromStage?->name,
+                    $toStage->name,
+                ),
+                'from_stage_id' => $fromStageId,
+                'to_stage_id' => $toStageId,
+                'from_stage_name' => $fromStage?->name,
+                'to_stage_name' => $toStage->name,
+                'package_id' => $package->id,
+                'package_name' => $package->name,
+                'trigger' => 'package_pipeline_routing',
+            ]);
+        }
     }
 
     public function recordWatchersUpdated(Deal $deal, array $oldWatcherIds, array $newWatcherIds, array $oldWatcherNames, array $newWatcherNames): void
@@ -519,6 +567,15 @@ class DealActivityEventService
             }
 
             return '1 file';
+        }
+
+        if ($fieldType === 'multiSelectCountry') {
+            $decoded = json_decode($trimmed, true);
+            if (is_array($decoded) && !empty($decoded)) {
+                return implode(', ', $decoded);
+            }
+
+            return $trimmed;
         }
 
         if (in_array($fieldType, ['checkbox', 'multiselect', 'select'], true)) {
