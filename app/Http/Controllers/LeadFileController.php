@@ -6,6 +6,7 @@ use App\Helper\Reply;
 use App\Models\Deal;
 use App\Models\DealFile;
 use App\Services\FileStorageService;
+use App\Services\PermissionService;
 use App\Traits\IconTrait;
 use Illuminate\Http\Request;
 use App\Helper\Files;
@@ -186,6 +187,29 @@ class LeadFileController extends AccountBaseController
 
         return Reply::success(__('messages.deleteSuccess'));
 
+    }
+
+    /**
+     * JSON endpoint for the files tab — fetched independently by the frontend
+     * instead of riding the deal page's deferred-prop bundle. Logic relocated
+     * verbatim from the former `files` deferred prop on DealController::show().
+     */
+    public function dealFiles(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(!$access['canAccess']);
+
+        $files = $deal->files()->orderBy('created_at', 'desc')->get();
+        if (user()->permission('view_lead_files') == 'added') {
+            $files = $files->where('added_by', user()->id)->values();
+        }
+
+        return response()->json(['status' => 'success', 'data' => $files]);
     }
 
     /**

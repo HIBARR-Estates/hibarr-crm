@@ -509,5 +509,4 @@ class DealGatheringService
 
         return $key;
     }
-    }
 }

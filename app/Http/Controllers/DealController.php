@@ -684,60 +684,16 @@ class DealController extends AccountBaseController
             'restrictPackageOrProperty' => (bool) (\App\Models\LeadSetting::first()->restrict_package_or_property ?? false),
 
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
-            'notes' => Inertia::defer(function () use ($dealId) {
-                $notes = DealNote::with('addedBy')
-                    ->where('deal_id', $dealId)
-                    ->orderBy('created_at', 'desc')
-                    ->get();
-
-                $viewNotesPermission = user()->permission('view_deal_note');
-
-                if ($viewNotesPermission == 'none') {
-                    return collect();
-                }
-                if ($viewNotesPermission == 'added') {
-                    return $notes->where('added_by', user()->id)->values();
-                }
-                if ($viewNotesPermission == 'owned') {
-                    return $notes->where('added_by', '!=', user()->id)->values();
-                }
-
-                return $notes;
-            }),
-            'dealFollowUps' => Inertia::defer(function () use ($dealId) {
-                $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
-                    ->where('deal_id', $dealId)
-                    ->orderBy('next_follow_up_date', 'desc')
-                    ->get();
-
-                $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
-                $participantUsersMap = $allParticipantIds->isEmpty()
-                    ? collect()
-                    : User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
-
-                $dealFollowUps->each(function ($f) use ($participantUsersMap) {
-                    $f->participant_users = collect($f->participants ?? [])
-                        ->map(fn ($pid) => $participantUsersMap->get($pid))
-                        ->filter()
-                        ->map(fn ($u) => [
-                            'id' => $u->id,
-                            'name' => $u->name,
-                            'image' => $u->image ? $u->image_url : null,
-                        ])
-                        ->values()
-                        ->toArray();
-                });
-
-                return $dealFollowUps;
-            }),
-            'files' => Inertia::defer(function () use ($deal) {
-                $files = $deal->files()->orderBy('created_at', 'desc')->get();
-                if (user()->permission('view_lead_files') == 'added') {
-                    return $files->where('added_by', user()->id)->values();
-                }
-
-                return $files;
-            }),
+            // notes / dealFollowUps / files / tasks are no longer deferred props —
+            // they were all bundled into Inertia's single default group, so one
+            // slow/broken closure among the 17 here could stall every one of them
+            // at once (notes, tasks, meetings and files tabs all stuck loading
+            // together). Each now fetches independently via its own JSON endpoint
+            // (deals.notes.index / deals.tasks.index / deals.meetings.index /
+            // deals.files.index) the same way offers/recommendations already do —
+            // one tab's slow request can no longer block the others.
+            // The rest are still deferred, but split into explicit groups so a
+            // slow query in one group no longer blocks the others either.
             'proposals' => Inertia::defer(function () use ($dealId) {
                 if (!in_array(user()->permission('view_lead_proposals'), ['all', 'added'])) {
                     return collect();
@@ -757,31 +713,29 @@ class DealController extends AccountBaseController
                 }
 
                 return $proposals;
-            }),
+            }, 'timeline'),
             'histories' => Inertia::defer(fn () => DealHistory::where('deal_id', $dealId)
                 ->orderBy('created_at', 'desc')
-                ->get()),
+                ->limit(200)
+                ->get(), 'timeline'),
             'activities' => Inertia::defer(fn () => CommunicationActivity::where('deal_id', $dealId)
                 ->with(['deal', 'lead'])
                 ->orderBy('timestamp', 'desc')
-                ->get()),
+                ->limit(200)
+                ->get(), 'timeline'),
             'consents' => Inertia::defer(fn () => PurposeConsent::with(['lead' => function ($query) use ($dealId) {
                 $query->where('lead_id', $dealId)->orderByDesc('created_at');
-            }])->get()),
-            'gdprSetting' => Inertia::defer(fn () => GdprSetting::first()),
-            'tasks' => Inertia::defer(fn () => $deal->tasks()
-                ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
-                ->orderBy('id', 'desc')
-                ->get()),
-            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all()),
-            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all()),
-            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()),
-            'employees' => Inertia::defer(fn () => User::allEmployees()),
-            'projects' => Inertia::defer(fn () => \App\Models\Project::all()),
-            'leadContacts' => Inertia::defer(fn () => Lead::allLeads()),
+            }])->get(), 'timeline'),
+            'gdprSetting' => Inertia::defer(fn () => GdprSetting::first(), 'timeline'),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all(), 'taskMeta'),
+            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
+            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
+            'employees' => Inertia::defer(fn () => User::allEmployees(), 'formMeta'),
+            'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'formMeta'),
+            'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
             'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', '!=', 'active');
-            })->get()),
+            })->get(), 'formMeta'),
             'pipelineCustomFieldCategoryIdsByPipeline' => Inertia::defer(function () {
                 return LeadPipeline::query()
                     ->with('customFieldCategories:id')
@@ -792,8 +746,49 @@ class DealController extends AccountBaseController
                         ];
                     })
                     ->toArray();
-            }),
+            }, 'formMeta'),
         ]));
+    }
+
+    /**
+     * JSON endpoint for the meetings/follow-ups tab — fetched independently by
+     * the frontend instead of riding the page's deferred-prop bundle. Logic
+     * relocated verbatim from the former `dealFollowUps` deferred prop.
+     */
+    public function dealMeetings(Request $request, $id)
+    {
+        $deal = Deal::findOrFail($id);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(!$access['canAccess']);
+
+        $dealFollowUps = DealFollowUp::with(['addedBy:id,name,image', 'meetingType', 'meetingSummary'])
+            ->where('deal_id', $id)
+            ->orderBy('next_follow_up_date', 'desc')
+            ->get();
+
+        $allParticipantIds = $dealFollowUps->flatMap(fn ($f) => $f->participants ?? [])->unique()->values();
+        $participantUsersMap = $allParticipantIds->isEmpty()
+            ? collect()
+            : User::whereIn('id', $allParticipantIds)->get(['id', 'name', 'image'])->keyBy('id');
+
+        $dealFollowUps->each(function ($f) use ($participantUsersMap) {
+            $f->participant_users = collect($f->participants ?? [])
+                ->map(fn ($pid) => $participantUsersMap->get($pid))
+                ->filter()
+                ->map(fn ($u) => [
+                    'id' => $u->id,
+                    'name' => $u->name,
+                    'image' => $u->image ? $u->image_url : null,
+                ])
+                ->values()
+                ->toArray();
+        });
+
+        return response()->json(['status' => 'success', 'data' => $dealFollowUps]);
     }
 
     private function prepareNotesTab(int $dealId): void
@@ -1243,9 +1238,6 @@ class DealController extends AccountBaseController
                     Package::whereIn('id', $newPackageIds)->pluck('name', 'id')->toArray()
                 );
             }
-        } else {
-            $deal->packages()->detach();
-        }
         }
 
         // Handle deal watchers

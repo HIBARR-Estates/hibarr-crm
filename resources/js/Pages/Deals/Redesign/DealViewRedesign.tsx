@@ -38,13 +38,7 @@ import { DealWorkspaceProvider, useDealWorkspace } from "./context/DealWorkspace
 
 export default function DealViewRedesign(props: DealShowProps) {
     return (
-        <DealWorkspaceProvider
-            deal={props.deal}
-            notes={props.notes}
-            tasks={props.tasks}
-            dealFollowUps={props.dealFollowUps}
-            files={props.files}
-        >
+        <DealWorkspaceProvider deal={props.deal}>
             <DealViewRedesignInner {...props} />
         </DealWorkspaceProvider>
     );
@@ -70,7 +64,17 @@ function DealViewRedesignInner(props: DealShowProps) {
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
-    const { deal, notes, tasks, dealFollowUps, files } = useDealWorkspace();
+    const {
+        deal,
+        notes,
+        notesLoading,
+        tasks,
+        tasksLoading,
+        dealFollowUps,
+        dealFollowUpsLoading,
+        files,
+        filesLoading,
+    } = useDealWorkspace();
     const pageTitle = props?.pageTitle || deal?.name;
     const { t, locale } = useTranslation();
     // Adapters are plain functions with no hook access, so publish the active
@@ -144,23 +148,21 @@ function DealViewRedesignInner(props: DealShowProps) {
 
     const counts = useMemo(
         () => ({
-            notes: props.notes === undefined ? undefined : notes.length,
-            tasks:
-                props.tasks === undefined ? undefined : overview.openTasksCount,
-            meetings:
-                props.dealFollowUps === undefined
-                    ? undefined
-                    : overview.upcomingMeetingsCount,
-            files: props.files === undefined ? undefined : files.length,
+            notes: notesLoading ? undefined : notes.length,
+            tasks: tasksLoading ? undefined : overview.openTasksCount,
+            meetings: dealFollowUpsLoading
+                ? undefined
+                : overview.upcomingMeetingsCount,
+            files: filesLoading ? undefined : files.length,
             offers: offersCount,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
         }),
         [
-            props.notes,
-            props.tasks,
-            props.dealFollowUps,
-            props.files,
+            notesLoading,
+            tasksLoading,
+            dealFollowUpsLoading,
+            filesLoading,
             notes.length,
             files.length,
             deal.lead_flight_itineraries?.length,
@@ -249,55 +251,62 @@ function DealViewRedesignInner(props: DealShowProps) {
                                     <div className="p-4">
                                         {activeTab === "overview" && (
                                             <Deferred
-                                                data={[
-                                                    "notes",
-                                                    "tasks",
-                                                    "dealFollowUps",
-                                                    "taskBoardColumns",
-                                                ]}
+                                                data="taskBoardColumns"
                                                 fallback={<OverviewDeferredSkeleton />}
                                             >
-                                                <WorkspaceOverviewTab
-                                                    deal={deal}
-                                                    notes={notes}
-                                                    tasks={tasks}
-                                                    dealFollowUps={dealFollowUps}
-                                                    taskBoardColumns={taskBoardColumns}
-                                                    permissions={permissions}
-                                                    meetingTypes={meetingTypes}
-                                                    onNavigateToSubTab={nav.setTab}
-                                                    onAddTask={() => setAddTaskOpen(true)}
-                                                    onAddMeeting={() => setAddMeetingOpen(true)}
-                                                    onAddNote={() => setAddNoteOpen(true)}
-                                                />
+                                                {notesLoading ||
+                                                tasksLoading ||
+                                                dealFollowUpsLoading ? (
+                                                    <OverviewDeferredSkeleton />
+                                                ) : (
+                                                    <WorkspaceOverviewTab
+                                                        deal={deal}
+                                                        notes={notes}
+                                                        tasks={tasks}
+                                                        dealFollowUps={dealFollowUps}
+                                                        taskBoardColumns={taskBoardColumns}
+                                                        permissions={permissions}
+                                                        meetingTypes={meetingTypes}
+                                                        onNavigateToSubTab={nav.setTab}
+                                                        onAddTask={() => setAddTaskOpen(true)}
+                                                        onAddMeeting={() =>
+                                                            setAddMeetingOpen(true)
+                                                        }
+                                                        onAddNote={() => setAddNoteOpen(true)}
+                                                    />
+                                                )}
                                             </Deferred>
                                         )}
-                                        {activeTab === "notes" && (
-                                            <Deferred data="notes" fallback={<TabDeferredSkeleton />}>
+                                        {activeTab === "notes" &&
+                                            (notesLoading ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
                                                 <WorkspaceNotesTab
                                                     notes={notes}
                                                     permissions={permissions}
                                                 />
-                                            </Deferred>
-                                        )}
+                                            ))}
                                         {activeTab === "tasks" && (
                                             <Deferred
-                                                data={["tasks", "taskBoardColumns"]}
+                                                data="taskBoardColumns"
                                                 fallback={<TabDeferredSkeleton />}
                                             >
-                                                <WorkspaceTasksTab
-                                                    tasks={tasks}
-                                                    taskBoardColumns={taskBoardColumns}
-                                                    permissions={permissions}
-                                                    onAddTask={() => setAddTaskOpen(true)}
-                                                />
+                                                {tasksLoading ? (
+                                                    <TabDeferredSkeleton />
+                                                ) : (
+                                                    <WorkspaceTasksTab
+                                                        tasks={tasks}
+                                                        taskBoardColumns={taskBoardColumns}
+                                                        permissions={permissions}
+                                                        onAddTask={() => setAddTaskOpen(true)}
+                                                    />
+                                                )}
                                             </Deferred>
                                         )}
-                                        {activeTab === "meetings" && (
-                                            <Deferred
-                                                data="dealFollowUps"
-                                                fallback={<TabDeferredSkeleton />}
-                                            >
+                                        {activeTab === "meetings" &&
+                                            (dealFollowUpsLoading ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
                                                 <WorkspaceMeetingsTab
                                                     deal={deal}
                                                     followUps={dealFollowUps}
@@ -307,10 +316,11 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                         setAddMeetingOpen(true)
                                                     }
                                                 />
-                                            </Deferred>
-                                        )}
-                                        {activeTab === "files" && (
-                                            <Deferred data="files" fallback={<TabDeferredSkeleton />}>
+                                            ))}
+                                        {activeTab === "files" &&
+                                            (filesLoading ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
                                                 <WorkspaceFilesTab
                                                     deal={deal}
                                                     files={files}
@@ -318,8 +328,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                     fields={fields}
                                                     categoryIds={pipelineCategoryIds}
                                                 />
-                                            </Deferred>
-                                        )}
+                                            ))}
                                         {activeTab === "offers" && (
                                             <WorkspaceOffersTab
                                                 deal={deal}

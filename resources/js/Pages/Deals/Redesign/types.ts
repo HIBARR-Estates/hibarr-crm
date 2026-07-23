@@ -1,11 +1,7 @@
 import type { PageProps } from "@/Components/DashboardLayout";
 import type { DealSummaryPayload } from "@/Types/entity-summary";
 import type { Deal } from "@/Types/api/deals";
-import type { DealFile } from "@/Types/api/file";
-import type { DealFollowup } from "@/Types/api/deal-followup";
-import type { Note } from "@/Types/api/note";
 import type { Proposal } from "@/Types/api/proposal";
-import type { Task } from "@/Types/api/tasks";
 
 /**
  * v2.2 uses a single flat tab bar: record tabs, then a divider, then meta tabs.
@@ -58,15 +54,14 @@ export interface DealShowProps extends PageProps {
     pageTitle: string;
     dealAiSummary?: DealSummaryPayload | null;
     restrictPackageOrProperty?: boolean;
+    // notes / dealFollowUps / files / tasks fetch independently via
+    // deals.notes.index / deals.meetings.index / deals.files.index /
+    // deals.tasks.index (see DealWorkspaceContext) — no longer page props.
     // C1 deferred — may be undefined until Inertia resolves them
-    notes?: Note[];
-    dealFollowUps?: DealFollowup[];
-    files?: DealFile[];
     proposals?: Proposal[];
     histories?: any[];
     consents?: any[];
     gdprSetting?: any;
-    tasks?: Task[];
     taskCategories?: any[];
     taskLabels?: any[];
     taskBoardColumns?: any[];

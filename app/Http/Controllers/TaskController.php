@@ -372,6 +372,30 @@ class TaskController extends AccountBaseController
     }
 
     /**
+     * JSON endpoint for a deal's tasks tab — fetched independently by the
+     * frontend instead of riding the deal page's deferred-prop bundle. Logic
+     * relocated verbatim from the former `tasks` deferred prop on
+     * DealController::show().
+     */
+    public function dealTasks(Request $request, $dealId)
+    {
+        $deal = Deal::findOrFail($dealId);
+        $dealRules = [
+            'added' => 'added_by',
+            'owned' => fn ($user, $deal) => $deal->isVisibleToUser($user->id),
+        ];
+        $access = PermissionService::checkAccess(user(), 'view_deals', $deal, $dealRules);
+        abort_403(!$access['canAccess']);
+
+        $tasks = $deal->tasks()
+            ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
+            ->orderBy('id', 'desc')
+            ->get();
+
+        return response()->json(['status' => 'success', 'data' => $tasks]);
+    }
+
+    /**
      * XXXXXXXXXXX
      *
      * @return array
