@@ -28,6 +28,8 @@ import {
     CheckSquareOutlined,
     SaveOutlined,
     CloseOutlined,
+    CheckCircleOutlined,
+    CloseCircleOutlined,
 } from "@ant-design/icons";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
@@ -138,6 +140,17 @@ const ageRangeOptions = useMemo(
     );
     const user = props.auth.user;
     const { t } = useTranslation();
+
+    const renderBoolean = (value: boolean) =>
+        value ? (
+            <Tag color="success" icon={<CheckCircleOutlined />}>
+                {t("pages.leads.marketing.yes")}
+            </Tag>
+        ) : (
+            <Tag color="default" icon={<CloseCircleOutlined />}>
+                {t("pages.leads.marketing.no")}
+            </Tag>
+        );
     const [activeSection, setActiveSection] = useState("overview");
     const [openSections, setOpenSections] = useState<Record<string, boolean>>({
         "lead-contact": true,
@@ -1254,6 +1267,34 @@ const ageRangeOptions = useMemo(
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading(
                                     "lead_lifecycle_status_id",
+                                )}
+                            />
+                        </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.joined_whatsapp_group")}>
+                            <EditableField
+                                value={
+                                    currentLeadState.marketing
+                                        ?.has_joined_the_whatsapp_group
+                                        ? 1
+                                        : 0
+                                }
+                                fieldName="has_joined_the_whatsapp_group"
+                                fieldType="boolean"
+                                onSave={(value) =>
+                                    handleFieldUpdate(
+                                        "has_joined_the_whatsapp_group",
+                                        value,
+                                    )
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={renderBoolean(
+                                    !!currentLeadState.marketing
+                                        ?.has_joined_the_whatsapp_group,
+                                )}
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading(
+                                    "has_joined_the_whatsapp_group",
                                 )}
                             />
                         </DetailField>

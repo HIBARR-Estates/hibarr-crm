@@ -874,6 +874,14 @@ class LeadContactController extends AccountBaseController
                 $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
             }
 
+            // Marketing engagement flags live on the related lead_marketing row, not on leads itself.
+            if ($request->has('has_joined_the_whatsapp_group')) {
+                $leadContact->marketing()->updateOrCreate(
+                    ['lead_id' => $leadContact->id],
+                    ['has_joined_the_whatsapp_group' => $request->boolean('has_joined_the_whatsapp_group')]
+                );
+            }
+
             // Handle other fields
             if ($request->has('column_priority')) {
                 $leadContact->column_priority = $request->column_priority;
@@ -1037,6 +1045,11 @@ class LeadContactController extends AccountBaseController
                     $leadContact->load('lifecycleStatus');
                     $responseData['lifecycleStatus'] = $leadContact->lifecycleStatus;
                     $responseData['lead_lifecycle_status'] = $leadContact->lifecycleStatus;
+                }
+
+                if ($request->has('has_joined_the_whatsapp_group')) {
+                    $leadContact->load('marketing');
+                    $responseData['marketing'] = $leadContact->marketing;
                 }
 
                 // If custom fields were updated (including file uploads), include the updated custom_fields_data

@@ -164,6 +164,11 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                                 marketing.has_joined_the_facebook_group
                             )}
                         </Descriptions.Item>
+                        <Descriptions.Item label={t("pages.leads.marketing.joined_whatsapp_group")}>
+                            {renderBoolean(
+                                marketing.has_joined_the_whatsapp_group
+                            )}
+                        </Descriptions.Item>
                         <Descriptions.Item label={t("pages.leads.marketing.downloaded_ebook")}>
                             {renderBoolean(marketing.has_downloaded_the_ebook)}
                         </Descriptions.Item>

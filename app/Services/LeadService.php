@@ -183,7 +183,9 @@ class LeadService
             $query->where(function($q) use ($search) {
                 $q->where('client_name', 'like', '%' . $search . '%')
                   ->orWhere('client_email', 'like', '%' . $search . '%')
-                  ->orWhere('company_name', 'like', '%' . $search . '%');
+                  ->orWhere('company_name', 'like', '%' . $search . '%')
+                  ->orWhere('mobile', 'like', '%' . $search . '%')
+                  ->orWhere('country', 'like', '%' . $search . '%');
             });
         }
 
