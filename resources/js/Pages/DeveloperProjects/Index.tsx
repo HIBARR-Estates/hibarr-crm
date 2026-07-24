@@ -606,7 +606,7 @@ const Index = ({
                                             }
                                         }, 0);
                                     }}
-                                    placeholder="Search projects…"
+                                    placeholder="Search projects by name, description…"
                                     prefix={
                                         <Search
                                             size={14}
