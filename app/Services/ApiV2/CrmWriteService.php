@@ -909,6 +909,7 @@ class CrmWriteService
             'location' => $meeting->location,
             'meeting_link' => $meeting->meeting_link,
             'meeting_type_id' => $meeting->meeting_type_id,
+            'meeting_type' => $meeting->meetingType?->name,
             'duration' => $meeting->getEffectiveDuration(),
             'status' => $meeting->status,
             'participants' => $this->serializeParticipants($meeting->participants ?? [], $participantUserMap),
