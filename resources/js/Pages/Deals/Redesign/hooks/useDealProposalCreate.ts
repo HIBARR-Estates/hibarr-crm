@@ -3,6 +3,7 @@ import { router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
+import useTranslation from "@/Hooks/useTranslation";
 
 export interface DealProposalCreateInput {
     property: string;
@@ -53,6 +54,7 @@ function parseAmount(value: string): number {
 }
 
 export default function useDealProposalCreate(deal: Deal) {
+    const { t } = useTranslation();
     const { props } = usePage();
     const [errors, setErrors] = useState<string[]>([]);
     const [isSaving, setIsSaving] = useState(false);
@@ -108,7 +110,7 @@ export default function useDealProposalCreate(deal: Deal) {
                 preserveScroll: true,
                 onSuccess: () => {
                     setIsSaving(false);
-                    message.success("Offer saved");
+                    message.success(t("pages.deals.workspace.offers.messages.saved"));
                     onSuccess?.();
                     router.reload({ only: ["proposals"] });
                 },
@@ -124,7 +126,7 @@ export default function useDealProposalCreate(deal: Deal) {
                 onFinish: () => setIsSaving(false),
             });
         },
-        [deal, props.company],
+        [deal, props.company, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

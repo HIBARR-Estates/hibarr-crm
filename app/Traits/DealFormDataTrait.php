@@ -16,6 +16,8 @@ use App\Models\Package;
 use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\PackagePipelineRouterService;
+use App\Services\PipelineScopeResolverService;
 
 trait DealFormDataTrait
 {
@@ -33,12 +35,15 @@ trait DealFormDataTrait
 
     /**
      * Deal Show first-paint form metadata (C1 shell).
-     * Does not include employees / leadContacts / nonActiveLeadAgents / pipeline category map.
+     * Does not include employees / leadContacts / nonActiveLeadAgents.
      */
     public function getDealShowShellFormData(): array
     {
+        $scopeResolver = app(PipelineScopeResolverService::class);
+        $packageRouter = app(PackagePipelineRouterService::class);
+
         $pipelines = LeadPipeline::query()
-            ->with('customFieldCategories:id')
+            ->with(['customFieldCategoryScopes', 'stages'])
             ->get();
         $stages = PipelineStage::all();
 
@@ -55,6 +60,23 @@ trait DealFormDataTrait
                 ->orderBy('id', 'asc')
                 ->get();
         }
+
+        $pipelineCategoryScopeMap = $scopeResolver->buildCategoryScopeMapForCompany(
+            company()->id
+        );
+
+        // Backward-compatible flat map (pipeline-wide only)
+        $pipelineCustomFieldCategoryIdsByPipeline = collect($pipelineCategoryScopeMap)
+            ->mapWithKeys(function ($scope, $pipelineId) {
+                return [(string) $pipelineId => $scope['pipelineWide'] ?? []];
+            })
+            ->toArray();
+
+        $pipelineFieldScopeMap = $scopeResolver->buildFieldScopeMapForCompany(
+            company()->id
+        );
+
+        $packageSettings = $packageRouter->getDealPackageSettings();
 
         return [
             'leadPipelines' => $pipelines,
@@ -75,6 +97,11 @@ trait DealFormDataTrait
             'packages' => Package::all(),
             'customFields' => $fields,
             'customFieldCategories' => $customFieldCategories,
+            'pipelineCustomFieldCategoryIdsByPipeline' => $pipelineCustomFieldCategoryIdsByPipeline,
+            'pipelineCategoryScopeMap' => $pipelineCategoryScopeMap,
+            'pipelineFieldScopeMap' => $pipelineFieldScopeMap,
+            'packagePipelineRoutingEnabled' => $packageSettings['packagePipelineRoutingEnabled'],
+            'dealPackageMode' => $packageSettings['dealPackageMode'],
         ];
     }
 
@@ -83,23 +110,12 @@ trait DealFormDataTrait
      */
     public function getDealShowDeferredFormData(): array
     {
-        $pipelines = LeadPipeline::query()
-            ->with('customFieldCategories:id')
-            ->get();
-
         return [
             'employees' => User::allEmployees(null, true),
             'nonActiveLeadAgents' => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', '!=', 'active');
             })->get(),
             'leadContacts' => Lead::allLeads(),
-            'pipelineCustomFieldCategoryIdsByPipeline' => $pipelines
-                ->mapWithKeys(function (LeadPipeline $pipeline) {
-                    return [
-                        (string) $pipeline->id => $pipeline->customFieldCategories->pluck('id')->values()->all(),
-                    ];
-                })
-                ->toArray(),
         ];
     }
 }

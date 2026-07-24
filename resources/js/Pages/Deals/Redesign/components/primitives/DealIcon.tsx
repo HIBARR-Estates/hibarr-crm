@@ -1,6 +1,9 @@
 import { ReactNode } from "react";
 
 const ICON_PATHS: Record<string, ReactNode> = {
+    spark: (
+        <path d="M12 2l1.2 4.2L17.5 7.5 13.2 8.8 12 13l-1.2-4.2L6.5 7.5l4.3-1.3L12 2zm6 9l.7 2.4L21 14l-2.3.6L18 17l-.7-2.4L15 14l2.3-.6L18 11zM5 14l.8 2.6L8.5 18 5.8 18.7 5 21.5l-.8-2.8L1.5 18l2.7-.4L5 14z" />
+    ),
     calendar: (
         <>
             <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -131,6 +134,12 @@ const ICON_PATHS: Record<string, ReactNode> = {
         </>
     ),
     check: <polyline points="20 6 9 17 4 12" />,
+    edit: (
+        <>
+            <path d="M12 20h9" />
+            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z" />
+        </>
+    ),
     "external-link": (
         <>
             <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
@@ -140,6 +149,21 @@ const ICON_PATHS: Record<string, ReactNode> = {
     ),
     "chevron-down": <polyline points="6 9 12 15 18 9" />,
     "chevron-up": <polyline points="18 15 12 9 6 15" />,
+    "chevron-left": <polyline points="15 18 9 12 15 6" />,
+    "chevron-right": <polyline points="9 18 15 12 9 6" />,
+    more: (
+        <>
+            <circle cx="12" cy="12" r="1" />
+            <circle cx="19" cy="12" r="1" />
+            <circle cx="5" cy="12" r="1" />
+        </>
+    ),
+    x: (
+        <>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+        </>
+    ),
     paperclip: (
         <>
             <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
@@ -179,6 +203,12 @@ const ICON_PATHS: Record<string, ReactNode> = {
         <>
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
+        </>
+    ),
+    briefcase: (
+        <>
+            <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+            <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
         </>
     ),
 };

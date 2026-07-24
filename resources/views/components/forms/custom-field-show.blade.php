@@ -46,6 +46,19 @@
                 ? $model->custom_fields_data['field_' . $field->id]
                 : '--'">
             </x-cards.data-row>
+        @elseif($field->type == 'multiSelectCountry')
+            @php
+                $msCountryValue = $model->custom_fields_data['field_' . $field->id] ?? null;
+                $msCountryDisplay = '--';
+                if (!empty($msCountryValue)) {
+                    $msCountryDecoded = json_decode($msCountryValue, true);
+                    if (is_array($msCountryDecoded) && !empty($msCountryDecoded)) {
+                        $msCountryDisplay = implode(', ', $msCountryDecoded);
+                    }
+                }
+            @endphp
+            <x-cards.data-row :label="$field->label" :value="$msCountryDisplay">
+            </x-cards.data-row>
         @elseif($field->type == 'select')
             <x-cards.data-row :label="$field->label" :value="!is_null($model->custom_fields_data['field_' . $field->id]) &&
             $model->custom_fields_data['field_' . $field->id] != ''

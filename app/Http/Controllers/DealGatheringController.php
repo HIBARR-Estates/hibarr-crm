@@ -143,7 +143,10 @@ class DealGatheringController extends AccountBaseController
         $pipelineId = $request->filled('pipeline_id')
             ? (int) $request->input('pipeline_id')
             : null;
-        $steps = $this->service->getSteps($pipelineId);
+        $stageId = $request->filled('pipeline_stage_id')
+            ? (int) $request->input('pipeline_stage_id')
+            : null;
+        $steps = $this->service->getSteps($pipelineId, $stageId);
 
         return response()->json([
             'steps' => $steps,
@@ -230,89 +233,85 @@ class DealGatheringController extends AccountBaseController
                 ], 403);
             }
 
+            // Write gate: agent/participant only, matching DealController::patch().
+            // Watchers stay view-only — see Deal::hasTeamMemberAccess().
+            $editPermission = user()->permission('edit_deals');
+            $canEditDeal = $editPermission == 'all'
+                || ($editPermission == 'added' && $deal->added_by == user()->id)
+                || ($editPermission == 'owned' && $deal->hasTeamMemberAccess(user()->id))
+                || ($editPermission == 'both' && ($deal->added_by == user()->id || $deal->hasTeamMemberAccess(user()->id)));
+
+            if (!$canEditDeal) {
+                return response()->json([
+                    'status' => 'error',
+                    'message' => __('messages.permissionDenied'),
+                ], 403);
+            }
+
             // Process data to handle file uploads
-            $data = [];
-            
-            // Method 1: Check if data is already parsed as an array (normal case)
-            if ($request->has('data')) {
-                if (is_array($request->data)) {
-                    $data = $request->data;
+            $data = $request->input('data', []);
+            if (!is_array($data)) {
+                $data = [];
+            }
+
+            // Files from data.fieldName (FormData) — Laravel may normalize dots to underscores
+            foreach ($request->allFiles() as $key => $file) {
+                if (str_starts_with($key, 'data.')) {
+                    $data[substr($key, 5)] = $file;
+                } elseif (str_starts_with($key, 'data_')) {
+                    $data[substr($key, 5)] = $file;
                 }
             }
-            
-            // Method 2: Check for files using dot notation (data.fieldName)
-            // Laravel parses FormData with brackets as dot notation
-            $allFiles = $request->allFiles();
-            foreach ($allFiles as $key => $file) {
-                if (strpos($key, 'data.') === 0) {
-                    $fieldName = substr($key, 5); // Remove "data." prefix
-                    $data[$fieldName] = $file;
+
+            // Files uploaded as data[field_X] or data[field_X][0], [1], etc.
+            if ($request->hasFile('data')) {
+                $dataFiles = $request->file('data');
+                if (is_array($dataFiles)) {
+                    foreach ($dataFiles as $fieldKey => $fileOrFiles) {
+                        if ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
+                            $data[$fieldKey] = $fileOrFiles;
+                        } elseif (is_array($fileOrFiles)) {
+                            $uploadedFiles = [];
+                            foreach ($fileOrFiles as $file) {
+                                if ($file instanceof \Illuminate\Http\UploadedFile) {
+                                    $uploadedFiles[] = $file;
+                                }
+                            }
+                            if (!empty($uploadedFiles)) {
+                                $data[$fieldKey] = $uploadedFiles;
+                            }
+                        }
+                    }
                 }
             }
-            
-            // Method 3: Also check direct file access with hasFile
-            // Try common hibarr field names
-            $hibarrFileFields = ['reservation_agreement', 'sales_contract'];
-            foreach ($hibarrFileFields as $fieldName) {
-                if ($request->hasFile("data.{$fieldName}")) {
-                    $data[$fieldName] = $request->file("data.{$fieldName}");
-                }
-            }
-            
-            // Method 4: For non-file data, check all input
+
+            // Flat form keys: data[fieldName]
             foreach ($request->all() as $key => $value) {
-                // Skip if it's already in data or if it's a file
-                if (isset($data[$key]) || $value instanceof \Illuminate\Http\UploadedFile) {
+                if ($value instanceof \Illuminate\Http\UploadedFile) {
                     continue;
                 }
-                
-                // Check for data[fieldName] pattern
+
                 if (preg_match('/^data\[(.+)\]$/', $key, $matches)) {
-                    $fieldName = $matches[1];
-                    $data[$fieldName] = $value;
+                    $data[$matches[1]] = $value;
                 }
             }
-            
+
+            if (array_key_exists('package_id', $data) && ($data['package_id'] === null || $data['package_id'] === '')) {
+                $data['package_id'] = [];
+            }
+
             // Validate that we have some data, except explicit recalculate actions
             if (empty($data) && $type !== DealUpdateType::RECALCULATE_VALUE->value) {
                 Log::error('DealGatheringController: No data extracted', [
                     'type' => $type,
                     'has_files' => !empty($request->allFiles()),
                 ]);
-                
+
                 return response()->json([
                     'status' => 'error',
                     'message' => 'No data provided. Please check the request format.'
                 ], 422);
             }
-
-        // Get regular data values
-        $data = $request->input('data', []);
-        
-        // Merge file uploads into data array for custom field file uploads
-        // Files uploaded as data[field_X] or data[field_X][0], [1], etc. for multiple
-        if ($request->hasFile('data')) {
-            $dataFiles = $request->file('data');
-            if (is_array($dataFiles)) {
-                foreach ($dataFiles as $fieldKey => $fileOrFiles) {
-                    if ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
-                        // Single file
-                        $data[$fieldKey] = $fileOrFiles;
-                    } elseif (is_array($fileOrFiles)) {
-                        // Multiple files - array of UploadedFile objects
-                        $uploadedFiles = [];
-                        foreach ($fileOrFiles as $file) {
-                            if ($file instanceof \Illuminate\Http\UploadedFile) {
-                                $uploadedFiles[] = $file;
-                            }
-                        }
-                        if (!empty($uploadedFiles)) {
-                            $data[$fieldKey] = $uploadedFiles;
-                        }
-                    }
-                }
-            }
-        }
 
         $updatedDeal = $this->service->updateDealInline(
             $deal,
@@ -320,8 +319,25 @@ class DealGatheringController extends AccountBaseController
             $data
         );
 
-        // Refresh deal with all relationships and custom fields data
-        $freshDeal = $updatedDeal->fresh(['currency', 'contact', 'hibarrFields', 'leadAgent.user', 'addedBy', 'leadSource', 'category', 'leadStage', 'pipeline', 'packages', 'products.property', 'dealWatchers', 'dealParticipants']);
+        // Refresh deal with all relationships and custom fields data.
+        // Include leadFlightItineraries so redesign setDeal() patches do not
+        // wipe the itinerary tab (same relation set as DealController::loadFullDeal).
+        $freshDeal = $updatedDeal->fresh([
+            'currency',
+            'contact',
+            'hibarrFields',
+            'leadAgent.user',
+            'addedBy',
+            'leadSource',
+            'category',
+            'leadStage',
+            'pipeline.stages',
+            'packages',
+            'products.property',
+            'dealWatchers',
+            'dealParticipants',
+            'leadFlightItineraries',
+        ]);
         $freshDeal->withCustomFields();
         $freshDeal->setAttribute('value_breakdown', app(\App\Services\DealValueResolver::class)->getBreakdown($freshDeal));
 
@@ -340,9 +356,16 @@ class DealGatheringController extends AccountBaseController
                 'message' => $e->getMessage(),
                 'type' => $request->input('type'),
             ]);
-            return response()->json([
-                'status' => 'error',
-            ], 500);
+
+            $payload = ['status' => 'error'];
+            if (config('app.debug')) {
+                $payload['message'] = $e->getMessage();
+                $payload['exception'] = get_class($e);
+                $payload['file'] = $e->getFile() . ':' . $e->getLine();
+                $payload['trace'] = collect($e->getTrace())->take(10)->toArray();
+            }
+
+            return response()->json($payload, 500);
         }
     }
 

@@ -23,6 +23,7 @@ import {
 import PhoneInput, { PhoneNumber } from "antd-phone-input";
 import FormDataSelector from "./FormDataSelector";
 import { FormDataType, useCountries, useCurrencies } from "@/Hooks/useFormData";
+import useTranslation from "@/Hooks/useTranslation";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
 import {
@@ -50,6 +51,7 @@ interface EditableFieldProps {
         | "boolean"
         | "textarea"
         | "country"
+        | "multiSelectCountry"
         | "currency"
         | "file";
     selectorType?: FormDataType;
@@ -66,6 +68,10 @@ interface EditableFieldProps {
     alwaysEditing?: boolean;
     /** Called when value changes in alwaysEditing mode (for tracking pending changes) */
     onChange?: (fieldName: string, value: any) => void;
+    /** Enter edit mode on a single click instead of the default double-click
+     * (v2.2's click-to-edit pattern — opt-in so existing double-click
+     * consumers elsewhere in the app are unaffected). */
+    activateOnSingleClick?: boolean;
 }
 
 export default function EditableField({
@@ -84,8 +90,10 @@ export default function EditableField({
     loading = false,
     alwaysEditing = false,
     onChange,
+    activateOnSingleClick = false,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
+    const { t } = useTranslation();
     const { countries } = useCountries();
     const { currencies } = useCurrencies();
     const {
@@ -256,6 +264,7 @@ export default function EditableField({
             }
         } else if (
             fieldType === "multiselect" ||
+            fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
             setInputValue(
@@ -293,6 +302,7 @@ export default function EditableField({
             }
         } else if (
             fieldType === "multiselect" ||
+            fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
             setInputValue(
@@ -313,10 +323,22 @@ export default function EditableField({
     const startEditingRef = useRef(startEditing);
     startEditingRef.current = startEditing;
 
-    // Register/unregister with the nearest parent DetailField via context
+    // Register/unregister with the nearest parent DetailField via context —
+    // this is what makes DetailField show its own pencil next to the label.
+    // Skipped in v2.2 mode (activateOnSingleClick): that mode already shows
+    // its own pencil next to the value below, so registering here would
+    // double up (a second pencil beside the label, not in v2.2).
     const detailFieldCtx = useContext(DetailFieldEditContext);
     useEffect(() => {
         if (!detailFieldCtx) return;
+        if (activateOnSingleClick) {
+            detailFieldCtx.setEditHandler(null);
+            detailFieldCtx.setIsEditing(editing);
+            return () => {
+                detailFieldCtx.setEditHandler(null);
+                detailFieldCtx.setIsEditing(false);
+            };
+        }
         if (canStartEditing && !editing) {
             detailFieldCtx.setEditHandler(() => startEditingRef.current());
         } else {
@@ -327,7 +349,7 @@ export default function EditableField({
             detailFieldCtx.setEditHandler(null);
             detailFieldCtx.setIsEditing(false);
         };
-    }, [detailFieldCtx, canStartEditing, editing]);
+    }, [detailFieldCtx, canStartEditing, editing, activateOnSingleClick]);
 
     const handleSave = async () => {
         // Clear any pending blur timeout to prevent double save
@@ -403,7 +425,11 @@ export default function EditableField({
         if (!alwaysEditing) {
             setEditing(false);
         }
-        if (fieldType === "multiselect" || Array.isArray(normalizedValue)) {
+        if (
+            fieldType === "multiselect" ||
+            fieldType === "multiSelectCountry" ||
+            Array.isArray(normalizedValue)
+        ) {
             setInputValue(
                 Array.isArray(normalizedValue)
                     ? normalizedValue
@@ -573,7 +599,23 @@ export default function EditableField({
                 })()
               : formatValue
                 ? formatValue(normalizedValue)
-                : (normalizedValue?.toString() ?? "--");
+                : normalizedValue?.toString() ||
+                  // v2.2 mode shows "Not set" for empty values (deal-v2-2.jsx:866);
+                  // other consumers keep the legacy "--" placeholder.
+                  (activateOnSingleClick
+                      ? t("pages.deals.common.not_set")
+                      : "--");
+
+    // v2.2 renders "Not set" in muted italics so it reads as a placeholder,
+    // not a real value (deal-v2-2.jsx:860-861: color MUTED, fontStyle
+    // italic when empty). Only applies when this component generated the
+    // fallback text itself — a caller-supplied displayValue/currency format
+    // manages its own styling.
+    const isEmptyValue =
+        activateOnSingleClick &&
+        displayValue === undefined &&
+        fieldType !== "currency" &&
+        !normalizedValue;
 
     if (editing) {
         return (
@@ -727,7 +769,13 @@ export default function EditableField({
                             options={options}
                             className="flex-1 min-w-[120px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            // Auto-open only for the deliberate single-field
+                            // click-to-edit case — in bulk "edit whole
+                            // section" mode (alwaysEditing) every select
+                            // field enters edit simultaneously, so forcing
+                            // them all open at once would be a wall of
+                            // dropdowns nobody asked to see.
+                            defaultOpen={!alwaysEditing}
                             allowClear
                         />
                     ) : fieldType === "multiselect" ? (
@@ -738,7 +786,7 @@ export default function EditableField({
                             mode="multiple"
                             className="flex-1 min-w-[200px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                             allowClear
                             placeholder="Select options..."
                         />
@@ -752,7 +800,7 @@ export default function EditableField({
                             ]}
                             className="flex-1 min-w-[80px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                         />
                     ) : fieldType === "textarea" ? (
                         <Input.TextArea
@@ -778,10 +826,77 @@ export default function EditableField({
                             onChange={(val) => handleValueChange(val)}
                             className="flex-1 min-w-[200px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                             allowClear
                             showSearch
                             placeholder="Select country"
+                            filterOption={(input, option) => {
+                                const searchText = input.toLowerCase();
+                                const countryValue = option?.value as string;
+                                const country = countries?.find(
+                                    (c: any) => c.nicename === countryValue,
+                                );
+
+                                if (!country) return false;
+
+                                // Search by nicename, name, iso, iso3, or nationality
+                                return (
+                                    country.nicename
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.name
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.iso
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.iso3
+                                        ?.toLowerCase()
+                                        .includes(searchText) ||
+                                    country.nationality
+                                        ?.toLowerCase()
+                                        .includes(searchText)
+                                );
+                            }}
+                        >
+                            {countries && countries.length > 0 ? (
+                                countries.map((country: any) => (
+                                    <Select.Option
+                                        key={country.iso || country.id}
+                                        value={country.nicename}
+                                    >
+                                        <span className="flex items-center gap-2">
+                                            <span
+                                                className={`flag-icon flag-icon-${country.iso?.toLowerCase()} mr-1`}
+                                            />
+                                            {country.nicename}
+                                            {country.nationality &&
+                                                country.nationality !==
+                                                    "unknown" && (
+                                                    <span className="text-gray-500 text-xs">
+                                                        ({country.nationality})
+                                                    </span>
+                                                )}
+                                        </span>
+                                    </Select.Option>
+                                ))
+                            ) : (
+                                <Select.Option disabled value="">
+                                    No countries available
+                                </Select.Option>
+                            )}
+                        </Select>
+                    ) : fieldType === "multiSelectCountry" ? (
+                        <Select
+                            mode="multiple"
+                            value={inputValue}
+                            onChange={(val) => handleValueChange(val)}
+                            className="flex-1 min-w-[200px]"
+                            disabled={saving || loading}
+                            defaultOpen
+                            allowClear
+                            showSearch
+                            placeholder="Select countries"
                             filterOption={(input, option) => {
                                 const searchText = input.toLowerCase();
                                 const countryValue = option?.value as string;
@@ -895,16 +1010,53 @@ export default function EditableField({
         );
     }
 
+    // v2.2 mode (activateOnSingleClick): dashed underline + pencil beside the
+    // value, single click to edit — no DetailField label-pencil (see the
+    // context registration above). Everything else keeps its original look:
+    // plain text, double-click, and DetailField's own label-pencil.
+    if (!activateOnSingleClick) {
+        return (
+            <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
+                <div
+                    className={`w-full ${
+                        isLocked ? "cursor-not-allowed opacity-50" : ""
+                    } ${className}`}
+                    onDoubleClick={canStartEditing ? startEditing : undefined}
+                >
+                    <span className="break-words whitespace-normal">
+                        {displayText}
+                    </span>
+                </div>
+            </Skeleton>
+        );
+    }
+
     return (
         <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
             <div
-                className={`w-full ${
+                className={`group/editable w-full ${
                     isLocked ? "cursor-not-allowed opacity-50" : ""
-                } ${className}`}
+                } ${canStartEditing ? "cursor-pointer" : ""} ${className}`}
                 onDoubleClick={canStartEditing ? startEditing : undefined}
+                onClick={canStartEditing ? startEditing : undefined}
             >
-                <span className="break-words whitespace-normal">
-                    {displayText}
+                <span className="inline-flex max-w-full items-center gap-1.5">
+                    <span
+                        className={`break-words whitespace-normal border-b border-dashed ${
+                            canStartEditing
+                                ? "border-transparent transition-colors group-hover/editable:border-blue-300"
+                                : ""
+                        } ${isEmptyValue ? "italic text-gray-400" : ""}`}
+                    >
+                        {displayText}
+                    </span>
+                    {canStartEditing && (
+                        <EditOutlined
+                            aria-hidden="true"
+                            className="shrink-0 text-blue-600 opacity-0 transition-opacity group-hover/editable:opacity-100"
+                            style={{ fontSize: 11 }}
+                        />
+                    )}
                 </span>
             </div>
         </Skeleton>

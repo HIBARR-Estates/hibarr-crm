@@ -1,10 +1,11 @@
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
 .deal-redesign {
     font-family:
-        "Inter",
+        "IBM Plex Sans",
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
-        system-ui,
         sans-serif;
 }
 
@@ -53,23 +54,25 @@
 
 .deal-redesign .modal-panel {
     background: #ffffff;
-    border-radius: 12px;
+    border-radius: 14px;
     border: 1px solid #e2e5ea;
     box-shadow: 0 20px 50px rgba(22, 41, 77, 0.18);
     width: 100%;
     max-width: 520px;
     max-height: calc(100vh - 48px);
     overflow: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .deal-redesign .modal-field label {
     display: block;
-    font-size: 11px;
-    font-weight: 500;
-    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 700;
+    color: #5b6472;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 5px;
+    margin-bottom: 7px;
 }
 
 .deal-redesign .modal-field input,
@@ -77,11 +80,18 @@
 .deal-redesign .modal-field textarea {
     width: 100%;
     border: 1px solid #e2e5ea;
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 13px;
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 14px;
     color: #1a1f2e;
     outline: none;
+}
+
+.deal-redesign .modal-field input:focus,
+.deal-redesign .modal-field select:focus,
+.deal-redesign .modal-field textarea:focus {
+    border-color: #b8d4f0;
+    box-shadow: 0 0 0 2px #e8f1fb;
 }
 
 /* Portaled redesign modals (rendered on document.body) */
@@ -98,23 +108,25 @@
 
 .redesign-modal-overlay .modal-panel {
     background: #ffffff;
-    border-radius: 12px;
+    border-radius: 14px;
     border: 1px solid #e2e5ea;
     box-shadow: 0 20px 50px rgba(22, 41, 77, 0.18);
     width: 100%;
     max-width: 520px;
     max-height: calc(100vh - 48px);
     overflow: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 .redesign-modal-overlay .modal-field label {
     display: block;
-    font-size: 11px;
-    font-weight: 500;
-    color: #9ca3af;
+    font-size: 12px;
+    font-weight: 700;
+    color: #5b6472;
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin-bottom: 5px;
+    margin-bottom: 7px;
 }
 
 .redesign-modal-overlay .modal-field input,
@@ -122,9 +134,9 @@
 .redesign-modal-overlay .modal-field textarea {
     width: 100%;
     border: 1px solid #e2e5ea;
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 13px;
+    border-radius: 8px;
+    padding: 11px 12px;
+    font-size: 14px;
     color: #1a1f2e;
     outline: none;
 }
@@ -132,5 +144,454 @@
 .redesign-modal-overlay .modal-field input:focus,
 .redesign-modal-overlay .modal-field select:focus,
 .redesign-modal-overlay .modal-field textarea:focus {
-    border-color: #1a6bb5;
+    border-color: #b8d4f0;
+    box-shadow: 0 0 0 2px #e8f1fb;
+}
+
+/* ==================================================================== */
+/*  v2.2 parity — structural classes ported from the playground source  */
+/*  of truth (hibarr-playground/src/deal-v2-2.jsx). Colors/spacing here */
+/*  are lifted 1:1; components should prefer these classes over ad-hoc  */
+/*  inline styles wherever a reusable pattern already exists here.      */
+/*  Deliberately NOT scoped under .deal-redesign: several consumers     */
+/*  (DealValueBlock, DealAgentCard, DealConfirmDialog, DealMenuSelect)  */
+/*  render via createPortal(..., document.body), landing outside that  */
+/*  wrapper in the DOM — an ancestor-scoped selector would silently    */
+/*  not match there.                                                    */
+/* ==================================================================== */
+
+.dr-shell {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.dr-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 16px;
+    align-items: start;
+}
+
+.dr-dossier {
+    position: sticky;
+    top: 16px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    /* overflow-y:auto alone makes the x axis compute to auto too, so any
+       overflowing child gives the rail a sideways scrollbar. Pin it shut. */
+    overflow-x: hidden;
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+
+@media (max-width: 960px) {
+    .dr-grid {
+        grid-template-columns: 1fr;
+    }
+    .dr-dossier {
+        position: static;
+        max-height: none;
+    }
+}
+
+.dr-btn {
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border: none;
+    transition:
+        background 0.12s,
+        color 0.12s;
+    min-height: 32px;
+}
+.dr-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.dr-btn-sm {
+    font-size: 12px;
+    padding: 5px 10px;
+    min-height: 28px;
+}
+
+.dr-btn-primary {
+    background: #1a6bb5;
+    color: #ffffff;
+}
+.dr-btn-primary:hover:not(:disabled) {
+    background: #155fa0;
+}
+.dr-btn-navy {
+    background: #16294d;
+    color: #ffffff;
+}
+.dr-btn-navy:hover:not(:disabled) {
+    background: #0f1c38;
+}
+.dr-btn-ghost {
+    background: #ffffff;
+    color: #5b6472;
+    border: 1px solid #e2e5ea;
+}
+.dr-btn-ghost:hover:not(:disabled) {
+    color: #1a1f2e;
+    background: #f5f6f8;
+}
+
+.dr-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 4px 11px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    white-space: nowrap;
+}
+.dr-pill-blue {
+    background: #e8f1fb;
+    color: #14538c;
+    border-color: #b8d4f0;
+}
+.dr-pill-green {
+    background: #e1f5ee;
+    color: #177a5b;
+    border-color: #9fe1cb;
+}
+.dr-pill-amber {
+    background: #fff7ed;
+    color: #92400e;
+    border-color: #fed7aa;
+}
+.dr-pill-red {
+    background: #fef2f2;
+    color: #b91c1c;
+    border-color: #fecaca;
+}
+.dr-pill-gray {
+    background: #f5f6f8;
+    color: #5b6472;
+    border-color: #e2e5ea;
+}
+.dr-pill-teal {
+    background: #e6f7f5;
+    color: #0f766e;
+    border-color: #99e2d8;
+}
+.dr-pill-navy {
+    background: #e8ecf2;
+    color: #16294d;
+    border-color: #c7d0de;
+}
+
+.dr-tabs {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid #e2e5ea;
+    padding: 0 8px;
+}
+.dr-tabs-scroll {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+    mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+}
+.dr-tabs-scroll::-webkit-scrollbar {
+    display: none;
+}
+.dr-tabs-meta {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    flex-shrink: 0;
+}
+.dr-tabs-divider {
+    width: 1px;
+    height: 20px;
+    background: #e2e5ea;
+    margin: 0 6px;
+    flex-shrink: 0;
+}
+.dr-tab {
+    font-family: inherit;
+    background: transparent;
+    border: none;
+    color: #5b6472;
+    font-size: 13px;
+    font-weight: 500;
+    padding: 12px 11px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 44px;
+    transition: all 0.15s;
+}
+.dr-tab:hover {
+    color: #1a1f2e;
+}
+.dr-tab[aria-selected="true"] {
+    color: #1a6bb5;
+    border-bottom-color: #1a6bb5;
+    font-weight: 600;
+}
+.dr-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 6px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #f5f6f8;
+    color: #5b6472;
+    border: 1px solid #e2e5ea;
+    line-height: 1;
+}
+.dr-tab[aria-selected="true"] .dr-tab-count {
+    background: #e8f1fb;
+    color: #14538c;
+    border-color: #b8d4f0;
+}
+
+.dr-hscroll {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    -webkit-mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+    mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 28px),
+        transparent
+    );
+}
+.dr-hscroll::-webkit-scrollbar {
+    display: none;
+}
+
+.dr-filter {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 5px 12px;
+    border-radius: 999px;
+    cursor: pointer;
+    background: #ffffff;
+    color: #5b6472;
+    border: 1px solid #e2e5ea;
+    min-height: 28px;
+    text-transform: capitalize;
+}
+.dr-filter[aria-pressed="true"] {
+    background: #16294d;
+    color: #ffffff;
+    border-color: #16294d;
+    font-weight: 600;
+}
+
+.dr-input {
+    width: 100%;
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: #1a1f2e;
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+}
+.dr-input::placeholder {
+    color: #5b6472;
+}
+.dr-input:focus {
+    border-color: #b8d4f0;
+    box-shadow: 0 0 0 2px #e8f1fb;
+}
+
+.dr-editable {
+    width: 100%;
+    background: none;
+    border: none;
+    padding: 0;
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    border-radius: 6px;
+}
+.dr-editable .dr-editable-value {
+    border-bottom: 1px dashed transparent;
+}
+.dr-editable:hover .dr-editable-value,
+.dr-editable:focus-visible .dr-editable-value {
+    border-bottom-color: #b8d4f0;
+}
+.dr-editable .dr-pencil {
+    opacity: 0;
+    transition: opacity 0.12s;
+    color: #1a6bb5;
+}
+.dr-editable:hover .dr-pencil,
+.dr-editable:focus-visible .dr-pencil {
+    opacity: 1;
+}
+
+.dr-card {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+}
+.dr-card-btn {
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    color: #1a1f2e;
+}
+.dr-card-btn:hover {
+    border-color: #b8d4f0;
+}
+
+/* Portal-rendered floating menu (see DealMenuSelect) */
+.dr-menu {
+    background: #ffffff;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    box-shadow: 0 12px 32px rgba(22, 41, 77, 0.14);
+    padding: 6px;
+}
+.dr-menu-item {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    border-radius: 7px;
+    padding: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    color: #1a1f2e;
+    cursor: pointer;
+    text-align: left;
+    min-height: 36px;
+}
+.dr-menu-item:hover {
+    background: #f5f6f8;
+}
+.dr-menu-item.danger {
+    color: #b91c1c;
+}
+.dr-menu-sep {
+    height: 1px;
+    background: #eef0f3;
+    margin: 4px 6px;
+}
+
+.dr-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #5b6472;
+}
+
+.dr-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+.dr-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #5b6472;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e5ea;
+}
+.dr-table td {
+    padding: 10px;
+    border-bottom: 1px solid #eef0f3;
+    vertical-align: top;
+}
+
+.dr-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.dr-overview {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+}
+@media (max-width: 960px) {
+    .dr-overview {
+        grid-template-columns: 1fr;
+    }
+}
+.dr-ov-col {
+    background: #f8f9fb;
+    border: 1px solid #e2e5ea;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+@keyframes dr-shimmer {
+    0% {
+        opacity: 0.55;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.55;
+    }
+}
+.dr-skeleton {
+    background: #eef0f3;
+    border-radius: 6px;
+    animation: dr-shimmer 1.2s ease-in-out infinite;
 }

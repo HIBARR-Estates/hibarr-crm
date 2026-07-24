@@ -36,6 +36,7 @@ interface DealDetailsTabProps extends Pick<
     setDeal?: (deal: Deal | undefined) => void;
     disableFields?: string[];
     onPipelineChange?: (pipelineId: number | undefined) => void;
+    onStageChange?: (stageId: number | undefined) => void;
 }
 
 const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
@@ -48,8 +49,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     onErrorsClear,
     setErrors,
     setDeal,
-    disableFields = [], // prop to disable fields
+    disableFields = [],
     onPipelineChange,
+    onStageChange,
     formReferenceData = {},
 }) => {
     const [form] = Form.useForm();
@@ -71,6 +73,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         company = {},
         stages = [],
         packages = [],
+        dealPackageMode = "multiple",
     } = {
         ...props,
         ...formReferenceData,
@@ -79,10 +82,35 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
     const [pipelineId, setPipelineId] = useState<number>();
     const pipelineIdRef = useRef<number | undefined>(pipelineId);
     const [selectedCategoryId, setSelectedCategoryId] = useState<number>();
+    const agentDirtyRef = useRef(false);
+    // Existing deals keep their agent; only auto-prefill on create (no initial agent).
+    const shouldAutoPrefillAgent = data?.agent_id == null;
+    const currentUserId = props.auth?.user?.id as number | undefined;
+    const watchedLeadContactId = Form.useWatch("lead_contact", form);
 
     useEffect(() => {
         pipelineIdRef.current = pipelineId;
     }, [pipelineId]);
+
+    const resolvePackageId = (
+        pkg: number | { id: number } | undefined,
+    ): number | undefined => {
+        if (pkg == null) {
+            return undefined;
+        }
+
+        return typeof pkg === "object" ? pkg.id : pkg;
+    };
+
+    const resolvePackageIds = (
+        pkgs: Array<number | { id: number }> | undefined,
+    ): number[] => {
+        if (!pkgs?.length) {
+            return [];
+        }
+
+        return pkgs.map((pkg) => resolvePackageId(pkg)!);
+    };
 
     // Populate form when data changes
     useEffect(() => {
@@ -135,9 +163,16 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                 deal_watcher: data.deal_watcher || [],
                 deal_participant: data.deal_participant || [],
                 product_id: data.product_id || [],
-                package_id: data.packages
-                    ? data.packages.map((p: any) => p.id)
-                    : data.package_id || [],
+                package_id:
+                    dealPackageMode === "single"
+                        ? (resolvePackageId(data.packages?.[0]) ??
+                          (Array.isArray(data.package_id)
+                              ? data.package_id[0]
+                              : data.package_id) ??
+                          undefined)
+                        : data.packages
+                          ? resolvePackageIds(data.packages)
+                          : data.package_id || [],
             };
             setPipelineId(formData.pipeline);
             setSelectedCategoryId(formData.category_id);
@@ -189,6 +224,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         form.setFieldValue("stage_id", undefined); // Reset stage when pipeline changes
         setPipelineId(pipelineId);
         onPipelineChange?.(pipelineId);
+        onStageChange?.(undefined);
     };
 
     // Fetch agents when category changes
@@ -207,14 +243,88 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         return Array.from(unique.values());
     }, [leadAgents]);
 
+    const watchedAgentId = Form.useWatch("agent_id", form);
+
     const displayedAgents = useMemo(() => {
-        if (selectedCategoryId) {
-            return leadAgents.filter(
-                (agent: any) => agent.lead_category_id === selectedCategoryId,
-            );
+        const byCategory = selectedCategoryId
+            ? leadAgents.filter(
+                  (agent: any) => agent.lead_category_id === selectedCategoryId,
+              )
+            : uniqueAgents;
+
+        // Keep the prefilled/selected agent visible even if it isn't in the
+        // current category filter (otherwise Ant Select looks empty).
+        if (watchedAgentId == null) {
+            return byCategory;
         }
-        return uniqueAgents;
-    }, [selectedCategoryId, leadAgents, uniqueAgents]);
+
+        const selected = leadAgents.find(
+            (agent: any) => agent.id === watchedAgentId,
+        );
+        if (!selected || byCategory.some((a: any) => a.id === selected.id)) {
+            return byCategory;
+        }
+
+        return [selected, ...byCategory];
+    }, [selectedCategoryId, leadAgents, uniqueAgents, watchedAgentId]);
+
+    const resolveDefaultAgentId = (
+        leadContactId?: number,
+        categoryId?: number,
+    ): number | undefined => {
+        if (!leadContactId || leadAgents.length === 0) return undefined;
+
+        const lead = leadContacts.find((c: any) => c.id === leadContactId);
+        const ownerUserId = lead?.lead_owner as number | undefined;
+        const candidateUserIds = [ownerUserId, currentUserId].filter(
+            (id): id is number => typeof id === "number" && id > 0,
+        );
+
+        for (const userId of candidateUserIds) {
+            const pool =
+                categoryId != null
+                    ? leadAgents.filter(
+                          (agent: any) =>
+                              agent.user_id === userId &&
+                              agent.lead_category_id === categoryId,
+                      )
+                    : [];
+            const match =
+                pool[0] ||
+                leadAgents.find((agent: any) => agent.user_id === userId) ||
+                uniqueAgents.find((agent: any) => agent.user_id === userId);
+            if (match?.id) return match.id;
+        }
+
+        return undefined;
+    };
+
+    // Prefill deal agent from lead owner (then current user) unless the user overrode it.
+    useEffect(() => {
+        if (!shouldAutoPrefillAgent || agentDirtyRef.current) return;
+
+        const leadContactId = watchedLeadContactId ?? data?.lead_contact;
+        if (!leadContactId) return;
+
+        const resolved = resolveDefaultAgentId(
+            leadContactId,
+            selectedCategoryId ?? data?.category_id,
+        );
+        if (resolved != null) {
+            form.setFieldValue("agent_id", resolved);
+        }
+    }, [
+        shouldAutoPrefillAgent,
+        watchedLeadContactId,
+        data?.lead_contact,
+        data?.category_id,
+        selectedCategoryId,
+        leadAgents,
+        leadContacts,
+        uniqueAgents,
+        currentUserId,
+        form,
+    ]);
 
     const calculateTotalValue = (currentPackageIds?: number[]) => {
         let total = 0;
@@ -237,7 +347,12 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
         // form.setFieldValue("value", total);
     };
 
-    const handlePackageChange = (packageIds: number[]) => {
+    const handlePackageChange = (value: number | number[] | undefined) => {
+        const packageIds = Array.isArray(value)
+            ? value
+            : value != null
+              ? [value]
+              : [];
         calculateTotalValue(packageIds);
     };
 
@@ -276,14 +391,21 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
             ...(currencyIdToSend !== undefined && {
                 currency_id: currencyIdToSend,
             }),
-            close_date: values.close_date
-                ? values.close_date.format("YYYY-MM-DD")
-                : "",
+            close_date:
+                values.close_date && values.close_date.isValid?.()
+                    ? values.close_date.format("YYYY-MM-DD")
+                    : null,
             deal_watcher: values.deal_watcher || [],
             deal_participant: values.deal_participant || [],
             product_id: values.product_id || [],
             strategy_accepted: values.strategy_accepted || false,
             downpayment_confirmed: values.downpayment_confirmed || false,
+            package_id:
+                dealPackageMode === "single"
+                    ? values.package_id != null
+                        ? [values.package_id]
+                        : []
+                    : values.package_id || [],
         };
 
         onSubmit(formData);
@@ -401,14 +523,22 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
+                                onChange={(value) => onStageChange?.(value)}
                             >
                                 {stages
-                                    .filter((stage: any) =>
-                                        pipelineId
-                                            ? stage.lead_pipeline_id ===
-                                              pipelineId
-                                            : false,
-                                    )
+                                    .filter((stage: any) => {
+                                        const stagePipelineId = Number(
+                                            stage.lead_pipeline_id,
+                                        );
+                                        const selectedPipeline = Number(
+                                            pipelineId,
+                                        );
+                                        return (
+                                            Number.isFinite(stagePipelineId) &&
+                                            Number.isFinite(selectedPipeline) &&
+                                            stagePipelineId === selectedPipeline
+                                        );
+                                    })
                                     .map((stage: any) => (
                                         <Select.Option
                                             key={stage.id}
@@ -522,6 +652,7 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 placeholder="Select close date"
                                 className="w-full"
                                 format="YYYY-MM-DD"
+                                allowClear
                             />
                         </Form.Item>
                     </Col>
@@ -552,6 +683,9 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                                 allowClear
                                 showSearch
                                 optionFilterProp="children"
+                                onChange={() => {
+                                    agentDirtyRef.current = true;
+                                }}
                             >
                                 {displayedAgents.map((agent: any) => (
                                     <Select.Option
@@ -568,7 +702,11 @@ const DealDetailsTab: React.FC<DealDetailsTabProps> = ({
                     <Col span={24}>
                         <Form.Item name="package_id" label="Packages">
                             <Select
-                                mode="multiple"
+                                mode={
+                                    dealPackageMode === "single"
+                                        ? undefined
+                                        : "multiple"
+                                }
                                 placeholder="Select Packages"
                                 allowClear
                                 showSearch

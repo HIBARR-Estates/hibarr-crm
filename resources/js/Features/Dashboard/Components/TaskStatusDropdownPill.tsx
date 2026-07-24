@@ -31,6 +31,8 @@ interface TaskStatusDropdownPillProps {
     status: string;
     columns: TaskboardColumn[];
     disabled?: boolean;
+    /** Shows a spinner in place of the chevron while a status change is saving. */
+    loading?: boolean;
     onChange: (slug: string, columnId: number) => void;
 }
 
@@ -38,6 +40,7 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
     status,
     columns,
     disabled = false,
+    loading = false,
     onChange,
 }) => {
     const { td } = useTd();
@@ -77,13 +80,13 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
                 selectedKeys: currentColumn ? [currentColumn.slug] : [],
             }}
             trigger={["click"]}
-            disabled={disabled || sortedColumns.length === 0}
+            disabled={disabled || loading || sortedColumns.length === 0}
             placement="bottomLeft"
             overlayClassName="z-[1050]"
         >
             <button
                 type="button"
-                disabled={disabled}
+                disabled={disabled || loading}
                 className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-opacity ${
                     disabled
                         ? "cursor-not-allowed opacity-60"
@@ -103,7 +106,15 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
                     style={{ backgroundColor: currentColumn?.label_color || "#999" }}
                 />
                 {currentLabel}
-                <DownOutlined style={{ fontSize: "9px", opacity: 0.7 }} />
+                {loading ? (
+                    <span
+                        aria-hidden="true"
+                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        style={{ width: 9, height: 9 }}
+                    />
+                ) : (
+                    <DownOutlined style={{ fontSize: "9px", opacity: 0.7 }} />
+                )}
             </button>
         </Dropdown>
     );

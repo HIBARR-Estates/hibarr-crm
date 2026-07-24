@@ -1,15 +1,6 @@
 import { useMemo, useState } from "react";
 import { Deal } from "@/Types/api/deals";
-
-function initialsFromName(name?: string): string {
-    if (!name) return "--";
-    return name
-        .split(" ")
-        .map((part) => part[0])
-        .slice(0, 2)
-        .join("")
-        .toUpperCase();
-}
+import { initialsFromName } from "../adapters/initials";
 
 export default function useDealTeam(deal: Deal) {
     const [teamModalOpen, setTeamModalOpen] = useState(false);

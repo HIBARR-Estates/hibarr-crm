@@ -9,15 +9,17 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { isFieldVisible as isPipelineFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
 import { formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import EditableRepeatableField from "@/Components/EditableRepeatableField";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useCurrencies } from "@/Hooks/useFormData";
+import useTranslation from "@/Hooks/useTranslation";
 
 const DEFAULT_CURRENCY_CODE = "USD";
 
@@ -224,6 +226,8 @@ interface EditableFileFieldProps {
     loading?: boolean;
     editable?: boolean;
     multiple?: boolean;
+    /** v2.2's "Not set" copy for empty values, opt-in so other consumers keep "--". */
+    activateOnSingleClick?: boolean;
 }
 
 const EditableFileField: React.FC<EditableFileFieldProps> = ({
@@ -233,7 +237,9 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     loading = false,
     editable = true,
     multiple = true, // Default to supporting multiple files
+    activateOnSingleClick = false,
 }) => {
+    const { t } = useTranslation();
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -429,7 +435,11 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     }
 
     if (!editable) {
-        return <span className="text-gray-500">--</span>;
+        return (
+            <span className="text-gray-500">
+                {activateOnSingleClick ? t("pages.deals.common.not_set") : "--"}
+            </span>
+        );
     }
 
     return (
@@ -493,6 +503,11 @@ interface Props {
     sectionId?: string;
     isOpen?: boolean;
     onToggle?: () => void;
+    /** Forwarded to the underlying EditableField — v2.2's single-click-to-edit
+     * pattern, opt-in so other CustomFieldDisplay consumers keep double-click. */
+    activateOnSingleClick?: boolean;
+    /** When set, only custom fields allowed by pipeline scope are shown. null = show all. */
+    visibleFieldKeys?: string[] | null;
 }
 
 export default function CustomFieldDisplay({
@@ -513,10 +528,39 @@ export default function CustomFieldDisplay({
     sectionId,
     isOpen = false,
     onToggle,
+    activateOnSingleClick = false,
+    visibleFieldKeys,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
     const { default_currency_code } = props;
+    const { t } = useTranslation();
+
+    // In bulk "edit whole section" mode, edited values only reach
+    // customFieldsData once the batch is actually saved — visibility rules
+    // that depend on a field being edited right now would otherwise stay
+    // stuck until then. Track in-flight edits locally and layer them over
+    // customFieldsData for visibility evaluation only, so a dependent field
+    // appears/disappears as soon as its trigger value changes, not once
+    // the whole edit session is saved. Cleared whenever edit mode exits
+    // (save or cancel) so the freshly-persisted customFieldsData takes over.
+    const [liveValues, setLiveValues] = useState<Record<string, unknown>>({});
+    useEffect(() => {
+        if (!editable) setLiveValues({});
+    }, [editable]);
+    const handleFieldChange = (fieldName: string, value: any) => {
+        setLiveValues((previous) => ({ ...previous, [fieldName]: value }));
+        onChange?.(fieldName, value);
+    };
+    // v2.2 mode shows "Not set" for empty values, styled as a muted italic
+    // placeholder so it doesn't read as a real value (deal-v2-2.jsx:860-861);
+    // other consumers keep the legacy "--" placeholder.
+    const notSetLabel = activateOnSingleClick
+        ? t("pages.deals.common.not_set")
+        : "--";
+    const notSetClassName = activateOnSingleClick
+        ? "italic text-gray-400"
+        : "text-gray-500";
 
     // Use the application's default currency (current company setting)
     const appDefaultCurrency: string =
@@ -567,20 +611,48 @@ export default function CustomFieldDisplay({
           )
         : fields;
 
+    if (visibleFieldKeys != null) {
+        filteredFields = filteredFields.filter((field) =>
+            isPipelineFieldVisible(visibleFieldKeys, String(field.id)),
+        );
+    }
+
     // Apply visibility rules if customFieldsData is provided
     // Convert customFieldsData to the format expected by visibility evaluator
     const fieldValuesForVisibility: Record<string, any> = {};
     if (customFieldsData) {
         Object.keys(customFieldsData).forEach((key) => {
             // Ensure keys are in format "field_47"
-            if (key.startsWith("field_")) {
-                fieldValuesForVisibility[key] = customFieldsData[key];
-            } else {
-                fieldValuesForVisibility[`field_${key}`] =
-                    customFieldsData[key];
+            const normalizedKey = key.startsWith("field_")
+                ? key
+                : `field_${key}`;
+            let fieldValue = customFieldsData[key];
+
+            // multiSelectCountry is stored as a JSON-encoded array string; parse it so
+            // visibility rules that check array membership evaluate against a real array.
+            const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
+            const matchingField = fields.find((f) => {
+                const fId = typeof f.id === "string" ? parseInt(f.id) : f.id;
+                return fId === fieldId;
+            });
+            if (
+                matchingField?.type === "multiSelectCountry" &&
+                typeof fieldValue === "string"
+            ) {
+                try {
+                    const parsed = JSON.parse(fieldValue);
+                    if (Array.isArray(parsed)) fieldValue = parsed;
+                } catch {
+                    // leave as-is
+                }
             }
+
+            fieldValuesForVisibility[normalizedKey] = fieldValue;
         });
     }
+    // Live edits (bulk edit mode, not yet saved) take priority over the
+    // persisted value so visibility reacts immediately — see liveValues above.
+    Object.assign(fieldValuesForVisibility, liveValues);
 
     // Evaluate visibility for all fields
     // Convert Field[] to CustomField[] format for evaluation
@@ -641,7 +713,9 @@ export default function CustomFieldDisplay({
 
         // Multiselect/checkbox with more than 3 selected values gets full row
         if (
-            (field.type === "multiselect" || field.type === "checkbox") &&
+            (field.type === "multiselect" ||
+                field.type === "checkbox" ||
+                field.type === "multiSelectCountry") &&
             Array.isArray(value) &&
             value.length > 3
         ) {
@@ -655,7 +729,7 @@ export default function CustomFieldDisplay({
     // Format field value based on type
     const formatFieldValue = (field: Field, value: any) => {
         if (!value && value !== 0) {
-            if (!editable) return <span className="text-gray-500">--</span>;
+            if (!editable) return <span className={notSetClassName}>{notSetLabel}</span>;
             // If editable, proceed to render component or empty string wrapper
         }
 
@@ -700,11 +774,12 @@ export default function CustomFieldDisplay({
                         {value}
                     </Tag>
                 ) : (
-                    <span className="text-gray-500">--</span>
+                    <span className={notSetClassName}>{notSetLabel}</span>
                 );
 
             case "multiselect":
             case "checkbox":
+            case "multiSelectCountry":
                 if (Array.isArray(value) && value.length > 0) {
                     // Parse values - can be JSON string array or object
                     let multiValues = field.values;
@@ -739,7 +814,7 @@ export default function CustomFieldDisplay({
                 }
                 // Empty array or no value
                 if (Array.isArray(value) && value.length === 0) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
                 // Single checkbox value (boolean-like)
                 if (
@@ -759,7 +834,7 @@ export default function CustomFieldDisplay({
                 }
                 // No value at all
                 if (!value) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
                 return value;
 
@@ -767,7 +842,7 @@ export default function CustomFieldDisplay({
                 // Parse file value - can be single string, JSON array, or comma-separated
                 const files = parseFileValue(value);
                 if (files.length === 0) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
 
                 return (
@@ -928,7 +1003,7 @@ export default function CustomFieldDisplay({
             case "repeatable": {
                 const items = parseRepeatableItems(value);
                 if (items.length === 0) {
-                    return <span className="text-gray-500">--</span>;
+                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
                 const schemaMap = getRepeatableSchemaMap(field.values);
                 const formatPart = (v: unknown): string => {
@@ -967,7 +1042,7 @@ export default function CustomFieldDisplay({
                         .map((obj) => obj[key])
                         .filter((v) => v != null && v !== "");
                     if (rawValues.length === 0) {
-                        return <span className="text-gray-500">--</span>;
+                        return <span className={notSetClassName}>{notSetLabel}</span>;
                     }
                     let displayValue: string | number | React.ReactNode;
                     switch (dc.aggregateBy) {
@@ -1042,7 +1117,7 @@ export default function CustomFieldDisplay({
                                 .join(sep);
                     }
                     if (displayValue == null) {
-                        return <span className="text-gray-500">--</span>;
+                        return <span className={notSetClassName}>{notSetLabel}</span>;
                     }
                     if (React.isValidElement(displayValue)) {
                         if (!dc.format) return displayValue;
@@ -1129,7 +1204,7 @@ export default function CustomFieldDisplay({
                 return str ? (
                     <span>{str}</span>
                 ) : (
-                    <span className="text-gray-500">--</span>
+                    <span className={notSetClassName}>{notSetLabel}</span>
                 );
             }
 
@@ -1244,7 +1319,7 @@ export default function CustomFieldDisplay({
                         );
                     }
                 }
-                return <span className="text-gray-500">--</span>;
+                return <span className={notSetClassName}>{notSetLabel}</span>;
             }
 
             default:
@@ -1272,6 +1347,7 @@ export default function CustomFieldDisplay({
             | "boolean"
             | "textarea"
             | "country"
+            | "multiSelectCountry"
             | "phone"
             | "email"
             | "currency" = "text";
@@ -1292,6 +1368,9 @@ export default function CustomFieldDisplay({
                 break;
             case "country":
                 type = "country";
+                break;
+            case "multiSelectCountry":
+                type = "multiSelectCountry";
                 break;
             case "phone":
                 type = "phone";
@@ -1395,6 +1474,7 @@ export default function CustomFieldDisplay({
                     onSave={onUpdate!}
                     loading={isFieldLoading}
                     editable={editable && !disabled}
+                    activateOnSingleClick={activateOnSingleClick}
                 />
             );
         }
@@ -1467,8 +1547,9 @@ export default function CustomFieldDisplay({
                 displayValue={formatFieldValue(field, value)}
                 loading={isFieldLoading}
                 alwaysEditing={effectiveAlwaysEditing}
-                onChange={onChange}
+                onChange={handleFieldChange}
                 disabled={disabled}
+                activateOnSingleClick={activateOnSingleClick}
             />
         );
     };
@@ -1494,9 +1575,21 @@ export default function CustomFieldDisplay({
         >
             {filteredFields.map((field) => {
                 const fieldKey = `field_${field.id}`;
-                const value =
+                let value =
                     customFieldsData?.[fieldKey] ??
                     customFieldsData?.[String(field.id)];
+
+                // multiSelectCountry is stored as a JSON-encoded array string; parse it
+                // to an array here so span/format/edit logic can rely on Array.isArray.
+                if (field.type === "multiSelectCountry" && typeof value === "string") {
+                    try {
+                        const parsed = JSON.parse(value);
+                        if (Array.isArray(parsed)) value = parsed;
+                    } catch {
+                        // leave as-is
+                    }
+                }
+
                 const span = calculateSpan(field, value);
 
                 return (

@@ -156,9 +156,13 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
 
     const loading = isRefreshing || isFetching;
 
-    // Get existing product IDs from the deal
-    const existingProductIds = useMemo(
-        () => deal.products?.map((p) => p.id) || [],
+    // Property ids already on the deal. A deal holds products; the Property is
+    // reached through product.property — the two ids are NOT interchangeable.
+    const existingPropertyIds = useMemo(
+        () =>
+            (deal.products ?? [])
+                .map((p) => p.property?.id)
+                .filter((id): id is number => typeof id === "number"),
         [deal.products],
     );
 
@@ -169,18 +173,16 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
         // Add property IDs to loading state
         setAddingPropertyIds((prev) => new Set([...prev, ...propertyIds]));
         try {
-            // Merge with existing product IDs (avoiding duplicates)
-            const newProductIds = [
-                ...new Set([...existingProductIds, ...propertyIds]),
-            ];
-
-            await axios.patch(
-                route("deals.gathering.inline_update", { id: deal.id }),
-                {
-                    type: "details",
-                    data: { product_id: newProductIds },
-                },
-            );
+            // deals.properties.store resolves (or creates) the Product behind
+            // the Property, guards duplicates and recalculates the deal value.
+            // Syncing product_id with a property id attaches the wrong record.
+            for (const propertyId of propertyIds) {
+                await axios.post(
+                    route("deals.properties.store", deal.id),
+                    { property_id: propertyId },
+                    { headers: { Accept: "application/json" } },
+                );
+            }
 
             message.success(
                 `${propertyIds.length} ${
@@ -216,7 +218,7 @@ function RecommendationsTabContent({ deal, permissions }: Props) {
     // Check if a property is already added to the deal
     const isPropertyInDeal = (propertyId: number | null): boolean => {
         if (!propertyId) return false;
-        return existingProductIds.includes(propertyId);
+        return existingPropertyIds.includes(propertyId);
     };
 
     // Build property show URL safely to avoid hard crashes from route param mismatches.

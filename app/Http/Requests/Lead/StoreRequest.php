@@ -20,6 +20,13 @@ class StoreRequest extends CoreRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('close_date') && $this->close_date === '') {
+            $this->merge(['close_date' => null]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -35,11 +42,11 @@ class StoreRequest extends CoreRequest
         $rules['gender'] = 'nullable|in:male,female';
         $rules['lead_lifecycle_status_id'] = 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id';
 
-        if (request()->has('create_deal') && request()->create_deal == 'on') {
+        if (request()->boolean('create_deal')) {
             $rules['name'] = 'required';
             $rules['pipeline'] = 'required';
             $rules['stage_id'] = 'required';
-            $rules['close_date'] = 'required';
+            $rules['close_date'] = 'nullable|date';
             $rules['value'] = 'required';
         }
 

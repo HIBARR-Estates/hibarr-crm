@@ -1,17 +1,18 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
 import axios from "axios";
+import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 type TeamField = "agent_id" | "deal_participant" | "deal_watcher";
 
 export default function useDealTeamMutations(dealId: number) {
     const [savingField, setSavingField] = useState<TeamField | null>(null);
+    const { setDeal } = useDealWorkspace();
 
     const saveTeamField = useCallback(
         async (field: TeamField, value: number | number[] | null) => {
             setSavingField(field);
             try {
-                await axios.patch(
+                const response = await axios.patch(
                     route("deals.gathering.inline_update", { id: dealId }),
                     {
                         type: "details",
@@ -23,12 +24,14 @@ export default function useDealTeamMutations(dealId: number) {
                         },
                     },
                 );
-                router.reload({ only: ["deal"] });
+                if (response.data?.status === "success" && response.data?.data) {
+                    setDeal(response.data.data);
+                }
             } finally {
                 setSavingField(null);
             }
         },
-        [dealId],
+        [dealId, setDeal],
     );
 
     const isSaving = (field: TeamField) => savingField === field;

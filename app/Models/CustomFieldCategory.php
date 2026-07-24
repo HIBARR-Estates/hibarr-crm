@@ -56,6 +56,16 @@ class CustomFieldCategory extends BaseModel
 
     public function leadPipelines(): BelongsToMany
     {
-        return $this->belongsToMany(LeadPipeline::class, 'custom_field_category_pipeline', 'category_id', 'pipeline_id');
+        return $this->belongsToMany(
+            LeadPipeline::class,
+            'custom_field_category_scopes',
+            'category_id',
+            'pipeline_id'
+        )->whereNull('custom_field_category_scopes.pipeline_stage_id');
     }
-} 
+
+    public function categoryScopes(): HasMany
+    {
+        return $this->hasMany(CustomFieldCategoryScope::class, 'category_id');
+    }
+}

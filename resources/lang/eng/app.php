@@ -891,6 +891,7 @@ return array(
     'startTyping' => 'Start typing to search',
     'selectAction' => 'No Action',
     'country' => 'Country',
+    'multiSelectCountry' => 'Multi-Select Country',
     'dragDrop' => 'Choose a file',
     'dragDropReplace' => 'Drop a file or click to replace',
     'largeFile' => 'Sorry, the file is too large',
@@ -1521,7 +1522,7 @@ return array(
     ],
 
     'leads' => [
-        'search_placeholder' => 'Search leads by lead name, email, company...',
+        'search_placeholder' => 'Search leads by name, email, company, mobile, country...',
         'actions' => [
             'change_to_client' => 'Change to Client',
             'add'              => 'Add Lead',

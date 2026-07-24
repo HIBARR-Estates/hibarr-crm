@@ -4,7 +4,6 @@ namespace App\Services\EntitySummary;
 
 use App\Contracts\EntitySummaryAgentInterface;
 use App\Models\Deal;
-use Illuminate\Support\Facades\Log;
 
 class DealSummaryAgentService
 {
@@ -18,33 +17,53 @@ class DealSummaryAgentService
     ) {}
 
     /**
-     * @return array{summary: array<string, mixed>, input_hash: string, prompt_version: string}
+     * Generate via AI. Throws on AI/validation failure (no silent heuristic).
+     *
+     * @return array{summary: array<string, mixed>, input_hash: string, prompt_version: string, source: string}
      */
     public function generate(Deal $deal): array
     {
         $input = $this->inputBuilder->build($deal);
         $inputHash = $this->inputBuilder->inputHash($deal);
 
-        try {
-            $systemPrompt = $this->promptLoader->loadDealSummaryPrompt();
-            $summary = $this->agent->executeStructuredAgent(
-                'deal_summary',
-                $systemPrompt,
-                $input,
-            );
-            $this->validator->validateDealSummary($summary);
-        } catch (\Throwable $e) {
-            Log::warning('DealSummaryAgentService: AI failed, using heuristic fallback', [
-                'deal_id' => $deal->id,
-                'message' => $e->getMessage(),
-            ]);
-            $summary = $this->heuristicFallback($deal, $input);
-        }
+        $systemPrompt = $this->promptLoader->loadDealSummaryPrompt();
+        $summary = $this->agent->executeStructuredAgent(
+            'deal_summary',
+            $systemPrompt,
+            $input,
+        );
+        $this->validator->validateDealSummary($summary);
+
+        $summary['meta'] = array_merge($summary['meta'] ?? [], [
+            'source' => 'ai',
+            'generated_at' => $summary['meta']['generated_at'] ?? $input['now'],
+        ]);
 
         return [
             'summary' => $summary,
             'input_hash' => $inputHash,
             'prompt_version' => self::PROMPT_VERSION,
+            'source' => 'ai',
+        ];
+    }
+
+    /**
+     * Explicit heuristic path used only when no preferable AI summary exists.
+     *
+     * @return array{summary: array<string, mixed>, input_hash: string, prompt_version: string, source: string}
+     */
+    public function heuristicOnly(Deal $deal): array
+    {
+        $input = $this->inputBuilder->build($deal);
+        $inputHash = $this->inputBuilder->inputHash($deal);
+        $summary = $this->heuristicFallback($deal, $input);
+        $this->validator->validateDealSummary($summary);
+
+        return [
+            'summary' => $summary,
+            'input_hash' => $inputHash,
+            'prompt_version' => self::PROMPT_VERSION,
+            'source' => 'heuristic',
         ];
     }
 
@@ -122,6 +141,7 @@ class DealSummaryAgentService
                 'generated_at' => $input['now'],
                 'data_confidence' => 'low',
                 'stale_data_warning' => $daysSinceUpdate >= 14,
+                'source' => 'heuristic',
             ],
         ];
     }

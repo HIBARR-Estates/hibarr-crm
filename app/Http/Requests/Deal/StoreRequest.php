@@ -2,21 +2,25 @@
 
 namespace App\Http\Requests\Deal;
 
+use App\Enums\DealPackageMode;
 use App\Http\Requests\CoreRequest;
 use App\Traits\CustomFieldsRequestTrait;
+use Illuminate\Validation\Rule;
 
 class StoreRequest extends CoreRequest
 {
     use CustomFieldsRequestTrait;
 
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
     public function authorize()
     {
         return true;
+    }
+
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('close_date') && $this->close_date === '') {
+            $this->merge(['close_date' => null]);
+        }
     }
 
     /**
@@ -33,14 +37,25 @@ class StoreRequest extends CoreRequest
         $rules['name'] = 'required';
         $rules['pipeline'] = 'required';
         $rules['stage_id'] = 'required';
-        $rules['close_date'] = 'nullable';
+        $rules['close_date'] = 'nullable|date';
         $rules['value'] = 'nullable|numeric|min:0';
         $rules['manual_value'] = 'nullable|numeric|min:0';
         $rules['value_source'] = 'nullable|in:manual,calculated';
         $rules['deal_watcher'] = 'nullable|array';
         $rules['deal_watcher.*'] = 'exists:users,id';
-        $rules['package_id'] = 'nullable|array';
-        $rules['package_id.*'] = 'exists:packages,id';
+
+        $packageMode = DealPackageMode::tryFrom(company()->deal_package_mode ?? DealPackageMode::Multiple->value)
+            ?? DealPackageMode::Multiple;
+
+        $companyId = company()->id;
+        $packageExistsRule = Rule::exists('packages', 'id')->where('company_id', $companyId);
+
+        if ($packageMode === DealPackageMode::Single) {
+            $rules['package_id'] = ['nullable', $packageExistsRule];
+        } else {
+            $rules['package_id'] = 'nullable|array';
+            $rules['package_id.*'] = $packageExistsRule;
+        }
 
         $rules = $this->customFieldRules($rules);
 

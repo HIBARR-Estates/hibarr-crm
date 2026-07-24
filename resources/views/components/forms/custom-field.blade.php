@@ -260,6 +260,38 @@
                             :fieldRequired="($field->required === 'yes') ? true : false"
                             :fieldValue="$model->custom_fields_data['field_'.$field->id] ?? ''">
                         </x-forms.country>
+                    @elseif($field->type == 'multiSelectCountry')
+                        <x-forms.label
+                            fieldId="custom_fields_data[{{ $field->field_name . '_' . $field->id }}]"
+                            :fieldLabel="$field->label"
+                            :fieldRequired="($field->required === 'yes') ? true : false">
+                        </x-forms.label>
+                        @php
+                            $msCountryList = Cache::remember('countries_list', 3600, function () {
+                                return \App\Models\Country::all();
+                            });
+                            $selectedCountryNames = [];
+                            if ($model && !empty($model->custom_fields_data['field_'.$field->id])) {
+                                $decodedCountries = json_decode($model->custom_fields_data['field_'.$field->id], true);
+                                $selectedCountryNames = is_array($decodedCountries) ? $decodedCountries : [];
+                            }
+                        @endphp
+                        <input type="hidden"
+                               name="custom_fields_data[{{ $field->field_name.'_'.$field->id }}]"
+                               id="{{ $field->field_name.'_'.$field->id }}"
+                               value="{{ !empty($selectedCountryNames) ? json_encode($selectedCountryNames) : '' }}">
+                        <select class="form-control select-picker" multiple data-live-search="true"
+                                id="{{ $field->field_name.'_'.$field->id }}_select"
+                                onchange="CustomFieldHandlers.multiSelectCountryChange('{{ e($field->field_name.'_'.$field->id) }}')">
+                            @foreach ($msCountryList as $item)
+                                <option data-tokens="{{ $item->iso3 }}"
+                                        data-content="<span class='flag-icon flag-icon-{{ strtolower($item->iso) }} flag-icon-squared'></span> {{ $item->nicename }}"
+                                        value="{{ $item->nicename }}"
+                                        {{ in_array($item->nicename, $selectedCountryNames) ? 'selected' : '' }}>
+                                    {{ $item->nicename }}
+                                </option>
+                            @endforeach
+                        </select>
                     @elseif($field->type == 'phone')
                         <x-forms.phone
                             :fieldLabel="$field->label"
@@ -370,6 +402,11 @@ window.CustomFieldHandlers = {
         }
         
         hiddenInput.val(currentValues.join(', '));
+    },
+
+    multiSelectCountryChange: function(hiddenInputId) {
+        var selectedValues = $('#' + hiddenInputId + '_select').val() || [];
+        $('#' + hiddenInputId).val(selectedValues.length ? JSON.stringify(selectedValues) : '');
     },
 
     handleSelectChange: function(fieldName, fieldId, hasOtherOption) {

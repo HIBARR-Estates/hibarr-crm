@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Form,
     Input,
@@ -9,8 +9,8 @@ import {
     DatePicker,
     Card,
 } from "antd";
-import { CreateLeadFormData } from "@/Types/api/leads";
 import { usePage } from "@inertiajs/react";
+import { useFormDataBatch } from "@/Hooks/useFormData";
 
 export interface LeadDealCreationProps {}
 
@@ -21,21 +21,56 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
     const defaultCurrencySymbol = props.default_currency_symbol || "£";
     const {
         leadContacts = [],
-        leadPipelines = [],
-        categories = [],
-        products = [],
-        employees = [],
-        leadAgents = [],
-        stage = null,
-        contactID = null,
-        columnId = null,
-        company = {},
-        stages = [],
+        leadPipelines: propPipelines = [],
+        categories: propCategories = [],
+        products: propProducts = [],
+        employees: propEmployees = [],
+        leadAgents: propLeadAgents = [],
+        stages: propStages = [],
     } = props;
+    const currentUserId = props.auth?.user?.id as number | undefined;
+    const agentDirtyRef = useRef(false);
+
+    const { data: fetchedFormData } = useFormDataBatch(
+        [
+            "lead-agents",
+            "lead-pipelines",
+            "lead-stages",
+            "categories",
+            "products",
+            "employees",
+        ],
+        { enabled: true },
+    );
+
+    const pickFetchedArray = (type: string, fallback: any[] = []) => {
+        const value = fetchedFormData[type];
+        return Array.isArray(value) && value.length > 0 ? value : fallback;
+    };
+
+    const leadAgents = pickFetchedArray("lead-agents", propLeadAgents);
+    const leadPipelines = pickFetchedArray("lead-pipelines", propPipelines);
+    const stages = pickFetchedArray("lead-stages", propStages);
+    const categories = pickFetchedArray("categories", propCategories);
+    const products = pickFetchedArray("products", propProducts);
+    const employees = pickFetchedArray("employees", propEmployees);
 
     const [pipelineId, setPipelineId] = useState<number>();
 
-    const [agents, setAgents] = useState([]);
+    const displayedAgents = useMemo(() => {
+        if (categoryId) {
+            return leadAgents.filter(
+                (agent: any) => agent.lead_category_id === categoryId,
+            );
+        }
+        const unique = new Map();
+        leadAgents.forEach((agent: any) => {
+            if (agent.user && !unique.has(agent.user_id)) {
+                unique.set(agent.user_id, agent);
+            }
+        });
+        return Array.from(unique.values());
+    }, [categoryId, leadAgents]);
 
     // Fetch stages when pipeline changes
     const handlePipelineChange = (pipelineId: number) => {
@@ -46,28 +81,31 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
     // Fetch agents when category changes
     const handleCategoryChange = (categoryId: number) => {
         form.setFieldValue("category_id", categoryId);
-        if (categoryId) {
-            fetchAgents(categoryId);
-        }
     };
 
+    // Prefill deal agent from current user (lead owner defaults to creator on save).
     useEffect(() => {
-        if (categoryId) {
-            fetchAgents(categoryId);
+        if (agentDirtyRef.current || !currentUserId || leadAgents.length === 0) {
+            return;
         }
-    }, [categoryId]);
+        if (form.getFieldValue("agent_id") != null) {
+            return;
+        }
 
-    const fetchAgents = async (categoryId: number) => {
-        try {
-            const response = await fetch(route("deals.get_agents", categoryId));
-            const result = await response.json();
-            if (result.status === "success") {
-                setAgents(result.data);
-            }
-        } catch (error) {
-            console.error("Error fetching agents:", error);
+        const match =
+            (categoryId != null
+                ? leadAgents.find(
+                      (agent: any) =>
+                          agent.user_id === currentUserId &&
+                          agent.lead_category_id === categoryId,
+                  )
+                : undefined) ||
+            leadAgents.find((agent: any) => agent.user_id === currentUserId);
+
+        if (match?.id) {
+            form.setFieldValue("agent_id", match.id);
         }
-    };
+    }, [categoryId, currentUserId, leadAgents, form]);
 
     return (
         <Card title="Deal Information" size="small">
@@ -206,20 +244,12 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                 </Col>
 
                 <Col span={8}>
-                    <Form.Item
-                        name="close_date"
-                        label="Close Date"
-                        rules={[
-                            {
-                                required: true,
-                                message: "Please select close date",
-                            },
-                        ]}
-                    >
+                    <Form.Item name="close_date" label="Close Date">
                         <DatePicker
                             placeholder="Select close date"
                             className="w-full"
                             format="YYYY-MM-DD"
+                            allowClear
                         />
                     </Form.Item>
                 </Col>
@@ -250,10 +280,13 @@ const LeadDealCreation: React.FC<LeadDealCreationProps> = () => {
                             allowClear
                             showSearch
                             optionFilterProp="children"
+                            onChange={() => {
+                                agentDirtyRef.current = true;
+                            }}
                         >
-                            {agents.map((agent: any) => (
+                            {displayedAgents.map((agent: any) => (
                                 <Select.Option key={agent.id} value={agent.id}>
-                                    {agent.name}
+                                    {agent.user?.name}
                                 </Select.Option>
                             ))}
                         </Select>

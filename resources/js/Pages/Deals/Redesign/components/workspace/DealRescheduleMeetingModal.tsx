@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import useDealMeetingReschedule from "../../hooks/useDealMeetingReschedule";
 import DealButton from "../primitives/DealButton";
@@ -31,6 +32,7 @@ export default function DealRescheduleMeetingModal({
     followup,
 }: DealRescheduleMeetingModalProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [form, setForm] = useState<RescheduleFormState | null>(null);
     const [showDuration, setShowDuration] = useState(false);
     const { rescheduleMeeting, isRescheduling, errors, clearErrors } =
@@ -80,7 +82,7 @@ export default function DealRescheduleMeetingModal({
     return (
         <DealModal
             open={open}
-            title={td("Reschedule meeting")}
+            title={t("pages.deals.workspace.meetings.reschedule_meeting")}
             onClose={handleClose}
             footer={
                 <>
@@ -89,15 +91,15 @@ export default function DealRescheduleMeetingModal({
                         onClick={handleClose}
                         disabled={isRescheduling}
                     >
-                        {td("Cancel")}
+                        {t("pages.deals.common.cancel")}
                     </DealButton>
                     <DealButton
-                        variant="navy"
+                        variant="primary"
                         onClick={handleSubmit}
                         loading={isRescheduling}
                         disabled={isRescheduling}
                     >
-                        {td("Reschedule")}
+                        {t("pages.deals.workspace.meetings.reschedule")}
                     </DealButton>
                 </>
             }
@@ -106,14 +108,14 @@ export default function DealRescheduleMeetingModal({
                 <div className="mb-3 space-y-1">
                     {errors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {error}
+                            {td(error)}
                         </p>
                     ))}
                 </div>
             )}
 
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <DealModalField label={td("New date")}>
+                <DealModalField label={t("pages.deals.workspace.meetings.new_date")}>
                     <input
                         type="date"
                         value={form.date}
@@ -125,7 +127,7 @@ export default function DealRescheduleMeetingModal({
                     />
                 </DealModalField>
 
-                <DealModalField label={td("New start time")}>
+                <DealModalField label={t("pages.deals.workspace.meetings.new_start_time")}>
                     <input
                         type="time"
                         value={form.startTime}
@@ -148,15 +150,15 @@ export default function DealRescheduleMeetingModal({
                 </DealModalField>
             </div>
 
-            <DealModalField label={td("Duration")}>
+            <DealModalField label={t("pages.deals.workspace.meetings.duration")}>
                 <button
                     type="button"
                     onClick={() => setShowDuration((current) => !current)}
-                    className="mb-2 border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                    className="mb-2 border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
                 >
                     {showDuration
-                        ? td("Hide duration")
-                        : `+ ${td("Add duration")}`}
+                        ? t("pages.deals.workspace.meetings.hide_duration")
+                        : `+ ${t("pages.deals.workspace.meetings.add_duration")}`}
                 </button>
                 {showDuration && (
                     <div className="flex flex-wrap gap-1.5">
@@ -171,7 +173,7 @@ export default function DealRescheduleMeetingModal({
                                     onClick={() =>
                                         handleDurationSelect(option.value)
                                     }
-                                    className="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
+                                    className="rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors"
                                     style={{
                                         borderColor: active
                                             ? T.NAVY
@@ -190,7 +192,7 @@ export default function DealRescheduleMeetingModal({
                 )}
             </DealModalField>
 
-            <DealModalField label={td("End time")}>
+            <DealModalField label={t("pages.deals.workspace.meetings.end_time")}>
                 <input
                     type="time"
                     value={form.endTime}

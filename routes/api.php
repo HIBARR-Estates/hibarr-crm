@@ -30,6 +30,8 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
     ApiRoute::get('crm-events', ['as' => 'api.crm-events.index', 'uses' => 'CrmEventController@index']);
     ApiRoute::get('crm-events/chain/{correlationId}', ['as' => 'api.crm-events.chain', 'uses' => 'CrmEventController@chain']);
     ApiRoute::get('crm-events/{uuid}', ['as' => 'api.crm-events.show', 'uses' => 'CrmEventController@show']);
+    ApiRoute::patch('crm-events/{uuid}', ['as' => 'api.crm-events.update', 'uses' => 'CrmEventController@update']);
+    ApiRoute::delete('crm-events/{uuid}', ['as' => 'api.crm-events.destroy', 'uses' => 'CrmEventController@destroy']);
     ApiRoute::get('crm-event-types', ['as' => 'api.crm-event-types.index', 'uses' => 'CrmEventTypeController@index']);
 
     // External Communications Module Routes

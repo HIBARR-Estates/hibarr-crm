@@ -1,4 +1,5 @@
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import { formatDateTime, formatMonthShort, formatTime } from "./dateFormat";
 
 export interface WorkspaceMeetingPreview {
     id: number;
@@ -72,15 +73,16 @@ export function toWorkspaceMeetingPreview(meeting: DealFollowup): WorkspaceMeeti
         title: meetingType || "Meeting",
         status: normalizedStatus,
         startsAt,
-        startsAtLabel: startsAt ? DATE_TIME_FORMAT.format(startsAt) : "No date",
-        timeLabel: startsAt ? TIME_FORMAT.format(startsAt) : "No time",
-        monthLabel: startsAt ? MONTH_FORMAT.format(startsAt) : "--",
+        startsAtLabel: formatDateTime(startsAt, "No date"),
+        timeLabel: formatTime(startsAt, "No time"),
+        monthLabel: formatMonthShort(startsAt),
         dayLabel: startsAt ? String(startsAt.getDate()) : "--",
         isUpcoming,
         isPast: startsAt ? startsAt.getTime() < Date.now() : false,
         location,
         locationType,
         attendeesLabel:
-            attendees.length > 0 ? attendees.join(", ") : "No attendees listed",
+            // Empty when there are none; consumers already guard on falsy.
+            attendees.length > 0 ? attendees.join(", ") : "",
     };
 }

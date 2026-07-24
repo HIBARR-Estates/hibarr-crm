@@ -7,12 +7,13 @@ use App\Models\Deal;
 class DealSummarySnapshotService
 {
     public function __construct(
-        private DealSummaryInputBuilder $inputBuilder,
         private DealSummaryService $dealSummaryService,
         private EntitySummaryValidator $validator,
     ) {}
 
     /**
+     * Prefer cached/stale snapshots. Only generate when missing (or forced).
+     *
      * @return array<string, mixed>
      */
     public function getOrGenerate(Deal $deal, bool $forceRegenerate = false): array
@@ -27,7 +28,9 @@ class DealSummarySnapshotService
             }
         }
 
-        $summary = $this->dealSummaryService->regenerate($deal);
+        $summary = $forceRegenerate
+            ? $this->dealSummaryService->regenerate($deal)
+            : $this->dealSummaryService->ensureExists($deal);
 
         return $this->validator->toLeadConsumerShape($summary, $deal);
     }

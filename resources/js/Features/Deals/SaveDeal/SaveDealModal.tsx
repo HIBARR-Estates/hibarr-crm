@@ -178,7 +178,7 @@ const SaveDealModal: React.FC<SaveDealModalProps> = ({
                       (deal as any).currency?.currency_code ?? defaultCode,
               }
             : { amount: null, currency: defaultCode }) as any,
-        close_date: deal?.close_date || "",
+        close_date: deal?.close_date || undefined,
         category_id: deal?.category_id || undefined,
         agent_id: deal?.agent_id || undefined,
         product_id: deal?.products?.map((p) => p.id) || [],

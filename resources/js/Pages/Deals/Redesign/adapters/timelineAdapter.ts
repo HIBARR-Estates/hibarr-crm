@@ -18,14 +18,22 @@ export interface TimelineEventViewModel {
     title: string;
     meta: string;
     dot: TimelineDotVariant;
+    /** Human summary override from metadata (e.g. "Contact → In Progress"). */
     grouped?: string;
     details?: Array<[string, string, string]>;
+    /** Number of changed fields — drives the v2.2 "Category · N fields" label. */
+    changeCount?: number;
     preview?: string;
+    /** Raw editable comment (metadata.comment) — feeds the edit form. */
+    comment?: string;
     categoryName?: string;
     status: CrmEventStatus;
     direction?: CrmEventDirection | null;
-    source?: string | null;
-    correlationId?: string | null;
+    /**
+     * Recorded by hand via Log Action (custom event type) rather than written
+     * by the system as an audit trail. Only these may be edited/deleted.
+     */
+    isAgentLogged: boolean;
     occurredAt: string;
 }
 
@@ -64,6 +72,23 @@ function toDisplayValue(value: unknown): string {
 
 export function getTimelineStatusLabel(status: CrmEventStatus): string {
     return STATUS_LABELS[status] ?? status;
+}
+
+/** dr-pill tone class for a status — color-codes the status pill. */
+const STATUS_TONES: Record<CrmEventStatus, string> = {
+    completed: "dr-pill-green",
+    error_occurred: "dr-pill-red",
+    missed: "dr-pill-amber",
+    rejected: "dr-pill-red",
+};
+
+export function getTimelineStatusTone(status: CrmEventStatus): string {
+    return STATUS_TONES[status] ?? "dr-pill-gray";
+}
+
+/** dr-pill tone class for a direction (v2.2: teal inbound, blue outbound). */
+export function getTimelineDirectionTone(direction: CrmEventDirection): string {
+    return direction === "inbound" ? "dr-pill-teal" : "dr-pill-blue";
 }
 
 export function getTimelineDirectionLabel(
@@ -141,18 +166,18 @@ export function crmEventToTimelineViewModel(event: CrmEvent): TimelineEventViewM
         title,
         meta,
         dot,
-        grouped:
-            grouped ||
-            (details && details.length > 0
-                ? `${details.length} fields changed`
-                : undefined),
+        grouped: grouped || undefined,
         details: details && details.length > 0 ? details : undefined,
+        changeCount: details?.length,
         preview: previewSource ? `"${previewSource}"` : undefined,
+        comment:
+            typeof metadata?.comment === "string" ? metadata.comment : undefined,
         categoryName: event.event_type?.category?.name,
         status: event.status,
         direction: event.direction,
-        source: event.source,
-        correlationId: event.correlation_id,
+        // Mirrors CrmEventController::isAgentLoggedEvent — a custom (non
+        // system-seeded) event type means a person logged this by hand.
+        isAgentLogged: event.event_type?.is_system === false,
         occurredAt: event.occurred_at,
     };
 }

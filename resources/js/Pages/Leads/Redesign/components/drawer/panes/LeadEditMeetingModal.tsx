@@ -193,7 +193,6 @@ export default function LeadEditMeetingModal({
                 }
                 meetingTypes={meetingTypes}
                 disabled={isUpdating}
-                meetingLinkReadOnly
                 showExistingMeetingLinkHint={Boolean(form.meetingLink)}
             />
         </DealModal>

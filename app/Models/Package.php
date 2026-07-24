@@ -5,8 +5,9 @@ namespace App\Models;
 use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
@@ -56,5 +57,15 @@ class Package extends BaseModel
     public function company(): BelongsTo
     {
         return $this->belongsTo(Company::class);
+    }
+
+    public function packagePipeline(): HasOne
+    {
+        return $this->hasOne(PackagePipeline::class, 'package_id');
+    }
+
+    public function routingTriggers(): HasMany
+    {
+        return $this->hasMany(PackageRoutingTrigger::class, 'package_id');
     }
 }

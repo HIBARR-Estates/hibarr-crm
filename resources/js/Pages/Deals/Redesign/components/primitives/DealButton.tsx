@@ -1,64 +1,59 @@
-import { ButtonHTMLAttributes, CSSProperties, ReactNode } from "react";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import { ButtonHTMLAttributes, ReactNode } from "react";
 
 type Variant = "ghost" | "primary" | "navy";
+type Size = "base" | "sm";
 
 interface DealButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: Variant;
+    size?: Size;
     icon?: ReactNode;
     loading?: boolean;
 }
 
+/** Sizes/variants ported 1:1 from v2.2's .v22-btn system (deal-v2-2.jsx:366-377). */
 export default function DealButton({
     variant = "ghost",
+    size = "base",
     icon,
     children,
+    className,
     style,
     loading,
+    disabled,
     ...props
 }: DealButtonProps) {
-    const common = {
-        fontSize: 12,
-        padding: "6px 11px",
-        borderRadius: 6,
-        cursor: "pointer",
-        display: "inline-flex",
-        alignItems: "center" as const,
-        gap: 4,
-        transition: "all 0.15s",
-    };
-
-    const byVariant: Record<Variant, CSSProperties> = {
-        ghost: {
-            background: "transparent",
-            color: T.TEXT_MUTED,
-            border: `1px solid ${T.BORDER}`,
-        },
-        primary: {
-            background: T.BLUE,
-            color: T.WHITE,
-            border: "none",
-        },
-        navy: {
-            background: T.NAVY,
-            color: T.WHITE,
-            border: "none",
-        },
-    };
+    const classes = [
+        "dr-btn",
+        `dr-btn-${variant}`,
+        size === "sm" ? "dr-btn-sm" : "",
+        className,
+    ]
+        .filter(Boolean)
+        .join(" ");
 
     return (
         <button
             type="button"
-            style={{ ...common, ...byVariant[variant], ...style }}
+            className={classes}
+            style={style}
+            disabled={disabled || loading}
             {...props}
         >
-            {icon}
             {loading ? (
-                <span className="flex h-4 w-4 items-center justify-center">
-                    <span className="animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <span
+                    className="inline-flex items-center justify-center"
+                    style={{ width: size === "sm" ? 12 : 14, height: size === "sm" ? 12 : 14 }}
+                >
+                    <span
+                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        style={{ width: "100%", height: "100%" }}
+                    />
                 </span>
             ) : (
-                children
+                <>
+                    {icon}
+                    {children}
+                </>
             )}
         </button>
     );

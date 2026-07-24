@@ -85,7 +85,84 @@ class HandleInertiaRequests extends Middleware
             'isRtl' => fn () => $this->isRtlLocale(),
             'availableLocales' => fn () => app(I18nTranslationService::class)->getAvailableLocales(),
             'featureFlags' => fn () => FeatureFlags::forInertia(),
+            'pipelineCategoryScopeMap' => fn () => $this->getPipelineCategoryScopeMap($request),
+            'pipelineFieldScopeMap' => fn () => $this->getPipelineFieldScopeMap($request),
+            'stages' => fn () => $this->getPipelineStages($request),
         ]);
+    }
+
+    /**
+     * Routes whose UI actually consumes pipeline scope data (deal show/edit/create
+     * and the boards that embed the deal save modal). Kept narrow so the scope
+     * resolver isn't queried on every Inertia response.
+     */
+    private function routeNeedsPipelineScopeData(Request $request): bool
+    {
+        $routeName = $request->route()?->getName();
+
+        if (!$routeName) {
+            return false;
+        }
+
+        return str_starts_with($routeName, 'deals.') || str_starts_with($routeName, 'leadboards.');
+    }
+
+    private function getPipelineCategoryScopeMap(Request $request): array
+    {
+        try {
+            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
+                return [];
+            }
+
+            return app(\App\Services\PipelineScopeResolverService::class)
+                ->buildCategoryScopeMapForCompany(company()->id);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to build pipeline category scope map for Inertia share', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    private function getPipelineFieldScopeMap(Request $request): array
+    {
+        try {
+            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
+                return [];
+            }
+
+            return app(\App\Services\PipelineScopeResolverService::class)
+                ->buildFieldScopeMapForCompany(company()->id);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to build pipeline field scope map for Inertia share', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
+    }
+
+    private function getPipelineStages(Request $request): array
+    {
+        try {
+            if (!$this->routeNeedsPipelineScopeData($request) || !function_exists('company') || !company()) {
+                return [];
+            }
+
+            return \App\Models\PipelineStage::query()
+                ->select('id', 'name', 'priority', 'lead_pipeline_id', 'label_color')
+                ->orderBy('priority')
+                ->orderBy('id')
+                ->get()
+                ->toArray();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Failed to load pipeline stages for Inertia share', [
+                'message' => $e->getMessage(),
+            ]);
+
+            return [];
+        }
     }
      /**
      * Get default currency symbol safely

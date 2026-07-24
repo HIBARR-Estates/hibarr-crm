@@ -200,6 +200,18 @@ class CustomField extends BaseModel
                     return '--';
                 }
 
+                if ($customField->type == 'multiSelectCountry') {
+                    $countriesValue = $finalData?->value;
+                    if (!empty($countriesValue)) {
+                        $selectedCountries = json_decode($countriesValue, true);
+
+                        return is_array($selectedCountries) && !empty($selectedCountries)
+                            ? implode(', ', $selectedCountries)
+                            : '--';
+                    }
+                    return '--';
+                }
+
                 if ($customField->type == 'currency') {
                     $currencyValue = $finalData?->value;
                     if (!empty($currencyValue)) {
