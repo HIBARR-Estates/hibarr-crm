@@ -60,7 +60,8 @@ class PatchRequest extends CoreRequest
             'source_id' => 'sometimes|nullable|integer|exists:lead_sources,id',
             'status_id' => 'sometimes|nullable|integer|exists:lead_statuses,id',
             'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
-            
+            'has_joined_the_whatsapp_group' => 'sometimes|boolean',
+
             // Products (all optional for patch)
             'products' => 'sometimes|array',
             'products.*' => 'integer|exists:products,id',

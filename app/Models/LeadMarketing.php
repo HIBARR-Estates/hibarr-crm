@@ -29,6 +29,7 @@ class LeadMarketing extends BaseModel
         // Engagement Tracking
         'has_registered_for_the_webinar',
         'has_joined_the_facebook_group',
+        'has_joined_the_whatsapp_group',
         'has_downloaded_the_ebook',
         'has_attended_the_webinar',
         'registered_for_zoom_meeting',
@@ -40,6 +41,7 @@ class LeadMarketing extends BaseModel
     protected $casts = [
         'has_registered_for_the_webinar' => 'boolean',
         'has_joined_the_facebook_group' => 'boolean',
+        'has_joined_the_whatsapp_group' => 'boolean',
         'has_downloaded_the_ebook' => 'boolean',
         'has_attended_the_webinar' => 'boolean',
         'registered_for_zoom_meeting' => 'boolean',

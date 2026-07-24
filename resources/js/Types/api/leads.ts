@@ -96,6 +96,7 @@ export interface LeadMarketing {
     ip_address?: string | null;
     has_registered_for_the_webinar: boolean;
     has_joined_the_facebook_group: boolean;
+    has_joined_the_whatsapp_group: boolean;
     has_downloaded_the_ebook: boolean;
     has_attended_the_webinar: boolean;
     registered_for_zoom_meeting: boolean;
