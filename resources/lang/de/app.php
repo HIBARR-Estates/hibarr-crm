@@ -175,7 +175,7 @@ return [
 
     // Leads
     'leads' => [
-        'search_placeholder' => 'Leads nach Name, E-Mail, Unternehmen suchen...',
+        'search_placeholder' => 'Leads nach Name, E-Mail, Unternehmen, Mobilnummer, Land suchen...',
         'tabs' => [
             'profile'   => 'Profil',
             'deals'     => 'Deals',

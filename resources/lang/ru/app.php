@@ -175,7 +175,7 @@ return [
 
     // Leads
     'leads' => [
-        'search_placeholder' => 'Поиск по имени, email, компании...',
+        'search_placeholder' => 'Поиск по имени, email, компании, мобильному телефону, стране...',
         'tabs' => [
             'profile'   => 'Профиль',
             'deals'     => 'Сделки',

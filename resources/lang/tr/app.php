@@ -175,7 +175,7 @@ return [
 
     // Leads
     'leads' => [
-        'search_placeholder' => 'Potansiyel müşteri adı, e-posta, şirket ara...',
+        'search_placeholder' => 'Potansiyel müşteri adı, e-posta, şirket, cep telefonu, ülke ara...',
         'tabs' => [
             'profile'   => 'Profil',
             'deals'     => 'Anlaşmalar',

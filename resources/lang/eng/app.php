@@ -1522,7 +1522,7 @@ return array(
     ],
 
     'leads' => [
-        'search_placeholder' => 'Search leads by lead name, email, company...',
+        'search_placeholder' => 'Search leads by name, email, company, mobile, country...',
         'actions' => [
             'change_to_client' => 'Change to Client',
             'add'              => 'Add Lead',
