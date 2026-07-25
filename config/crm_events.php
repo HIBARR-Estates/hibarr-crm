@@ -442,6 +442,19 @@ return [
             'sync_processing' => true,
         ],
         [
+            'slug' => 'lead_merged',
+            'name' => 'Lead Merged',
+            'category' => 'lead',
+            'model_type' => 'App\\Models\\Lead',
+            'description' => 'A duplicate lead was merged into this lead.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'comment' => ['type' => 'string', 'label' => 'Description'],
+                'duplicate_id' => ['type' => 'number', 'label' => 'Merged Duplicate Lead ID'],
+                'primary_id' => ['type' => 'number', 'label' => 'Surviving Lead ID'],
+            ],
+        ],
+        [
             'slug' => 'lead_first_contact',
             'name' => 'First Contact',
             'category' => 'lead',
