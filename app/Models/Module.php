@@ -1043,6 +1043,12 @@ class Module extends BaseModel
                     'name' => 'delete_lead',
                 ],
                 [
+                    'allowed_permissions' => Permission::ALL_4_ADDED_1_OWNED_2_BOTH_3_NONE_5,
+                    'display_name' => 'Merge Lead',
+                    'is_custom' => 1,
+                    'name' => 'merge_lead',
+                ],
+                [
                     'allowed_permissions' => Permission::ALL_NONE,
                     'display_name' => 'Manage Lead Custom Forms',
                     'is_custom' => 1,
