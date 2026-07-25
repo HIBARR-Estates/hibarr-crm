@@ -130,6 +130,7 @@ use App\Http\Controllers\GanttLinkController;
 use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadSummaryController;
+use App\Http\Controllers\LeadMergeController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
@@ -622,6 +623,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
     Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
     Route::get('lead-contact/{lead}/custom-fields', [LeadContactController::class, 'getCustomFields'])->name('lead-contact.custom-fields');
+    Route::post('lead-contact/{lead}/merge', [LeadMergeController::class, 'merge'])->name('lead-contact.merge');
+    Route::get('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates');
+    Route::post('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates.find');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
