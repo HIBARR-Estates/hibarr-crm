@@ -2,31 +2,41 @@
     use App\Services\PackageRoutingFieldCatalog;
 
     $triggerRows = old('routing_triggers', $routingTriggers ?? []);
-    if (empty($triggerRows)) {
-        $triggerRows = [[
-            'field_key' => '',
-            'match_mode' => PackageRoutingFieldCatalog::MATCH_MODE_EXACT,
-            'match_value' => '',
-        ]];
-    }
+    $triggerRows = is_array($triggerRows) ? array_values($triggerRows) : [];
     $fieldItems = $routingTriggerFieldItems ?? [];
     $matchModeOptions = $routingMatchModeOptions ?? PackageRoutingFieldCatalog::MATCH_MODES;
+    $routingFieldsConfigured = $fieldItems !== [];
 @endphp
 
 <div class="col-sm-12">
     <hr class="my-3">
     <h4 class="mb-2 f-16 font-weight-normal">@lang('modules.deal.packageRoutingTriggers')</h4>
     <p class="f-11 text-lightest mb-3">@lang('modules.deal.packageRoutingTriggersHint')</p>
+    @unless($routingFieldsConfigured)
+        <p class="f-12 text-warning mb-0">@lang('modules.deal.packageRoutingTriggersNoFields')</p>
+    @endunless
 </div>
 
+@if($routingFieldsConfigured)
 <div class="col-sm-12">
+    <div id="package-routing-triggers-header" class="row {{ count($triggerRows) === 0 ? 'd-none' : '' }}">
+        <div class="col-md-4">
+            <x-forms.label fieldId="routing_triggers_header_field" :fieldLabel="__('modules.deal.routingTriggerField')" />
+        </div>
+        <div class="col-md-3">
+            <x-forms.label fieldId="routing_triggers_header_mode" :fieldLabel="__('modules.deal.routingTriggerMatchMode')" />
+        </div>
+        <div class="col-md-3">
+            <x-forms.label fieldId="routing_triggers_header_value" :fieldLabel="__('modules.deal.routingTriggerMatchValue')" />
+        </div>
+        <div class="col-md-2"></div>
+    </div>
+
     <div id="package-routing-triggers">
         @foreach($triggerRows as $index => $trigger)
             @include('packages.partials.routing-trigger-row', [
                 'index' => $index,
                 'trigger' => $trigger,
-                'showLabels' => $loop->first,
-                'showRemove' => count($triggerRows) > 1,
                 'fieldItems' => $fieldItems,
                 'matchModeOptions' => $matchModeOptions,
             ])
@@ -38,7 +48,7 @@
     </x-forms.button-secondary>
 </div>
 
-<div id="package-routing-trigger-row-template" class="d-none">
+<template id="package-routing-trigger-row-template">
     @include('packages.partials.routing-trigger-row', [
         'index' => '__INDEX__',
         'trigger' => [
@@ -46,20 +56,26 @@
             'match_mode' => PackageRoutingFieldCatalog::MATCH_MODE_EXACT,
             'match_value' => '',
         ],
-        'showLabels' => false,
-        'showRemove' => true,
         'fieldItems' => $fieldItems,
         'matchModeOptions' => $matchModeOptions,
     ])
-</div>
+</template>
 
 @include('components.deal.partials.pipeline-scope-pills-init')
 
 <script>
     (function () {
         const container = $('#package-routing-triggers');
-        const templateHtml = $('#package-routing-trigger-row-template').html();
+        const templateEl = document.getElementById('package-routing-trigger-row-template');
         const presentMode = @json(PackageRoutingFieldCatalog::MATCH_MODE_PRESENT);
+
+        function templateHtml() {
+            if (templateEl instanceof HTMLTemplateElement) {
+                return templateEl.innerHTML.trim();
+            }
+
+            return $(templateEl).html().trim();
+        }
 
         function toggleMatchValueInput(row) {
             const mode = row.find('select[name*="[match_mode]"]').val();
@@ -84,6 +100,11 @@
                     windowPadding: 12,
                 });
             });
+        }
+
+        function updateTriggersChrome() {
+            const rowCount = container.find('.package-routing-trigger-row').length;
+            $('#package-routing-triggers-header').toggleClass('d-none', rowCount === 0);
         }
 
         function reindexRows() {
@@ -114,9 +135,16 @@
                 window.syncPipelineScopePillsInputs(container);
             }
 
-            const rowCount = container.find('.package-routing-trigger-row').length;
-            container.find('.remove-routing-trigger').toggle(rowCount > 1);
+            updateTriggersChrome();
         }
+
+        window.preparePackageRoutingTriggersForSubmit = function ($form) {
+            reindexRows();
+
+            if (typeof window.syncPipelineScopePillsInputs === 'function') {
+                window.syncPipelineScopePillsInputs($form || container);
+            }
+        };
 
         container.on('changed.bs.select', 'select[name*="[match_mode]"]', function () {
             toggleMatchValueInput($(this).closest('.package-routing-trigger-row'));
@@ -126,7 +154,7 @@
             toggleMatchValueInput($(this).closest('.package-routing-trigger-row'));
         });
 
-        container.find('.package-routing-trigger-row').each(function (rowIndex) {
+        container.find('.package-routing-trigger-row').each(function () {
             toggleMatchValueInput($(this));
         });
 
@@ -138,7 +166,7 @@
 
         $('#add-routing-trigger').on('click', function () {
             const rowIndex = container.find('.package-routing-trigger-row').length;
-            const rowHtml = templateHtml.replace(/__INDEX__/g, rowIndex);
+            const rowHtml = templateHtml().replace(/__INDEX__/g, rowIndex);
             const row = $(rowHtml.trim());
             row.find('.pipeline-scope-pills').removeAttr('data-pills-init');
 
@@ -152,12 +180,10 @@
 
         container.on('click', '.remove-routing-trigger', function () {
             $(this).closest('.package-routing-trigger-row').remove();
-
-            if (container.find('.package-routing-trigger-row').length === 0) {
-                $('#add-routing-trigger').trigger('click');
-            }
-
             reindexRows();
         });
+
+        updateTriggersChrome();
     })();
 </script>
+@endif

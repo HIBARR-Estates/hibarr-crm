@@ -1000,13 +1000,24 @@ class DealController extends AccountBaseController
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
 
+        $routingPayload = [];
+
+        if ($request->has('category_id')) {
+            $routingPayload['category_id'] = $request->input('category_id');
+        }
+
+        if ($request->has('product_id')) {
+            $routingPayload['product_id'] = $request->input('product_id');
+        }
+
+        if ($request->custom_fields_data) {
+            $routingPayload = array_merge($routingPayload, $request->custom_fields_data);
+        }
+
         $packageRouter->attemptRoutingFromFieldUpdates(
             $deal->fresh(),
-            app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
-                array_merge(
-                    $request->only(['category_id', 'product_id']),
-                    $request->custom_fields_data ?? [],
-                ),
+            $packageRouter->extractTriggerFieldsFromPayload(
+                $routingPayload,
                 $deal->company_id,
             ),
             $request->has('package_id') && $request->package_id,
@@ -1276,13 +1287,24 @@ class DealController extends AccountBaseController
              app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
         }
 
+        $routingPayload = [];
+
+        if ($request->has('category_id')) {
+            $routingPayload['category_id'] = $request->input('category_id');
+        }
+
+        if ($request->has('product_id')) {
+            $routingPayload['product_id'] = $request->input('product_id');
+        }
+
+        if ($request->custom_fields_data) {
+            $routingPayload = array_merge($routingPayload, $request->custom_fields_data);
+        }
+
         app(PackagePipelineRouterService::class)->attemptRoutingFromFieldUpdates(
             $deal->fresh(),
             app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
-                array_merge(
-                    $request->only(['category_id', 'product_id']),
-                    $request->custom_fields_data ?? [],
-                ),
+                $routingPayload,
                 $deal->company_id,
             ),
             $request->has('package_id'),

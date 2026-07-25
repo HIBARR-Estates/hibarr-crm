@@ -49,19 +49,10 @@ class StorePackageRequest extends FormRequest
                     continue;
                 }
 
-                $hasContent = collect($row)->contains(
-                    fn ($value) => $value !== null && $value !== '',
-                );
+                $fieldKey = trim((string) ($row['field_key'] ?? ''));
 
-                if (!$hasContent) {
+                if ($fieldKey === '') {
                     continue;
-                }
-
-                if (empty($row['field_key'])) {
-                    $validator->errors()->add(
-                        "routing_triggers.{$index}.field_key",
-                        __('validation.required', ['attribute' => 'field key']),
-                    );
                 }
 
                 if (empty($row['match_mode'])) {

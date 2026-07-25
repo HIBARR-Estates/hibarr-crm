@@ -205,6 +205,16 @@ class PackageRoutingFieldCatalog
         return $this->enabledFieldKeysCache[$cacheKey] = $keys;
     }
 
+    public function enabledFlatFieldItems(?int $companyId = null): array
+    {
+        $enabled = array_flip($this->enabledFieldKeys($companyId));
+
+        return collect($this->flatFieldItems($companyId))
+            ->filter(fn (array $item) => isset($enabled[$item['value']]))
+            ->values()
+            ->all();
+    }
+
     public function isFieldEnabled(string $fieldKey, ?int $companyId = null): bool
     {
         return in_array($fieldKey, $this->enabledFieldKeys($companyId), true);

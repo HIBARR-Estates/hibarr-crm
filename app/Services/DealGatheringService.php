@@ -268,7 +268,9 @@ class DealGatheringService
                 // Handle relationships
                 if (array_key_exists('product_id', $data)) {
                     $deal->products()->sync($data['product_id']);
-                    $this->dealValueResolver->resolveAndPersist($deal->fresh());
+                    $deal = $deal->fresh(['products', 'packages', 'company']);
+                    $this->dealValueResolver->resolveAndPersist($deal);
+                    $this->packageRouter->attemptRoutingFromDealProducts($deal);
                 }
                 
                 if (array_key_exists('package_id', $data)) {
@@ -490,11 +492,21 @@ class DealGatheringService
             return;
         }
 
-        $this->packageRouter->attemptRoutingFromFieldUpdates(
-            $deal->fresh(),
+        $routed = $this->packageRouter->attemptRoutingFromFieldUpdates(
+            $deal->fresh(['packages', 'company']),
             $fieldTriggerData,
             array_key_exists('package_id', $data) && $data['package_id'],
         );
+
+        // If triggers matched and synced a package but pipeline routing was skipped
+        // (e.g. already on the target pipeline), still attempt a route when exactly
+        // one package is linked.
+        if (!$routed) {
+            $deal->loadMissing('packages');
+            if ($deal->packages->count() === 1) {
+                $this->packageRouter->routeDeal($deal->fresh(['packages', 'company']));
+            }
+        }
     }
 
     protected function normalizeRoutingFieldKey(string $key): string

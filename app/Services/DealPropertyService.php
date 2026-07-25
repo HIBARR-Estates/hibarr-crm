@@ -13,7 +13,10 @@ use Illuminate\Support\Collection;
 
 class DealPropertyService
 {
-    public function __construct(private DealValueResolver $dealValueResolver) {}
+    public function __construct(
+        private DealValueResolver $dealValueResolver,
+        private PackagePipelineRouterService $packageRouter,
+    ) {}
     /**
      * Get all properties attached to a deal (via products), including applied offer applications.
      */
@@ -74,7 +77,9 @@ class DealPropertyService
 
         $deal->products()->attach($product->id);
         app(DealActivityEventService::class)->recordProductLinked($deal, $product, $property);
-        $this->dealValueResolver->resolveAndPersist($deal->fresh());
+        $deal = $deal->fresh(['products', 'packages', 'company']);
+        $this->dealValueResolver->resolveAndPersist($deal);
+        $this->packageRouter->attemptRoutingFromDealProducts($deal);
 
         return ['status' => 'success', 'message' => 'Property attached successfully.'];
     }
@@ -197,6 +202,7 @@ class DealPropertyService
         }
 
         $this->dealValueResolver->resolveAndPersist($deal->fresh());
+        $this->packageRouter->attemptRoutingFromDealProducts($deal->fresh(['products', 'packages', 'company']));
 
         return ['status' => 'success', 'message' => 'Property created and attached successfully.'];
     }
