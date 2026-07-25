@@ -2530,6 +2530,8 @@ return array(
         'routingTriggerMatchModePresent' => 'Any non-empty value',
         'routingTriggerMatchValue' => 'Match value',
         'routingTriggerMatchValuePlaceholder' => 'Enter value to match',
+        'routingTriggerFieldDisabled' => 'This routing field is no longer enabled in Deal Settings. Remove this trigger or re-enable the field.',
+        'routingTriggerFieldDisabledRow' => 'This trigger uses a field that is no longer enabled for routing. Remove it or re-enable the field in Deal Settings.',
         'packageRoutingTriggersNoFields' => 'Choose which deal fields can trigger routing under Deal Settings before adding package triggers.',
         'addRoutingTrigger' => 'Add field trigger',
         'packagePipelineRoutingTriggerFields' => 'Fields that can trigger pipeline routing',

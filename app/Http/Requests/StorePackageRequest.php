@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests;
 
+use App\Services\PackageRoutingFieldCatalog;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -44,15 +45,34 @@ class StorePackageRequest extends FormRequest
     public function withValidator(Validator $validator): void
     {
         $validator->after(function (Validator $validator) {
+            $enabledKeys = array_flip(
+                app(PackageRoutingFieldCatalog::class)->enabledFieldKeys(company()->id),
+            );
+
             foreach ($this->input('routing_triggers', []) as $index => $row) {
                 if (!is_array($row)) {
+                    continue;
+                }
+
+                if ($this->isEmptyRoutingTriggerRow($row)) {
                     continue;
                 }
 
                 $fieldKey = trim((string) ($row['field_key'] ?? ''));
 
                 if ($fieldKey === '') {
+                    $validator->errors()->add(
+                        "routing_triggers.{$index}.field_key",
+                        __('validation.required', ['attribute' => 'deal field']),
+                    );
                     continue;
+                }
+
+                if (!isset($enabledKeys[$fieldKey])) {
+                    $validator->errors()->add(
+                        "routing_triggers.{$index}.field_key",
+                        __('modules.deal.routingTriggerFieldDisabled'),
+                    );
                 }
 
                 if (empty($row['match_mode'])) {
@@ -70,5 +90,15 @@ class StorePackageRequest extends FormRequest
                 }
             }
         });
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     */
+    protected function isEmptyRoutingTriggerRow(array $row): bool
+    {
+        return trim((string) ($row['field_key'] ?? '')) === ''
+            && trim((string) ($row['match_mode'] ?? '')) === ''
+            && trim((string) ($row['match_value'] ?? '')) === '';
     }
 }

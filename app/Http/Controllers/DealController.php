@@ -1002,7 +1002,7 @@ class DealController extends AccountBaseController
         }
 
         $fieldCatalog = app(PackageRoutingFieldCatalog::class);
-        $changedFieldKeys = $fieldCatalog->changedRoutingFieldKeysFromPayload(
+        $routingFieldKeys = $fieldCatalog->routingFieldKeysFromPayload(
             array_merge(
                 $request->only(['category_id', 'product_id']),
                 is_array($request->custom_fields_data) ? $request->custom_fields_data : [],
@@ -1010,11 +1010,13 @@ class DealController extends AccountBaseController
             $deal->company_id,
         );
 
-        $packageRouter->attemptRoutingFromDealState(
-            $deal->fresh(['products', 'packages', 'company']),
-            $changedFieldKeys ?: null,
-            $request->has('package_id') && $request->package_id,
-        );
+        if ($routingFieldKeys !== []) {
+            $packageRouter->attemptRoutingFromDealState(
+                $deal->fresh(['products', 'packages', 'company']),
+                $routingFieldKeys,
+                $request->has('package_id') && $request->package_id,
+            );
+        }
 
         $deal = $deal->fresh(['products', 'packages', 'company', 'leadStage']);
 
@@ -1283,7 +1285,7 @@ class DealController extends AccountBaseController
         }
 
         $fieldCatalog = app(PackageRoutingFieldCatalog::class);
-        $changedFieldKeys = $fieldCatalog->changedRoutingFieldKeysFromPayload(
+        $routingFieldKeys = $fieldCatalog->routingFieldKeysFromPayload(
             array_merge(
                 $request->only(['category_id', 'product_id']),
                 is_array($request->custom_fields_data) ? $request->custom_fields_data : [],
@@ -1291,11 +1293,13 @@ class DealController extends AccountBaseController
             $deal->company_id,
         );
 
-        app(PackagePipelineRouterService::class)->attemptRoutingFromDealState(
-            $deal->fresh(['products', 'packages', 'company']),
-            $changedFieldKeys ?: null,
-            $request->has('package_id') && $request->package_id,
-        );
+        if ($routingFieldKeys !== []) {
+            app(PackagePipelineRouterService::class)->attemptRoutingFromDealState(
+                $deal->fresh(['products', 'packages', 'company']),
+                $routingFieldKeys,
+                $request->has('package_id') && $request->package_id,
+            );
+        }
 
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
 

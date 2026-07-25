@@ -169,7 +169,7 @@ class PipelineScopeServicesTest extends TestCase
         $this->assertSame('second', $normalized[0]['match_value']);
     }
 
-    public function test_changed_routing_field_keys_only_includes_enabled_fields(): void
+    public function test_routing_field_keys_from_payload_only_includes_enabled_fields(): void
     {
         $company = new Company([
             'id' => 1,
@@ -181,7 +181,7 @@ class PipelineScopeServicesTest extends TestCase
 
         $this->assertSame(
             ['category_id'],
-            $catalog->changedRoutingFieldKeysFromPayload([
+            $catalog->routingFieldKeysFromPayload([
                 'category_id' => 5,
                 'product_id' => [1, 2],
             ]),

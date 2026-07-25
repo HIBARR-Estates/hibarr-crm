@@ -252,14 +252,46 @@ class PackageRoutingFieldCatalog
     }
 
     /**
+     * Enabled trigger field items, plus persisted triggers whose field_key is no longer enabled.
+     *
+     * @param array<int, array{field_key?: string}> $persistedTriggers
+     * @return array<int, array{value: string, label: string, stale?: bool}>
+     */
+    public function flatFieldItemsForPackageForm(?int $companyId = null, array $persistedTriggers = []): array
+    {
+        $items = $this->enabledFlatFieldItems($companyId);
+        $known = array_flip(array_column($items, 'value'));
+        $allOptions = $this->allFieldOptions($companyId);
+
+        foreach ($persistedTriggers as $trigger) {
+            $key = trim((string) ($trigger['field_key'] ?? ''));
+
+            if ($key === '' || isset($known[$key])) {
+                continue;
+            }
+
+            $items[] = [
+                'value' => $key,
+                'label' => ($allOptions[$key] ?? $key) . ' (' . __('modules.deal.routingTriggerFieldDisabled') . ')',
+                'stale' => true,
+            ];
+            $known[$key] = true;
+        }
+
+        return $items;
+    }
+
+    /**
+     * Returns enabled routing field keys present in the payload (not value-change detection).
+     *
      * @return array<int, string>
      */
-    public function changedRoutingFieldKeysFromPayload(array $payload, ?int $companyId = null): array
+    public function routingFieldKeysFromPayload(array $payload, ?int $companyId = null): array
     {
         $enabled = array_flip($this->enabledFieldKeys($companyId));
         $keys = [];
 
-        foreach ($payload as $key => $value) {
+        foreach (array_keys($payload) as $key) {
             if (in_array($key, ['package_id', 'deal_watcher', 'deal_participant'], true)) {
                 continue;
             }
@@ -272,6 +304,12 @@ class PackageRoutingFieldCatalog
         }
 
         return array_values(array_unique($keys));
+    }
+
+    /** @deprecated Use routingFieldKeysFromPayload() */
+    public function changedRoutingFieldKeysFromPayload(array $payload, ?int $companyId = null): array
+    {
+        return $this->routingFieldKeysFromPayload($payload, $companyId);
     }
 
     public function resolveFieldValueFromDeal(Deal $deal, string $fieldKey): mixed
@@ -312,9 +350,15 @@ class PackageRoutingFieldCatalog
         ));
 
         $fields = [];
+        $customFieldData = null;
 
         foreach ($keys as $fieldKey) {
-            $value = $this->resolveFieldValueFromDeal($deal, $fieldKey);
+            if (str_starts_with($fieldKey, 'field_')) {
+                $customFieldData ??= $deal->getCustomFieldsData()->toArray();
+                $value = $customFieldData[$fieldKey] ?? null;
+            } else {
+                $value = $this->resolveFieldValueFromDeal($deal, $fieldKey);
+            }
 
             if ($value === null || $value === '' || $value === []) {
                 continue;

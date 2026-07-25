@@ -458,10 +458,11 @@ class DealCreationService
             
             $deal = $result['deal'];
             $isNewDeal = $result['is_new'];
+            $packageExplicitlySelected = !empty($packageIds);
             
             // Release cache locks AFTER transaction commits 
             // This prevents race condition where another process acquires lock before commit
-            DB::afterCommit(function () use ($cacheKey, $contactLockKey, $newCacheKey, $hashChanged, $newLockAcquired, &$deal, $isNewDeal, $request, $companyId) {
+            DB::afterCommit(function () use ($cacheKey, $contactLockKey, $newCacheKey, $hashChanged, $newLockAcquired, &$deal, $isNewDeal, $request, $companyId, $packageExplicitlySelected) {
                 // Release locks with error handling
                 try {
                     Cache::forget($cacheKey);
@@ -494,7 +495,7 @@ class DealCreationService
                     $deal = $this->attemptFieldTriggeredPackageRouting(
                         $deal,
                         $companyId,
-                        $request->has('package_id'),
+                        $packageExplicitlySelected,
                     );
 
                     // Sync deal watchers and participants (non-critical)

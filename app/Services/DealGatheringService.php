@@ -478,15 +478,15 @@ class DealGatheringService
     {
         $fieldCatalog = app(PackageRoutingFieldCatalog::class);
         $packageExplicitlySelected = array_key_exists('package_id', $data) && $data['package_id'];
-        $changedFieldKeys = $fieldCatalog->changedRoutingFieldKeysFromPayload($data, $deal->company_id);
+        $routingFieldKeys = $fieldCatalog->routingFieldKeysFromPayload($data, $deal->company_id);
 
-        if ($changedFieldKeys === []) {
+        if ($routingFieldKeys === []) {
             return;
         }
 
         $routed = $this->packageRouter->attemptRoutingFromDealState(
             $deal->fresh(['products', 'packages', 'company']),
-            $changedFieldKeys,
+            $routingFieldKeys,
             $packageExplicitlySelected,
         );
 
@@ -494,9 +494,9 @@ class DealGatheringService
         // (e.g. already on the target pipeline), still attempt a route when exactly
         // one package is linked.
         if (!$routed && !$packageExplicitlySelected) {
-            $deal->loadMissing('packages');
+            $deal = $deal->fresh(['packages', 'company']);
             if ($deal->packages->count() === 1) {
-                $this->packageRouter->routeDeal($deal->fresh(['packages', 'company']));
+                $this->packageRouter->routeDeal($deal);
             }
         }
     }

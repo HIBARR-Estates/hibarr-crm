@@ -16,6 +16,7 @@ class DealPropertyService
     public function __construct(
         private DealValueResolver $dealValueResolver,
         private PackagePipelineRouterService $packageRouter,
+        private PackageRoutingFieldCatalog $routingFieldCatalog,
     ) {}
     /**
      * Get all properties attached to a deal (via products), including applied offer applications.
@@ -81,7 +82,7 @@ class DealPropertyService
         $this->dealValueResolver->resolveAndPersist($deal);
         $this->packageRouter->attemptRoutingFromDealState(
             $deal,
-            app(PackageRoutingFieldCatalog::class)->enabledRelationBackedFieldKeys($deal->company_id),
+            $this->routingFieldCatalog->enabledRelationBackedFieldKeys($deal->company_id),
         );
 
         return ['status' => 'success', 'message' => 'Property attached successfully.'];
@@ -208,7 +209,7 @@ class DealPropertyService
         $deal = $deal->fresh(['products', 'packages', 'company']);
         $this->packageRouter->attemptRoutingFromDealState(
             $deal,
-            app(PackageRoutingFieldCatalog::class)->enabledRelationBackedFieldKeys($deal->company_id),
+            $this->routingFieldCatalog->enabledRelationBackedFieldKeys($deal->company_id),
         );
 
         return ['status' => 'success', 'message' => 'Property created and attached successfully.'];

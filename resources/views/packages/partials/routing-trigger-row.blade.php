@@ -12,9 +12,15 @@
     $matchMode = $trigger['match_mode'] ?? PackageRoutingFieldCatalog::MATCH_MODE_EXACT;
     $selectedFieldKey = trim((string) ($trigger['field_key'] ?? ''));
     $matchValueReadOnly = $matchMode === PackageRoutingFieldCatalog::MATCH_MODE_PRESENT;
+    $isStaleField = $selectedFieldKey !== '' && collect($fieldItems)->contains(
+        fn (array $item) => ($item['value'] ?? '') === $selectedFieldKey && !empty($item['stale']),
+    );
 @endphp
 
 <div class="package-routing-trigger-row mb-3" data-index="{{ $rowIndex }}">
+    @if($isStaleField)
+        <p class="f-12 text-warning mb-2">@lang('modules.deal.routingTriggerFieldDisabledRow')</p>
+    @endif
     <div class="row align-items-end">
         <div class="col-md-4">
             <x-deal.pipeline-scope-pills
