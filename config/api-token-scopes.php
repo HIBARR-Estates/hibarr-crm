@@ -81,6 +81,13 @@ return [
                 'api.properties.filters.location' => 'Property location filters',
             ],
         ],
+        'developer_projects' => [
+            'label' => 'Developer Projects',
+            'scopes' => [
+                'api.developer-projects.index' => 'List developer projects',
+                'api.developer-projects.show' => 'Read developer project',
+            ],
+        ],
         'external_events' => [
             'label' => 'External Events',
             'scopes' => [
