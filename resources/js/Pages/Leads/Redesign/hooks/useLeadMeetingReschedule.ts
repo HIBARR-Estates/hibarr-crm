@@ -25,9 +25,7 @@ interface RescheduleResponse {
 export default function useLeadMeetingReschedule(followupId: number | null) {
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { props } = usePage<{
-        auth?: { user?: { timezone?: string | null } | null };
-    }>();
+    const { props } = usePage();
 
     const rescheduleMeeting = useCallback(
         async (input: LeadMeetingRescheduleInput, onSuccess?: () => void) => {

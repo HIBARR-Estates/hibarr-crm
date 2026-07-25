@@ -58,9 +58,7 @@ export default function useDealMeetingCreate(deal: Deal) {
     const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const { setDealFollowUps } = useDealWorkspace();
-    const { props } = usePage<{
-        auth?: { user?: { timezone?: string | null } | null };
-    }>();
+    const { props } = usePage();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,

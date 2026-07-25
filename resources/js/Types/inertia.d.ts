@@ -4,7 +4,7 @@ import { AuthType } from ".";
 
 declare module "@inertiajs/core" {
     interface PageProps extends InertiaPageProps {
-        filters: TFilter;
+        filters?: TFilter;
 
         auth: AuthType;
         flash?: {

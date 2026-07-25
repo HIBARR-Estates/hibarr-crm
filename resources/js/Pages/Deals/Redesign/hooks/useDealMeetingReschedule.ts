@@ -29,9 +29,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { setDealFollowUps } = useDealWorkspace();
-    const { props } = usePage<{
-        auth?: { user?: { timezone?: string | null } | null };
-    }>();
+    const { props } = usePage();
 
     const rescheduleMeeting = useCallback(
         async (input: DealMeetingRescheduleInput, onSuccess?: () => void) => {
