@@ -188,8 +188,9 @@ class ProposalDataTable extends BaseDataTable
             ->with('signature')
             ->join('currencies', 'currencies.id', '=', 'proposals.currency_id')
             ->join('deals', 'deals.id', '=', 'proposals.deal_id')
-            // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
-            ->leftJoin('leads', 'leads.id', '=', 'deals.lead_id');
+            // Exclude soft-deleted leads from join (HIB-1119 merge)
+            ->leftJoin('leads', 'leads.id', '=', 'deals.lead_id')
+            ->whereNull('leads.deleted_at');
 
 
         if ($request->startDate !== null && $request->startDate != 'null' && $request->startDate != '') {
