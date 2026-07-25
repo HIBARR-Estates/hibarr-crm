@@ -530,7 +530,7 @@ export default function WorkspaceTasksTab({
                     return (
                         <article
                             key={task.id}
-                            className="mb-2 flex items-start gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
+                            className="mb-2 flex flex-wrap items-start gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
                             style={{ opacity: done ? 0.65 : 1 }}
                         >
                             {selectMode && (
@@ -574,28 +574,34 @@ export default function WorkspaceTasksTab({
                                 </div>
                                 {task.descriptionText && (
                                     <div
-                                        className="mb-1.5 text-xs leading-normal"
-                                        style={{ color: T.TEXT_MUTED }}
+                                        className="mb-1.5 text-xs leading-normal break-words"
+                                        style={{
+                                            color: T.TEXT_MUTED,
+                                            overflowWrap: "break-word",
+                                            wordBreak: "break-word",
+                                        }}
                                     >
                                         {task.descriptionText}
                                     </div>
                                 )}
 
                                 <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#5b6472]">
-                                    <span
-                                        className="inline-flex items-center gap-1"
-                                        style={{
-                                            color: overdue
-                                                ? T.RED
-                                                : T.TEXT_MUTED,
-                                            fontWeight: overdue ? 600 : 400,
-                                        }}
-                                    >
-                                        <DealIcon name="calendar" size={11} />
-                                        {task.dueDateLabel || t("pages.deals.common.no_due_date")}
-                                        {overdue &&
-                                            ` · ${t("pages.deals.workspace.tasks.overdue")}`}
-                                    </span>
+                                    {task.dueDateLabel && (
+                                        <span
+                                            className="inline-flex items-center gap-1"
+                                            style={{
+                                                color: overdue
+                                                    ? T.RED
+                                                    : T.TEXT_MUTED,
+                                                fontWeight: overdue ? 600 : 400,
+                                            }}
+                                        >
+                                            <DealIcon name="calendar" size={11} />
+                                            {task.dueDateLabel}
+                                            {overdue &&
+                                                ` · ${t("pages.deals.workspace.tasks.overdue")}`}
+                                        </span>
+                                    )}
                                     {task.assignees.length > 0 && (
                                         <span className="inline-flex items-center gap-1.5">
                                             <AssigneeStack
@@ -611,13 +617,15 @@ export default function WorkspaceTasksTab({
                                 </div>
                             </button>
 
-                            <TaskStatusDropdownPill
-                                status={statusSlug}
-                                columns={taskBoardColumns}
-                                disabled={selectMode}
-                                loading={isPending(task.id)}
-                                onChange={(slug) => setStatus(task.id, slug)}
-                            />
+                            <div className="shrink-0">
+                                <TaskStatusDropdownPill
+                                    status={statusSlug}
+                                    columns={taskBoardColumns}
+                                    disabled={selectMode}
+                                    loading={isPending(task.id)}
+                                    onChange={(slug) => setStatus(task.id, slug)}
+                                />
+                            </div>
                         </article>
                     );
                 })

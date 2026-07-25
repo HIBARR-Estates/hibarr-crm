@@ -296,8 +296,12 @@ export default function WorkspaceNotesTab({
                                 </span>
                             </div>
                             <div
-                                className="dr-clamp-2 text-[13px]"
-                                style={{ color: T.TEXT_MUTED, lineHeight: 1.6 }}
+                                className="dr-clamp-2 rounded-md px-2.5 py-2 text-[13px]"
+                                style={{
+                                    color: T.TEXT_MUTED,
+                                    lineHeight: 1.6,
+                                    background: T.SURFACE_2,
+                                }}
                             >
                                 {note.body}
                             </div>

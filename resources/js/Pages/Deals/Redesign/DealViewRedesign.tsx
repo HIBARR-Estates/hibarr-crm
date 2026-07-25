@@ -1,7 +1,7 @@
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import { useEffect, useMemo, useState } from "react";
-import { Deferred, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
@@ -29,6 +29,7 @@ import DealScheduleMeetingModal from "./components/workspace/DealScheduleMeeting
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
+import useDealDocuments from "./hooks/useDealDocuments";
 import { DealShowProps, DealTab } from "./types";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
@@ -146,6 +147,17 @@ function DealViewRedesignInner(props: DealShowProps) {
         }
     }, [activeTab, nav]);
 
+    // Badge must count the same thing the Files tab body renders — document
+    // slots (HIBARR/custom file fields) plus loose attachments, deduped — not
+    // just the raw loose-attachment list, or the badge can read 0 while the
+    // tab shows every uploaded document.
+    const { documents: fileDocuments } = useDealDocuments(
+        deal,
+        files,
+        fields,
+        pipelineCategoryIds,
+    );
+
     const counts = useMemo(
         () => ({
             notes: notesLoading ? undefined : notes.length,
@@ -153,7 +165,9 @@ function DealViewRedesignInner(props: DealShowProps) {
             meetings: dealFollowUpsLoading
                 ? undefined
                 : overview.upcomingMeetingsCount,
-            files: filesLoading ? undefined : files.length,
+            files: filesLoading
+                ? undefined
+                : fileDocuments.filter((doc) => doc.uploaded).length,
             offers: offersCount,
             recommendations: recommendationsCount,
             itinerary: deal.lead_flight_itineraries?.length ?? 0,
@@ -164,7 +178,7 @@ function DealViewRedesignInner(props: DealShowProps) {
             dealFollowUpsLoading,
             filesLoading,
             notes.length,
-            files.length,
+            fileDocuments,
             deal.lead_flight_itineraries?.length,
             overview.openTasksCount,
             overview.upcomingMeetingsCount,
@@ -249,36 +263,31 @@ function DealViewRedesignInner(props: DealShowProps) {
                                         onChange={nav.setTab}
                                     />
                                     <div className="p-4">
-                                        {activeTab === "overview" && (
-                                            <Deferred
-                                                data="taskBoardColumns"
-                                                fallback={<OverviewDeferredSkeleton />}
-                                            >
-                                                {notesLoading ||
-                                                tasksLoading ||
-                                                dealFollowUpsLoading ? (
-                                                    <OverviewDeferredSkeleton />
-                                                ) : (
-                                                    <WorkspaceOverviewTab
-                                                        deal={deal}
-                                                        notes={notes}
-                                                        tasks={tasks}
-                                                        dealFollowUps={dealFollowUps}
-                                                        taskBoardColumns={taskBoardColumns}
-                                                        permissions={permissions}
-                                                        meetingTypes={meetingTypes}
-                                                        onNavigateToSubTab={nav.setTab}
-                                                        onAddTask={() => setAddTaskOpen(true)}
-                                                        onAddMeeting={() =>
-                                                            setAddMeetingOpen(true)
-                                                        }
-                                                        onAddNote={() => setAddNoteOpen(true)}
-                                                    />
-                                                )}
-                                            </Deferred>
-                                        )}
+                                        {activeTab === "overview" &&
+                                            ((notesLoading && notes.length === 0) ||
+                                            (tasksLoading && tasks.length === 0) ||
+                                            (dealFollowUpsLoading &&
+                                                dealFollowUps.length === 0) ? (
+                                                <OverviewDeferredSkeleton />
+                                            ) : (
+                                                <WorkspaceOverviewTab
+                                                    deal={deal}
+                                                    notes={notes}
+                                                    tasks={tasks}
+                                                    dealFollowUps={dealFollowUps}
+                                                    taskBoardColumns={taskBoardColumns}
+                                                    permissions={permissions}
+                                                    meetingTypes={meetingTypes}
+                                                    onNavigateToSubTab={nav.setTab}
+                                                    onAddTask={() => setAddTaskOpen(true)}
+                                                    onAddMeeting={() =>
+                                                        setAddMeetingOpen(true)
+                                                    }
+                                                    onAddNote={() => setAddNoteOpen(true)}
+                                                />
+                                            ))}
                                         {activeTab === "notes" &&
-                                            (notesLoading ? (
+                                            (notesLoading && notes.length === 0 ? (
                                                 <TabDeferredSkeleton />
                                             ) : (
                                                 <WorkspaceNotesTab
@@ -286,25 +295,20 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                     permissions={permissions}
                                                 />
                                             ))}
-                                        {activeTab === "tasks" && (
-                                            <Deferred
-                                                data="taskBoardColumns"
-                                                fallback={<TabDeferredSkeleton />}
-                                            >
-                                                {tasksLoading ? (
-                                                    <TabDeferredSkeleton />
-                                                ) : (
-                                                    <WorkspaceTasksTab
-                                                        tasks={tasks}
-                                                        taskBoardColumns={taskBoardColumns}
-                                                        permissions={permissions}
-                                                        onAddTask={() => setAddTaskOpen(true)}
-                                                    />
-                                                )}
-                                            </Deferred>
-                                        )}
+                                        {activeTab === "tasks" &&
+                                            (tasksLoading && tasks.length === 0 ? (
+                                                <TabDeferredSkeleton />
+                                            ) : (
+                                                <WorkspaceTasksTab
+                                                    tasks={tasks}
+                                                    taskBoardColumns={taskBoardColumns}
+                                                    permissions={permissions}
+                                                    onAddTask={() => setAddTaskOpen(true)}
+                                                />
+                                            ))}
                                         {activeTab === "meetings" &&
-                                            (dealFollowUpsLoading ? (
+                                            (dealFollowUpsLoading &&
+                                            dealFollowUps.length === 0 ? (
                                                 <TabDeferredSkeleton />
                                             ) : (
                                                 <WorkspaceMeetingsTab
@@ -318,7 +322,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                 />
                                             ))}
                                         {activeTab === "files" &&
-                                            (filesLoading ? (
+                                            (filesLoading && files.length === 0 ? (
                                                 <TabDeferredSkeleton />
                                             ) : (
                                                 <WorkspaceFilesTab

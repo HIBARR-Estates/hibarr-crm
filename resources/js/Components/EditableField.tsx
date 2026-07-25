@@ -26,8 +26,11 @@ import { FormDataType, useCountries, useCurrencies } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
+import CurrencyRangeInput from "./CurrencyRangeInput";
 import {
     parsePropertyPrice,
+    parseRangeValue,
+    parseCurrencyRangeValue,
     formatCurrencyWithSymbol,
     formatCountryForDisplay,
     formatMobileForDisplay,
@@ -53,6 +56,8 @@ interface EditableFieldProps {
         | "country"
         | "multiSelectCountry"
         | "currency"
+        | "range"
+        | "currency_range"
         | "file";
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
@@ -72,6 +77,37 @@ interface EditableFieldProps {
      * (v2.2's click-to-edit pattern — opt-in so existing double-click
      * consumers elsewhere in the app are unaffected). */
     activateOnSingleClick?: boolean;
+}
+
+const TRUNCATE_LENGTH = 250;
+
+/** Long custom-field values (e.g. a textarea) rendered in full were pushing
+ * out the layout — collapse anything over TRUNCATE_LENGTH behind "show more".
+ * Only plain strings are truncated; JSX displayValues (badges, tags, etc.)
+ * pass through untouched. */
+function TruncatableText({ text }: { text: React.ReactNode }) {
+    const { t } = useTranslation();
+    const [expanded, setExpanded] = useState(false);
+
+    if (typeof text !== "string" || text.length <= TRUNCATE_LENGTH) {
+        return <>{text}</>;
+    }
+
+    return (
+        <>
+            {expanded ? text : `${text.slice(0, TRUNCATE_LENGTH)}…`}{" "}
+            <button
+                type="button"
+                className="text-blue-600 hover:underline text-xs font-medium"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    setExpanded((prev) => !prev);
+                }}
+            >
+                {expanded ? t("app.show_less") : t("app.show_more")}
+            </button>
+        </>
+    );
 }
 
 export default function EditableField({
@@ -186,6 +222,12 @@ export default function EditableField({
         if (fieldType === "currency") {
             return normalizeCurrencyValue(value);
         }
+        if (fieldType === "range") {
+            return parseRangeValue(value);
+        }
+        if (fieldType === "currency_range") {
+            return parseCurrencyRangeValue(value, defaultCurrencyCode);
+        }
         return value;
     };
 
@@ -276,6 +318,10 @@ export default function EditableField({
             );
         } else if (fieldType === "currency") {
             return;
+        } else if (fieldType === "range") {
+            setInputValue(parseRangeValue(normalizedValue));
+        } else if (fieldType === "currency_range") {
+            setInputValue(parseCurrencyRangeValue(normalizedValue, defaultCurrencyCode));
         } else {
             setInputValue(normalizedValue ?? "");
         }
@@ -314,6 +360,10 @@ export default function EditableField({
             );
         } else if (fieldType === "currency") {
             setInputValue(normalizeCurrencyValue(normalizedValue));
+        } else if (fieldType === "range") {
+            setInputValue(parseRangeValue(normalizedValue));
+        } else if (fieldType === "currency_range") {
+            setInputValue(parseCurrencyRangeValue(normalizedValue, defaultCurrencyCode));
         } else {
             setInputValue(normalizedValue ?? "");
         }
@@ -439,6 +489,10 @@ export default function EditableField({
             );
         } else if (fieldType === "currency") {
             setInputValue(normalizeCurrencyValue(normalizedValue));
+        } else if (fieldType === "range") {
+            setInputValue(parseRangeValue(normalizedValue));
+        } else if (fieldType === "currency_range") {
+            setInputValue(parseCurrencyRangeValue(normalizedValue, defaultCurrencyCode));
         } else {
             setInputValue(normalizedValue ?? "");
         }
@@ -597,7 +651,44 @@ export default function EditableField({
                         "";
                     return formatCurrencyWithSymbol(parsed.amount, symbol);
                 })()
-              : formatValue
+              : fieldType === "range"
+                ? (() => {
+                      const parsed = parseRangeValue(value);
+                      if (parsed.min == null && parsed.max == null) {
+                          // Legacy value that predates this field being a
+                          // structured range — show it as-is rather than
+                          // hiding it as "unset". Editing re-saves it in the
+                          // new {min,max} shape.
+                          return typeof value === "string" && value.trim()
+                              ? value
+                              : "--";
+                      }
+                      const fmt = (n: number | null) =>
+                          n == null ? "?" : n.toLocaleString();
+                      return `${fmt(parsed.min)} – ${fmt(parsed.max)}`;
+                  })()
+                : fieldType === "currency_range"
+                  ? (() => {
+                        const parsed = parseCurrencyRangeValue(
+                            value,
+                            defaultCurrencyCode,
+                        );
+                        if (parsed.min == null && parsed.max == null) {
+                            return typeof value === "string" && value.trim()
+                                ? value
+                                : "--";
+                        }
+                        const symbol =
+                            currencies.find(
+                                (c: any) => c?.currency_code === parsed.currency,
+                            )?.currency_symbol ??
+                            default_currency_symbol ??
+                            "";
+                        const fmt = (n: number | null) =>
+                            n == null ? "?" : `${symbol}${n.toLocaleString()}`;
+                        return `${fmt(parsed.min)} – ${fmt(parsed.max)}`;
+                    })()
+                  : formatValue
                 ? formatValue(normalizedValue)
                 : normalizedValue?.toString() ||
                   // v2.2 mode shows "Not set" for empty values (deal-v2-2.jsx:866);
@@ -965,6 +1056,57 @@ export default function EditableField({
                                 disabled={saving || loading}
                             />
                         </div>
+                    ) : fieldType === "range" ? (
+                        <div className="flex items-center gap-2 flex-1">
+                            <Input
+                                type="number"
+                                min={0}
+                                value={inputValue?.min ?? ""}
+                                placeholder="Min"
+                                onChange={(e) =>
+                                    handleValueChange({
+                                        ...inputValue,
+                                        min:
+                                            e.target.value === ""
+                                                ? null
+                                                : Number(e.target.value),
+                                    })
+                                }
+                                onBlur={handleBlur}
+                                onKeyDown={handleKeyPress}
+                                autoFocus
+                                className="flex-1"
+                                disabled={saving || loading}
+                            />
+                            <span className="text-gray-400">–</span>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={inputValue?.max ?? ""}
+                                placeholder="Max"
+                                onChange={(e) =>
+                                    handleValueChange({
+                                        ...inputValue,
+                                        max:
+                                            e.target.value === ""
+                                                ? null
+                                                : Number(e.target.value),
+                                    })
+                                }
+                                onBlur={handleBlur}
+                                onKeyDown={handleKeyPress}
+                                className="flex-1"
+                                disabled={saving || loading}
+                            />
+                        </div>
+                    ) : fieldType === "currency_range" ? (
+                        <div className="flex-1" onBlur={handleBlur} onKeyDown={handleKeyPress}>
+                            <CurrencyRangeInput
+                                value={inputValue}
+                                onChange={(val) => handleValueChange(val)}
+                                disabled={saving || loading}
+                            />
+                        </div>
                     ) : (
                         <Input
                             value={inputValue}
@@ -1024,7 +1166,7 @@ export default function EditableField({
                     onDoubleClick={canStartEditing ? startEditing : undefined}
                 >
                     <span className="break-words whitespace-normal">
-                        {displayText}
+                        <TruncatableText text={displayText} />
                     </span>
                 </div>
             </Skeleton>
@@ -1048,7 +1190,7 @@ export default function EditableField({
                                 : ""
                         } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     >
-                        {displayText}
+                        <TruncatableText text={displayText} />
                     </span>
                     {canStartEditing && (
                         <EditOutlined

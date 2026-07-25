@@ -5,6 +5,7 @@ import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import { resolveDealOutcome } from "@/lib/dealOutcome";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import { router } from "@inertiajs/react";
 import useDealHeaderData from "../../hooks/useDealHeaderData";
@@ -31,16 +32,6 @@ interface DealStickyHeaderProps {
     onScheduleMeeting: () => void;
 }
 
-function resolveOutcome(deal: Deal): "won" | "lost" | null {
-    const slug = deal.lead_stage?.slug;
-    if (slug === "win") return "won";
-    if (slug === "lost") return "lost";
-    const outcome = (deal as Deal & { outcome_status?: string }).outcome_status;
-    if (outcome === "won") return "won";
-    if (outcome === "lost") return "lost";
-    return null;
-}
-
 export default function DealStickyHeader({
     deal,
     permissions,
@@ -58,8 +49,8 @@ export default function DealStickyHeader({
     const dealPermissions = useDealPermissions(deal);
     const [deleteOpen, setDeleteOpen] = useState(false);
 
-    const outcome = resolveOutcome(deal);
-    const isLocked = !!deal.is_locked;
+    const outcome = resolveDealOutcome(deal);
+    const isLocked = !!deal.is_locked || outcome === "won";
     const createdRel = deal.created_at ? dayjs(deal.created_at).fromNow() : "--";
     const updatedRel = deal.updated_at ? dayjs(deal.updated_at).fromNow() : "--";
 
@@ -76,7 +67,9 @@ export default function DealStickyHeader({
                     }}
                 >
                     <DealIcon name="info" size={15} />
-                    {t("pages.deals.locked_message")}
+                    {!deal.is_locked && outcome === "won"
+                        ? t("pages.deals.locked_message_won")
+                        : t("pages.deals.locked_message")}
                 </div>
             )}
 
@@ -186,10 +179,10 @@ export default function DealStickyHeader({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-[18px]">
+                    <div className="flex items-start gap-[18px]">
                         <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
                         {deal.close_date && (
-                            <div className="flex flex-col items-end">
+                            <div className="flex flex-col items-start">
                                 <span className="text-xs text-[#5b6472]">
                                     {t("pages.deals.info.fields.close_date")}
                                 </span>

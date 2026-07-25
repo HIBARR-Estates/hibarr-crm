@@ -202,6 +202,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'Dieser Deal ist gesperrt. Bearbeitung und Löschung sind deaktiviert.',
+        'locked_message_won'       => 'Dieser Deal ist gewonnen und gesperrt. Bearbeitung und Löschung sind deaktiviert.',
         'refresh_tooltip_disabled' => 'Speichern oder abbrechen Sie Änderungen, bevor Sie aktualisieren',
         'stage_jump_confirm_title'   => 'Pipeline-Phasen überspringen?',
         'stage_jump_confirm_message' => 'Sie verschieben diesen Deal nach „{{stage}}“ und überspringen dabei eine oder mehrere Phasen. Fortfahren?',
@@ -419,6 +420,7 @@ return [
             'pipeline' => [
                 'scroll_left'  => 'Pipeline-Phasen nach links scrollen',
                 'scroll_right' => 'Pipeline-Phasen nach rechts scrollen',
+                'requirements_label' => 'Erforderlich für diesen Wechsel:',
                 'messages' => [
                     'stage_updated'   => 'Deal-Phase aktualisiert',
                     'update_failed'   => 'Phase konnte nicht aktualisiert werden',

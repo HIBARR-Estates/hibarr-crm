@@ -10,7 +10,12 @@ import {
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { isFieldVisible as isPipelineFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
-import { formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
+import {
+    formatCountryForDisplay,
+    formatMobileForDisplay,
+    parseRangeValue,
+    parseCurrencyRangeValue,
+} from "@/lib/utils";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import EditableRepeatableField from "@/Components/EditableRepeatableField";
@@ -1322,6 +1327,56 @@ export default function CustomFieldDisplay({
                 return <span className={notSetClassName}>{notSetLabel}</span>;
             }
 
+            case "range": {
+                const parsed = parseRangeValue(value);
+                if (parsed.min == null && parsed.max == null) {
+                    return typeof value === "string" && value.trim() ? (
+                        <span>{value}</span>
+                    ) : (
+                        <span className={notSetClassName}>{notSetLabel}</span>
+                    );
+                }
+                const fmt = (n: number | null) =>
+                    n == null ? "?" : n.toLocaleString();
+                return (
+                    <span className="font-medium">
+                        {fmt(parsed.min)} – {fmt(parsed.max)}
+                    </span>
+                );
+            }
+
+            case "currency_range": {
+                const parsed = parseCurrencyRangeValue(value, appDefaultCurrency);
+                if (parsed.min == null && parsed.max == null) {
+                    return typeof value === "string" && value.trim() ? (
+                        <span>{value}</span>
+                    ) : (
+                        <span className={notSetClassName}>{notSetLabel}</span>
+                    );
+                }
+                const defaultSymbols: Record<string, string> = {
+                    USD: "$",
+                    EUR: "€",
+                    GBP: "£",
+                };
+                const symbol =
+                    currencies.find(
+                        (c: any) =>
+                            c.currency_code === parsed.currency ||
+                            c.currency_name?.toUpperCase() ===
+                                parsed.currency.toUpperCase(),
+                    )?.currency_symbol ??
+                    defaultSymbols[parsed.currency] ??
+                    "";
+                const fmt = (n: number | null) =>
+                    n == null ? "?" : `${symbol}${n.toLocaleString()}`;
+                return (
+                    <span className="font-medium">
+                        {fmt(parsed.min)} – {fmt(parsed.max)}
+                    </span>
+                );
+            }
+
             default:
                 // Handle long text content with word breaking
                 if (typeof value === "string" && value.length > 50) {
@@ -1350,12 +1405,20 @@ export default function CustomFieldDisplay({
             | "multiSelectCountry"
             | "phone"
             | "email"
-            | "currency" = "text";
+            | "currency"
+            | "range"
+            | "currency_range" = "text";
         let options: { label: string; value: string | number }[] = [];
 
         switch (field.type) {
             case "number":
                 type = "number";
+                break;
+            case "range":
+                type = "range";
+                break;
+            case "currency_range":
+                type = "currency_range";
                 break;
             case "date":
                 type = "date";

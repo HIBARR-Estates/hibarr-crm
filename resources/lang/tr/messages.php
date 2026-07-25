@@ -46,6 +46,7 @@ return array(
     'leadSaved' => 'İletişim başarıyla kaydedildi',
     'propertySaved' => 'Mülk başarıyla kaydedildi',
     'taskSaved' => 'Görev başarıyla kaydedildi',
+    'taskDateOutOfRange' => 'Lütfen makul bir aralıkta geçerli bir tarih girin.',
     'deleteSuccess' => 'Başarıyla silindi.',
     'addItem' => 'En az 1 öğe ekleyin.',
     'invalidRequest' => 'Geçersiz İstek',

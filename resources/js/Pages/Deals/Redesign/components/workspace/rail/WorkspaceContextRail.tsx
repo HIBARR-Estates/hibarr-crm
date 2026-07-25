@@ -3,7 +3,7 @@ import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
 import useTranslation from "@/Hooks/useTranslation";
-import { formatPhoneNumber } from "@/lib/utils";
+import { copyToClipboard, formatPhoneNumber } from "@/lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealTab } from "../../../types";
 import useDealDocuments from "../../../hooks/useDealDocuments";
@@ -97,7 +97,7 @@ export default function WorkspaceContextRail({
     const copyEmail = async () => {
         if (!email) return;
         try {
-            await navigator.clipboard.writeText(email);
+            await copyToClipboard(email);
             setEmailCopied(true);
             message.success(t("pages.deals.dossier.messages.email_copied"));
             window.setTimeout(() => setEmailCopied(false), 2000);

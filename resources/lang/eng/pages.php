@@ -210,6 +210,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'This deal is locked. Editing and deletion are disabled.',
+        'locked_message_won'       => 'This deal is won and locked. Editing and deletion are disabled.',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'stage_jump_confirm_title'   => 'Skip pipeline stages?',
         'stage_jump_confirm_message' => 'You are moving this deal to "{{stage}}", skipping one or more stages in between. Continue?',
@@ -427,6 +428,7 @@ return [
             'pipeline' => [
                 'scroll_left'  => 'Scroll pipeline stages left',
                 'scroll_right' => 'Scroll pipeline stages right',
+                'requirements_label' => 'Required to move here:',
                 'messages' => [
                     'stage_updated'   => 'Deal stage updated',
                     'update_failed'   => 'Failed to update stage',

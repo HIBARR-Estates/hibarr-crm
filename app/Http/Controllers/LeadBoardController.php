@@ -837,6 +837,9 @@ class LeadBoardController extends AccountBaseController
 
         $board = PipelineStage::findOrFail($boardColumnId);
 
+        $editPermission = user()->permission('edit_deals');
+        $skippedTaskIds = [];
+
         if (isset($taskIds) && count($taskIds) > 0) {
 
             $taskIds = (array_filter($taskIds, function ($value) {
@@ -846,10 +849,26 @@ class LeadBoardController extends AccountBaseController
             foreach ($taskIds as $key => $taskId) {
                 if (!is_null($taskId)) {
                     $task = Deal::findOrFail($taskId);
-                    
+
+                    // Mirrors DealController::patch()'s lock + edit_deals scope check —
+                    // without this, a locked/unauthorized deal's stage change was silently
+                    // reverted by DealObserver while this endpoint still reported success.
+                    $hasTeamAccess = $task->hasTeamMemberAccess(user()->id);
+                    $canEdit = !$task->isLocked() && (
+                        $editPermission == 'all'
+                        || ($editPermission == 'added' && $task->added_by == user()->id)
+                        || ($editPermission == 'owned' && $hasTeamAccess)
+                        || ($editPermission == 'both' && ($task->added_by == user()->id || $hasTeamAccess))
+                    );
+
+                    if (!$canEdit) {
+                        $skippedTaskIds[] = $taskId;
+                        continue;
+                    }
+
                     $oldStageId = $task->pipeline_stage_id;
                     $newStageId = $boardColumnId;
-                    
+
                     $task->update(
                         [
                             'pipeline_stage_id' => $boardColumnId,
@@ -863,6 +882,10 @@ class LeadBoardController extends AccountBaseController
 
                 }
             }
+        }
+
+        if (!empty($skippedTaskIds)) {
+            return Reply::error(__('messages.dealLocked'), null, ['skipped' => $skippedTaskIds]);
         }
 
         return Reply::dataOnly(['status' => 'success']);

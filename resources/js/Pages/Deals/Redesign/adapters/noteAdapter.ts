@@ -33,6 +33,18 @@ function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
 }
 
+/** dayjs().fromNow() alone drifts between "a day ago" and "2 days ago" with
+ * no clear rule a reader can predict. Special-casing yesterday and falling
+ * back to the shared absolute date past a week keeps the transitions
+ * deliberate instead of whatever dayjs's raw thresholds happen to produce. */
+function relativeNoteLabel(date: Date, absoluteFallback: string): string {
+    const diffDays = dayjs().startOf("day").diff(dayjs(date).startOf("day"), "day");
+    if (diffDays === 1) return "Yesterday";
+    if (diffDays >= 2 && diffDays < 7) return dayjs(date).fromNow();
+    if (diffDays >= 7) return absoluteFallback;
+    return dayjs(date).fromNow();
+}
+
 export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
     const { date, label } = parseNoteDate(note.created_at);
     const body = stripHtml(note.details?.trim() || "");
@@ -49,7 +61,7 @@ export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
         authorInitials: initialsFromName(authorName),
         createdAt: date,
         createdAtLabel: label,
-        timeLabel: note.created_at ? dayjs(note.created_at).fromNow() : label,
+        timeLabel: date ? relativeNoteLabel(date, label) : label,
         edited: Boolean(note.updated_at && note.updated_at !== note.created_at),
     };
 }

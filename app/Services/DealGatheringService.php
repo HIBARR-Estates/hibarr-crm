@@ -416,6 +416,20 @@ class DealGatheringService
                             $this->deleteHibarrFieldFile($existingFields->{$key});
                         }
                         $hibarrData[$key] = null;
+                    } elseif ($key === 'budget_range' && is_array($value)) {
+                        // budget_range is a currency-range field ({min,max,currency})
+                        // but the column is a plain string — clamp and store as JSON,
+                        // same convention as CustomFieldsTrait's currency/range types.
+                        $min = isset($value['min']) && is_numeric($value['min']) ? max(0, (float) $value['min']) : null;
+                        $max = isset($value['max']) && is_numeric($value['max']) ? max(0, (float) $value['max']) : null;
+                        if ($min !== null && $max !== null) {
+                            [$min, $max] = [min($min, $max), max($min, $max)];
+                        }
+                        $hibarrData[$key] = json_encode([
+                            'min' => $min,
+                            'max' => $max,
+                            'currency' => is_string($value['currency'] ?? null) ? $value['currency'] : null,
+                        ]);
                     } else {
                         $hibarrData[$key] = $value;
                     }

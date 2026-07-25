@@ -150,6 +150,24 @@ trait CustomFieldsTrait
             $customField = CustomField::findOrFail($id);
             $fieldType = $customField->type;
 
+            // Currency amounts represent money and should never go negative.
+            // The frontend's CurrencyInput already blocks typing/pasting a
+            // minus sign, but that's UI-only — anything hitting this method
+            // directly (import, API, a future caller) must be clamped here too.
+            if ($fieldType == 'currency' && is_array($value) && isset($value['amount']) && is_numeric($value['amount'])) {
+                $value['amount'] = max(0, (float) $value['amount']);
+            }
+
+            // Range values (e.g. a budget range) shouldn't go negative, and min
+            // shouldn't exceed max — clamp/swap here since the frontend's two
+            // plain number inputs don't enforce this on their own.
+            if ($fieldType == 'range' && is_array($value) && isset($value['min'], $value['max']) && is_numeric($value['min']) && is_numeric($value['max'])) {
+                $min = max(0, (float) $value['min']);
+                $max = max(0, (float) $value['max']);
+                $value['min'] = min($min, $max);
+                $value['max'] = max($min, $max);
+            }
+
             $existingEntry = DB::table('custom_fields_data')
                 ->where('model', $this->getModelName())
                 ->where('model_id', $this->id)

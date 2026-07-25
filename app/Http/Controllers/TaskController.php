@@ -761,10 +761,38 @@ class TaskController extends AccountBaseController
             || ($this->deletePermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
         ));
 
+        abort_403($this->isWatcherOnlyOnTaskDeals($task));
+
         // Delegate to Service
         $this->taskService->deleteTask($task);
 
         return Reply::success(__('messages.taskDeleted'));
+    }
+
+    /**
+     * True when the task is linked to at least one deal, the current user has no
+     * real membership (creator/agent/participant) on any of them, and they're a
+     * watcher on at least one — i.e. their only standing is "watcher", who should
+     * stay read-only. See Deal::hasTeamMemberAccess().
+     */
+    private function isWatcherOnlyOnTaskDeals(Task $task): bool
+    {
+        $deals = $task->deals()->get();
+        if ($deals->isEmpty()) {
+            return false;
+        }
+
+        $userId = user()->id;
+
+        foreach ($deals as $deal) {
+            if ($deal->added_by == $userId || $deal->hasTeamMemberAccess($userId)) {
+                return false;
+            }
+        }
+
+        return $deals->contains(
+            fn ($deal) => $deal->dealWatchers()->where('user_id', $userId)->exists()
+        );
     }
 
     public function destroyDeprecated(Request $request, $id)
@@ -1365,7 +1393,7 @@ class TaskController extends AccountBaseController
     public function update(UpdateTask $request, $id)
     {
         $task = Task::with('users', 'label', 'project')->findOrFail($id);
-        
+
         // Permission Check
         $taskUsers = $task->users->pluck('id')->toArray();
         $editTaskPermission = user()->permission('edit_tasks');
@@ -1378,6 +1406,10 @@ class TaskController extends AccountBaseController
             || ($editTaskPermission == 'owned' && (in_array('client', user_roles()) && $task->project && ($task->project->client_id == user()->id)))
             || ($editTaskPermission == 'both' && (in_array('client', user_roles()) && ($task->project && ($task->project->client_id == user()->id)) || $task->added_by == user()->id))
         )) {
+            return Reply::error(__('messages.permissionDenied'));
+        }
+
+        if ($this->isWatcherOnlyOnTaskDeals($task)) {
             return Reply::error(__('messages.permissionDenied'));
         }
 

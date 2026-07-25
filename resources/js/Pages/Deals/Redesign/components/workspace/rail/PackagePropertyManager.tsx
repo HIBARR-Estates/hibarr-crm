@@ -4,6 +4,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
 import type { Deal } from "@/Types/api/deals";
 import DealIcon from "../../primitives/DealIcon";
@@ -40,6 +41,9 @@ export default function PackagePropertyManager({
     const { setDeal } = useDealWorkspace();
     const [propertyModalOpen, setPropertyModalOpen] = useState(false);
     const [refreshing, setRefreshing] = useState(false);
+    const [removingProductId, setRemovingProductId] = useState<number | null>(
+        null,
+    );
 
     const refreshDeal = useCallback(async () => {
         setRefreshing(true);
@@ -53,9 +57,26 @@ export default function PackagePropertyManager({
         }
     }, [deal.id, setDeal]);
 
+    // Mirrors DealPackagePropertyManager's removeProperty (Deal Info tab) — the
+    // Dossier rail only ever had an "add" control for properties.
+    const removeProperty = useCallback(
+        async (productId: number) => {
+            setRemovingProductId(productId);
+            try {
+                await axios.delete(
+                    route("deals.properties.destroy", [deal.id, productId]),
+                );
+                await refreshDeal();
+            } finally {
+                setRemovingProductId(null);
+            }
+        },
+        [deal.id, refreshDeal],
+    );
+
     const packages = deal.packages ?? [];
     const products = deal.products ?? [];
-    const isLocked = !!deal.is_locked;
+    const isLocked = isDealEffectivelyLocked(deal);
     const canEdit = permissions.canEdit;
 
     const hasPackage = packages.length > 0;
@@ -233,6 +254,22 @@ export default function PackagePropertyManager({
                                         {product.property?.title || product.name}
                                     </div>
                                 </div>
+                                {canEdit && !isLocked && (
+                                    <button
+                                        type="button"
+                                        className="dr-btn dr-btn-sm cursor-pointer"
+                                        style={{
+                                            color: T.RED,
+                                            background: "transparent",
+                                            border: "none",
+                                        }}
+                                        disabled={removingProductId === product.id}
+                                        aria-label={`${t("pages.deals.common.remove")} ${product.property?.title || product.name}`}
+                                        onClick={() => removeProperty(product.id)}
+                                    >
+                                        {t("pages.deals.common.remove")}
+                                    </button>
+                                )}
                             </div>
                         ))
                     )}

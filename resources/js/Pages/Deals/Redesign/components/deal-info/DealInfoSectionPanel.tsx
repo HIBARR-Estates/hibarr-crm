@@ -314,7 +314,7 @@ export default function DealInfoSectionPanel({
                     <DealEditableField
                         value={hibarrFields.budget_range}
                         fieldName="budget_range"
-                        fieldType="text"
+                        fieldType="currency_range"
                         onSave={(value) =>
                             onFieldUpdate("budget_range", value, "hibarr_field")
                         }

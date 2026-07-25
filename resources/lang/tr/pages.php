@@ -202,6 +202,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'Bu anlaşma kilitli. Düzenleme ve silme devre dışı bırakıldı.',
+        'locked_message_won'       => 'Bu anlaşma kazanıldı ve kilitli. Düzenleme ve silme devre dışı bırakıldı.',
         'refresh_tooltip_disabled' => 'Yenilemeden önce değişiklikleri kaydedin veya iptal edin',
         'stage_jump_confirm_title'   => 'Pipeline aşamalarını atla?',
         'stage_jump_confirm_message' => 'Bu anlaşmayı "{{stage}}" aşamasına taşıyorsunuz ve aradaki bir veya daha fazla aşamayı atlıyorsunuz. Devam edilsin mi?',
@@ -423,6 +424,7 @@ return [
             'pipeline' => [
                 'scroll_left'  => 'Aşamaları sola kaydır',
                 'scroll_right' => 'Aşamaları sağa kaydır',
+                'requirements_label' => 'Buraya geçmek için gerekli:',
                 'messages' => [
                     'stage_updated'   => 'Anlaşma aşaması güncellendi',
                     'update_failed'   => 'Aşama güncellenemedi',

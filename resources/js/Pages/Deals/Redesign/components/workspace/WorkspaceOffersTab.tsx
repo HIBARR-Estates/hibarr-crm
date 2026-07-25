@@ -4,6 +4,7 @@ import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import type { Deal } from "@/Types/api/deals";
 import type { DealOfferApplication } from "@/Types/api/offers";
+import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import {
     toWorkspaceOfferApplicationItem,
     type WorkspaceOfferApplicationItem,
@@ -66,7 +67,7 @@ export default function WorkspaceOffersTab({
         onCountChange?.(items.length);
     }, [items.length, onCountChange]);
 
-    if (isLoading) {
+    if (isLoading && items.length === 0) {
         return <div className="dr-skeleton h-24 w-full" />;
     }
 
@@ -86,7 +87,7 @@ export default function WorkspaceOffersTab({
                         type="button"
                         className="dr-btn dr-btn-sm"
                         style={{ color: T.RED, background: T.WHITE, border: `1px solid ${T.BORDER}` }}
-                        disabled={deal.is_locked}
+                        disabled={isDealEffectivelyLocked(deal)}
                         onClick={() => setConfirmRemoveAll(true)}
                     >
                         {t("pages.deals.workspace.offers.remove_all")}

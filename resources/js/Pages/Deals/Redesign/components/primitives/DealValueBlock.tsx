@@ -80,7 +80,10 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
             style={{
                 display: "flex",
                 flexDirection: "column",
-                alignItems: "flex-end",
+                // Shares a left start-edge with the close-date block and
+                // DealAgentCard in the header row, instead of the previous
+                // right-alignment that had it drifting the opposite way.
+                alignItems: "flex-start",
                 gap: 2,
             }}
         >
@@ -90,7 +93,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
             <button
                 ref={triggerRef}
                 type="button"
-                className="dr-editable"
+                className="dr-editable dr-editable--lg"
                 style={{ width: "auto" }}
                 aria-haspopup="dialog"
                 aria-expanded={open}

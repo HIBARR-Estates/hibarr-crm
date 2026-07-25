@@ -8,6 +8,8 @@ return [
     'delete' => 'Sil',
     'edit' => 'Düzenle',
     'view' => 'Görüntüle',
+    'show_more' => 'Daha fazla göster',
+    'show_less' => 'Daha az göster',
     'back' => 'Geri',
     'reset' => 'Sıfırla',
     'apply' => 'Uygula',
@@ -39,6 +41,8 @@ return [
     'amount' => 'Tutar',
     'price' => 'Fiyat',
     'total' => 'Toplam',
+    'range' => 'Aralık (min - max)',
+    'currency_range' => 'Para birimi aralığı (min - max)',
     'createdAt' => 'Oluşturulma Tarihi',
     'updatedAt' => 'Güncellenme Tarihi',
 
