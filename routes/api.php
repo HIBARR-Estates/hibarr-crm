@@ -78,6 +78,10 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('properties/filters/features', ['as' => 'api.properties.filters.features', 'uses' => 'Api\PropertyApiController@getFeatures']);
         ApiRoute::get('properties/filters/locations', ['as' => 'api.properties.filters.location', 'uses' => 'Api\PropertyApiController@getLocation']);
 
+        // Developer Project API Routes
+        ApiRoute::get('developer-projects', ['as' => 'api.developer-projects.index', 'uses' => 'Api\DeveloperProjectApiController@index']);
+        ApiRoute::get('developer-projects/{identifier}', ['as' => 'api.developer-projects.show', 'uses' => 'Api\DeveloperProjectApiController@showByIdOrSlug']);
+
         // Agent commission profile (internal)
         ApiRoute::get('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.show', 'uses' => 'Api\AgentCommissionProfileInternalController@show']);
         ApiRoute::patch('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.update', 'uses' => 'Api\AgentCommissionProfileInternalController@update']);
