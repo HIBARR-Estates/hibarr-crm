@@ -27,6 +27,11 @@ class PackageRoutingFieldCatalog
         'product_id' => 'Product',
     ];
 
+    /** @var array<int, string> Native fields resolved from deal relations rather than columns. */
+    public const RELATION_BACKED_FIELDS = [
+        'product_id',
+    ];
+
     /**
      * @return array<string, string>
      */
@@ -218,6 +223,107 @@ class PackageRoutingFieldCatalog
     public function isFieldEnabled(string $fieldKey, ?int $companyId = null): bool
     {
         return in_array($fieldKey, $this->enabledFieldKeys($companyId), true);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function enabledRelationBackedFieldKeys(?int $companyId = null): array
+    {
+        $enabled = array_flip($this->enabledFieldKeys($companyId));
+
+        return array_values(array_filter(
+            self::RELATION_BACKED_FIELDS,
+            fn (string $fieldKey) => isset($enabled[$fieldKey]),
+        ));
+    }
+
+    public function normalizePayloadFieldKey(string $key): string
+    {
+        if (str_starts_with($key, 'field_')) {
+            return $key;
+        }
+
+        if (ctype_digit($key)) {
+            return 'field_' . $key;
+        }
+
+        return $this->scopeKeyToRoutingKey($key);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function changedRoutingFieldKeysFromPayload(array $payload, ?int $companyId = null): array
+    {
+        $enabled = array_flip($this->enabledFieldKeys($companyId));
+        $keys = [];
+
+        foreach ($payload as $key => $value) {
+            if (in_array($key, ['package_id', 'deal_watcher', 'deal_participant'], true)) {
+                continue;
+            }
+
+            $routingKey = $this->normalizePayloadFieldKey((string) $key);
+
+            if (isset($enabled[$routingKey])) {
+                $keys[] = $routingKey;
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
+
+    public function resolveFieldValueFromDeal(Deal $deal, string $fieldKey): mixed
+    {
+        if (in_array($fieldKey, self::RELATION_BACKED_FIELDS, true)) {
+            return $this->resolveRelationBackedFieldValue($deal, $fieldKey);
+        }
+
+        if (str_starts_with($fieldKey, 'field_')) {
+            return $deal->getCustomFieldsData()[$fieldKey] ?? null;
+        }
+
+        return $deal->{$fieldKey} ?? null;
+    }
+
+    protected function resolveRelationBackedFieldValue(Deal $deal, string $fieldKey): mixed
+    {
+        if ($fieldKey === 'product_id') {
+            $deal->loadMissing('products');
+
+            return $deal->products->pluck('id')->all();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<int, string>|null $fieldKeys
+     * @return array<string, mixed>
+     */
+    public function buildTriggerFieldsFromDeal(Deal $deal, ?array $fieldKeys = null): array
+    {
+        $companyId = $deal->company_id;
+        $keys = $fieldKeys ?? $this->enabledFieldKeys($companyId);
+        $keys = array_values(array_filter(
+            $keys,
+            fn (string $key) => $this->isFieldEnabled($key, $companyId),
+        ));
+
+        $fields = [];
+
+        foreach ($keys as $fieldKey) {
+            $value = $this->resolveFieldValueFromDeal($deal, $fieldKey);
+
+            if ($value === null || $value === '' || $value === []) {
+                continue;
+            }
+
+            $fields[$fieldKey] = $value;
+        }
+
+        return $fields;
     }
 
     /**

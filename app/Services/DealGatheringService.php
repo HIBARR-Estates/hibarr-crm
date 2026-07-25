@@ -270,9 +270,8 @@ class DealGatheringService
                     $deal->products()->sync($data['product_id']);
                     $deal = $deal->fresh(['products', 'packages', 'company']);
                     $this->dealValueResolver->resolveAndPersist($deal);
-                    $this->packageRouter->attemptRoutingFromDealProducts($deal);
                 }
-                
+
                 if (array_key_exists('package_id', $data)) {
                     $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
                     $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
@@ -478,47 +477,27 @@ class DealGatheringService
     protected function attemptFieldTriggerRouting(Deal $deal, array $data): void
     {
         $fieldCatalog = app(PackageRoutingFieldCatalog::class);
+        $packageExplicitlySelected = array_key_exists('package_id', $data) && $data['package_id'];
+        $changedFieldKeys = $fieldCatalog->changedRoutingFieldKeysFromPayload($data, $deal->company_id);
 
-        $fieldTriggerData = collect($data)
-            ->except(['package_id'])
-            ->mapWithKeys(fn ($value, $key) => [$this->normalizeRoutingFieldKey((string) $key) => $value])
-            ->filter(fn ($value, $key) => $fieldCatalog->isFieldEnabled(
-                (string) $key,
-                $deal->company_id,
-            ))
-            ->all();
-
-        if (empty($fieldTriggerData)) {
+        if ($changedFieldKeys === []) {
             return;
         }
 
-        $routed = $this->packageRouter->attemptRoutingFromFieldUpdates(
-            $deal->fresh(['packages', 'company']),
-            $fieldTriggerData,
-            array_key_exists('package_id', $data) && $data['package_id'],
+        $routed = $this->packageRouter->attemptRoutingFromDealState(
+            $deal->fresh(['products', 'packages', 'company']),
+            $changedFieldKeys,
+            $packageExplicitlySelected,
         );
 
         // If triggers matched and synced a package but pipeline routing was skipped
         // (e.g. already on the target pipeline), still attempt a route when exactly
         // one package is linked.
-        if (!$routed) {
+        if (!$routed && !$packageExplicitlySelected) {
             $deal->loadMissing('packages');
             if ($deal->packages->count() === 1) {
                 $this->packageRouter->routeDeal($deal->fresh(['packages', 'company']));
             }
         }
-    }
-
-    protected function normalizeRoutingFieldKey(string $key): string
-    {
-        if (str_starts_with($key, 'field_')) {
-            return $key;
-        }
-
-        if (ctype_digit($key)) {
-            return 'field_' . $key;
-        }
-
-        return $key;
     }
 }

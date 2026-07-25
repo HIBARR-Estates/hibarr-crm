@@ -79,7 +79,10 @@ class DealPropertyService
         app(DealActivityEventService::class)->recordProductLinked($deal, $product, $property);
         $deal = $deal->fresh(['products', 'packages', 'company']);
         $this->dealValueResolver->resolveAndPersist($deal);
-        $this->packageRouter->attemptRoutingFromDealProducts($deal);
+        $this->packageRouter->attemptRoutingFromDealState(
+            $deal,
+            app(PackageRoutingFieldCatalog::class)->enabledRelationBackedFieldKeys($deal->company_id),
+        );
 
         return ['status' => 'success', 'message' => 'Property attached successfully.'];
     }
@@ -202,7 +205,11 @@ class DealPropertyService
         }
 
         $this->dealValueResolver->resolveAndPersist($deal->fresh());
-        $this->packageRouter->attemptRoutingFromDealProducts($deal->fresh(['products', 'packages', 'company']));
+        $deal = $deal->fresh(['products', 'packages', 'company']);
+        $this->packageRouter->attemptRoutingFromDealState(
+            $deal,
+            app(PackageRoutingFieldCatalog::class)->enabledRelationBackedFieldKeys($deal->company_id),
+        );
 
         return ['status' => 'success', 'message' => 'Property created and attached successfully.'];
     }

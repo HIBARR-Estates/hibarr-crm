@@ -327,22 +327,25 @@ class PackagePipelineRouterService
     }
 
     /**
-     * Re-evaluate package field triggers after deal products change.
+     * Re-evaluate configured package field triggers from persisted deal state.
+     *
+     * @param array<int, string>|null $fieldKeys Limit evaluation to these enabled trigger fields.
      */
-    public function attemptRoutingFromDealProducts(Deal $deal): bool
-    {
-        $deal->loadMissing(['products', 'packages', 'company']);
+    public function attemptRoutingFromDealState(
+        Deal $deal,
+        ?array $fieldKeys = null,
+        bool $packageExplicitlySelected = false,
+    ): bool {
+        $updatedFields = $this->fieldCatalog->buildTriggerFieldsFromDeal($deal, $fieldKeys);
 
-        $productIds = $deal->products->pluck('id')->all();
-
-        if ($productIds === []) {
+        if ($updatedFields === []) {
             return false;
         }
 
         return $this->attemptRoutingFromFieldUpdates(
             $deal,
-            ['product_id' => $productIds],
-            false,
+            $updatedFields,
+            $packageExplicitlySelected,
         );
     }
 
