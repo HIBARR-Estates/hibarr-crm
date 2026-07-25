@@ -126,7 +126,7 @@ export default function DealPeoplePicker({
                                         className="flex h-3.5 w-3.5 shrink-0 items-center justify-center"
                                     >
                                         <span
-                                            className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent"
+                                            className="h-3 w-3 animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                                             style={{ color: T.TEXT_MUTED }}
                                         />
                                     </span>

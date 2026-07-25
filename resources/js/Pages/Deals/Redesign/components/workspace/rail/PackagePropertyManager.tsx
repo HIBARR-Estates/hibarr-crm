@@ -231,7 +231,7 @@ export default function PackagePropertyManager({
                         {refreshing && (
                             <span
                                 aria-hidden="true"
-                                className="animate-spin rounded-full border-2 border-current border-t-transparent normal-case"
+                                className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent normal-case"
                                 style={{ width: 10, height: 10 }}
                             />
                         )}

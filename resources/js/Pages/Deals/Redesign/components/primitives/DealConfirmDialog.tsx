@@ -113,7 +113,7 @@ export default function DealConfirmDialog({
                         {confirmLoading && (
                             <span
                                 aria-hidden="true"
-                                className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                                className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                                 style={{ width: 11, height: 11 }}
                             />
                         )}

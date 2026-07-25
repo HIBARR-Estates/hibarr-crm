@@ -107,7 +107,7 @@ export default function DealPipelineStepper({
                 {pipeline.isUpdating && (
                     <span
                         aria-hidden="true"
-                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                         style={{ width: 10, height: 10, color: T.TEXT_MUTED }}
                     />
                 )}

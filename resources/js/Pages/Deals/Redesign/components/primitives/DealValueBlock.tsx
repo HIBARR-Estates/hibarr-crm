@@ -220,7 +220,7 @@ export default function DealValueBlock({ deal, canEdit }: DealValueBlockProps) {
                                             className="flex h-4 w-4 items-center justify-center"
                                         >
                                             <span
-                                                className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                                                className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                                                 style={{ width: 12, height: 12, color: T.TEXT_MUTED }}
                                             />
                                         </span>

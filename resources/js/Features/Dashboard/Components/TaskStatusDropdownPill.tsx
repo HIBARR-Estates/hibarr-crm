@@ -123,7 +123,7 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
                 {loading ? (
                     <span
                         aria-hidden="true"
-                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                         style={{ width: 9, height: 9 }}
                     />
                 ) : (
