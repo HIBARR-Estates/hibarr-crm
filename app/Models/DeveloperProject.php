@@ -4,11 +4,14 @@ namespace App\Models;
 
 use App\Traits\HasCompany;
 use App\Traits\HasOffers;
+use App\Scopes\CompanyScope;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Str;
 
 /**
  * DeveloperProject Model
@@ -25,6 +28,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class DeveloperProject extends BaseModel
 {
     use HasFactory, HasCompany, HasOffers, SoftDeletes;
+
+    private const SLUG_SAVE_MAX_ATTEMPTS = 5;
 
     // ================================================================
     // Construction Status Constants (project-level)
@@ -114,6 +119,7 @@ class DeveloperProject extends BaseModel
         'company_id',
         'developer_id',
         'name',
+        'slug',
         'reference_code',
         'description',
         'project_location_id',
@@ -174,6 +180,98 @@ class DeveloperProject extends BaseModel
      * Eager load these relations by default
      */
     protected $with = [];
+
+    /**
+     * Boot: generate unique slug from name on create/update when name is present.
+     */
+    protected static function booted(): void
+    {
+        // HasCompany also defines booted(); class method wins — re-apply CompanyScope here.
+        static::addGlobalScope(new CompanyScope());
+
+        static::saving(function (DeveloperProject $model) {
+            if (empty($model->name)) {
+                return;
+            }
+            $nameChanged = $model->isDirty('name');
+            $slugEmpty = empty($model->slug);
+            if ($slugEmpty || $nameChanged) {
+                $model->slug = self::makeUniqueSlug(
+                    $model->name,
+                    $model->company_id ?? 0,
+                    $model->id
+                );
+            }
+        });
+    }
+
+    /**
+     * Save the model. On unique constraint failure (slug), regenerate slug and retry.
+     *
+     * @param  array<string, mixed>  $options
+     */
+    public function save(array $options = []): bool
+    {
+        $attempt = 0;
+        while (true) {
+            try {
+                $result = parent::save($options);
+
+                return $result === true || $result === null ? true : (bool) $result;
+            } catch (QueryException $e) {
+                $isUniqueViolation = $e->getCode() === '23000'
+                    || str_contains($e->getMessage(), 'Duplicate entry')
+                    || str_contains($e->getMessage(), 'unique constraint')
+                    || str_contains($e->getMessage(), 'UNIQUE constraint');
+                if (!$isUniqueViolation || $attempt >= self::SLUG_SAVE_MAX_ATTEMPTS) {
+                    throw $e;
+                }
+                $attempt++;
+                $this->slug = self::makeUniqueSlug(
+                    $this->name ?: 'project',
+                    $this->company_id ?? 0,
+                    $this->id
+                );
+            }
+        }
+    }
+
+    /**
+     * Generate a unique slug from name. If slug exists, append short random id.
+     */
+    public static function makeUniqueSlug(string $name, ?int $companyId = null, $excludeId = null): string
+    {
+        $base = Str::slug($name);
+        if ($base === '') {
+            $base = 'project';
+        }
+        $slug = $base;
+        $attempt = 0;
+        $query = static::query()->where('slug', $slug);
+        if ($companyId !== null) {
+            $query->where('company_id', $companyId);
+        }
+        if ($excludeId !== null) {
+            $query->where('id', '!=', $excludeId);
+        }
+        while ($query->exists()) {
+            $slug = $base . '-' . Str::lower(Str::random(4));
+            $query = static::query()->where('slug', $slug);
+            if ($companyId !== null) {
+                $query->where('company_id', $companyId);
+            }
+            if ($excludeId !== null) {
+                $query->where('id', '!=', $excludeId);
+            }
+            $attempt++;
+            if ($attempt > 100) {
+                $slug = $base . '-' . ($excludeId ?: Str::random(8));
+                break;
+            }
+        }
+
+        return $slug;
+    }
 
     /**
      * Get formatted starting price with currency symbol.
