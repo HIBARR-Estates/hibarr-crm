@@ -9,6 +9,7 @@ return [
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
+        'crm.lead-merge',
         'crm.notification-service-routing',
         'crm.task-lifecycle-notifications',
         'crm.projects-filters-modal',
