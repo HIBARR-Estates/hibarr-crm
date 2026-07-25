@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\EmailNotificationSetting;
 use App\Models\DealFollowUp;
 use App\Models\User;
+use App\Support\UserTimezone;
 
 class MeetingLinkGenerationFailed extends BaseNotification
 {
@@ -56,7 +57,14 @@ class MeetingLinkGenerationFailed extends BaseNotification
 
         $meetingType = $this->followUp->meetingType ? $this->followUp->meetingType->name : 'N/A';
         $location = ucfirst(str_replace('_', ' ', $this->followUp->location));
-        $followUpDate = $this->followUp->next_follow_up_date->format('M d, Y \a\t g:i A');
+        $timezone = UserTimezone::resolve(
+            $notifiable instanceof User ? $notifiable : null,
+            $this->company
+        );
+        $followUpDate = $this->followUp->next_follow_up_date
+            ->copy()
+            ->setTimezone($timezone)
+            ->format('M d, Y \a\t g:i A');
 
         $content = __('email.meetingLinkGenerationFailed.subject') . '<br><br>' .
                    __('modules.lead.dealName') . ': ' . $this->followUp->deal->name . '<br>' .
