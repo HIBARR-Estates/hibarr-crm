@@ -92,14 +92,14 @@ class DealFollowUpObserver
         if (!isRunningInConsoleOrSeeding() && user()) {
             $deal = Deal::find($dealFollowUp->deal_id);
             if ($deal) {
-                $meetingDate = $dealFollowUp->next_follow_up_date 
-                    ? $dealFollowUp->next_follow_up_date->format('M d, Y H:i') 
+                $meetingDateUtc = $dealFollowUp->next_follow_up_date
+                    ? $dealFollowUp->next_follow_up_date->copy()->utc()->toIso8601String()
                     : null;
-                
+
                 $this->notificationService->notifyMeetingUpdated(
                     $deal,
                     $dealFollowUp->remark ?? 'Follow-up updated',
-                    $meetingDate,
+                    $meetingDateUtc,
                     $dealFollowUp->id
                 );
             }

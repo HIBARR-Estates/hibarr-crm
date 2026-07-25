@@ -16,6 +16,7 @@ class LeadImport implements ToArray
             array('id' => 'salutation', 'name' => __('app.salutation'), 'required' => 'No'),
             array('id' => 'gender', 'name' => __('app.gender'), 'required' => 'No'),
             array('id' => 'note', 'name' => __('app.note'), 'required' => 'No'),
+            array('id' => 'notes', 'name' => 'Notes', 'required' => 'No'),
             array('id' => 'company_name', 'name' => __('modules.lead.companyName'), 'required' => 'No'),
             array('id' => 'company_website', 'name' => __('modules.lead.website'), 'required' => 'No'),
             array('id' => 'mobile', 'name' => __('modules.lead.mobile'), 'required' => 'No'),

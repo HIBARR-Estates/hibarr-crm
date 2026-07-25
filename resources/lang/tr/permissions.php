@@ -45,6 +45,7 @@ return array(
     'view_lead' => 'Potansiyel Müşteriyi Görüntüle',
     'edit_lead' => 'Potansiyel Müşteriyi Düzenle',
     'delete_lead' => 'Potansiyel Müşteriyi Sil',
+    'merge_lead' => 'Potansiyel Müşteriyi Birleştir',
     'add_deal' => 'Anlaşma Ekle',
     'view_deal' => 'Anlaşmayı Görüntüle',
     'edit_deal' => 'Anlaşmayı Düzenle',

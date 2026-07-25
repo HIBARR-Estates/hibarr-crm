@@ -6,11 +6,13 @@ use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\LeadCategory;
 use App\Models\LeadLifecycleStatus;
+use App\Models\LeadNote;
 use App\Models\LeadPipeline;
 use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Models\User;
 use App\Traits\ExcelImportable;
+use App\Traits\RecordsCrmEvents;
 use App\Traits\UniversalSearchTrait;
 use Exception;
 use Illuminate\Bus\Batchable;
@@ -27,10 +29,12 @@ class ImportLeadJob implements ShouldQueue
 
     use Batchable, Dispatchable, InteractsWithQueue, Queueable, SerializesModels, UniversalSearchTrait;
     use ExcelImportable;
+    use RecordsCrmEvents;
 
     private $row;
     private $columns;
     private $company;
+    private $importingUserId;
 
     /**
      * Create a new job instance.
@@ -42,6 +46,7 @@ class ImportLeadJob implements ShouldQueue
         $this->row = $row;
         $this->columns = $columns;
         $this->company = $company;
+        $this->importingUserId = user()?->id;
     }
 
     /**
@@ -139,6 +144,32 @@ class ImportLeadJob implements ShouldQueue
                 Session::put('leads', $leads);
 
                 $lead->save();
+
+                $notesValue = $this->isColumnExists('notes') ? $this->getColumnValue('notes') : null;
+                if ($notesValue !== null && trim((string) $notesValue) !== '') {
+                    $note = new LeadNote();
+                    $note->lead_id = $lead->id;
+                    $note->title = 'Imported note';
+                    $note->details = trim_editor((string) $notesValue);
+                    $note->type = 0;
+                    $importingUserId = $this->importingUserId;
+                    if ($importingUserId !== null) {
+                        $note->added_by = $importingUserId;
+                        $note->last_updated_by = $importingUserId;
+                    }
+                    $note->save();
+
+                    $this->recordCrmEvent('lead_updated', $lead, [
+                        'metadata' => [
+                            'action' => 'note_added',
+                            'comment' => 'Note added: Imported note',
+                            'note_id' => $note->id,
+                            'note_title' => $note->title,
+                            'note_type' => 'public',
+                        ],
+                        'user_id' => $importingUserId,
+                    ]);
+                }
 
                 $leadPipeline = LeadPipeline::where('default', '1')->where('company_id', $lead->company_id)->first();
                 $leadStage = PipelineStage::where('default', '1')->where('lead_pipeline_id', $leadPipeline->id)->where('company_id', $lead->company_id)->first();

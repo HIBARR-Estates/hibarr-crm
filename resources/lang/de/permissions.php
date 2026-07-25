@@ -45,6 +45,7 @@ return array(
     'view_lead' => 'Lead anzeigen',
     'edit_lead' => 'Lead bearbeiten',
     'delete_lead' => 'Lead löschen',
+    'merge_lead' => 'Lead zusammenführen',
     'add_deal' => 'Angebot hinzufügen',
     'view_deal' => 'Angebot anzeigen',
     'edit_deal' => 'Angebot bearbeiten',

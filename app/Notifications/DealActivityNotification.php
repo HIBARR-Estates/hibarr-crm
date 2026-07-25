@@ -5,10 +5,13 @@ namespace App\Notifications;
 use App\Enums\DealActivityType;
 use App\Models\Deal;
 use App\Models\EmailNotificationSetting;
+use App\Models\User;
+use App\Support\UserTimezone;
+use Carbon\Carbon;
 
 /**
  * Unified notification for all deal-related activities.
- * 
+ *
  * This notification handles:
  * - Notes (added/updated)
  * - Stage changes
@@ -17,7 +20,7 @@ use App\Models\EmailNotificationSetting;
  * - Files (uploaded/deleted)
  * - Properties (linked/unlinked)
  * - Packages (assigned/removed)
- * 
+ *
  * The notification content is dynamically generated based on the activity type.
  */
 class DealActivityNotification extends BaseNotification
@@ -40,7 +43,7 @@ class DealActivityNotification extends BaseNotification
         $this->activityType = $activityType;
         $this->data = $data;
         $this->company = $this->deal->company;
-        
+
         // Load email notification settings
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
             ->where('slug', 'deal-activity-notification')
@@ -63,9 +66,9 @@ class DealActivityNotification extends BaseNotification
         }
 
         // Check if email notifications are enabled
-        if ($this->emailSetting 
-            && $this->emailSetting->send_email == 'yes' 
-            && $notifiable->email_notifications 
+        if ($this->emailSetting
+            && $this->emailSetting->send_email == 'yes'
+            && $notifiable->email_notifications
             && !empty($notifiable->email)
         ) {
             $via[] = 'mail';
@@ -83,12 +86,12 @@ class DealActivityNotification extends BaseNotification
     public function toMail($notifiable)
     {
         $build = parent::build($notifiable);
-        
+
         $url = route('deals.show', $this->deal->id);
         $url = getDomainSpecificUrl($url, $this->company);
 
         $subject = $this->getEmailSubject();
-        $content = $this->getEmailContent();
+        $content = $this->getEmailContent($notifiable);
         $actionText = $this->getActionText();
 
         $build
@@ -98,7 +101,7 @@ class DealActivityNotification extends BaseNotification
                 'content' => $content,
                 'subject' => $subject,
                 'actionText' => $actionText,
-                'introText' => $this->getNotificationText(),
+                'introText' => $this->getNotificationText($notifiable),
                 'notifiableName' => $notifiable->name,
             ]);
 
@@ -123,11 +126,56 @@ class DealActivityNotification extends BaseNotification
             'activity_label' => $this->activityType->label(),
             'activity_icon' => $this->activityType->icon(),
             'heading' => $this->getNotificationHeading(),
-            'text' => $this->getNotificationText(),
+            'text' => $this->getNotificationText($notifiable),
             'triggered_by' => $this->data['triggered_by_name'] ?? 'System',
             'triggered_by_id' => $this->data['triggered_by_id'] ?? null,
-            'additional_data' => $this->getAdditionalDataForStorage(),
+            'additional_data' => $this->getAdditionalDataForStorage($notifiable),
         ];
+    }
+
+    /**
+     * Format meeting_date for a recipient (ISO UTC → local wall clock).
+     * Legacy non-ISO strings are returned unchanged.
+     *
+     * @param mixed $notifiable
+     */
+    protected function formatMeetingDateFor($notifiable): ?string
+    {
+        $raw = $this->data['meeting_date'] ?? null;
+
+        if ($raw === null || $raw === '') {
+            return null;
+        }
+
+        if (!is_string($raw)) {
+            return null;
+        }
+
+        // Heuristic: legacy pre-formatted strings like "Jan 19, 2026 15:00" are not ISO.
+        if (!$this->looksLikeIsoDateTime($raw)) {
+            return $raw;
+        }
+
+        try {
+            $date = Carbon::parse($raw);
+        } catch (\Throwable $e) {
+            return $raw;
+        }
+
+        $timezone = UserTimezone::resolve(
+            $notifiable instanceof User ? $notifiable : null,
+            $this->company
+        );
+
+        return $date->copy()->setTimezone($timezone)->format('M d, Y H:i');
+    }
+
+    protected function looksLikeIsoDateTime(string $value): bool
+    {
+        return (bool) preg_match(
+            '/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/',
+            $value
+        );
     }
 
     /**
@@ -138,7 +186,7 @@ class DealActivityNotification extends BaseNotification
         $dealName = $this->deal->name;
         $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
 
-        return match($this->activityType) {
+        return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "Note added to deal: {$dealName}",
             DealActivityType::NOTE_UPDATED => "Note updated on deal: {$dealName}",
             DealActivityType::STAGE_CHANGED => "Deal stage changed: {$dealName}",
@@ -165,12 +213,15 @@ class DealActivityNotification extends BaseNotification
 
     /**
      * Get the notification text/description.
+     *
+     * @param mixed $notifiable
      */
-    protected function getNotificationText(): string
+    protected function getNotificationText($notifiable = null): string
     {
         $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
+        $meetingDate = $this->formatMeetingDateFor($notifiable);
 
-        return match($this->activityType) {
+        return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "{$triggeredBy} added a note: " . ($this->data['note_title'] ?? 'Untitled'),
             DealActivityType::NOTE_UPDATED => "{$triggeredBy} updated the note: " . ($this->data['note_title'] ?? 'Untitled'),
             DealActivityType::STAGE_CHANGED => "{$triggeredBy} changed the stage from " . ($this->data['from_stage'] ?? 'Unknown') . " to " . ($this->data['to_stage'] ?? 'Unknown'),
@@ -179,8 +230,8 @@ class DealActivityNotification extends BaseNotification
             DealActivityType::TASK_UPDATED => "{$triggeredBy} updated the task: " . ($this->data['task_heading'] ?? 'Untitled'),
             DealActivityType::TASK_COMPLETED => "{$triggeredBy} completed the task: " . ($this->data['task_heading'] ?? 'Untitled'),
             DealActivityType::TASK_DELETED => "{$triggeredBy} deleted a task: " . ($this->data['task_heading'] ?? 'Untitled'),
-            DealActivityType::MEETING_SCHEDULED => "{$triggeredBy} scheduled a meeting" . ($this->data['meeting_date'] ? " for " . $this->data['meeting_date'] : ''),
-            DealActivityType::MEETING_UPDATED => "{$triggeredBy} updated a meeting" . ($this->data['meeting_date'] ? " scheduled for " . $this->data['meeting_date'] : ''),
+            DealActivityType::MEETING_SCHEDULED => "{$triggeredBy} scheduled a meeting" . ($meetingDate ? " for " . $meetingDate : ''),
+            DealActivityType::MEETING_UPDATED => "{$triggeredBy} updated a meeting" . ($meetingDate ? " scheduled for " . $meetingDate : ''),
             DealActivityType::MEETING_CANCELLED => "{$triggeredBy} cancelled a meeting",
             DealActivityType::FILE_UPLOADED => "{$triggeredBy} uploaded a file: " . ($this->data['file_name'] ?? 'Unknown'),
             DealActivityType::FILE_DELETED => "{$triggeredBy} deleted a file: " . ($this->data['file_name'] ?? 'Unknown'),
@@ -202,10 +253,10 @@ class DealActivityNotification extends BaseNotification
     {
         $dealName = $this->deal->name;
         $contactName = $this->deal->contact?->client_name ?? '';
-        
+
         $prefix = $contactName ? "[{$contactName}] " : '';
 
-        return match($this->activityType) {
+        return match ($this->activityType) {
             DealActivityType::NOTE_ADDED => "{$prefix}New Note on Deal: {$dealName}",
             DealActivityType::NOTE_UPDATED => "{$prefix}Note Updated on Deal: {$dealName}",
             DealActivityType::STAGE_CHANGED => "{$prefix}Deal Stage Changed: {$dealName}",
@@ -232,8 +283,10 @@ class DealActivityNotification extends BaseNotification
 
     /**
      * Get the email content.
+     *
+     * @param mixed $notifiable
      */
-    protected function getEmailContent(): string
+    protected function getEmailContent($notifiable = null): string
     {
         $lines = [];
         $triggeredBy = $this->data['triggered_by_name'] ?? 'Someone';
@@ -241,54 +294,55 @@ class DealActivityNotification extends BaseNotification
         $contactName = $this->deal->contact?->client_name ?? 'N/A';
 
         // Common deal info
-        $lines[] = "<strong>" . __('modules.lead.clientName') . ":</strong> {$contactName}";
-        $lines[] = "<strong>" . __('modules.deal.dealName') . ":</strong> {$dealName}";
-        $lines[] = "<strong>" . __('app.changedBy') . ":</strong> {$triggeredBy}";
-        $lines[] = "<br>";
+        $lines[] = '<strong>' . __('modules.lead.clientName') . ":</strong> {$contactName}";
+        $lines[] = '<strong>' . __('modules.deal.dealName') . ":</strong> {$dealName}";
+        $lines[] = '<strong>' . __('app.changedBy') . ":</strong> {$triggeredBy}";
+        $lines[] = '<br>';
 
         // Activity-specific content
         switch ($this->activityType) {
             case DealActivityType::NOTE_ADDED:
             case DealActivityType::NOTE_UPDATED:
-                $lines[] = "<strong>Note Title:</strong> " . ($this->data['note_title'] ?? 'Untitled');
+                $lines[] = '<strong>Note Title:</strong> ' . ($this->data['note_title'] ?? 'Untitled');
                 break;
 
             case DealActivityType::STAGE_CHANGED:
-                $lines[] = "<strong>Previous Stage:</strong> " . ($this->data['from_stage'] ?? 'Unknown');
-                $lines[] = "<strong>New Stage:</strong> " . ($this->data['to_stage'] ?? 'Unknown');
+                $lines[] = '<strong>Previous Stage:</strong> ' . ($this->data['from_stage'] ?? 'Unknown');
+                $lines[] = '<strong>New Stage:</strong> ' . ($this->data['to_stage'] ?? 'Unknown');
                 break;
 
             case DealActivityType::TASK_ADDED:
             case DealActivityType::TASK_UPDATED:
             case DealActivityType::TASK_COMPLETED:
             case DealActivityType::TASK_DELETED:
-                $lines[] = "<strong>Task:</strong> " . ($this->data['task_heading'] ?? 'Untitled');
+                $lines[] = '<strong>Task:</strong> ' . ($this->data['task_heading'] ?? 'Untitled');
                 break;
 
             case DealActivityType::MEETING_SCHEDULED:
             case DealActivityType::MEETING_UPDATED:
             case DealActivityType::MEETING_CANCELLED:
-                $lines[] = "<strong>Meeting:</strong> " . ($this->data['meeting_remark'] ?? 'N/A');
-                if (!empty($this->data['meeting_date'])) {
-                    $lines[] = "<strong>Date:</strong> " . $this->data['meeting_date'];
+                $lines[] = '<strong>Meeting:</strong> ' . ($this->data['meeting_remark'] ?? 'N/A');
+                $meetingDate = $this->formatMeetingDateFor($notifiable);
+                if ($meetingDate) {
+                    $lines[] = '<strong>Date:</strong> ' . $meetingDate;
                 }
                 break;
 
             case DealActivityType::FILE_UPLOADED:
             case DealActivityType::FILE_DELETED:
-                $lines[] = "<strong>File:</strong> " . ($this->data['file_name'] ?? 'Unknown');
+                $lines[] = '<strong>File:</strong> ' . ($this->data['file_name'] ?? 'Unknown');
                 break;
 
             case DealActivityType::PROPERTY_LINKED:
             case DealActivityType::PROPERTY_UNLINKED:
-                $lines[] = "<strong>Property:</strong> " . ($this->data['property_title'] ?? 'Unknown');
+                $lines[] = '<strong>Property:</strong> ' . ($this->data['property_title'] ?? 'Unknown');
                 break;
 
             case DealActivityType::PACKAGE_ASSIGNED:
             case DealActivityType::PACKAGE_REMOVED:
                 $packageNames = $this->data['package_names'] ?? [];
                 if (!empty($packageNames)) {
-                    $lines[] = "<strong>Packages:</strong> " . implode(', ', $packageNames);
+                    $lines[] = '<strong>Packages:</strong> ' . implode(', ', $packageNames);
                 }
                 break;
         }
@@ -306,16 +360,18 @@ class DealActivityNotification extends BaseNotification
 
     /**
      * Get additional data to store with the notification.
+     *
+     * @param mixed $notifiable
      */
-    protected function getAdditionalDataForStorage(): array
+    protected function getAdditionalDataForStorage($notifiable = null): array
     {
         // Return only relevant additional data based on activity type
         $relevant = [];
-        
-        $keys = match($this->activityType) {
+
+        $keys = match ($this->activityType) {
             DealActivityType::NOTE_ADDED, DealActivityType::NOTE_UPDATED => ['note_id', 'note_title'],
             DealActivityType::STAGE_CHANGED => ['from_stage', 'to_stage'],
-            DealActivityType::TASK_ADDED, DealActivityType::TASK_UPDATED, 
+            DealActivityType::TASK_ADDED, DealActivityType::TASK_UPDATED,
             DealActivityType::TASK_COMPLETED, DealActivityType::TASK_DELETED => ['task_id', 'task_heading'],
             DealActivityType::MEETING_SCHEDULED, DealActivityType::MEETING_UPDATED,
             DealActivityType::MEETING_CANCELLED => ['follow_up_id', 'meeting_remark', 'meeting_date'],
@@ -327,6 +383,14 @@ class DealActivityNotification extends BaseNotification
 
         foreach ($keys as $key) {
             if (isset($this->data[$key])) {
+                if ($key === 'meeting_date') {
+                    // Store localized display string for this recipient's in-app UI.
+                    $formatted = $this->formatMeetingDateFor($notifiable);
+                    if ($formatted !== null) {
+                        $relevant[$key] = $formatted;
+                    }
+                    continue;
+                }
                 $relevant[$key] = $this->data[$key];
             }
         }

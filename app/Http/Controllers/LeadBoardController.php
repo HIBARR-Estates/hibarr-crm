@@ -138,7 +138,9 @@ class LeadBoardController extends AccountBaseController
                 }
 
                 if ($request->search != '') {
+                    // Exclude soft-deleted leads from join (HIB-1119 merge)
                     $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
+                    $q->whereNull('leads.deleted_at');
                     $q->where(function ($query) {
                         $safeTerm = Common::safeString(request('search'));
                         $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
@@ -182,7 +184,9 @@ class LeadBoardController extends AccountBaseController
             }])
                 ->with(['deals' => function ($q) use ($startDate, $endDate, $request) {
                     $q->with(['contact','leadAgent', 'leadAgent.user', 'currency', 'dealWatchers'])
+                        // Exclude soft-deleted leads from join (HIB-1119 merge)
                         ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+                        ->whereNull('leads.deleted_at')
                         ->groupBy('deals.id');
 
                     if ($request->agent_id != 'all' && $request->agent_id != '' && $request->agent_id != 'undefined') {
@@ -276,7 +280,9 @@ class LeadBoardController extends AccountBaseController
                 $result['boardColumns'][] = $boardColumn;
 
                 $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
+                    // Exclude soft-deleted leads from join (HIB-1119 merge)
                     ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+                    ->whereNull('leads.deleted_at')
                     ->with('leadAgent', 'leadAgent.user')
                     ->where('deals.pipeline_stage_id', $boardColumn->id)
                     ->orderBy('deals.column_priority', 'asc')
@@ -500,7 +506,9 @@ class LeadBoardController extends AccountBaseController
             }
 
             if ($request->filled('search')) {
+                // Exclude soft-deleted leads from join (HIB-1119 merge)
                 $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
+                $q->whereNull('leads.deleted_at');
                 $searchTerm = $request->search;
                 $q->where(function($query) use ($searchTerm) {
                     $query->where('deals.name', 'like', '%' . $searchTerm . '%')
@@ -569,7 +577,9 @@ class LeadBoardController extends AccountBaseController
 
             $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
                 ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
+                // Exclude soft-deleted leads from join (HIB-1119 merge)
                 ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+                ->whereNull('leads.deleted_at')
                 ->where('deals.pipeline_stage_id', $boardColumn->id)
                 ->orderBy('deals.created_at', 'desc')
                 ->groupBy('deals.id');
@@ -647,7 +657,9 @@ class LeadBoardController extends AccountBaseController
 
         $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
             ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
+            // Exclude soft-deleted leads from join (HIB-1119 merge)
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+            ->whereNull('leads.deleted_at')
             ->where('deals.pipeline_stage_id', $pipelineStageId)
             ->orderBy('deals.created_at', 'desc')
             ->groupBy('deals.id');
@@ -743,7 +755,9 @@ class LeadBoardController extends AccountBaseController
         $totalTasks = $request->totalTasks;
 
         $leads = Deal::select('leads.*', 'deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = leads.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
+            // Exclude soft-deleted leads from join (HIB-1119 merge)
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+            ->whereNull('leads.deleted_at')
             ->where('deals.pipeline_stage_id', $request->columnId)
             ->orderBy('deals.created_at', 'desc')
             ->groupBy('deals.id');

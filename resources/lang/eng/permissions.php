@@ -226,6 +226,7 @@ return array (
     'view_lead' => 'View Lead',
     'edit_lead' => 'Edit Lead',
     'delete_lead' => 'Delete Lead',
+    'merge_lead' => 'Merge Lead',
     'view_lead_agents' => 'View Deal Agents',
     'add_lead_agent' => 'Add Deal Agent',
     'edit_lead_agent' => 'Edit Deal Agent',

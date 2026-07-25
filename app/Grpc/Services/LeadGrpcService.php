@@ -212,7 +212,7 @@ class LeadGrpcService implements LeadServiceInterface
                 throw new GRPCException("Lead not found with ID: {$id}", StatusCode::NOT_FOUND);
             }
 
-            $lead->delete();
+            $lead->forceDelete();
 
             return new PBEmpty();
         } catch (GRPCException $e) {
