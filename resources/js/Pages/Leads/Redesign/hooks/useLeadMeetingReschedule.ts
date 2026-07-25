@@ -1,7 +1,11 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
+import {
+    getBrowserTimezone,
+    persistUserTimezoneOnce,
+} from "@/lib/userTimezone";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -21,6 +25,9 @@ interface RescheduleResponse {
 export default function useLeadMeetingReschedule(followupId: number | null) {
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { props } = usePage<{
+        auth?: { user?: { timezone?: string | null } | null };
+    }>();
 
     const rescheduleMeeting = useCallback(
         async (input: LeadMeetingRescheduleInput, onSuccess?: () => void) => {
@@ -39,6 +46,7 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
 
             setIsSubmitting(true);
             setErrors([]);
+            persistUserTimezoneOnce(props.auth?.user?.timezone);
 
             try {
                 const response = await fetch(
@@ -62,9 +70,7 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
                                 input.startTime,
                             ),
                             duration: input.duration,
-                            timezone:
-                                Intl.DateTimeFormat().resolvedOptions()
-                                    .timeZone || "UTC",
+                            timezone: getBrowserTimezone(),
                         }),
                     },
                 );
@@ -88,7 +94,7 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
                 setIsSubmitting(false);
             }
         },
-        [followupId],
+        [followupId, props.auth?.user?.timezone],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);
