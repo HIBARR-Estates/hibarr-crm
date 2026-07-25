@@ -138,6 +138,7 @@ class LeadBoardController extends AccountBaseController
                 }
 
                 if ($request->search != '') {
+                    // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
                     $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
                     $q->where(function ($query) {
                         $safeTerm = Common::safeString(request('search'));
@@ -182,6 +183,7 @@ class LeadBoardController extends AccountBaseController
             }])
                 ->with(['deals' => function ($q) use ($startDate, $endDate, $request) {
                     $q->with(['contact','leadAgent', 'leadAgent.user', 'currency', 'dealWatchers'])
+                        // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
                         ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                         ->groupBy('deals.id');
 
@@ -276,6 +278,7 @@ class LeadBoardController extends AccountBaseController
                 $result['boardColumns'][] = $boardColumn;
 
                 $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
+                    // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
                     ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                     ->with('leadAgent', 'leadAgent.user')
                     ->where('deals.pipeline_stage_id', $boardColumn->id)
@@ -500,6 +503,7 @@ class LeadBoardController extends AccountBaseController
             }
 
             if ($request->filled('search')) {
+                // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
                 $q->leftJoin('leads', 'leads.id', 'deals.lead_id');
                 $searchTerm = $request->search;
                 $q->where(function($query) use ($searchTerm) {
@@ -569,6 +573,7 @@ class LeadBoardController extends AccountBaseController
 
             $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
                 ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
+                // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
                 ->leftJoin('leads', 'leads.id', 'deals.lead_id')
                 ->where('deals.pipeline_stage_id', $boardColumn->id)
                 ->orderBy('deals.created_at', 'desc')
@@ -647,6 +652,7 @@ class LeadBoardController extends AccountBaseController
 
         $leads = Deal::select('deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = deals.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
             ->with(['contact', 'leadStage', 'leadAgent', 'leadAgent.user', 'currency'])
+            // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
             ->where('deals.pipeline_stage_id', $pipelineStageId)
             ->orderBy('deals.created_at', 'desc')
@@ -743,6 +749,7 @@ class LeadBoardController extends AccountBaseController
         $totalTasks = $request->totalTasks;
 
         $leads = Deal::select('leads.*', 'deals.*', DB::raw("(select next_follow_up_date from lead_follow_up where deal_id = leads.id and deals.next_follow_up  = 'yes' ORDER BY next_follow_up_date desc limit 1) as next_follow_up_date"))
+            // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
             ->where('deals.pipeline_stage_id', $request->columnId)
             ->orderBy('deals.created_at', 'desc')

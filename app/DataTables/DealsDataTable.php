@@ -321,6 +321,7 @@ class DealsDataTable extends BaseDataTable
             ->leftJoin('pipeline_stages', 'pipeline_stages.id', 'deals.pipeline_stage_id')
             ->leftJoin('lead_agents', 'lead_agents.id', 'deals.agent_id')
             ->leftJoin('users', 'users.id', 'lead_agents.user_id')
+            // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
             ->leftJoin('lead_products', 'lead_products.deal_id', 'deals.id')
             ->leftJoin('products', 'products.id', 'lead_products.product_id');

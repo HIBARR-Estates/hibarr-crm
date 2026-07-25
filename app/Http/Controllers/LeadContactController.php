@@ -1129,7 +1129,7 @@ class LeadContactController extends AccountBaseController
 
         try {
             DB::transaction(function () use ($leadContact) {
-                $leadContact->delete();
+                $leadContact->forceDelete();
             });
         } catch (\Illuminate\Database\QueryException $e) {
             Log::error('Failed to delete lead contact: ' . $e->getMessage());
@@ -1187,7 +1187,7 @@ class LeadContactController extends AccountBaseController
 
             case 'delete':
             default:
-                Lead::whereIn('id', $rowIds)->delete();
+                Lead::whereIn('id', $rowIds)->forceDelete();
                 return Reply::success(__('messages.deleteSuccess'));
         }
     }
