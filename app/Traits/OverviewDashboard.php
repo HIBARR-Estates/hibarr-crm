@@ -98,8 +98,9 @@ trait OverviewDashboard
             ->selectRaw('deals.id,leads.company_name, leads.client_name as client_name, deals.agent_id, ( select lead_follow_up.next_follow_up_date from lead_follow_up where lead_follow_up.deal_id = deals.id and DATE(lead_follow_up.next_follow_up_date) < "' . $currentDate . '" ORDER BY lead_follow_up.created_at DESC Limit 1) as follow_up_date_past,
             ( select lead_follow.next_follow_up_date from lead_follow_up as lead_follow where lead_follow.deal_id = deals.id and status = "incomplete" ORDER BY lead_follow.created_at DESC Limit 1) as follow_up_date_next'
             )
-            // SoftDeletes: add whereNull(leads.deleted_at) when merge soft-deletes leads (HIB-1119)
+            // Exclude soft-deleted leads from join (HIB-1119 merge)
             ->leftJoin('leads', 'leads.id', 'deals.lead_id')
+            ->whereNull('leads.deleted_at')
             ->where('deals.next_follow_up', 'yes')
             ->groupBy('deals.id')
             ->get();
