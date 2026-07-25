@@ -49,9 +49,7 @@ interface FollowUpStorePayload {
 
 export default function useLeadMeetingCreate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
-    const { props } = usePage<{
-        auth?: { user?: { timezone?: string | null } | null };
-    }>();
+    const { props } = usePage();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,

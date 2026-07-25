@@ -619,6 +619,7 @@ export interface User {
     dark_theme: boolean;
     designation: string;
     roles: Role[];
+    timezone?: string | null;
 }
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";
