@@ -629,6 +629,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-contact/{lead}/merge', [LeadMergeController::class, 'merge'])->name('lead-contact.merge');
     Route::get('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates');
     Route::post('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates.find');
+    Route::get('lead-contact/{lead}/merge-review/{duplicate}', [LeadMergeController::class, 'review'])->name('lead-contact.merge-review');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
