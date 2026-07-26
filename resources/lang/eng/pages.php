@@ -684,6 +684,8 @@ return [
                 'upload'                 => 'Upload',
                 'replace'                => 'Replace',
                 'open'                   => 'Open document',
+                'click_to_upload'        => 'Click to upload',
+                'click_to_view'          => 'Click to view',
                 'empty'                  => 'No document slots configured.',
                 'delete_confirm_title'   => 'Delete document?',
                 'delete_confirm_message' => 'This will permanently remove the uploaded file. This cannot be undone.',

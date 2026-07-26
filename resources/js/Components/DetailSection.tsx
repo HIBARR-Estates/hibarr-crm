@@ -104,6 +104,12 @@ interface DetailFieldProps {
     className?: string;
     /** Plain-text value to copy to clipboard on icon click (e.g. email, phone) */
     copyValue?: string;
+    /** Match the parent grid's breakpoint kind — pass this whenever the
+     * DetailSection/CustomFieldDisplay it's rendered in was given
+     * useContainerQuery, otherwise a span-2 field ignores the container's
+     * actual column count and forces a phantom extra column at viewport
+     * widths where the container itself is still narrow. */
+    useContainerQuery?: boolean;
 }
 
 export function DetailField({
@@ -112,6 +118,7 @@ export function DetailField({
     span = 1,
     className = "",
     copyValue,
+    useContainerQuery = false,
 }: DetailFieldProps) {
     // editHandler is registered by a child EditableField via context
     const [editHandler, setEditHandlerState] = useState<(() => void) | null>(
@@ -174,7 +181,11 @@ export function DetailField({
         <DetailFieldEditContext.Provider value={ctx}>
             <div
                 className={`group flex flex-col gap-2 min-w-0 ${
-                    span === 2 ? "sm:col-span-2" : ""
+                    span === 2
+                        ? useContainerQuery
+                            ? "@lg:col-span-2"
+                            : "sm:col-span-2"
+                        : ""
                 } ${className}`}
             >
                 {/* Label row — edit pencil appears here on group hover */}

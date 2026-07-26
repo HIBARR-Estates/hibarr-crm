@@ -680,6 +680,8 @@ return [
                 'upload'                 => 'Yükle',
                 'replace'                => 'Değiştir',
                 'open'                   => 'Belgeyi aç',
+                'click_to_upload'        => 'Yüklemek için tıklayın',
+                'click_to_view'          => 'Görüntülemek için tıklayın',
                 'empty'                  => 'Yapılandırılmış belge alanı yok.',
                 'delete_confirm_title'   => 'Belge silinsin mi?',
                 'delete_confirm_message' => 'Yüklenen dosya kalıcı olarak kaldırılacak. Bu işlem geri alınamaz.',

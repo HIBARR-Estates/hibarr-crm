@@ -676,6 +676,8 @@ return [
                 'upload'                 => 'Hochladen',
                 'replace'                => 'Ersetzen',
                 'open'                   => 'Dokument öffnen',
+                'click_to_upload'        => 'Zum Hochladen klicken',
+                'click_to_view'          => 'Zum Anzeigen klicken',
                 'empty'                  => 'Keine Dokument-Slots konfiguriert.',
                 'delete_confirm_title'   => 'Dokument löschen?',
                 'delete_confirm_message' => 'Die hochgeladene Datei wird dauerhaft entfernt. Dies kann nicht rückgängig gemacht werden.',

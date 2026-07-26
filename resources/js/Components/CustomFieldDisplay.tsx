@@ -513,6 +513,13 @@ interface Props {
     activateOnSingleClick?: boolean;
     /** When set, only custom fields allowed by pipeline scope are shown. null = show all. */
     visibleFieldKeys?: string[] | null;
+    /** Switch the 2-column breakpoint from a viewport media query to a
+     * container query (nearest ancestor with @container), so the grid
+     * responds to this component's own rendered width rather than the
+     * page's. Opt-in — most CustomFieldDisplay callers render at a width
+     * that tracks the viewport 1:1, but a caller like DealInfoSectionPanel
+     * sits next to a fixed sidebar/rail where that isn't true. */
+    useContainerQuery?: boolean;
 }
 
 export default function CustomFieldDisplay({
@@ -535,6 +542,7 @@ export default function CustomFieldDisplay({
     onToggle,
     activateOnSingleClick = false,
     visibleFieldKeys,
+    useContainerQuery = false,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
@@ -1630,7 +1638,7 @@ export default function CustomFieldDisplay({
     return (
         <DetailSection
             title={title}
-            gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5"
+            gridClassName={`grid grid-cols-1 ${useContainerQuery ? "@lg:grid-cols-2" : "sm:grid-cols-2"} gap-x-6 gap-y-5`}
             accordion={accordion}
             sectionId={sectionId}
             isOpen={isOpen}
@@ -1660,6 +1668,7 @@ export default function CustomFieldDisplay({
                         key={field.id}
                         label={field.label}
                         span={span === column ? 2 : 1}
+                        useContainerQuery={useContainerQuery}
                     >
                         {renderEditable(field, value)}
                     </DetailField>

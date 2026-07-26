@@ -49,7 +49,7 @@ export default function DealInfoTab({
         <div>
             <div
                 className="grid min-h-[500px] gap-0"
-                style={{ gridTemplateColumns: "210px 1fr" }}
+                style={{ gridTemplateColumns: "210px minmax(0, 1fr)" }}
             >
                 <DealInfoSidebar
                     navGroups={navGroups}
