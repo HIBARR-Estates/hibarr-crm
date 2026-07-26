@@ -30,12 +30,16 @@ import {
     CloseOutlined,
     CheckCircleOutlined,
     CloseCircleOutlined,
+    MergeCellsOutlined,
 } from "@ant-design/icons";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import SaveLeadModal from "@/Features/Leads/SaveLead/SaveLeadModal";
 import DeleteLead from "@/Features/Leads/DeleteLead";
 import ChangeToClient from "@/Features/Leads/ChangeToClient";
 import SaveTaskModal from "@/Features/Tasks/SaveTask/SaveTaskModal";
+import FindDuplicatesModal from "@/Features/Leads/Merge/FindDuplicatesModal";
+import useLeadMergeAccess from "@/Features/Leads/Merge/useLeadMergeAccess";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import dayjs from "dayjs";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
@@ -140,6 +144,7 @@ const ageRangeOptions = useMemo(
     );
     const user = props.auth.user;
     const { t } = useTranslation();
+    const { td } = useTd();
 
     const renderBoolean = (value: boolean) =>
         value ? (
@@ -242,6 +247,8 @@ const ageRangeOptions = useMemo(
     } = useGenericEntityAction<Lead>();
 
     const [isTaskModalOpen, setIsTaskModalOpen] = useState(false);
+    const [isFindDuplicatesOpen, setIsFindDuplicatesOpen] = useState(false);
+    const canMergeLeads = useLeadMergeAccess();
     const [currentLeadState, setCurrentLeadState] = useState<Lead>(lead);
     const [updatingField, setUpdatingField] = useState<string | null>(null);
 
@@ -795,6 +802,18 @@ const ageRangeOptions = useMemo(
             label: <span>{t("pages.leads.info.actions.convert_to_client")}</span>,
             onClick: () => handleAction("change_to_client", lead),
         },
+        ...(canMergeLeads
+            ? [
+                  {
+                      key: "find_duplicates",
+                      tooltip: td("Find Duplicates"),
+                      type: "text" as const,
+                      icon: <MergeCellsOutlined />,
+                      label: <span>{td("Find Duplicates")}</span>,
+                      onClick: () => setIsFindDuplicatesOpen(true),
+                  },
+              ]
+            : []),
         ...(canDelete
             ? [
                   {
@@ -1514,6 +1533,15 @@ const ageRangeOptions = useMemo(
                 onClose={() => handleClose()}
                 lead={currentLead || lead}
             />
+
+            {canMergeLeads && (
+                <FindDuplicatesModal
+                    open={isFindDuplicatesOpen}
+                    onClose={() => setIsFindDuplicatesOpen(false)}
+                    leadId={(currentLead || lead).id}
+                    leadName={(currentLead || lead).client_name}
+                />
+            )}
 
             <SaveTaskModal
                 open={isTaskModalOpen}

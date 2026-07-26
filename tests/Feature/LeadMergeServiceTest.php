@@ -328,6 +328,73 @@ class LeadMergeServiceTest extends TestCase
         $this->assertNull(Lead::withTrashed()->find($duplicateId)?->merged_into_lead_id);
     }
 
+    public function test_build_review_returns_counts_conflicts_and_ownership_view(): void
+    {
+        $primaryId = $this->insertLead([
+            'client_name' => 'Primary',
+            'client_email' => 'primary@example.com',
+            'mobile' => '111',
+            'lead_owner' => 10,
+            'added_by' => 20,
+        ]);
+        $duplicateId = $this->insertLead([
+            'client_name' => 'Duplicate',
+            'client_email' => 'dup@example.com',
+            'mobile' => '111',
+            'lead_owner' => 11,
+            'added_by' => 20,
+        ]);
+
+        DB::table('deals')->insert([
+            'lead_id' => $duplicateId,
+            'company_id' => $this->companyId,
+            'name' => 'Dup Deal',
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+        DB::table('lead_notes')->insert([
+            'lead_id' => $primaryId,
+            'title' => 'Note',
+            'details' => 'Details',
+            'type' => 0,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        $review = $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+
+        $this->assertSame(
+            ['primary' => 'primary@example.com', 'duplicate' => 'dup@example.com'],
+            $review['contact_conflicts']['client_email'],
+        );
+        $this->assertArrayNotHasKey('mobile', $review['contact_conflicts']);
+
+        $ownershipByField = collect($review['ownership_fields'])->keyBy('field');
+        $this->assertTrue($ownershipByField['lead_owner']['differs']);
+        $this->assertSame(10, $ownershipByField['lead_owner']['primary_value']);
+        $this->assertSame(11, $ownershipByField['lead_owner']['duplicate_value']);
+        $this->assertFalse($ownershipByField['added_by']['differs']);
+
+        $this->assertSame(0, $review['counts']['primary']['deals']);
+        $this->assertSame(1, $review['counts']['duplicate']['deals']);
+        $this->assertSame(1, $review['counts']['primary']['notes']);
+        $this->assertSame(0, $review['counts']['duplicate']['notes']);
+    }
+
+    public function test_build_review_throws_for_already_merged_duplicate(): void
+    {
+        $primaryId = $this->insertLead(['client_name' => 'Primary', 'client_email' => 'a@example.com']);
+        $duplicateId = $this->insertLead([
+            'client_name' => 'Duplicate',
+            'client_email' => 'b@example.com',
+            'merged_into_lead_id' => $primaryId,
+        ]);
+
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->service->buildReview(Lead::findOrFail($primaryId), Lead::findOrFail($duplicateId));
+    }
+
     public function test_find_duplicates_by_email_and_phone_excludes_trashed(): void
     {
         $leadId = $this->insertLead([
