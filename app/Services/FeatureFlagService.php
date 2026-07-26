@@ -47,7 +47,7 @@ class FeatureFlagService
 
         $sessionId = $this->resolveSessionId();
         $cacheKey = $this->cacheKey($sessionId);
-        $cacheTtl = (int) config('features.cache_ttl', 60);
+        $cacheTtl = (int) config('features.cache_ttl', 10);
 
         $cached = Cache::get($cacheKey);
         if (is_array($cached)) {

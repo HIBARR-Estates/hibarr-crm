@@ -2,7 +2,7 @@
 
 return [
     'app_name' => 'crm',
-    'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 60),
+    'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 10),
     'known_flags' => [
         'crm.lead-qualification-tab',
         'crm.lead-language-core-field',
@@ -24,5 +24,6 @@ return [
         'crm.unit-sold-out-badge',
         'crm.unit-sold-out-grid-diagonal-ribbon',
         'crm.deals-product-tour',
+        'crm.deal-info-count-indicator',
     ],
 ];

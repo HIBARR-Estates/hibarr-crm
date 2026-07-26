@@ -69,6 +69,8 @@ function DealViewRedesignInner(props: DealShowProps) {
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
     const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
     const showProductTour = featureFlags?.["crm.deals-product-tour"] === true;
+    const showCompletionDot =
+        featureFlags?.["crm.deal-info-count-indicator"] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -452,6 +454,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                 }
                                                 consents={props.consents}
                                                 gdprSetting={props.gdprSetting}
+                                                showCompletionDot={showCompletionDot}
                                             />
                                         )}
                                         {activeTab === "timeline" && (
