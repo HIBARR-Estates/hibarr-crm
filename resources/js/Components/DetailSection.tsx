@@ -38,6 +38,10 @@ interface DetailSectionProps {
     onToggle?: () => void;
     /** Sets id attribute for anchor scroll targeting */
     sectionId?: string;
+    /** Skip the card chrome (border/background/title bar) entirely and
+     * render just the field grid — for callers whose own page already shows
+     * this section's title, so the card's title bar would just duplicate it. */
+    bare?: boolean;
 }
 
 export function DetailSection({
@@ -49,7 +53,16 @@ export function DetailSection({
     isOpen = false,
     onToggle,
     sectionId,
+    bare = false,
 }: DetailSectionProps) {
+    if (bare) {
+        return (
+            <div id={sectionId} className={gridClassName}>
+                {children}
+            </div>
+        );
+    }
+
     return (
         <div
             id={sectionId}

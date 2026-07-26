@@ -520,6 +520,10 @@ interface Props {
      * that tracks the viewport 1:1, but a caller like DealInfoSectionPanel
      * sits next to a fixed sidebar/rail where that isn't true. */
     useContainerQuery?: boolean;
+    /** Skip the DetailSection card chrome (border/background/title bar) and
+     * render fields as a plain grid, matching a native FieldGrid — for a
+     * caller whose page already renders this section's title itself. */
+    bare?: boolean;
 }
 
 export default function CustomFieldDisplay({
@@ -543,6 +547,7 @@ export default function CustomFieldDisplay({
     activateOnSingleClick = false,
     visibleFieldKeys,
     useContainerQuery = false,
+    bare = false,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
@@ -1638,7 +1643,12 @@ export default function CustomFieldDisplay({
     return (
         <DetailSection
             title={title}
-            gridClassName={`grid grid-cols-1 ${useContainerQuery ? "@lg:grid-cols-2" : "sm:grid-cols-2"} gap-x-6 gap-y-5`}
+            bare={bare}
+            gridClassName={
+                bare
+                    ? "mb-5 grid grid-cols-1 gap-4 gap-x-6 @lg:grid-cols-2"
+                    : `grid grid-cols-1 ${useContainerQuery ? "@lg:grid-cols-2" : "sm:grid-cols-2"} gap-x-6 gap-y-5`
+            }
             accordion={accordion}
             sectionId={sectionId}
             isOpen={isOpen}

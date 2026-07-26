@@ -202,6 +202,7 @@ export default function DealInfoSectionPanel({
                         categoryId={id}
                         visibleFieldKeys={visibleFieldKeys}
                         useContainerQuery
+                        bare
                         column={2}
                         onUpdate={(field, value) =>
                             onFieldUpdate(field, value, "custom_field")
@@ -493,10 +494,10 @@ export default function DealInfoSectionPanel({
                                 return (
                                     <tr key={consent.id}>
                                         <td className="font-semibold text-[#1a1f2e]">
-                                            {consent.name}
+                                            {td(consent.name)}
                                         </td>
                                         <td className="text-[#5b6472]">
-                                            {consent.description}
+                                            {td(consent.description)}
                                         </td>
                                         <td>
                                             <span
@@ -555,7 +556,7 @@ export default function DealInfoSectionPanel({
                 categoryId={categoryId}
                 visibleFieldKeys={visibleFieldKeys}
                 useContainerQuery
-                title={td(sectionTitle)}
+                bare
                 column={2}
                 onUpdate={(field, value) =>
                     onFieldUpdate(field, value, "custom_field")
