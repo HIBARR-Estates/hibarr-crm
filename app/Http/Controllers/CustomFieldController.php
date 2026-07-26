@@ -76,11 +76,11 @@ class CustomFieldController extends AccountBaseController
     public function create()
         {
             $this->customFieldGroups = CustomFieldGroup::all();
-            $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'multiSelectCountry', 'currency', 'phone', 'file', 'repeatable'];
-            // multiSelectCountry is excluded from nested repeatable schemas: repeatable's
-            // per-row "checkbox" schema type renders as a single boolean, not an options
-            // multi-select, so there is no matching nested UI for a multi-value field.
-            $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry'], true)));
+            $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'multiSelectCountry', 'currency', 'range', 'currency_range', 'phone', 'file', 'repeatable'];
+            // multiSelectCountry and range are excluded from nested repeatable schemas:
+            // repeatable's per-row schema types are single-value inputs, with no matching
+            // nested UI for a multi-value (multiSelectCountry) or dual-value (range) field.
+            $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry', 'range', 'currency_range'], true)));
         return view('custom-fields.create-custom-field-modal', $this->data);
     }
 
@@ -146,8 +146,8 @@ class CustomFieldController extends AccountBaseController
         $decodedValues = json_decode($this->field->values, true);
         $this->field->values = is_array($decodedValues) ? $decodedValues : [];
         $this->customFieldGroups = CustomFieldGroup::all();
-        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'multiSelectCountry', 'currency', 'phone', 'file', 'repeatable'];
-        $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry'], true)));
+        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'multiSelectCountry', 'currency', 'range', 'currency_range', 'phone', 'file', 'repeatable'];
+        $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry', 'range', 'currency_range'], true)));
 
         // Get all fields in the same group for visibility rules (and linked-field dropdown for repeatable)
         // Ensure otherFields is always set, even if empty, to prevent undefined variable errors

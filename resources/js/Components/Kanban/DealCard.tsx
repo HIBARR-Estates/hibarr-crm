@@ -188,13 +188,15 @@ const DealCard: React.FC<DealCardProps> = ({
                     </Dropdown>
                 </div>
 
-                {/* Lead/Contact Name */}
+                {/* Lead/Contact Name — icon-prefixed and labeled so it doesn't
+                    read as a second deal title under deal.name above */}
                 {deal.contact?.client_name && (
-                    <div className="mb-2">
+                    <div className="mb-2 flex items-center gap-1 min-w-0">
+                        <UserOutlined className="text-gray-400 text-[11px] flex-shrink-0" />
                         <Text
                             className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{
-                                tooltip: `${deal.contact.salutation ? (deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)) + " " : ""}${td(deal.contact.client_name)}`,
+                                tooltip: `Contact: ${deal.contact.salutation ? (deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)) + " " : ""}${td(deal.contact.client_name)}`,
                             }}
                         >
                             {deal.contact.salutation &&

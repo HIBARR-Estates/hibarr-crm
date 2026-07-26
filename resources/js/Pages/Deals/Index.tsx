@@ -110,6 +110,7 @@ const Index = ({
     const { props: pageProps } = usePage<any>();
     const currentUser = pageProps.auth?.user;
     const editDealsPermission = pageProps.auth?.permissions?.edit_deals;
+    const deleteDealsPermission = pageProps.auth?.permissions?.delete_deals;
     const { td } = useTd();
 
     const queryClient = useQueryClient();
@@ -350,6 +351,7 @@ const Index = ({
             record,
             currentUser?.id,
             editDealsPermission,
+            deleteDealsPermission,
         );
 
         return [

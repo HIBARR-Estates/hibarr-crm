@@ -2,6 +2,7 @@ import { usePage } from "@inertiajs/react";
 import { useMemo } from "react";
 import { Deal } from "@/Types/api/deals";
 import { AppPermission, PermissionScope } from "@/Types/permission";
+import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 
 export type DealRole =
     | "creator"
@@ -83,7 +84,7 @@ export function useDealPermissions(
 
         const userId = currentUser.id;
         const roles: DealRole[] = [];
-        const isLocked = !!deal.is_locked;
+        const isLocked = isDealEffectivelyLocked(deal);
 
         // Full-access scope, not the admin role (see hasFullDealAccess docs).
         const hasFullDealAccess =
@@ -123,11 +124,20 @@ export function useDealPermissions(
         const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
         // Admins, creators, agents, and participants can edit — participants act with the
-        // same rights as the agent. Watchers stay view-only. Deleting the deal itself is
-        // a heavier action and stays agent/creator/admin only.
+        // same rights as the agent. Watchers stay view-only.
         const canEdit =
             !isLocked && (hasFullDealAccess || isCreator || isAgent || isParticipant);
-        const canDelete = !isLocked && (hasFullDealAccess || isCreator || isAgent);
+
+        // Mirrors PermissionService::checkAccess's 'delete_deals' scope handling in
+        // DealController::destroy (added -> creator, owned -> agent/watcher, both -> either)
+        // so the delete button isn't shown to users who'll just get a 403.
+        const deleteScope = permissions?.delete_deals;
+        const canDelete =
+            !isLocked &&
+            (deleteScope === "all" ||
+                (deleteScope === "added" && isCreator) ||
+                (deleteScope === "owned" && (isAgent || isWatcher)) ||
+                (deleteScope === "both" && (isCreator || isAgent || isWatcher)));
 
         // Anyone with a role can view (including admins)
         const canView = hasAnyRole || hasFullDealAccess;
@@ -145,7 +155,7 @@ export function useDealPermissions(
             canView,
             hasAnyRole,
         };
-    }, [deal, currentUser?.id, permissions?.edit_deals]);
+    }, [deal, currentUser?.id, permissions?.edit_deals, permissions?.delete_deals]);
 }
 
 /**
@@ -160,6 +170,7 @@ export function getDealPermissions(
     deal: Deal | null | undefined,
     userId: number | null | undefined,
     editDealsPermission?: PermissionScope,
+    deleteDealsPermission?: PermissionScope,
 ): DealPermissions {
     const defaultPermissions: DealPermissions = {
         roles: ["none"],
@@ -180,7 +191,7 @@ export function getDealPermissions(
     }
 
     const roles: DealRole[] = [];
-    const isLocked = !!deal.is_locked;
+    const isLocked = isDealEffectivelyLocked(deal);
 
     // Full-access scope, not the admin role (see hasFullDealAccess docs).
     const hasFullDealAccess =
@@ -218,10 +229,17 @@ export function getDealPermissions(
     const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
     // Admins, creators, agents, and participants can edit — participants act with the
-    // same rights as the agent. Watchers stay view-only. Deleting the deal itself is
-    // a heavier action and stays agent/creator/admin only.
+    // same rights as the agent. Watchers stay view-only.
     const canEdit = !isLocked && (hasFullDealAccess || isCreator || isAgent || isParticipant);
-    const canDelete = !isLocked && (hasFullDealAccess || isCreator || isAgent);
+
+    // Mirrors PermissionService::checkAccess's 'delete_deals' scope handling in
+    // DealController::destroy (added -> creator, owned -> agent/watcher, both -> either).
+    const canDelete =
+        !isLocked &&
+        (deleteDealsPermission === "all" ||
+            (deleteDealsPermission === "added" && isCreator) ||
+            (deleteDealsPermission === "owned" && (isAgent || isWatcher)) ||
+            (deleteDealsPermission === "both" && (isCreator || isAgent || isWatcher)));
 
     // Anyone with a role can view (including admins)
     const canView = hasAnyRole || hasFullDealAccess;

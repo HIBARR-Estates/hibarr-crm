@@ -27,6 +27,7 @@ interface DealInfoSectionPanelProps {
     deal: Deal;
     fields: any[];
     customFieldCategories: Array<{ id: number; name: string }>;
+    visibleFieldKeys?: string[] | null;
     canEdit: boolean;
     isLocked: boolean;
     isFieldLoading: (fieldName: string) => boolean;
@@ -51,8 +52,13 @@ interface DealInfoSectionPanelProps {
 }
 
 function FieldGrid({ children }: { children: ReactNode }) {
+    // @lg here queries this panel's own rendered width (see the @container on
+    // the <section> root below), not the viewport — the panel sits next to a
+    // fixed sidebar/rail, so it can stay narrow on a wide screen and vice
+    // versa; a viewport breakpoint was switching to 2 columns even when the
+    // panel itself had no room, making fields hard to fill.
     return (
-        <div className="mb-5 grid grid-cols-1 gap-4 gap-x-6 md:grid-cols-2">
+        <div className="mb-5 grid grid-cols-1 gap-4 gap-x-6 @lg:grid-cols-2">
             {children}
         </div>
     );
@@ -63,6 +69,7 @@ export default function DealInfoSectionPanel({
     deal,
     fields,
     customFieldCategories,
+    visibleFieldKeys,
     canEdit,
     isLocked,
     isFieldLoading,
@@ -193,6 +200,9 @@ export default function DealInfoSectionPanel({
                         fields={fields}
                         customFieldsData={deal.custom_fields_data || {}}
                         categoryId={id}
+                        visibleFieldKeys={visibleFieldKeys}
+                        useContainerQuery
+                        bare
                         column={2}
                         onUpdate={(field, value) =>
                             onFieldUpdate(field, value, "custom_field")
@@ -314,7 +324,7 @@ export default function DealInfoSectionPanel({
                     <DealEditableField
                         value={hibarrFields.budget_range}
                         fieldName="budget_range"
-                        fieldType="text"
+                        fieldType="currency_range"
                         onSave={(value) =>
                             onFieldUpdate("budget_range", value, "hibarr_field")
                         }
@@ -419,7 +429,11 @@ export default function DealInfoSectionPanel({
                         loading={isFieldLoading("downpayment_paid")}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.motivation")} span={2}>
+                <DetailField
+                    label={t("pages.deals.info.fields.motivation")}
+                    span={2}
+                    useContainerQuery
+                >
                     <DealEditableField
                         value={hibarrFields.motivation}
                         fieldName="motivation"
@@ -480,10 +494,10 @@ export default function DealInfoSectionPanel({
                                 return (
                                     <tr key={consent.id}>
                                         <td className="font-semibold text-[#1a1f2e]">
-                                            {consent.name}
+                                            {td(consent.name)}
                                         </td>
                                         <td className="text-[#5b6472]">
-                                            {consent.description}
+                                            {td(consent.description)}
                                         </td>
                                         <td>
                                             <span
@@ -540,7 +554,9 @@ export default function DealInfoSectionPanel({
                 fields={fields}
                 customFieldsData={deal.custom_fields_data || {}}
                 categoryId={categoryId}
-                title={td(sectionTitle)}
+                visibleFieldKeys={visibleFieldKeys}
+                useContainerQuery
+                bare
                 column={2}
                 onUpdate={(field, value) =>
                     onFieldUpdate(field, value, "custom_field")
@@ -572,7 +588,7 @@ export default function DealInfoSectionPanel({
     const editableSection = sectionId !== "gdpr";
 
     return (
-        <section className="pl-[26px] pt-1">
+        <section className="@container pl-[26px] pt-1">
             <div className="mb-3.5 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">

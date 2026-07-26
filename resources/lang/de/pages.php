@@ -202,6 +202,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'Dieser Deal ist gesperrt. Bearbeitung und Löschung sind deaktiviert.',
+        'locked_message_won'       => 'Dieser Deal ist gewonnen und gesperrt. Bearbeitung und Löschung sind deaktiviert.',
         'refresh_tooltip_disabled' => 'Speichern oder abbrechen Sie Änderungen, bevor Sie aktualisieren',
         'stage_jump_confirm_title'   => 'Pipeline-Phasen überspringen?',
         'stage_jump_confirm_message' => 'Sie verschieben diesen Deal nach „{{stage}}“ und überspringen dabei eine oder mehrere Phasen. Fortfahren?',
@@ -344,7 +345,7 @@ return [
                 'consent_hint'  => 'Einwilligungsnachweise werden beim verknüpften Lead erfasst. Löschanfragen werden über das DSGVO-Panel des Leads bearbeitet.',
             ],
             'mapped_only_hint_prefix' => 'Dieser Abschnitt enthält noch keine zugeordneten Felder. Weisen Sie Kategorien zu in',
-            'mapped_only_hint_suffix' => 'oder verwenden Sie einen benutzerdefinierten Kategorie-Tab in späteren Phasen.',
+            'mapped_only_hint_suffix' => 'oder verwenden Sie einen benutzerdefinierten Kategorie-Tab unter "Für diese Pipeline".',
             'done_editing'  => 'Bearbeitung beenden',
             'edit_fields'   => 'Felder bearbeiten',
         ],
@@ -419,6 +420,7 @@ return [
             'pipeline' => [
                 'scroll_left'  => 'Pipeline-Phasen nach links scrollen',
                 'scroll_right' => 'Pipeline-Phasen nach rechts scrollen',
+                'requirements_label' => 'Erforderlich für diesen Wechsel:',
                 'messages' => [
                     'stage_updated'   => 'Deal-Phase aktualisiert',
                     'update_failed'   => 'Phase konnte nicht aktualisiert werden',
@@ -674,6 +676,8 @@ return [
                 'upload'                 => 'Hochladen',
                 'replace'                => 'Ersetzen',
                 'open'                   => 'Dokument öffnen',
+                'click_to_upload'        => 'Zum Hochladen klicken',
+                'click_to_view'          => 'Zum Anzeigen klicken',
                 'empty'                  => 'Keine Dokument-Slots konfiguriert.',
                 'delete_confirm_title'   => 'Dokument löschen?',
                 'delete_confirm_message' => 'Die hochgeladene Datei wird dauerhaft entfernt. Dies kann nicht rückgängig gemacht werden.',

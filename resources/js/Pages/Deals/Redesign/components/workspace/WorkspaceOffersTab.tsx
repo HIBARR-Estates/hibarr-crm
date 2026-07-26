@@ -4,6 +4,7 @@ import { useApiMutate, useApiQuery } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import type { Deal } from "@/Types/api/deals";
 import type { DealOfferApplication } from "@/Types/api/offers";
+import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import {
     toWorkspaceOfferApplicationItem,
     type WorkspaceOfferApplicationItem,
@@ -26,6 +27,63 @@ interface DealOffersResponse {
 
 function formatMoney(amount: number, symbol: string) {
     return `${symbol}${Number(amount).toLocaleString("en-GB")}`;
+}
+
+/** Mirrors the real table's column shapes so the loading state doesn't jump
+ * around once data arrives — header stays real/translated, only the
+ * data-dependent rows are skeletons. */
+function OffersSkeleton({
+    columnLabels,
+}: {
+    columnLabels: { offer: string; property: string; type: string; original: string; discount: string };
+}) {
+    return (
+        <div
+            role="status"
+            aria-label="Loading offers"
+            className="mb-2.5 overflow-hidden rounded-[10px] border border-[#e2e5ea] bg-white"
+        >
+            <table className="dr-table">
+                <thead>
+                    <tr>
+                        <th scope="col">{columnLabels.offer}</th>
+                        <th scope="col">{columnLabels.property}</th>
+                        <th scope="col">{columnLabels.type}</th>
+                        <th scope="col" style={{ textAlign: "right" }}>
+                            {columnLabels.original}
+                        </th>
+                        <th scope="col" style={{ textAlign: "right" }}>
+                            {columnLabels.discount}
+                        </th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {[1, 2, 3].map((row) => (
+                        <tr key={row}>
+                            <td>
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className="dr-skeleton h-4 w-4 shrink-0 rounded-full" />
+                                    <span className="dr-skeleton h-3.5 w-24" />
+                                </span>
+                            </td>
+                            <td>
+                                <span className="dr-skeleton inline-block h-3.5 w-20" />
+                            </td>
+                            <td>
+                                <span className="dr-skeleton inline-block h-5 w-16 rounded-full" />
+                            </td>
+                            <td style={{ textAlign: "right" }}>
+                                <span className="dr-skeleton ml-auto inline-block h-3.5 w-14" />
+                            </td>
+                            <td style={{ textAlign: "right" }}>
+                                <span className="dr-skeleton ml-auto inline-block h-3.5 w-14" />
+                            </td>
+                        </tr>
+                    ))}
+                </tbody>
+            </table>
+        </div>
+    );
 }
 
 /** v2.2's Offers tab shows applied DealOfferApplication discounts, ported from
@@ -66,9 +124,7 @@ export default function WorkspaceOffersTab({
         onCountChange?.(items.length);
     }, [items.length, onCountChange]);
 
-    if (isLoading) {
-        return <div className="dr-skeleton h-24 w-full" />;
-    }
+    const isInitialLoading = isLoading && items.length === 0;
 
     return (
         <div>
@@ -86,7 +142,7 @@ export default function WorkspaceOffersTab({
                         type="button"
                         className="dr-btn dr-btn-sm"
                         style={{ color: T.RED, background: T.WHITE, border: `1px solid ${T.BORDER}` }}
-                        disabled={deal.is_locked}
+                        disabled={isDealEffectivelyLocked(deal)}
                         onClick={() => setConfirmRemoveAll(true)}
                     >
                         {t("pages.deals.workspace.offers.remove_all")}
@@ -94,7 +150,17 @@ export default function WorkspaceOffersTab({
                 )}
             </div>
 
-            {items.length === 0 ? (
+            {isInitialLoading ? (
+                <OffersSkeleton
+                    columnLabels={{
+                        offer: t("pages.deals.workspace.offers.col_offer"),
+                        property: t("pages.deals.workspace.offers.col_property"),
+                        type: t("pages.deals.workspace.offers.col_type"),
+                        original: t("pages.deals.workspace.offers.col_original"),
+                        discount: t("pages.deals.workspace.offers.col_discount"),
+                    }}
+                />
+            ) : items.length === 0 ? (
                 <div
                     role="status"
                     className="rounded-[10px] border border-dashed px-3.5 py-6 text-center"

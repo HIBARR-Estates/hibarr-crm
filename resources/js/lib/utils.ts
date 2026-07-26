@@ -1,6 +1,34 @@
 import { Property } from "@/Types";
 import { TFilter } from "@/Types/common";
 
+/**
+ * navigator.clipboard is only defined in secure contexts (HTTPS/localhost) —
+ * on plain-HTTP internal/staging hosts it's `undefined` and `.writeText`
+ * throws, so callers relying on it alone silently fail to copy anything.
+ * Falls back to the legacy execCommand approach there.
+ */
+export async function copyToClipboard(text: string): Promise<void> {
+    if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+        return;
+    }
+
+    const textarea = document.createElement("textarea");
+    textarea.value = text;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    document.body.appendChild(textarea);
+    textarea.focus();
+    textarea.select();
+    try {
+        if (!document.execCommand("copy")) {
+            throw new Error("execCommand copy failed");
+        }
+    } finally {
+        document.body.removeChild(textarea);
+    }
+}
+
 export const isLoading = ({
     isError,
     isLoading,
@@ -153,6 +181,80 @@ export const parsePropertyPrice = (
         return {
             amount: !isNaN(amount) ? amount : 0,
             currency,
+        };
+    }
+
+    return fallback;
+};
+
+/** Parses a "range" custom field value (stored as JSON {min,max}) — same
+ * string/object tolerance as parsePropertyPrice, for the same reason: the
+ * value can arrive as a raw JSON string from storage or an already-parsed
+ * object from local edit state. */
+export const parseRangeValue = (
+    value: any,
+): { min: number | null; max: number | null } => {
+    const fallback = { min: null, max: null };
+    if (value === null || value === undefined) return fallback;
+
+    let parsed = value;
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return fallback;
+        try {
+            parsed = JSON.parse(trimmed);
+        } catch {
+            return fallback;
+        }
+    }
+
+    if (parsed && typeof parsed === "object") {
+        const min = Number((parsed as any).min);
+        const max = Number((parsed as any).max);
+        return {
+            min: !isNaN(min) ? min : null,
+            max: !isNaN(max) ? max : null,
+        };
+    }
+
+    return fallback;
+};
+
+/** Same shape as parseRangeValue plus a currency code — for a "currency
+ * range" field (e.g. a budget range). Legacy free-text values (this field
+ * used to be a plain text input) won't match the {min,max,currency} JSON
+ * shape and intentionally fall back to nulls rather than guessing at a
+ * number from arbitrary text — they're still visible via a plain-text
+ * fallback at the call site, just not editable as a structured range. */
+export const parseCurrencyRangeValue = (
+    value: any,
+    defaultCurrency: string = "TRY",
+): { min: number | null; max: number | null; currency: string } => {
+    const fallback = { min: null, max: null, currency: defaultCurrency };
+    if (value === null || value === undefined) return fallback;
+
+    let parsed = value;
+    if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return fallback;
+        try {
+            parsed = JSON.parse(trimmed);
+        } catch {
+            return fallback;
+        }
+    }
+
+    if (parsed && typeof parsed === "object") {
+        const min = Number((parsed as any).min);
+        const max = Number((parsed as any).max);
+        return {
+            min: !isNaN(min) ? min : null,
+            max: !isNaN(max) ? max : null,
+            currency:
+                typeof (parsed as any).currency === "string" &&
+                (parsed as any).currency
+                    ? (parsed as any).currency
+                    : defaultCurrency,
         };
     }
 

@@ -57,7 +57,10 @@ export default function DealTimelineEventList({
     const { updateEvent, deleteEvent, savingUuid, deletingUuid } =
         useDealTimelineEventMutations(() => onChanged?.());
 
-    if (isLoading) {
+    // Only block on the skeleton when there's nothing to show yet — a
+    // background refetch/filter change with events already on screen should
+    // never blank the list back to a loading state.
+    if (isLoading && events.length === 0) {
         return <TimelineSkeleton />;
     }
 

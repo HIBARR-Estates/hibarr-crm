@@ -51,6 +51,9 @@ export default function useDealTimeline(dealId: number) {
         params: queryParams,
         getNextPageParam: (lastPage) =>
             lastPage.meta.has_more ? lastPage.meta.current_page + 1 : undefined,
+        // A filter/date-range change is a new query key — keep the current
+        // events on screen while the new set loads instead of flashing empty.
+        keepPreviousPageData: true,
         options: {
             // refetchInterval: 15000,
             staleTime: 1000 * 60 * 5, // 5 minutes

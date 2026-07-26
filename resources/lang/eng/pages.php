@@ -210,6 +210,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'This deal is locked. Editing and deletion are disabled.',
+        'locked_message_won'       => 'This deal is won and locked. Editing and deletion are disabled.',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'stage_jump_confirm_title'   => 'Skip pipeline stages?',
         'stage_jump_confirm_message' => 'You are moving this deal to "{{stage}}", skipping one or more stages in between. Continue?',
@@ -352,7 +353,7 @@ return [
                 'consent_hint'  => "Consent records are captured on the linked lead. Erasure requests are handled from the lead's GDPR panel.",
             ],
             'mapped_only_hint_prefix' => 'No fields are mapped to this section yet. Assign categories in',
-            'mapped_only_hint_suffix' => 'or use a custom category tab in Later stages.',
+            'mapped_only_hint_suffix' => 'or use a custom category tab under "For this pipeline".',
             'done_editing'  => 'Done editing',
             'edit_fields'   => 'Edit fields',
         ],
@@ -427,6 +428,7 @@ return [
             'pipeline' => [
                 'scroll_left'  => 'Scroll pipeline stages left',
                 'scroll_right' => 'Scroll pipeline stages right',
+                'requirements_label' => 'Required to move here:',
                 'messages' => [
                     'stage_updated'   => 'Deal stage updated',
                     'update_failed'   => 'Failed to update stage',
@@ -682,6 +684,8 @@ return [
                 'upload'                 => 'Upload',
                 'replace'                => 'Replace',
                 'open'                   => 'Open document',
+                'click_to_upload'        => 'Click to upload',
+                'click_to_view'          => 'Click to view',
                 'empty'                  => 'No document slots configured.',
                 'delete_confirm_title'   => 'Delete document?',
                 'delete_confirm_message' => 'This will permanently remove the uploaded file. This cannot be undone.',

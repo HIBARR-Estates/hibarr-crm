@@ -202,6 +202,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'Bu anlaşma kilitli. Düzenleme ve silme devre dışı bırakıldı.',
+        'locked_message_won'       => 'Bu anlaşma kazanıldı ve kilitli. Düzenleme ve silme devre dışı bırakıldı.',
         'refresh_tooltip_disabled' => 'Yenilemeden önce değişiklikleri kaydedin veya iptal edin',
         'stage_jump_confirm_title'   => 'Pipeline aşamalarını atla?',
         'stage_jump_confirm_message' => 'Bu anlaşmayı "{{stage}}" aşamasına taşıyorsunuz ve aradaki bir veya daha fazla aşamayı atlıyorsunuz. Devam edilsin mi?',
@@ -347,7 +348,7 @@ return [
                 'consent_hint'  => "Onay kayıtları ilişkili müşteri adayına eklenir. Silme talepleri adayın GDPR panelinden yönetilir.",
             ],
             'mapped_only_hint_prefix' => 'Bu bölüme henüz hiçbir alan eşlenmedi. Kategorileri şurada ata:',
-            'mapped_only_hint_suffix' => 'veya daha sonraki aşamalarda özel bir kategori sekmesi kullan.',
+            'mapped_only_hint_suffix' => 'veya "Bu pipeline için" bölümünde özel bir kategori sekmesi kullan.',
             'done_editing'  => 'Düzenleme tamamlandı',
             'edit_fields'   => 'Alanları düzenle',
        
@@ -423,6 +424,7 @@ return [
             'pipeline' => [
                 'scroll_left'  => 'Aşamaları sola kaydır',
                 'scroll_right' => 'Aşamaları sağa kaydır',
+                'requirements_label' => 'Buraya geçmek için gerekli:',
                 'messages' => [
                     'stage_updated'   => 'Anlaşma aşaması güncellendi',
                     'update_failed'   => 'Aşama güncellenemedi',
@@ -678,6 +680,8 @@ return [
                 'upload'                 => 'Yükle',
                 'replace'                => 'Değiştir',
                 'open'                   => 'Belgeyi aç',
+                'click_to_upload'        => 'Yüklemek için tıklayın',
+                'click_to_view'          => 'Görüntülemek için tıklayın',
                 'empty'                  => 'Yapılandırılmış belge alanı yok.',
                 'delete_confirm_title'   => 'Belge silinsin mi?',
                 'delete_confirm_message' => 'Yüklenen dosya kalıcı olarak kaldırılacak. Bu işlem geri alınamaz.',

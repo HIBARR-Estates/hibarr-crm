@@ -95,7 +95,13 @@ export default function DealDocumentSlotRow({
 
     // Compact (dossier rail) is only ~270px wide, so the whole row is the
     // click target and carries nothing but icon + label + status. Anything
-    // more overflows and gives the rail a sideways scrollbar.
+    // more overflows and gives the rail a sideways scrollbar — the click
+    // hint below is added as a second line (height, not width) to stay
+    // inside that constraint.
+    const clickHint = doc.uploaded
+        ? t("pages.deals.workspace.documents.click_to_view")
+        : t("pages.deals.workspace.documents.click_to_upload");
+
     if (!isFull) {
         const inner = (
             <>
@@ -104,11 +110,19 @@ export default function DealDocumentSlotRow({
                     size={13}
                     color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
                 />
-                <span
-                    className="min-w-0 flex-1 truncate"
-                    style={{ fontSize: 12, color: T.TEXT }}
-                >
-                    {td(doc.label)}
+                <span className="min-w-0 flex-1">
+                    <span
+                        className="block truncate"
+                        style={{ fontSize: 12, color: T.TEXT }}
+                    >
+                        {td(doc.label)}
+                    </span>
+                    <span
+                        className="block truncate"
+                        style={{ fontSize: 11, color: T.TEXT_MUTED }}
+                    >
+                        {clickHint}
+                    </span>
                 </span>
                 <span className={`dr-pill ${pillClass}`} style={{ flexShrink: 0 }}>
                     {pillLabel}
@@ -182,19 +196,38 @@ export default function DealDocumentSlotRow({
                     target="_blank"
                     rel="noopener noreferrer"
                     title={t("pages.deals.workspace.documents.open")}
-                    className="flex min-w-0 flex-1 items-center gap-1.5 truncate no-underline"
-                    style={{ fontSize: 14, color: T.BLUE }}
+                    className="flex min-w-0 flex-1 items-start gap-1.5 no-underline"
                 >
-                    <span className="truncate">{td(doc.label)}</span>
-                    <DealIcon name="external-link" size={13} />
+                    <span className="min-w-0 flex-1">
+                        <span
+                            className="flex items-center gap-1.5 truncate"
+                            style={{ fontSize: 14, color: T.BLUE }}
+                        >
+                            <span className="truncate">{td(doc.label)}</span>
+                            <DealIcon name="external-link" size={13} />
+                        </span>
+                        <span
+                            className="block truncate"
+                            style={{ fontSize: 11, color: T.TEXT_MUTED }}
+                        >
+                            {clickHint}
+                        </span>
+                    </span>
                 </a>
             ) : (
-                <span
-                    className="min-w-0 flex-1 truncate"
-                    style={{ fontSize: 14, color: T.TEXT }}
-                    title={doc.label}
-                >
-                    {td(doc.label)}
+                <span className="min-w-0 flex-1" title={doc.label}>
+                    <span
+                        className="block truncate"
+                        style={{ fontSize: 14, color: T.TEXT }}
+                    >
+                        {td(doc.label)}
+                    </span>
+                    <span
+                        className="block truncate"
+                        style={{ fontSize: 11, color: T.TEXT_MUTED }}
+                    >
+                        {clickHint}
+                    </span>
                 </span>
             )}
 
