@@ -747,6 +747,42 @@ class DealController extends AccountBaseController
                     })
                     ->toArray();
             }, 'formMeta'),
+            // Powers the pipeline stepper's hover tooltip: what has to be true
+            // on the deal before an automation will move it into a given
+            // stage. Keyed by target stage id (stage ids are unique across
+            // pipelines) — mirrors DealAutomationService::evaluateConditions,
+            // read-only here, so it can never drift into actually gating the
+            // move.
+            'stageAutomationRequirements' => Inertia::defer(function () {
+                return \App\Models\DealAutomation::query()
+                    ->where('active', true)
+                    ->with(['conditions', 'actions'])
+                    ->get()
+                    ->flatMap(function (\App\Models\DealAutomation $automation) {
+                        if ($automation->conditions->isEmpty()) {
+                            return [];
+                        }
+
+                        $conditions = $automation->conditions
+                            ->map(fn ($condition) => [
+                                'field' => $condition->field,
+                                'operator' => $condition->operator,
+                                'value' => $condition->value,
+                            ])
+                            ->values()
+                            ->all();
+
+                        return $automation->actions
+                            ->filter(fn ($action) => ($action->action_type ?? 'stage_transition') === 'stage_transition' && $action->target_stage_id)
+                            ->map(fn ($action) => [
+                                'stage_id' => $action->target_stage_id,
+                                'conditions' => $conditions,
+                            ]);
+                    })
+                    ->groupBy('stage_id')
+                    ->map(fn ($group) => $group->pluck('conditions')->flatten(1)->values())
+                    ->toArray();
+            }, 'formMeta'),
         ]));
     }
 
@@ -1271,6 +1307,12 @@ class DealController extends AccountBaseController
 
         // Auto-apply offers based on product properties
         app(DealOfferService::class)->applyOffersToDeal($deal);
+
+        // Recompute the canonical value now that products/packages may have changed —
+        // unlike patch(), update() previously only ever set $deal->value from an explicit
+        // manual_value/value in the request, so calculated-source deals could sit stale
+        // (e.g. at the 0 they're created with) after a plain PUT.
+        app(DealValueResolver::class)->resolveAndPersist($deal->fresh());
 
         if (!$deal->wasChanged() && $customFieldsUpdated) {
              app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');

@@ -18,6 +18,8 @@ import PhoneInput from "antd-phone-input";
 import { CustomField } from "@/Types";
 import { useCustomFieldVisibility } from "@/Hooks/useCustomFieldVisibility";
 import CurrencyInput from "@/Components/CurrencyInput";
+import RangeInput from "@/Components/RangeInput";
+import CurrencyRangeInput from "@/Components/CurrencyRangeInput";
 import RepeatableFieldRenderer from "@/Components/RepeatableFieldRenderer";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useCountries } from "@/Hooks/useFormData";
@@ -394,6 +396,46 @@ const CustomFieldRenderer: React.FC<Props> = ({
         </Form.Item>
     );
 
+    const renderRangeField = (field: CustomField) => (
+        <Form.Item
+            key={field.id}
+            name={[namePrefix, `field_${field.id}`]}
+            label={field.label}
+            rules={
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
+                    : []
+            }
+        >
+            <RangeInput placeholder={field.label} />
+        </Form.Item>
+    );
+
+    const renderCurrencyRangeField = (field: CustomField) => (
+        <Form.Item
+            key={field.id}
+            name={[namePrefix, `field_${field.id}`]}
+            label={field.label}
+            rules={
+                field.required === "yes" && isFieldVisible(field.id)
+                    ? [
+                          {
+                              required: true,
+                              message: `${field.label} is required`,
+                          },
+                      ]
+                    : []
+            }
+        >
+            <CurrencyRangeInput placeholder={field.label} />
+        </Form.Item>
+    );
+
     // File upload field using external FileUploadService
     const FileUploadField: React.FC<{ field: CustomField }> = ({ field }) => {
         const [uploading, setUploading] = useState(false);
@@ -511,6 +553,10 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 return renderMultiSelectCountryField(field);
             case "currency":
                 return renderCurrencyField(field);
+            case "range":
+                return renderRangeField(field);
+            case "currency_range":
+                return renderCurrencyRangeField(field);
             case "repeatable":
                 return (
                     <RepeatableFieldRenderer
@@ -540,7 +586,8 @@ const CustomFieldRenderer: React.FC<Props> = ({
                         key={field.id}
                         span={
                             field.type === "textarea" ||
-                            field.type === "repeatable"
+                            field.type === "repeatable" ||
+                            field.type === "currency_range"
                                 ? 24
                                 : 12
                         }

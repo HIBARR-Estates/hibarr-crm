@@ -1,6 +1,10 @@
 import { AuthType } from "@/Types";
 import { usePage } from "@inertiajs/react";
-import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
+import {
+    useQuery,
+    useInfiniteQuery,
+    keepPreviousData,
+} from "@tanstack/react-query";
 import axios from "axios";
 
 const getData = async <
@@ -79,6 +83,9 @@ export const useApiInfiniteQuery = <
         allPages: QueryResponse[],
     ) => unknown;
     initialPageParam?: number;
+    /** Keeps the previous page's data on screen while a new query key (e.g.
+     * a changed filter) loads, instead of resetting to an empty list. */
+    keepPreviousPageData?: boolean;
     options?: Partial<{
         staleTime: number;
         cacheTime: number;
@@ -93,6 +100,7 @@ export const useApiInfiniteQuery = <
         path,
         getNextPageParam,
         initialPageParam = 1,
+        keepPreviousPageData = false,
         options,
     } = input;
 
@@ -108,6 +116,7 @@ export const useApiInfiniteQuery = <
         },
         getNextPageParam,
         initialPageParam,
+        ...(keepPreviousPageData ? { placeholderData: keepPreviousData } : {}),
 
         ...options,
     });

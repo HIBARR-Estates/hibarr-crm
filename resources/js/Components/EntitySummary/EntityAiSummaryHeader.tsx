@@ -1,5 +1,6 @@
 import { ReloadOutlined, RobotOutlined } from "@ant-design/icons";
 import { Button } from "antd";
+import { Sparkles } from "lucide-react";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type {
@@ -67,20 +68,7 @@ export default function EntityAiSummaryHeader({
         : null;
 
     if (variant === "redesign") {
-        const sparkIcon = (
-            <svg
-                width={15}
-                height={15}
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            >
-                <path d="M12 3l1.9 4.8L19 9.5l-4.2 2.9L15 18l-3-3-3 3 .2-5.6L5 9.5l5.1-1.7z" />
-            </svg>
-        );
+        const sparkIcon = <Sparkles width={15} height={15} strokeWidth={2} />;
 
         if (!hasSummary) {
             // Not toggleable — there's no detail to expand into until a

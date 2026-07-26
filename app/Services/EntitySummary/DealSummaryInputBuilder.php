@@ -154,10 +154,27 @@ class DealSummaryInputBuilder
      */
     public function inputHash(Deal $deal): string
     {
-        $deal->loadMissing(['packages', 'products']);
+        $deal->loadMissing(['packages', 'products', 'hibarrFields']);
+
+        // HIBARR fields (interested_in, motivation, budget_range, inspection_trip_date,
+        // deposit_confirmation, etc.) previously weren't fingerprinted at all, so recording
+        // e.g. an inspection trip date never invalidated the cached summary.
+        $hibarrUpdatedAt = $deal->hibarrFields?->updated_at?->toIso8601String();
+
+        // custom_fields_data has no timestamp columns, so the only reliable way to
+        // detect a change is to fingerprint the actual stored values.
+        $customFieldsHash = hash('sha256', \Illuminate\Support\Facades\DB::table('custom_fields_data')
+            ->where('model', Deal::CUSTOM_FIELD_MODEL)
+            ->where('model_id', $deal->id)
+            ->orderBy('custom_field_id')
+            ->pluck('value', 'custom_field_id')
+            ->toJson());
 
         $fingerprint = [
             'id' => $deal->id,
+            // Catches anything on the deal row itself not broken out below
+            // (name, description, outcome_status, is_locked, ...).
+            'deal_updated_at' => $deal->updated_at?->toIso8601String(),
             'stage' => $deal->pipeline_stage_id,
             'value' => $deal->value,
             'manual_value' => $deal->manual_value ?? null,
@@ -179,6 +196,8 @@ class DealSummaryInputBuilder
             'files_max_id' => DealFile::where('deal_id', $deal->id)->max('id'),
             'history_count' => DealHistory::where('deal_id', $deal->id)->count(),
             'history_max_id' => DealHistory::where('deal_id', $deal->id)->max('id'),
+            'hibarr_updated_at' => $hibarrUpdatedAt,
+            'custom_fields_hash' => $customFieldsHash,
         ];
 
         return hash('sha256', json_encode($fingerprint));

@@ -15,6 +15,7 @@ import {
 import DealBulkActionBar from "../primitives/DealBulkActionBar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import DealDateBlock from "../primitives/DealDateBlock";
 import DealIcon from "../primitives/DealIcon";
 import DealSelectCheckbox from "../primitives/DealSelectCheckbox";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -303,36 +304,11 @@ export default function WorkspaceMeetingsTab({
                                             className="flex min-w-0 flex-1 cursor-pointer gap-3.5 border-none bg-transparent p-0 text-left"
                                             style={{ color: T.TEXT }}
                                         >
-                                            <span
-                                                className="w-12 shrink-0 rounded-lg border px-1.5 py-2 text-center"
-                                                style={{
-                                                    background: isPastSection
-                                                        ? T.SURFACE_2
-                                                        : T.BLUE_LIGHT,
-                                                    borderColor: isPastSection
-                                                        ? T.BORDER
-                                                        : T.BLUE_MID,
-                                                }}
-                                            >
-                                                <span
-                                                    className="block text-[12px] uppercase"
-                                                    style={{
-                                                        color: T.TEXT_MUTED,
-                                                    }}
-                                                >
-                                                    {meeting.monthLabel}
-                                                </span>
-                                                <span
-                                                    className="block text-base font-bold leading-tight"
-                                                    style={{
-                                                        color: isPastSection
-                                                            ? T.TEXT_MUTED
-                                                            : "#14538c",
-                                                    }}
-                                                >
-                                                    {meeting.dayLabel}
-                                                </span>
-                                            </span>
+                                            <DealDateBlock
+                                                monthLabel={meeting.monthLabel}
+                                                dayLabel={meeting.dayLabel}
+                                                muted={isPastSection}
+                                            />
                                             <span className="min-w-0 flex-1">
                                                 <span className="mb-1 flex flex-wrap items-center gap-2">
                                                     <span

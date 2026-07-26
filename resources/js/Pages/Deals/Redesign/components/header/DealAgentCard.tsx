@@ -145,7 +145,7 @@ export default function DealAgentCard({
                             aria-hidden="true"
                             className="flex h-3.5 w-3.5 items-center justify-center"
                         >
-                            <span className="animate-spin rounded-full border-2 border-current border-t-transparent h-3 w-3" />
+                            <span className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent h-3 w-3" />
                         </span>
                     ) : (
                         <DealIcon name={open ? "chevron-up" : "chevron-down"} size={14} />

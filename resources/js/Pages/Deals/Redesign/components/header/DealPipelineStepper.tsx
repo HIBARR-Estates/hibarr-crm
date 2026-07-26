@@ -1,7 +1,10 @@
 import { useState } from "react";
+import { Tooltip } from "antd";
+import { usePage } from "@inertiajs/react";
 import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import useDealPipeline from "../../hooks/useDealPipeline";
 import useHScroll from "../../hooks/useHScroll";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
@@ -13,8 +16,42 @@ interface DealPipelineStepperProps {
     permissions: Record<string, string>;
 }
 
+interface StageRequirementCondition {
+    field: string;
+    operator: string;
+    value: unknown;
+}
+
 function hasAllPermission(permissions: Record<string, string>, key: string) {
     return permissions?.[key] === "all";
+}
+
+const OPERATOR_LABEL: Record<string, string> = {
+    "=": "is",
+    ">": "is more than",
+    "<": "is less than",
+    contains: "contains",
+    exists: "is filled in",
+    changed: "has changed",
+};
+
+function humanizeField(field: string) {
+    const last = field.split(".").pop() ?? field;
+    return last
+        .replace(/[_-]+/g, " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatCondition(condition: StageRequirementCondition): string {
+    const label = humanizeField(condition.field);
+    const opLabel = OPERATOR_LABEL[condition.operator] ?? condition.operator;
+    if (condition.operator === "exists" || condition.operator === "changed") {
+        return `${label} ${opLabel}`;
+    }
+    const value = Array.isArray(condition.value)
+        ? condition.value.join(", ")
+        : String(condition.value ?? "");
+    return `${label} ${opLabel} ${value}`;
 }
 
 /** Ported from v2.2's Stepper card (deal-v2-2.jsx:1137-1189). */
@@ -26,6 +63,10 @@ export default function DealPipelineStepper({
     const { t } = useTranslation();
     const canChangeStages = hasAllPermission(permissions, "change_deal_stages");
     const pipeline = useDealPipeline(deal, canChangeStages);
+    const stageRequirements = usePage<any>().props
+        .stageAutomationRequirements as
+        | Record<number, StageRequirementCondition[]>
+        | undefined;
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
     const [pendingStageId, setPendingStageId] = useState<number | null>(null);
@@ -33,12 +74,13 @@ export default function DealPipelineStepper({
     const currentIdx = pipeline.stages.findIndex(
         (stage) => stage.id === pipeline.currentStageId,
     );
+    const dealLocked = isDealEffectivelyLocked(deal);
 
     const handleClick = (
         stage: (typeof pipeline.stages)[number],
         index: number,
     ) => {
-        if (index === currentIdx || !canChangeStages || deal.is_locked) return;
+        if (index === currentIdx || !canChangeStages || dealLocked) return;
         const isJump = Math.abs(index - currentIdx) > 1 || index < currentIdx;
         if (isJump) setPendingStageId(stage.id);
         else pipeline.updateStage(stage.id);
@@ -65,7 +107,7 @@ export default function DealPipelineStepper({
                 {pipeline.isUpdating && (
                     <span
                         aria-hidden="true"
-                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                         style={{ width: 10, height: 10, color: T.TEXT_MUTED }}
                     />
                 )}
@@ -95,19 +137,18 @@ export default function DealPipelineStepper({
                         const isDone = index < currentIdx;
                         const isActive = index === currentIdx;
                         const accent = stage.label_color || T.BLUE;
-                        return (
-                            <div
-                                key={stage.id}
-                                style={{ display: "flex", alignItems: "center" }}
-                            >
+                        const requirements = stageRequirements?.[stage.id];
+                        const hasRequirements = !!requirements?.length;
+
+                        const stageButton = (
                                 <button
                                     type="button"
                                     onClick={() => handleClick(stage, index)}
                                     aria-current={isActive ? "step" : undefined}
-                                    title={td(stage.name)}
+                                    title={hasRequirements ? undefined : td(stage.name)}
                                     disabled={
                                         !canChangeStages ||
-                                        deal.is_locked ||
+                                        dealLocked ||
                                         pipeline.isUpdating
                                     }
                                     style={{
@@ -120,21 +161,32 @@ export default function DealPipelineStepper({
                                         alignItems: "center",
                                         gap: 6,
                                         fontWeight: isActive ? 700 : 500,
-                                        opacity: pipeline.isUpdating ? 0.6 : 1,
                                         cursor:
                                             !canChangeStages ||
-                                            deal.is_locked ||
+                                            dealLocked ||
                                             pipeline.isUpdating
                                                 ? "default"
                                                 : "pointer",
-                                        minHeight: 30,
+                                        minHeight: 28,
+                                        // Current stage is solid and unmistakable; passed
+                                        // stages keep their stage color (not greyed out to
+                                        // neutral) but dimmed via opacity so they still
+                                        // visibly recede behind the current stage.
+                                        opacity: pipeline.isUpdating
+                                            ? 0.6
+                                            : isDone
+                                              ? 0.45
+                                              : 1,
                                         background: isActive
-                                            ? `${accent}59`
+                                            ? accent
                                             : isDone
                                               ? `${accent}22`
                                               : T.BG,
-                                        color:
-                                            isActive || isDone ? T.TEXT : T.TEXT_MUTED,
+                                        color: isActive
+                                            ? "#ffffff"
+                                            : isDone
+                                              ? accent
+                                              : T.TEXT_MUTED,
                                         border: `1px solid ${
                                             isActive || isDone ? accent : T.BORDER
                                         }`,
@@ -147,12 +199,48 @@ export default function DealPipelineStepper({
                                             height: 6,
                                             borderRadius: "50%",
                                             display: "inline-block",
-                                            background:
-                                                isActive || isDone ? accent : T.BORDER,
+                                            flexShrink: 0,
+                                            background: isActive
+                                                ? "#ffffff"
+                                                : isDone
+                                                  ? accent
+                                                  : T.BORDER,
                                         }}
                                     />
                                     {td(stage.name)}
                                 </button>
+                        );
+
+                        return (
+                            <div
+                                key={stage.id}
+                                style={{ display: "flex", alignItems: "center" }}
+                            >
+                                {hasRequirements ? (
+                                    <Tooltip
+                                        title={
+                                            <div>
+                                                <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                                                    {td(stage.name)}
+                                                </div>
+                                                <div>
+                                                    {t("pages.deals.header.pipeline.requirements_label")}
+                                                </div>
+                                                <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
+                                                    {requirements!.map((condition, i) => (
+                                                        <li key={i}>
+                                                            {formatCondition(condition)}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        }
+                                    >
+                                        {stageButton}
+                                    </Tooltip>
+                                ) : (
+                                    stageButton
+                                )}
                                 {index < pipeline.stages.length - 1 && (
                                     <span
                                         aria-hidden="true"

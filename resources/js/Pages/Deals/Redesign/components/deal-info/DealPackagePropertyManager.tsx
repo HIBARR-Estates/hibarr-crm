@@ -145,8 +145,8 @@ export default function DealPackagePropertyManager({
                 display: "flex",
                 alignItems: "center",
                 gap: 8,
-                marginBottom: 8,
-                paddingBottom: 7,
+                marginBottom: 16,
+                paddingBottom: 6,
                 borderBottom: `1px solid ${T.BORDER_SOFT}`,
             }}
         >
@@ -220,6 +220,7 @@ export default function DealPackagePropertyManager({
                             style={{
                                 display: "flex",
                                 alignItems: "center",
+                                flexWrap: "wrap",
                                 gap: 12,
                                 padding: "10px 12px",
                             }}
@@ -229,7 +230,7 @@ export default function DealPackagePropertyManager({
                                     display: "flex",
                                     alignItems: "center",
                                     gap: 12,
-                                    flex: 1,
+                                    flex: "1 1 180px",
                                     minWidth: 0,
                                 }}
                             >
@@ -257,6 +258,7 @@ export default function DealPackagePropertyManager({
                                     style={{
                                         display: "flex",
                                         alignItems: "center",
+                                        flexWrap: "wrap",
                                         gap: 6,
                                         flexShrink: 0,
                                     }}
@@ -357,12 +359,13 @@ export default function DealPackagePropertyManager({
                                 style={{
                                     display: "flex",
                                     alignItems: "center",
+                                    flexWrap: "wrap",
                                     gap: 12,
                                     padding: "10px 12px",
                                 }}
                             >
                                 {iconTile("building")}
-                                <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ flex: "1 1 180px", minWidth: 0 }}>
                                     <div
                                         style={{
                                             display: "flex",
@@ -410,6 +413,7 @@ export default function DealPackagePropertyManager({
                                         target="_blank"
                                         rel="noopener noreferrer"
                                         className="dr-btn dr-btn-ghost dr-btn-sm"
+                                        style={{ flexShrink: 0 }}
                                     >
                                         {t("pages.deals.info.pkgprop.view")} ↗
                                     </a>
@@ -418,7 +422,7 @@ export default function DealPackagePropertyManager({
                                     <DealButton
                                         variant="ghost"
                                         size="sm"
-                                        style={{ color: T.RED }}
+                                        style={{ color: T.RED, flexShrink: 0 }}
                                         aria-label={`${t("pages.deals.info.pkgprop.remove")} ${title}`}
                                         onClick={() => removeProperty(product.id)}
                                     >

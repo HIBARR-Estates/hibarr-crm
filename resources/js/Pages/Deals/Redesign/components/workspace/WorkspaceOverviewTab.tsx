@@ -8,6 +8,7 @@ import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDr
 import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
+import DealDateBlock from "../primitives/DealDateBlock";
 import DealIcon from "../primitives/DealIcon";
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
 import useDealTaskStatus from "../../hooks/useDealTaskStatus";
@@ -309,28 +310,11 @@ export default function WorkspaceOverviewTab({
                             className="dr-card mb-2 flex gap-2.5"
                             style={{ padding: "10px 12px" }}
                         >
-                            <button
-                                type="button"
+                            <DealDateBlock
+                                monthLabel={meeting.monthLabel}
+                                dayLabel={meeting.dayLabel}
                                 onClick={() => setSelectedMeeting(raw)}
-                                className="w-10 shrink-0 cursor-pointer self-start rounded-md px-1 py-1.5 text-center"
-                                style={{
-                                    background: T.BLUE_LIGHT,
-                                    border: `1px solid ${T.BLUE_MID}`,
-                                }}
-                            >
-                                <span
-                                    className="block text-[12px] uppercase"
-                                    style={{ color: T.TEXT_MUTED }}
-                                >
-                                    {meeting.monthLabel}
-                                </span>
-                                <span
-                                    className="block text-[15px] font-bold leading-none"
-                                    style={{ color: "#14538c" }}
-                                >
-                                    {meeting.dayLabel}
-                                </span>
-                            </button>
+                            />
                             <button
                                 type="button"
                                 onClick={() => setSelectedMeeting(raw)}

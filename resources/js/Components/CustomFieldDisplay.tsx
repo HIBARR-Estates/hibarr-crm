@@ -10,7 +10,12 @@ import {
 import dayjs from "dayjs";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { isFieldVisible as isPipelineFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
-import { formatCountryForDisplay, formatMobileForDisplay } from "@/lib/utils";
+import {
+    formatCountryForDisplay,
+    formatMobileForDisplay,
+    parseRangeValue,
+    parseCurrencyRangeValue,
+} from "@/lib/utils";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import EditableRepeatableField from "@/Components/EditableRepeatableField";
@@ -508,6 +513,17 @@ interface Props {
     activateOnSingleClick?: boolean;
     /** When set, only custom fields allowed by pipeline scope are shown. null = show all. */
     visibleFieldKeys?: string[] | null;
+    /** Switch the 2-column breakpoint from a viewport media query to a
+     * container query (nearest ancestor with @container), so the grid
+     * responds to this component's own rendered width rather than the
+     * page's. Opt-in — most CustomFieldDisplay callers render at a width
+     * that tracks the viewport 1:1, but a caller like DealInfoSectionPanel
+     * sits next to a fixed sidebar/rail where that isn't true. */
+    useContainerQuery?: boolean;
+    /** Skip the DetailSection card chrome (border/background/title bar) and
+     * render fields as a plain grid, matching a native FieldGrid — for a
+     * caller whose page already renders this section's title itself. */
+    bare?: boolean;
 }
 
 export default function CustomFieldDisplay({
@@ -530,6 +546,8 @@ export default function CustomFieldDisplay({
     onToggle,
     activateOnSingleClick = false,
     visibleFieldKeys,
+    useContainerQuery = false,
+    bare = false,
 }: Props) {
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
@@ -1322,6 +1340,56 @@ export default function CustomFieldDisplay({
                 return <span className={notSetClassName}>{notSetLabel}</span>;
             }
 
+            case "range": {
+                const parsed = parseRangeValue(value);
+                if (parsed.min == null && parsed.max == null) {
+                    return typeof value === "string" && value.trim() ? (
+                        <span>{value}</span>
+                    ) : (
+                        <span className={notSetClassName}>{notSetLabel}</span>
+                    );
+                }
+                const fmt = (n: number | null) =>
+                    n == null ? "?" : n.toLocaleString();
+                return (
+                    <span className="font-medium">
+                        {fmt(parsed.min)} – {fmt(parsed.max)}
+                    </span>
+                );
+            }
+
+            case "currency_range": {
+                const parsed = parseCurrencyRangeValue(value, appDefaultCurrency);
+                if (parsed.min == null && parsed.max == null) {
+                    return typeof value === "string" && value.trim() ? (
+                        <span>{value}</span>
+                    ) : (
+                        <span className={notSetClassName}>{notSetLabel}</span>
+                    );
+                }
+                const defaultSymbols: Record<string, string> = {
+                    USD: "$",
+                    EUR: "€",
+                    GBP: "£",
+                };
+                const symbol =
+                    currencies.find(
+                        (c: any) =>
+                            c.currency_code === parsed.currency ||
+                            c.currency_name?.toUpperCase() ===
+                                parsed.currency.toUpperCase(),
+                    )?.currency_symbol ??
+                    defaultSymbols[parsed.currency] ??
+                    "";
+                const fmt = (n: number | null) =>
+                    n == null ? "?" : `${symbol}${n.toLocaleString()}`;
+                return (
+                    <span className="font-medium">
+                        {fmt(parsed.min)} – {fmt(parsed.max)}
+                    </span>
+                );
+            }
+
             default:
                 // Handle long text content with word breaking
                 if (typeof value === "string" && value.length > 50) {
@@ -1350,12 +1418,20 @@ export default function CustomFieldDisplay({
             | "multiSelectCountry"
             | "phone"
             | "email"
-            | "currency" = "text";
+            | "currency"
+            | "range"
+            | "currency_range" = "text";
         let options: { label: string; value: string | number }[] = [];
 
         switch (field.type) {
             case "number":
                 type = "number";
+                break;
+            case "range":
+                type = "range";
+                break;
+            case "currency_range":
+                type = "currency_range";
                 break;
             case "date":
                 type = "date";
@@ -1567,7 +1643,12 @@ export default function CustomFieldDisplay({
     return (
         <DetailSection
             title={title}
-            gridClassName="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5"
+            bare={bare}
+            gridClassName={
+                bare
+                    ? "mb-5 grid grid-cols-1 gap-4 gap-x-6 @lg:grid-cols-2"
+                    : `grid grid-cols-1 ${useContainerQuery ? "@lg:grid-cols-2" : "sm:grid-cols-2"} gap-x-6 gap-y-5`
+            }
             accordion={accordion}
             sectionId={sectionId}
             isOpen={isOpen}
@@ -1597,6 +1678,7 @@ export default function CustomFieldDisplay({
                         key={field.id}
                         label={field.label}
                         span={span === column ? 2 : 1}
+                        useContainerQuery={useContainerQuery}
                     >
                         {renderEditable(field, value)}
                     </DetailField>
