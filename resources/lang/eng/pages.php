@@ -353,7 +353,7 @@ return [
                 'consent_hint'  => "Consent records are captured on the linked lead. Erasure requests are handled from the lead's GDPR panel.",
             ],
             'mapped_only_hint_prefix' => 'No fields are mapped to this section yet. Assign categories in',
-            'mapped_only_hint_suffix' => 'or use a custom category tab in Later stages.',
+            'mapped_only_hint_suffix' => 'or use a custom category tab under "For this pipeline".',
             'done_editing'  => 'Done editing',
             'edit_fields'   => 'Edit fields',
         ],

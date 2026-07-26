@@ -27,6 +27,7 @@ interface DealInfoSectionPanelProps {
     deal: Deal;
     fields: any[];
     customFieldCategories: Array<{ id: number; name: string }>;
+    visibleFieldKeys?: string[] | null;
     canEdit: boolean;
     isLocked: boolean;
     isFieldLoading: (fieldName: string) => boolean;
@@ -63,6 +64,7 @@ export default function DealInfoSectionPanel({
     deal,
     fields,
     customFieldCategories,
+    visibleFieldKeys,
     canEdit,
     isLocked,
     isFieldLoading,
@@ -193,6 +195,7 @@ export default function DealInfoSectionPanel({
                         fields={fields}
                         customFieldsData={deal.custom_fields_data || {}}
                         categoryId={id}
+                        visibleFieldKeys={visibleFieldKeys}
                         column={2}
                         onUpdate={(field, value) =>
                             onFieldUpdate(field, value, "custom_field")
@@ -540,6 +543,7 @@ export default function DealInfoSectionPanel({
                 fields={fields}
                 customFieldsData={deal.custom_fields_data || {}}
                 categoryId={categoryId}
+                visibleFieldKeys={visibleFieldKeys}
                 title={td(sectionTitle)}
                 column={2}
                 onUpdate={(field, value) =>

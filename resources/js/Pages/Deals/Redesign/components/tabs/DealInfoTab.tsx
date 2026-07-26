@@ -8,6 +8,7 @@ import DealInfoSidebar from "../deal-info/DealInfoSidebar";
 interface DealInfoTabProps {
     deal: Deal;
     customFieldCategories: Array<{ id: number; name: string }>;
+    visibleFieldKeys?: string[] | null;
     fields: any[];
     activeSection: DealInfoSectionId;
     onSectionChange: (section: DealInfoSectionId) => void;
@@ -19,6 +20,7 @@ interface DealInfoTabProps {
 export default function DealInfoTab({
     deal: initialDeal,
     customFieldCategories,
+    visibleFieldKeys,
     fields,
     activeSection,
     onSectionChange,
@@ -31,6 +33,7 @@ export default function DealInfoTab({
         fields,
         customFieldCategories,
         consents,
+        gdprSetting,
     );
     const {
         deal,
@@ -58,6 +61,7 @@ export default function DealInfoTab({
                     deal={deal}
                     fields={fields}
                     customFieldCategories={customFieldCategories}
+                    visibleFieldKeys={visibleFieldKeys}
                     canEdit={canEdit}
                     isLocked={isLocked}
                     isFieldLoading={isFieldLoading}

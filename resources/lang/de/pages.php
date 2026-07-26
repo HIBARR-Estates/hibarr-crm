@@ -345,7 +345,7 @@ return [
                 'consent_hint'  => 'Einwilligungsnachweise werden beim verknüpften Lead erfasst. Löschanfragen werden über das DSGVO-Panel des Leads bearbeitet.',
             ],
             'mapped_only_hint_prefix' => 'Dieser Abschnitt enthält noch keine zugeordneten Felder. Weisen Sie Kategorien zu in',
-            'mapped_only_hint_suffix' => 'oder verwenden Sie einen benutzerdefinierten Kategorie-Tab in späteren Phasen.',
+            'mapped_only_hint_suffix' => 'oder verwenden Sie einen benutzerdefinierten Kategorie-Tab unter "Für diese Pipeline".',
             'done_editing'  => 'Bearbeitung beenden',
             'edit_fields'   => 'Felder bearbeiten',
         ],

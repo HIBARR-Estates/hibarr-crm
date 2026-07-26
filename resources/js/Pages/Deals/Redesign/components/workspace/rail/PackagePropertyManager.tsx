@@ -253,6 +253,11 @@ export default function PackagePropertyManager({
                                     <div className="truncate text-xs font-semibold">
                                         {product.property?.title || product.name}
                                     </div>
+                                    {product.property?.price != null && (
+                                        <div className="text-[12px]" style={{ color: T.TEXT_MUTED }}>
+                                            {money(product.property.price)}
+                                        </div>
+                                    )}
                                 </div>
                                 {canEdit && !isLocked && (
                                     <button

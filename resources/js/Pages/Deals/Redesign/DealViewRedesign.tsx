@@ -30,6 +30,10 @@ import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
 import useDealDocuments from "./hooks/useDealDocuments";
+import {
+    filterCategoriesByScope,
+    resolveScopedFieldKeys,
+} from "@/Features/Deals/pipelineScopeUtils";
 import { DealShowProps, DealTab } from "./types";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
@@ -87,14 +91,66 @@ function DealViewRedesignInner(props: DealShowProps) {
     const permissions = props.permissions ?? {};
     const fields = props.fields ?? [];
     const customFieldCategories = props.customFieldCategories ?? [];
-    // Already pipeline-filtered server-side (DealController@show) — scopes the
-    // document slots to the categories this pipeline actually uses.
+    // NOT pipeline-filtered — this is the raw company-wide category list, kept
+    // as-is here since it feeds the Files tab/context-rail document slots.
     const pipelineCategoryIds = useMemo(
         () =>
             customFieldCategories.map((category: { id: number }) =>
                 Number(category.id),
             ),
         [customFieldCategories],
+    );
+
+    // Deal Info tab needs the actual pipeline/stage-scoped subset — mirrors
+    // the legacy DealInfoSection.tsx pattern (pipelineScopeUtils.ts helpers).
+    const pipelineCategoryScopeMap = pageProps.pipelineCategoryScopeMap ?? {};
+    const pipelineFieldScopeMap = pageProps.pipelineFieldScopeMap ?? {};
+    const stages = pageProps.stages ?? [];
+    const scopedCategoryIdsFromServer =
+        pageProps.scopedCustomFieldCategoryIds ?? null;
+    const scopedDealFieldKeysFromServer = pageProps.visibleDealFieldKeys as
+        | string[]
+        | null
+        | undefined;
+
+    const dealInfoCategories = useMemo(
+        () =>
+            filterCategoriesByScope(
+                customFieldCategories,
+                pipelineCategoryScopeMap,
+                deal.lead_pipeline_id,
+                deal.pipeline_stage_id,
+                stages,
+                scopedCategoryIdsFromServer,
+            ),
+        [
+            customFieldCategories,
+            pipelineCategoryScopeMap,
+            deal.lead_pipeline_id,
+            deal.pipeline_stage_id,
+            stages,
+            scopedCategoryIdsFromServer,
+        ],
+    );
+
+    const dealInfoFieldKeys = useMemo(
+        () =>
+            scopedDealFieldKeysFromServer !== undefined
+                ? scopedDealFieldKeysFromServer
+                : resolveScopedFieldKeys(
+                      pipelineFieldScopeMap,
+                      "App\\Models\\Deal",
+                      deal.lead_pipeline_id,
+                      deal.pipeline_stage_id,
+                      stages,
+                  ),
+        [
+            scopedDealFieldKeysFromServer,
+            pipelineFieldScopeMap,
+            deal.lead_pipeline_id,
+            deal.pipeline_stage_id,
+            stages,
+        ],
     );
     const employees = props.employees ?? [];
     const taskBoardColumns = props.taskBoardColumns ?? [];
@@ -359,7 +415,8 @@ function DealViewRedesignInner(props: DealShowProps) {
                                         {activeTab === "dealinfo" && (
                                             <DealInfoTab
                                                 deal={deal}
-                                                customFieldCategories={customFieldCategories}
+                                                customFieldCategories={dealInfoCategories}
+                                                visibleFieldKeys={dealInfoFieldKeys}
                                                 fields={fields}
                                                 activeSection={nav.infoSection}
                                                 onSectionChange={nav.setInfoSection}

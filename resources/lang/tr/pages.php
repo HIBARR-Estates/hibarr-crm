@@ -348,7 +348,7 @@ return [
                 'consent_hint'  => "Onay kayıtları ilişkili müşteri adayına eklenir. Silme talepleri adayın GDPR panelinden yönetilir.",
             ],
             'mapped_only_hint_prefix' => 'Bu bölüme henüz hiçbir alan eşlenmedi. Kategorileri şurada ata:',
-            'mapped_only_hint_suffix' => 'veya daha sonraki aşamalarda özel bir kategori sekmesi kullan.',
+            'mapped_only_hint_suffix' => 'veya "Bu pipeline için" bölümünde özel bir kategori sekmesi kullan.',
             'done_editing'  => 'Düzenleme tamamlandı',
             'edit_fields'   => 'Alanları düzenle',
        

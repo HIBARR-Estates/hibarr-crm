@@ -154,6 +154,7 @@ export default function useDealInfoNavigation(
     fields: CustomFieldDefinition[] = [],
     customFieldCategories: Array<{ id: number; name: string }> = [],
     consents: Array<{ name?: string }> = [],
+    gdprSetting?: { enable_gdpr?: boolean } | null,
 ) {
     return useMemo(() => {
         const nowSections = DEAL_INFO_CORE_SECTION_ORDER.slice(
@@ -243,21 +244,29 @@ export default function useDealInfoNavigation(
             // terms come from the deal's actual consent purposes (rendered
             // as the GDPR table's rows) — falls back to the generic labels
             // when consents haven't loaded, so the item stays findable.
-            {
-                ...buildCoreNavItem("gdpr", true),
-                badge: undefined,
-                searchTerms: [
-                    ...(CORE_SECTION_FIELD_LABELS.gdpr ?? []),
-                    ...consents.map((consent) => consent.name ?? "").filter(Boolean),
-                ],
-            },
+            // Gated on the app-wide GDPR module toggle, same as the legacy
+            // Deal view (Components/DealTabs.tsx:174).
+            ...(gdprSetting?.enable_gdpr
+                ? [
+                      {
+                          ...buildCoreNavItem("gdpr", true),
+                          badge: undefined,
+                          searchTerms: [
+                              ...(CORE_SECTION_FIELD_LABELS.gdpr ?? []),
+                              ...consents
+                                  .map((consent) => consent.name ?? "")
+                                  .filter(Boolean),
+                          ],
+                      },
+                  ]
+                : []),
         ];
 
         const navGroups: NavGroup[] = [
-            { label: "Now — in progress", items: nowItems },
-            { label: "Later stages", items: laterItems },
+            { label: "Overview", items: nowItems },
+            { label: "For this pipeline", items: laterItems },
         ];
 
         return { navGroups };
-    }, [consents, customFieldCategories, deal, fields]);
+    }, [consents, customFieldCategories, deal, fields, gdprSetting]);
 }
