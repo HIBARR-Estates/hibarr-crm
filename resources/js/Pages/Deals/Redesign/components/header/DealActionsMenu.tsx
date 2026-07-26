@@ -9,6 +9,8 @@ interface DealActionsMenuProps {
     onAddTask: () => void;
     onScheduleMeeting: () => void;
     onDelete: () => void;
+    /** Omitted (not just a no-op) when the product-tour feature flag is off — hides the menu item entirely. */
+    onReplayGuide?: () => void;
     canDelete: boolean;
 }
 
@@ -22,6 +24,7 @@ export default function DealActionsMenu({
     onAddTask,
     onScheduleMeeting,
     onDelete,
+    onReplayGuide,
     canDelete,
 }: DealActionsMenuProps) {
     const { t } = useTranslation();
@@ -63,8 +66,15 @@ export default function DealActionsMenu({
         },
     ];
 
+    if (onReplayGuide) {
+        items.push({
+            label: t("pages.deals.tour.replay_menu_item"),
+            action: onReplayGuide,
+        });
+    }
+
     return (
-        <div style={{ display: "inline-flex" }}>
+        <div data-tour="deal-actions-menu" style={{ display: "inline-flex" }}>
             <button
                 ref={btnRef}
                 type="button"

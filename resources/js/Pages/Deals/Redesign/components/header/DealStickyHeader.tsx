@@ -30,6 +30,7 @@ interface DealStickyHeaderProps {
     onAddNote: () => void;
     onAddTask: () => void;
     onScheduleMeeting: () => void;
+    onReplayGuide?: () => void;
 }
 
 export default function DealStickyHeader({
@@ -41,6 +42,7 @@ export default function DealStickyHeader({
     onAddNote,
     onAddTask,
     onScheduleMeeting,
+    onReplayGuide,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -55,7 +57,7 @@ export default function DealStickyHeader({
     const updatedRel = deal.updated_at ? dayjs(deal.updated_at).fromNow() : "--";
 
     return (
-        <div>
+        <div data-tour="deal-sticky-header">
             {isLocked && (
                 <div
                     role="alert"
@@ -103,6 +105,7 @@ export default function DealStickyHeader({
                                 onAddTask={onAddTask}
                                 onScheduleMeeting={onScheduleMeeting}
                                 onDelete={() => setDeleteOpen(true)}
+                                onReplayGuide={onReplayGuide}
                                 canDelete={dealPermissions.canDelete}
                             />
                             <DealButton
@@ -180,7 +183,9 @@ export default function DealStickyHeader({
                     </div>
 
                     <div className="flex items-start gap-[18px]">
-                        <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
+                        <div data-tour="deal-value">
+                            <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
+                        </div>
                         {deal.close_date && (
                             <div className="flex flex-col items-start">
                                 <span className="text-xs text-[#5b6472]">

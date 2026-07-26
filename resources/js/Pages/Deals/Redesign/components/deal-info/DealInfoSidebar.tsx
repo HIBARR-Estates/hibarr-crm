@@ -56,6 +56,7 @@ export default function DealInfoSidebar({
 
     return (
         <aside
+            data-tour="deal-info-sidebar"
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
