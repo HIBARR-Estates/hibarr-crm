@@ -134,8 +134,18 @@
                                 <x-forms.label :fieldId="'field_group_pipeline_'.md5($model)" :fieldLabel="class_basename($model)" />
                                 @php
                                     $fieldItems = collect($fields)->map(function ($fieldLabel, $fieldKey) use ($model) {
+                                        // Must match syncFieldScopes()'s own type derivation
+                                        // (LeadPipelineSettingController) — otherwise a
+                                        // previously-saved custom/hibarr field scope won't
+                                        // match its option value here and silently shows as
+                                        // unchecked, so re-saving the form would drop it.
+                                        $fieldType = str_starts_with($fieldKey, 'custom_field_')
+                                            ? 'custom_field'
+                                            : (array_key_exists($fieldKey, \App\Services\PipelineScopeResolverService::HIBARR_FIELDS)
+                                                ? 'hibarr_field'
+                                                : 'native_field');
                                         return [
-                                            'value' => $model . '|native_field|' . $fieldKey,
+                                            'value' => $model . '|' . $fieldType . '|' . $fieldKey,
                                             'label' => $fieldLabel,
                                             'id' => 'field_pipeline_' . md5($model . $fieldKey),
                                         ];
@@ -165,8 +175,15 @@
                                 <x-forms.label :fieldId="'field_group_stage_'.$stage->id.'_'.md5($model)" :fieldLabel="class_basename($model)" />
                                 @php
                                     $stageFieldItems = collect($fields)->map(function ($fieldLabel, $fieldKey) use ($model, $stage) {
+                                        // See the pipeline-wide block above — must match
+                                        // syncFieldScopes()'s type derivation.
+                                        $fieldType = str_starts_with($fieldKey, 'custom_field_')
+                                            ? 'custom_field'
+                                            : (array_key_exists($fieldKey, \App\Services\PipelineScopeResolverService::HIBARR_FIELDS)
+                                                ? 'hibarr_field'
+                                                : 'native_field');
                                         return [
-                                            'value' => $model . '|native_field|' . $fieldKey,
+                                            'value' => $model . '|' . $fieldType . '|' . $fieldKey,
                                             'label' => $fieldLabel,
                                             'id' => 'field_stage_' . $stage->id . '_' . md5($model . $fieldKey),
                                         ];

@@ -405,6 +405,60 @@ return [
             'not_set'                    => 'Nicht festgelegt',
         ],
 
+        'tour' => [
+            'next'              => 'Weiter',
+            'back'              => 'Zurück',
+            'done'              => 'Fertig',
+            'skip'              => 'Tour überspringen',
+            'replay_menu_item'  => 'Anleitung erneut anzeigen',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'So sehen Sie den Deal auf einen Blick',
+                    'body'  => 'Name, Wert und Phase bleiben beim Scrollen sichtbar — über das ⋮-Menü neben dem Deal-Titel fügen Sie am schnellsten eine Notiz, Aufgabe oder ein Meeting hinzu.',
+                ],
+                'deal_value' => [
+                    'title' => 'Sehen Sie genau, was dieser Deal wert ist',
+                    'body'  => 'Der Deal-Wert setzt sich aus Immobilien, Paketen und Rabatten zusammen — klicken Sie darauf für die vollständige Aufschlüsselung oder um zwischen manuellem und berechnetem Wert zu wechseln.',
+                ],
+                'pipeline_stepper' => [
+                    'title' => 'Verfolgen und verschieben Sie den Deal durch die Pipeline',
+                    'body'  => 'Klicken Sie auf eine Phase, um den Deal weiterzubewegen — die hervorgehobene Phase zeigt den aktuellen Stand.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Lassen Sie sich von der KI auf den neuesten Stand bringen',
+                    'body'  => 'Diese Zusammenfassung liest den gesamten Deal für Sie und schlägt nächste Schritte vor — etwa eine Aufgabe erstellen oder die Phase weiterschalten — mit einem Klick.',
+                ],
+                'tabs' => [
+                    'title' => 'Alles zu diesem Deal, einen Tab entfernt',
+                    'body'  => 'Übersicht, Notizen, Aufgaben, Meetings, Dateien, Angebote, Empfehlungen und Reiseplan sind alle hier — die Zahlen-Badges zeigen, was Ihre Aufmerksamkeit braucht.',
+                ],
+                'overview' => [
+                    'title' => 'Die Übersicht bündelt das Wichtigste',
+                    'body'  => 'Aktuelle Notizen, offene Aufgaben und anstehende Meetings erscheinen hier zuerst — so bleiben Sie auf dem Laufenden, ohne jeden Tab einzeln zu durchsuchen.',
+                ],
+                'deal_info' => [
+                    'title' => 'Deal-Info enthält den vollständigen Datensatz',
+                    'body'  => 'Benutzerdefinierte Felder, Pakete und Immobiliendetails sind hier in Abschnitte gegliedert — nutzen Sie die Suchleiste über der Liste, um direkt zu einem Abschnitt zu springen.',
+                ],
+                'timeline' => [
+                    'title' => 'Die gesamte Historie im Blick',
+                    'body'  => 'Jede Änderung, Notiz und Statusaktualisierung zu diesem Deal, in chronologischer Reihenfolge.',
+                ],
+                'dossier' => [
+                    'title' => 'Das Dossier hält die wichtigsten Fakten sichtbar',
+                    'body'  => 'Kontaktdaten, Pakete und Schnellaktionen bleiben hier sichtbar, unabhängig davon, welcher Tab gerade aktiv ist.',
+                ],
+                'actions_menu' => [
+                    'title' => 'Schnellaktionen immer einen Klick entfernt',
+                    'body'  => 'Fügen Sie über dieses Menü eine Notiz, Aufgabe oder ein Meeting hinzu — oder löschen Sie den Deal.',
+                ],
+                'closing' => [
+                    'title' => 'Sie sind startklar',
+                    'body'  => 'Sie können diese Anleitung jederzeit über das ⋮-Menü neben dem Deal-Titel erneut aufrufen.',
+                ],
+            ],
+        ],
+
         'header' => [
             'breadcrumb_deals' => 'Deals',
             'won'               => 'Gewonnen',

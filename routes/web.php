@@ -560,6 +560,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deal-notes/apply-quick-action', [DealNoteController::class, 'applyQuickAction'])->name('deal-notes.apply_quick_action');
     Route::resource('deal-notes', DealNoteController::class);
 
+    // Product tours (guided page walkthroughs) — page-agnostic, reused by any page's ProductTour instance
+    Route::post('product-tours/{tourId}/seen', [\App\Http\Controllers\ProductTourController::class, 'markSeen'])->name('product-tours.seen');
+
     // deal board routes
     Route::post('leadboards/get-stage-slug', [LeadBoardController::class, 'getStageSlug'])->name('leadboards.get_stage_slug');
     Route::post('leadboards/collapseColumn', [LeadBoardController::class, 'collapseColumn'])->name('leadboards.collapse_column');

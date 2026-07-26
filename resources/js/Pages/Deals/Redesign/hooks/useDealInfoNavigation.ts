@@ -31,6 +31,13 @@ interface NavGroup {
         later?: boolean;
         /** Field labels inside the section, matched by the sidebar search. */
         searchTerms?: string[];
+        /**
+         * Fill count backing `badge` — set whenever `badge` is a real
+         * "filled/total" fraction (not a stage label or gdpr's no-badge
+         * case), so the sidebar can render a completion dot from it
+         * instead of the text when crm.deal-info-count-indicator is on.
+         */
+        completion?: { filled: number; total: number };
     }>;
 }
 
@@ -90,7 +97,11 @@ function countSectionCompletion(
     };
 
     const dealKeysBySection: Partial<Record<DealInfoCoreSectionId, string[]>> = {
-        general: ["name", "close_date", "category_id", "products"],
+        // "products" was tracked here but never rendered as a field row in
+        // General (it's the separate DealPackagePropertyManager block below
+        // the fields) — dropped so the sidebar badge (e.g. "3/3") matches
+        // what General actually shows.
+        general: ["name", "close_date", "category_id"],
     };
 
     let filled = 0;
@@ -102,10 +113,6 @@ function countSectionCompletion(
     };
 
     for (const key of dealKeysBySection[sectionId] ?? []) {
-        if (key === "products") {
-            track(deal.products?.length ? deal.products : null);
-            continue;
-        }
         track((deal as unknown as Record<string, unknown>)[key]);
     }
 
@@ -203,6 +210,7 @@ export default function useDealInfoNavigation(
             return {
                 ...item,
                 badge: total > 0 ? `${filled}/${total}` : "--",
+                completion: { filled, total },
                 searchTerms: coreSearchTerms(sectionId),
             };
         });
@@ -221,6 +229,9 @@ export default function useDealInfoNavigation(
                     badge:
                         item.stageBadge ??
                         (total > 0 ? `${filled}/${total}` : "--"),
+                    // A stage label (e.g. "Prospect") always wins visually over
+                    // the fill count, so there's no dot to show alongside it.
+                    completion: item.stageBadge ? undefined : { filled, total },
                     searchTerms: coreSearchTerms(sectionId),
                 };
             }),
@@ -235,6 +246,7 @@ export default function useDealInfoNavigation(
                     label: category.name,
                     icon: "layers",
                     badge: total > 0 ? `${filled}/${total}` : "--",
+                    completion: { filled, total },
                     badgeVariant: "gray" as const,
                     later: true,
                     searchTerms: categorySearchTerms(category.id),

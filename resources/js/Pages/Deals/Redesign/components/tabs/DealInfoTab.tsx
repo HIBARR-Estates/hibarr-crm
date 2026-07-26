@@ -15,6 +15,8 @@ interface DealInfoTabProps {
     restrictPackageOrProperty?: boolean;
     consents?: any[];
     gdprSetting?: { enable_gdpr?: boolean } | null;
+    /** crm.deal-info-count-indicator — dot instead of the "filled/total" text badge. */
+    showCompletionDot?: boolean;
 }
 
 export default function DealInfoTab({
@@ -27,6 +29,7 @@ export default function DealInfoTab({
     restrictPackageOrProperty = false,
     consents,
     gdprSetting,
+    showCompletionDot = false,
 }: DealInfoTabProps) {
     const { navGroups } = useDealInfoNavigation(
         initialDeal,
@@ -55,6 +58,7 @@ export default function DealInfoTab({
                     navGroups={navGroups}
                     activeSection={activeSection}
                     onSectionChange={onSectionChange}
+                    showCompletionDot={showCompletionDot}
                 />
                 <DealInfoSectionPanel
                     sectionId={activeSection}

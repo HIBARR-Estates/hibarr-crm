@@ -620,6 +620,8 @@ export interface User {
     designation: string;
     roles: Role[];
     timezone?: string | null;
+    /** Tour ids this user has already finished/skipped — drives ProductTour auto-launch. */
+    seen_product_tours?: string[];
 }
 export interface FlashMessage {
     type: "success" | "error" | "info" | "warning";
