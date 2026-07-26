@@ -6,11 +6,14 @@ use App\Models\CommunicationActivity;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\Lead;
+use App\Models\LeadAgent;
 use App\Models\LeadFlightItinerary;
 use App\Models\LeadMarketing;
 use App\Models\LeadNote;
 use App\Models\LeadQualification;
 use App\Models\Taskable;
+use App\Models\User;
+use App\Scopes\ActiveScope;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -107,6 +110,115 @@ class LeadMergeService
 
             return $primary->fresh();
         });
+    }
+
+    /**
+     * Read-only preview for the merge review screen (HIB-1120): connected-record
+     * counts for both leads, contact-field conflicts, and ownership-field values.
+     * Throws the same InvalidArgumentException as merge() for an invalid pair.
+     */
+    public function buildReview(Lead $primary, Lead $duplicate): array
+    {
+        $this->assertCanMerge($primary, $duplicate);
+
+        return [
+            'contact_conflicts' => $this->diffContactFields($primary, $duplicate),
+            'ownership_fields' => $this->buildOwnershipFieldsView($primary, $duplicate),
+            'counts' => [
+                'primary' => $this->connectedRecordCounts($primary),
+                'duplicate' => $this->connectedRecordCounts($duplicate),
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, array{primary: mixed, duplicate: mixed}>
+     */
+    private function diffContactFields(Lead $primary, Lead $duplicate): array
+    {
+        $conflicts = [];
+
+        foreach (self::CONTACT_FIELDS as $field) {
+            if (!Schema::hasColumn('leads', $field)) {
+                continue;
+            }
+
+            $primaryValue = $primary->{$field};
+            $duplicateValue = $duplicate->{$field};
+
+            if (
+                !$this->isEmptyValue($primaryValue)
+                && !$this->isEmptyValue($duplicateValue)
+                && (string) $primaryValue !== (string) $duplicateValue
+            ) {
+                $conflicts[$field] = [
+                    'primary' => $primaryValue,
+                    'duplicate' => $duplicateValue,
+                ];
+            }
+        }
+
+        return $conflicts;
+    }
+
+    /**
+     * @return list<array{field: string, primary_value: int|null, primary_label: string|null, duplicate_value: int|null, duplicate_label: string|null, differs: bool}>
+     */
+    private function buildOwnershipFieldsView(Lead $primary, Lead $duplicate): array
+    {
+        $fields = [];
+
+        foreach (self::OWNERSHIP_FIELDS as $field) {
+            if (!Schema::hasColumn('leads', $field)) {
+                continue;
+            }
+
+            $primaryValue = $primary->{$field} === null ? null : (int) $primary->{$field};
+            $duplicateValue = $duplicate->{$field} === null ? null : (int) $duplicate->{$field};
+
+            $fields[] = [
+                'field' => $field,
+                'primary_value' => $primaryValue,
+                'primary_label' => $this->resolveOwnershipLabel($field, $primaryValue),
+                'duplicate_value' => $duplicateValue,
+                'duplicate_label' => $this->resolveOwnershipLabel($field, $duplicateValue),
+                'differs' => $primaryValue !== $duplicateValue,
+            ];
+        }
+
+        return $fields;
+    }
+
+    private function resolveOwnershipLabel(string $field, ?int $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($field === 'agent_id') {
+            return LeadAgent::query()->find($value)?->user?->name;
+        }
+
+        return User::withoutGlobalScope(ActiveScope::class)->find($value)?->name;
+    }
+
+    /**
+     * @return array{deals: int, notes: int, follow_ups: int, qualifications: int, communication_activities: int, tasks: int, flight_itineraries: int}
+     */
+    private function connectedRecordCounts(Lead $lead): array
+    {
+        return [
+            'deals' => Deal::query()->where('lead_id', $lead->id)->count(),
+            'notes' => LeadNote::query()->where('lead_id', $lead->id)->count(),
+            'follow_ups' => DealFollowUp::query()->where('lead_id', $lead->id)->count(),
+            'qualifications' => LeadQualification::query()->where('lead_id', $lead->id)->count(),
+            'communication_activities' => CommunicationActivity::query()->where('lead_id', $lead->id)->count(),
+            'tasks' => Taskable::query()
+                ->where('taskable_type', Lead::class)
+                ->where('taskable_id', $lead->id)
+                ->count(),
+            'flight_itineraries' => LeadFlightItinerary::query()->where('lead_id', $lead->id)->count(),
+        ];
     }
 
     private function assertCanMerge(Lead $primary, Lead $duplicate): void

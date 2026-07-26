@@ -80,6 +80,41 @@ class LeadMergeController extends AccountBaseController
         ]);
     }
 
+    public function review(Lead $lead, Lead $duplicate)
+    {
+        $this->assertFeatureEnabled();
+        $this->assertCanMergeLead($lead);
+        $this->assertCanMergeLead($duplicate);
+
+        try {
+            $review = $this->mergeService->buildReview($lead, $duplicate);
+        } catch (InvalidArgumentException $e) {
+            return Reply::error($e->getMessage());
+        }
+
+        return Reply::successWithData(__('messages.recordSaved'), array_merge([
+            'primary' => $this->presentLeadSummary($lead),
+            'duplicate' => $this->presentLeadSummary($duplicate),
+        ], $review));
+    }
+
+    private function presentLeadSummary(Lead $lead): array
+    {
+        return [
+            'id' => $lead->id,
+            'client_name' => $lead->client_name,
+            'client_email' => $lead->client_email,
+            'mobile' => $lead->mobile,
+            'cell' => $lead->cell,
+            'office' => $lead->office,
+            'company_name' => $lead->company_name,
+            'address' => $lead->address,
+            'client_whatsapp' => $lead->client_whatsapp,
+            'client_telegram' => $lead->client_telegram,
+            'client_instagram' => $lead->client_instagram,
+        ];
+    }
+
     private function assertFeatureEnabled(): void
     {
         abort_unless(FeatureFlags::enabled('crm.lead-merge'), 404);
