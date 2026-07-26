@@ -1,10 +1,12 @@
 import PageLayout from "@/Components/PageLayout";
 import usePageRefresh from "@/Hooks/usePageRefresh";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
+import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
+import { DEAL_TOUR_ID, DEAL_TOUR_LABELS, buildDealTourSteps } from "./config/dealTourSteps";
 import DealStickyHeader from "./components/header/DealStickyHeader";
 import DealPipelineStepper from "./components/header/DealPipelineStepper";
 import DealTabBar from "./components/tabs/DealTabBar";
@@ -66,6 +68,9 @@ function DealViewRedesignInner(props: DealShowProps) {
     const { props: pageProps } = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? pageProps.featureFlags;
     const showAiSummary = featureFlags?.["sales.ai-entity-summary"] === true;
+    const showProductTour = featureFlags?.["crm.deals-product-tour"] === true;
+    const showCompletionDot =
+        featureFlags?.["crm.deal-info-count-indicator"] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -155,6 +160,11 @@ function DealViewRedesignInner(props: DealShowProps) {
     const employees = props.employees ?? [];
     const taskBoardColumns = props.taskBoardColumns ?? [];
     const dealPermissions = useDealPermissions(deal);
+    const tourRef = useRef<ProductTourHandle>(null);
+    const dealTourSteps = useMemo(
+        () => buildDealTourSteps(nav.setTab),
+        [nav.setTab],
+    );
 
     // Wire the AI summary's ADVANCE_STAGE action to a real stage change (the
     // same mutation the pipeline stepper uses). Only actionable when the user
@@ -271,6 +281,14 @@ function DealViewRedesignInner(props: DealShowProps) {
                 onClose={() => setAddNoteOpen(false)}
                 dealId={deal.id}
             />
+            {showProductTour && (
+                <ProductTour
+                    ref={tourRef}
+                    tourId={DEAL_TOUR_ID}
+                    steps={dealTourSteps}
+                    labels={DEAL_TOUR_LABELS}
+                />
+            )}
 
             <div className="deal-redesign min-h-screen bg-[#f5f6f8]">
                 <div className="mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
@@ -283,10 +301,15 @@ function DealViewRedesignInner(props: DealShowProps) {
                         onAddNote={() => setAddNoteOpen(true)}
                         onAddTask={() => setAddTaskOpen(true)}
                         onScheduleMeeting={() => setAddMeetingOpen(true)}
+                        onReplayGuide={
+                            showProductTour
+                                ? () => tourRef.current?.restart()
+                                : undefined
+                        }
                     />
 
                     <div className="">
-                        <div className="mb-[14px]">
+                        <div className="mb-[14px]" data-tour="deal-pipeline-stepper">
                             <DealPipelineStepper
                                 deal={deal}
                                 permissions={permissions}
@@ -295,29 +318,33 @@ function DealViewRedesignInner(props: DealShowProps) {
                         <div className="dr-grid">
                             <div className="flex min-w-0 flex-col gap-[14px]">
                                 {showAiSummary && (
-                                    <EntityAiSummaryCard
-                                        entityType="deal"
-                                        entityId={deal.id}
-                                        initialSummary={props.dealAiSummary}
-                                        variant="redesign"
-                                        // Executable actions perform the real
-                                        // thing (open the modal / advance the
-                                        // stage), not just switch tabs.
-                                        onCreateTask={() => setAddTaskOpen(true)}
-                                        onScheduleCall={() => setAddMeetingOpen(true)}
-                                        onRequestDocuments={() => nav.setTab("files")}
-                                        onReviewStaleDeal={() => nav.setTab("timeline")}
-                                        onAdvanceStage={advanceToNextStage}
-                                    />
+                                    <div data-tour="deal-ai-summary">
+                                        <EntityAiSummaryCard
+                                            entityType="deal"
+                                            entityId={deal.id}
+                                            initialSummary={props.dealAiSummary}
+                                            variant="redesign"
+                                            // Executable actions perform the real
+                                            // thing (open the modal / advance the
+                                            // stage), not just switch tabs.
+                                            onCreateTask={() => setAddTaskOpen(true)}
+                                            onScheduleCall={() => setAddMeetingOpen(true)}
+                                            onRequestDocuments={() => nav.setTab("files")}
+                                            onReviewStaleDeal={() => nav.setTab("timeline")}
+                                            onAdvanceStage={advanceToNextStage}
+                                        />
+                                    </div>
                                 )}
 
                                 <section className="overflow-hidden rounded-xl border border-[#e2e5ea] bg-white">
-                                    <DealTabBar
-                                        activeTab={activeTab}
-                                        counts={counts}
-                                        visibleTabs={visibleTabs}
-                                        onChange={nav.setTab}
-                                    />
+                                    <div data-tour="deal-tabs">
+                                        <DealTabBar
+                                            activeTab={activeTab}
+                                            counts={counts}
+                                            visibleTabs={visibleTabs}
+                                            onChange={nav.setTab}
+                                        />
+                                    </div>
                                     <div className="p-4">
                                         {activeTab === "overview" &&
                                             ((notesLoading && notes.length === 0) ||
@@ -326,21 +353,23 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                 dealFollowUps.length === 0) ? (
                                                 <OverviewDeferredSkeleton />
                                             ) : (
-                                                <WorkspaceOverviewTab
-                                                    deal={deal}
-                                                    notes={notes}
-                                                    tasks={tasks}
-                                                    dealFollowUps={dealFollowUps}
-                                                    taskBoardColumns={taskBoardColumns}
-                                                    permissions={permissions}
-                                                    meetingTypes={meetingTypes}
-                                                    onNavigateToSubTab={nav.setTab}
-                                                    onAddTask={() => setAddTaskOpen(true)}
-                                                    onAddMeeting={() =>
-                                                        setAddMeetingOpen(true)
-                                                    }
-                                                    onAddNote={() => setAddNoteOpen(true)}
-                                                />
+                                                <div data-tour="deal-overview">
+                                                    <WorkspaceOverviewTab
+                                                        deal={deal}
+                                                        notes={notes}
+                                                        tasks={tasks}
+                                                        dealFollowUps={dealFollowUps}
+                                                        taskBoardColumns={taskBoardColumns}
+                                                        permissions={permissions}
+                                                        meetingTypes={meetingTypes}
+                                                        onNavigateToSubTab={nav.setTab}
+                                                        onAddTask={() => setAddTaskOpen(true)}
+                                                        onAddMeeting={() =>
+                                                            setAddMeetingOpen(true)
+                                                        }
+                                                        onAddNote={() => setAddNoteOpen(true)}
+                                                    />
+                                                </div>
                                             ))}
                                         {activeTab === "notes" &&
                                             (notesLoading && notes.length === 0 ? (
@@ -425,6 +454,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                 }
                                                 consents={props.consents}
                                                 gdprSetting={props.gdprSetting}
+                                                showCompletionDot={showCompletionDot}
                                             />
                                         )}
                                         {activeTab === "timeline" && (
@@ -438,7 +468,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                 </section>
                             </div>
 
-                            <div className="dr-dossier">
+                            <div className="dr-dossier" data-tour="deal-dossier">
                                 <WorkspaceContextRail
                                     deal={deal}
                                     files={files}

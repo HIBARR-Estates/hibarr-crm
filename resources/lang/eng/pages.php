@@ -413,6 +413,60 @@ return [
             'not_set'                    => 'Not set',
         ],
 
+        'tour' => [
+            'next'              => 'Next',
+            'back'              => 'Back',
+            'done'              => 'Done',
+            'skip'              => 'Skip tour',
+            'replay_menu_item'  => 'Replay guide',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'This is your deal at a glance',
+                    'body'  => 'Name, value, and stage stay pinned here as you scroll — the fastest way to add a note, task, or meeting is the ⋮ menu next to the deal title.',
+                ],
+                'deal_value' => [
+                    'title' => 'See exactly what this deal is worth',
+                    'body'  => 'The deal value breaks down into properties, packages, and discounts — click it to see the full breakdown or switch between manual and calculated value.',
+                ],
+                'pipeline_stepper' => [
+                    'title' => 'Track and move the deal through its pipeline',
+                    'body'  => 'Click any stage to move the deal forward — the highlighted step shows where it stands today.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Let AI catch you up',
+                    'body'  => 'This summary reads the whole deal for you and suggests next actions — like creating a task or advancing the stage — in one click.',
+                ],
+                'tabs' => [
+                    'title' => 'Everything about this deal, one tab away',
+                    'body'  => 'Overview, notes, tasks, meetings, files, offers, recommendations, and itinerary all live here — the number badges show what needs attention.',
+                ],
+                'overview' => [
+                    'title' => 'Overview brings the essentials together',
+                    'body'  => 'Recent notes, open tasks, and upcoming meetings all show up here first — so you can catch up on a deal without digging through every tab.',
+                ],
+                'deal_info' => [
+                    'title' => 'Deal info holds the full record',
+                    'body'  => 'Custom fields, packages, and property details are organized into sections here — use the search bar above the list to jump straight to a section.',
+                ],
+                'timeline' => [
+                    'title' => 'See the full history',
+                    'body'  => 'Every change, note, and status update on this deal, in order.',
+                ],
+                'dossier' => [
+                    'title' => 'The dossier keeps key facts visible',
+                    'body'  => "Contact details, packages, and quick actions stay here no matter which tab you're on.",
+                ],
+                'actions_menu' => [
+                    'title' => 'Quick actions, always one click away',
+                    'body'  => 'Add a note, task, or meeting — or delete the deal — from this menu.',
+                ],
+                'closing' => [
+                    'title' => "You're ready",
+                    'body'  => 'Replay this guide anytime from the ⋮ menu next to the deal title.',
+                ],
+            ],
+        ],
+
         'header' => [
             'breadcrumb_deals' => 'Deals',
             'won'               => 'Won',

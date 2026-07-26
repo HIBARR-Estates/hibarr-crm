@@ -409,6 +409,60 @@ return [
             'not_set'                    => 'Ayarlanmadı',
         ],
 
+        'tour' => [
+            'next'              => 'İleri',
+            'back'              => 'Geri',
+            'done'              => 'Bitti',
+            'skip'              => 'Turu atla',
+            'replay_menu_item'  => 'Rehberi tekrar göster',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'Anlaşmanızı tek bakışta görün',
+                    'body'  => 'Ad, değer ve aşama kaydırırken her zaman görünür kalır — not, görev veya toplantı eklemenin en hızlı yolu anlaşma adının yanındaki ⋮ menüsüdür.',
+                ],
+                'deal_value' => [
+                    'title' => 'Bu anlaşmanın tam değerini görün',
+                    'body'  => 'Anlaşma değeri mülkler, paketler ve indirimlerden oluşur — tam dökümü görmek veya manuel/hesaplanan değer arasında geçiş yapmak için tıklayın.',
+                ],
+                'pipeline_stepper' => [
+                    'title' => 'Anlaşmayı süreç boyunca takip edin ve ilerletin',
+                    'body'  => 'Anlaşmayı ileri taşımak için herhangi bir aşamaya tıklayın — vurgulanan aşama mevcut durumu gösterir.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Yapay zekâ sizi hızlıca bilgilendirsin',
+                    'body'  => 'Bu özet tüm anlaşmayı sizin için okur ve görev oluşturma veya aşamayı ilerletme gibi bir sonraki adımları tek tıkla önerir.',
+                ],
+                'tabs' => [
+                    'title' => 'Bu anlaşmaya dair her şey bir sekme uzağınızda',
+                    'body'  => 'Genel bakış, notlar, görevler, toplantılar, dosyalar, teklifler, öneriler ve seyahat planı hepsi burada — sayı rozetleri dikkat gerektiren yerleri gösterir.',
+                ],
+                'overview' => [
+                    'title' => 'Genel bakış en önemlileri bir araya getirir',
+                    'body'  => 'Son notlar, açık görevler ve yaklaşan toplantılar önce burada görünür — böylece her sekmeyi tek tek incelemeden anlaşmaya hâkim olursunuz.',
+                ],
+                'deal_info' => [
+                    'title' => 'Anlaşma bilgisi tüm kaydı içerir',
+                    'body'  => 'Özel alanlar, paketler ve mülk detayları burada bölümlere ayrılmıştır — listenin üstündeki arama çubuğunu kullanarak doğrudan bir bölüme atlayın.',
+                ],
+                'timeline' => [
+                    'title' => 'Tüm geçmişi görün',
+                    'body'  => 'Bu anlaşmadaki her değişiklik, not ve durum güncellemesi sırasıyla burada.',
+                ],
+                'dossier' => [
+                    'title' => 'Dosya, önemli bilgileri her zaman görünür tutar',
+                    'body'  => 'Hangi sekmede olursanız olun iletişim bilgileri, paketler ve hızlı eylemler burada kalır.',
+                ],
+                'actions_menu' => [
+                    'title' => 'Hızlı eylemler her zaman tek tık uzağınızda',
+                    'body'  => 'Bu menüden not, görev veya toplantı ekleyin — ya da anlaşmayı silin.',
+                ],
+                'closing' => [
+                    'title' => 'Hazırsınız',
+                    'body'  => 'Bu rehberi istediğiniz zaman anlaşma adının yanındaki ⋮ menüsünden yeniden başlatabilirsiniz.',
+                ],
+            ],
+        ],
+
         'header' => [
             'breadcrumb_deals' => 'Anlaşmalar',
             'won'               => 'Kazanıldı',
