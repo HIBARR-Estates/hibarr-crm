@@ -332,6 +332,7 @@ return array(
     'amountIsZero' => 'Amount should be more than ZERO for the payment',
     'taskAfterDateValidation' => 'Task end date should not be less than the task start date',
     'taskBeforeDateValidation' => 'Task end date should not be greater than the milestones end date',
+    'taskDateOutOfRange' => 'Please enter a valid date within a reasonable range.',
     'selectAnotherStatus' => 'The task cannot be stored with this status when no project is selected. Please select another status.',
     'selectStatus' => 'The selected project does not require approval from admin or project admin, so you cannot select the this status. Please select another status.',
     'noProductSubCategoryAdded' => 'No product sub-category added.',

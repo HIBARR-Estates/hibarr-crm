@@ -9,7 +9,13 @@ interface DealActionsMenuProps {
     onAddTask: () => void;
     onScheduleMeeting: () => void;
     onDelete: () => void;
+    /** Omitted (not just a no-op) when the product-tour feature flag is off — hides the menu item entirely. */
+    onReplayGuide?: () => void;
     canDelete: boolean;
+    /** Hide write actions for watcher-only users (backend rejects their writes). */
+    canAddNote?: boolean;
+    canAddTask?: boolean;
+    canScheduleMeeting?: boolean;
 }
 
 /**
@@ -22,7 +28,11 @@ export default function DealActionsMenu({
     onAddTask,
     onScheduleMeeting,
     onDelete,
+    onReplayGuide,
     canDelete,
+    canAddNote = true,
+    canAddTask = true,
+    canScheduleMeeting = true,
 }: DealActionsMenuProps) {
     const { t } = useTranslation();
     const [open, setOpen] = useState(false);
@@ -54,17 +64,43 @@ export default function DealActionsMenu({
         action();
     };
 
-    const items: Array<{ label: string; action: () => void; danger?: boolean }> = [
-        { label: t("pages.deals.workspace.notes.add_note"), action: onAddNote },
-        { label: t("pages.deals.workspace.tasks.add_task"), action: onAddTask },
-        {
-            label: t("pages.deals.workspace.meetings.schedule"),
-            action: onScheduleMeeting,
-        },
-    ];
+    const items: Array<{ label: string; action: () => void; danger?: boolean }> =
+        [
+            ...(canAddNote
+                ? [
+                      {
+                          label: t("pages.deals.workspace.notes.add_note"),
+                          action: onAddNote,
+                      },
+                  ]
+                : []),
+            ...(canAddTask
+                ? [
+                      {
+                          label: t("pages.deals.workspace.tasks.add_task"),
+                          action: onAddTask,
+                      },
+                  ]
+                : []),
+            ...(canScheduleMeeting
+                ? [
+                      {
+                          label: t("pages.deals.workspace.meetings.schedule"),
+                          action: onScheduleMeeting,
+                      },
+                  ]
+                : []),
+        ];
+
+    if (onReplayGuide) {
+        items.push({
+            label: t("pages.deals.tour.replay_menu_item"),
+            action: onReplayGuide,
+        });
+    }
 
     return (
-        <div style={{ display: "inline-flex" }}>
+        <div data-tour="deal-actions-menu" style={{ display: "inline-flex" }}>
             <button
                 ref={btnRef}
                 type="button"

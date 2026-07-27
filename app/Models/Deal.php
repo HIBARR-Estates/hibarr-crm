@@ -380,8 +380,14 @@ class Deal extends BaseModel
         return $this->hasMany(MlmCommission::class, 'deal_id');
     }
 
+    /**
+     * A won deal is locked for further edits even without the manual
+     * is_locked flag — mirrors resolveDealOutcome() in
+     * resources/js/lib/dealOutcome.ts so frontend gates match what this
+     * will actually accept.
+     */
     public function isLocked(): bool
     {
-        return (bool) $this->is_locked;
+        return (bool) $this->is_locked || $this->outcome_status === \App\Enums\OutcomeStatus::Won;
     }
 }

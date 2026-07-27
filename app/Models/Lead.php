@@ -55,6 +55,10 @@ use Illuminate\Notifications\Notifiable;
  * @property int|null $category_id
  * @property int|null $added_by
  * @property int|null $last_updated_by
+ * @property int|null $lead_owner
+ * @property string|null $client_whatsapp
+ * @property string|null $client_telegram
+ * @property string|null $client_instagram
  * @property-read \App\Models\User|null $client
  * @property-read \App\Models\Currency|null $currency
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\DealFile[] $files

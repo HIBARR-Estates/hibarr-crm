@@ -1,13 +1,16 @@
 import { ReactNode, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Note } from "@/Types/api/note";
 import type { Task } from "@/Types/api/tasks";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import useTranslation from "@/Hooks/useTranslation";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
+import DealDateBlock from "../primitives/DealDateBlock";
 import DealIcon from "../primitives/DealIcon";
 import useWorkspaceOverview from "../../hooks/useWorkspaceOverview";
 import useDealTaskStatus from "../../hooks/useDealTaskStatus";
@@ -136,14 +139,19 @@ export default function WorkspaceOverviewTab({
     onAddNote,
 }: WorkspaceOverviewTabProps) {
     const { t } = useTranslation();
+    const { props } = usePage();
+    const userId = props.auth?.user?.id;
+    const { isWatcherOnly } = useDealPermissions(deal);
     const overview = useWorkspaceOverview({ notes, tasks, dealFollowUps });
     const { setStatus, isPending } = useDealTaskStatus();
     const [selectedNote, setSelectedNote] = useState<Note | null>(null);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
     const [selectedMeeting, setSelectedMeeting] = useState<DealFollowup | null>(null);
 
-    const canEditMeetings = permissions.edit_lead_follow_up !== "none";
-    const canDeleteMeetings = permissions.delete_lead_follow_up !== "none";
+    const canEditMeetings =
+        !isWatcherOnly && permissions.edit_lead_follow_up !== "none";
+    const canDeleteMeetings =
+        !isWatcherOnly && permissions.delete_lead_follow_up !== "none";
 
     // Overview aggregates notes/tasks/meetings, so it must honour the same view
     // permissions that gate their dedicated tabs — otherwise hiding the Notes
@@ -151,9 +159,11 @@ export default function WorkspaceOverviewTab({
     const canViewNotes = permissions.view_deal_note !== "none";
     const canViewTasks = permissions.view_tasks !== "none";
     const canViewMeetings = permissions.view_lead_follow_up !== "none";
-    const canAddNote = permissions.add_deal_note !== "none";
-    const canAddTask = permissions.add_tasks !== "none";
-    const canAddMeeting = permissions.add_lead_follow_up !== "none";
+    const canAddNote =
+        !isWatcherOnly && permissions.add_deal_note !== "none";
+    const canAddTask = !isWatcherOnly && permissions.add_tasks !== "none";
+    const canAddMeeting =
+        !isWatcherOnly && permissions.add_lead_follow_up !== "none";
 
     const topNotes = overview.notes.slice(0, 5);
     const openTasks = overview.tasks.filter((task) => task.isOpen);
@@ -207,7 +217,7 @@ export default function WorkspaceOverviewTab({
                             </span>
                         </div>
                         <div
-                            className="dr-clamp-2 text-xs leading-relaxed"
+                            className="dr-clamp-3 text-xs leading-relaxed"
                             style={{ color: T.TEXT_MUTED }}
                         >
                             {note.body}
@@ -275,6 +285,9 @@ export default function WorkspaceOverviewTab({
                                     }
                                     columns={taskBoardColumns}
                                     loading={isPending(raw.id)}
+                                    disabled={
+                                        isWatcherOnly && raw.added_by !== userId
+                                    }
                                     onChange={(slug) => setStatus(raw.id, slug)}
                                 />
                             )}
@@ -309,28 +322,11 @@ export default function WorkspaceOverviewTab({
                             className="dr-card mb-2 flex gap-2.5"
                             style={{ padding: "10px 12px" }}
                         >
-                            <button
-                                type="button"
+                            <DealDateBlock
+                                monthLabel={meeting.monthLabel}
+                                dayLabel={meeting.dayLabel}
                                 onClick={() => setSelectedMeeting(raw)}
-                                className="w-10 shrink-0 cursor-pointer self-start rounded-md px-1 py-1.5 text-center"
-                                style={{
-                                    background: T.BLUE_LIGHT,
-                                    border: `1px solid ${T.BLUE_MID}`,
-                                }}
-                            >
-                                <span
-                                    className="block text-[12px] uppercase"
-                                    style={{ color: T.TEXT_MUTED }}
-                                >
-                                    {meeting.monthLabel}
-                                </span>
-                                <span
-                                    className="block text-[15px] font-bold leading-none"
-                                    style={{ color: "#14538c" }}
-                                >
-                                    {meeting.dayLabel}
-                                </span>
-                            </button>
+                            />
                             <button
                                 type="button"
                                 onClick={() => setSelectedMeeting(raw)}

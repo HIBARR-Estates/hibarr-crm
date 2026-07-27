@@ -560,6 +560,9 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deal-notes/apply-quick-action', [DealNoteController::class, 'applyQuickAction'])->name('deal-notes.apply_quick_action');
     Route::resource('deal-notes', DealNoteController::class);
 
+    // Product tours (guided page walkthroughs) — page-agnostic, reused by any page's ProductTour instance
+    Route::post('product-tours/{tourId}/seen', [\App\Http\Controllers\ProductTourController::class, 'markSeen'])->name('product-tours.seen');
+
     // deal board routes
     Route::post('leadboards/get-stage-slug', [LeadBoardController::class, 'getStageSlug'])->name('leadboards.get_stage_slug');
     Route::post('leadboards/collapseColumn', [LeadBoardController::class, 'collapseColumn'])->name('leadboards.collapse_column');
@@ -626,6 +629,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-contact/{lead}/merge', [LeadMergeController::class, 'merge'])->name('lead-contact.merge');
     Route::get('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates');
     Route::post('lead-contact/{lead}/duplicates', [LeadMergeController::class, 'duplicates'])->name('lead-contact.duplicates.find');
+    Route::get('lead-contact/{lead}/merge-review/{duplicate}', [LeadMergeController::class, 'review'])->name('lead-contact.merge-review');
 
     // Agent management routes
     Route::group(['prefix' => 'agents'], function () {
@@ -1190,6 +1194,13 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     // CRM Events (Admin viewer)
     Route::get('crm-events', [App\Http\Controllers\CrmEventAdminController::class, 'index'])->name('crm-events.index');
+    // Session-authenticated mutations used by the deal/lead timeline UI.
+    // Prefer these over /api/v1 so delete/update share the same web session
+    // (and company context) as the rest of the Inertia app.
+    Route::patch('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'update'])
+        ->name('crm-events.update');
+    Route::delete('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'destroy'])
+        ->name('crm-events.destroy');
 
     // Developers
     Route::prefix('developers')->name('developers.')->group(function () {

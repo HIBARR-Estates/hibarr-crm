@@ -1,0 +1,112 @@
+/*
+ * Shared, page-agnostic — no dependency on any one page's design tokens.
+ * z-index 1300 clears both the redesign modal overlay (1100) and the
+ * redesign floating-menu layer (1200), so the tour always sits on top.
+ */
+.product-tour-root {
+    position: fixed;
+    inset: 0;
+    z-index: 1300;
+    pointer-events: none;
+}
+
+.product-tour-scrim {
+    position: fixed;
+    background: rgba(16, 24, 40, 0.55);
+    pointer-events: auto;
+    transition: all 0.15s ease;
+}
+
+.product-tour-ring {
+    position: fixed;
+    border-radius: 10px;
+    box-shadow: 0 0 0 3px #1a6bb5;
+    pointer-events: none;
+    transition: all 0.15s ease;
+}
+
+.product-tour-tooltip {
+    pointer-events: auto;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 12px 32px rgba(16, 24, 40, 0.28);
+    padding: 16px 18px;
+}
+
+.product-tour-tooltip-centered {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+}
+
+.product-tour-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: #1a1f2e;
+    margin-bottom: 6px;
+}
+
+.product-tour-body {
+    font-size: 13px;
+    line-height: 1.45;
+    color: #5b6472;
+    margin-bottom: 14px;
+}
+
+.product-tour-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.product-tour-skip {
+    background: none;
+    border: none;
+    padding: 0;
+    font-size: 12px;
+    color: #9ca3af;
+    cursor: pointer;
+}
+
+.product-tour-skip:hover {
+    color: #5b6472;
+}
+
+.product-tour-steps {
+    font-size: 12px;
+    color: #9ca3af;
+}
+
+.product-tour-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.product-tour-btn-ghost,
+.product-tour-btn-primary {
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+}
+
+.product-tour-btn-ghost {
+    background: none;
+    border: 1px solid #e2e5ea;
+    color: #1a1f2e;
+}
+
+.product-tour-btn-primary {
+    background: #1a6bb5;
+    border: 1px solid #1a6bb5;
+    color: #ffffff;
+}
+
+.product-tour-btn-primary:hover {
+    background: #145890;
+}

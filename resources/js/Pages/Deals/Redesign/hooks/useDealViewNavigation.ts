@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { router } from "@inertiajs/react";
 import { DealInfoSectionId, DealTab } from "../types";
 import { parseCategorySectionId } from "../config/dealInfoSections";
 
@@ -66,6 +67,27 @@ export default function useDealViewNavigation() {
     const [infoSection, setInfoSectionState] = useState<DealInfoSectionId>(() =>
         getInitialSection(),
     );
+
+    const tabRef = useRef(tab);
+    tabRef.current = tab;
+    const infoSectionRef = useRef(infoSection);
+    infoSectionRef.current = infoSection;
+
+    useEffect(() => {
+        // Deferred props (formMeta/taskMeta/timeline/...) are requested with
+        // whatever URL was current when they were dispatched (right after
+        // mount) and, on completion, Inertia unconditionally rewrites the
+        // address bar to that stale URL — silently reverting a tab switch
+        // that happened while the request was in flight. Re-stamp our tab
+        // state into the URL after every Inertia request finishes so those
+        // background reloads can't clobber it.
+        return router.on("finish", () => {
+            syncQuery(
+                tabRef.current,
+                tabRef.current === "dealinfo" ? infoSectionRef.current : undefined,
+            );
+        });
+    }, []);
 
     const setTab = useCallback(
         (nextTab: DealTab) => {

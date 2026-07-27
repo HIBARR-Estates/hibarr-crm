@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import TaskStatusDropdownPill, {
     isCompletedColumn,
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -79,11 +81,14 @@ export default function DealTaskDetailModal({
 }: DealTaskDetailModalProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { props } = usePage();
+    const userId = props.auth?.user?.id;
     const [deleteOpen, setDeleteOpen] = useState(false);
     const [editing, setEditing] = useState(false);
     const [form, setForm] = useState<EditFormState | null>(null);
     const { setStatus, isPending: isStatusPending } = useDealTaskStatus();
-    const { setTasks } = useDealWorkspace();
+    const { deal, setTasks } = useDealWorkspace();
+    const { isWatcherOnly } = useDealPermissions(deal);
     const { updateTask, isUpdating, errors, clearErrors } = useDealTaskUpdate(
         task ?? ({ id: 0 } as Task),
     );
@@ -98,6 +103,9 @@ export default function DealTaskDetailModal({
 
     if (!task || !form) return null;
 
+    // Watchers stay read-only except on tasks they created (TaskController).
+    const canWriteTask =
+        !isWatcherOnly || task.added_by === userId;
     const statusSlug = taskStatusSlug(task);
     const done =
         isCompletedColumn(statusSlug, taskBoardColumns) || Boolean(task.completed_on);
@@ -186,17 +194,21 @@ export default function DealTaskDetailModal({
                     </>
                 ) : (
                     <>
-                        <DealButton
-                            variant="ghost"
-                            style={{ color: T.RED }}
-                            onClick={() => setDeleteOpen(true)}
-                        >
-                            {t("pages.deals.workspace.tasks.delete_task")}
-                        </DealButton>
+                        {canWriteTask && (
+                            <DealButton
+                                variant="ghost"
+                                style={{ color: T.RED }}
+                                onClick={() => setDeleteOpen(true)}
+                            >
+                                {t("pages.deals.workspace.tasks.delete_task")}
+                            </DealButton>
+                        )}
                         <span style={{ flex: 1 }} />
-                        <DealButton variant="primary" onClick={startEditing}>
-                            {t("pages.deals.workspace.tasks.edit_task")}
-                        </DealButton>
+                        {canWriteTask && (
+                            <DealButton variant="primary" onClick={startEditing}>
+                                {t("pages.deals.workspace.tasks.edit_task")}
+                            </DealButton>
+                        )}
                     </>
                 )
             }
@@ -234,7 +246,7 @@ export default function DealTaskDetailModal({
                     status={statusSlug}
                     columns={taskBoardColumns}
                     loading={isStatusPending(task.id)}
-                    disabled={editing}
+                    disabled={editing || !canWriteTask}
                     onChange={(slug) => handleStatusChange(slug)}
                 />
                 <DealPriorityBadge priority={task.priority} />

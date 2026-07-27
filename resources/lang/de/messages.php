@@ -46,6 +46,7 @@ return array(
     'leadSaved' => 'Kontakt erfolgreich gespeichert',
     'propertySaved' => 'Immobilie erfolgreich gespeichert',
     'taskSaved' => 'Aufgabe erfolgreich gespeichert',
+    'taskDateOutOfRange' => 'Bitte geben Sie ein gültiges Datum innerhalb eines angemessenen Bereichs ein.',
     'deleteSuccess' => 'Erfolgreich gelöscht.',
     'addItem' => 'Mindestens 1 Artikel hinzufügen.',
     'invalidRequest' => 'Ungültige Anfrage',

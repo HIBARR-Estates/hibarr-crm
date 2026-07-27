@@ -185,16 +185,22 @@ class CustomField extends BaseModel
                 if ($customField->type == 'checkbox') {
                     $checkboxValue = $finalData?->value;
                     if (!empty($checkboxValue)) {
-                        $selectedValues = explode(', ', $checkboxValue);
+                        $selectedValues = json_decode($checkboxValue, true);
+                        if (!is_array($selectedValues)) {
+                            // Legacy comma-separated checkbox storage
+                            $selectedValues = array_filter(array_map('trim', explode(',', (string) $checkboxValue)));
+                        }
                         $data = json_decode($customField->values);
                         $displayValues = [];
-                        
+
                         foreach ($selectedValues as $selectedValue) {
-                            if (in_array($selectedValue, $data)) {
+                            if (is_array($data) && in_array($selectedValue, $data)) {
+                                $displayValues[] = $selectedValue;
+                            } elseif (!is_array($data)) {
                                 $displayValues[] = $selectedValue;
                             }
                         }
-                        
+
                         return !empty($displayValues) ? implode(', ', $displayValues) : '--';
                     }
                     return '--';

@@ -22,6 +22,7 @@ import dayjs from "dayjs";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import type { TableColumnsType } from "antd";
 import { usePage } from "@inertiajs/react";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import AddFollowup from "./followups/AddFollowup";
@@ -43,6 +44,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
     const { td } = useTd();
     const { props } = usePage();
     const user = props.auth.user;
+    const { isWatcherOnly } = useDealPermissions(deal);
     const {
         action,
         handleAction,
@@ -224,14 +226,16 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                     (permissions.view_lead_follow_up === "added" &&
                         record.added_by?.id === user?.id);
                 const canEdit =
-                    permissions.edit_lead_follow_up === "all" ||
-                    (permissions.edit_lead_follow_up === "added" &&
-                        record.added_by?.id === user?.id);
+                    !isWatcherOnly &&
+                    (permissions.edit_lead_follow_up === "all" ||
+                        (permissions.edit_lead_follow_up === "added" &&
+                            record.added_by?.id === user?.id));
 
                 const canDelete =
-                    permissions.delete_lead_follow_up === "all" ||
-                    (permissions.delete_lead_follow_up === "added" &&
-                        record.added_by?.id === user?.id);
+                    !isWatcherOnly &&
+                    (permissions.delete_lead_follow_up === "all" ||
+                        (permissions.delete_lead_follow_up === "added" &&
+                            record.added_by?.id === user?.id));
 
                 const menuItems: MenuProps["items"] = [
                     ...(canView
@@ -308,9 +312,10 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                                 <p className="text-gray-500 mb-2">
                                     No follow-ups found
                                 </p>
-                                {(permissions.add_lead_follow_up === "all" ||
-                                    permissions.add_lead_follow_up ===
-                                        "added") &&
+                                {!isWatcherOnly &&
+                                    (permissions.add_lead_follow_up === "all" ||
+                                        permissions.add_lead_follow_up ===
+                                            "added") &&
                                     deal.lead_stage?.slug !== "win" &&
                                     deal.lead_stage?.slug !== "lost" && (
                                         <Button
@@ -329,7 +334,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             {followUps.length > 0 && (
                 <div className="p-6 flex flex-col gap-y-4">
                     <div className="flex justify-end">
-                        {selectedEntities.length > 0 && (
+                        {!isWatcherOnly && selectedEntities.length > 0 && (
                             <BulkFollowupActionSelector
                                 selectedEntityIds={selectedEntities.map(
                                     (e) => e.id
@@ -345,7 +350,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                             rowKey="id"
                             className="follow-ups-table"
                             size="small"
-                            rowSelection={rowSelection}
+                            rowSelection={isWatcherOnly ? undefined : rowSelection}
                             scroll={{ x: "max-content" }}
                         />
                     </div>

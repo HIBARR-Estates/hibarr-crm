@@ -52,7 +52,7 @@ export default function DealSwitch({
             </span>
             {loading ? (
                 <span
-                    className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent"
+                    className="h-3 w-3 shrink-0 animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                     style={{ color: T.TEXT_MUTED }}
                     aria-hidden="true"
                 />

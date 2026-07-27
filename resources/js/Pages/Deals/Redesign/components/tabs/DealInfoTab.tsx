@@ -8,30 +8,28 @@ import DealInfoSidebar from "../deal-info/DealInfoSidebar";
 interface DealInfoTabProps {
     deal: Deal;
     customFieldCategories: Array<{ id: number; name: string }>;
+    visibleFieldKeys?: string[] | null;
     fields: any[];
     activeSection: DealInfoSectionId;
     onSectionChange: (section: DealInfoSectionId) => void;
     restrictPackageOrProperty?: boolean;
     consents?: any[];
     gdprSetting?: { enable_gdpr?: boolean } | null;
+    /** crm.deal-info-count-indicator — dot instead of the "filled/total" text badge. */
+    showCompletionDot?: boolean;
 }
 
 export default function DealInfoTab({
-    deal: initialDeal,
     customFieldCategories,
+    visibleFieldKeys,
     fields,
     activeSection,
     onSectionChange,
     restrictPackageOrProperty = false,
     consents,
     gdprSetting,
+    showCompletionDot = false,
 }: DealInfoTabProps) {
-    const { navGroups } = useDealInfoNavigation(
-        initialDeal,
-        fields,
-        customFieldCategories,
-        consents,
-    );
     const {
         deal,
         canEdit,
@@ -41,23 +39,33 @@ export default function DealInfoTab({
         handleFieldUpdate,
         handleFieldsUpdate,
     } = useDealInfoFieldUpdate();
+    const { navGroups } = useDealInfoNavigation(
+        deal,
+        fields,
+        customFieldCategories,
+        consents,
+        gdprSetting,
+        visibleFieldKeys,
+    );
 
     return (
         <div>
             <div
                 className="grid min-h-[500px] gap-0"
-                style={{ gridTemplateColumns: "210px 1fr" }}
+                style={{ gridTemplateColumns: "210px minmax(0, 1fr)" }}
             >
                 <DealInfoSidebar
                     navGroups={navGroups}
                     activeSection={activeSection}
                     onSectionChange={onSectionChange}
+                    showCompletionDot={showCompletionDot}
                 />
                 <DealInfoSectionPanel
                     sectionId={activeSection}
                     deal={deal}
                     fields={fields}
                     customFieldCategories={customFieldCategories}
+                    visibleFieldKeys={visibleFieldKeys}
                     canEdit={canEdit}
                     isLocked={isLocked}
                     isFieldLoading={isFieldLoading}

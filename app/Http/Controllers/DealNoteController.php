@@ -118,6 +118,22 @@ class DealNoteController extends AccountBaseController
     {
         abort_403(!in_array(user()->permission('add_deal_note'), ['all', 'added', 'both']));
 
+        // Watchers can see everything but never write — see Deal::hasTeamMemberAccess().
+        // A generic 'add_deal_note' scope doesn't know about deal-specific watcher status,
+        // so that has to be checked separately here. Admins and users with unrestricted
+        // edit_deals keep write access even if they are also listed as watchers.
+        $noteDeal = Deal::find($request->lead_id);
+        $isUnrestrictedWriter = in_array('admin', user_roles())
+            || user()->permission('edit_deals') === 'all';
+        if (!$isUnrestrictedWriter
+            && $noteDeal
+            && $noteDeal->added_by != user()->id
+            && !$noteDeal->hasTeamMemberAccess(user()->id)
+            && $noteDeal->dealWatchers()->where('user_id', user()->id)->exists()
+        ) {
+            abort_403(true);
+        }
+
         $note = new DealNote();
         $note->title = $request->title;
         $note->deal_id = $request->lead_id;

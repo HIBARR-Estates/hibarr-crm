@@ -29,11 +29,13 @@ interface CustomFieldDefinition {
 const HIBARR_DOCUMENT_FIELDS: Array<{
     key: keyof NonNullable<Deal["hibarr_fields"]>;
     label: string;
-    /** deposit_confirmation is a free-text field, not an uploaded file, so it
-     * has no viewable URL — only the other two are real file uploads. */
+    /** All three are real file uploads — HibarrDealFields.php appends a
+     * `<key>_url` accessor for each (getDepositConfirmationUrlAttribute()
+     * included), so deposit_confirmation resolves a viewable URL exactly
+     * like the other two once a file's been uploaded to it. */
     isFile: boolean;
 }> = [
-    { key: "deposit_confirmation", label: "Deposit confirmation", isFile: false },
+    { key: "deposit_confirmation", label: "Deposit confirmation", isFile: true },
     { key: "reservation_agreement", label: "Reservation agreement", isFile: true },
     { key: "sales_contract", label: "Sales contract", isFile: true },
 ];

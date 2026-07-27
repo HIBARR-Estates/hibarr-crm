@@ -1,4 +1,4 @@
-import { KeyboardEvent, ReactNode, useEffect, useRef } from "react";
+import { KeyboardEvent, MouseEvent, ReactNode, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
@@ -31,15 +31,30 @@ export default function DealConfirmDialog({
     onCancel,
 }: DealConfirmDialogProps) {
     const dialogRef = useRef<HTMLDivElement>(null);
+    // Ignore backdrop dismiss for one frame after open so the click that
+    // launched the dialog can't also land on the freshly mounted overlay.
+    const allowBackdropCloseRef = useRef(false);
+
+    useEffect(() => {
+        if (!open) {
+            allowBackdropCloseRef.current = false;
+            return undefined;
+        }
+        allowBackdropCloseRef.current = false;
+        const frame = window.requestAnimationFrame(() => {
+            allowBackdropCloseRef.current = true;
+        });
+        return () => window.cancelAnimationFrame(frame);
+    }, [open]);
 
     useEffect(() => {
         if (!open) return undefined;
         const onKey = (e: globalThis.KeyboardEvent) => {
-            if (e.key === "Escape") onCancel();
+            if (e.key === "Escape" && !confirmLoading) onCancel();
         };
         window.addEventListener("keydown", onKey);
         return () => window.removeEventListener("keydown", onKey);
-    }, [open, onCancel]);
+    }, [open, onCancel, confirmLoading]);
 
     if (!open || typeof document === "undefined") return null;
 
@@ -58,13 +73,31 @@ export default function DealConfirmDialog({
         }
     };
 
+    const handleBackdropMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+        if (e.target !== e.currentTarget) return;
+        if (confirmLoading || !allowBackdropCloseRef.current) return;
+        onCancel();
+    };
+
+    const handleConfirm = (e: MouseEvent<HTMLButtonElement>) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (confirmLoading) return;
+        onConfirm();
+    };
+
     return createPortal(
-        <div className="redesign-modal-overlay" onClick={onCancel} role="presentation">
+        <div
+            className="redesign-modal-overlay"
+            onMouseDown={handleBackdropMouseDown}
+            role="presentation"
+        >
             <div
                 className="modal-panel"
                 style={{ maxWidth: 400 }}
                 ref={dialogRef}
                 onKeyDown={trapTab}
+                onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
                 role="alertdialog"
                 aria-modal="true"
@@ -108,12 +141,12 @@ export default function DealConfirmDialog({
                             gap: 6,
                         }}
                         disabled={confirmLoading}
-                        onClick={onConfirm}
+                        onClick={handleConfirm}
                     >
                         {confirmLoading && (
                             <span
                                 aria-hidden="true"
-                                className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                                className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                                 style={{ width: 11, height: 11 }}
                             />
                         )}

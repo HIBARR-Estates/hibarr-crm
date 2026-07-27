@@ -464,6 +464,19 @@
     transition: opacity 0.12s;
     color: #1a6bb5;
 }
+
+/* Deal value is the most central editable field in the header but had a
+   zero-padding, text-glyph-sized hit area — widen it and give it a real
+   hover state so it reads as clickable at a glance, not just on hover. */
+.dr-editable--lg {
+    padding: 6px 10px;
+    margin: -6px -10px;
+    transition: background 0.12s;
+}
+.dr-editable--lg:hover,
+.dr-editable--lg:focus-visible {
+    background: #f5f6f8;
+}
 .dr-editable:hover .dr-pencil,
 .dr-editable:focus-visible .dr-pencil {
     opacity: 1;
@@ -552,11 +565,13 @@
     vertical-align: top;
 }
 
-.dr-clamp-2 {
+.dr-clamp-3 {
     display: -webkit-box;
-    -webkit-line-clamp: 2;
+    -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .dr-overview {
@@ -564,7 +579,12 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
     gap: 12px;
 }
-@media (max-width: 960px) {
+@media (max-width: 1440px) {
+    .dr-overview {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}
+@media (max-width: 1280px) {
     .dr-overview {
         grid-template-columns: 1fr;
     }

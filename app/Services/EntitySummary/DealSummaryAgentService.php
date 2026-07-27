@@ -7,7 +7,7 @@ use App\Models\Deal;
 
 class DealSummaryAgentService
 {
-    private const PROMPT_VERSION = 'v1';
+    private const PROMPT_VERSION = 'v3';
 
     public function __construct(
         private EntitySummaryAgentInterface $agent,
@@ -36,7 +36,8 @@ class DealSummaryAgentService
 
         $summary['meta'] = array_merge($summary['meta'] ?? [], [
             'source' => 'ai',
-            'generated_at' => $summary['meta']['generated_at'] ?? $input['now'],
+            // Always ISO for UI/DB — input `now` is human-readable for the model.
+            'generated_at' => now()->toIso8601String(),
         ]);
 
         return [
@@ -87,23 +88,27 @@ class DealSummaryAgentService
             ? $deal->updated_at->diffInDays(now())
             : 0;
 
+        $currency = $dealData['currency'] ?? null;
+        $valuePhrase = $currency
+            ? number_format((float) $dealData['value'], 0) . ' ' . $currency
+            : number_format((float) $dealData['value'], 0);
+
         $riskLevel = 'low';
-        $statusLine = "Deal \"{$deal->name}\" is in {$stageLabel} with value {$dealData['currency']} "
-            . number_format((float) $dealData['value'], 0) . '.';
+        $statusLine = "Your deal sits in {$stageLabel} at {$valuePhrase} — regenerate when AI is available for a fuller read.";
 
         if ($daysSinceUpdate >= 14) {
             $riskLevel = 'high';
-            $statusLine = "Deal \"{$deal->name}\" has had no recorded activity in {$daysSinceUpdate} days while sitting in {$stageLabel}.";
+            $statusLine = "You have had no recorded activity on this deal for {$daysSinceUpdate} days while it sits in {$stageLabel} — re-engage before it goes cold.";
         } elseif ($daysSinceUpdate >= 7) {
             $riskLevel = 'medium';
-            $statusLine = "Deal \"{$deal->name}\" may be stalling in {$stageLabel} — last update was {$daysSinceUpdate} days ago.";
+            $statusLine = "Your last update was {$daysSinceUpdate} days ago in {$stageLabel} — momentum may be slipping; schedule a concrete follow-up.";
         }
 
         $chips = [
             [
                 'id' => 'momentum',
                 'label' => 'Momentum',
-                'value' => $riskLevel === 'low' ? 'On track' : 'Slowing',
+                'value' => $riskLevel === 'low' ? 'Quiet' : 'Slowing',
                 'tone' => $riskLevel === 'low' ? 'green' : ($riskLevel === 'high' ? 'red' : 'amber'),
                 'sublabel' => "Last update {$daysSinceUpdate} day(s) ago",
             ],
@@ -124,6 +129,8 @@ class DealSummaryAgentService
             ? 'No action needed'
             : 'Review deal activity and schedule follow-up';
 
+        $staleWarning = $daysSinceUpdate >= 14;
+
         return [
             'status_line' => $statusLine,
             'risk_level' => $riskLevel,
@@ -138,9 +145,9 @@ class DealSummaryAgentService
                 'urgency' => $riskLevel === 'high' ? 'immediate' : 'this_week',
             ],
             'meta' => [
-                'generated_at' => $input['now'],
+                'generated_at' => now()->toIso8601String(),
                 'data_confidence' => 'low',
-                'stale_data_warning' => $daysSinceUpdate >= 14,
+                'stale_data_warning' => $staleWarning,
                 'source' => 'heuristic',
             ],
         ];

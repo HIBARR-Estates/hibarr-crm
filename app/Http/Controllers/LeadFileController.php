@@ -57,6 +57,8 @@ class LeadFileController extends AccountBaseController
         $addPermission = user()->permission('add_lead_files');
         abort_403(!in_array($addPermission, ['all', 'added']));
 
+        $createdFiles = [];
+
         if ($request->hasFile('file')) {
             foreach ($request->file as $fileData) {
                 $file = new DealFile();
@@ -83,12 +85,13 @@ class LeadFileController extends AccountBaseController
                 }
 
                 $file->save();
+                $createdFiles[] = $file;
             }
         }
 
         $this->lead = Deal::findOrFail($request->lead_id);
 
-        return Reply::success(__('messages.fileUploaded'));
+        return Reply::successWithData(__('messages.fileUploaded'), ['data' => $createdFiles]);
     }
 
     /**

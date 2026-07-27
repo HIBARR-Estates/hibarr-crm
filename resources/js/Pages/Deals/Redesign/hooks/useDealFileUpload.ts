@@ -1,16 +1,14 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { message } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
-import { getFileUploadService } from "@/Services/FileUploadService";
-import { IUploadResponseItem } from "@/Types/uploads";
 import type { DealFile } from "@/Types/api/file";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
-interface StoreExternalPayload {
-    deal_id: number;
-    files: IUploadResponseItem[];
+interface StorePayload {
+    lead_id: number;
+    file: File[];
 }
 
 export default function useDealFileUpload(dealId: number) {
@@ -18,18 +16,15 @@ export default function useDealFileUpload(dealId: number) {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const { setFiles } = useDealWorkspace();
-    const uploadServiceRef = useRef(
-        getFileUploadService({
-            maxFileSize: 200 * 1024 * 1024,
-            allowedTypes: [],
-        }),
-    );
 
+    // Uploads go through Laravel (LeadFileController::store), which proxies to
+    // external storage server-side via FileStorageService — the browser never
+    // sees the storage API key, unlike the old direct-to-external-API path.
     const saveMutation = useApiMutate<
-        StoreExternalPayload,
+        StorePayload,
         DealFile[],
         ApiResponse<DealFile[]>
-    >(route("deal-files.store-external"), "POST");
+    >(route("deal-files.store"), "POST", undefined, true);
 
     const uploadFiles = useCallback(
         async (rawFiles: File[]) => {
@@ -39,39 +34,12 @@ export default function useDealFileUpload(dealId: number) {
             setUploadProgress(0);
 
             try {
-                const uploadService = uploadServiceRef.current;
-                const results: IUploadResponseItem[] = [];
-
-                for (let index = 0; index < rawFiles.length; index += 1) {
-                    const file = rawFiles[index];
-                    const result = await uploadService.uploadSingle(
-                        file,
-                        "deal-files",
-                        (_fileId, progress) => {
-                            const fileProgress = progress / rawFiles.length;
-                            const baseProgress = (index / rawFiles.length) * 100;
-                            setUploadProgress(
-                                Math.round(baseProgress + fileProgress),
-                            );
-                        },
-                    );
-                    results.push(result);
-                    setUploadProgress(
-                        Math.round(((index + 1) / rawFiles.length) * 100),
-                    );
-                }
-
                 await new Promise<void>((resolve, reject) => {
                     saveMutation.mutate(
                         {
-                            deal_id: dealId,
-                            files: results.map((result) => ({
-                                downloadUrl: encodeURI(result.downloadUrl),
-                                objectPath: result.objectPath,
-                                originalName: result.originalName,
-                                size: 0,
-                            })),
-                        } as StoreExternalPayload,
+                            lead_id: dealId,
+                            file: rawFiles,
+                        } as StorePayload,
                         {
                             onSuccess: (response) => {
                                 if (response?.status === "success") {
@@ -82,6 +50,7 @@ export default function useDealFileUpload(dealId: number) {
                                         const uploaded = response.data;
                                         setFiles((prev) => [...uploaded, ...prev]);
                                     }
+                                    setUploadProgress(100);
                                     resolve();
                                     return;
                                 }
