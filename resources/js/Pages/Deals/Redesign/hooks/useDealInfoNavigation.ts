@@ -1,5 +1,9 @@
 import { useMemo } from "react";
 import type { Deal } from "@/Types/api/deals";
+import type { CustomField } from "@/Types";
+import { isFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
+import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import {
     buildCoreNavItem,
     CORE_SECTION_FIELD_LABELS,
@@ -16,8 +20,11 @@ interface CustomFieldDefinition {
     label?: string;
     name?: string;
     type?: string;
+    values?: unknown;
     custom_field_category_id?: string | number;
     required?: boolean | string;
+    show_rule_set?: CustomField["show_rule_set"];
+    linked_field_id?: number | null;
 }
 
 interface NavGroup {
@@ -51,10 +58,7 @@ function isFilledValue(value: unknown): boolean {
     return Boolean(value);
 }
 
-function getCustomFieldValue(
-    deal: Deal,
-    fieldId: number,
-): unknown {
+function getCustomFieldValue(deal: Deal, fieldId: number): unknown {
     return (
         deal.custom_fields_data?.[`field_${fieldId}`] ??
         deal.custom_fields_data?.[fieldId]
@@ -65,11 +69,91 @@ function getHibarrValue(deal: Deal, key: string): unknown {
     return deal.hibarr_fields?.[key as keyof NonNullable<Deal["hibarr_fields"]>];
 }
 
+/**
+ * Build the same visibility map CustomFieldDisplay uses, so the sidebar
+ * "filled/total" badge only counts fields the user can currently see.
+ */
+function buildCustomFieldVisibilityMap(
+    fields: CustomFieldDefinition[],
+    customFieldsData: Deal["custom_fields_data"],
+): Record<number, boolean> {
+    const fieldValuesForVisibility: Record<string, unknown> = {};
+
+    if (customFieldsData) {
+        Object.keys(customFieldsData).forEach((key) => {
+            const normalizedKey = key.startsWith("field_")
+                ? key
+                : `field_${key}`;
+            let fieldValue = customFieldsData[key];
+            const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
+            const matchingField = fields.find((f) => Number(f.id) === fieldId);
+
+            if (
+                matchingField &&
+                (matchingField.type === "multiSelectCountry" ||
+                    matchingField.type === "multiselect" ||
+                    (matchingField.type === "checkbox" &&
+                        !!matchingField.values &&
+                        String(matchingField.values).trim() !== "" &&
+                        String(matchingField.values).trim() !== "[]" &&
+                        String(matchingField.values).trim() !== "{}"))
+            ) {
+                fieldValue = parseMultiSelectStoredValue(fieldValue);
+            }
+
+            fieldValuesForVisibility[normalizedKey] = fieldValue;
+        });
+    }
+
+    const customFieldsForEvaluation: CustomField[] = fields.map((field) => {
+        let valuesString: string | null = null;
+        if (field.values != null) {
+            valuesString =
+                typeof field.values === "string"
+                    ? field.values
+                    : JSON.stringify(field.values);
+        }
+
+        return {
+            id: Number(field.id),
+            label: field.label ?? field.name ?? "",
+            name: `field_${field.id}`,
+            type: field.type ?? "text",
+            required: "no",
+            values: valuesString,
+            custom_field_group_id: 0,
+            show_table: "no",
+            field_display_name: field.label ?? field.name ?? "",
+            field_order: 0,
+            display_order: 0,
+            show_rule_set: field.show_rule_set,
+            linked_field_id: field.linked_field_id ?? undefined,
+        };
+    });
+
+    return evaluateAllFieldsVisibility(
+        customFieldsForEvaluation,
+        fieldValuesForVisibility,
+    );
+}
+
+function isCustomFieldCurrentlyVisible(
+    field: CustomFieldDefinition,
+    visibleFieldKeys: string[] | null | undefined,
+    visibilityMap: Record<number, boolean>,
+): boolean {
+    if (field.type === "file") return false;
+    if (!isFieldVisible(visibleFieldKeys, String(field.id))) return false;
+    return visibilityMap[Number(field.id)] !== false;
+}
+
 function countSectionCompletion(
     sectionId: DealInfoCoreSectionId,
     deal: Deal,
     fields: CustomFieldDefinition[],
     categories: Array<{ id: number; name: string }>,
+    visibleFieldKeys: string[] | null | undefined,
+    visibilityMap: Record<number, boolean>,
 ): { filled: number; total: number } {
     const categoryIds = getCategoriesForCoreSection(sectionId, categories).map(
         (category) => category.id,
@@ -112,22 +196,36 @@ function countSectionCompletion(
         if (isFilledValue(value)) filled += 1;
     };
 
+    const trackScopedKey = (key: string, value: unknown) => {
+        if (!isFieldVisible(visibleFieldKeys, key)) return;
+        track(value);
+    };
+
     for (const key of dealKeysBySection[sectionId] ?? []) {
-        track((deal as unknown as Record<string, unknown>)[key]);
+        trackScopedKey(key, (deal as unknown as Record<string, unknown>)[key]);
     }
 
     for (const key of hibarrKeysBySection[sectionId] ?? []) {
-        track(getHibarrValue(deal, key));
+        trackScopedKey(key, getHibarrValue(deal, key));
     }
 
     if (sectionId === "support") {
+        // Team rows are always rendered in the redesign support section.
         track(deal.lead_agent?.user_id ?? deal.agent_id);
         track(deal.deal_participants?.length ? deal.deal_participants : null);
         track(deal.deal_watchers?.length ? deal.deal_watchers : null);
     }
 
     for (const field of categoryFields) {
-        if (field.type === "file") continue;
+        if (
+            !isCustomFieldCurrentlyVisible(
+                field,
+                visibleFieldKeys,
+                visibilityMap,
+            )
+        ) {
+            continue;
+        }
         track(getCustomFieldValue(deal, field.id));
     }
 
@@ -138,6 +236,8 @@ function countCategoryCompletion(
     categoryId: number,
     deal: Deal,
     fields: CustomFieldDefinition[],
+    visibleFieldKeys: string[] | null | undefined,
+    visibilityMap: Record<number, boolean>,
 ): { filled: number; total: number } {
     const categoryFields = fields.filter(
         (field) => Number(field.custom_field_category_id) === categoryId,
@@ -146,7 +246,15 @@ function countCategoryCompletion(
     let total = 0;
 
     for (const field of categoryFields) {
-        if (field.type === "file") continue;
+        if (
+            !isCustomFieldCurrentlyVisible(
+                field,
+                visibleFieldKeys,
+                visibilityMap,
+            )
+        ) {
+            continue;
+        }
         total += 1;
         if (isFilledValue(getCustomFieldValue(deal, field.id))) {
             filled += 1;
@@ -162,6 +270,7 @@ export default function useDealInfoNavigation(
     customFieldCategories: Array<{ id: number; name: string }> = [],
     consents: Array<{ name?: string }> = [],
     gdprSetting?: { enable_gdpr?: boolean } | null,
+    visibleFieldKeys?: string[] | null,
 ) {
     return useMemo(() => {
         const nowSections = DEAL_INFO_CORE_SECTION_ORDER.slice(
@@ -172,6 +281,10 @@ export default function useDealInfoNavigation(
             DEAL_INFO_NOW_SECTION_COUNT,
         );
         const unmappedCategories = getUnmappedCategories(customFieldCategories);
+        const visibilityMap = buildCustomFieldVisibilityMap(
+            fields,
+            deal.custom_fields_data,
+        );
 
         const coreSearchTerms = (
             sectionId: (typeof DEAL_INFO_CORE_SECTION_ORDER)[number],
@@ -183,7 +296,12 @@ export default function useDealInfoNavigation(
                         .filter(
                             (field) =>
                                 Number(field.custom_field_category_id) ===
-                                category.id,
+                                    category.id &&
+                                isCustomFieldCurrentlyVisible(
+                                    field,
+                                    visibleFieldKeys,
+                                    visibilityMap,
+                                ),
                         )
                         .map((field) => field.label ?? field.name ?? ""),
                 )
@@ -194,7 +312,12 @@ export default function useDealInfoNavigation(
             fields
                 .filter(
                     (field) =>
-                        Number(field.custom_field_category_id) === categoryId,
+                        Number(field.custom_field_category_id) === categoryId &&
+                        isCustomFieldCurrentlyVisible(
+                            field,
+                            visibleFieldKeys,
+                            visibilityMap,
+                        ),
                 )
                 .map((field) => field.label ?? field.name ?? "")
                 .filter(Boolean);
@@ -205,6 +328,8 @@ export default function useDealInfoNavigation(
                 deal,
                 fields,
                 customFieldCategories,
+                visibleFieldKeys,
+                visibilityMap,
             );
             const item = buildCoreNavItem(sectionId, false);
             return {
@@ -222,6 +347,8 @@ export default function useDealInfoNavigation(
                     deal,
                     fields,
                     customFieldCategories,
+                    visibleFieldKeys,
+                    visibilityMap,
                 );
                 const item = buildCoreNavItem(sectionId, true);
                 return {
@@ -240,6 +367,8 @@ export default function useDealInfoNavigation(
                     category.id,
                     deal,
                     fields,
+                    visibleFieldKeys,
+                    visibilityMap,
                 );
                 return {
                     id: toCategorySectionId(category.id),
@@ -280,5 +409,12 @@ export default function useDealInfoNavigation(
         ];
 
         return { navGroups };
-    }, [consents, customFieldCategories, deal, fields, gdprSetting]);
+    }, [
+        consents,
+        customFieldCategories,
+        deal,
+        fields,
+        gdprSetting,
+        visibleFieldKeys,
+    ]);
 }

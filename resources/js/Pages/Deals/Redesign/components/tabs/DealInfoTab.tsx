@@ -20,7 +20,6 @@ interface DealInfoTabProps {
 }
 
 export default function DealInfoTab({
-    deal: initialDeal,
     customFieldCategories,
     visibleFieldKeys,
     fields,
@@ -31,13 +30,6 @@ export default function DealInfoTab({
     gdprSetting,
     showCompletionDot = false,
 }: DealInfoTabProps) {
-    const { navGroups } = useDealInfoNavigation(
-        initialDeal,
-        fields,
-        customFieldCategories,
-        consents,
-        gdprSetting,
-    );
     const {
         deal,
         canEdit,
@@ -47,6 +39,14 @@ export default function DealInfoTab({
         handleFieldUpdate,
         handleFieldsUpdate,
     } = useDealInfoFieldUpdate();
+    const { navGroups } = useDealInfoNavigation(
+        deal,
+        fields,
+        customFieldCategories,
+        consents,
+        gdprSetting,
+        visibleFieldKeys,
+    );
 
     return (
         <div>

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useContext } from "react";
+import { useState, useRef, useEffect, useCallback, useContext, type ReactNode, type MouseEvent, type KeyboardEvent } from "react";
 import {
     Input,
     Typography,
@@ -36,9 +36,53 @@ import {
     formatMobileForDisplay,
     serializePhoneInputValue,
 } from "@/lib/utils";
+import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { DetailFieldEditContext } from "./DetailSection";
+import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
 
 const { Text } = Typography;
+
+function MultiValueTag(props: {
+    label: ReactNode;
+    closable?: boolean;
+    onClose?: (event?: MouseEvent | KeyboardEvent) => void;
+}) {
+    const { label, closable, onClose } = props;
+    return (
+        <DealBadge
+            variant="navy"
+            style={{ marginInlineEnd: 4, marginBlock: 2, maxWidth: "100%" }}
+        >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {label}
+            </span>
+            {closable ? (
+                <button
+                    type="button"
+                    aria-label="Remove"
+                    onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }}
+                    onClick={onClose}
+                    style={{
+                        margin: 0,
+                        padding: 0,
+                        border: "none",
+                        background: "transparent",
+                        color: "inherit",
+                        cursor: "pointer",
+                        lineHeight: 1,
+                        fontSize: 14,
+                        opacity: 0.7,
+                    }}
+                >
+                    ×
+                </button>
+            ) : null}
+        </DealBadge>
+    );
+}
 
 interface EditableFieldProps {
     value: any; // supports primitives, arrays, and structured values (e.g. currency {amount,currency})
@@ -231,10 +275,27 @@ export default function EditableField({
         return value;
     };
 
-    const [inputValue, setInputValue] = useState<any>(getInitialValue());
+    const isMultiSelectField =
+        fieldType === "multiselect" || fieldType === "multiSelectCountry";
+
+    const [inputValue, setInputValue] = useState<any>(() => {
+        if (isMultiSelectField || Array.isArray(value)) {
+            return parseMultiSelectStoredValue(value);
+        }
+        return getInitialValue();
+    });
     const isManuallySettingValue = useRef(false);
     const previousValueRef = useRef<string>("");
     const previousEditingRef = useRef(editing);
+    // Content-stable key so parent re-parses (new array refs, same data) do not
+    // wipe in-progress multiselect edits when liveValues/pendingChanges re-render.
+    const previousMultiValueKeyRef = useRef(
+        JSON.stringify(
+            isMultiSelectField || Array.isArray(value)
+                ? parseMultiSelectStoredValue(value)
+                : null,
+        ),
+    );
 
     useEffect(() => {
         if (isManuallySettingValue.current) {
@@ -292,6 +353,8 @@ export default function EditableField({
     // Update inputValue when value prop changes (e.g., after save or when deal data updates).
     // Currency fields are managed by the dedicated normalization effect above so they are not
     // reset on every parent render while the user types in always-edit mode.
+    // Multiselect/country arrays are compared by content — CustomFieldDisplay re-parses
+    // stored values into a new array on every render, which must not reset local edits.
     useEffect(() => {
         if (fieldType === "date" && normalizedValue) {
             try {
@@ -309,13 +372,13 @@ export default function EditableField({
             fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
-            setInputValue(
-                Array.isArray(normalizedValue)
-                    ? normalizedValue
-                    : normalizedValue
-                      ? [normalizedValue]
-                      : [],
-            );
+            const next = parseMultiSelectStoredValue(normalizedValue);
+            const nextKey = JSON.stringify(next);
+            if (previousMultiValueKeyRef.current === nextKey) {
+                return;
+            }
+            previousMultiValueKeyRef.current = nextKey;
+            setInputValue(next);
         } else if (fieldType === "currency") {
             return;
         } else if (fieldType === "range") {
@@ -325,7 +388,7 @@ export default function EditableField({
         } else {
             setInputValue(normalizedValue ?? "");
         }
-    }, [normalizedValue, fieldType]);
+    }, [normalizedValue, fieldType, defaultCurrencyCode]);
 
     const isLocked = loading || saving;
 
@@ -351,13 +414,7 @@ export default function EditableField({
             fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
-            setInputValue(
-                Array.isArray(normalizedValue)
-                    ? normalizedValue
-                    : normalizedValue
-                      ? [normalizedValue]
-                      : [],
-            );
+            setInputValue(parseMultiSelectStoredValue(normalizedValue));
         } else if (fieldType === "currency") {
             setInputValue(normalizeCurrencyValue(normalizedValue));
         } else if (fieldType === "range") {
@@ -505,9 +562,14 @@ export default function EditableField({
 
     // Handle input value change - update state and notify parent in alwaysEditing mode
     const handleValueChange = (newValue: any) => {
-        setInputValue(newValue);
+        // Ant Select mode="multiple" emits undefined when the last item is cleared.
+        const nextValue =
+            isMultiSelectField && (newValue == null || newValue === undefined)
+                ? []
+                : newValue;
+        setInputValue(nextValue);
         if (alwaysEditing && onChange) {
-            onChange(fieldName, newValue);
+            onChange(fieldName, nextValue);
         }
     };
 
@@ -871,7 +933,7 @@ export default function EditableField({
                         />
                     ) : fieldType === "multiselect" ? (
                         <Select
-                            value={inputValue}
+                            value={Array.isArray(inputValue) ? inputValue : []}
                             onChange={(val) => handleValueChange(val)}
                             options={options}
                             mode="multiple"
@@ -880,6 +942,7 @@ export default function EditableField({
                             defaultOpen={!alwaysEditing}
                             allowClear
                             placeholder="Select options..."
+                            tagRender={MultiValueTag}
                         />
                     ) : fieldType === "boolean" ? (
                         <Select
@@ -980,14 +1043,15 @@ export default function EditableField({
                     ) : fieldType === "multiSelectCountry" ? (
                         <Select
                             mode="multiple"
-                            value={inputValue}
+                            value={Array.isArray(inputValue) ? inputValue : []}
                             onChange={(val) => handleValueChange(val)}
                             className="flex-1 min-w-[200px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                             allowClear
                             showSearch
                             placeholder="Select countries"
+                            tagRender={MultiValueTag}
                             filterOption={(input, option) => {
                                 const searchText = input.toLowerCase();
                                 const countryValue = option?.value as string;
