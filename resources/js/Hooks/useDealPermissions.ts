@@ -24,6 +24,11 @@ export interface DealPermissions {
     /** Whether the user is a participant on the deal */
     isParticipant: boolean;
     /**
+     * Watcher with no write standing (not creator/agent/participant).
+     * Mirrors DealNoteController's watcher-only write block — lock-independent.
+     */
+    isWatcherOnly: boolean;
+    /**
      * The user's `edit_deals` scope is "all", i.e. they can act on any deal.
      * This is NOT the admin role - a manager can hold this without being an
      * admin. For real role checks use `useIsAdminRole()`, which is what the
@@ -70,6 +75,7 @@ export function useDealPermissions(
             isAgent: false,
             isWatcher: false,
             isParticipant: false,
+            isWatcherOnly: false,
             hasFullDealAccess: false,
             isLocked: false,
             canEdit: false,
@@ -123,6 +129,10 @@ export function useDealPermissions(
 
         const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
+        // Watcher with no team standing — see DealNoteController::store.
+        const isWatcherOnly =
+            isWatcher && !isCreator && !isAgent && !isParticipant && !hasFullDealAccess;
+
         // Admins, creators, agents, and participants can edit — participants act with the
         // same rights as the agent. Watchers stay view-only.
         const canEdit =
@@ -148,6 +158,7 @@ export function useDealPermissions(
             isAgent,
             isWatcher,
             isParticipant,
+            isWatcherOnly,
             hasFullDealAccess,
             isLocked,
             canEdit,
@@ -178,6 +189,7 @@ export function getDealPermissions(
         isAgent: false,
         isWatcher: false,
         isParticipant: false,
+        isWatcherOnly: false,
         hasFullDealAccess: false,
         isLocked: false,
         canEdit: false,
@@ -227,6 +239,8 @@ export function getDealPermissions(
     }
 
     const hasAnyRole = roles.length > 0 && !roles.includes("none");
+    const isWatcherOnly =
+        isWatcher && !isCreator && !isAgent && !isParticipant && !hasFullDealAccess;
 
     // Admins, creators, agents, and participants can edit — participants act with the
     // same rights as the agent. Watchers stay view-only.
@@ -250,6 +264,7 @@ export function getDealPermissions(
         isAgent,
         isWatcher,
         isParticipant,
+        isWatcherOnly,
         hasFullDealAccess,
         isLocked,
         canEdit,

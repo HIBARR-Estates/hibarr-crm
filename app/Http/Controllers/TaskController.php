@@ -773,16 +773,22 @@ class TaskController extends AccountBaseController
      * True when the task is linked to at least one deal, the current user has no
      * real membership (creator/agent/participant) on any of them, and they're a
      * watcher on at least one — i.e. their only standing is "watcher", who should
-     * stay read-only. See Deal::hasTeamMemberAccess().
+     * stay read-only on other people's tasks. Watchers may still edit/delete tasks
+     * they created. See Deal::hasTeamMemberAccess().
      */
     private function isWatcherOnlyOnTaskDeals(Task $task): bool
     {
+        $userId = user()->id;
+
+        // Creators keep write access to their own tasks even as deal watchers.
+        if ((int) $task->added_by === (int) $userId) {
+            return false;
+        }
+
         $deals = $task->deals()->get();
         if ($deals->isEmpty()) {
             return false;
         }
-
-        $userId = user()->id;
 
         foreach ($deals as $deal) {
             if ($deal->added_by == $userId || $deal->hasTeamMemberAccess($userId)) {

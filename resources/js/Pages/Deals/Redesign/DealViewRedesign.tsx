@@ -269,6 +269,13 @@ function DealViewRedesignInner(props: DealShowProps) {
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
                 dealId={deal.id}
+                dealAgentUserId={
+                    deal.lead_agent?.user?.id ??
+                    deal.lead_agent?.user_id ??
+                    deal.agent?.user?.id ??
+                    deal.agent?.user_id ??
+                    null
+                }
             />
             <DealScheduleMeetingModal
                 open={addMeetingOpen}
@@ -438,7 +445,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                             <WorkspaceItineraryTab
                                                 deal={deal}
                                                 canAdd={dealPermissions.canEdit}
-                                                canDelete={dealPermissions.canDelete}
+                                                canDelete={dealPermissions.canEdit}
                                             />
                                         )}
                                         {activeTab === "dealinfo" && (

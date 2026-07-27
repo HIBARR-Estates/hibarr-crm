@@ -19,6 +19,8 @@ interface NotesListProps {
     onSearchChange: (value: string) => void;
     permissions: Record<string, string>;
     userId?: number;
+    /** Watcher-only users are read-only on deal notes (matches DealNoteController). */
+    isWatcherOnly?: boolean;
     onAddNote: () => void;
     onViewNote: (note: Note) => void;
     onEditNote: (note: Note) => void;
@@ -34,6 +36,7 @@ export const NotesList: React.FC<NotesListProps> = ({
     onSearchChange,
     permissions,
     userId,
+    isWatcherOnly = false,
     onAddNote,
     onViewNote,
     onEditNote,
@@ -43,9 +46,10 @@ export const NotesList: React.FC<NotesListProps> = ({
     setCurrentView,
 }) => {
     const canAddNote =
-        permissions.add_deal_note === "all" ||
-        permissions.add_deal_note === "added" ||
-        permissions.add_deal_note === "both";
+        !isWatcherOnly &&
+        (permissions.add_deal_note === "all" ||
+            permissions.add_deal_note === "added" ||
+            permissions.add_deal_note === "both");
 
     // Filter notes based on search term
     const filteredNotes = notes.filter(
@@ -136,6 +140,7 @@ export const NotesList: React.FC<NotesListProps> = ({
                         note={note}
                         permissions={permissions}
                         userId={userId}
+                        isWatcherOnly={isWatcherOnly}
                         onView={onViewNote}
                         onEdit={onEditNote}
                         onDelete={onDeleteNote}

@@ -296,7 +296,7 @@ class LeadFlightItineraryController extends Controller
 
     {
 
-        if ($response = $this->authorizeItineraryRecord($leadFlightItinerary, 'delete')) {
+        if ($response = $this->authorizeItineraryRecord($leadFlightItinerary, 'edit')) {
 
             return $response;
 

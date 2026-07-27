@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading } from "@/lib/utils";
@@ -33,7 +34,9 @@ interface WorkspaceMeetingsTabProps {
 function canAddMeeting(
     permissions: Record<string, string>,
     deal: Deal,
+    isWatcherOnly: boolean,
 ): boolean {
+    if (isWatcherOnly) return false;
     const canAdd =
         permissions.add_lead_follow_up === "all" ||
         permissions.add_lead_follow_up === "added";
@@ -46,8 +49,10 @@ function canAddMeeting(
 function canEditMeeting(
     permissions: Record<string, string>,
     followup: DealFollowup,
-    userId?: number,
+    userId: number | undefined,
+    isWatcherOnly: boolean,
 ): boolean {
+    if (isWatcherOnly) return false;
     return (
         permissions.edit_lead_follow_up === "all" ||
         (permissions.edit_lead_follow_up === "added" &&
@@ -58,8 +63,10 @@ function canEditMeeting(
 function canDeleteMeeting(
     permissions: Record<string, string>,
     followup: DealFollowup,
-    userId?: number,
+    userId: number | undefined,
+    isWatcherOnly: boolean,
 ): boolean {
+    if (isWatcherOnly) return false;
     if (!followup.added_by) return false;
 
     return (
@@ -90,6 +97,7 @@ export default function WorkspaceMeetingsTab({
     const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
+    const { isWatcherOnly } = useDealPermissions(deal);
     const { setDealFollowUps } = useDealWorkspace();
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
@@ -127,9 +135,11 @@ export default function WorkspaceMeetingsTab({
         [meetings],
     );
 
-    const showSchedule = canAddMeeting(permissions, deal);
+    const showSchedule = canAddMeeting(permissions, deal, isWatcherOnly);
     // Bulk status changes act across authors, so only the full scope gets them.
-    const canBulkEdit = permissions.edit_lead_follow_up === "all";
+    const canBulkEdit =
+        !isWatcherOnly && permissions.edit_lead_follow_up === "all";
+    const showSelectMode = canBulkEdit;
 
     const toggleSelect = (id: number) =>
         setSelected((prev) => {
@@ -179,7 +189,7 @@ export default function WorkspaceMeetingsTab({
                     {past.length} {t("pages.deals.workspace.meetings.past_label")}
                 </span>
                 <div className="flex gap-1.5">
-                    {meetings.length > 0 && canBulkEdit && (
+                    {meetings.length > 0 && showSelectMode && (
                         <DealButton
                             variant="ghost"
                             size="sm"
@@ -434,12 +444,22 @@ export default function WorkspaceMeetingsTab({
                 meetingTypes={meetingTypes}
                 canEdit={
                     detailFollowup
-                        ? canEditMeeting(permissions, detailFollowup, userId)
+                        ? canEditMeeting(
+                              permissions,
+                              detailFollowup,
+                              userId,
+                              isWatcherOnly,
+                          )
                         : false
                 }
                 canDelete={
                     detailFollowup
-                        ? canDeleteMeeting(permissions, detailFollowup, userId)
+                        ? canDeleteMeeting(
+                              permissions,
+                              detailFollowup,
+                              userId,
+                              isWatcherOnly,
+                          )
                         : false
                 }
                 onClose={() => setDetailFollowupId(null)}

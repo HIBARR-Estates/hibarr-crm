@@ -107,6 +107,24 @@ export default function DealStickyHeader({
                                 onDelete={() => setDeleteOpen(true)}
                                 onReplayGuide={onReplayGuide}
                                 canDelete={dealPermissions.canDelete}
+                                canAddNote={
+                                    !dealPermissions.isWatcherOnly &&
+                                    (permissions.add_deal_note === "all" ||
+                                        permissions.add_deal_note === "added" ||
+                                        permissions.add_deal_note === "both")
+                                }
+                                canAddTask={
+                                    !dealPermissions.isWatcherOnly &&
+                                    (permissions.add_tasks === "all" ||
+                                        permissions.add_tasks === "added" ||
+                                        permissions.add_tasks === "both")
+                                }
+                                canScheduleMeeting={
+                                    !dealPermissions.isWatcherOnly &&
+                                    (permissions.add_lead_follow_up === "all" ||
+                                        permissions.add_lead_follow_up ===
+                                            "added")
+                                }
                             />
                             <DealButton
                                 variant="ghost"
