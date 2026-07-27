@@ -1194,6 +1194,13 @@ Route::get('meeting-summary/{summaryId}', [MeetingSummaryController::class, 'sho
 
     // CRM Events (Admin viewer)
     Route::get('crm-events', [App\Http\Controllers\CrmEventAdminController::class, 'index'])->name('crm-events.index');
+    // Session-authenticated mutations used by the deal/lead timeline UI.
+    // Prefer these over /api/v1 so delete/update share the same web session
+    // (and company context) as the rest of the Inertia app.
+    Route::patch('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'update'])
+        ->name('crm-events.update');
+    Route::delete('crm-events/{uuid}', [\App\Http\Controllers\CrmEventController::class, 'destroy'])
+        ->name('crm-events.destroy');
 
     // Developers
     Route::prefix('developers')->name('developers.')->group(function () {

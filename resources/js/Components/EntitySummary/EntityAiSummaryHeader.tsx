@@ -66,6 +66,11 @@ export default function EntityAiSummaryHeader({
     const timestampLabel = generatedAt
         ? `generated ${dayjs(generatedAt).fromNow()}`
         : null;
+    // Confidence is about the input at generation time. When the deal has
+    // changed since then, showing "confidence: high" next to "Out of date"
+    // is contradictory — hide it until the summary is refreshed.
+    const shownConfidence = isStale ? undefined : dataConfidence;
+    const riskLabel = riskLevel ? `Risk: ${riskLevel}` : null;
 
     if (variant === "redesign") {
         const sparkIcon = <Sparkles width={15} height={15} strokeWidth={2} />;
@@ -130,11 +135,11 @@ export default function EntityAiSummaryHeader({
                         <span className="entity-ai-summary-header__title-text">
                             {title}
                         </span>
-                        {riskLevel && (
+                        {riskLevel && riskLabel && (
                             <span
                                 className={`entity-ai-summary-risk-pill ${RISK_BADGE[riskLevel]}`}
                             >
-                                Risk: {riskLevel}
+                                {riskLabel}
                             </span>
                         )}
                         {isStale && (
@@ -147,11 +152,11 @@ export default function EntityAiSummaryHeader({
                                 Fallback
                             </span>
                         )}
-                        {(timestampLabel || dataConfidence) && (
+                        {(timestampLabel || shownConfidence) && (
                             <span className="entity-ai-summary-header__timestamp entity-ai-summary-header__timestamp--redesign">
                                 {timestampLabel}
-                                {timestampLabel && dataConfidence ? " · " : ""}
-                                {dataConfidence ? `confidence ${dataConfidence}` : ""}
+                                {timestampLabel && shownConfidence ? " · " : ""}
+                                {shownConfidence ? `confidence ${shownConfidence}` : ""}
                             </span>
                         )}
                     </span>
@@ -202,7 +207,7 @@ export default function EntityAiSummaryHeader({
                         Fallback
                     </span>
                 )}
-                {dataConfidence === "low" && (
+                {shownConfidence === "low" && (
                     <span className="entity-ai-summary-confidence">
                         Low confidence
                     </span>
