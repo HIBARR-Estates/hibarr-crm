@@ -237,7 +237,7 @@ export default function DealIcon({
             strokeLinecap="round"
             strokeLinejoin="round"
             className={className}
-            style={{ flexShrink: 0, display: "inline-block", verticalAlign: "middle" }}
+            style={{ flexShrink: 0, display: "block" }}
         >
             {ICON_PATHS[name] ?? ICON_PATHS.info}
         </svg>

@@ -302,18 +302,17 @@ trait CustomFieldsTrait
                 }
             }
             
-            // Handle checkbox and other array-based fields - convert arrays to comma-separated strings
+            // Multi-value custom fields (checkbox options, multiselect, countries)
+            // all store a JSON array. Checkbox used to be comma-joined; keep
+            // writing JSON going forward so country-style values with commas
+            // and checkbox/multiselect share one path. Readers still accept
+            // the legacy comma-separated form.
             if (is_array($value)) {
-                if ($fieldType == 'checkbox') {
-                    $value = implode(', ', $value);
-                } elseif ($fieldType == 'repeatable') {
-                    // Repeatable: store array of objects as JSON (same as multiselect pattern)
-                    $value = json_encode($value);
-                } elseif ($fieldType == 'multiSelectCountry') {
-                    // JSON (not comma-separated like checkbox): several country nicenames
-                    // contain literal commas (e.g. "Congo, Democratic Republic of the"),
-                    // which would corrupt a comma-joined string on read-back.
+                if (in_array($fieldType, ['checkbox', 'multiselect', 'multiSelectCountry'], true)) {
                     $value = json_encode(array_values($value));
+                } elseif ($fieldType == 'repeatable') {
+                    // Repeatable: store array of objects as JSON
+                    $value = json_encode($value);
                 } else {
                     // For other array types, convert to JSON string
                     $value = json_encode($value);

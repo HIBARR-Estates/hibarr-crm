@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Tooltip } from "antd";
+import { Popover } from "antd";
 import { usePage } from "@inertiajs/react";
 import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -7,9 +7,16 @@ import useTranslation from "@/Hooks/useTranslation";
 import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import useDealPipeline from "../../hooks/useDealPipeline";
 import useHScroll from "../../hooks/useHScroll";
+import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
+import DealIcon from "../primitives/DealIcon";
+import { DealModal } from "../primitives/DealModal";
 import DealScrollArrow from "../primitives/DealScrollArrow";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import {
+    DEAL_REDESIGN_RADIUS as R,
+    DEAL_REDESIGN_TOKENS as T,
+    DEAL_REDESIGN_TYPE as TYPE,
+} from "../../tokens";
 
 interface DealPipelineStepperProps {
     deal: Deal;
@@ -18,6 +25,7 @@ interface DealPipelineStepperProps {
 
 interface StageRequirementCondition {
     field: string;
+    label?: string;
     operator: string;
     value: unknown;
 }
@@ -42,16 +50,117 @@ function humanizeField(field: string) {
         .replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function formatCondition(condition: StageRequirementCondition): string {
-    const label = humanizeField(condition.field);
-    const opLabel = OPERATOR_LABEL[condition.operator] ?? condition.operator;
-    if (condition.operator === "exists" || condition.operator === "changed") {
-        return `${label} ${opLabel}`;
+function formatConditionValue(value: unknown): string {
+    if (Array.isArray(value)) {
+        return value.map(formatConditionValue).join(", ");
     }
-    const value = Array.isArray(condition.value)
-        ? condition.value.join(", ")
-        : String(condition.value ?? "");
-    return `${label} ${opLabel} ${value}`;
+    return String(value ?? "");
+}
+
+function RequirementConditionRows({
+    requirements,
+}: {
+    requirements: StageRequirementCondition[];
+}) {
+    return (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {requirements.map((condition, i) => {
+                const label =
+                    condition.label?.trim() || humanizeField(condition.field);
+                const opLabel =
+                    OPERATOR_LABEL[condition.operator] ?? condition.operator;
+                const showValue =
+                    condition.operator !== "exists" &&
+                    condition.operator !== "changed";
+                const valueText = showValue
+                    ? formatConditionValue(condition.value)
+                    : "";
+
+                return (
+                    <div
+                        key={i}
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 3,
+                            padding: "8px 10px",
+                            background: T.SURFACE_2,
+                            border: `1px solid ${T.BORDER_SOFT}`,
+                            borderRadius: R.SM,
+                        }}
+                    >
+                        <span
+                            style={{
+                                fontSize: TYPE.CAPTION,
+                                fontWeight: 600,
+                                color: T.TEXT_MUTED,
+                                letterSpacing: "0.02em",
+                                lineHeight: 1.3,
+                            }}
+                        >
+                            {label}
+                        </span>
+                        <span
+                            style={{
+                                fontSize: TYPE.BODY,
+                                lineHeight: 1.35,
+                                color: T.TEXT,
+                            }}
+                        >
+                            <span style={{ color: T.TEXT_HINT, fontWeight: 500 }}>
+                                {opLabel}
+                            </span>
+                            {showValue && valueText !== "" ? (
+                                <>
+                                    {" "}
+                                    <span style={{ fontWeight: 700, color: T.NAVY }}>
+                                        {valueText}
+                                    </span>
+                                </>
+                            ) : null}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
+}
+
+function StageRequirementsPopup({
+    stageName,
+    requirementsLabel,
+    requirements,
+}: {
+    stageName: string;
+    requirementsLabel: string;
+    requirements: StageRequirementCondition[];
+}) {
+    return (
+        <div style={{ width: 280, maxWidth: "calc(100vw - 32px)" }}>
+            <div
+                style={{
+                    fontSize: TYPE.BODY,
+                    fontWeight: 700,
+                    color: T.TEXT,
+                    lineHeight: 1.3,
+                }}
+            >
+                {stageName}
+            </div>
+            <div
+                style={{
+                    marginTop: 4,
+                    marginBottom: 10,
+                    fontSize: TYPE.CAPTION,
+                    color: T.TEXT_MUTED,
+                    lineHeight: 1.3,
+                }}
+            >
+                {requirementsLabel}
+            </div>
+            <RequirementConditionRows requirements={requirements} />
+        </div>
+    );
 }
 
 /** Ported from v2.2's Stepper card (deal-v2-2.jsx:1137-1189). */
@@ -70,11 +179,15 @@ export default function DealPipelineStepper({
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
     const [pendingStageId, setPendingStageId] = useState<number | null>(null);
+    const [progressionOpen, setProgressionOpen] = useState(false);
 
     const currentIdx = pipeline.stages.findIndex(
         (stage) => stage.id === pipeline.currentStageId,
     );
     const dealLocked = isDealEffectivelyLocked(deal);
+    const hasAnyRequirements = Object.values(stageRequirements ?? {}).some(
+        (conditions) => !!conditions?.length,
+    );
 
     const handleClick = (
         stage: (typeof pipeline.stages)[number],
@@ -92,6 +205,12 @@ export default function DealPipelineStepper({
 
     return (
         <div
+            data-tour={
+                // Fallback tour target when no stage currently exposes an
+                // info icon (deferred requirements not loaded yet, or none
+                // configured). The first real icon steals this attribute.
+                hasAnyRequirements ? undefined : "deal-stage-requirements"
+            }
             style={{
                 background: T.SURFACE,
                 border: `1px solid ${T.BORDER}`,
@@ -101,7 +220,12 @@ export default function DealPipelineStepper({
         >
             <div
                 className="dr-label"
-                style={{ marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}
+                style={{
+                    marginBottom: 10,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                }}
             >
                 {deal.pipeline?.name ? td(deal.pipeline.name) : t("app.menu.pipeline")}
                 {pipeline.isUpdating && (
@@ -111,6 +235,19 @@ export default function DealPipelineStepper({
                         style={{ width: 10, height: 10, color: T.TEXT_MUTED }}
                     />
                 )}
+                <DealButton
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setProgressionOpen(true)}
+                    icon={<DealIcon name="info" size={12} color="currentColor" />}
+                    style={{ marginLeft: "auto", color: T.TEXT_MUTED }}
+                    aria-label={t(
+                        "pages.deals.header.pipeline.progression_open",
+                    )}
+                    data-tour="deal-stage-progression"
+                >
+                    {t("pages.deals.header.pipeline.progression_button")}
+                </DealButton>
             </div>
             <div style={{ display: "flex", alignItems: "center" }}>
                 {hasOverflow && (
@@ -139,108 +276,172 @@ export default function DealPipelineStepper({
                         const accent = stage.label_color || T.BLUE;
                         const requirements = stageRequirements?.[stage.id];
                         const hasRequirements = !!requirements?.length;
+                        const isTourTarget =
+                            hasRequirements &&
+                            !pipeline.stages
+                                .slice(0, index)
+                                .some((s) => !!stageRequirements?.[s.id]?.length);
 
-                        const stageButton = (
-                                <button
-                                    type="button"
-                                    onClick={() => handleClick(stage, index)}
-                                    aria-current={isActive ? "step" : undefined}
-                                    title={hasRequirements ? undefined : td(stage.name)}
-                                    disabled={
-                                        !canChangeStages ||
-                                        dealLocked ||
-                                        pipeline.isUpdating
-                                    }
-                                    style={{
-                                        fontFamily: "inherit",
-                                        fontSize: 12,
-                                        padding: "7px 13px",
-                                        borderRadius: 20,
-                                        whiteSpace: "nowrap",
-                                        display: "inline-flex",
-                                        alignItems: "center",
-                                        gap: 6,
-                                        fontWeight: isActive ? 700 : 500,
-                                        cursor:
-                                            !canChangeStages ||
-                                            dealLocked ||
-                                            pipeline.isUpdating
-                                                ? "default"
-                                                : "pointer",
-                                        minHeight: 28,
-                                        // Current stage is solid and unmistakable; passed
-                                        // stages keep their stage color (not greyed out to
-                                        // neutral) but dimmed via opacity so they still
-                                        // visibly recede behind the current stage.
-                                        opacity: pipeline.isUpdating
-                                            ? 0.6
-                                            : isDone
-                                              ? 0.45
-                                              : 1,
-                                        background: isActive
-                                            ? accent
-                                            : isDone
-                                              ? `${accent}22`
-                                              : T.BG,
-                                        color: isActive
-                                            ? "#ffffff"
-                                            : isDone
-                                              ? accent
-                                              : T.TEXT_MUTED,
-                                        border: `1px solid ${
-                                            isActive || isDone ? accent : T.BORDER
-                                        }`,
-                                    }}
-                                >
-                                    <span
-                                        aria-hidden="true"
-                                        style={{
-                                            width: 6,
-                                            height: 6,
-                                            borderRadius: "50%",
-                                            display: "inline-block",
-                                            flexShrink: 0,
-                                            background: isActive
-                                                ? "#ffffff"
-                                                : isDone
-                                                  ? accent
-                                                  : T.BORDER,
-                                        }}
-                                    />
-                                    {td(stage.name)}
-                                </button>
-                        );
+                        const pillColor = isActive
+                            ? "#ffffff"
+                            : isDone
+                              ? accent
+                              : T.TEXT_MUTED;
+                        const pillBackground = isActive
+                            ? accent
+                            : isDone
+                              ? `${accent}22`
+                              : T.BG;
+                        const pillBorder = `1px solid ${
+                            isActive || isDone ? accent : T.BORDER
+                        }`;
+                        const pillOpacity = pipeline.isUpdating
+                            ? 0.6
+                            : isDone
+                              ? 0.45
+                              : 1;
 
                         return (
                             <div
                                 key={stage.id}
                                 style={{ display: "flex", alignItems: "center" }}
                             >
-                                {hasRequirements ? (
-                                    <Tooltip
-                                        title={
-                                            <div>
-                                                <div style={{ fontWeight: 600, marginBottom: 4 }}>
-                                                    {td(stage.name)}
-                                                </div>
-                                                <div>
-                                                    {t("pages.deals.header.pipeline.requirements_label")}
-                                                </div>
-                                                <ul style={{ margin: "4px 0 0", paddingLeft: 16 }}>
-                                                    {requirements!.map((condition, i) => (
-                                                        <li key={i}>
-                                                            {formatCondition(condition)}
-                                                        </li>
-                                                    ))}
-                                                </ul>
-                                            </div>
+                                <div
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: hasRequirements
+                                            ? "5px 8px 5px 13px"
+                                            : "7px 13px",
+                                        borderRadius: 20,
+                                        whiteSpace: "nowrap",
+                                        minHeight: 28,
+                                        opacity: pillOpacity,
+                                        background: pillBackground,
+                                        color: pillColor,
+                                        border: pillBorder,
+                                    }}
+                                >
+                                    <button
+                                        type="button"
+                                        onClick={() => handleClick(stage, index)}
+                                        aria-current={isActive ? "step" : undefined}
+                                        title={td(stage.name)}
+                                        disabled={
+                                            !canChangeStages ||
+                                            dealLocked ||
+                                            pipeline.isUpdating
                                         }
+                                        style={{
+                                            fontFamily: "inherit",
+                                            fontSize: 12,
+                                            padding: 0,
+                                            margin: 0,
+                                            border: "none",
+                                            background: "transparent",
+                                            color: "inherit",
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: 6,
+                                            fontWeight: isActive ? 700 : 500,
+                                            cursor:
+                                                !canChangeStages ||
+                                                dealLocked ||
+                                                pipeline.isUpdating
+                                                    ? "default"
+                                                    : "pointer",
+                                            lineHeight: 1,
+                                        }}
                                     >
-                                        {stageButton}
-                                    </Tooltip>
-                                ) : (
-                                    stageButton
-                                )}
+                                        <span
+                                            aria-hidden="true"
+                                            style={{
+                                                width: 6,
+                                                height: 6,
+                                                borderRadius: "50%",
+                                                display: "inline-block",
+                                                flexShrink: 0,
+                                                background: isActive
+                                                    ? "#ffffff"
+                                                    : isDone
+                                                      ? accent
+                                                      : T.BORDER,
+                                            }}
+                                        />
+                                        {td(stage.name)}
+                                    </button>
+                                    {hasRequirements ? (
+                                        <Popover
+                                            trigger={["hover", "click"]}
+                                            placement="bottomLeft"
+                                            arrow={false}
+                                            mouseEnterDelay={0.2}
+                                            mouseLeaveDelay={0.15}
+                                            styles={{
+                                                body: {
+                                                    padding: 12,
+                                                    borderRadius: R.MD,
+                                                    border: `1px solid ${T.BORDER}`,
+                                                    boxShadow:
+                                                        "0 8px 24px rgba(22, 41, 77, 0.12)",
+                                                },
+                                            }}
+                                            content={
+                                                <StageRequirementsPopup
+                                                    stageName={td(stage.name)}
+                                                    requirementsLabel={t(
+                                                        "pages.deals.header.pipeline.requirements_label",
+                                                    )}
+                                                    requirements={requirements!}
+                                                />
+                                            }
+                                        >
+                                            <button
+                                                type="button"
+                                                data-tour={
+                                                    isTourTarget
+                                                        ? "deal-stage-requirements"
+                                                        : undefined
+                                                }
+                                                aria-label={t(
+                                                    "pages.deals.header.pipeline.requirements_open",
+                                                )}
+                                                style={{
+                                                    fontFamily: "inherit",
+                                                    width: 18,
+                                                    height: 18,
+                                                    padding: 0,
+                                                    margin: 0,
+                                                    borderRadius: "50%",
+                                                    display: "inline-flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    flexShrink: 0,
+                                                    cursor: "pointer",
+                                                    lineHeight: 0,
+                                                    // Keep the icon darker than the stage
+                                                    // chrome so it reads as a separate control.
+                                                    background: isActive
+                                                        ? T.WHITE
+                                                        : T.SURFACE,
+                                                    color: T.NAVY,
+                                                    border: `1px solid ${
+                                                        isActive
+                                                            ? "rgba(255,255,255,0.7)"
+                                                            : T.BORDER
+                                                    }`,
+                                                }}
+                                            >
+                                                <DealIcon
+                                                    name="info"
+                                                    size={12}
+                                                    color="currentColor"
+                                                />
+                                            </button>
+                                        </Popover>
+                                    ) : null}
+                                </div>
                                 {index < pipeline.stages.length - 1 && (
                                     <span
                                         aria-hidden="true"
@@ -279,6 +480,133 @@ export default function DealPipelineStepper({
                     setPendingStageId(null);
                 }}
             />
+
+            <DealModal
+                open={progressionOpen}
+                title={t("pages.deals.header.pipeline.progression_title")}
+                onClose={() => setProgressionOpen(false)}
+            >
+                <p
+                    style={{
+                        margin: "0 0 16px",
+                        fontSize: TYPE.BODY,
+                        color: T.TEXT_MUTED,
+                        lineHeight: 1.45,
+                    }}
+                >
+                    {t("pages.deals.header.pipeline.progression_intro")}
+                </p>
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                    {pipeline.stages.map((stage, index) => {
+                        const isActive = stage.id === pipeline.currentStageId;
+                        const accent = stage.label_color || T.BLUE;
+                        const requirements = stageRequirements?.[stage.id] ?? [];
+                        const hasRequirements = requirements.length > 0;
+
+                        return (
+                            <div
+                                key={stage.id}
+                                style={{
+                                    border: `1px solid ${
+                                        isActive ? accent : T.BORDER
+                                    }`,
+                                    borderRadius: R.MD,
+                                    padding: 12,
+                                    background: isActive
+                                        ? `${accent}12`
+                                        : T.SURFACE,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        marginBottom: hasRequirements ? 10 : 0,
+                                    }}
+                                >
+                                    <span
+                                        aria-hidden="true"
+                                        style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: "50%",
+                                            flexShrink: 0,
+                                            background: accent,
+                                        }}
+                                    />
+                                    <span
+                                        style={{
+                                            fontSize: TYPE.BODY,
+                                            fontWeight: 700,
+                                            color: T.TEXT,
+                                            lineHeight: 1.3,
+                                        }}
+                                    >
+                                        {td(stage.name)}
+                                    </span>
+                                    {isActive ? (
+                                        <span
+                                            style={{
+                                                marginLeft: "auto",
+                                                fontSize: TYPE.CAPTION,
+                                                fontWeight: 600,
+                                                color: accent,
+                                            }}
+                                        >
+                                            {t(
+                                                "pages.deals.header.pipeline.progression_current",
+                                            )}
+                                        </span>
+                                    ) : (
+                                        <span
+                                            style={{
+                                                marginLeft: "auto",
+                                                fontSize: TYPE.CAPTION,
+                                                color: T.TEXT_HINT,
+                                            }}
+                                        >
+                                            {t(
+                                                "pages.deals.header.pipeline.progression_step",
+                                                { n: index + 1 },
+                                            )}
+                                        </span>
+                                    )}
+                                </div>
+                                {hasRequirements ? (
+                                    <>
+                                        <div
+                                            style={{
+                                                marginBottom: 8,
+                                                fontSize: TYPE.CAPTION,
+                                                color: T.TEXT_MUTED,
+                                            }}
+                                        >
+                                            {t(
+                                                "pages.deals.header.pipeline.requirements_label",
+                                            )}
+                                        </div>
+                                        <RequirementConditionRows
+                                            requirements={requirements}
+                                        />
+                                    </>
+                                ) : (
+                                    <div
+                                        style={{
+                                            fontSize: TYPE.CAPTION,
+                                            color: T.TEXT_HINT,
+                                        }}
+                                    >
+                                        {t(
+                                            "pages.deals.header.pipeline.progression_none",
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </DealModal>
         </div>
     );
 }

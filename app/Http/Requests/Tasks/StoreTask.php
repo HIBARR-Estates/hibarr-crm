@@ -125,9 +125,9 @@ class StoreTask extends CoreRequest
                 $fail(__('messages.taskDateOutOfRange'));
             }
         };
-        $rules['start_date'] = [$rules['start_date'], $dateBoundsRule];
+        $rules['start_date'] = array_merge(explode('|', $rules['start_date']), [$dateBoundsRule]);
         if (isset($rules['due_date'])) {
-            $rules['due_date'] = [$rules['due_date'], $dateBoundsRule];
+            $rules['due_date'] = array_merge(explode('|', $rules['due_date']), [$dateBoundsRule]);
         }
 
         $rules = $this->customFieldRules($rules);

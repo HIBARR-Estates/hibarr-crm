@@ -18,6 +18,7 @@ interface DealAgentCardProps {
     dealId: number;
     agent: AgentInfo | null;
     canEdit: boolean;
+    isWatcherOnly?: boolean;
     onManageTeam: () => void;
 }
 
@@ -26,6 +27,7 @@ export default function DealAgentCard({
     dealId,
     agent,
     canEdit,
+    isWatcherOnly = false,
     onManageTeam,
 }: DealAgentCardProps) {
     const { t } = useTranslation();
@@ -199,7 +201,11 @@ export default function DealAgentCard({
                                 onManageTeam();
                             }}
                         >
-                            {t("pages.deals.header.team.manage_team_ellipsis")}
+                            {t(
+                                isWatcherOnly
+                                    ? "pages.deals.header.team.view_team_ellipsis"
+                                    : "pages.deals.header.team.manage_team_ellipsis",
+                            )}
                         </button>
                     </div>,
                     document.body,

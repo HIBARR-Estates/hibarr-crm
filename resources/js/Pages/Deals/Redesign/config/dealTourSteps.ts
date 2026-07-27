@@ -44,6 +44,16 @@ export function buildDealTourSteps(setTab: (tab: DealTab) => void): TourStep[] {
             body: STEP_KEY("pipeline_stepper", "body"),
         },
         {
+            target: '[data-tour="deal-stage-requirements"]',
+            title: STEP_KEY("stage_requirements", "title"),
+            body: STEP_KEY("stage_requirements", "body"),
+        },
+        {
+            target: '[data-tour="deal-stage-progression"]',
+            title: STEP_KEY("stage_progression", "title"),
+            body: STEP_KEY("stage_progression", "body"),
+        },
+        {
             target: '[data-tour="deal-ai-summary"]',
             title: STEP_KEY("ai_summary", "title"),
             body: STEP_KEY("ai_summary", "body"),

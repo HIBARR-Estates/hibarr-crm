@@ -111,6 +111,11 @@ const Index = ({
     const currentUser = pageProps.auth?.user;
     const editDealsPermission = pageProps.auth?.permissions?.edit_deals;
     const deleteDealsPermission = pageProps.auth?.permissions?.delete_deals;
+    const isAdmin = Boolean(
+        currentUser?.roles?.some(
+            (role: { name?: string }) => role?.name === "admin",
+        ),
+    );
     const { td } = useTd();
 
     const queryClient = useQueryClient();
@@ -338,10 +343,12 @@ const Index = ({
                 deal,
                 currentUser?.id,
                 editDealsPermission,
+                undefined,
+                isAdmin,
             );
             return canEdit;
         },
-        [currentUser?.id, editDealsPermission],
+        [currentUser?.id, editDealsPermission, isAdmin],
     );
 
     // Action dropdown for each row - respects deal permissions (watchers can't edit/delete)
@@ -352,6 +359,7 @@ const Index = ({
             currentUser?.id,
             editDealsPermission,
             deleteDealsPermission,
+            isAdmin,
         );
 
         return [

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -125,7 +126,11 @@ interface WorkspaceTasksTabProps {
     onAddTask: () => void;
 }
 
-function canAddTasks(permissions: Record<string, string>): boolean {
+function canAddTasks(
+    permissions: Record<string, string>,
+    isWatcherOnly: boolean,
+): boolean {
+    if (isWatcherOnly) return false;
     const permission = permissions.add_tasks;
     return (
         permission === "all" ||
@@ -230,13 +235,15 @@ export default function WorkspaceTasksTab({
     const { t } = useTranslation();
     const { props } = usePage();
     const employees = (props as { employees?: EmployeeRecord[] }).employees;
+    const userId = props.auth?.user?.id;
     const [filter, setFilter] = useState<TaskFilter>("open");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
     const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
     const { setStatus, isPending } = useDealTaskStatus();
-    const { setTasks } = useDealWorkspace();
+    const { deal, setTasks } = useDealWorkspace();
+    const { isWatcherOnly } = useDealPermissions(deal);
     const selectedTask =
         tasks.find((task) => task.id === selectedTaskId) ?? null;
 
@@ -271,7 +278,9 @@ export default function WorkspaceTasksTab({
     // (TaskController::changeBulkAssignee aborts otherwise) — only surface the
     // control when it's allowed and there are employees to assign.
     const canBulkReassign =
-        permissions.edit_tasks === "all" && employeeOptions.length > 0;
+        !isWatcherOnly &&
+        permissions.edit_tasks === "all" &&
+        employeeOptions.length > 0;
 
     const taskItems = useMemo(
         () => tasks.map((task) => toWorkspaceTaskListItem(task)),
@@ -289,11 +298,13 @@ export default function WorkspaceTasksTab({
         all: t("pages.deals.workspace.tasks.filter_all"),
     };
 
-    const showAddTask = canAddTasks(permissions);
+    const showAddTask = canAddTasks(permissions, isWatcherOnly);
     // Backend hard-requires the full delete_tasks scope for bulk delete
     // (TaskController::deleteRecords aborts otherwise) — only show it when
     // we know it's allowed rather than exposing a button the API will reject.
-    const canBulkDelete = permissions.delete_tasks === "all";
+    const canBulkDelete =
+        !isWatcherOnly && permissions.delete_tasks === "all";
+    const showSelectMode = !isWatcherOnly;
 
     const exitSelectMode = () => {
         setSelectMode(false);
@@ -427,14 +438,20 @@ export default function WorkspaceTasksTab({
                 </div>
 
                 <div className="flex gap-1.5">
-                    <DealButton
-                        variant="ghost"
-                        onClick={() =>
-                            selectMode ? exitSelectMode() : setSelectMode(true)
-                        }
-                    >
-                        {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
-                    </DealButton>
+                    {showSelectMode && (
+                        <DealButton
+                            variant="ghost"
+                            onClick={() =>
+                                selectMode
+                                    ? exitSelectMode()
+                                    : setSelectMode(true)
+                            }
+                        >
+                            {selectMode
+                                ? t("pages.deals.common.cancel")
+                                : t("pages.deals.common.select")}
+                        </DealButton>
+                    )}
                     {showAddTask && (
                         <DealButton variant="primary" size="sm" onClick={onAddTask}>
                             + {t("pages.deals.workspace.tasks.add_task")}
@@ -621,7 +638,11 @@ export default function WorkspaceTasksTab({
                                 <TaskStatusDropdownPill
                                     status={statusSlug}
                                     columns={taskBoardColumns}
-                                    disabled={selectMode}
+                                    disabled={
+                                        selectMode ||
+                                        (isWatcherOnly &&
+                                            rawTask?.added_by !== userId)
+                                    }
                                     loading={isPending(task.id)}
                                     onChange={(slug) => setStatus(task.id, slug)}
                                 />

@@ -32,6 +32,7 @@ interface NoteCardProps {
     note: Note;
     permissions: Record<string, string>;
     userId?: number;
+    isWatcherOnly?: boolean;
     onView: (note: Note) => void;
     onEdit: (note: Note) => void;
     onDelete: (note: Note) => void;
@@ -41,17 +42,21 @@ export const NoteCard: React.FC<NoteCardProps> = ({
     note,
     permissions,
     userId,
+    isWatcherOnly = false,
     onView,
     onEdit,
     onDelete,
 }) => {
     const canEdit =
-        permissions.edit_deal_note === "all" ||
-        (permissions.edit_deal_note === "added" && note.added_by === userId);
+        !isWatcherOnly &&
+        (permissions.edit_deal_note === "all" ||
+            (permissions.edit_deal_note === "added" && note.added_by === userId));
 
     const canDelete =
-        permissions.delete_deal_note === "all" ||
-        (permissions.delete_deal_note === "added" && note.added_by === userId);
+        !isWatcherOnly &&
+        (permissions.delete_deal_note === "all" ||
+            (permissions.delete_deal_note === "added" &&
+                note.added_by === userId));
     const { td } = useTd();
 
     const menuItems: MenuProps["items"] = [

@@ -1,4 +1,4 @@
-import { Tag, Upload, Button, message, Spin, Tooltip, Progress } from "antd";
+import { Upload, Button, message, Spin, Tooltip, Progress } from "antd";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import {
     UploadOutlined,
@@ -16,9 +16,11 @@ import {
     parseRangeValue,
     parseCurrencyRangeValue,
 } from "@/lib/utils";
+import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { type CustomField, type RepeatableItemSchema } from "@/Types";
 import EditableField from "@/Components/EditableField";
 import EditableRepeatableField from "@/Components/EditableRepeatableField";
+import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { usePage } from "@inertiajs/react";
@@ -27,6 +29,30 @@ import { useCurrencies } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
 
 const DEFAULT_CURRENCY_CODE = "USD";
+
+function hasMultiSelectOptions(field: {
+    type?: string;
+    values?: unknown;
+}): boolean {
+    if (field.type === "multiSelectCountry" || field.type === "multiselect") {
+        return true;
+    }
+    if (field.type !== "checkbox") return false;
+
+    let options = field.values;
+    if (typeof options === "string") {
+        try {
+            options = JSON.parse(options);
+        } catch {
+            return options.trim().length > 0;
+        }
+    }
+    if (Array.isArray(options)) return options.length > 0;
+    if (options && typeof options === "object") {
+        return Object.keys(options).length > 0;
+    }
+    return false;
+}
 
 interface ParsedCurrency {
     amount: number;
@@ -646,7 +672,8 @@ export default function CustomFieldDisplay({
                 : `field_${key}`;
             let fieldValue = customFieldsData[key];
 
-            // multiSelectCountry is stored as a JSON-encoded array string; parse it so
+            // multiSelectCountry / checkbox / multiselect are stored as JSON
+            // arrays (legacy checkbox used comma-separated); normalize so
             // visibility rules that check array membership evaluate against a real array.
             const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
             const matchingField = fields.find((f) => {
@@ -654,15 +681,10 @@ export default function CustomFieldDisplay({
                 return fId === fieldId;
             });
             if (
-                matchingField?.type === "multiSelectCountry" &&
-                typeof fieldValue === "string"
+                matchingField &&
+                hasMultiSelectOptions(matchingField)
             ) {
-                try {
-                    const parsed = JSON.parse(fieldValue);
-                    if (Array.isArray(parsed)) fieldValue = parsed;
-                } catch {
-                    // leave as-is
-                }
+                fieldValue = parseMultiSelectStoredValue(fieldValue);
             }
 
             fieldValuesForVisibility[normalizedKey] = fieldValue;
@@ -759,6 +781,7 @@ export default function CustomFieldDisplay({
                 return dayjs(value).format("MMM DD, YYYY HH:mm");
 
             case "select":
+            case "radio":
                 // Parse values - can be JSON string array or object
                 let selectValues = field.values;
                 if (typeof selectValues === "string") {
@@ -767,39 +790,30 @@ export default function CustomFieldDisplay({
                     } catch (e) {}
                 }
 
+                let selectLabel = value;
                 // Handle both array format ["opt1", "opt2"] and object format {"key": "label"}
                 if (Array.isArray(selectValues)) {
-                    // Array format - value is the string itself
                     if (selectValues.includes(value)) {
-                        return (
-                            <Tag color="blue" className="font-medium">
-                                {value}
-                            </Tag>
-                        );
+                        selectLabel = value;
                     }
                 } else if (selectValues && typeof selectValues === "object") {
-                    // Object format - lookup by key
                     if ((selectValues as any)[value]) {
-                        return (
-                            <Tag color="blue" className="font-medium">
-                                {(selectValues as any)[value]}
-                            </Tag>
-                        );
+                        selectLabel = (selectValues as any)[value];
                     }
                 }
-                return value ? (
-                    <Tag color="blue" className="font-medium">
-                        {value}
-                    </Tag>
+
+                return value || value === 0 ? (
+                    <DealBadge variant="navy">{selectLabel}</DealBadge>
                 ) : (
                     <span className={notSetClassName}>{notSetLabel}</span>
                 );
 
             case "multiselect":
             case "checkbox":
-            case "multiSelectCountry":
-                if (Array.isArray(value) && value.length > 0) {
-                    // Parse values - can be JSON string array or object
+            case "multiSelectCountry": {
+                const selected = parseMultiSelectStoredValue(value);
+                if (selected.length > 0) {
+                    // Parse option labels - can be JSON string array or object
                     let multiValues = field.values;
                     if (typeof multiValues === "string") {
                         try {
@@ -808,10 +822,8 @@ export default function CustomFieldDisplay({
                     }
 
                     return (
-                        <div className="flex flex-wrap gap-1">
-                            {value.map((item, index) => {
-                                // For array format, item is the display value
-                                // For object format, lookup label by key
+                        <div className="flex flex-wrap gap-1.5">
+                            {selected.map((item, index) => {
                                 let displayLabel = item;
                                 if (
                                     multiValues &&
@@ -822,17 +834,13 @@ export default function CustomFieldDisplay({
                                         (multiValues as any)[item] || item;
                                 }
                                 return (
-                                    <Tag key={index} color="blue">
+                                    <DealBadge key={`${item}-${index}`} variant="navy">
                                         {displayLabel}
-                                    </Tag>
+                                    </DealBadge>
                                 );
                             })}
                         </div>
                     );
-                }
-                // Empty array or no value
-                if (Array.isArray(value) && value.length === 0) {
-                    return <span className={notSetClassName}>{notSetLabel}</span>;
                 }
                 // Single checkbox value (boolean-like)
                 if (
@@ -845,16 +853,14 @@ export default function CustomFieldDisplay({
                     const boolVal =
                         value === true || value === "1" || value === 1;
                     return (
-                        <Tag color={boolVal ? "green" : "red"}>
+                        <DealBadge variant={boolVal ? "green" : "red"}>
                             {boolVal ? "Yes" : "No"}
-                        </Tag>
+                        </DealBadge>
                     );
                 }
                 // No value at all
-                if (!value) {
-                    return <span className={notSetClassName}>{notSetLabel}</span>;
-                }
-                return value;
+                return <span className={notSetClassName}>{notSetLabel}</span>;
+            }
 
             case "file":
                 // Parse file value - can be single string, JSON array, or comma-separated
@@ -1199,16 +1205,9 @@ export default function CustomFieldDisplay({
 
             case "boolean":
                 return (
-                    <Tag color={value ? "green" : "red"}>
+                    <DealBadge variant={value ? "green" : "red"}>
                         {value ? "Yes" : "No"}
-                    </Tag>
-                );
-
-            case "radio":
-                return (
-                    <Tag color="blue" className="font-medium">
-                        {value}
-                    </Tag>
+                    </DealBadge>
                 );
 
             case "time":
@@ -1660,15 +1659,15 @@ export default function CustomFieldDisplay({
                     customFieldsData?.[fieldKey] ??
                     customFieldsData?.[String(field.id)];
 
-                // multiSelectCountry is stored as a JSON-encoded array string; parse it
-                // to an array here so span/format/edit logic can rely on Array.isArray.
-                if (field.type === "multiSelectCountry" && typeof value === "string") {
-                    try {
-                        const parsed = JSON.parse(value);
-                        if (Array.isArray(parsed)) value = parsed;
-                    } catch {
-                        // leave as-is
-                    }
+                // Checkbox / multiselect / multiSelectCountry share one storage
+                // shape (JSON array, with legacy comma-separated still accepted).
+                // Bare boolean checkboxes (no option list) stay as 0/1/true/false.
+                if (
+                    field.type === "multiSelectCountry" ||
+                    field.type === "multiselect" ||
+                    (field.type === "checkbox" && hasMultiSelectOptions(field))
+                ) {
+                    value = parseMultiSelectStoredValue(value);
                 }
 
                 const span = calculateSpan(field, value);

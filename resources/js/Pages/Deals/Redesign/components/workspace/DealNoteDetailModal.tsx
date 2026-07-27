@@ -3,11 +3,13 @@ import { usePage } from "@inertiajs/react";
 import type { Note } from "@/Types/api/note";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import DealAvatar from "../primitives/DealAvatar";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import { DealModal, DealModalField } from "../primitives/DealModal";
 import useDealNoteMutations from "../../hooks/useDealNoteMutations";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { initialsFromName } from "../../adapters/initials";
 
@@ -31,6 +33,8 @@ export default function DealNoteDetailModal({
     const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
+    const { deal } = useDealWorkspace();
+    const { isWatcherOnly } = useDealPermissions(deal);
     const [editing, setEditing] = useState(false);
     const [title, setTitle] = useState("");
     const [text, setText] = useState("");
@@ -51,11 +55,15 @@ export default function DealNoteDetailModal({
     if (!note) return null;
 
     const canEdit =
-        permissions.edit_deal_note === "all" ||
-        (permissions.edit_deal_note === "added" && note.added_by?.id === userId);
+        !isWatcherOnly &&
+        (permissions.edit_deal_note === "all" ||
+            (permissions.edit_deal_note === "added" &&
+                note.added_by?.id === userId));
     const canDelete =
-        permissions.delete_deal_note === "all" ||
-        (permissions.delete_deal_note === "added" && note.added_by?.id === userId);
+        !isWatcherOnly &&
+        (permissions.delete_deal_note === "all" ||
+            (permissions.delete_deal_note === "added" &&
+                note.added_by?.id === userId));
 
     const handleSave = () => {
         if (!text.trim()) return;
@@ -181,8 +189,9 @@ export default function DealNoteDetailModal({
                         </span>
                     </div>
                     <div
-                        className="text-[14px] leading-[1.7]"
-                        style={{ color: T.TEXT, whiteSpace: "pre-wrap" }}
+                        className="text-[14px] leading-[1.7] break-words whitespace-pre-wrap"
+                        style={{ color: T.TEXT }}
+                   
                     >
                         {stripHtml(note.details || "")}
                     </div>
