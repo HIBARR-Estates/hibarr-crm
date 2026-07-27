@@ -268,9 +268,10 @@ class DealGatheringService
                 // Handle relationships
                 if (array_key_exists('product_id', $data)) {
                     $deal->products()->sync($data['product_id']);
-                    $this->dealValueResolver->resolveAndPersist($deal->fresh());
+                    $deal = $deal->fresh(['products', 'packages', 'company']);
+                    $this->dealValueResolver->resolveAndPersist($deal);
                 }
-                
+
                 if (array_key_exists('package_id', $data)) {
                     $currentPackageIds = $deal->packages()->pluck('packages.id')->toArray();
                     $oldPackageNames = Package::whereIn('id', $currentPackageIds)->pluck('name', 'id')->toArray();
@@ -490,37 +491,27 @@ class DealGatheringService
     protected function attemptFieldTriggerRouting(Deal $deal, array $data): void
     {
         $fieldCatalog = app(PackageRoutingFieldCatalog::class);
+        $packageExplicitlySelected = array_key_exists('package_id', $data) && $data['package_id'];
+        $routingFieldKeys = $fieldCatalog->routingFieldKeysFromPayload($data, $deal->company_id);
 
-        $fieldTriggerData = collect($data)
-            ->except(['package_id'])
-            ->mapWithKeys(fn ($value, $key) => [$this->normalizeRoutingFieldKey((string) $key) => $value])
-            ->filter(fn ($value, $key) => $fieldCatalog->isFieldEnabled(
-                (string) $key,
-                $deal->company_id,
-            ))
-            ->all();
-
-        if (empty($fieldTriggerData)) {
+        if ($routingFieldKeys === []) {
             return;
         }
 
-        $this->packageRouter->attemptRoutingFromFieldUpdates(
-            $deal->fresh(),
-            $fieldTriggerData,
-            array_key_exists('package_id', $data) && $data['package_id'],
+        $routed = $this->packageRouter->attemptRoutingFromDealState(
+            $deal->fresh(['products', 'packages', 'company']),
+            $routingFieldKeys,
+            $packageExplicitlySelected,
         );
-    }
 
-    protected function normalizeRoutingFieldKey(string $key): string
-    {
-        if (str_starts_with($key, 'field_')) {
-            return $key;
+        // If triggers matched and synced a package but pipeline routing was skipped
+        // (e.g. already on the target pipeline), still attempt a route when exactly
+        // one package is linked.
+        if (!$routed && !$packageExplicitlySelected) {
+            $deal = $deal->fresh(['packages', 'company']);
+            if ($deal->packages->count() === 1) {
+                $this->packageRouter->routeDeal($deal);
+            }
         }
-
-        if (ctype_digit($key)) {
-            return 'field_' . $key;
-        }
-
-        return $key;
     }
 }
