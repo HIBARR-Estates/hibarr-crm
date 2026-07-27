@@ -229,7 +229,7 @@ export const DEAL_TABLE_COLUMNS = (
             key: "value",
             width: 130,
             render: (_, record) => {
-                if (!record.value)
+                if (record.value === null || record.value === undefined)
                     return <span className="text-gray-400">--</span>;
 
                 const symbol = record.currency?.currency_symbol || "£";

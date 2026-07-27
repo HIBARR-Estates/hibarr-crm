@@ -9,6 +9,7 @@ import {
     Space,
     Button,
     Upload,
+    type SelectProps,
 } from "antd";
 import {
     CheckOutlined,
@@ -26,16 +27,60 @@ import { FormDataType, useCountries, useCurrencies } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
 import { usePage } from "@inertiajs/react";
 import CurrencyInput from "./CurrencyInput";
+import CurrencyRangeInput from "./CurrencyRangeInput";
 import {
     parsePropertyPrice,
+    parseRangeValue,
+    parseCurrencyRangeValue,
     formatCurrencyWithSymbol,
     formatCountryForDisplay,
     formatMobileForDisplay,
     serializePhoneInputValue,
 } from "@/lib/utils";
+import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import { DetailFieldEditContext } from "./DetailSection";
+import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
 
 const { Text } = Typography;
+
+type MultiValueTagRender = NonNullable<SelectProps["tagRender"]>;
+
+const MultiValueTag: MultiValueTagRender = ({ label, closable, onClose }) => {
+    return (
+        <DealBadge
+            variant="navy"
+            style={{ marginInlineEnd: 4, marginBlock: 2, maxWidth: "100%" }}
+        >
+            <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+                {label}
+            </span>
+            {closable ? (
+                <button
+                    type="button"
+                    aria-label="Remove"
+                    onMouseDown={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                    }}
+                    onClick={(event) => onClose(event)}
+                    style={{
+                        margin: 0,
+                        padding: 0,
+                        border: "none",
+                        background: "transparent",
+                        color: "inherit",
+                        cursor: "pointer",
+                        lineHeight: 1,
+                        fontSize: 14,
+                        opacity: 0.7,
+                    }}
+                >
+                    ×
+                </button>
+            ) : null}
+        </DealBadge>
+    );
+};
 
 interface EditableFieldProps {
     value: any; // supports primitives, arrays, and structured values (e.g. currency {amount,currency})
@@ -53,6 +98,8 @@ interface EditableFieldProps {
         | "country"
         | "multiSelectCountry"
         | "currency"
+        | "range"
+        | "currency_range"
         | "file";
     selectorType?: FormDataType;
     mode?: "multiple" | "tags";
@@ -72,6 +119,37 @@ interface EditableFieldProps {
      * (v2.2's click-to-edit pattern — opt-in so existing double-click
      * consumers elsewhere in the app are unaffected). */
     activateOnSingleClick?: boolean;
+}
+
+const TRUNCATE_LENGTH = 250;
+
+/** Long custom-field values (e.g. a textarea) rendered in full were pushing
+ * out the layout — collapse anything over TRUNCATE_LENGTH behind "show more".
+ * Only plain strings are truncated; JSX displayValues (badges, tags, etc.)
+ * pass through untouched. */
+function TruncatableText({ text }: { text: React.ReactNode }) {
+    const { t } = useTranslation();
+    const [expanded, setExpanded] = useState(false);
+
+    if (typeof text !== "string" || text.length <= TRUNCATE_LENGTH) {
+        return <>{text}</>;
+    }
+
+    return (
+        <>
+            {expanded ? text : `${text.slice(0, TRUNCATE_LENGTH)}…`}{" "}
+            <button
+                type="button"
+                className="text-blue-600 hover:underline text-xs font-medium"
+                onClick={(event) => {
+                    event.stopPropagation();
+                    setExpanded((prev) => !prev);
+                }}
+            >
+                {expanded ? t("app.show_less") : t("app.show_more")}
+            </button>
+        </>
+    );
 }
 
 export default function EditableField({
@@ -186,13 +264,36 @@ export default function EditableField({
         if (fieldType === "currency") {
             return normalizeCurrencyValue(value);
         }
+        if (fieldType === "range") {
+            return parseRangeValue(value);
+        }
+        if (fieldType === "currency_range") {
+            return parseCurrencyRangeValue(value, defaultCurrencyCode);
+        }
         return value;
     };
 
-    const [inputValue, setInputValue] = useState<any>(getInitialValue());
+    const isMultiSelectField =
+        fieldType === "multiselect" || fieldType === "multiSelectCountry";
+
+    const [inputValue, setInputValue] = useState<any>(() => {
+        if (isMultiSelectField || Array.isArray(value)) {
+            return parseMultiSelectStoredValue(value);
+        }
+        return getInitialValue();
+    });
     const isManuallySettingValue = useRef(false);
     const previousValueRef = useRef<string>("");
     const previousEditingRef = useRef(editing);
+    // Content-stable key so parent re-parses (new array refs, same data) do not
+    // wipe in-progress multiselect edits when liveValues/pendingChanges re-render.
+    const previousMultiValueKeyRef = useRef(
+        JSON.stringify(
+            isMultiSelectField || Array.isArray(value)
+                ? parseMultiSelectStoredValue(value)
+                : null,
+        ),
+    );
 
     useEffect(() => {
         if (isManuallySettingValue.current) {
@@ -250,6 +351,8 @@ export default function EditableField({
     // Update inputValue when value prop changes (e.g., after save or when deal data updates).
     // Currency fields are managed by the dedicated normalization effect above so they are not
     // reset on every parent render while the user types in always-edit mode.
+    // Multiselect/country arrays are compared by content — CustomFieldDisplay re-parses
+    // stored values into a new array on every render, which must not reset local edits.
     useEffect(() => {
         if (fieldType === "date" && normalizedValue) {
             try {
@@ -267,19 +370,23 @@ export default function EditableField({
             fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
-            setInputValue(
-                Array.isArray(normalizedValue)
-                    ? normalizedValue
-                    : normalizedValue
-                      ? [normalizedValue]
-                      : [],
-            );
+            const next = parseMultiSelectStoredValue(normalizedValue);
+            const nextKey = JSON.stringify(next);
+            if (previousMultiValueKeyRef.current === nextKey) {
+                return;
+            }
+            previousMultiValueKeyRef.current = nextKey;
+            setInputValue(next);
         } else if (fieldType === "currency") {
             return;
+        } else if (fieldType === "range") {
+            setInputValue(parseRangeValue(normalizedValue));
+        } else if (fieldType === "currency_range") {
+            setInputValue(parseCurrencyRangeValue(normalizedValue, defaultCurrencyCode));
         } else {
             setInputValue(normalizedValue ?? "");
         }
-    }, [normalizedValue, fieldType]);
+    }, [normalizedValue, fieldType, defaultCurrencyCode]);
 
     const isLocked = loading || saving;
 
@@ -305,15 +412,13 @@ export default function EditableField({
             fieldType === "multiSelectCountry" ||
             Array.isArray(normalizedValue)
         ) {
-            setInputValue(
-                Array.isArray(normalizedValue)
-                    ? normalizedValue
-                    : normalizedValue
-                      ? [normalizedValue]
-                      : [],
-            );
+            setInputValue(parseMultiSelectStoredValue(normalizedValue));
         } else if (fieldType === "currency") {
             setInputValue(normalizeCurrencyValue(normalizedValue));
+        } else if (fieldType === "range") {
+            setInputValue(parseRangeValue(normalizedValue));
+        } else if (fieldType === "currency_range") {
+            setInputValue(parseCurrencyRangeValue(normalizedValue, defaultCurrencyCode));
         } else {
             setInputValue(normalizedValue ?? "");
         }
@@ -439,6 +544,10 @@ export default function EditableField({
             );
         } else if (fieldType === "currency") {
             setInputValue(normalizeCurrencyValue(normalizedValue));
+        } else if (fieldType === "range") {
+            setInputValue(parseRangeValue(normalizedValue));
+        } else if (fieldType === "currency_range") {
+            setInputValue(parseCurrencyRangeValue(normalizedValue, defaultCurrencyCode));
         } else {
             setInputValue(normalizedValue ?? "");
         }
@@ -451,9 +560,14 @@ export default function EditableField({
 
     // Handle input value change - update state and notify parent in alwaysEditing mode
     const handleValueChange = (newValue: any) => {
-        setInputValue(newValue);
+        // Ant Select mode="multiple" emits undefined when the last item is cleared.
+        const nextValue =
+            isMultiSelectField && (newValue == null || newValue === undefined)
+                ? []
+                : newValue;
+        setInputValue(nextValue);
         if (alwaysEditing && onChange) {
-            onChange(fieldName, newValue);
+            onChange(fieldName, nextValue);
         }
     };
 
@@ -597,7 +711,44 @@ export default function EditableField({
                         "";
                     return formatCurrencyWithSymbol(parsed.amount, symbol);
                 })()
-              : formatValue
+              : fieldType === "range"
+                ? (() => {
+                      const parsed = parseRangeValue(value);
+                      if (parsed.min == null && parsed.max == null) {
+                          // Legacy value that predates this field being a
+                          // structured range — show it as-is rather than
+                          // hiding it as "unset". Editing re-saves it in the
+                          // new {min,max} shape.
+                          return typeof value === "string" && value.trim()
+                              ? value
+                              : "--";
+                      }
+                      const fmt = (n: number | null) =>
+                          n == null ? "?" : n.toLocaleString();
+                      return `${fmt(parsed.min)} – ${fmt(parsed.max)}`;
+                  })()
+                : fieldType === "currency_range"
+                  ? (() => {
+                        const parsed = parseCurrencyRangeValue(
+                            value,
+                            defaultCurrencyCode,
+                        );
+                        if (parsed.min == null && parsed.max == null) {
+                            return typeof value === "string" && value.trim()
+                                ? value
+                                : "--";
+                        }
+                        const symbol =
+                            currencies.find(
+                                (c: any) => c?.currency_code === parsed.currency,
+                            )?.currency_symbol ??
+                            default_currency_symbol ??
+                            "";
+                        const fmt = (n: number | null) =>
+                            n == null ? "?" : `${symbol}${n.toLocaleString()}`;
+                        return `${fmt(parsed.min)} – ${fmt(parsed.max)}`;
+                    })()
+                  : formatValue
                 ? formatValue(normalizedValue)
                 : normalizedValue?.toString() ||
                   // v2.2 mode shows "Not set" for empty values (deal-v2-2.jsx:866);
@@ -780,7 +931,7 @@ export default function EditableField({
                         />
                     ) : fieldType === "multiselect" ? (
                         <Select
-                            value={inputValue}
+                            value={Array.isArray(inputValue) ? inputValue : []}
                             onChange={(val) => handleValueChange(val)}
                             options={options}
                             mode="multiple"
@@ -789,6 +940,7 @@ export default function EditableField({
                             defaultOpen={!alwaysEditing}
                             allowClear
                             placeholder="Select options..."
+                            tagRender={MultiValueTag}
                         />
                     ) : fieldType === "boolean" ? (
                         <Select
@@ -889,14 +1041,15 @@ export default function EditableField({
                     ) : fieldType === "multiSelectCountry" ? (
                         <Select
                             mode="multiple"
-                            value={inputValue}
+                            value={Array.isArray(inputValue) ? inputValue : []}
                             onChange={(val) => handleValueChange(val)}
                             className="flex-1 min-w-[200px]"
                             disabled={saving || loading}
-                            defaultOpen
+                            defaultOpen={!alwaysEditing}
                             allowClear
                             showSearch
                             placeholder="Select countries"
+                            tagRender={MultiValueTag}
                             filterOption={(input, option) => {
                                 const searchText = input.toLowerCase();
                                 const countryValue = option?.value as string;
@@ -965,6 +1118,57 @@ export default function EditableField({
                                 disabled={saving || loading}
                             />
                         </div>
+                    ) : fieldType === "range" ? (
+                        <div className="flex items-center gap-2 flex-1">
+                            <Input
+                                type="number"
+                                min={0}
+                                value={inputValue?.min ?? ""}
+                                placeholder="Min"
+                                onChange={(e) =>
+                                    handleValueChange({
+                                        ...inputValue,
+                                        min:
+                                            e.target.value === ""
+                                                ? null
+                                                : Number(e.target.value),
+                                    })
+                                }
+                                onBlur={handleBlur}
+                                onKeyDown={handleKeyPress}
+                                autoFocus
+                                className="flex-1"
+                                disabled={saving || loading}
+                            />
+                            <span className="text-gray-400">–</span>
+                            <Input
+                                type="number"
+                                min={0}
+                                value={inputValue?.max ?? ""}
+                                placeholder="Max"
+                                onChange={(e) =>
+                                    handleValueChange({
+                                        ...inputValue,
+                                        max:
+                                            e.target.value === ""
+                                                ? null
+                                                : Number(e.target.value),
+                                    })
+                                }
+                                onBlur={handleBlur}
+                                onKeyDown={handleKeyPress}
+                                className="flex-1"
+                                disabled={saving || loading}
+                            />
+                        </div>
+                    ) : fieldType === "currency_range" ? (
+                        <div className="flex-1" onBlur={handleBlur} onKeyDown={handleKeyPress}>
+                            <CurrencyRangeInput
+                                value={inputValue}
+                                onChange={(val) => handleValueChange(val)}
+                                disabled={saving || loading}
+                            />
+                        </div>
                     ) : (
                         <Input
                             value={inputValue}
@@ -1024,7 +1228,7 @@ export default function EditableField({
                     onDoubleClick={canStartEditing ? startEditing : undefined}
                 >
                     <span className="break-words whitespace-normal">
-                        {displayText}
+                        <TruncatableText text={displayText} />
                     </span>
                 </div>
             </Skeleton>
@@ -1048,7 +1252,7 @@ export default function EditableField({
                                 : ""
                         } ${isEmptyValue ? "italic text-gray-400" : ""}`}
                     >
-                        {displayText}
+                        <TruncatableText text={displayText} />
                     </span>
                     {canStartEditing && (
                         <EditOutlined

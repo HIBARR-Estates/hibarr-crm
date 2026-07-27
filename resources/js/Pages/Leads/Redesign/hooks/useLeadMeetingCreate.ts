@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
 import type { Reminder } from "@/Types/api/deal-followup";
@@ -7,6 +7,10 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import {
+    getBrowserTimezone,
+    persistUserTimezoneOnce,
+} from "@/lib/userTimezone";
 import type { MeetingPlatform } from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
 import {
     formatMeetingDateForApi,
@@ -45,6 +49,7 @@ interface FollowUpStorePayload {
 
 export default function useLeadMeetingCreate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
+    const { props } = usePage();
 
     const { mutate, status } = useApiMutate<
         FollowUpStorePayload,
@@ -99,6 +104,8 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 return;
             }
 
+            persistUserTimezoneOnce(props.auth?.user?.timezone);
+
             const payload: FollowUpStorePayload = {
                 lead_id: lead.id,
                 next_follow_up_date: formatMeetingDateForApi(input.date),
@@ -111,8 +118,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 reminders: input.reminders,
                 remark: input.remark.trim(),
                 participants: input.participants,
-                timezone:
-                    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                timezone: getBrowserTimezone(),
             };
 
             if (input.dealId) {
@@ -143,7 +149,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 },
             });
         },
-        [lead, mutate],
+        [lead, mutate, props.auth?.user?.timezone],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

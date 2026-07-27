@@ -16,6 +16,7 @@ interface ViewNoteFormProps {
     note: Note;
     permissions: Record<string, string>;
     userId?: number;
+    isWatcherOnly?: boolean;
     onCancel: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -26,17 +27,21 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
     note,
     permissions,
     userId,
+    isWatcherOnly = false,
     onCancel,
     onEdit,
     onDelete,
 }) => {
     const canEdit =
-        permissions.edit_deal_note === "all" ||
-        (permissions.edit_deal_note === "added" && note.added_by === userId);
+        !isWatcherOnly &&
+        (permissions.edit_deal_note === "all" ||
+            (permissions.edit_deal_note === "added" && note.added_by === userId));
 
     const canDelete =
-        permissions.delete_deal_note === "all" ||
-        (permissions.delete_deal_note === "added" && note.added_by === userId);
+        !isWatcherOnly &&
+        (permissions.delete_deal_note === "all" ||
+            (permissions.delete_deal_note === "added" &&
+                note.added_by === userId));
     const { td } = useTd();
 
     return (

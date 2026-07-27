@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import { message } from "antd";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
@@ -6,6 +7,10 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import {
+    getBrowserTimezone,
+    persistUserTimezoneOnce,
+} from "@/lib/userTimezone";
 import useTranslation from "@/Hooks/useTranslation";
 import type { DealMeetingCreateInput } from "./useDealMeetingCreate";
 import {
@@ -34,6 +39,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
     const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
     const { setDealFollowUps } = useDealWorkspace();
+    const { props } = usePage();
 
     const { mutate, status } = useApiMutate<
         FollowUpUpdatePayload,
@@ -48,6 +54,8 @@ export default function useDealMeetingUpdate(deal: Deal) {
             onSuccess?: () => void,
             statusOverride?: string,
         ) => {
+            persistUserTimezoneOnce(props.auth?.user?.timezone);
+
             const payload: FollowUpUpdatePayload = {
                 id: followupId,
                 deal_id: deal.id,
@@ -61,8 +69,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 reminders: input.reminders,
                 remark: input.remark.trim(),
                 participants: input.participants,
-                timezone:
-                    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                timezone: getBrowserTimezone(),
                 status: statusOverride,
             };
 
@@ -92,7 +99,7 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 },
             });
         },
-        [deal.id, mutate, setDealFollowUps, t],
+        [deal.id, mutate, props.auth?.user?.timezone, setDealFollowUps, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

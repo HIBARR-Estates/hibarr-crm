@@ -1,5 +1,9 @@
 import { useMemo } from "react";
 import type { Deal } from "@/Types/api/deals";
+import type { CustomField } from "@/Types";
+import { isFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
+import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import {
     buildCoreNavItem,
     CORE_SECTION_FIELD_LABELS,
@@ -16,8 +20,11 @@ interface CustomFieldDefinition {
     label?: string;
     name?: string;
     type?: string;
+    values?: unknown;
     custom_field_category_id?: string | number;
     required?: boolean | string;
+    show_rule_set?: CustomField["show_rule_set"];
+    linked_field_id?: number | null;
 }
 
 interface NavGroup {
@@ -31,6 +38,13 @@ interface NavGroup {
         later?: boolean;
         /** Field labels inside the section, matched by the sidebar search. */
         searchTerms?: string[];
+        /**
+         * Fill count backing `badge` — set whenever `badge` is a real
+         * "filled/total" fraction (not a stage label or gdpr's no-badge
+         * case), so the sidebar can render a completion dot from it
+         * instead of the text when crm.deal-info-count-indicator is on.
+         */
+        completion?: { filled: number; total: number };
     }>;
 }
 
@@ -44,10 +58,7 @@ function isFilledValue(value: unknown): boolean {
     return Boolean(value);
 }
 
-function getCustomFieldValue(
-    deal: Deal,
-    fieldId: number,
-): unknown {
+function getCustomFieldValue(deal: Deal, fieldId: number): unknown {
     return (
         deal.custom_fields_data?.[`field_${fieldId}`] ??
         deal.custom_fields_data?.[fieldId]
@@ -58,11 +69,91 @@ function getHibarrValue(deal: Deal, key: string): unknown {
     return deal.hibarr_fields?.[key as keyof NonNullable<Deal["hibarr_fields"]>];
 }
 
+/**
+ * Build the same visibility map CustomFieldDisplay uses, so the sidebar
+ * "filled/total" badge only counts fields the user can currently see.
+ */
+function buildCustomFieldVisibilityMap(
+    fields: CustomFieldDefinition[],
+    customFieldsData: Deal["custom_fields_data"],
+): Record<number, boolean> {
+    const fieldValuesForVisibility: Record<string, unknown> = {};
+
+    if (customFieldsData) {
+        Object.keys(customFieldsData).forEach((key) => {
+            const normalizedKey = key.startsWith("field_")
+                ? key
+                : `field_${key}`;
+            let fieldValue = customFieldsData[key];
+            const fieldId = parseInt(normalizedKey.replace("field_", ""), 10);
+            const matchingField = fields.find((f) => Number(f.id) === fieldId);
+
+            if (
+                matchingField &&
+                (matchingField.type === "multiSelectCountry" ||
+                    matchingField.type === "multiselect" ||
+                    (matchingField.type === "checkbox" &&
+                        !!matchingField.values &&
+                        String(matchingField.values).trim() !== "" &&
+                        String(matchingField.values).trim() !== "[]" &&
+                        String(matchingField.values).trim() !== "{}"))
+            ) {
+                fieldValue = parseMultiSelectStoredValue(fieldValue);
+            }
+
+            fieldValuesForVisibility[normalizedKey] = fieldValue;
+        });
+    }
+
+    const customFieldsForEvaluation: CustomField[] = fields.map((field) => {
+        let valuesString: string | null = null;
+        if (field.values != null) {
+            valuesString =
+                typeof field.values === "string"
+                    ? field.values
+                    : JSON.stringify(field.values);
+        }
+
+        return {
+            id: Number(field.id),
+            label: field.label ?? field.name ?? "",
+            name: `field_${field.id}`,
+            type: field.type ?? "text",
+            required: "no",
+            values: valuesString,
+            custom_field_group_id: 0,
+            show_table: "no",
+            field_display_name: field.label ?? field.name ?? "",
+            field_order: 0,
+            display_order: 0,
+            show_rule_set: field.show_rule_set,
+            linked_field_id: field.linked_field_id ?? undefined,
+        };
+    });
+
+    return evaluateAllFieldsVisibility(
+        customFieldsForEvaluation,
+        fieldValuesForVisibility,
+    );
+}
+
+function isCustomFieldCurrentlyVisible(
+    field: CustomFieldDefinition,
+    visibleFieldKeys: string[] | null | undefined,
+    visibilityMap: Record<number, boolean>,
+): boolean {
+    if (field.type === "file") return false;
+    if (!isFieldVisible(visibleFieldKeys, String(field.id))) return false;
+    return visibilityMap[Number(field.id)] !== false;
+}
+
 function countSectionCompletion(
     sectionId: DealInfoCoreSectionId,
     deal: Deal,
     fields: CustomFieldDefinition[],
     categories: Array<{ id: number; name: string }>,
+    visibleFieldKeys: string[] | null | undefined,
+    visibilityMap: Record<number, boolean>,
 ): { filled: number; total: number } {
     const categoryIds = getCategoriesForCoreSection(sectionId, categories).map(
         (category) => category.id,
@@ -90,7 +181,11 @@ function countSectionCompletion(
     };
 
     const dealKeysBySection: Partial<Record<DealInfoCoreSectionId, string[]>> = {
-        general: ["name", "close_date", "category_id", "products"],
+        // "products" was tracked here but never rendered as a field row in
+        // General (it's the separate DealPackagePropertyManager block below
+        // the fields) — dropped so the sidebar badge (e.g. "3/3") matches
+        // what General actually shows.
+        general: ["name", "close_date", "category_id"],
     };
 
     let filled = 0;
@@ -101,26 +196,36 @@ function countSectionCompletion(
         if (isFilledValue(value)) filled += 1;
     };
 
+    const trackScopedKey = (key: string, value: unknown) => {
+        if (!isFieldVisible(visibleFieldKeys, key)) return;
+        track(value);
+    };
+
     for (const key of dealKeysBySection[sectionId] ?? []) {
-        if (key === "products") {
-            track(deal.products?.length ? deal.products : null);
-            continue;
-        }
-        track((deal as unknown as Record<string, unknown>)[key]);
+        trackScopedKey(key, (deal as unknown as Record<string, unknown>)[key]);
     }
 
     for (const key of hibarrKeysBySection[sectionId] ?? []) {
-        track(getHibarrValue(deal, key));
+        trackScopedKey(key, getHibarrValue(deal, key));
     }
 
     if (sectionId === "support") {
+        // Team rows are always rendered in the redesign support section.
         track(deal.lead_agent?.user_id ?? deal.agent_id);
         track(deal.deal_participants?.length ? deal.deal_participants : null);
         track(deal.deal_watchers?.length ? deal.deal_watchers : null);
     }
 
     for (const field of categoryFields) {
-        if (field.type === "file") continue;
+        if (
+            !isCustomFieldCurrentlyVisible(
+                field,
+                visibleFieldKeys,
+                visibilityMap,
+            )
+        ) {
+            continue;
+        }
         track(getCustomFieldValue(deal, field.id));
     }
 
@@ -131,6 +236,8 @@ function countCategoryCompletion(
     categoryId: number,
     deal: Deal,
     fields: CustomFieldDefinition[],
+    visibleFieldKeys: string[] | null | undefined,
+    visibilityMap: Record<number, boolean>,
 ): { filled: number; total: number } {
     const categoryFields = fields.filter(
         (field) => Number(field.custom_field_category_id) === categoryId,
@@ -139,7 +246,15 @@ function countCategoryCompletion(
     let total = 0;
 
     for (const field of categoryFields) {
-        if (field.type === "file") continue;
+        if (
+            !isCustomFieldCurrentlyVisible(
+                field,
+                visibleFieldKeys,
+                visibilityMap,
+            )
+        ) {
+            continue;
+        }
         total += 1;
         if (isFilledValue(getCustomFieldValue(deal, field.id))) {
             filled += 1;
@@ -154,6 +269,8 @@ export default function useDealInfoNavigation(
     fields: CustomFieldDefinition[] = [],
     customFieldCategories: Array<{ id: number; name: string }> = [],
     consents: Array<{ name?: string }> = [],
+    gdprSetting?: { enable_gdpr?: boolean } | null,
+    visibleFieldKeys?: string[] | null,
 ) {
     return useMemo(() => {
         const nowSections = DEAL_INFO_CORE_SECTION_ORDER.slice(
@@ -164,6 +281,10 @@ export default function useDealInfoNavigation(
             DEAL_INFO_NOW_SECTION_COUNT,
         );
         const unmappedCategories = getUnmappedCategories(customFieldCategories);
+        const visibilityMap = buildCustomFieldVisibilityMap(
+            fields,
+            deal.custom_fields_data,
+        );
 
         const coreSearchTerms = (
             sectionId: (typeof DEAL_INFO_CORE_SECTION_ORDER)[number],
@@ -175,7 +296,12 @@ export default function useDealInfoNavigation(
                         .filter(
                             (field) =>
                                 Number(field.custom_field_category_id) ===
-                                category.id,
+                                    category.id &&
+                                isCustomFieldCurrentlyVisible(
+                                    field,
+                                    visibleFieldKeys,
+                                    visibilityMap,
+                                ),
                         )
                         .map((field) => field.label ?? field.name ?? ""),
                 )
@@ -186,7 +312,12 @@ export default function useDealInfoNavigation(
             fields
                 .filter(
                     (field) =>
-                        Number(field.custom_field_category_id) === categoryId,
+                        Number(field.custom_field_category_id) === categoryId &&
+                        isCustomFieldCurrentlyVisible(
+                            field,
+                            visibleFieldKeys,
+                            visibilityMap,
+                        ),
                 )
                 .map((field) => field.label ?? field.name ?? "")
                 .filter(Boolean);
@@ -197,11 +328,14 @@ export default function useDealInfoNavigation(
                 deal,
                 fields,
                 customFieldCategories,
+                visibleFieldKeys,
+                visibilityMap,
             );
             const item = buildCoreNavItem(sectionId, false);
             return {
                 ...item,
                 badge: total > 0 ? `${filled}/${total}` : "--",
+                completion: { filled, total },
                 searchTerms: coreSearchTerms(sectionId),
             };
         });
@@ -213,6 +347,8 @@ export default function useDealInfoNavigation(
                     deal,
                     fields,
                     customFieldCategories,
+                    visibleFieldKeys,
+                    visibilityMap,
                 );
                 const item = buildCoreNavItem(sectionId, true);
                 return {
@@ -220,6 +356,9 @@ export default function useDealInfoNavigation(
                     badge:
                         item.stageBadge ??
                         (total > 0 ? `${filled}/${total}` : "--"),
+                    // A stage label (e.g. "Prospect") always wins visually over
+                    // the fill count, so there's no dot to show alongside it.
+                    completion: item.stageBadge ? undefined : { filled, total },
                     searchTerms: coreSearchTerms(sectionId),
                 };
             }),
@@ -228,12 +367,15 @@ export default function useDealInfoNavigation(
                     category.id,
                     deal,
                     fields,
+                    visibleFieldKeys,
+                    visibilityMap,
                 );
                 return {
                     id: toCategorySectionId(category.id),
                     label: category.name,
                     icon: "layers",
                     badge: total > 0 ? `${filled}/${total}` : "--",
+                    completion: { filled, total },
                     badgeVariant: "gray" as const,
                     later: true,
                     searchTerms: categorySearchTerms(category.id),
@@ -243,21 +385,36 @@ export default function useDealInfoNavigation(
             // terms come from the deal's actual consent purposes (rendered
             // as the GDPR table's rows) — falls back to the generic labels
             // when consents haven't loaded, so the item stays findable.
-            {
-                ...buildCoreNavItem("gdpr", true),
-                badge: undefined,
-                searchTerms: [
-                    ...(CORE_SECTION_FIELD_LABELS.gdpr ?? []),
-                    ...consents.map((consent) => consent.name ?? "").filter(Boolean),
-                ],
-            },
+            // Gated on the app-wide GDPR module toggle, same as the legacy
+            // Deal view (Components/DealTabs.tsx:174).
+            ...(gdprSetting?.enable_gdpr
+                ? [
+                      {
+                          ...buildCoreNavItem("gdpr", true),
+                          badge: undefined,
+                          searchTerms: [
+                              ...(CORE_SECTION_FIELD_LABELS.gdpr ?? []),
+                              ...consents
+                                  .map((consent) => consent.name ?? "")
+                                  .filter(Boolean),
+                          ],
+                      },
+                  ]
+                : []),
         ];
 
         const navGroups: NavGroup[] = [
-            { label: "Now — in progress", items: nowItems },
-            { label: "Later stages", items: laterItems },
+            { label: "Overview", items: nowItems },
+            { label: "For this pipeline", items: laterItems },
         ];
 
         return { navGroups };
-    }, [consents, customFieldCategories, deal, fields]);
+    }, [
+        consents,
+        customFieldCategories,
+        deal,
+        fields,
+        gdprSetting,
+        visibleFieldKeys,
+    ]);
 }

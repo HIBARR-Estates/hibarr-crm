@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Input } from "antd";
+import { Input, InputRef } from "antd";
 import { useFilter } from "@/contexts/FilterContext";
 import { router } from "@inertiajs/react";
 import { useDebounce } from "@/Hooks/useDebounce";
@@ -36,6 +36,8 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     // Track if we're currently syncing to prevent loops
     const isSyncingRef = useRef(false);
     const lastSearchedValue = useRef(filters.search || "");
+    const inputRef = useRef<InputRef>(null);
+    const keepFocused = useRef(false);
 
     // Sync with URL parameters (handles browser back/forward)
     useEffect(() => {
@@ -91,6 +93,7 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     }, [filters.search, config]);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        keepFocused.current = true;
         setLocalValue(e.target.value);
     };
 
@@ -133,6 +136,9 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
                 replace: true,
                 onFinish: () => {
                     isSyncingRef.current = false;
+                    if (keepFocused.current) {
+                        inputRef.current?.focus({ preventScroll: true });
+                    }
                 },
             });
         } else {
@@ -162,10 +168,22 @@ const UniversalSearchBox: React.FC<UniversalSearchBoxProps> = ({
     return (
         <div className={className}>
             <Input.Search
+                ref={inputRef}
                 placeholder={placeholder || "Search..."}
                 value={localValue}
                 onChange={handleInputChange}
                 onSearch={handleManualSearch}
+                onFocus={() => {
+                    keepFocused.current = true;
+                }}
+                onBlur={() => {
+                    // Delay so onFinish can still refocus after an in-flight visit
+                    setTimeout(() => {
+                        if (document.activeElement !== inputRef.current?.input) {
+                            keepFocused.current = false;
+                        }
+                    }, 0);
+                }}
                 allowClear={allowClear}
                 disabled={disabled}
                 size={size}

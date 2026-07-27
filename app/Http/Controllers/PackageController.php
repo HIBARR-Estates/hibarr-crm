@@ -46,7 +46,7 @@ class PackageController extends AccountBaseController
         $companyId = (int) company()->id;
         $this->routingFieldGroups = $this->routingFieldCatalog->groupedFieldItems($companyId);
         $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions($companyId);
-        $this->routingTriggerFieldItems = $this->routingFieldCatalog->flatFieldItems($companyId);
+        $this->routingTriggerFieldItems = $this->routingFieldCatalog->enabledFlatFieldItems($companyId);
         $this->routingMatchModeOptions = [
             PackageRoutingFieldCatalog::MATCH_MODE_EXACT => __('modules.deal.routingTriggerMatchModeExact'),
             PackageRoutingFieldCatalog::MATCH_MODE_PRESENT => __('modules.deal.routingTriggerMatchModePresent'),
@@ -88,11 +88,6 @@ class PackageController extends AccountBaseController
         $companyId = (int) company()->id;
         $this->routingFieldGroups = $this->routingFieldCatalog->groupedFieldItems($companyId);
         $this->routingFieldOptions = $this->routingFieldCatalog->allFieldOptions($companyId);
-        $this->routingTriggerFieldItems = $this->routingFieldCatalog->flatFieldItems($companyId);
-        $this->routingMatchModeOptions = [
-            PackageRoutingFieldCatalog::MATCH_MODE_EXACT => __('modules.deal.routingTriggerMatchModeExact'),
-            PackageRoutingFieldCatalog::MATCH_MODE_PRESENT => __('modules.deal.routingTriggerMatchModePresent'),
-        ];
         $this->routingTriggers = $this->package->routingTriggers
             ->map(fn ($trigger) => [
                 'field_key' => $trigger->field_key,
@@ -100,6 +95,14 @@ class PackageController extends AccountBaseController
                 'match_value' => $trigger->match_value,
             ])
             ->all();
+        $this->routingTriggerFieldItems = $this->routingFieldCatalog->flatFieldItemsForPackageForm(
+            $companyId,
+            $this->routingTriggers,
+        );
+        $this->routingMatchModeOptions = [
+            PackageRoutingFieldCatalog::MATCH_MODE_EXACT => __('modules.deal.routingTriggerMatchModeExact'),
+            PackageRoutingFieldCatalog::MATCH_MODE_PRESENT => __('modules.deal.routingTriggerMatchModePresent'),
+        ];
 
         return view('packages.edit', $this->data);
     }

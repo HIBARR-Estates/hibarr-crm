@@ -13,6 +13,7 @@ use App\Services\PdfExpose\ExposeGeneratorService;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
 use App\Support\FeatureFlags;
 use App\Support\DeveloperProjectVisibility;
+use App\Support\DeveloperProjectListingQuery;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Validator;
@@ -152,104 +153,21 @@ class DeveloperProjectController extends AccountBaseController
 
         DeveloperProjectVisibility::scopeVisibleProjects($query);
 
-        // Search by name or description
-        if ($request->filled('search')) {
-            $search = trim($request->search);
-
-            $query->where(function ($q) use ($search) {
-                $q->where('name', 'like', "%{$search}%")
-                ->orWhere('description', 'like', "%{$search}%");
-            });
-
-            // raw ordering to rank name matches higher than description-only matches
-            $query->orderByRaw("
-                CASE 
-                    WHEN name LIKE ? THEN 2
-                    WHEN description LIKE ? THEN 1
-                    ELSE 0
-                END DESC
-            ", ["%{$search}%", "%{$search}%"]);
-        }
+        $filterKeys = [
+            'search', 'sort',
+            'developer_id', 'construction_status', 'primary_category',
+            'payment_plan_duration', 'price_min', 'price_max',
+        ];
 
         if ($filtersModalEnabled) {
-            // Filter by city / area attributes on project_locations
-            if ($request->filled('city')) {
-                $city = strtolower(trim((string) $request->city));
-                $query->whereHas('location', function ($q) use ($city, $request) {
-                    $q->whereRaw('LOWER(TRIM(COALESCE(city, ""))) = ?', [$city]);
-
-                    if ($request->filled('area')) {
-                        $area = strtolower(trim((string) $request->area));
-                        $q->whereRaw('LOWER(TRIM(COALESCE(area, ""))) = ?', [$area]);
-                    }
-                });
-            }
-        } elseif ($request->filled('location_id')) {
-            // Legacy: filter by exact project_location FK
-            $query->where('project_location_id', $request->location_id);
+            $filterKeys[] = 'city';
+            $filterKeys[] = 'area';
+        } else {
+            $filterKeys[] = 'location_id';
         }
 
-        // Filter by developer
-        if ($request->filled('developer_id')) {
-            $query->where('developer_id', $request->developer_id);
-        }
-
-        // Filter by construction status
-        if ($request->filled('construction_status')) {
-            $query->where('construction_status', $request->construction_status);
-        }
-
-        // Filter by primary category (JSON array contains)
-        if ($request->filled('primary_category')) {
-            $query->whereJsonContains('primary_categories', $request->primary_category);
-        }
-
-        // Filter by payment plan duration (months)
-        if ($request->filled('payment_plan_duration')) {
-            $durationMonths = filter_var($request->payment_plan_duration, FILTER_VALIDATE_INT, [
-                'options' => ['min_range' => 0],
-            ]);
-
-            if ($durationMonths !== false) {
-                $query->whereRaw(
-                    "CAST(JSON_UNQUOTE(JSON_EXTRACT(payment_plan, '$.period_months')) AS UNSIGNED) = ?",
-                    [$durationMonths]
-                );
-            }
-        }
-
-        // Filter by starting price range
-        if ($request->filled('price_min')) {
-            $query->where('starting_price', '>=', (float) $request->price_min);
-        }
-        if ($request->filled('price_max')) {
-            $query->where('starting_price', '<=', (float) $request->price_max);
-        }
-
-        // Apply sort
-        switch ($request->input('sort', 'newest')) {
-            case 'oldest':
-                $query->orderBy('created_at', 'asc');
-                break;
-            case 'name_asc':
-                $query->orderBy('name', 'asc');
-                break;
-            case 'name_desc':
-                $query->orderBy('name', 'desc');
-                break;
-            case 'properties_desc':
-                $query->orderByDesc('properties_count');
-                break;
-            case 'cheapest':
-                $query->orderBy('starting_price', 'asc');
-                break;
-            case 'most_expensive':
-                $query->orderBy('starting_price', 'desc');
-                break;
-            default: // newest
-                $query->orderBy('created_at', 'desc');
-                break;
-        }
+        $listingFilters = $request->only($filterKeys);
+        DeveloperProjectListingQuery::apply($query, $listingFilters, $filtersModalEnabled);
 
         $projects = $query->paginate(12);
 
@@ -280,19 +198,6 @@ class DeveloperProjectController extends AccountBaseController
             ->select('name', 'label')
             ->orderBy('label')
             ->get();
-
-        $filterKeys = [
-            'search', 'sort',
-            'developer_id', 'construction_status', 'primary_category',
-            'payment_plan_duration', 'price_min', 'price_max',
-        ];
-
-        if ($filtersModalEnabled) {
-            $filterKeys[] = 'city';
-            $filterKeys[] = 'area';
-        } else {
-            $filterKeys[] = 'location_id';
-        }
 
         return Inertia::render('DeveloperProjects/Index', [
             'pageTitle' => 'Construction Projects',

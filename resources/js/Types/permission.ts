@@ -231,6 +231,7 @@ export const permissions = {
     "manage_lead_setting": "all",
     "manage_leave_setting": "all",
     "manage_message_setting": "all",
+    "merge_lead": "all",
     "manage_module_setting": "all",
     "manage_notification_setting": "all",
     "manage_payment_setting": "all",

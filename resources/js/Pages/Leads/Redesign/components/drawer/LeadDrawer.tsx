@@ -161,7 +161,6 @@ export default function LeadDrawer({
                 meetingTypes={meetingTypes}
                 deals={deals.map((deal) => ({ id: deal.id, name: deal.name }))}
             />
-
             <div ref={drawerRef} className="section-card">
                 <header className="flex items-center gap-2 border-b border-[#eef1f5] px-4 py-3">
                     <LeadIcon name="grid" size={15} color="#1a6bb5" />

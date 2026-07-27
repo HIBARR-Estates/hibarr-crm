@@ -1,11 +1,15 @@
 import { useCallback, useState } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import {
+    getBrowserTimezone,
+    persistUserTimezoneOnce,
+} from "@/lib/userTimezone";
 import type { LeadMeetingCreateInput } from "./useLeadMeetingCreate";
 import {
     formatMeetingDateForApi,
@@ -30,6 +34,7 @@ interface FollowUpUpdatePayload {
 
 export default function useLeadMeetingUpdate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
+    const { props } = usePage();
 
     const { mutate, status } = useApiMutate<
         FollowUpUpdatePayload,
@@ -50,6 +55,8 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 return;
             }
 
+            persistUserTimezoneOnce(props.auth?.user?.timezone);
+
             const payload: FollowUpUpdatePayload = {
                 id: followupId,
                 lead_id: lead.id,
@@ -64,8 +71,7 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 reminders: input.reminders,
                 remark: input.remark.trim(),
                 participants: input.participants,
-                timezone:
-                    Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
+                timezone: getBrowserTimezone(),
             };
 
             setErrors([]);
@@ -89,7 +95,7 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 },
             });
         },
-        [lead.id, mutate],
+        [lead.id, mutate, props.auth?.user?.timezone],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

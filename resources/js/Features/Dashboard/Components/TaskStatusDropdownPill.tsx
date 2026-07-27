@@ -58,9 +58,16 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
         key: column.slug,
         label: (
             <div className="flex items-center gap-2">
-                <div
-                    className="h-2 w-2 rounded-full"
-                    style={{ backgroundColor: column.label_color }}
+                <span
+                    aria-hidden="true"
+                    style={{
+                        display: "inline-block",
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                        backgroundColor: column.label_color,
+                    }}
                 />
                 <span>{td(column.column_name)}</span>
             </div>
@@ -102,14 +109,21 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
                 onClick={(event) => event.stopPropagation()}
             >
                 <span
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    style={{ backgroundColor: currentColumn?.label_color || "#999" }}
+                    aria-hidden="true"
+                    style={{
+                        display: "inline-block",
+                        width: 6,
+                        height: 6,
+                        borderRadius: "50%",
+                        flexShrink: 0,
+                        backgroundColor: currentColumn?.label_color || "#999",
+                    }}
                 />
                 {currentLabel}
                 {loading ? (
                     <span
                         aria-hidden="true"
-                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                         style={{ width: 9, height: 9 }}
                     />
                 ) : (

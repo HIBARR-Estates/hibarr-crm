@@ -150,6 +150,24 @@ trait CustomFieldsTrait
             $customField = CustomField::findOrFail($id);
             $fieldType = $customField->type;
 
+            // Currency amounts represent money and should never go negative.
+            // The frontend's CurrencyInput already blocks typing/pasting a
+            // minus sign, but that's UI-only — anything hitting this method
+            // directly (import, API, a future caller) must be clamped here too.
+            if ($fieldType == 'currency' && is_array($value) && isset($value['amount']) && is_numeric($value['amount'])) {
+                $value['amount'] = max(0, (float) $value['amount']);
+            }
+
+            // Range values (e.g. a budget range) shouldn't go negative, and min
+            // shouldn't exceed max — clamp/swap here since the frontend's two
+            // plain number inputs don't enforce this on their own.
+            if ($fieldType == 'range' && is_array($value) && isset($value['min'], $value['max']) && is_numeric($value['min']) && is_numeric($value['max'])) {
+                $min = max(0, (float) $value['min']);
+                $max = max(0, (float) $value['max']);
+                $value['min'] = min($min, $max);
+                $value['max'] = max($min, $max);
+            }
+
             $existingEntry = DB::table('custom_fields_data')
                 ->where('model', $this->getModelName())
                 ->where('model_id', $this->id)
@@ -284,18 +302,17 @@ trait CustomFieldsTrait
                 }
             }
             
-            // Handle checkbox and other array-based fields - convert arrays to comma-separated strings
+            // Multi-value custom fields (checkbox options, multiselect, countries)
+            // all store a JSON array. Checkbox used to be comma-joined; keep
+            // writing JSON going forward so country-style values with commas
+            // and checkbox/multiselect share one path. Readers still accept
+            // the legacy comma-separated form.
             if (is_array($value)) {
-                if ($fieldType == 'checkbox') {
-                    $value = implode(', ', $value);
-                } elseif ($fieldType == 'repeatable') {
-                    // Repeatable: store array of objects as JSON (same as multiselect pattern)
-                    $value = json_encode($value);
-                } elseif ($fieldType == 'multiSelectCountry') {
-                    // JSON (not comma-separated like checkbox): several country nicenames
-                    // contain literal commas (e.g. "Congo, Democratic Republic of the"),
-                    // which would corrupt a comma-joined string on read-back.
+                if (in_array($fieldType, ['checkbox', 'multiselect', 'multiSelectCountry'], true)) {
                     $value = json_encode(array_values($value));
+                } elseif ($fieldType == 'repeatable') {
+                    // Repeatable: store array of objects as JSON
+                    $value = json_encode($value);
                 } else {
                     // For other array types, convert to JSON string
                     $value = json_encode($value);

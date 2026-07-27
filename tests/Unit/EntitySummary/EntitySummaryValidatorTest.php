@@ -71,6 +71,37 @@ class EntitySummaryValidatorTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function test_rejects_high_confidence_with_stale_warning(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        (new EntitySummaryValidator())->validateDealSummary([
+            'status_line' => 'Deal looks inactive.',
+            'risk_level' => 'medium',
+            'chips' => [
+                [
+                    'id' => 'momentum',
+                    'label' => 'Momentum',
+                    'value' => 'Quiet',
+                    'tone' => 'amber',
+                    'sublabel' => 'No recent human activity',
+                ],
+            ],
+            'bullets' => ['One bullet'],
+            'next_step' => [
+                'action_type' => 'REVIEW_STALE_DEAL',
+                'label' => 'Review stale deal',
+                'rationale' => 'No activity for two weeks.',
+                'urgency' => 'this_week',
+            ],
+            'meta' => [
+                'generated_at' => '2026-07-01T14:04:00Z',
+                'data_confidence' => 'high',
+                'stale_data_warning' => true,
+            ],
+        ]);
+    }
+
     public function test_rejects_invalid_deal_action_type(): void
     {
         $this->expectException(\InvalidArgumentException::class);

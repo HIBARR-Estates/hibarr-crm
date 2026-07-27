@@ -114,6 +114,22 @@ class StoreTask extends CoreRequest
             $rules['estimate_minutes'] = 'required|integer|min:0';
         }
 
+        // date_format alone accepts any syntactically valid date (e.g. a typo'd
+        // year like 1220), so bound both dates to a sane window around today.
+        $dateBoundsRule = function ($attribute, $value, $fail) use ($setting) {
+            if (!is_string($value) || $value === '') {
+                return;
+            }
+            $parsed = \DateTime::createFromFormat($setting->date_format . ' ' . $setting->time_format, $value);
+            if ($parsed && ((int) $parsed->format('Y') < now()->year - 10 || (int) $parsed->format('Y') > now()->year + 10)) {
+                $fail(__('messages.taskDateOutOfRange'));
+            }
+        };
+        $rules['start_date'] = array_merge(explode('|', $rules['start_date']), [$dateBoundsRule]);
+        if (isset($rules['due_date'])) {
+            $rules['due_date'] = array_merge(explode('|', $rules['due_date']), [$dateBoundsRule]);
+        }
+
         $rules = $this->customFieldRules($rules);
 
         return $rules;

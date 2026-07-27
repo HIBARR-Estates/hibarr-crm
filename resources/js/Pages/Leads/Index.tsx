@@ -22,6 +22,7 @@ import {
     ImportOutlined,
     FilterOutlined,
     ReloadOutlined,
+    MergeCellsOutlined,
 } from "@ant-design/icons";
 import { Link, router, usePage } from "@inertiajs/react";
 import { Button, MenuProps } from "antd";
@@ -40,6 +41,8 @@ import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
+import FindDuplicatesModal from "@/Features/Leads/Merge/FindDuplicatesModal";
+import useLeadMergeAccess from "@/Features/Leads/Merge/useLeadMergeAccess";
 
 export interface IndexProps extends Omit<PageProps, "filters"> {
     pageTitle: string;
@@ -120,6 +123,11 @@ const Index = ({
     const { selectedEntities, rowSelection, clearSelected } =
         useGenericTableRowSelection<Lead>();
 
+    const canMergeLeads = useLeadMergeAccess();
+    const [findDuplicatesLead, setFindDuplicatesLead] = useState<Lead | null>(
+        null,
+    );
+
     // Handle create lead
     const handleCreateLead = useCallback(() => {
         handleAction("add");
@@ -174,6 +182,22 @@ const Index = ({
                     handleAction("change_to_client", record);
                 },
             },
+            ...(canMergeLeads
+                ? [
+                      {
+                          key: "find_duplicates",
+                          label: (
+                              <span>
+                                  <MergeCellsOutlined className="mr-2" />
+                                  {td("Find Duplicates")}
+                              </span>
+                          ),
+                          onClick: () => {
+                              setFindDuplicatesLead(record);
+                          },
+                      },
+                  ]
+                : []),
             {
                 type: "divider",
             },
@@ -190,7 +214,7 @@ const Index = ({
                 },
             },
         ],
-        [handleEditLead, handleAction, t],
+        [handleEditLead, handleAction, t, td, canMergeLeads],
     );
 
     const columns = useMemo(
@@ -334,6 +358,15 @@ const Index = ({
                 onClose={() => handleClose()}
                 lead={lead}
             />
+
+            {canMergeLeads && (
+                <FindDuplicatesModal
+                    open={Boolean(findDuplicatesLead)}
+                    onClose={() => setFindDuplicatesLead(null)}
+                    leadId={findDuplicatesLead?.id ?? 0}
+                    leadName={findDuplicatesLead?.client_name}
+                />
+            )}
 
             {/* Universal Filter Drawer */}
             {

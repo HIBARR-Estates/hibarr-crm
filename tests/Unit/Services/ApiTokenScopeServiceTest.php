@@ -46,6 +46,14 @@ class ApiTokenScopeServiceTest extends TestCase
         $this->assertFalse(ApiTokenScopeService::routeAllowed('api.v2.tasks.create', 'not-json'));
     }
 
+    public function test_versioned_route_name_matches_unversioned_scope(): void
+    {
+        $permissions = ['scopes' => ['api.developer-projects.index']];
+
+        $this->assertTrue(ApiTokenScopeService::routeAllowed('api.developer-projects.index.v1', $permissions));
+        $this->assertFalse(ApiTokenScopeService::routeAllowed('api.developer-projects.show.v1', $permissions));
+    }
+
     public function test_empty_route_name_is_allowed(): void
     {
         $permissions = ['scopes' => ['api.v2.tasks.create']];

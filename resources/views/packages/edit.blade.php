@@ -82,7 +82,9 @@
 
 <script>
     $('#save-package-setting').click(function () {
-        if (typeof window.syncPipelineScopePillsInputs === 'function') {
+        if (typeof window.preparePackageRoutingTriggersForSubmit === 'function') {
+            window.preparePackageRoutingTriggersForSubmit($('#editPackage'));
+        } else if (typeof window.syncPipelineScopePillsInputs === 'function') {
             window.syncPipelineScopePillsInputs($('#editPackage'));
         }
 

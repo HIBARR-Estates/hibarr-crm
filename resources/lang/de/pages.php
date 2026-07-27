@@ -202,6 +202,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'Dieser Deal ist gesperrt. Bearbeitung und Löschung sind deaktiviert.',
+        'locked_message_won'       => 'Dieser Deal ist gewonnen und gesperrt. Bearbeitung und Löschung sind deaktiviert.',
         'refresh_tooltip_disabled' => 'Speichern oder abbrechen Sie Änderungen, bevor Sie aktualisieren',
         'stage_jump_confirm_title'   => 'Pipeline-Phasen überspringen?',
         'stage_jump_confirm_message' => 'Sie verschieben diesen Deal nach „{{stage}}“ und überspringen dabei eine oder mehrere Phasen. Fortfahren?',
@@ -344,7 +345,7 @@ return [
                 'consent_hint'  => 'Einwilligungsnachweise werden beim verknüpften Lead erfasst. Löschanfragen werden über das DSGVO-Panel des Leads bearbeitet.',
             ],
             'mapped_only_hint_prefix' => 'Dieser Abschnitt enthält noch keine zugeordneten Felder. Weisen Sie Kategorien zu in',
-            'mapped_only_hint_suffix' => 'oder verwenden Sie einen benutzerdefinierten Kategorie-Tab in späteren Phasen.',
+            'mapped_only_hint_suffix' => 'oder verwenden Sie einen benutzerdefinierten Kategorie-Tab unter "Für diese Pipeline".',
             'done_editing'  => 'Bearbeitung beenden',
             'edit_fields'   => 'Felder bearbeiten',
         ],
@@ -404,6 +405,68 @@ return [
             'not_set'                    => 'Nicht festgelegt',
         ],
 
+        'tour' => [
+            'next'              => 'Weiter',
+            'back'              => 'Zurück',
+            'done'              => 'Fertig',
+            'skip'              => 'Tour überspringen',
+            'replay_menu_item'  => 'Anleitung erneut anzeigen',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'So sehen Sie den Deal auf einen Blick',
+                    'body'  => 'Name, Wert und Phase bleiben beim Scrollen sichtbar — über das ⋮-Menü neben dem Deal-Titel fügen Sie am schnellsten eine Notiz, Aufgabe oder ein Meeting hinzu.',
+                ],
+                'deal_value' => [
+                    'title' => 'Sehen Sie genau, was dieser Deal wert ist',
+                    'body'  => 'Der Deal-Wert setzt sich aus Immobilien, Paketen und Rabatten zusammen — klicken Sie darauf für die vollständige Aufschlüsselung oder um zwischen manuellem und berechnetem Wert zu wechseln.',
+                ],
+                'pipeline_stepper' => [
+                    'title' => 'Verfolgen und verschieben Sie den Deal durch die Pipeline',
+                    'body'  => 'Klicken Sie auf eine Phase, um den Deal weiterzubewegen — die hervorgehobene Phase zeigt den aktuellen Stand.',
+                ],
+                'stage_requirements' => [
+                    'title' => 'Prüfen Sie, was eine Phase verlangt',
+                    'body'  => 'Phasen mit einem Info-Symbol haben Einstiegsbedingungen. Bewegen Sie den Mauszeiger über das Symbol in der Phase oder klicken Sie darauf, um zu sehen, welche Felder ausgefüllt oder erfüllt sein müssen, bevor der Deal dorthin wechseln kann.',
+                ],
+                'stage_progression' => [
+                    'title' => 'Anforderungen der gesamten Pipeline einsehen',
+                    'body'  => 'Öffnen Sie Phasenanforderungen, um alle Phasen der Reihe nach zu prüfen — was für den Einstieg in jede Phase nötig ist und auf welcher Phase der Deal gerade steht.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Lassen Sie sich von der KI auf den neuesten Stand bringen',
+                    'body'  => 'Diese Zusammenfassung liest den gesamten Deal für Sie und schlägt nächste Schritte vor — etwa eine Aufgabe erstellen oder die Phase weiterschalten — mit einem Klick.',
+                ],
+                'tabs' => [
+                    'title' => 'Alles zu diesem Deal, einen Tab entfernt',
+                    'body'  => 'Übersicht, Notizen, Aufgaben, Meetings, Dateien, Angebote, Empfehlungen und Reiseplan sind alle hier — die Zahlen-Badges zeigen, was Ihre Aufmerksamkeit braucht.',
+                ],
+                'overview' => [
+                    'title' => 'Die Übersicht bündelt das Wichtigste',
+                    'body'  => 'Aktuelle Notizen, offene Aufgaben und anstehende Meetings erscheinen hier zuerst — so bleiben Sie auf dem Laufenden, ohne jeden Tab einzeln zu durchsuchen.',
+                ],
+                'deal_info' => [
+                    'title' => 'Deal-Info enthält den vollständigen Datensatz',
+                    'body'  => 'Benutzerdefinierte Felder, Pakete und Immobiliendetails sind hier in Abschnitte gegliedert — nutzen Sie die Suchleiste über der Liste, um direkt zu einem Abschnitt zu springen.',
+                ],
+                'timeline' => [
+                    'title' => 'Die gesamte Historie im Blick',
+                    'body'  => 'Jede Änderung, Notiz und Statusaktualisierung zu diesem Deal, in chronologischer Reihenfolge.',
+                ],
+                'dossier' => [
+                    'title' => 'Das Dossier hält die wichtigsten Fakten sichtbar',
+                    'body'  => 'Kontaktdaten, Pakete und Schnellaktionen bleiben hier sichtbar, unabhängig davon, welcher Tab gerade aktiv ist.',
+                ],
+                'actions_menu' => [
+                    'title' => 'Schnellaktionen immer einen Klick entfernt',
+                    'body'  => 'Fügen Sie über dieses Menü eine Notiz, Aufgabe oder ein Meeting hinzu — oder löschen Sie den Deal.',
+                ],
+                'closing' => [
+                    'title' => 'Sie sind startklar',
+                    'body'  => 'Sie können diese Anleitung jederzeit über das ⋮-Menü neben dem Deal-Titel erneut aufrufen.',
+                ],
+            ],
+        ],
+
         'header' => [
             'breadcrumb_deals' => 'Deals',
             'won'               => 'Gewonnen',
@@ -414,11 +477,21 @@ return [
             'participants_label' => 'Teilnehmer',
             'watchers_label'    => 'Beobachter',
             'manage_team'       => 'Team verwalten',
+            'view_team'         => 'Team ansehen',
             'delete_deal'       => 'Deal löschen',
             'actions_aria'      => 'Deal-Aktionen',
             'pipeline' => [
                 'scroll_left'  => 'Pipeline-Phasen nach links scrollen',
                 'scroll_right' => 'Pipeline-Phasen nach rechts scrollen',
+                'requirements_label' => 'Erforderlich für diesen Wechsel',
+                'requirements_open'  => 'Anforderungen für diese Phase anzeigen',
+                'progression_button' => 'Phasenanforderungen',
+                'progression_open'   => 'Anforderungen aller Phasen anzeigen',
+                'progression_title'  => 'Pipeline-Phasenanforderungen',
+                'progression_intro'  => 'Was auf dem Deal erfüllt sein muss, bevor eine Automatisierung ihn in die jeweilige Phase verschieben kann.',
+                'progression_current'=> 'Aktuell',
+                'progression_step'   => 'Schritt {{n}}',
+                'progression_none'   => 'Keine Einstiegsanforderungen',
                 'messages' => [
                     'stage_updated'   => 'Deal-Phase aktualisiert',
                     'update_failed'   => 'Phase konnte nicht aktualisiert werden',
@@ -448,6 +521,7 @@ return [
                 'agent_label'          => 'Deal-Agent',
                 'unassign'             => 'Zuweisung aufheben',
                 'manage_team_ellipsis' => 'Team verwalten…',
+                'view_team_ellipsis'   => 'Team ansehen…',
                 'participants_title'   => 'Teilnehmer',
                 'no_participants_hint' => 'Keine Teilnehmer — nur der Agent bearbeitet diesen Deal.',
                 'no_watchers_hint'     => 'Keine Beobachter — niemand folgt diesem Deal.',
@@ -674,6 +748,8 @@ return [
                 'upload'                 => 'Hochladen',
                 'replace'                => 'Ersetzen',
                 'open'                   => 'Dokument öffnen',
+                'click_to_upload'        => 'Zum Hochladen klicken',
+                'click_to_view'          => 'Zum Anzeigen klicken',
                 'empty'                  => 'Keine Dokument-Slots konfiguriert.',
                 'delete_confirm_title'   => 'Dokument löschen?',
                 'delete_confirm_message' => 'Die hochgeladene Datei wird dauerhaft entfernt. Dies kann nicht rückgängig gemacht werden.',

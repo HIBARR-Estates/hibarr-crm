@@ -431,12 +431,28 @@ class CrmEventController extends Controller
     /**
      * Whether the current session user may edit/delete agent-logged events.
      * Gated to administrators (see HIB-1038 — timeline event management).
+     *
+     * Important: Role uses HasCompany/CompanyScope. On API requests the active
+     * company in scope can disagree with how roles were loaded for the Inertia
+     * page, which made hasRole('admin') return false even for real admins and
+     * broke delete/update while the UI still showed the controls. Bypass the
+     * company scope for this check, and prefer the session role cache when set.
      */
     protected function userCanManageEvents(): bool
     {
         $user = Auth::user();
+        if ($user === null) {
+            return false;
+        }
 
-        return $user !== null && $user->hasRole('admin');
+        if (function_exists('user_roles') && session()->has('user_roles')) {
+            return in_array('admin', user_roles(), true);
+        }
+
+        return $user->roles()
+            ->withoutGlobalScopes()
+            ->where('roles.name', 'admin')
+            ->exists();
     }
 
     /**

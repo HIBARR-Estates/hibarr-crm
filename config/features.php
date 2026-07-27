@@ -2,13 +2,14 @@
 
 return [
     'app_name' => 'crm',
-    'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 60),
+    'cache_ttl' => (int) env('FEATURE_FLAGS_CACHE_TTL', 10),
     'known_flags' => [
         'crm.lead-qualification-tab',
         'crm.lead-language-core-field',
         'crm.deal-view-redesign',
         'crm.lead-view-redesign',
         'crm.lead-ai-summary',
+        'crm.lead-merge',
         'crm.notification-service-routing',
         'crm.task-lifecycle-notifications',
         'crm.projects-filters-modal',
@@ -22,5 +23,7 @@ return [
         'integrations.zoho-calendar-sync',
         'crm.unit-sold-out-badge',
         'crm.unit-sold-out-grid-diagonal-ribbon',
+        'crm.deals-product-tour',
+        'crm.deal-info-count-indicator',
     ],
 ];

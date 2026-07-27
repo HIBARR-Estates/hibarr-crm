@@ -34,13 +34,13 @@ class MockAiSummaryService implements AiSummaryInterface, EntitySummaryAgentInte
         array $inputPayload,
         int $maxTokens = 2048,
     ): array {
-        $now = $inputPayload['now'] ?? Carbon::now()->toIso8601String();
+        $now = Carbon::now()->toIso8601String();
 
         if ($featureContext === 'deal_summary') {
             $deal = $inputPayload['deal'] ?? [];
 
             return [
-                'status_line' => 'Mock deal summary for ' . ($deal['name'] ?? 'deal') . ' — connect AI provider for real analysis.',
+                'status_line' => 'Your mock deal summary for ' . ($deal['name'] ?? 'deal') . ' — connect AI provider for real analysis.',
                 'risk_level' => 'medium',
                 'chips' => [
                     [

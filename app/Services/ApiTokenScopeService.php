@@ -103,7 +103,20 @@ class ApiTokenScopeService
             return true;
         }
 
-        return in_array($routeName, $scopes, true);
+        if (in_array($routeName, $scopes, true)) {
+            return true;
+        }
+
+        // ApiRoute appends ".{version}" (e.g. ".v1") to route names; scope config
+        // stores the unversioned name (e.g. api.properties.index).
+        $version = config('api.default_version');
+        if (is_string($version) && $version !== '' && str_ends_with($routeName, '.' . $version)) {
+            $unversioned = substr($routeName, 0, -(strlen($version) + 1));
+
+            return in_array($unversioned, $scopes, true);
+        }
+
+        return false;
     }
 
     /**

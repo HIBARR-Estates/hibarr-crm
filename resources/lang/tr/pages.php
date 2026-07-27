@@ -202,6 +202,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'Bu anlaşma kilitli. Düzenleme ve silme devre dışı bırakıldı.',
+        'locked_message_won'       => 'Bu anlaşma kazanıldı ve kilitli. Düzenleme ve silme devre dışı bırakıldı.',
         'refresh_tooltip_disabled' => 'Yenilemeden önce değişiklikleri kaydedin veya iptal edin',
         'stage_jump_confirm_title'   => 'Pipeline aşamalarını atla?',
         'stage_jump_confirm_message' => 'Bu anlaşmayı "{{stage}}" aşamasına taşıyorsunuz ve aradaki bir veya daha fazla aşamayı atlıyorsunuz. Devam edilsin mi?',
@@ -347,7 +348,7 @@ return [
                 'consent_hint'  => "Onay kayıtları ilişkili müşteri adayına eklenir. Silme talepleri adayın GDPR panelinden yönetilir.",
             ],
             'mapped_only_hint_prefix' => 'Bu bölüme henüz hiçbir alan eşlenmedi. Kategorileri şurada ata:',
-            'mapped_only_hint_suffix' => 'veya daha sonraki aşamalarda özel bir kategori sekmesi kullan.',
+            'mapped_only_hint_suffix' => 'veya "Bu pipeline için" bölümünde özel bir kategori sekmesi kullan.',
             'done_editing'  => 'Düzenleme tamamlandı',
             'edit_fields'   => 'Alanları düzenle',
        
@@ -408,6 +409,68 @@ return [
             'not_set'                    => 'Ayarlanmadı',
         ],
 
+        'tour' => [
+            'next'              => 'İleri',
+            'back'              => 'Geri',
+            'done'              => 'Bitti',
+            'skip'              => 'Turu atla',
+            'replay_menu_item'  => 'Rehberi tekrar göster',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'Anlaşmanızı tek bakışta görün',
+                    'body'  => 'Ad, değer ve aşama kaydırırken her zaman görünür kalır — not, görev veya toplantı eklemenin en hızlı yolu anlaşma adının yanındaki ⋮ menüsüdür.',
+                ],
+                'deal_value' => [
+                    'title' => 'Bu anlaşmanın tam değerini görün',
+                    'body'  => 'Anlaşma değeri mülkler, paketler ve indirimlerden oluşur — tam dökümü görmek veya manuel/hesaplanan değer arasında geçiş yapmak için tıklayın.',
+                ],
+                'pipeline_stepper' => [
+                    'title' => 'Anlaşmayı süreç boyunca takip edin ve ilerletin',
+                    'body'  => 'Anlaşmayı ileri taşımak için herhangi bir aşamaya tıklayın — vurgulanan aşama mevcut durumu gösterir.',
+                ],
+                'stage_requirements' => [
+                    'title' => 'Bir aşamaya geçmeden önce gereksinimleri kontrol edin',
+                    'body'  => 'Bilgi simgesi olan aşamaların giriş koşulları vardır. Anlaşmanın oraya taşınabilmesi için hangi alanların doldurulması veya karşılanması gerektiğini görmek üzere aşamanın içindeki simgenin üzerine gelin veya tıklayın.',
+                ],
+                'stage_progression' => [
+                    'title' => 'Tüm süreçteki gereksinimleri görün',
+                    'body'  => 'Her aşamaya giriş için ne gerektiğini ve anlaşmanın şu an hangi aşamada olduğunu sırayla görmek için Aşama gereksinimleri’ni açın.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Yapay zekâ sizi hızlıca bilgilendirsin',
+                    'body'  => 'Bu özet tüm anlaşmayı sizin için okur ve görev oluşturma veya aşamayı ilerletme gibi bir sonraki adımları tek tıkla önerir.',
+                ],
+                'tabs' => [
+                    'title' => 'Bu anlaşmaya dair her şey bir sekme uzağınızda',
+                    'body'  => 'Genel bakış, notlar, görevler, toplantılar, dosyalar, teklifler, öneriler ve seyahat planı hepsi burada — sayı rozetleri dikkat gerektiren yerleri gösterir.',
+                ],
+                'overview' => [
+                    'title' => 'Genel bakış en önemlileri bir araya getirir',
+                    'body'  => 'Son notlar, açık görevler ve yaklaşan toplantılar önce burada görünür — böylece her sekmeyi tek tek incelemeden anlaşmaya hâkim olursunuz.',
+                ],
+                'deal_info' => [
+                    'title' => 'Anlaşma bilgisi tüm kaydı içerir',
+                    'body'  => 'Özel alanlar, paketler ve mülk detayları burada bölümlere ayrılmıştır — listenin üstündeki arama çubuğunu kullanarak doğrudan bir bölüme atlayın.',
+                ],
+                'timeline' => [
+                    'title' => 'Tüm geçmişi görün',
+                    'body'  => 'Bu anlaşmadaki her değişiklik, not ve durum güncellemesi sırasıyla burada.',
+                ],
+                'dossier' => [
+                    'title' => 'Dosya, önemli bilgileri her zaman görünür tutar',
+                    'body'  => 'Hangi sekmede olursanız olun iletişim bilgileri, paketler ve hızlı eylemler burada kalır.',
+                ],
+                'actions_menu' => [
+                    'title' => 'Hızlı eylemler her zaman tek tık uzağınızda',
+                    'body'  => 'Bu menüden not, görev veya toplantı ekleyin — ya da anlaşmayı silin.',
+                ],
+                'closing' => [
+                    'title' => 'Hazırsınız',
+                    'body'  => 'Bu rehberi istediğiniz zaman anlaşma adının yanındaki ⋮ menüsünden yeniden başlatabilirsiniz.',
+                ],
+            ],
+        ],
+
         'header' => [
             'breadcrumb_deals' => 'Anlaşmalar',
             'won'               => 'Kazanıldı',
@@ -418,11 +481,21 @@ return [
             'participants_label' => 'Katılımcılar',
             'watchers_label'    => 'İzleyenler',
             'manage_team'       => 'Ekibi yönet',
+            'view_team'         => 'Ekibi görüntüle',
             'delete_deal'       => 'Anlaşmayı sil',
             'actions_aria'      => 'Anlaşma işlemleri',
             'pipeline' => [
                 'scroll_left'  => 'Aşamaları sola kaydır',
                 'scroll_right' => 'Aşamaları sağa kaydır',
+                'requirements_label' => 'Buraya geçmek için gerekli',
+                'requirements_open'  => 'Bu aşamanın gereksinimlerini görüntüle',
+                'progression_button' => 'Aşama gereksinimleri',
+                'progression_open'   => 'Tüm aşamaların gereksinimlerini görüntüle',
+                'progression_title'  => 'Süreç aşama gereksinimleri',
+                'progression_intro'  => 'Otomasyonun anlaşmayı ilgili aşamaya taşıyabilmesi için karşılanması gereken koşullar.',
+                'progression_current'=> 'Güncel',
+                'progression_step'   => 'Adım {{n}}',
+                'progression_none'   => 'Giriş gereksinimi yok',
                 'messages' => [
                     'stage_updated'   => 'Anlaşma aşaması güncellendi',
                     'update_failed'   => 'Aşama güncellenemedi',
@@ -452,6 +525,7 @@ return [
                 'agent_label'          => 'Anlaşma temsilcisi',
                 'unassign'             => 'Atamayı kaldır',
                 'manage_team_ellipsis' => 'Ekibi yönet…',
+                'view_team_ellipsis'   => 'Ekibi görüntüle…',
                 'participants_title'   => 'Katılımcılar',
                 'no_participants_hint' => 'Katılımcı yok — sadece temsilci bu anlaşma üzerinde çalışıyor.',
                 'no_watchers_hint'     => 'Hiç izleyen yok — kimse bu anlaşmayı takip etmiyor.',
@@ -678,6 +752,8 @@ return [
                 'upload'                 => 'Yükle',
                 'replace'                => 'Değiştir',
                 'open'                   => 'Belgeyi aç',
+                'click_to_upload'        => 'Yüklemek için tıklayın',
+                'click_to_view'          => 'Görüntülemek için tıklayın',
                 'empty'                  => 'Yapılandırılmış belge alanı yok.',
                 'delete_confirm_title'   => 'Belge silinsin mi?',
                 'delete_confirm_message' => 'Yüklenen dosya kalıcı olarak kaldırılacak. Bu işlem geri alınamaz.',

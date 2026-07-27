@@ -264,6 +264,10 @@ class PackagePipelineRouterService
                 continue;
             }
 
+            if ($value === null || $value === '' || $value === []) {
+                continue;
+            }
+
             $matchingPackages = $this->fieldCatalog->packagesMatchingFieldValue(
                 (int) $deal->company_id,
                 (string) $fieldKey,
@@ -323,18 +327,42 @@ class PackagePipelineRouterService
     }
 
     /**
+     * Re-evaluate configured package field triggers from persisted deal state.
+     *
+     * @param array<int, string>|null $fieldKeys Limit evaluation to these enabled trigger fields.
+     */
+    public function attemptRoutingFromDealState(
+        Deal $deal,
+        ?array $fieldKeys = null,
+        bool $packageExplicitlySelected = false,
+    ): bool {
+        $updatedFields = $this->fieldCatalog->buildTriggerFieldsFromDeal($deal, $fieldKeys);
+
+        if ($updatedFields === []) {
+            return false;
+        }
+
+        return $this->attemptRoutingFromFieldUpdates(
+            $deal,
+            $updatedFields,
+            $packageExplicitlySelected,
+        );
+    }
+
+    /**
      * @param array<int, array{field_key?: string, match_value?: string|null}> $rows
      */
     public function syncPackageRoutingTriggers(Package $package, array $rows): void
     {
-        $normalized = $this->fieldCatalog->normalizeTriggerRows($rows, $package->company_id);
+        $companyId = $package->company_id ?? company()?->id;
+        $normalized = $this->fieldCatalog->normalizeTriggerRows($rows, $companyId);
 
-        \Illuminate\Support\Facades\DB::transaction(function () use ($package, $normalized) {
+        \Illuminate\Support\Facades\DB::transaction(function () use ($package, $normalized, $companyId) {
             PackageRoutingTrigger::where('package_id', $package->id)->delete();
 
             foreach ($normalized as $row) {
                 PackageRoutingTrigger::create([
-                    'company_id' => $package->company_id,
+                    'company_id' => $companyId,
                     'package_id' => $package->id,
                     'field_key' => $row['field_key'],
                     'match_mode' => $row['match_mode'],

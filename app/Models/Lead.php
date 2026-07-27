@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 
 /**
@@ -46,12 +47,18 @@ use Illuminate\Notifications\Notifiable;
  * @property string $next_follow_up
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property \Illuminate\Support\Carbon|null $deleted_at
+ * @property int|null $merged_into_lead_id
  * @property float|null $value
  * @property float|null $total_value
  * @property int|null $currency_id
  * @property int|null $category_id
  * @property int|null $added_by
  * @property int|null $last_updated_by
+ * @property int|null $lead_owner
+ * @property string|null $client_whatsapp
+ * @property string|null $client_telegram
+ * @property string|null $client_instagram
  * @property-read \App\Models\User|null $client
  * @property-read \App\Models\Currency|null $currency
  * @property-read \Illuminate\Database\Eloquent\Collection|\App\Models\DealFile[] $files
@@ -119,6 +126,7 @@ class Lead extends BaseModel
     use CustomFieldsTrait;
     use HasDynamicTranslations;
     use HasCompany;
+    use SoftDeletes;
 
     /**
      * Fields eligible for dynamic translation background processing.
@@ -379,5 +387,42 @@ class Lead extends BaseModel
     public function tasks()
     {
         return $this->morphToMany(Task::class, 'taskable');
+    }
+
+    /**
+     * Surviving lead this record was merged into (HIB-1119).
+     * Uses withTrashed so the parent remains reachable if it is also soft-deleted.
+     */
+    public function mergedInto(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'merged_into_lead_id')->withTrashed();
+    }
+
+    /**
+     * Soft-deleted leads that were merged into this one (HIB-1119).
+     */
+    public function mergedFrom(): HasMany
+    {
+        return $this->hasMany(self::class, 'merged_into_lead_id')->withTrashed();
+    }
+
+    /**
+     * Load a lead by ID including soft-deleted rows.
+     * When the lead was merged into another, return the surviving (non-trashed) lead.
+     * Default Lead::find() still excludes soft-deleted rows.
+     */
+    public static function findWithMergeTarget(int $id): ?self
+    {
+        $lead = static::withTrashed()->find($id);
+
+        if (!$lead) {
+            return null;
+        }
+
+        if ($lead->trashed() && $lead->merged_into_lead_id) {
+            return static::query()->find($lead->merged_into_lead_id) ?? $lead;
+        }
+
+        return $lead;
     }
 }

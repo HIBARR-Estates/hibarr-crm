@@ -5,6 +5,7 @@ import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import { resolveDealOutcome } from "@/lib/dealOutcome";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import { router } from "@inertiajs/react";
 import useDealHeaderData from "../../hooks/useDealHeaderData";
@@ -29,16 +30,7 @@ interface DealStickyHeaderProps {
     onAddNote: () => void;
     onAddTask: () => void;
     onScheduleMeeting: () => void;
-}
-
-function resolveOutcome(deal: Deal): "won" | "lost" | null {
-    const slug = deal.lead_stage?.slug;
-    if (slug === "win") return "won";
-    if (slug === "lost") return "lost";
-    const outcome = (deal as Deal & { outcome_status?: string }).outcome_status;
-    if (outcome === "won") return "won";
-    if (outcome === "lost") return "lost";
-    return null;
+    onReplayGuide?: () => void;
 }
 
 export default function DealStickyHeader({
@@ -50,6 +42,7 @@ export default function DealStickyHeader({
     onAddNote,
     onAddTask,
     onScheduleMeeting,
+    onReplayGuide,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -58,13 +51,13 @@ export default function DealStickyHeader({
     const dealPermissions = useDealPermissions(deal);
     const [deleteOpen, setDeleteOpen] = useState(false);
 
-    const outcome = resolveOutcome(deal);
-    const isLocked = !!deal.is_locked;
+    const outcome = resolveDealOutcome(deal);
+    const isLocked = !!deal.is_locked || outcome === "won";
     const createdRel = deal.created_at ? dayjs(deal.created_at).fromNow() : "--";
     const updatedRel = deal.updated_at ? dayjs(deal.updated_at).fromNow() : "--";
 
     return (
-        <div>
+        <div data-tour="deal-sticky-header">
             {isLocked && (
                 <div
                     role="alert"
@@ -76,7 +69,9 @@ export default function DealStickyHeader({
                     }}
                 >
                     <DealIcon name="info" size={15} />
-                    {t("pages.deals.locked_message")}
+                    {!deal.is_locked && outcome === "won"
+                        ? t("pages.deals.locked_message_won")
+                        : t("pages.deals.locked_message")}
                 </div>
             )}
 
@@ -110,7 +105,26 @@ export default function DealStickyHeader({
                                 onAddTask={onAddTask}
                                 onScheduleMeeting={onScheduleMeeting}
                                 onDelete={() => setDeleteOpen(true)}
+                                onReplayGuide={onReplayGuide}
                                 canDelete={dealPermissions.canDelete}
+                                canAddNote={
+                                    !dealPermissions.isWatcherOnly &&
+                                    (permissions.add_deal_note === "all" ||
+                                        permissions.add_deal_note === "added" ||
+                                        permissions.add_deal_note === "both")
+                                }
+                                canAddTask={
+                                    !dealPermissions.isWatcherOnly &&
+                                    (permissions.add_tasks === "all" ||
+                                        permissions.add_tasks === "added" ||
+                                        permissions.add_tasks === "both")
+                                }
+                                canScheduleMeeting={
+                                    !dealPermissions.isWatcherOnly &&
+                                    (permissions.add_lead_follow_up === "all" ||
+                                        permissions.add_lead_follow_up ===
+                                            "added")
+                                }
                             />
                             <DealButton
                                 variant="ghost"
@@ -181,15 +195,21 @@ export default function DealStickyHeader({
                                 size="sm"
                                 onClick={() => team.setTeamModalOpen(true)}
                             >
-                                {t("pages.deals.header.manage_team")}
+                                {t(
+                                    dealPermissions.isWatcherOnly
+                                        ? "pages.deals.header.view_team"
+                                        : "pages.deals.header.manage_team",
+                                )}
                             </DealButton>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-[18px]">
-                        <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
+                    <div className="flex items-start gap-[18px]">
+                        <div data-tour="deal-value">
+                            <DealValueBlock deal={deal} canEdit={dealPermissions.canEdit} />
+                        </div>
                         {deal.close_date && (
-                            <div className="flex flex-col items-end">
+                            <div className="flex flex-col items-start">
                                 <span className="text-xs text-[#5b6472]">
                                     {t("pages.deals.info.fields.close_date")}
                                 </span>
@@ -202,6 +222,7 @@ export default function DealStickyHeader({
                             dealId={deal.id}
                             agent={team.agent}
                             canEdit={dealPermissions.canEdit}
+                            isWatcherOnly={dealPermissions.isWatcherOnly}
                             onManageTeam={() => team.setTeamModalOpen(true)}
                         />
                     </div>

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import DealBadge from "../primitives/DealBadge";
+import DealCompletionDot from "../primitives/DealCompletionDot";
 import DealIcon from "../primitives/DealIcon";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import type { DealInfoSectionId } from "../../types";
@@ -14,6 +15,7 @@ interface SidebarItem {
     badgeVariant: "blue" | "gray";
     later?: boolean;
     searchTerms?: string[];
+    completion?: { filled: number; total: number };
 }
 
 interface NavGroup {
@@ -25,12 +27,15 @@ interface DealInfoSidebarProps {
     navGroups: NavGroup[];
     activeSection: DealInfoSectionId;
     onSectionChange: (section: DealInfoSectionId) => void;
+    /** crm.deal-info-count-indicator — dot instead of the "filled/total" text badge. */
+    showCompletionDot?: boolean;
 }
 
 export default function DealInfoSidebar({
     navGroups,
     activeSection,
     onSectionChange,
+    showCompletionDot = false,
 }: DealInfoSidebarProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -56,6 +61,7 @@ export default function DealInfoSidebar({
 
     return (
         <aside
+            data-tour="deal-info-sidebar"
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
@@ -91,6 +97,11 @@ export default function DealInfoSidebar({
                     </div>
                     {group.items.map((item) => {
                         const isActive = item.id === activeSection;
+                        const showDot =
+                            showCompletionDot &&
+                            item.completion != null &&
+                            item.completion.total > 0;
+
                         return (
                             <button
                                 key={item.id}
@@ -101,19 +112,30 @@ export default function DealInfoSidebar({
                                     "hover:border-[#1a6bb5] hover:bg-[#e8f1fb] hover:font-medium hover:text-[#1a6bb5]",
                                     isActive
                                         ? "border-[#1a6bb5] bg-[#e8f1fb] font-medium text-[#1a6bb5]"
-                                        : item.later
-                                          ? "border-transparent text-[#9ca3af] opacity-70"
-                                          : "border-transparent text-[#5b6472]",
+                                        : "border-transparent text-[#5b6472]",
                                 ].join(" ")}
                             >
                                 <span className="flex items-center gap-1.5">
                                     <DealIcon name={item.icon} size={14} />
                                     {td(item.label)}
                                 </span>
-                                {item.badge != null && (
-                                    <DealBadge variant={item.badgeVariant}>
-                                        {td(item.badge)}
-                                    </DealBadge>
+                                {showDot ? (
+                                    isActive ? (
+                                        <DealBadge variant={item.badgeVariant}>
+                                            {td(item.badge!)}
+                                        </DealBadge>
+                                    ) : (
+                                        <DealCompletionDot
+                                            filled={item.completion!.filled}
+                                            total={item.completion!.total}
+                                        />
+                                    )
+                                ) : (
+                                    item.badge != null && (
+                                        <DealBadge variant={item.badgeVariant}>
+                                            {td(item.badge)}
+                                        </DealBadge>
+                                    )
                                 )}
                             </button>
                         );

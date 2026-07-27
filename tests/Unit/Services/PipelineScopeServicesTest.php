@@ -168,4 +168,64 @@ class PipelineScopeServicesTest extends TestCase
         $this->assertCount(1, $normalized);
         $this->assertSame('second', $normalized[0]['match_value']);
     }
+
+    public function test_routing_field_keys_from_payload_only_includes_enabled_fields(): void
+    {
+        $company = new Company([
+            'id' => 1,
+            'package_pipeline_routing_trigger_fields' => ['category_id'],
+        ]);
+        session(['company' => $company]);
+
+        $catalog = app(PackageRoutingFieldCatalog::class);
+
+        $this->assertSame(
+            ['category_id'],
+            $catalog->routingFieldKeysFromPayload([
+                'category_id' => 5,
+                'product_id' => [1, 2],
+            ]),
+        );
+    }
+
+    public function test_enabled_relation_backed_field_keys_respect_trigger_field_settings(): void
+    {
+        $company = new Company([
+            'id' => 1,
+            'package_pipeline_routing_trigger_fields' => ['category_id'],
+        ]);
+        session(['company' => $company]);
+
+        $catalog = app(PackageRoutingFieldCatalog::class);
+
+        $this->assertSame([], $catalog->enabledRelationBackedFieldKeys());
+
+        $company->package_pipeline_routing_trigger_fields = ['product_id'];
+        session(['company' => $company]);
+        $catalog = app(PackageRoutingFieldCatalog::class);
+
+        $this->assertSame(['product_id'], $catalog->enabledRelationBackedFieldKeys());
+    }
+
+    public function test_build_trigger_fields_from_deal_uses_enabled_fields_only(): void
+    {
+        $company = new Company([
+            'id' => 1,
+            'package_pipeline_routing_trigger_fields' => ['category_id'],
+        ]);
+
+        $deal = new Deal([
+            'category_id' => 9,
+        ]);
+        $deal->setRelation('products', collect());
+
+        session(['company' => $company]);
+
+        $catalog = app(PackageRoutingFieldCatalog::class);
+
+        $this->assertSame(
+            ['category_id' => 9],
+            $catalog->buildTriggerFieldsFromDeal($deal, ['category_id', 'product_id']),
+        );
+    }
 }

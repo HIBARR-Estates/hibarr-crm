@@ -1,7 +1,6 @@
 import { useCallback, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
-import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import type {
     CrmEventDirection,
@@ -28,17 +27,19 @@ function resolveErrorMessage(error: unknown, fallback: string): string {
  * Edit/delete agent-logged CRM timeline events. Admin-gated on the backend
  * (`CrmEventController@update`/`@destroy`); callers should still hide the
  * controls for non-admins so the affordance never appears.
+ *
+ * Uses session-authenticated web routes (not /api/v1) so the request shares
+ * the same auth + company session as the Inertia page — the API path was
+ * rejecting real admins when CompanyScope hid the admin role.
  */
 export default function useDealTimelineEventMutations(onChanged: () => void) {
     const { t } = useTranslation();
-    const { props } = usePage<any>();
-    const companyId = props.auth?.user?.company_id;
     const [savingUuid, setSavingUuid] = useState<string | null>(null);
     const [deletingUuid, setDeletingUuid] = useState<string | null>(null);
 
     const headers = {
         Accept: "application/json",
-        "X-COMPANY-ID": companyId ?? "",
+        "X-Requested-With": "XMLHttpRequest",
     };
 
     const updateEvent = useCallback(
@@ -49,7 +50,7 @@ export default function useDealTimelineEventMutations(onChanged: () => void) {
         ) => {
             setSavingUuid(uuid);
             try {
-                await axios.patch(`/api/v1/crm-events/${uuid}`, input, {
+                await axios.patch(route("crm-events.update", uuid), input, {
                     headers,
                 });
                 message.success(t("pages.deals.timeline.messages.event_updated"));
@@ -66,15 +67,16 @@ export default function useDealTimelineEventMutations(onChanged: () => void) {
                 setSavingUuid(null);
             }
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [companyId, onChanged, t],
+        [onChanged, t],
     );
 
     const deleteEvent = useCallback(
         async (uuid: string, onSuccess?: () => void) => {
             setDeletingUuid(uuid);
             try {
-                await axios.delete(`/api/v1/crm-events/${uuid}`, { headers });
+                await axios.delete(route("crm-events.destroy", uuid), {
+                    headers,
+                });
                 message.success(t("pages.deals.timeline.messages.event_deleted"));
                 onChanged();
                 onSuccess?.();
@@ -89,8 +91,7 @@ export default function useDealTimelineEventMutations(onChanged: () => void) {
                 setDeletingUuid(null);
             }
         },
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        [companyId, onChanged, t],
+        [onChanged, t],
     );
 
     return {

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Deal } from "@/Types/api/deals";
 import { Note } from "@/Types/api/note";
 import { usePage } from "@inertiajs/react";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 
 // Modular Components
@@ -21,6 +22,7 @@ interface Props {
 export default function NotesTab({ deal, notes, permissions }: Props) {
     const { props } = usePage();
     const user = props.auth.user;
+    const { isWatcherOnly } = useDealPermissions(deal);
 
     const [searchTerm, setSearchTerm] = useState("");
     const [currentView, setCurrentView] = useState<NotesView>("list");
@@ -76,6 +78,7 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                 onSearchChange={setSearchTerm}
                 permissions={permissions}
                 userId={user?.id}
+                isWatcherOnly={isWatcherOnly}
                 onAddNote={handleNavigateToAdd}
                 onViewNote={handleNavigateToView}
                 onEditNote={handleNavigateToEdit}
@@ -98,6 +101,7 @@ export default function NotesTab({ deal, notes, permissions }: Props) {
                     note={viewingNote}
                     permissions={permissions}
                     userId={user?.id}
+                    isWatcherOnly={isWatcherOnly}
                     onCancel={() => setViewingNote(null)}
                     onEdit={handleEditFromView}
                     onDelete={handleDeleteFromView}

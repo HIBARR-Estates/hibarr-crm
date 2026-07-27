@@ -58,9 +58,14 @@ const createData = async <
             const formData = new FormData();
             if (data && typeof data === "object") {
                 Object.entries(data).forEach(([key, value]) => {
-                    if (value !== null && value !== undefined) {
-                        formData.append(key, value as string | Blob);
+                    if (value === null || value === undefined) return;
+                    if (Array.isArray(value)) {
+                        value.forEach((item) =>
+                            formData.append(`${key}[]`, item as string | Blob),
+                        );
+                        return;
                     }
+                    formData.append(key, value as string | Blob);
                 });
             }
 
@@ -93,7 +98,8 @@ export const useApiMutate = <
 >(
     path: string,
     method: AllowedHttpMethod,
-    callbackFn?: (res?: MutationResponse) => void
+    callbackFn?: (res?: MutationResponse) => void,
+    isFormData?: boolean
 ) => {
     const { props } = usePage();
     const { auth } = props;
@@ -109,6 +115,7 @@ export const useApiMutate = <
                 path,
                 auth,
                 method,
+                isFormData,
             });
         },
         onSuccess: (response, _, _context) => {

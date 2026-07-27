@@ -45,7 +45,7 @@ export default function DealButton({
                     style={{ width: size === "sm" ? 12 : 14, height: size === "sm" ? 12 : 14 }}
                 >
                     <span
-                        className="animate-spin rounded-full border-2 border-current border-t-transparent"
+                        className="animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
                         style={{ width: "100%", height: "100%" }}
                     />
                 </span>

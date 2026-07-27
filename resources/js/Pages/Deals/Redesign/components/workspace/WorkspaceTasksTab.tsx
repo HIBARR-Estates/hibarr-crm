@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
@@ -125,7 +126,11 @@ interface WorkspaceTasksTabProps {
     onAddTask: () => void;
 }
 
-function canAddTasks(permissions: Record<string, string>): boolean {
+function canAddTasks(
+    permissions: Record<string, string>,
+    isWatcherOnly: boolean,
+): boolean {
+    if (isWatcherOnly) return false;
     const permission = permissions.add_tasks;
     return (
         permission === "all" ||
@@ -230,13 +235,15 @@ export default function WorkspaceTasksTab({
     const { t } = useTranslation();
     const { props } = usePage();
     const employees = (props as { employees?: EmployeeRecord[] }).employees;
+    const userId = props.auth?.user?.id;
     const [filter, setFilter] = useState<TaskFilter>("open");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
     const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
     const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
     const { setStatus, isPending } = useDealTaskStatus();
-    const { setTasks } = useDealWorkspace();
+    const { deal, setTasks } = useDealWorkspace();
+    const { isWatcherOnly } = useDealPermissions(deal);
     const selectedTask =
         tasks.find((task) => task.id === selectedTaskId) ?? null;
 
@@ -271,7 +278,9 @@ export default function WorkspaceTasksTab({
     // (TaskController::changeBulkAssignee aborts otherwise) — only surface the
     // control when it's allowed and there are employees to assign.
     const canBulkReassign =
-        permissions.edit_tasks === "all" && employeeOptions.length > 0;
+        !isWatcherOnly &&
+        permissions.edit_tasks === "all" &&
+        employeeOptions.length > 0;
 
     const taskItems = useMemo(
         () => tasks.map((task) => toWorkspaceTaskListItem(task)),
@@ -289,11 +298,13 @@ export default function WorkspaceTasksTab({
         all: t("pages.deals.workspace.tasks.filter_all"),
     };
 
-    const showAddTask = canAddTasks(permissions);
+    const showAddTask = canAddTasks(permissions, isWatcherOnly);
     // Backend hard-requires the full delete_tasks scope for bulk delete
     // (TaskController::deleteRecords aborts otherwise) — only show it when
     // we know it's allowed rather than exposing a button the API will reject.
-    const canBulkDelete = permissions.delete_tasks === "all";
+    const canBulkDelete =
+        !isWatcherOnly && permissions.delete_tasks === "all";
+    const showSelectMode = !isWatcherOnly;
 
     const exitSelectMode = () => {
         setSelectMode(false);
@@ -427,14 +438,20 @@ export default function WorkspaceTasksTab({
                 </div>
 
                 <div className="flex gap-1.5">
-                    <DealButton
-                        variant="ghost"
-                        onClick={() =>
-                            selectMode ? exitSelectMode() : setSelectMode(true)
-                        }
-                    >
-                        {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
-                    </DealButton>
+                    {showSelectMode && (
+                        <DealButton
+                            variant="ghost"
+                            onClick={() =>
+                                selectMode
+                                    ? exitSelectMode()
+                                    : setSelectMode(true)
+                            }
+                        >
+                            {selectMode
+                                ? t("pages.deals.common.cancel")
+                                : t("pages.deals.common.select")}
+                        </DealButton>
+                    )}
                     {showAddTask && (
                         <DealButton variant="primary" size="sm" onClick={onAddTask}>
                             + {t("pages.deals.workspace.tasks.add_task")}
@@ -530,7 +547,7 @@ export default function WorkspaceTasksTab({
                     return (
                         <article
                             key={task.id}
-                            className="mb-2 flex items-start gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
+                            className="mb-2 flex flex-wrap items-start gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
                             style={{ opacity: done ? 0.65 : 1 }}
                         >
                             {selectMode && (
@@ -574,28 +591,34 @@ export default function WorkspaceTasksTab({
                                 </div>
                                 {task.descriptionText && (
                                     <div
-                                        className="mb-1.5 text-xs leading-normal"
-                                        style={{ color: T.TEXT_MUTED }}
+                                        className="mb-1.5 text-xs leading-normal break-words"
+                                        style={{
+                                            color: T.TEXT_MUTED,
+                                            overflowWrap: "break-word",
+                                            wordBreak: "break-word",
+                                        }}
                                     >
                                         {task.descriptionText}
                                     </div>
                                 )}
 
                                 <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#5b6472]">
-                                    <span
-                                        className="inline-flex items-center gap-1"
-                                        style={{
-                                            color: overdue
-                                                ? T.RED
-                                                : T.TEXT_MUTED,
-                                            fontWeight: overdue ? 600 : 400,
-                                        }}
-                                    >
-                                        <DealIcon name="calendar" size={11} />
-                                        {task.dueDateLabel || t("pages.deals.common.no_due_date")}
-                                        {overdue &&
-                                            ` · ${t("pages.deals.workspace.tasks.overdue")}`}
-                                    </span>
+                                    {task.dueDateLabel && (
+                                        <span
+                                            className="inline-flex items-center gap-1"
+                                            style={{
+                                                color: overdue
+                                                    ? T.RED
+                                                    : T.TEXT_MUTED,
+                                                fontWeight: overdue ? 600 : 400,
+                                            }}
+                                        >
+                                            <DealIcon name="calendar" size={11} />
+                                            {task.dueDateLabel}
+                                            {overdue &&
+                                                ` · ${t("pages.deals.workspace.tasks.overdue")}`}
+                                        </span>
+                                    )}
                                     {task.assignees.length > 0 && (
                                         <span className="inline-flex items-center gap-1.5">
                                             <AssigneeStack
@@ -611,13 +634,19 @@ export default function WorkspaceTasksTab({
                                 </div>
                             </button>
 
-                            <TaskStatusDropdownPill
-                                status={statusSlug}
-                                columns={taskBoardColumns}
-                                disabled={selectMode}
-                                loading={isPending(task.id)}
-                                onChange={(slug) => setStatus(task.id, slug)}
-                            />
+                            <div className="shrink-0">
+                                <TaskStatusDropdownPill
+                                    status={statusSlug}
+                                    columns={taskBoardColumns}
+                                    disabled={
+                                        selectMode ||
+                                        (isWatcherOnly &&
+                                            rawTask?.added_by !== userId)
+                                    }
+                                    loading={isPending(task.id)}
+                                    onChange={(slug) => setStatus(task.id, slug)}
+                                />
+                            </div>
                         </article>
                     );
                 })

@@ -86,7 +86,7 @@ export default function WorkspaceRecommendationsTab({
         ],
     );
 
-    if (isLoading) {
+    if (isLoading && recommendations.length === 0) {
         return (
             <div>
                 {[1, 2, 3].map((index) => (

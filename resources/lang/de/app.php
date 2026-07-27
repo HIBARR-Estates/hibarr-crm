@@ -8,6 +8,8 @@ return [
     'delete' => 'Löschen',
     'edit' => 'Bearbeiten',
     'view' => 'Ansehen',
+    'show_more' => 'Mehr anzeigen',
+    'show_less' => 'Weniger anzeigen',
     'back' => 'Zurück',
     'reset' => 'Zurücksetzen',
     'apply' => 'Anwenden',
@@ -39,6 +41,8 @@ return [
     'amount' => 'Betrag',
     'price' => 'Preis',
     'total' => 'Gesamt',
+    'range' => 'Bereich (min - max)',
+    'currency_range' => 'Währungsbereich (min - max)',
     'createdAt' => 'Erstellt am',
     'updatedAt' => 'Aktualisiert am',
 

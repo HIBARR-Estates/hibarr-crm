@@ -1,6 +1,11 @@
 import { useCallback, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
+import {
+    getBrowserTimezone,
+    persistUserTimezoneOnce,
+} from "@/lib/userTimezone";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     formatMeetingDateForApi,
@@ -24,6 +29,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { setDealFollowUps } = useDealWorkspace();
+    const { props } = usePage();
 
     const rescheduleMeeting = useCallback(
         async (input: DealMeetingRescheduleInput, onSuccess?: () => void) => {
@@ -42,6 +48,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
 
             setIsSubmitting(true);
             setErrors([]);
+            persistUserTimezoneOnce(props.auth?.user?.timezone);
 
             try {
                 const response = await fetch(
@@ -63,9 +70,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                             ),
                             start_time: formatMeetingTimeForApi(input.startTime),
                             duration: input.duration,
-                            timezone:
-                                Intl.DateTimeFormat().resolvedOptions()
-                                    .timeZone || "UTC",
+                            timezone: getBrowserTimezone(),
                         }),
                     },
                 );
@@ -101,7 +106,7 @@ export default function useDealMeetingReschedule(followupId: number | null) {
                 setIsSubmitting(false);
             }
         },
-        [followupId, setDealFollowUps, t],
+        [followupId, props.auth?.user?.timezone, setDealFollowUps, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

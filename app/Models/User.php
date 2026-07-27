@@ -44,6 +44,7 @@ use App\Helper\UserService;
  * @property string|null $mobile
  * @property string $gender
  * @property string $locale
+ * @property string|null $timezone
  * @property string $status
  * @property string $login
  * @property string|null $onesignal_player_id

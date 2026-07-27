@@ -5,6 +5,8 @@ namespace App\Notifications;
 use App\Models\MeetingSummary;
 use App\Models\DealFollowUp;
 use App\Models\Deal;
+use App\Models\User;
+use App\Support\UserTimezone;
 use Illuminate\Notifications\Messages\MailMessage;
 
 class MeetingSummaryNotification extends BaseNotification
@@ -55,9 +57,17 @@ class MeetingSummaryNotification extends BaseNotification
                 : 'A meeting summary has been updated for the following deal:')
             ->line('**Deal:** ' . $this->deal->name);
 
-        // Safely format meeting date
+        // Safely format meeting date in the recipient's timezone
         if ($this->dealFollowUp->next_follow_up_date) {
-            $mailMessage->line('**Meeting Date:** ' . $this->dealFollowUp->next_follow_up_date->format('M d, Y H:i'));
+            $timezone = UserTimezone::resolve(
+                $notifiable instanceof User ? $notifiable : null,
+                $this->company
+            );
+            $meetingDate = $this->dealFollowUp->next_follow_up_date
+                ->copy()
+                ->setTimezone($timezone)
+                ->format('M d, Y H:i');
+            $mailMessage->line('**Meeting Date:** ' . $meetingDate);
         } else {
             $mailMessage->line('**Meeting Date:** Not specified');
         }

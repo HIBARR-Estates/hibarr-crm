@@ -210,6 +210,7 @@ return [
 
     'deals' => [
         'locked_message'           => 'This deal is locked. Editing and deletion are disabled.',
+        'locked_message_won'       => 'This deal is won and locked. Editing and deletion are disabled.',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'stage_jump_confirm_title'   => 'Skip pipeline stages?',
         'stage_jump_confirm_message' => 'You are moving this deal to "{{stage}}", skipping one or more stages in between. Continue?',
@@ -352,7 +353,7 @@ return [
                 'consent_hint'  => "Consent records are captured on the linked lead. Erasure requests are handled from the lead's GDPR panel.",
             ],
             'mapped_only_hint_prefix' => 'No fields are mapped to this section yet. Assign categories in',
-            'mapped_only_hint_suffix' => 'or use a custom category tab in Later stages.',
+            'mapped_only_hint_suffix' => 'or use a custom category tab under "For this pipeline".',
             'done_editing'  => 'Done editing',
             'edit_fields'   => 'Edit fields',
         ],
@@ -412,6 +413,68 @@ return [
             'not_set'                    => 'Not set',
         ],
 
+        'tour' => [
+            'next'              => 'Next',
+            'back'              => 'Back',
+            'done'              => 'Done',
+            'skip'              => 'Skip tour',
+            'replay_menu_item'  => 'Replay guide',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'This is your deal at a glance',
+                    'body'  => 'Name, value, and stage stay pinned here as you scroll — the fastest way to add a note, task, or meeting is the ⋮ menu next to the deal title.',
+                ],
+                'deal_value' => [
+                    'title' => 'See exactly what this deal is worth',
+                    'body'  => 'The deal value breaks down into properties, packages, and discounts — click it to see the full breakdown or switch between manual and calculated value.',
+                ],
+                'pipeline_stepper' => [
+                    'title' => 'Track and move the deal through its pipeline',
+                    'body'  => 'Click any stage to move the deal forward — the highlighted step shows where it stands today.',
+                ],
+                'stage_requirements' => [
+                    'title' => 'Check what a stage needs before you move',
+                    'body'  => 'Stages with an info icon have entry requirements. Hover or click the icon inside the stage to see which fields must be filled or matched before the deal can move there.',
+                ],
+                'stage_progression' => [
+                    'title' => 'See requirements across the whole pipeline',
+                    'body'  => 'Open Stage requirements to review every stage in order — what is needed to enter each one, and which stage the deal is on now.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Let AI catch you up',
+                    'body'  => 'This summary reads the whole deal for you and suggests next actions — like creating a task or advancing the stage — in one click.',
+                ],
+                'tabs' => [
+                    'title' => 'Everything about this deal, one tab away',
+                    'body'  => 'Overview, notes, tasks, meetings, files, offers, recommendations, and itinerary all live here — the number badges show what needs attention.',
+                ],
+                'overview' => [
+                    'title' => 'Overview brings the essentials together',
+                    'body'  => 'Recent notes, open tasks, and upcoming meetings all show up here first — so you can catch up on a deal without digging through every tab.',
+                ],
+                'deal_info' => [
+                    'title' => 'Deal info holds the full record',
+                    'body'  => 'Custom fields, packages, and property details are organized into sections here — use the search bar above the list to jump straight to a section.',
+                ],
+                'timeline' => [
+                    'title' => 'See the full history',
+                    'body'  => 'Every change, note, and status update on this deal, in order.',
+                ],
+                'dossier' => [
+                    'title' => 'The dossier keeps key facts visible',
+                    'body'  => "Contact details, packages, and quick actions stay here no matter which tab you're on.",
+                ],
+                'actions_menu' => [
+                    'title' => 'Quick actions, always one click away',
+                    'body'  => 'Add a note, task, or meeting — or delete the deal — from this menu.',
+                ],
+                'closing' => [
+                    'title' => "You're ready",
+                    'body'  => 'Replay this guide anytime from the ⋮ menu next to the deal title.',
+                ],
+            ],
+        ],
+
         'header' => [
             'breadcrumb_deals' => 'Deals',
             'won'               => 'Won',
@@ -422,11 +485,21 @@ return [
             'participants_label' => 'Participants',
             'watchers_label'    => 'Watchers',
             'manage_team'       => 'Manage team',
+            'view_team'         => 'View team',
             'delete_deal'       => 'Delete deal',
             'actions_aria'      => 'Deal actions',
             'pipeline' => [
                 'scroll_left'  => 'Scroll pipeline stages left',
                 'scroll_right' => 'Scroll pipeline stages right',
+                'requirements_label' => 'Required to move here',
+                'requirements_open'  => 'View requirements for this stage',
+                'progression_button' => 'Stage requirements',
+                'progression_open'   => 'View requirements for every stage',
+                'progression_title'  => 'Pipeline stage requirements',
+                'progression_intro'  => 'What must be true on the deal before an automation can move it into each stage.',
+                'progression_current'=> 'Current',
+                'progression_step'   => 'Step {{n}}',
+                'progression_none'   => 'No entry requirements',
                 'messages' => [
                     'stage_updated'   => 'Deal stage updated',
                     'update_failed'   => 'Failed to update stage',
@@ -456,6 +529,7 @@ return [
                 'agent_label'          => 'Deal agent',
                 'unassign'             => 'Unassign',
                 'manage_team_ellipsis' => 'Manage team…',
+                'view_team_ellipsis'   => 'View team…',
                 'participants_title'   => 'Participants',
                 'no_participants_hint' => 'No participants — only the agent is working this deal.',
                 'no_watchers_hint'     => 'No watchers — nobody is following this deal.',
@@ -682,6 +756,8 @@ return [
                 'upload'                 => 'Upload',
                 'replace'                => 'Replace',
                 'open'                   => 'Open document',
+                'click_to_upload'        => 'Click to upload',
+                'click_to_view'          => 'Click to view',
                 'empty'                  => 'No document slots configured.',
                 'delete_confirm_title'   => 'Delete document?',
                 'delete_confirm_message' => 'This will permanently remove the uploaded file. This cannot be undone.',

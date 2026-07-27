@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Helper\Files;
 use App\Helper\Reply;
 use App\Http\Requests\User\UpdateProfile;
+use App\Http\Requests\User\UpdateTimezoneRequest;
 use App\Models\ClientContact;
 use App\Models\EmployeeDetails;
 use App\Models\LanguageSetting;
@@ -140,6 +141,25 @@ class ProfileController extends AccountBaseController
         $user->dark_theme = $request->darkTheme;
         $user->save();
         session()->forget('user');
+        return Reply::success(__('messages.updateSuccess'));
+    }
+
+    /**
+     * Persist authenticated user's browser IANA timezone (self-only).
+     */
+    public function updateTimezone(UpdateTimezoneRequest $request)
+    {
+        $user = user();
+        $timezone = $request->validated('timezone');
+
+        if ($user->timezone === $timezone) {
+            return Reply::success(__('messages.updateSuccess'));
+        }
+
+        $user->timezone = $timezone;
+        $user->save();
+        session()->forget('user');
+
         return Reply::success(__('messages.updateSuccess'));
     }
 

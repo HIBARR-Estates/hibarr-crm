@@ -73,8 +73,7 @@ export default function DealTabs({
         window.history.replaceState({}, "", url.toString());
     };
     const { t } = useTranslation();
-    const { canEdit: canModifyDeal, canDelete: canDeleteDeal } =
-        useDealPermissions(deal);
+    const { canEdit: canModifyDeal, isWatcherOnly } = useDealPermissions(deal);
 
     const { action, handleAction, handleClose } = useGenericEntityAction();
 
@@ -215,7 +214,7 @@ export default function DealTabs({
                     permissions={{
                         canAdd: canModifyDeal,
                         canEdit: canModifyDeal,
-                        canDelete: canDeleteDeal,
+                        canDelete: canModifyDeal,
                     }}
                 />
             ),
@@ -229,9 +228,10 @@ export default function DealTabs({
         switch (activeTab) {
             case "notes":
                 if (
-                    permissions.add_deal_note === "all" ||
-                    permissions.add_deal_note === "added" ||
-                    permissions.add_deal_note === "both"
+                    !isWatcherOnly &&
+                    (permissions.add_deal_note === "all" ||
+                        permissions.add_deal_note === "added" ||
+                        permissions.add_deal_note === "both")
                 ) {
                     return (
                         <Button
@@ -249,6 +249,7 @@ export default function DealTabs({
 
             case "follow-up":
                 if (
+                    !isWatcherOnly &&
                     deal.lead_stage?.slug !== "win" &&
                     deal.lead_stage?.slug !== "lost" &&
                     (permissions.add_lead_follow_up === "all" ||
