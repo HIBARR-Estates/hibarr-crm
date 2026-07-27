@@ -14,9 +14,9 @@ return new class extends Migration
         $usesStageNorm = in_array($driver, ['mysql', 'sqlite', 'pgsql'], true);
 
         // A previous partial run of this migration may have created the table
-        // and then failed before adding the generated column/unique index
-        // (MySQL #1215 when that's done via a later ALTER TABLE). Recreate
-        // cleanly in that case rather than failing on "table already exists".
+        // and then failed before adding the stage FK (MySQL #1215: CASCADE is
+        // not allowed on the base column of a STORED generated column).
+        // Recreate cleanly in that case rather than failing on "table already exists".
         if (
             $isMysql
             && Schema::hasTable('custom_field_category_scopes')
@@ -26,7 +26,7 @@ return new class extends Migration
         }
 
         if (!Schema::hasTable('custom_field_category_scopes')) {
-            Schema::create('custom_field_category_scopes', function (Blueprint $table) use ($usesStageNorm) {
+            Schema::create('custom_field_category_scopes', function (Blueprint $table) use ($isMysql, $usesStageNorm) {
                 $table->id();
                 $table->unsignedInteger('company_id')->nullable();
                 $table->unsignedBigInteger('category_id');
@@ -37,8 +37,12 @@ return new class extends Migration
                 if ($usesStageNorm) {
                     // Normalize NULL stage -> 0 so pipeline-wide rows cannot duplicate under
                     // SQLite/PostgreSQL/MySQL (NULL is otherwise distinct in plain UNIQUE).
-                    $table->unsignedInteger('pipeline_stage_id_norm')
-                        ->storedAs('COALESCE(pipeline_stage_id, 0)');
+                    // MySQL: VIRTUAL so CASCADE FK on pipeline_stage_id is allowed.
+                    // SQLite/pgsql: STORED (pgsql has no VIRTUAL generated columns).
+                    $norm = $table->unsignedInteger('pipeline_stage_id_norm');
+                    $isMysql
+                        ? $norm->virtualAs('COALESCE(pipeline_stage_id, 0)')
+                        : $norm->storedAs('COALESCE(pipeline_stage_id, 0)');
                 }
 
                 $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade')->onUpdate('cascade');
@@ -47,9 +51,11 @@ return new class extends Migration
                 $table->foreign('pipeline_stage_id')->references('id')->on('pipeline_stages')->onDelete('cascade')->onUpdate('cascade');
             });
         } elseif ($usesStageNorm && !Schema::hasColumn('custom_field_category_scopes', 'pipeline_stage_id_norm')) {
-            Schema::table('custom_field_category_scopes', function (Blueprint $table) {
-                $table->unsignedInteger('pipeline_stage_id_norm')
-                    ->storedAs('COALESCE(pipeline_stage_id, 0)');
+            Schema::table('custom_field_category_scopes', function (Blueprint $table) use ($isMysql) {
+                $norm = $table->unsignedInteger('pipeline_stage_id_norm');
+                $isMysql
+                    ? $norm->virtualAs('COALESCE(pipeline_stage_id, 0)')
+                    : $norm->storedAs('COALESCE(pipeline_stage_id, 0)');
             });
         }
 

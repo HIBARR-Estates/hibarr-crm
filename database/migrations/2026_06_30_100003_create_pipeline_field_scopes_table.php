@@ -15,16 +15,21 @@ return new class extends Migration
 
         // See 2026_06_30_100002_create_custom_field_category_scopes_table for why a
         // previous partial run may need to be recreated cleanly here.
+        // Also drop leftovers that have the generated column but never got the stage FK
+        // (MySQL #1215 with STORED + CASCADE), so remigrate does not skip create.
         if (
             $isMysql
             && Schema::hasTable('pipeline_field_scopes')
-            && !Schema::hasColumn('pipeline_field_scopes', 'pipeline_stage_id_norm')
+            && (
+                !Schema::hasColumn('pipeline_field_scopes', 'pipeline_stage_id_norm')
+                || !$this->foreignKeyExists('pipeline_field_scopes', 'pipeline_field_scopes_pipeline_stage_id_foreign')
+            )
         ) {
             Schema::dropIfExists('pipeline_field_scopes');
         }
 
         if (!Schema::hasTable('pipeline_field_scopes')) {
-            Schema::create('pipeline_field_scopes', function (Blueprint $table) use ($usesStageNorm) {
+            Schema::create('pipeline_field_scopes', function (Blueprint $table) use ($isMysql, $usesStageNorm) {
                 $table->id();
                 $table->unsignedInteger('company_id')->nullable();
                 $table->string('scopeable_type', 50);
@@ -35,8 +40,12 @@ return new class extends Migration
                 $table->timestamps();
 
                 if ($usesStageNorm) {
-                    $table->unsignedInteger('pipeline_stage_id_norm')
-                        ->storedAs('COALESCE(pipeline_stage_id, 0)');
+                    // MySQL: VIRTUAL so CASCADE FK on pipeline_stage_id is allowed.
+                    // SQLite/pgsql: STORED (pgsql has no VIRTUAL generated columns).
+                    $norm = $table->unsignedInteger('pipeline_stage_id_norm');
+                    $isMysql
+                        ? $norm->virtualAs('COALESCE(pipeline_stage_id, 0)')
+                        : $norm->storedAs('COALESCE(pipeline_stage_id, 0)');
                 }
 
                 $table->foreign('company_id')->references('id')->on('companies')->onDelete('cascade')->onUpdate('cascade');
@@ -44,9 +53,11 @@ return new class extends Migration
                 $table->foreign('pipeline_stage_id')->references('id')->on('pipeline_stages')->onDelete('cascade')->onUpdate('cascade');
             });
         } elseif ($usesStageNorm && !Schema::hasColumn('pipeline_field_scopes', 'pipeline_stage_id_norm')) {
-            Schema::table('pipeline_field_scopes', function (Blueprint $table) {
-                $table->unsignedInteger('pipeline_stage_id_norm')
-                    ->storedAs('COALESCE(pipeline_stage_id, 0)');
+            Schema::table('pipeline_field_scopes', function (Blueprint $table) use ($isMysql) {
+                $norm = $table->unsignedInteger('pipeline_stage_id_norm');
+                $isMysql
+                    ? $norm->virtualAs('COALESCE(pipeline_stage_id, 0)')
+                    : $norm->storedAs('COALESCE(pipeline_stage_id, 0)');
             });
         }
 
@@ -67,6 +78,22 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('pipeline_field_scopes');
+    }
+
+    private function foreignKeyExists(string $table, string $constraintName): bool
+    {
+        if (Schema::getConnection()->getDriverName() !== 'mysql') {
+            return true;
+        }
+
+        return count(DB::select(
+            'SELECT 1 FROM information_schema.TABLE_CONSTRAINTS
+             WHERE CONSTRAINT_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?
+               AND CONSTRAINT_NAME = ?
+               AND CONSTRAINT_TYPE = ?',
+            [$table, $constraintName, 'FOREIGN KEY']
+        )) > 0;
     }
 
     private function indexExists(string $table, string $indexName): bool
