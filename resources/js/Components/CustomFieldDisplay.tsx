@@ -39,12 +39,13 @@ function hasMultiSelectOptions(field: {
     }
     if (field.type !== "checkbox") return false;
 
-    let options = field.values;
+    let options: unknown = field.values;
     if (typeof options === "string") {
+        const raw = options;
         try {
-            options = JSON.parse(options);
+            options = JSON.parse(raw);
         } catch {
-            return options.trim().length > 0;
+            return raw.trim().length > 0;
         }
     }
     if (Array.isArray(options)) return options.length > 0;

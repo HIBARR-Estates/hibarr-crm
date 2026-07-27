@@ -60,6 +60,14 @@ class EntitySummaryValidator
     {
         $this->validateCommon($payload, 'Deal');
         $this->validateNextStep($payload['next_step'], self::DEAL_ACTIONS, 'Deal');
+
+        $meta = $payload['meta'] ?? [];
+        if (($meta['stale_data_warning'] ?? false) === true
+            && ($meta['data_confidence'] ?? null) === 'high') {
+            throw new \InvalidArgumentException(
+                'Deal summary meta.data_confidence cannot be high when stale_data_warning is true'
+            );
+        }
     }
 
     /**

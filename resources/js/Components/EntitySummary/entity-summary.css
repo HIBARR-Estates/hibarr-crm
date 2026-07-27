@@ -511,6 +511,29 @@
     cursor: default;
 }
 
+/* Shown above existing content while regenerating — never unmount the prior
+   summary just because loading flipped on. */
+.entity-ai-summary-loading-banner {
+    display: flex;
+    align-items: center;
+    padding: 10px 16px 4px;
+}
+
+.entity-ai-summary-result--pending {
+    opacity: 0.55;
+    pointer-events: none;
+    transition: opacity 0.15s ease;
+}
+
+.entity-ai-summary-result {
+    transition: opacity 0.15s ease;
+}
+
+.entity-ai-summary-card--loading.entity-ai-summary-card--redesign
+    .entity-ai-summary-header--redesign:not(.entity-ai-summary-header--empty) {
+    opacity: 0.85;
+}
+
 /* "AI thinking" loading state — replaces a generic content skeleton, which
    reads as "slow database query" rather than "a model is working on this". */
 @keyframes entity-ai-summary-pulse {

@@ -43,6 +43,13 @@ function summaryEndpoints(
     throw new Error(`Unsupported entity type: ${entityType}`);
 }
 
+function generatedAtMs(summary: EntitySummaryPayload | null | undefined): number {
+    const raw = summary?.meta?.generated_at;
+    if (!raw) return 0;
+    const ms = Date.parse(raw);
+    return Number.isFinite(ms) ? ms : 0;
+}
+
 export default function useEntityAiSummary({
     entityType,
     entityId,
@@ -56,26 +63,47 @@ export default function useEntityAiSummary({
     const [isStale, setIsStale] = useState<boolean>(
         Boolean(initialSummary?.meta?.is_stale),
     );
-    const hydratedRef = useRef(false);
     const inFlightRef = useRef(false);
+    // Tracks the newest summary we've accepted locally (generated or fetched)
+    // so a stale Inertia prop can't wipe a just-finished generation.
+    const localGeneratedAtRef = useRef(generatedAtMs(initialSummary));
+    const entityKeyRef = useRef(`${entityType}:${entityId}`);
 
     const applySummary = useCallback((next: EntitySummaryPayload | null) => {
+        localGeneratedAtRef.current = generatedAtMs(next);
         setSummary(next);
         setIsStale(Boolean(next?.meta?.is_stale));
     }, []);
 
+    // Reset when navigating to a different entity.
     useEffect(() => {
-        applySummary(initialSummary ?? null);
+        const key = `${entityType}:${entityId}`;
+        if (entityKeyRef.current === key) return;
+        entityKeyRef.current = key;
+        localGeneratedAtRef.current = generatedAtMs(initialSummary);
+        setSummary(initialSummary ?? null);
+        setIsStale(Boolean(initialSummary?.meta?.is_stale));
+        setError(null);
+        setLoading(false);
+        inFlightRef.current = false;
+    }, [entityType, entityId, initialSummary]);
+
+    // Hydrate from page props only when they are newer than what we already
+    // have locally — never clobber a summary the user just generated.
+    useEffect(() => {
+        if (!initialSummary) return;
+        const incoming = generatedAtMs(initialSummary);
+        if (incoming < localGeneratedAtRef.current) return;
+        if (incoming === localGeneratedAtRef.current) {
+            setIsStale(Boolean(initialSummary.meta?.is_stale));
+            return;
+        }
+        applySummary(initialSummary);
     }, [initialSummary, applySummary]);
 
     useEffect(() => {
-        if (hydratedRef.current) return;
-        if (initialSummary) {
-            hydratedRef.current = true;
-            return;
-        }
+        if (initialSummary) return;
 
-        hydratedRef.current = true;
         let cancelled = false;
 
         (async () => {
@@ -87,6 +115,8 @@ export default function useEntityAiSummary({
                 }>(endpoints.show, { timeout: 15000 });
 
                 if (cancelled) return;
+                // Don't overwrite if the user already generated while we fetched.
+                if (localGeneratedAtRef.current > 0) return;
                 applySummary(response.data.summary ?? null);
                 if (typeof response.data.is_stale === "boolean") {
                     setIsStale(response.data.is_stale);
@@ -114,8 +144,13 @@ export default function useEntityAiSummary({
                 is_stale?: boolean;
                 message?: string;
             }>(endpoints.regenerate, {}, { timeout: 60000 });
-            applySummary(response.data.summary);
+
+            // Apply result and clear loading in one turn so the UI never
+            // flashes an empty/"done loading" gap before content mounts.
+            localGeneratedAtRef.current = generatedAtMs(response.data.summary);
+            setSummary(response.data.summary);
             setIsStale(false);
+            setLoading(false);
         } catch (err) {
             if (axios.isAxiosError(err)) {
                 const payload = err.response?.data as
@@ -138,8 +173,8 @@ export default function useEntityAiSummary({
             } else {
                 setError("Failed to generate AI summary. Please try again.");
             }
-        } finally {
             setLoading(false);
+        } finally {
             inFlightRef.current = false;
         }
     }, [applySummary, entityId, entityType]);

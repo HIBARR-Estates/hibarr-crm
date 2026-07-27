@@ -103,12 +103,55 @@ class DealSummaryInputBuilderTest extends TestCase
             $table->unsignedBigInteger('taskable_id');
             $table->string('taskable_type');
         });
+
+        Schema::create('custom_field_groups', function (Blueprint $table) {
+            $table->id();
+            $table->string('name')->nullable();
+            $table->string('model')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('custom_fields', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('custom_field_group_id')->nullable();
+            $table->string('label')->nullable();
+            $table->string('name')->nullable();
+            $table->string('type')->nullable();
+            $table->integer('display_order')->default(0);
+            $table->timestamps();
+        });
+
+        Schema::create('custom_fields_data', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('custom_field_id');
+            $table->string('model')->nullable();
+            $table->unsignedBigInteger('model_id')->nullable();
+            $table->text('value')->nullable();
+        });
+
+        Schema::create('lead_flight_itineraries', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('lead_id')->nullable();
+            $table->unsignedBigInteger('deal_id')->nullable();
+            $table->string('direction')->nullable();
+            $table->string('airport_name')->nullable();
+            $table->string('flight_number')->nullable();
+            $table->timestamp('flight_date')->nullable();
+            $table->string('status')->nullable();
+            $table->boolean('is_transfer_required')->default(false);
+            $table->string('ticket_image_url')->nullable();
+            $table->timestamps();
+        });
     }
 
     protected function tearDown(): void
     {
         Mockery::close();
 
+        Schema::dropIfExists('lead_flight_itineraries');
+        Schema::dropIfExists('custom_fields_data');
+        Schema::dropIfExists('custom_fields');
+        Schema::dropIfExists('custom_field_groups');
         Schema::dropIfExists('taskables');
         Schema::dropIfExists('tasks');
         Schema::dropIfExists('deal_histories');
@@ -163,6 +206,7 @@ class DealSummaryInputBuilderTest extends TestCase
             'pipeline' => $pipeline,
             'packages' => collect(),
             'products' => collect(),
+            'hibarrFields' => null,
         ]);
 
         $payload = app(DealSummaryInputBuilder::class)->build($deal);
@@ -182,12 +226,20 @@ class DealSummaryInputBuilderTest extends TestCase
         ], [
             'packages' => collect(),
             'products' => collect(),
+            'hibarrFields' => null,
         ]);
 
         $payload = app(DealSummaryInputBuilder::class)->build($deal);
 
         $this->assertArrayNotHasKey('sections', $payload);
         $this->assertCount(8, $payload['action_taxonomy']);
+        $this->assertSame([], $payload['deal']['packages']);
+        $this->assertArrayHasKey('value', $payload['deal']);
+        $this->assertArrayNotHasKey('calculated_value', $payload['deal']);
+        $this->assertArrayNotHasKey('manual_value', $payload['deal']);
+        $this->assertArrayHasKey('viewer', $payload);
+        $this->assertArrayHasKey('timezone', $payload['viewer']);
+        $this->assertNull($payload['deal']['currency']);
     }
 
     public function test_build_activity_distinguishes_system_and_agent(): void
@@ -216,6 +268,7 @@ class DealSummaryInputBuilderTest extends TestCase
         ], [
             'packages' => collect(),
             'products' => collect(),
+            'hibarrFields' => null,
         ]);
 
         $payload = app(DealSummaryInputBuilder::class)->build($builderDeal);
@@ -258,6 +311,14 @@ class DealSummaryInputBuilderTest extends TestCase
 
         if (! array_key_exists('products', $relations)) {
             $deal->setRelation('products', new Collection());
+        }
+
+        if (! array_key_exists('hibarrFields', $relations)) {
+            $deal->setRelation('hibarrFields', null);
+        }
+
+        if (! array_key_exists('packages', $relations)) {
+            $deal->setRelation('packages', new Collection());
         }
 
         return $deal;
