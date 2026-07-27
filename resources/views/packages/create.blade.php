@@ -74,7 +74,9 @@
 
 <script>
     $('#save-package-setting').click(function () {
-        if (typeof window.syncPipelineScopePillsInputs === 'function') {
+        if (typeof window.preparePackageRoutingTriggersForSubmit === 'function') {
+            window.preparePackageRoutingTriggersForSubmit($('#createPackage'));
+        } else if (typeof window.syncPipelineScopePillsInputs === 'function') {
             window.syncPipelineScopePillsInputs($('#createPackage'));
         }
 

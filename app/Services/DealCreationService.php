@@ -458,10 +458,11 @@ class DealCreationService
             
             $deal = $result['deal'];
             $isNewDeal = $result['is_new'];
+            $packageExplicitlySelected = !empty($packageIds);
             
             // Release cache locks AFTER transaction commits 
             // This prevents race condition where another process acquires lock before commit
-            DB::afterCommit(function () use ($cacheKey, $contactLockKey, $newCacheKey, $hashChanged, $newLockAcquired, $deal, $isNewDeal, $request, $companyId) {
+            DB::afterCommit(function () use ($cacheKey, $contactLockKey, $newCacheKey, $hashChanged, $newLockAcquired, &$deal, $isNewDeal, $request, $companyId, $packageExplicitlySelected) {
                 // Release locks with error handling
                 try {
                     Cache::forget($cacheKey);
@@ -491,7 +492,11 @@ class DealCreationService
                     // Handle custom fields (non-critical, can be retried)
                     $this->upsertCustomFields($deal, $request);
 
-                    $this->attemptFieldTriggeredPackageRouting($deal, $companyId, $request->has('package_id'));
+                    $deal = $this->attemptFieldTriggeredPackageRouting(
+                        $deal,
+                        $companyId,
+                        $packageExplicitlySelected,
+                    );
 
                     // Sync deal watchers and participants (non-critical)
                     $dealWatchers = $this->extractUserIdList($request, 'deal_watcher');
@@ -973,36 +978,17 @@ class DealCreationService
     /**
      * Run field-triggered package routing using persisted deal data.
      */
-    private function attemptFieldTriggeredPackageRouting(Deal $deal, int $companyId, bool $packageExplicitlySelected = false): void
+    private function attemptFieldTriggeredPackageRouting(Deal $deal, int $companyId, bool $packageExplicitlySelected = false): Deal
     {
-        $deal = $deal->fresh(['packages', 'company', 'hibarrFields', 'products']);
-        $packageRouter = app(\App\Services\PackagePipelineRouterService::class);
+        $deal = $deal->fresh(['packages', 'company', 'hibarrFields', 'products', 'leadStage']);
 
-        $routingPayload = array_filter([
-            'category_id' => $deal->category_id,
-            'product_id' => $deal->products->pluck('id')->all(),
-        ], fn ($value) => $value !== null && $value !== '' && $value !== []);
-
-        $customFieldData = $deal->getCustomFieldsData()->toArray();
-        if (is_array($customFieldData)) {
-            $routingPayload = array_merge($routingPayload, $customFieldData);
-        }
-
-        if ($deal->hibarrFields) {
-            $routingPayload = array_merge($routingPayload, $deal->hibarrFields->only([
-                'budget_range',
-                'motivation',
-                'message',
-                'interested_in',
-                'purchase_timeline',
-            ]));
-        }
-
-        $packageRouter->attemptRoutingFromFieldUpdates(
+        app(PackagePipelineRouterService::class)->attemptRoutingFromDealState(
             $deal,
-            $packageRouter->extractTriggerFieldsFromPayload($routingPayload, $companyId),
+            null,
             $packageExplicitlySelected,
         );
+
+        return $deal->fresh(['packages', 'company', 'products', 'leadStage']);
     }
 
     /**
