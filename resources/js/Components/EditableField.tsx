@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useContext, type ReactNode, type MouseEvent, type KeyboardEvent } from "react";
+import { useState, useRef, useEffect, useCallback, useContext } from "react";
 import {
     Input,
     Typography,
@@ -9,6 +9,7 @@ import {
     Space,
     Button,
     Upload,
+    type SelectProps,
 } from "antd";
 import {
     CheckOutlined,
@@ -42,12 +43,9 @@ import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
 
 const { Text } = Typography;
 
-function MultiValueTag(props: {
-    label: ReactNode;
-    closable?: boolean;
-    onClose?: (event?: MouseEvent | KeyboardEvent) => void;
-}) {
-    const { label, closable, onClose } = props;
+type MultiValueTagRender = NonNullable<SelectProps["tagRender"]>;
+
+const MultiValueTag: MultiValueTagRender = ({ label, closable, onClose }) => {
     return (
         <DealBadge
             variant="navy"
@@ -64,7 +62,7 @@ function MultiValueTag(props: {
                         event.preventDefault();
                         event.stopPropagation();
                     }}
-                    onClick={onClose}
+                    onClick={(event) => onClose(event)}
                     style={{
                         margin: 0,
                         padding: 0,
@@ -82,7 +80,7 @@ function MultiValueTag(props: {
             ) : null}
         </DealBadge>
     );
-}
+};
 
 interface EditableFieldProps {
     value: any; // supports primitives, arrays, and structured values (e.g. currency {amount,currency})
