@@ -12,6 +12,12 @@ export type DealRole =
     | "admin"
     | "none";
 
+function userHasAdminRole(
+    roles: Array<{ name?: string }> | undefined,
+): boolean {
+    return Boolean(roles?.some((role) => role?.name === "admin"));
+}
+
 export interface DealPermissions {
     /** The role(s) the current user has on the deal */
     roles: DealRole[];
@@ -24,7 +30,7 @@ export interface DealPermissions {
     /** Whether the user is a participant on the deal */
     isParticipant: boolean;
     /**
-     * Watcher with no write standing (not creator/agent/participant).
+     * Watcher with no write standing (not creator/agent/participant/admin).
      * Mirrors DealNoteController's watcher-only write block — lock-independent.
      */
     isWatcherOnly: boolean;
@@ -91,11 +97,12 @@ export function useDealPermissions(
         const userId = currentUser.id;
         const roles: DealRole[] = [];
         const isLocked = isDealEffectivelyLocked(deal);
+        const isAdmin = userHasAdminRole(currentUser.roles);
 
         // Full-access scope, not the admin role (see hasFullDealAccess docs).
         const hasFullDealAccess =
             permissions?.edit_deals === "all" || permissions?.edit_deals === 4;
-        if (hasFullDealAccess) roles.push("admin");
+        if (isAdmin || hasFullDealAccess) roles.push("admin");
 
         // Check if user is the creator
         const isCreator = deal.added_by === userId;
@@ -129,14 +136,22 @@ export function useDealPermissions(
 
         const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
-        // Watcher with no team standing — see DealNoteController::store.
+        // Watcher with no write standing — see DealNoteController::store.
+        // Admins and users with edit_deals=all keep full write access even if
+        // they are also listed as watchers on the deal.
         const isWatcherOnly =
-            isWatcher && !isCreator && !isAgent && !isParticipant && !hasFullDealAccess;
+            isWatcher &&
+            !isAdmin &&
+            !isCreator &&
+            !isAgent &&
+            !isParticipant &&
+            !hasFullDealAccess;
 
         // Admins, creators, agents, and participants can edit — participants act with the
         // same rights as the agent. Watchers stay view-only.
         const canEdit =
-            !isLocked && (hasFullDealAccess || isCreator || isAgent || isParticipant);
+            !isLocked &&
+            (isAdmin || hasFullDealAccess || isCreator || isAgent || isParticipant);
 
         // Mirrors PermissionService::checkAccess's 'delete_deals' scope handling in
         // DealController::destroy (added -> creator, owned -> agent/watcher, both -> either)
@@ -144,13 +159,14 @@ export function useDealPermissions(
         const deleteScope = permissions?.delete_deals;
         const canDelete =
             !isLocked &&
-            (deleteScope === "all" ||
+            (isAdmin ||
+                deleteScope === "all" ||
                 (deleteScope === "added" && isCreator) ||
                 (deleteScope === "owned" && (isAgent || isWatcher)) ||
                 (deleteScope === "both" && (isCreator || isAgent || isWatcher)));
 
         // Anyone with a role can view (including admins)
-        const canView = hasAnyRole || hasFullDealAccess;
+        const canView = hasAnyRole || hasFullDealAccess || isAdmin;
 
         return {
             roles,
@@ -166,7 +182,13 @@ export function useDealPermissions(
             canView,
             hasAnyRole,
         };
-    }, [deal, currentUser?.id, permissions?.edit_deals, permissions?.delete_deals]);
+    }, [
+        deal,
+        currentUser?.id,
+        currentUser?.roles,
+        permissions?.edit_deals,
+        permissions?.delete_deals,
+    ]);
 }
 
 /**
@@ -182,6 +204,7 @@ export function getDealPermissions(
     userId: number | null | undefined,
     editDealsPermission?: PermissionScope,
     deleteDealsPermission?: PermissionScope,
+    isAdmin = false,
 ): DealPermissions {
     const defaultPermissions: DealPermissions = {
         roles: ["none"],
@@ -208,7 +231,7 @@ export function getDealPermissions(
     // Full-access scope, not the admin role (see hasFullDealAccess docs).
     const hasFullDealAccess =
         editDealsPermission === "all" || editDealsPermission === 4;
-    if (hasFullDealAccess) roles.push("admin");
+    if (isAdmin || hasFullDealAccess) roles.push("admin");
 
     // Check if user is the creator
     const isCreator = deal.added_by === userId;
@@ -240,23 +263,32 @@ export function getDealPermissions(
 
     const hasAnyRole = roles.length > 0 && !roles.includes("none");
     const isWatcherOnly =
-        isWatcher && !isCreator && !isAgent && !isParticipant && !hasFullDealAccess;
+        isWatcher &&
+        !isAdmin &&
+        !isCreator &&
+        !isAgent &&
+        !isParticipant &&
+        !hasFullDealAccess;
 
     // Admins, creators, agents, and participants can edit — participants act with the
     // same rights as the agent. Watchers stay view-only.
-    const canEdit = !isLocked && (hasFullDealAccess || isCreator || isAgent || isParticipant);
+    const canEdit =
+        !isLocked &&
+        (isAdmin || hasFullDealAccess || isCreator || isAgent || isParticipant);
 
     // Mirrors PermissionService::checkAccess's 'delete_deals' scope handling in
     // DealController::destroy (added -> creator, owned -> agent/watcher, both -> either).
     const canDelete =
         !isLocked &&
-        (deleteDealsPermission === "all" ||
+        (isAdmin ||
+            deleteDealsPermission === "all" ||
             (deleteDealsPermission === "added" && isCreator) ||
             (deleteDealsPermission === "owned" && (isAgent || isWatcher)) ||
-            (deleteDealsPermission === "both" && (isCreator || isAgent || isWatcher)));
+            (deleteDealsPermission === "both" &&
+                (isCreator || isAgent || isWatcher)));
 
     // Anyone with a role can view (including admins)
-    const canView = hasAnyRole || hasFullDealAccess;
+    const canView = hasAnyRole || hasFullDealAccess || isAdmin;
 
     return {
         roles,

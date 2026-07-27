@@ -778,6 +778,11 @@ class TaskController extends AccountBaseController
      */
     private function isWatcherOnlyOnTaskDeals(Task $task): bool
     {
+        // Admins are never limited by deal-watcher standing.
+        if (in_array('admin', user_roles())) {
+            return false;
+        }
+
         $userId = user()->id;
 
         // Creators keep write access to their own tasks even as deal watchers.

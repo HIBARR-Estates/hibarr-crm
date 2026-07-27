@@ -39,8 +39,10 @@ use App\Models\LeadSource;
 use App\Models\PipelineStage;
 use App\Models\LeadStatus;
 use App\Models\Product;
+use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\CustomFieldCategory;
+use App\Models\DealAutomation;
 use App\Models\Proposal;
 use App\Models\PurposeConsent;
 use App\Models\PurposeConsentLead;
@@ -753,37 +755,225 @@ class DealController extends AccountBaseController
             // pipelines) — mirrors DealAutomationService::evaluateConditions,
             // read-only here, so it can never drift into actually gating the
             // move.
-            'stageAutomationRequirements' => Inertia::defer(function () {
-                return \App\Models\DealAutomation::query()
-                    ->where('active', true)
-                    ->with(['conditions', 'actions'])
-                    ->get()
-                    ->flatMap(function (\App\Models\DealAutomation $automation) {
-                        if ($automation->conditions->isEmpty()) {
-                            return [];
-                        }
-
-                        $conditions = $automation->conditions
-                            ->map(fn ($condition) => [
-                                'field' => $condition->field,
-                                'operator' => $condition->operator,
-                                'value' => $condition->value,
-                            ])
-                            ->values()
-                            ->all();
-
-                        return $automation->actions
-                            ->filter(fn ($action) => ($action->action_type ?? 'stage_transition') === 'stage_transition' && $action->target_stage_id)
-                            ->map(fn ($action) => [
-                                'stage_id' => $action->target_stage_id,
-                                'conditions' => $conditions,
-                            ]);
-                    })
-                    ->groupBy('stage_id')
-                    ->map(fn ($group) => $group->pluck('conditions')->flatten(1)->values())
-                    ->toArray();
-            }, 'formMeta'),
+            'stageAutomationRequirements' => Inertia::defer(
+                fn () => $this->buildStageAutomationRequirements(),
+                'formMeta'
+            ),
         ]));
+    }
+
+    /**
+     * Stage-transition automation conditions for the pipeline stepper tooltip,
+     * with human-readable field labels and values (not raw custom_field_N / 1|0).
+     *
+     * @return array<int|string, list<array{field: string, label: string, operator: string, value: mixed}>>
+     */
+    private function buildStageAutomationRequirements(): array
+    {
+        $automations = DealAutomation::query()
+            ->where('active', true)
+            ->with(['conditions', 'actions'])
+            ->get();
+
+        $fieldLabels = [
+            'value' => 'Deal Value',
+            'pipeline_stage_id' => 'Stage',
+            'interested_in' => 'Interested In',
+            'motivation' => 'Motivation',
+            'purchase_timeline' => 'Purchase Timeline',
+            'budget_range' => 'Budget Range',
+            'message' => 'Message',
+            'strategy_meeting_booked' => 'Strategy Meeting Booked',
+            'downpayment_paid' => 'Downpayment Paid',
+            'inspection_trip_date' => 'Inspection Trip Date',
+            'deposit_confirmation' => 'Deposit Confirmation',
+            'reservation_agreement' => 'Reservation Agreement',
+            'sales_contract' => 'Sales Contract',
+            'followup_count' => 'Follow-up Count',
+            'last_followup_days_ago' => 'Days Since Last Follow-up',
+            'last_followup_status' => 'Last Follow-up Status',
+            'next_followup_date' => 'Next Follow-up Date',
+        ];
+
+        $booleanFields = [
+            'strategy_meeting_booked',
+            'downpayment_paid',
+            'deposit_confirmation',
+            'reservation_agreement',
+            'sales_contract',
+        ];
+
+        $customFieldIds = $automations
+            ->flatMap(fn (DealAutomation $automation) => $automation->conditions)
+            ->pluck('field')
+            ->filter(fn ($field) => is_string($field) && str_starts_with($field, 'custom_field_'))
+            ->map(fn (string $field) => (int) str_replace('custom_field_', '', $field))
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+
+        $customFields = $customFieldIds === []
+            ? collect()
+            : CustomField::query()->whereIn('id', $customFieldIds)->get()->keyBy('id');
+
+        $stageIds = $automations
+            ->flatMap(fn (DealAutomation $automation) => $automation->conditions)
+            ->filter(fn ($condition) => ($condition->field ?? null) === 'pipeline_stage_id')
+            ->pluck('value')
+            ->filter(fn ($value) => is_numeric($value))
+            ->map(fn ($value) => (int) $value)
+            ->unique()
+            ->values()
+            ->all();
+
+        $stageNames = $stageIds === []
+            ? collect()
+            : PipelineStage::query()->whereIn('id', $stageIds)->pluck('name', 'id');
+
+        return $automations
+            ->flatMap(function (DealAutomation $automation) use ($fieldLabels, $booleanFields, $customFields, $stageNames) {
+                if ($automation->conditions->isEmpty()) {
+                    return [];
+                }
+
+                $conditions = $automation->conditions
+                    ->map(function ($condition) use ($fieldLabels, $booleanFields, $customFields, $stageNames) {
+                        $field = (string) ($condition->field ?? '');
+
+                        return [
+                            'field' => $field,
+                            'label' => $this->resolveAutomationConditionLabel($field, $fieldLabels, $customFields),
+                            'operator' => $condition->operator,
+                            'value' => $this->formatAutomationConditionValue(
+                                $field,
+                                $condition->value,
+                                $booleanFields,
+                                $customFields,
+                                $stageNames
+                            ),
+                        ];
+                    })
+                    ->values()
+                    ->all();
+
+                return $automation->actions
+                    ->filter(fn ($action) => ($action->action_type ?? 'stage_transition') === 'stage_transition' && $action->target_stage_id)
+                    ->map(fn ($action) => [
+                        'stage_id' => $action->target_stage_id,
+                        'conditions' => $conditions,
+                    ]);
+            })
+            ->groupBy('stage_id')
+            ->map(fn ($group) => $group->pluck('conditions')->flatten(1)->values())
+            ->toArray();
+    }
+
+    /**
+     * @param  array<string, string>  $fieldLabels
+     * @param  \Illuminate\Support\Collection<int, CustomField>  $customFields
+     */
+    private function resolveAutomationConditionLabel(string $field, array $fieldLabels, Collection $customFields): string
+    {
+        if (isset($fieldLabels[$field])) {
+            return $fieldLabels[$field];
+        }
+
+        if (str_starts_with($field, 'custom_field_')) {
+            $id = (int) str_replace('custom_field_', '', $field);
+            $label = $customFields->get($id)?->label;
+
+            if (is_string($label) && $label !== '') {
+                return $label;
+            }
+        }
+
+        $last = str_contains($field, '.') ? substr($field, strrpos($field, '.') + 1) : $field;
+
+        return ucwords(str_replace(['_', '-'], ' ', $last));
+    }
+
+    /**
+     * @param  list<string>  $booleanFields
+     * @param  \Illuminate\Support\Collection<int, CustomField>  $customFields
+     * @param  \Illuminate\Support\Collection<int, string>  $stageNames
+     */
+    private function formatAutomationConditionValue(
+        string $field,
+        mixed $value,
+        array $booleanFields,
+        Collection $customFields,
+        Collection $stageNames
+    ): mixed {
+        if ($value === null || $value === '' || $value === '__ANY__') {
+            return $value;
+        }
+
+        if (is_array($value)) {
+            return array_map(
+                fn ($item) => $this->formatAutomationConditionValue($field, $item, $booleanFields, $customFields, $stageNames),
+                $value
+            );
+        }
+
+        if (in_array($field, $booleanFields, true)) {
+            return ((string) $value === '1' || $value === true) ? 'Yes' : 'No';
+        }
+
+        if ($field === 'pipeline_stage_id' && is_numeric($value)) {
+            return $stageNames->get((int) $value) ?? $value;
+        }
+
+        if (str_starts_with($field, 'custom_field_')) {
+            $id = (int) str_replace('custom_field_', '', $field);
+            $customField = $customFields->get($id);
+
+            if ($customField) {
+                return $this->formatCustomFieldConditionValue($customField, $value);
+            }
+        }
+
+        return $value;
+    }
+
+    private function formatCustomFieldConditionValue(CustomField $customField, mixed $value): mixed
+    {
+        if (in_array($customField->type, ['select', 'radio', 'checkbox'], true) && !empty($customField->values)) {
+            $options = $customField->values;
+
+            if (is_string($options) && (str_starts_with($options, '[') || str_starts_with($options, '{'))) {
+                $decoded = json_decode($options, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    $options = $decoded;
+                }
+            }
+
+            if (is_array($options)) {
+                $isList = array_is_list($options);
+
+                foreach ($options as $key => $option) {
+                    if (is_array($option)) {
+                        $optionValue = $option['value'] ?? null;
+                        $optionLabel = $option['label'] ?? $optionValue;
+                        if ((string) $optionValue === (string) $value && $optionLabel !== null && $optionLabel !== '') {
+                            return $optionLabel;
+                        }
+                        continue;
+                    }
+
+                    // Associative map of value => label.
+                    if (!$isList && (string) $key === (string) $value) {
+                        return $option;
+                    }
+
+                    if ((string) $option === (string) $value) {
+                        return $option;
+                    }
+                }
+            }
+        }
+
+        return $value;
     }
 
     /**

@@ -195,7 +195,11 @@ export default function DealStickyHeader({
                                 size="sm"
                                 onClick={() => team.setTeamModalOpen(true)}
                             >
-                                {t("pages.deals.header.manage_team")}
+                                {t(
+                                    dealPermissions.isWatcherOnly
+                                        ? "pages.deals.header.view_team"
+                                        : "pages.deals.header.manage_team",
+                                )}
                             </DealButton>
                         </div>
                     </div>
@@ -218,6 +222,7 @@ export default function DealStickyHeader({
                             dealId={deal.id}
                             agent={team.agent}
                             canEdit={dealPermissions.canEdit}
+                            isWatcherOnly={dealPermissions.isWatcherOnly}
                             onManageTeam={() => team.setTeamModalOpen(true)}
                         />
                     </div>
