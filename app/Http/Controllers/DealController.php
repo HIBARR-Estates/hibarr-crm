@@ -62,6 +62,7 @@ use App\Services\DealOfferService;
 use App\Services\DealValueResolver;
 use App\Services\DealAgentAssignmentService;
 use App\Services\PackagePipelineRouterService;
+use App\Services\PackageRoutingFieldCatalog;
 use App\Services\PipelineScopeResolverService;
 
 class DealController extends AccountBaseController
@@ -1036,17 +1037,24 @@ class DealController extends AccountBaseController
             $deal->updateCustomFieldData($request->custom_fields_data);
         }
 
-        $packageRouter->attemptRoutingFromFieldUpdates(
-            $deal->fresh(),
-            app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
-                array_merge(
-                    $request->only(['category_id', 'product_id']),
-                    $request->custom_fields_data ?? [],
-                ),
-                $deal->company_id,
+        $fieldCatalog = app(PackageRoutingFieldCatalog::class);
+        $routingFieldKeys = $fieldCatalog->routingFieldKeysFromPayload(
+            array_merge(
+                $request->only(['category_id', 'product_id']),
+                is_array($request->custom_fields_data) ? $request->custom_fields_data : [],
             ),
-            $request->has('package_id') && $request->package_id,
+            $deal->company_id,
         );
+
+        if ($routingFieldKeys !== []) {
+            $packageRouter->attemptRoutingFromDealState(
+                $deal->fresh(['products', 'packages', 'company']),
+                $routingFieldKeys,
+                $request->has('package_id') && $request->package_id,
+            );
+        }
+
+        $deal = $deal->fresh(['products', 'packages', 'company', 'leadStage']);
 
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $this->triggerDealCreationAutomation($request);
@@ -1318,17 +1326,22 @@ class DealController extends AccountBaseController
              app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
         }
 
-        app(PackagePipelineRouterService::class)->attemptRoutingFromFieldUpdates(
-            $deal->fresh(),
-            app(PackagePipelineRouterService::class)->extractTriggerFieldsFromPayload(
-                array_merge(
-                    $request->only(['category_id', 'product_id']),
-                    $request->custom_fields_data ?? [],
-                ),
-                $deal->company_id,
+        $fieldCatalog = app(PackageRoutingFieldCatalog::class);
+        $routingFieldKeys = $fieldCatalog->routingFieldKeysFromPayload(
+            array_merge(
+                $request->only(['category_id', 'product_id']),
+                is_array($request->custom_fields_data) ? $request->custom_fields_data : [],
             ),
-            $request->has('package_id'),
+            $deal->company_id,
         );
+
+        if ($routingFieldKeys !== []) {
+            app(PackagePipelineRouterService::class)->attemptRoutingFromDealState(
+                $deal->fresh(['products', 'packages', 'company']),
+                $routingFieldKeys,
+                $request->has('package_id') && $request->package_id,
+            );
+        }
 
         $redirectTo = (!is_null(request('tab')) && request('tab') == 'overview') ? route('deals.show', [$deal->id]) : route('deals.index');
 
