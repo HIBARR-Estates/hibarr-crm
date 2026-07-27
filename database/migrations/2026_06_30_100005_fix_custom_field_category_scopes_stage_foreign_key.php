@@ -13,8 +13,10 @@ return new class extends Migration
      * is forbidden on the base column of a STORED generated column).
      *
      * MySQL cannot MODIFY STORED -> VIRTUAL (error 3106), so the norm column is
-     * dropped and re-added as VIRTUAL when needed. Row data is untouched (norm
-     * is derived). Then adds the stage FK with CASCADE. No-op when already correct.
+     * dropped and re-added as VIRTUAL when needed. A dedicated category_id index
+     * is added first so dropping cfc_scope_unique does not break the category FK
+     * (error 1553). Row data is untouched (norm is derived). Then adds the stage
+     * FK with CASCADE. No-op when already correct.
      */
     public function up(): void
     {
@@ -82,6 +84,17 @@ return new class extends Migration
 
         // MySQL forbids changing STORED <-> VIRTUAL via MODIFY (HY000/3106).
         // Drop + re-add keeps base row data; the column is derived from pipeline_stage_id.
+        //
+        // cfc_scope_unique starts with category_id, so InnoDB may be using it as the
+        // supporting index for the category_id FK (error 1553 if dropped directly).
+        // Ensure a dedicated category_id index exists first.
+        if (!$this->indexExists('custom_field_category_scopes', 'cfc_scopes_category_id_idx')) {
+            DB::statement(
+                'CREATE INDEX `cfc_scopes_category_id_idx`
+                 ON `custom_field_category_scopes` (`category_id`)'
+            );
+        }
+
         if ($this->indexExists('custom_field_category_scopes', 'cfc_scope_unique')) {
             DB::statement('ALTER TABLE `custom_field_category_scopes` DROP INDEX `cfc_scope_unique`');
         }
