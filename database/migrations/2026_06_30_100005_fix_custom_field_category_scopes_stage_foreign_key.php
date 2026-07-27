@@ -12,9 +12,9 @@ return new class extends Migration
      * as Ran but never attached the pipeline_stage_id FK (MySQL #1215: CASCADE
      * is forbidden on the base column of a STORED generated column).
      *
-     * Converts pipeline_stage_id_norm to VIRTUAL (MySQL), then adds the FK with
-     * CASCADE. No-op when the table is missing or already correct. Does not
-     * touch row data.
+     * MySQL cannot MODIFY STORED -> VIRTUAL (error 3106), so the norm column is
+     * dropped and re-added as VIRTUAL when needed. Row data is untouched (norm
+     * is derived). Then adds the stage FK with CASCADE. No-op when already correct.
      */
     public function up(): void
     {
@@ -80,11 +80,29 @@ return new class extends Migration
             return;
         }
 
+        // MySQL forbids changing STORED <-> VIRTUAL via MODIFY (HY000/3106).
+        // Drop + re-add keeps base row data; the column is derived from pipeline_stage_id.
+        if ($this->indexExists('custom_field_category_scopes', 'cfc_scope_unique')) {
+            DB::statement('ALTER TABLE `custom_field_category_scopes` DROP INDEX `cfc_scope_unique`');
+        }
+
+        DB::statement('ALTER TABLE `custom_field_category_scopes` DROP COLUMN `pipeline_stage_id_norm`');
+
         DB::statement(
             'ALTER TABLE `custom_field_category_scopes`
-             MODIFY `pipeline_stage_id_norm` INT UNSIGNED
+             ADD `pipeline_stage_id_norm` INT UNSIGNED
              GENERATED ALWAYS AS (COALESCE(`pipeline_stage_id`, 0)) VIRTUAL'
         );
+
+        DB::statement(
+            'CREATE UNIQUE INDEX `cfc_scope_unique` ON `custom_field_category_scopes`
+             (`category_id`, `pipeline_id`, `pipeline_stage_id_norm`)'
+        );
+    }
+
+    private function indexExists(string $table, string $indexName): bool
+    {
+        return count(DB::select("SHOW INDEX FROM `{$table}` WHERE Key_name = ?", [$indexName])) > 0;
     }
 
     private function foreignKeyExists(string $table, string $constraintName): bool
