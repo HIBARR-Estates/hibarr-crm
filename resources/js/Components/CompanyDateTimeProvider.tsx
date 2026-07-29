@@ -5,18 +5,12 @@ import React, {
     type ReactNode,
 } from "react";
 import { usePage } from "@inertiajs/react";
+import type { PageProps } from "@inertiajs/core";
 import {
     getCompanyDateTimeFormatVersion,
     setCompanyDateTimeFormats,
     subscribeCompanyDateTimeFormats,
 } from "@/lib/companyDateTime";
-
-type CompanyFormats = {
-    date_format?: string;
-    moment_date_format?: string;
-    moment_format?: string;
-    time_format?: string;
-};
 
 const CompanyDateTimeContext = createContext(0);
 
@@ -25,7 +19,7 @@ const CompanyDateTimeContext = createContext(0);
  * bumps when formats change so display consumers re-render.
  */
 export function CompanyDateTimeProvider({ children }: { children: ReactNode }) {
-    const { props } = usePage<{ company?: CompanyFormats | null }>();
+    const { props } = usePage<PageProps>();
     const company = props.company;
 
     setCompanyDateTimeFormats({
