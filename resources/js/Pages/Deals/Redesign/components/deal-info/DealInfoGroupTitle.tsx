@@ -8,9 +8,8 @@ interface DealInfoGroupTitleProps {
 export default function DealInfoGroupTitle({ children }: DealInfoGroupTitleProps) {
     return (
         <div
-            className="mb-2.5 pb-1.5 text-[12px] font-semibold uppercase tracking-[0.07em]"
+            className="mb-2.5 pb-1.5 text-[13px] font-semibold uppercase tracking-wider text-black"
             style={{
-                color: T.GRAY_DARKER,
                 borderBottom: `1px solid ${T.BORDER}`,
             }}
         >
