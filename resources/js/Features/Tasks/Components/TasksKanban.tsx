@@ -14,6 +14,7 @@ import {
     PlusOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { taskDateTimeToDayjs } from "@/lib/taskDateTime";
 import { motion } from "framer-motion";
 import { Task } from "@/Types/Task";
 import KanbanTaskCard from "@/Components/KanbanTaskCard";
@@ -147,9 +148,12 @@ const TasksKanban: React.FC<TasksKanbanProps> = ({
 
     const renderTask = (task: Task, index: number) => {
         const isProcessing = processingTasks.has(task.id);
+        const dueDayjs = task.due_date
+            ? taskDateTimeToDayjs(task.due_date)
+            : null;
         const isOverdue =
-            task.due_date &&
-            dayjs(task.due_date).isBefore(dayjs(), "day") &&
+            dueDayjs &&
+            dueDayjs.isBefore(dayjs(), "day") &&
             task.status !== "done";
 
         const canEdit =

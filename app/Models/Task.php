@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasCompany;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Notifications\Notifiable;
 use App\Helper\UserService;
+use DateTimeInterface;
 
 /**
  * App\Models\Task
@@ -165,6 +167,29 @@ class Task extends BaseModel
     protected $with = ['company:id,date_format', 'project:id,project_name,need_approval_by_admin,project_short_code', 'users:id,name,image'];
 
     const CUSTOM_FIELD_MODEL = 'App\Models\Task';
+
+    /**
+     * Task start/due/completed are wall-clock values (company date+time parsed
+     * under app TZ). Eloquent's default ISO-Z serialization shifts display in
+     * non-UTC browsers; keep a naive Y-m-d H:i:s for frontend APIs instead.
+     */
+    public static function wallClockString(?DateTimeInterface $date): ?string
+    {
+        return $date ? Carbon::instance($date)->format('Y-m-d H:i:s') : null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function toFrontendArray(): array
+    {
+        $data = $this->toArray();
+        $data['due_date'] = self::wallClockString($this->due_date);
+        $data['start_date'] = self::wallClockString($this->start_date);
+        $data['completed_on'] = self::wallClockString($this->completed_on);
+
+        return $data;
+    }
 
     public function project(): BelongsTo
     {

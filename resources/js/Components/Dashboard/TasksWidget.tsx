@@ -5,6 +5,10 @@ import { Link } from "@inertiajs/react";
 import { EyeOutlined, CalendarOutlined, UserOutlined } from "@ant-design/icons";
 import { CheckCircle, Clock, AlertTriangle, ArrowRight } from "lucide-react";
 import dayjs from "dayjs";
+import {
+    formatTaskDateWithCompanyTime,
+    taskDateTimeToDayjs,
+} from "@/lib/taskDateTime";
 
 interface Task {
     id: number;
@@ -157,13 +161,13 @@ export default function TasksWidget({ tasks }: TasksWidgetProps) {
                                                     />
                                                     <span>
                                                         Due:{" "}
-                                                        {dayjs(
-                                                            task.due_date
-                                                        ).format("MMM D, YYYY h:mm A")}
+                                                        {formatTaskDateWithCompanyTime(
+                                                            task.due_date,
+                                                        )}
                                                     </span>
-                                                    {dayjs(
-                                                        task.due_date
-                                                    ).isBefore(dayjs()) && (
+                                                    {taskDateTimeToDayjs(
+                                                        task.due_date,
+                                                    )?.isBefore(dayjs()) && (
                                                         <Tag
                                                             color="red"
                                                             className="!m-0 text-xs"

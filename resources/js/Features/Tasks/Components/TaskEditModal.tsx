@@ -26,6 +26,7 @@ import {
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { taskDateTimeToDayjs } from "@/lib/taskDateTime";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -130,8 +131,12 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
             form.setFieldsValue({
                 heading: task.heading,
                 description: task.description,
-                start_date: task.start_date ? dayjs(task.start_date) : null,
-                due_date: task.due_date ? dayjs(task.due_date) : null,
+                start_date: task.start_date
+                    ? taskDateTimeToDayjs(task.start_date)
+                    : null,
+                due_date: task.due_date
+                    ? taskDateTimeToDayjs(task.due_date)
+                    : null,
                 priority: task.priority,
                 project_id: task.project?.id,
                 category_id: task.category?.id,

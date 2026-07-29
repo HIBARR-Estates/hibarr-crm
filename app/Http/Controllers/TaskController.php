@@ -221,12 +221,12 @@ class TaskController extends AccountBaseController
                 'id' => $task->id,
                 'heading' => $task->heading,
                 'description' => $task->description,
-                'due_date' => $task->due_date?->format('Y-m-d H:i:s'),
-                'start_date' => $task->start_date?->format('Y-m-d H:i:s'),
+                'due_date' => Task::wallClockString($task->due_date),
+                'start_date' => Task::wallClockString($task->start_date),
                 'priority' => $task->priority,
                 'status' => $task->boardColumn->slug ?? 'to_do',
                 'board_column_id' => $task->board_column_id,
-                'completed_on' => $task->completed_on?->format('Y-m-d H:i:s'),
+                'completed_on' => Task::wallClockString($task->completed_on),
                 'project' => $task->project ? [
                     'id' => $task->project->id,
                     'project_name' => $task->project->project_name,
@@ -392,7 +392,10 @@ class TaskController extends AccountBaseController
             ->orderBy('id', 'desc')
             ->get();
 
-        return response()->json(['status' => 'success', 'data' => $tasks]);
+        return response()->json([
+            'status' => 'success',
+            'data' => $tasks->map(fn (Task $task) => $task->toFrontendArray())->values(),
+        ]);
     }
 
     /**
@@ -878,7 +881,7 @@ class TaskController extends AccountBaseController
             )
         );
 
-        return Reply::dataOnly(['task' => $task]);
+        return Reply::dataOnly(['task' => $task->toFrontendArray()]);
     }
 
     /**
@@ -1034,7 +1037,7 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load('users')]);
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load('users')->toFrontendArray()]);
 
         } catch (\Exception $e) {
             return Reply::error($e->getMessage());
@@ -1430,7 +1433,7 @@ class TaskController extends AccountBaseController
 
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
                 'project' => $task->project,
-                'data' => $task->load('users'),
+                'data' => $task->load('users')->toFrontendArray(),
                 'redirectUrl' => route('tasks.show', $task->id)
             ]);
 
@@ -1898,12 +1901,12 @@ class TaskController extends AccountBaseController
             'id' => $task->id,
             'heading' => $task->heading,
             'description' => $task->description,
-            'due_date' => $task->due_date?->toISOString(),
-            'start_date' => $task->start_date?->toISOString(),
+            'due_date' => Task::wallClockString($task->due_date),
+            'start_date' => Task::wallClockString($task->start_date),
             'priority' => $task->priority,
             'status' => $task->boardColumn?->slug ?? 'to_do',
             'board_column_id' => $task->board_column_id,
-            'completed_on' => $task->completed_on?->toISOString(),
+            'completed_on' => Task::wallClockString($task->completed_on),
             'task_short_code' => $task->task_short_code,
             'is_private' => (bool) $task->is_private,
             'billable' => (bool) $task->billable,
@@ -1959,7 +1962,7 @@ class TaskController extends AccountBaseController
                 'id' => $subtask->id,
                 'title' => $subtask->title,
                 'status' => $subtask->status,
-                'due_date' => $subtask->due_date?->toISOString(),
+                'due_date' => Task::wallClockString($subtask->due_date),
             ])->toArray(),
             'time_logs' => [
                 ['total_minutes' => $timeSpentMinutes]

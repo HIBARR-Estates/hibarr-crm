@@ -18,6 +18,7 @@ import {
     CheckOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { taskDateTimeToDayjs, formatCompanyTime } from "@/lib/taskDateTime";
 import { getPriorityConfig } from "@/lib/priority";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client";
@@ -134,12 +135,13 @@ function PropTable({ children }: { children: React.ReactNode }) {
 
 function formatDateTime(dateStr: string | undefined): React.ReactNode {
     if (!dateStr) return <span className="text-slate-500">Not set</span>;
-    const d = dayjs(dateStr);
+    const d = taskDateTimeToDayjs(dateStr);
+    if (!d) return <span className="text-slate-500">Not set</span>;
     return (
         <span>
             {d.format("MMM D, YYYY")}
             <span className="text-slate-400 mx-1.5">·</span>
-            {d.format("h:mm A")}
+            {formatCompanyTime(d)}
         </span>
     );
 }
@@ -283,10 +285,9 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
             ? Math.min((spentMinutes / estimatedMinutes) * 100, 100)
             : 0;
 
+    const dueDayjs = task?.due_date ? taskDateTimeToDayjs(task.due_date) : null;
     const isOverdue =
-        task?.due_date &&
-        dayjs().isAfter(dayjs(task.due_date)) &&
-        !isDone;
+        !!dueDayjs && dayjs().isAfter(dueDayjs) && !isDone;
 
     const priorityCfg = task ? getPriorityConfig(task.priority) : null;
 
@@ -398,7 +399,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                             <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[12px] font-semibold">
                                 <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                                 Overdue since{" "}
-                                {dayjs(task.due_date).format("MMM D, YYYY")}
+                                {dueDayjs?.format("MMM D, YYYY")}
                             </div>
                         )}
 

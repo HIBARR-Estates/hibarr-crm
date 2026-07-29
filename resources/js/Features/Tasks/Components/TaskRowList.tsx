@@ -11,6 +11,10 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import {
+    taskDateTimeToDayjs,
+    formatTaskDateTimeCompact,
+} from "@/lib/taskDateTime";
 import { motion } from "framer-motion";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskEntityLink from "./TaskEntityLink";
@@ -138,12 +142,15 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
                 const statusChangeable = canChangeStatus ? canChangeStatus(task) : editable;
                 const isSelected = selectable && selectedIds!.includes(task.id);
 
+                const dueDayjs = task.due_date
+                    ? taskDateTimeToDayjs(task.due_date)
+                    : null;
                 const isOverdue =
-                    !!task.due_date &&
-                    dayjs(task.due_date).isBefore(dayjs(), "day") &&
+                    !!dueDayjs &&
+                    dueDayjs.isBefore(dayjs(), "day") &&
                     status !== "done";
                 const isToday =
-                    !!task.due_date && dayjs(task.due_date).isSame(dayjs(), "day");
+                    !!dueDayjs && dueDayjs.isSame(dayjs(), "day");
 
                 const actions: MenuProps["items"] = [
                     {
@@ -272,7 +279,9 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
                                                   : "text-slate-600",
                                         )}
                                     >
-                                        {dayjs(task.due_date).format("MMM D, h:mm A")}
+                                        {dueDayjs
+                                            ? formatTaskDateTimeCompact(dueDayjs)
+                                            : null}
                                     </p>
                                     <p
                                         className={clsx(
@@ -280,7 +289,7 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
                                             isOverdue ? "text-red-400" : "text-slate-400",
                                         )}
                                     >
-                                        {dayjs(task.due_date).fromNow()}
+                                        {dueDayjs?.fromNow()}
                                     </p>
                                 </>
                             ) : (

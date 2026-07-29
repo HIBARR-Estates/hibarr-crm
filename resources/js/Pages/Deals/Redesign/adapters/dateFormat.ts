@@ -1,22 +1,19 @@
 /**
  * Single source of truth for date/time presentation in the Deal redesign.
  *
- * Before this existed, surfaces disagreed: the task card rendered "Jul 08, 2026"
- * (Intl "en") while the task modal rendered "8 Jul 2026" (en-GB) for the same
- * task, one label concatenated an en-GB date with an en-US time, and the deal
- * header showed 24h while meetings showed 12h. Everything now routes through
- * here.
- *
  * Locale: adapters are plain functions with no hook access, so the active
  * locale is published here once by the page shell (see `setDealDateLocale`)
  * and read synchronously. Falls back to "en" before the shell mounts.
+ *
+ * Time: uses company `time_format` (App Settings 12h/24h) via
+ * `@/lib/taskDateTime`, synced by `CompanyDateTimeSync`.
  */
+
+import { formatCompanyTime } from "@/lib/taskDateTime";
 
 type Formatters = {
     date: Intl.DateTimeFormat;
     dateLong: Intl.DateTimeFormat;
-    time: Intl.DateTimeFormat;
-    dateTime: Intl.DateTimeFormat;
     monthShort: Intl.DateTimeFormat;
 };
 
@@ -55,18 +52,6 @@ function formatters(): Formatters {
             month: "long",
             year: "numeric",
         }),
-        // 12h with AM/PM in en, 24h automatically in de/ru/tr.
-        time: new Intl.DateTimeFormat(activeLocale, {
-            hour: "numeric",
-            minute: "2-digit",
-        }),
-        dateTime: new Intl.DateTimeFormat(activeLocale, {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-        }),
         monthShort: new Intl.DateTimeFormat(activeLocale, { month: "short" }),
     };
     return cache;
@@ -94,12 +79,13 @@ export function formatDateLong(
     return date ? formatters().dateLong.format(date) : fallback;
 }
 
+/** Company App Settings time format (12h / 24h). */
 export function formatTime(
     value: Date | string | null | undefined,
     fallback = "--",
 ): string {
     const date = toDate(value);
-    return date ? formatters().time.format(date) : fallback;
+    return date ? formatCompanyTime(date, fallback) : fallback;
 }
 
 export function formatDateTime(
@@ -107,7 +93,8 @@ export function formatDateTime(
     fallback = "--",
 ): string {
     const date = toDate(value);
-    return date ? formatters().dateTime.format(date) : fallback;
+    if (!date) return fallback;
+    return `${formatters().date.format(date)} · ${formatCompanyTime(date)}`;
 }
 
 export function formatMonthShort(
@@ -118,12 +105,12 @@ export function formatMonthShort(
     return date ? formatters().monthShort.format(date) : fallback;
 }
 
-/** "8 Jul 2026 · 2:30 PM" - one locale for both halves. */
+/** "8 Jul 2026 · 17:00" — locale date + company time format. */
 export function formatDateWithTime(
     value: Date | string | null | undefined,
     fallback = "--",
 ): string {
     const date = toDate(value);
     if (!date) return fallback;
-    return `${formatters().date.format(date)} · ${formatters().time.format(date)}`;
+    return `${formatters().date.format(date)} · ${formatCompanyTime(date)}`;
 }
