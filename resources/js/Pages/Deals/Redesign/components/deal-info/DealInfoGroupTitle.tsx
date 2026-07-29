@@ -10,7 +10,7 @@ export default function DealInfoGroupTitle({ children }: DealInfoGroupTitleProps
         <div
             className="mb-2.5 pb-1.5 text-[12px] font-semibold uppercase tracking-[0.07em]"
             style={{
-                color: T.TEXT_HINT,
+                color: T.GRAY_DARKER,
                 borderBottom: `1px solid ${T.BORDER}`,
             }}
         >
