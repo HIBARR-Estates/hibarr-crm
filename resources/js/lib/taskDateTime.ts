@@ -6,6 +6,7 @@ import {
     formatCompanyDateTime,
     formatCompanyTime,
     mapPhpToDayjsFormat,
+    omitYearFromDayjsFormat,
     setCompanyDateTimeFormats,
     setCompanyTimeFormat,
 } from "@/lib/companyDateTime";
@@ -90,22 +91,38 @@ export function formatTaskCompanyTime(
  */
 export function formatTaskDateWithCompanyTime(
     value: Date | Dayjs | string | null | undefined,
-    options?: { separator?: string; fallback?: string },
+    options?: {
+        separator?: string;
+        fallback?: string;
+        omitCurrentYear?: boolean;
+    },
 ): string {
     const d = toWallClockDayjs(value);
     if (!d) return options?.fallback ?? "--";
     const separator = options?.separator ?? " · ";
-    return `${d.format(companyDateDayjsFormat())}${separator}${d.format(companyTimeDayjsFormat())}`;
+    let dateFormat = companyDateDayjsFormat();
+    if (options?.omitCurrentYear && d.isSame(dayjs(), "year")) {
+        dateFormat = omitYearFromDayjsFormat(dateFormat);
+    }
+    return `${d.format(dateFormat)}${separator}${d.format(companyTimeDayjsFormat())}`;
 }
 
 /** Compact task date+time for list rows. */
 export function formatTaskDateTimeCompact(
     value: Date | Dayjs | string | null | undefined,
-    fallback = "--",
+    fallbackOrOptions: string | {
+        fallback?: string;
+        omitCurrentYear?: boolean;
+    } = "--",
 ): string {
+    const options =
+        typeof fallbackOrOptions === "string"
+            ? { fallback: fallbackOrOptions }
+            : fallbackOrOptions;
     return formatTaskDateWithCompanyTime(value, {
         separator: ", ",
-        fallback,
+        fallback: options.fallback ?? "--",
+        omitCurrentYear: options.omitCurrentYear,
     });
 }
 

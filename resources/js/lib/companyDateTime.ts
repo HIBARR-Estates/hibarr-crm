@@ -130,13 +130,48 @@ function toDayjs(value: Date | Dayjs | string | null | undefined): Dayjs | null 
     return d.isValid() ? d : null;
 }
 
+/** Strip year tokens from a Dayjs date format (e.g. `DD-MM-YYYY` → `DD-MM`). */
+export function omitYearFromDayjsFormat(format: string): string {
+    const stripped = format
+        .replace(/Y{2,4}/g, "")
+        .replace(/([/.\-\s,])\1+/g, "$1")
+        .replace(/^[/.\-\s,]+|[/.\-\s,]+$/g, "")
+        .trim();
+    return stripped || format;
+}
+
+export type FormatCompanyDateOptions = {
+    fallback?: string;
+    /**
+     * When true, drop the year from the company date format if the value
+     * falls in the current calendar year.
+     */
+    omitCurrentYear?: boolean;
+};
+
+function resolveDateFormat(
+    value: Dayjs,
+    omitCurrentYear?: boolean,
+): string {
+    const format = companyDateDayjsFormat();
+    if (omitCurrentYear && value.isSame(dayjs(), "year")) {
+        return omitYearFromDayjsFormat(format);
+    }
+    return format;
+}
+
 /** Date only — company date format. */
 export function formatCompanyDate(
     value: Date | Dayjs | string | null | undefined,
-    fallback = "--",
+    fallbackOrOptions: string | FormatCompanyDateOptions = "--",
 ): string {
+    const options: FormatCompanyDateOptions =
+        typeof fallbackOrOptions === "string"
+            ? { fallback: fallbackOrOptions }
+            : fallbackOrOptions;
     const d = toDayjs(value);
-    return d ? d.format(companyDateDayjsFormat()) : fallback;
+    if (!d) return options.fallback ?? "--";
+    return d.format(resolveDateFormat(d, options.omitCurrentYear));
 }
 
 /** Time only — company `time_format`. */
@@ -151,10 +186,14 @@ export function formatCompanyTime(
 /** Date + time — company formats, joined with `separator` (default " · "). */
 export function formatCompanyDateTime(
     value: Date | Dayjs | string | null | undefined,
-    options?: { separator?: string; fallback?: string },
+    options?: {
+        separator?: string;
+        fallback?: string;
+        omitCurrentYear?: boolean;
+    },
 ): string {
     const d = toDayjs(value);
     if (!d) return options?.fallback ?? "--";
     const separator = options?.separator ?? " · ";
-    return `${d.format(companyDateDayjsFormat())}${separator}${d.format(companyTimeDayjsFormat())}`;
+    return `${d.format(resolveDateFormat(d, options?.omitCurrentYear))}${separator}${d.format(companyTimeDayjsFormat())}`;
 }

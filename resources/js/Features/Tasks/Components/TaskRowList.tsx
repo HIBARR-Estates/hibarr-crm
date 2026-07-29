@@ -280,7 +280,9 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
                                         )}
                                     >
                                         {dueDayjs
-                                            ? formatTaskDateTimeCompact(dueDayjs)
+                                            ? formatTaskDateTimeCompact(dueDayjs, {
+                                                  omitCurrentYear: true,
+                                              })
                                             : null}
                                     </p>
                                     <p

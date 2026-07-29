@@ -263,7 +263,7 @@ export const useTasksTableColumns = ({
 
                 return (
                     <span className="text-gray-900">
-                        {formatCompanyDate(date)}
+                        {formatCompanyDate(date, { omitCurrentYear: true })}
                     </span>
                 );
             },
