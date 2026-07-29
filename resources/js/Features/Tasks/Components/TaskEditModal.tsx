@@ -26,6 +26,7 @@ import {
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { companyDateDayjsFormat } from "@/lib/companyDateTime";
 import { taskDateTimeToDayjs } from "@/lib/taskDateTime";
 
 const { Option } = Select;
@@ -339,7 +340,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                             >
                                 <DatePicker
                                     style={{ width: "100%" }}
-                                    format="YYYY-MM-DD"
+                                    format={companyDateDayjsFormat()}
                                     placeholder="Select start date"
                                 />
                             </Form.Item>
@@ -352,7 +353,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({
                             >
                                 <DatePicker
                                     style={{ width: "100%" }}
-                                    format="YYYY-MM-DD"
+                                    format={companyDateDayjsFormat()}
                                     placeholder="Select due date"
                                 />
                             </Form.Item>

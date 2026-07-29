@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { Tooltip } from "antd";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
@@ -178,7 +179,7 @@ export default function DealTimelineEventRow({
                 </div>
 
                 <Tooltip
-                    title={dayjs(event.occurredAt).format("MMM D, YYYY · h:mm A")}
+                    title={formatCompanyDateTime(event.occurredAt)}
                 >
                     <div style={{ fontSize: 12, color: T.TEXT_HINT }}>
                         {event.meta}

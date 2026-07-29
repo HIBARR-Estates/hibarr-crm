@@ -82,6 +82,8 @@ class SettingsController extends AccountBaseController
         $this->company->show_new_webhook_alert = false;
         $this->company->saveQuietly();
         session()->forget('company');
+        session()->forget('user');
+        session()->forget('companyOrGlobalSetting');
 
         return Reply::success('Webohook alert box has been removed permanently');
     }

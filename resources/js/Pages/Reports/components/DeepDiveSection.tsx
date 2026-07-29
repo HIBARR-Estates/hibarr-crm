@@ -24,6 +24,7 @@ import {
 } from "@ant-design/icons";
 import axios from "axios";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import MeetingTypeBadge from "./MeetingTypeBadge";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import ViewNote from "@/Pages/Deals/Components/Tabs/notes/ViewNote";
@@ -76,7 +77,7 @@ const leadColumns: TableColumnsType<any> = [
         title: "Created",
         dataIndex: "created_at",
         key: "created_at",
-        render: (v: string) => dayjs(v).format("D MMMM YYYY"),
+        render: (v: string) => formatCompanyDate(v),
     },
 ];
 
@@ -116,7 +117,7 @@ const dealsCreatedColumns: TableColumnsType<any> = [
         title: "Created",
         dataIndex: "created_at",
         key: "created_at",
-        render: (v: string) => dayjs(v).format("D MMMM YYYY"),
+        render: (v: string) => formatCompanyDate(v),
     },
 ];
 
@@ -151,7 +152,7 @@ const dealsClosedColumns: TableColumnsType<any> = [
         title: "Closed At",
         dataIndex: "close_date",
         key: "close_date",
-        render: (v: string) => (v ? dayjs(v).format("D MMMM YYYY") : "—"),
+        render: (v: string) => (v ? formatCompanyDate(v) : "—"),
     },
 ];
 
@@ -181,7 +182,7 @@ const getMeetingsColumns = (
         title: "Date",
         dataIndex: "next_follow_up_date",
         key: "next_follow_up_date",
-        render: (v: string) => (v ? dayjs(v).format("D MMMM YYYY") : "—"),
+        render: (v: string) => (v ? formatCompanyDate(v) : "—"),
     },
     {
         title: "Status",
@@ -363,7 +364,7 @@ const ReportNoteCard: React.FC<{
             )}
             <Space size="small" className="text-xs text-gray-400">
                 <ClockCircleOutlined />
-                <span>{dayjs(note.created_at).format("D MMMM YYYY")}</span>
+                <span>{formatCompanyDate(note.created_at)}</span>
             </Space>
         </div>
     </Card>
@@ -637,9 +638,9 @@ const LeadNotesTabContent: React.FC<{ filters: Filters }> = ({ filters }) => {
                                     <CalendarOutlined className="text-gray-500" />
                                     <Text type="secondary">
                                         Created on{" "}
-                                        {dayjs(selected.created_at).format(
-                                            "MMMM DD, YYYY [at] h:mm A",
-                                        )}
+                                        {formatCompanyDateTime(selected.created_at, {
+                                            separator: " at ",
+                                        })}
                                     </Text>
                                 </div>
                                 {selected.added_by && (

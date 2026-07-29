@@ -17,7 +17,11 @@ import {
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
 import { usePage } from "@inertiajs/react";
-import { taskDateTimeToDayjs, formatCompanyTime } from "@/lib/taskDateTime";
+import {
+    taskDateTimeToDayjs,
+    formatTaskCompanyTime,
+} from "@/lib/taskDateTime";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 import PageDataSorter from "@/Components/PageDataSorter";
 import { getPriorityConfig } from "@/lib/priority";
@@ -193,10 +197,10 @@ export const useTasksTableColumns = ({
                 return (
                     <div className="py-0.5">
                         <div className="font-medium tabular-nums" style={{ color }}>
-                            {dueDate.format("MMM D, YYYY")}
+                            {formatCompanyDate(dueDate)}
                         </div>
                         <div className="text-xs tabular-nums text-gray-400">
-                            {formatCompanyTime(dueDate)}
+                            {formatTaskCompanyTime(dueDate)}
                             {isOverdue && (
                                 <span className="ml-1.5 font-semibold text-red-500">· Overdue</span>
                             )}
@@ -259,7 +263,7 @@ export const useTasksTableColumns = ({
 
                 return (
                     <span className="text-gray-900">
-                        {dayjs(date).format("MMM DD, YYYY")}
+                        {formatCompanyDate(date)}
                     </span>
                 );
             },

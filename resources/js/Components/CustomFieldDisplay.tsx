@@ -8,6 +8,7 @@ import {
     PlusOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyDateTime, formatCompanyTime } from "@/lib/companyDateTime";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { isFieldVisible as isPipelineFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
 import {
@@ -776,10 +777,10 @@ export default function CustomFieldDisplay({
 
         switch (field.type) {
             case "date":
-                return dayjs(value).format("MMM DD, YYYY");
+                return formatCompanyDate(value);
 
             case "datetime":
-                return dayjs(value).format("MMM DD, YYYY HH:mm");
+                return formatCompanyDateTime(value, { separator: " " });
 
             case "select":
             case "radio":
@@ -1212,7 +1213,7 @@ export default function CustomFieldDisplay({
                 );
 
             case "time":
-                return dayjs(value, "HH:mm:ss").format("hh:mm A");
+                return formatCompanyTime(dayjs(value, "HH:mm:ss").toDate());
 
             case "password":
                 return <span className="text-gray-500">••••••••</span>;

@@ -18,7 +18,12 @@ import {
     CheckOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
-import { taskDateTimeToDayjs, formatCompanyTime } from "@/lib/taskDateTime";
+import {
+    taskDateTimeToDayjs,
+    formatTaskDateWithCompanyTime,
+    formatTaskCompanyTime,
+} from "@/lib/taskDateTime";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import { getPriorityConfig } from "@/lib/priority";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client";
@@ -135,13 +140,18 @@ function PropTable({ children }: { children: React.ReactNode }) {
 
 function formatDateTime(dateStr: string | undefined): React.ReactNode {
     if (!dateStr) return <span className="text-slate-500">Not set</span>;
-    const d = taskDateTimeToDayjs(dateStr);
-    if (!d) return <span className="text-slate-500">Not set</span>;
+    const label = formatTaskDateWithCompanyTime(dateStr, { fallback: "" });
+    if (!label) return <span className="text-slate-500">Not set</span>;
+    const [datePart, timePart] = label.split(" · ");
     return (
         <span>
-            {d.format("MMM D, YYYY")}
-            <span className="text-slate-400 mx-1.5">·</span>
-            {formatCompanyTime(d)}
+            {datePart}
+            {timePart ? (
+                <>
+                    <span className="text-slate-400 mx-1.5">·</span>
+                    {timePart}
+                </>
+            ) : null}
         </span>
     );
 }
@@ -399,7 +409,9 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                             <div className="flex items-center gap-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-red-700 text-[12px] font-semibold">
                                 <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
                                 Overdue since{" "}
-                                {dueDayjs?.format("MMM D, YYYY")}
+                                {dueDayjs
+                                    ? formatCompanyDate(dueDayjs.toDate())
+                                    : ""}
                             </div>
                         )}
 

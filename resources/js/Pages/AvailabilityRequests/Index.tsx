@@ -25,6 +25,7 @@ import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 interface AvailabilityRequest {
     id: number;
@@ -244,16 +245,7 @@ const Index = () => {
             title: "Requested",
             key: "created_at",
             width: 160,
-            render: (_, record) => {
-                const date = new Date(record.created_at);
-                return date.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                });
-            },
+            render: (_, record) => formatCompanyDateTime(record.created_at),
         },
         {
             title: "Actions",
@@ -524,9 +516,9 @@ const Index = () => {
                                     Requested At
                                 </span>
                                 <div>
-                                    {new Date(
+                                    {formatCompanyDateTime(
                                         detailModal.request.created_at,
-                                    ).toLocaleString()}
+                                    )}
                                 </div>
                             </div>
                             {detailModal.request.responded_at && (
@@ -535,9 +527,9 @@ const Index = () => {
                                         Responded At
                                     </span>
                                     <div>
-                                        {new Date(
+                                        {formatCompanyDateTime(
                                             detailModal.request.responded_at,
-                                        ).toLocaleString()}
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -547,9 +539,9 @@ const Index = () => {
                                         Escalated At
                                     </span>
                                     <div>
-                                        {new Date(
+                                        {formatCompanyDateTime(
                                             detailModal.request.escalated_at,
-                                        ).toLocaleString()}
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -559,9 +551,9 @@ const Index = () => {
                                         Expires At
                                     </span>
                                     <div>
-                                        {new Date(
+                                        {formatCompanyDateTime(
                                             detailModal.request.expires_at,
-                                        ).toLocaleString()}
+                                        )}
                                     </div>
                                 </div>
                             )}

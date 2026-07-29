@@ -19,6 +19,7 @@ import { usePage } from "@inertiajs/react";
 import {
     taskDateTimeToDayjs,
     companyTimeDayjsFormat,
+    companyDateDayjsFormat,
 } from "@/lib/taskDateTime";
 
 
@@ -422,7 +423,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     <Form.Item name="start_date" label={td("Start Date")}>
                         <DatePicker
                             style={{ width: "100%" }}
-                            format={`YYYY-MM-DD ${companyTimeDayjsFormat()}`}
+                            format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
                             showTime={{ format: companyTimeDayjsFormat() }}
                             placeholder="Select start date"
                         />
@@ -436,7 +437,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     >
                         <DatePicker
                             style={{ width: "100%" }}
-                            format={`YYYY-MM-DD ${companyTimeDayjsFormat()}`}
+                            format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
                             showTime={{ format: companyTimeDayjsFormat() }}
                             placeholder={td("Select due date")}
                         />

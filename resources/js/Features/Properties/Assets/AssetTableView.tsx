@@ -9,7 +9,7 @@ import {
 } from "@ant-design/icons";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 const { Text } = Typography;
 
@@ -164,7 +164,7 @@ const AssetTableView: React.FC<AssetTableViewProps> = ({
             key: "created_at",
             width: 150,
             render: (date: string) => (
-                <Text>{dayjs(date).format("MMM D, YYYY h:mm A")}</Text>
+                <Text>{formatCompanyDateTime(date)}</Text>
             ),
         },
     ];

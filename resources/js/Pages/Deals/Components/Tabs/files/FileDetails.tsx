@@ -5,7 +5,7 @@ import { Modal, Form, Input, Button, Descriptions, Typography } from "antd";
 import { EditOutlined, SaveOutlined, EyeOutlined } from "@ant-design/icons";
 import { useState } from "react";
 import { ApiResponse } from "@/lib/api/types";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -133,14 +133,14 @@ const FileDetails: React.FC<Props> = ({
                         {formatFileSize(file.size)}
                     </Descriptions.Item>
                     <Descriptions.Item label="Uploaded">
-                        {dayjs(file.created_at).format(
-                            "MMMM DD, YYYY [at] h:mm A"
-                        )}
+                        {formatCompanyDateTime(file.created_at, {
+                            separator: " at ",
+                        })}
                     </Descriptions.Item>
                     <Descriptions.Item label="Last Modified">
-                        {dayjs(file.updated_at).format(
-                            "MMMM DD, YYYY [at] h:mm A"
-                        )}
+                        {formatCompanyDateTime(file.updated_at, {
+                            separator: " at ",
+                        })}
                     </Descriptions.Item>
                 </Descriptions>
 

@@ -15,6 +15,7 @@ import {
 } from "@ant-design/icons";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
@@ -65,7 +66,7 @@ const DealCard: React.FC<DealCardProps> = ({
 
     // Format date
     const formattedDate = deal.created_at
-        ? dayjs(deal.created_at).format("MMM D, YYYY")
+        ? formatCompanyDate(deal.created_at)
         : null;
 
     // Prepare current agent for AgentSelector
@@ -262,8 +263,8 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Tooltip
                                 title={
                                     deal.updated_at
-                                        ? `Created: ${dayjs(deal.created_at).format("MMM D, YYYY h:mm A")} · Updated: ${dayjs(deal.updated_at).format("MMM D, YYYY h:mm A")}`
-                                        : `Created: ${dayjs(deal.created_at).format("MMM D, YYYY h:mm A")}`
+                                        ? `Created: ${formatCompanyDateTime(deal.created_at)} · Updated: ${formatCompanyDateTime(deal.updated_at)}`
+                                        : `Created: ${formatCompanyDateTime(deal.created_at)}`
                                 }
                             >
                                 <div className="flex items-center gap-1 text-[12px] text-gray-400">

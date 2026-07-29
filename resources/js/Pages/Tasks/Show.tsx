@@ -40,8 +40,11 @@ import {
 import dayjs from "dayjs";
 import {
     taskDateTimeToDayjs,
-    companyTimeDayjsFormat,
 } from "@/lib/taskDateTime";
+import {
+    formatCompanyDate,
+    formatCompanyDateTime,
+} from "@/lib/companyDateTime";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -693,8 +696,8 @@ const TaskShow = ({
                                             <div className="mt-1">
                                                 {startDayjs ? (
                                                     <Text>
-                                                        {startDayjs.format(
-                                                            "MMM DD, YYYY",
+                                                        {formatCompanyDate(
+                                                            startDayjs,
                                                         )}
                                                     </Text>
                                                 ) : (
@@ -721,8 +724,8 @@ const TaskShow = ({
                                                                     : ""
                                                             }
                                                         >
-                                                            {dueDayjs.format(
-                                                                "MMM DD, YYYY",
+                                                            {formatCompanyDate(
+                                                                dueDayjs,
                                                             )}
                                                         </Text>
                                                         {isOverdue && (
@@ -748,10 +751,8 @@ const TaskShow = ({
                                                 </Text>
                                                 <div className="mt-1">
                                                     <Text className="text-green-600">
-                                                        {dayjs(
+                                                        {formatCompanyDate(
                                                             task.completed_on,
-                                                        ).format(
-                                                            "MMM DD, YYYY",
                                                         )}
                                                     </Text>
                                                 </div>
@@ -980,10 +981,8 @@ const TaskShow = ({
                                                     type="secondary"
                                                     className="block text-xs"
                                                 >
-                                                    {dayjs(
+                                                    {formatCompanyDateTime(
                                                         task.created_at,
-                                                    ).format(
-                                                        `MMM DD, YYYY ${companyTimeDayjsFormat()}`,
                                                     )}
                                                 </Text>
                                             </div>

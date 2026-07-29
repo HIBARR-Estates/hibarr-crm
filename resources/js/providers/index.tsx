@@ -5,7 +5,7 @@ import { FilterProvider } from "@/contexts/FilterContext";
 import { TranslationProvider } from "@/contexts/TranslationContext";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
 import UserTimezoneCapture from "@/Components/UserTimezoneCapture";
-import CompanyDateTimeSync from "@/Components/CompanyDateTimeSync";
+import { CompanyDateTimeProvider } from "@/Components/CompanyDateTimeProvider";
 
 /**
  * Providers that DON'T require Inertia context (usePage)
@@ -30,8 +30,9 @@ export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
             <DynamicTranslationProvider>
                 <AntdConfigProvider>
                     <UserTimezoneCapture />
-                    <CompanyDateTimeSync />
-                    <FilterProvider>{children}</FilterProvider>
+                    <CompanyDateTimeProvider>
+                        <FilterProvider>{children}</FilterProvider>
+                    </CompanyDateTimeProvider>
                 </AntdConfigProvider>
             </DynamicTranslationProvider>
         </TranslationProvider>

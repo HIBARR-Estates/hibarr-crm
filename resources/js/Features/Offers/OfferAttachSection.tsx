@@ -4,6 +4,7 @@ import { GiftOutlined, LinkOutlined } from "@ant-design/icons";
 import { useApiQuery } from "@/lib/api/client";
 import type { Offer, OfferablePivot } from "@/Types/api/offers";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 type OfferWithPivot = Offer & { pivot?: OfferablePivot };
 
@@ -189,11 +190,9 @@ const OfferAttachSection: React.FC<OfferAttachSectionProps> = ({
                                             )}
                                             {offer.starts_at && (
                                                 <span>
-                                                    {dayjs(
-                                                        offer.starts_at,
-                                                    ).format("MMM DD")}
+                                                    {formatCompanyDate(offer.starts_at)}
                                                     {offer.ends_at
-                                                        ? ` → ${dayjs(offer.ends_at).format("MMM DD")}`
+                                                        ? ` → ${formatCompanyDate(offer.ends_at)}`
                                                         : "+"}
                                                 </span>
                                             )}

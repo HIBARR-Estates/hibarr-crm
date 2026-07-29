@@ -1,6 +1,7 @@
 import type { Proposal } from "@/Types/api/proposal";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 dayjs.extend(relativeTime);
 
@@ -21,12 +22,6 @@ export interface WorkspaceOfferListItem {
     canSend: boolean;
     proposal: Proposal;
 }
-
-const DATE_FORMAT = new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-});
 
 function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
@@ -87,7 +82,7 @@ export function toWorkspaceOfferListItem(
                 ? options.sentToName
                 : null,
         validUntilLabel: proposal.valid_till
-            ? DATE_FORMAT.format(new Date(proposal.valid_till))
+            ? formatCompanyDate(proposal.valid_till)
             : null,
         notes: notes || null,
         canEdit: options.canEdit,

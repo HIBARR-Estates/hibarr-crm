@@ -46,6 +46,7 @@ import type {
     MlmCycleFormData,
     CycleStatus,
 } from "@/Features/Mlm/types";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props extends PageProps {}
 
@@ -282,13 +283,13 @@ const EnrollmentSubTable: React.FC<{ cycleId: number }> = ({ cycleId }) => {
             title: "Start",
             dataIndex: "effective_start_date",
             key: "start",
-            render: (v: string) => (v ? new Date(v).toLocaleDateString() : "-"),
+            render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
             title: "End",
             dataIndex: "effective_end_date",
             key: "end",
-            render: (v: string) => (v ? new Date(v).toLocaleDateString() : "-"),
+            render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
             title: "Individual Sales",
@@ -417,13 +418,13 @@ const CycleManagement: React.FC<Props> = () => {
             title: "Start",
             dataIndex: "start_date",
             key: "start_date",
-            render: (v: string) => (v ? new Date(v).toLocaleDateString() : "-"),
+            render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
             title: "End",
             dataIndex: "end_date",
             key: "end_date",
-            render: (v: string) => (v ? new Date(v).toLocaleDateString() : "-"),
+            render: (v: string) => formatCompanyDate(v, "-"),
         },
         {
             title: "Duration",

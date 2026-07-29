@@ -3,6 +3,7 @@ import { Deal, HibarrDealFields } from "@/Types/api/deals";
 import { Tag } from "antd";
 import { CheckCircleOutlined, CloseCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import EditableField from "@/Components/EditableField";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 
@@ -231,7 +232,7 @@ const DealDetailsTab: React.FC<Props> = ({
                                 disabled={disabled}
                                 formatValue={(val) =>
                                     val
-                                        ? dayjs(val).format("MMM DD, YYYY")
+                                        ? formatCompanyDate(val)
                                         : "--"
                                 }
                             />

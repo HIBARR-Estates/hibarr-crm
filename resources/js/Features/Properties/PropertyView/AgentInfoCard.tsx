@@ -6,6 +6,7 @@ import {
     CalendarOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 const { Text } = Typography;
 
@@ -102,7 +103,7 @@ export default function AgentInfoCard({ property }: AgentInfoCardProps) {
                         </Text>
                     </Space>
                     <Text className="text-xs">
-                        {new Date(property.created_at).toLocaleDateString()}
+                        {formatCompanyDate(property.created_at)}
                     </Text>
                 </div>
             </div>

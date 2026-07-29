@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Modal, List, Spin, Empty, message } from "antd";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { WebinarSession } from "@/Types/qualification";
 import { RegistrationService } from "@/Services/RegistrationService";
 
@@ -53,9 +53,7 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
             return;
         }
 
-        const sessionLabel = `${selected.title} · ${dayjs(selected.startsAt).format(
-            "ddd, MMM D, YYYY · h:mm A",
-        )}`;
+        const sessionLabel = `${selected.title} · ${formatCompanyDateTime(selected.startsAt)}`;
         onSelect(selectedId, sessionLabel);
     };
 
@@ -90,9 +88,7 @@ const WebinarSessionPickerModal: React.FC<WebinarSessionPickerModalProps> = ({
                             <div>
                                 <div className="font-medium">{session.title}</div>
                                 <div className="text-sm text-gray-500">
-                                    {dayjs(session.startsAt).format(
-                                        "ddd, MMM D, YYYY · h:mm A",
-                                    )}
+                                    {formatCompanyDateTime(session.startsAt)}
                                     {session.timezone
                                         ? ` (${session.timezone})`
                                         : ""}

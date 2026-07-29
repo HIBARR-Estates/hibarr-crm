@@ -7,6 +7,7 @@ import {
     CalendarOutlined,
 } from "@ant-design/icons";
 import { Property } from "@/Types";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface ClassificationCardProps {
     property: Property;
@@ -86,9 +87,7 @@ export default function ClassificationCard({
                 {property.completion_date && (
                     <Descriptions.Item label="Completion Date">
                         <CalendarOutlined className="mr-1" />
-                        {new Date(
-                            property.completion_date,
-                        ).toLocaleDateString()}
+                        {formatCompanyDate(property.completion_date)}
                     </Descriptions.Item>
                 )}
             </Descriptions>

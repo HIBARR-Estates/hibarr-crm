@@ -33,6 +33,7 @@ import {
     DropResult,
 } from "@hello-pangea/dnd";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import { router } from "@inertiajs/react";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
@@ -223,9 +224,7 @@ const DealsTracker: React.FC<DealsTrackerProps> = ({
                                             >
                                                 <CalendarOutlined />
                                                 <span>
-                                                    {dayjs(
-                                                        deal.close_date
-                                                    ).format("MMM DD")}
+                                                    {formatCompanyDate(deal.close_date)}
                                                 </span>
                                                 {isOverdue && (
                                                     <Tag color="error">

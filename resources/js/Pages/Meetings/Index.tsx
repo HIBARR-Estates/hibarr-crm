@@ -23,6 +23,7 @@ import {
     ReloadOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyTime } from "@/lib/companyDateTime";
 import utc from "dayjs/plugin/utc";
 
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -421,11 +422,11 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
             <div className="px-4 pb-3 flex items-center gap-3 flex-wrap text-xs text-gray-500">
                 <span className="flex items-center gap-1">
                     <CalendarOutlined />
-                    {localDate.format("MMM DD, YYYY")}
+                    {formatCompanyDate(localDate)}
                 </span>
                 <span className="flex items-center gap-1">
                     <ClockCircleOutlined />
-                    {localDate.format("h:mm A")}
+                    {formatCompanyTime(localDate)}
                 </span>
                 {/* <Tag
                     color={live ? "red" : getStatusColor(meeting.status)}

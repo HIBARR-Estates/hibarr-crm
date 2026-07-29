@@ -20,7 +20,10 @@ import {
     CalendarOutlined,
 } from "@ant-design/icons";
 import SideNavTabs from "@/Components/SideNavTabs";
-import dayjs from "dayjs";
+import {
+    formatCompanyDate,
+    formatCompanyDateTime,
+} from "@/lib/companyDateTime";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
@@ -1215,9 +1218,7 @@ export default function DealInfoSection({
                                 }
                                 formatValue={(value) =>
                                     value
-                                        ? dayjs(value.toString()).format(
-                                              "MMM DD, YYYY",
-                                          )
+                                        ? formatCompanyDate(value.toString())
                                         : "--"
                                 }
                                 alwaysEditing={isFieldEditable}
@@ -1373,9 +1374,7 @@ export default function DealInfoSection({
                             {currentDeal.created_at ? (
                                 <span className="flex items-center gap-1">
                                     <CalendarOutlined className="text-gray-400" />
-                                    {dayjs(currentDeal.created_at).format(
-                                        "MMM DD, YYYY HH:mm",
-                                    )}
+                                    {formatCompanyDateTime(currentDeal.created_at)}
                                 </span>
                             ) : (
                                 <span className="text-gray-400">--</span>
@@ -1390,9 +1389,7 @@ export default function DealInfoSection({
                             {currentDeal.updated_at ? (
                                 <span className="flex items-center gap-1">
                                     <CalendarOutlined className="text-gray-400" />
-                                    {dayjs(currentDeal.updated_at).format(
-                                        "MMM DD, YYYY HH:mm",
-                                    )}
+                                    {formatCompanyDateTime(currentDeal.updated_at)}
                                 </span>
                             ) : (
                                 <span className="text-gray-400">--</span>

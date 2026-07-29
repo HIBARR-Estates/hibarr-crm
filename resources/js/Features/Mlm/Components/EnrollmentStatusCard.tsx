@@ -3,6 +3,7 @@ import { Card, Progress, Tag, Alert } from "antd";
 import { CalendarDays, AlertTriangle, Clock } from "lucide-react";
 import type { EnrollmentStatus } from "../types";
 import EnrollmentStatusBadge from "./EnrollmentStatusBadge";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface EnrollmentInfo {
     id: number;
@@ -46,12 +47,8 @@ const EnrollmentStatusCard: React.FC<Props> = ({ enrollment, activeCycle }) => {
         );
     }
 
-    const startDate = new Date(
-        enrollment.effective_start_date,
-    ).toLocaleDateString();
-    const endDate = new Date(
-        enrollment.effective_end_date,
-    ).toLocaleDateString();
+    const startDate = formatCompanyDate(enrollment.effective_start_date);
+    const endDate = formatCompanyDate(enrollment.effective_end_date);
 
     // Calculate time progress
     const totalDays = Math.max(
@@ -129,7 +126,7 @@ const EnrollmentStatusCard: React.FC<Props> = ({ enrollment, activeCycle }) => {
                     showIcon
                     icon={<AlertTriangle size={16} />}
                     message="Overflow Period"
-                    description={`You are in overtime. You have ${enrollment.days_remaining} day(s) remaining to meet criteria before your cycle resets.${enrollment.max_overflow_date ? ` Overflow expires: ${new Date(enrollment.max_overflow_date).toLocaleDateString()}` : ""}`}
+                    description={`You are in overtime. You have ${enrollment.days_remaining} day(s) remaining to meet criteria before your cycle resets.${enrollment.max_overflow_date ? ` Overflow expires: ${formatCompanyDate(enrollment.max_overflow_date)}` : ""}`}
                     className="text-sm"
                 />
             )}

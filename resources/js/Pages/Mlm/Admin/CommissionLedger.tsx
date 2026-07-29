@@ -49,6 +49,7 @@ import {
     COMMISSION_TYPE_LABELS,
 } from "@/Features/Mlm/types";
 import { formatNumber } from "@/lib/utils";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 const { RangePicker } = DatePicker;
 
@@ -203,7 +204,7 @@ const MlmCommissionLedger: React.FC<Props> = ({
             title: "Paid At",
             dataIndex: "paid_at",
             key: "paid_at",
-            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+            render: (d: string) => formatCompanyDate(d, "—"),
         },
         {
             title: "Actions",

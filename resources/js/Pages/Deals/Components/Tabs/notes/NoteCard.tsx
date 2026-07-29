@@ -19,7 +19,7 @@ import {
     ClockCircleOutlined,
     UserOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import { Note } from "@/Types/api/note";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 import UserIndicator from "@/Components/UserIndicator";
@@ -169,7 +169,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
             </div>
             <Space size="small" className="text-xs text-gray-400 mt-2">
                 <ClockCircleOutlined />
-                <span>{dayjs(note.created_at).format("MMM DD, YYYY")}</span>
+                <span>{formatCompanyDate(note.created_at)}</span>
             </Space>
         </Card>
     );

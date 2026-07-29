@@ -16,6 +16,7 @@ import {
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyTime } from "@/lib/companyDateTime";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
@@ -245,13 +246,10 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                         {/* Time column */}
                                         <div className="flex min-w-[50px] flex-col items-center justify-start pt-0.5 text-center">
                                             <span className="text-xl font-bold leading-none tabular-nums text-slate-800">
-                                                {start.format("h:mm")}
-                                            </span>
-                                            <span className="mt-0.5 text-[11px] font-medium uppercase text-slate-800">
-                                                {start.format("A")}
+                                                {formatCompanyTime(start)}
                                             </span>
                                             <span className="mt-1 text-sm font-semibold leading-tight text-slate-400">
-                                                {start.format("MMM D")}
+                                                {formatCompanyDate(start)}
                                             </span>
                                         </div>
 

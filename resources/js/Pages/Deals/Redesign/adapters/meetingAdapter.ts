@@ -17,21 +17,6 @@ export interface WorkspaceMeetingPreview {
     attendeesLabel: string;
 }
 
-const DATE_TIME_FORMAT = new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-});
-
-const TIME_FORMAT = new Intl.DateTimeFormat("en", {
-    hour: "numeric",
-    minute: "2-digit",
-});
-
-const MONTH_FORMAT = new Intl.DateTimeFormat("en", { month: "short" });
-
 function parseDate(value: string | undefined): Date | null {
     if (!value) return null;
     const date = new Date(value);

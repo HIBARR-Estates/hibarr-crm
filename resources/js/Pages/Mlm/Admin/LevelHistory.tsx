@@ -13,6 +13,7 @@ import type {
     AgentLevelHistory,
     PaginatedResponse,
 } from "@/Features/Mlm/types";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 const { RangePicker } = DatePicker;
 
@@ -114,16 +115,7 @@ const MlmLevelHistory: React.FC<Props> = ({ history: initialHistory }) => {
             title: "Date",
             dataIndex: "assigned_at",
             key: "assigned_at",
-            render: (d: string) =>
-                d
-                    ? new Date(d).toLocaleDateString("en-US", {
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                      })
-                    : "—",
+            render: (d: string) => formatCompanyDateTime(d, { fallback: "—" }),
         },
     ];
 

@@ -61,6 +61,7 @@ import type {
     AgentCommissionRateAuditLog,
 } from "@/Features/Mlm/types";
 import { COMMISSION_TYPE_LABELS } from "@/Features/Mlm/types";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 interface AgentInfo {
     id: number;
@@ -814,9 +815,9 @@ const AdminAgentDashboard: React.FC<Props> = ({
                                                                             render: (
                                                                                 val: string,
                                                                             ) =>
-                                                                                new Date(
+                                                                                formatCompanyDateTime(
                                                                                     val,
-                                                                                ).toLocaleString(),
+                                                                                ),
                                                                         },
                                                                         {
                                                                             title: "Rate",

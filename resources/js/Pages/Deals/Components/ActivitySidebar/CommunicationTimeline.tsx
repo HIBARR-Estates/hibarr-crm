@@ -9,6 +9,10 @@ import {
     ExpandAltOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import {
+    formatCompanyDateTime,
+    formatCompanyTime,
+} from "@/lib/companyDateTime";
 import { Deal } from "@/Types/api/deals";
 import ActivityItem from "./ActivityItem";
 import { Activity } from "@/Types/api/activity";
@@ -132,11 +136,11 @@ export default function CommunicationTimeline({ deal, compact = true }: Props) {
         const now = dayjs();
 
         if (date.isSame(now, "day")) {
-            return `Today, ${date.format("h:mm A")}`;
+            return `Today, ${formatCompanyTime(date)}`;
         } else if (date.isSame(now.subtract(1, "day"), "day")) {
-            return `Yesterday, ${date.format("h:mm A")}`;
+            return `Yesterday, ${formatCompanyTime(date)}`;
         } else {
-            return date.format("MMM DD, h:mm A");
+            return formatCompanyDateTime(date, { separator: ", " });
         }
     };
 

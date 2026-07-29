@@ -53,6 +53,7 @@ import {
 import { generatePropertySubtitle, snakeToReadable } from "@/lib/utils";
 import { usePermission } from "@/lib/permissionUtils";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 const { Text, Paragraph } = Typography;
 
@@ -307,7 +308,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                     <InfoCircleOutlined className="shrink-0" />
                                     <span className="truncate">
                                         {ut.completion_date
-                                            ? ` · Completion Date: ${dayjs(ut.completion_date).format("D MMMM YYYY")}`
+                                            ? ` · Completion Date: ${formatCompanyDate(ut.completion_date)}`
                                             : ""}
                                     </span>
                                 </div>
@@ -587,9 +588,9 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                         label="Completion"
                                         value={
                                             ut.completion_date
-                                                ? dayjs(
+                                                ? formatCompanyDate(
                                                       ut.completion_date,
-                                                  ).format("D MMMM YYYY")
+                                                  )
                                                 : "-"
                                         }
                                     />

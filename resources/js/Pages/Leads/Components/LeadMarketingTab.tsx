@@ -9,7 +9,7 @@ import {
     GlobalOutlined,
     TrophyOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props {
     lead: Lead;
@@ -146,9 +146,7 @@ const LeadMarketingTab: React.FC<Props> = ({ lead }) => {
                         </Descriptions.Item>
                         <Descriptions.Item label={t("pages.leads.marketing.last_webinar_date")}>
                             {marketing.last_webinar_date
-                                ? dayjs(marketing.last_webinar_date).format(
-                                      "MMM DD, YYYY"
-                                  )
+                                ? formatCompanyDate(marketing.last_webinar_date)
                                 : "--"}
                         </Descriptions.Item>
                         <Descriptions.Item label={t("pages.leads.marketing.registered_for_webinar")}>
