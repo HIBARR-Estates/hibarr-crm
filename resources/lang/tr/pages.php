@@ -404,6 +404,8 @@ return [
             'refreshing'                 => 'Yenileniyor…',
             'less'                       => 'Daha az',
             'more'                       => 'Daha fazla',
+            'show_more'                  => 'Daha fazla göster',
+            'show_less'                  => 'Daha az göster',
             'yes'                        => 'Evet',
             'no'                         => 'Hayır',
             'not_set'                    => 'Ayarlanmadı',
