@@ -382,21 +382,21 @@ class TaskService
                         ]);
                     }
 
-                    // Auto-assign deal agent if applicable
-                    if (strtolower($type) === 'deal' && $entity->agent_id) {
+                    // Auto-assign deal agent only when creating. On update the
+                    // caller's assignee sync is authoritative — re-attaching here
+                    // made removals look additive (agent always came back).
+                    if ($isNewTask && strtolower($type) === 'deal' && $entity->agent_id) {
                         $agentUserId = \App\Models\LeadAgent::find($entity->agent_id)?->user_id;
                         if ($agentUserId) {
                             $task->users()->syncWithoutDetaching([$agentUserId]);
                         }
 
                         // Send notification to deal watchers/agent about new task
-                        if ($isNewTask) {
-                            app(DealNotificationService::class)->notifyTaskAdded(
-                                $entity,
-                                $task->heading,
-                                $task->id
-                            );
-                        }
+                        app(DealNotificationService::class)->notifyTaskAdded(
+                            $entity,
+                            $task->heading,
+                            $task->id
+                        );
                     }
 
                     // Infer the task's lead link from the deal it's connected to.

@@ -61,7 +61,7 @@ export default function DealAssigneeField({
             >
                 {value.map((id) => {
                     const person = byId.get(id);
-                    if (!person) return null;
+                    const name = person?.name ?? `User #${id}`;
                     return (
                         <span
                             key={id}
@@ -77,13 +77,13 @@ export default function DealAssigneeField({
                         >
                             <DealAvatar
                                 size={20}
-                                initials={initialsFromName(person.name)}
+                                initials={initialsFromName(name)}
                             />
-                            <span style={{ fontSize: 12 }}>{person.name}</span>
+                            <span style={{ fontSize: 12 }}>{name}</span>
                             {!disabled && (
                                 <button
                                     type="button"
-                                    aria-label={`${t("pages.deals.common.remove")} ${person.name}`}
+                                    aria-label={`${t("pages.deals.common.remove")} ${name}`}
                                     onClick={() =>
                                         onChange(value.filter((x) => x !== id))
                                     }
