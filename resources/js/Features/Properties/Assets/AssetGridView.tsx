@@ -7,6 +7,7 @@ import {
     GlobalOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 const { Text, Paragraph } = Typography;
 
@@ -157,7 +158,7 @@ const AssetGridView: React.FC<AssetGridViewProps> = ({
                                     {asset.formatted_size || "N/A"}
                                 </Text>
                                 <Text className="text-xs text-gray-400">
-                                    {dayjs(asset.created_at).format("MMM D")}
+                                    {formatCompanyDate(asset.created_at)}
                                 </Text>
                             </div>
                         </div>

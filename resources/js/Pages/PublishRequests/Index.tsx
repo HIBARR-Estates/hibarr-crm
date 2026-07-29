@@ -26,6 +26,7 @@ import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 interface PublishRequest {
     id: number;
@@ -237,16 +238,7 @@ const Index = () => {
             title: "Submitted",
             key: "created_at",
             width: 160,
-            render: (_, record) => {
-                const date = new Date(record.created_at);
-                return date.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                });
-            },
+            render: (_, record) => formatCompanyDateTime(record.created_at),
         },
         {
             title: "Reviewer",
@@ -536,9 +528,9 @@ const Index = () => {
                                     Submitted At
                                 </span>
                                 <div>
-                                    {new Date(
+                                    {formatCompanyDateTime(
                                         detailModal.request.created_at,
-                                    ).toLocaleString()}
+                                    )}
                                 </div>
                             </div>
                             {detailModal.request.reviewed_at && (
@@ -547,9 +539,9 @@ const Index = () => {
                                         Reviewed At
                                     </span>
                                     <div>
-                                        {new Date(
+                                        {formatCompanyDateTime(
                                             detailModal.request.reviewed_at,
-                                        ).toLocaleString()}
+                                        )}
                                     </div>
                                 </div>
                             )}

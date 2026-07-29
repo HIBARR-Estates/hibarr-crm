@@ -17,6 +17,7 @@ import { useCountries } from "@/Hooks/useFormData";
 import { LeadFormProps } from "./LeadForm";
 import LeadDealCreation from "./LeadDealCreation";
 import dayjs from "dayjs";
+import { companyDateDayjsFormat } from "@/lib/companyDateTime";
 import FormDataSelector from "@/Components/FormDataSelector";
 import PhoneInput from "antd-phone-input";
 import {
@@ -408,7 +409,7 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                     >
                                         <DatePicker
                                             className="w-full"
-                                            format="DD MMM YYYY"
+                                            format={companyDateDayjsFormat()}
                                             placeholder="Select date"
                                         />
                                     </Form.Item>

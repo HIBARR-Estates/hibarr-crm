@@ -3,7 +3,7 @@ import { Button, Dropdown, MenuProps, Tag, Tooltip } from "antd";
 import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
 import { Agent } from "@/Types/api/agents";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
 
@@ -126,7 +126,7 @@ export const AGENT_TABLE_COLUMNS = (
                 return <span className="text-gray-400">--</span>;
             return (
                 <span className="text-gray-900">
-                    {dayjs(record.created_at).format("MMM DD, YYYY")}
+                    {formatCompanyDate(record.created_at)}
                 </span>
             );
         },

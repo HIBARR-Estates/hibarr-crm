@@ -2,6 +2,7 @@ import { type ReactNode, useState } from "react";
 import { message } from "antd";
 import axios from "axios";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import { DetailField } from "@/Components/DetailSection";
 import ManageDealPropertiesModal from "@/Features/Deals/Properties/AttachPropertiesModal";
@@ -243,7 +244,7 @@ export default function DealInfoSectionPanel({
                         onSave={(value) => onFieldUpdate("close_date", value)}
                         formatValue={(value) =>
                             value
-                                ? dayjs(String(value)).format("MMM DD, YYYY")
+                                ? formatCompanyDate(String(value))
                                 : t("pages.deals.common.not_set")
                         }
                         alwaysEditing={editing}
@@ -372,7 +373,7 @@ export default function DealInfoSectionPanel({
                         }
                         formatValue={(value) =>
                             value
-                                ? dayjs(String(value)).format("MMM DD, YYYY")
+                                ? formatCompanyDate(String(value))
                                 : t("pages.deals.common.not_set")
                         }
                         alwaysEditing={editing}
@@ -515,9 +516,9 @@ export default function DealInfoSectionPanel({
                                         </td>
                                         <td className="text-[#5b6472]">
                                             {granted && consent.lead[0]?.created_at
-                                                ? dayjs(
+                                                ? formatCompanyDate(
                                                     consent.lead[0].created_at,
-                                                ).format("D MMM YYYY")
+                                                )
                                                 : "—"}
                                         </td>
                                     </tr>

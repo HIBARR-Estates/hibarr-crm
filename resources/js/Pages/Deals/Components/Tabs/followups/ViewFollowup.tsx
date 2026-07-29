@@ -26,6 +26,13 @@ import {
     ScheduleOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import {
+    companyDateDayjsFormat,
+    companyTimeDayjsFormat,
+    formatCompanyDate,
+    formatCompanyDateTime,
+    formatCompanyTime,
+} from "@/lib/companyDateTime";
 import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -211,7 +218,7 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
                     >
                         <DatePicker
                             className="w-full"
-                            format="YYYY-MM-DD"
+                            format={companyDateDayjsFormat()}
                             disabledDate={(current) =>
                                 current && current < dayjs().startOf("day")
                             }
@@ -228,7 +235,7 @@ const RescheduleModal: React.FC<RescheduleModalProps> = ({
                             },
                         ]}
                     >
-                        <TimePicker className="w-full" format="HH:mm" />
+                        <TimePicker className="w-full" format={companyTimeDayjsFormat()} />
                     </Form.Item>
                 </div>
 
@@ -418,15 +425,13 @@ const ViewFollowup: React.FC<Props> = ({
                     <div className="flex items-stretch gap-3">
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Date</p>
-                            <p className="text-[20px] font-black text-slate-900 leading-none">{localDate.format("MMM DD")}</p>
-                            <p className="text-[12px] text-slate-500 mt-0.5">{localDate.format("YYYY")}</p>
+                            <p className="text-[20px] font-black text-slate-900 leading-none">{formatCompanyDate(localDate)}</p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-blue-600 rounded-2xl py-4 px-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-blue-200 mb-1">Time</p>
                             <p className="text-[26px] font-black text-white leading-none tabular-nums">
-                                {localDate.format("h:mm")}
+                                {formatCompanyTime(localDate)}
                             </p>
-                            <p className="text-[12px] text-blue-200 mt-0.5">{localDate.format("A")}</p>
                         </div>
                         <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 rounded-2xl border border-slate-100 py-4 px-3 text-center">
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Duration</p>
@@ -585,7 +590,7 @@ const ViewFollowup: React.FC<Props> = ({
                                     </div>
                                 ))}
                                 <p className="text-[11px] text-slate-300 mt-2 mb-0">
-                                    Generated {dayjs(followup.meeting_summary.created_at).format("MMM DD, YYYY [at] h:mm A")}
+                                    Generated {formatCompanyDateTime(followup.meeting_summary.created_at, { separator: " at " })}
                                 </p>
                             </div>
                         </div>

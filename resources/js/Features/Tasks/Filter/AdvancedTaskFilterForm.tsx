@@ -2,6 +2,7 @@ import React from "react";
 import { Form, Select, DatePicker, Button, Space, Row, Col, Card } from "antd";
 import { SearchOutlined, ClearOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { companyDateDayjsFormat } from "@/lib/companyDateTime";
 
 const { Option } = Select;
 const { RangePicker } = DatePicker;
@@ -266,7 +267,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                         <Form.Item name="due_date_range" label="Due Date Range">
                             <RangePicker
                                 style={{ width: "100%" }}
-                                format="YYYY-MM-DD"
+                                format={companyDateDayjsFormat()}
                                 placeholder={["Start Date", "End Date"]}
                             />
                         </Form.Item>
@@ -279,7 +280,7 @@ const AdvancedTaskFilterForm: React.FC<AdvancedTaskFilterFormProps> = ({
                         >
                             <RangePicker
                                 style={{ width: "100%" }}
-                                format="YYYY-MM-DD"
+                                format={companyDateDayjsFormat()}
                                 placeholder={["Start Date", "End Date"]}
                             />
                         </Form.Item>

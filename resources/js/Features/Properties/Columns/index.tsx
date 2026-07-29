@@ -13,7 +13,7 @@ import { ColumnsType } from "antd/lib/table";
 import { MoreOutlined, BlockOutlined } from "@ant-design/icons";
 import PageDataSorter from "@/Components/PageDataSorter";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 /** Helper: is this row a virtual unit type (not a real property)? */
 const isUnitType = (record: Property) => record._source === "unit_type";
@@ -232,7 +232,7 @@ export const PROPERTY_TABLE_COLUMNS = (
         width: 120,
         render: (_, record: Property) => (
             <span className="text-gray-900">
-                {dayjs(record.created_at).format("MMM DD, YYYY")}
+                {formatCompanyDate(record.created_at)}
             </span>
         ),
     },

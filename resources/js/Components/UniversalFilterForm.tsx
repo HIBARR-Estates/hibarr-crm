@@ -13,6 +13,10 @@ import {
 import { useFilter, FilterConfig } from "@/contexts/FilterContext";
 import { usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
+import {
+    companyDateDayjsFormat,
+    formatCompanyDate,
+} from "@/lib/companyDateTime";
 
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
@@ -161,15 +165,20 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
             return (
                 <DatePicker
                     value={value ? dayjs(value) : null}
-                    onChange={(date, dateString) => {
+                    onChange={(date) => {
                         const displayValue = date
-                            ? date.format("MMM DD, YYYY")
+                            ? formatCompanyDate(date)
                             : "";
-                        setFilter(key, dateString || null, label, displayValue);
+                        setFilter(
+                            key,
+                            date ? date.format("YYYY-MM-DD") : null,
+                            label,
+                            displayValue,
+                        );
                     }}
                     placeholder={placeholder || `Select ${label.toLowerCase()}`}
                     style={{ width: "100%" }}
-                    format="YYYY-MM-DD"
+                    format={companyDateDayjsFormat()}
                 />
             );
         }
@@ -186,29 +195,22 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
                         startValue ? dayjs(startValue) : null,
                         endValue ? dayjs(endValue) : null,
                     ]}
-                    onChange={(dates, dateStrings) => {
-                        const displayValue =
-                            dates && dates[0] && dates[1]
-                                ? `${dates[0].format(
-                                      "MMM DD, YYYY"
-                                  )} to ${dates[1].format("MMM DD, YYYY")}`
-                                : "";
-
+                    onChange={(dates) => {
                         setFilter(
                             startKey,
-                            dateStrings[0] || null,
+                            dates?.[0] ? dates[0].format("YYYY-MM-DD") : null,
                             `${label} Start`,
-                            dates?.[0] ? dates[0].format("MMM DD, YYYY") : ""
+                            dates?.[0] ? formatCompanyDate(dates[0]) : "",
                         );
                         setFilter(
                             endKey,
-                            dateStrings[1] || null,
+                            dates?.[1] ? dates[1].format("YYYY-MM-DD") : null,
                             `${label} End`,
-                            dates?.[1] ? dates[1].format("MMM DD, YYYY") : ""
+                            dates?.[1] ? formatCompanyDate(dates[1]) : "",
                         );
                     }}
                     style={{ width: "100%" }}
-                    format="YYYY-MM-DD"
+                    format={companyDateDayjsFormat()}
                 />
             );
         }

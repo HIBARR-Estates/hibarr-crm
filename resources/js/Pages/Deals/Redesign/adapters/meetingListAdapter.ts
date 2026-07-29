@@ -39,11 +39,6 @@ export interface WorkspaceMeetingListItem extends WorkspaceMeetingPreview {
     followup: DealFollowup;
 }
 
-const TIME_FORMAT = new Intl.DateTimeFormat("en", {
-    hour: "numeric",
-    minute: "2-digit",
-});
-
 function getPlatformMeta(location?: string | null): {
     label: string;
     variant: "blue" | "green" | "gray";

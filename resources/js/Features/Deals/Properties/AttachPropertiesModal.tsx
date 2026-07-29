@@ -42,7 +42,7 @@ import type {
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import type { Offer } from "@/Types/api/offers";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 const { Text } = Typography;
 
@@ -1037,11 +1037,7 @@ const UnitTypeCard: React.FC<UnitTypeCardProps> = ({
                                                                   ? `${offer.value} off`
                                                                   : "Perks"}
                                                             {offer.ends_at &&
-                                                                ` · Expires ${dayjs(
-                                                                    offer.ends_at,
-                                                                ).format(
-                                                                    "D MMM YYYY",
-                                                                )}`}
+                                                                ` · Expires ${formatCompanyDate(offer.ends_at)}`}
                                                         </div>
                                                     </div>
                                                 </label>

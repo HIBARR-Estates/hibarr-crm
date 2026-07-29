@@ -38,6 +38,13 @@ import {
     UnorderedListOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import {
+    taskDateTimeToDayjs,
+} from "@/lib/taskDateTime";
+import {
+    formatCompanyDate,
+    formatCompanyDateTime,
+} from "@/lib/companyDateTime";
 import relativeTime from "dayjs/plugin/relativeTime";
 
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
@@ -203,9 +210,15 @@ const TaskShow = ({
             ? Math.min((spentMinutes / estimatedMinutes) * 100, 100)
             : 0;
 
+    const dueDayjs = task.due_date
+        ? taskDateTimeToDayjs(task.due_date)
+        : null;
+    const startDayjs = task.start_date
+        ? taskDateTimeToDayjs(task.start_date)
+        : null;
     const isOverdue =
-        task.due_date &&
-        dayjs().isAfter(dayjs(task.due_date)) &&
+        !!dueDayjs &&
+        dayjs().isAfter(dueDayjs) &&
         task.status !== "done";
     const subtasksCount = task.subtasks_count || task.subtasks?.length || 0;
     const completedSubtasksCount = task.completed_subtasks_count || 0;
@@ -681,12 +694,10 @@ const TaskShow = ({
                                                 Start Date
                                             </Text>
                                             <div className="mt-1">
-                                                {task.start_date ? (
+                                                {startDayjs ? (
                                                     <Text>
-                                                        {dayjs(
-                                                            task.start_date,
-                                                        ).format(
-                                                            "MMM DD, YYYY",
+                                                        {formatCompanyDate(
+                                                            startDayjs,
                                                         )}
                                                     </Text>
                                                 ) : (
@@ -704,7 +715,7 @@ const TaskShow = ({
                                                 Due Date
                                             </Text>
                                             <div className="mt-1 flex items-center gap-2">
-                                                {task.due_date ? (
+                                                {dueDayjs ? (
                                                     <>
                                                         <Text
                                                             className={
@@ -713,10 +724,8 @@ const TaskShow = ({
                                                                     : ""
                                                             }
                                                         >
-                                                            {dayjs(
-                                                                task.due_date,
-                                                            ).format(
-                                                                "MMM DD, YYYY",
+                                                            {formatCompanyDate(
+                                                                dueDayjs,
                                                             )}
                                                         </Text>
                                                         {isOverdue && (
@@ -742,10 +751,8 @@ const TaskShow = ({
                                                 </Text>
                                                 <div className="mt-1">
                                                     <Text className="text-green-600">
-                                                        {dayjs(
+                                                        {formatCompanyDate(
                                                             task.completed_on,
-                                                        ).format(
-                                                            "MMM DD, YYYY",
                                                         )}
                                                     </Text>
                                                 </div>
@@ -974,10 +981,8 @@ const TaskShow = ({
                                                     type="secondary"
                                                     className="block text-xs"
                                                 >
-                                                    {dayjs(
+                                                    {formatCompanyDateTime(
                                                         task.created_at,
-                                                    ).format(
-                                                        "MMM DD, YYYY h:mm A",
                                                     )}
                                                 </Text>
                                             </div>

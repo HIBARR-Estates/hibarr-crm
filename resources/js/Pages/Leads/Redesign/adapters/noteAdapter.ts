@@ -1,6 +1,7 @@
 import type { LeadNote } from "@/Types/api/lead-note";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 dayjs.extend(relativeTime);
 
@@ -16,12 +17,6 @@ export interface LeadNotePreview {
     timeLabel: string;
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en", {
-    month: "short",
-    day: "2-digit",
-    year: "numeric",
-});
-
 function formatDate(value: string | undefined): {
     date: Date | null;
     label: string;
@@ -29,7 +24,7 @@ function formatDate(value: string | undefined): {
     if (!value) return { date: null, label: "No date" };
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return { date: null, label: "No date" };
-    return { date, label: DATE_FORMAT.format(date) };
+    return { date, label: formatCompanyDate(date) };
 }
 
 function stripHtml(html: string): string {

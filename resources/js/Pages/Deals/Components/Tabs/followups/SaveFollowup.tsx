@@ -29,6 +29,10 @@ import {
     EnvironmentOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import {
+    companyDateDayjsFormat,
+    companyTimeDayjsFormat,
+} from "@/lib/companyDateTime";
 import { useState, useEffect } from "react";
 import HtmlEditor from "@/Components/HtmlEditor";
 import MeetingTypeSelector from "./MeetingTypeSelector";
@@ -461,7 +465,7 @@ export default function SaveFollowup({
                 >
                     <DatePicker
                         className="w-full"
-                        format="YYYY-MM-DD"
+                        format={companyDateDayjsFormat()}
                         disabled={loading || isScheduled}
                         disabledDate={(current) => current && current < dayjs().startOf("day")}
                         prefix={<CalendarOutlined />}
@@ -495,7 +499,7 @@ export default function SaveFollowup({
                 >
                     <TimePicker
                         className="w-full"
-                        format="HH:mm"
+                        format={companyTimeDayjsFormat()}
                         disabled={loading || isScheduled}
                         prefix={<ClockCircleOutlined />}
                         placeholder="Select time"

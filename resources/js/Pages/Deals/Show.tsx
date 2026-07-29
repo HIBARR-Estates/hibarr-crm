@@ -17,7 +17,7 @@ import {
     ReloadOutlined,
     CalendarOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import DealInfoSection from "./Components/DealInfoSection";
 import DealTabs from "./Components/DealTabs";
 import ActivitySidebar from "./Components/ActivitySidebar";
@@ -216,10 +216,8 @@ export const LegacyDealShow = ({
                                                     :
                                                 </span>
                                                 {deal.created_at ? (
-                                                    dayjs(
+                                                    formatCompanyDateTime(
                                                         deal.created_at,
-                                                    ).format(
-                                                        "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
                                                     <span className="text-gray-400">
@@ -236,10 +234,8 @@ export const LegacyDealShow = ({
                                                     :
                                                 </span>
                                                 {deal.updated_at ? (
-                                                    dayjs(
+                                                    formatCompanyDateTime(
                                                         deal.updated_at,
-                                                    ).format(
-                                                        "MMM DD, YYYY HH:mm",
                                                     )
                                                 ) : (
                                                     <span className="text-gray-400">

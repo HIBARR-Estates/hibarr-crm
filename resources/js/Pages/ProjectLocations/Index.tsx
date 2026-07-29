@@ -71,6 +71,7 @@ import HtmlEditor from "@/Components/HtmlEditor";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatLocationNameForDisplay } from "@/lib/utils";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 
 const { Text, Title } = Typography;
 
@@ -1955,7 +1956,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 render: (updated_at: string) => (
                     <span className="text-gray-500 text-sm">
                         {updated_at
-                            ? dayjs(updated_at).format("MMM D, YYYY")
+                            ? formatCompanyDate(updated_at)
                             : "--"}
                     </span>
                 ),

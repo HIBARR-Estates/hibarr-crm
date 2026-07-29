@@ -7,7 +7,7 @@ import {
     CalendarOutlined,
     EditOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { ContentRenderer } from "@/Components/ContentRenderer";
 
 const { Title, Text } = Typography;
@@ -63,9 +63,9 @@ const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
                             <CalendarOutlined className="text-gray-500" />
                             <Text type="secondary">
                                 Created on{" "}
-                                {dayjs(note.created_at).format(
-                                    "MMMM DD, YYYY [at] h:mm A"
-                                )}
+                                {formatCompanyDateTime(note.created_at, {
+                                    separator: " at ",
+                                })}
                             </Text>
                         </div>
 
@@ -75,9 +75,9 @@ const ViewNote: React.FC<Props> = ({ deal, note, onClose, open, onEdit }) => {
                                     <EditOutlined className="text-gray-500" />
                                     <Text type="secondary">
                                         Last updated on{" "}
-                                        {dayjs(note.updated_at).format(
-                                            "MMMM DD, YYYY [at] h:mm A"
-                                        )}
+                                        {formatCompanyDateTime(note.updated_at, {
+                                            separator: " at ",
+                                        })}
                                     </Text>
                                 </div>
                             )}

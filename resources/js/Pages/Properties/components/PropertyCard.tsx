@@ -14,6 +14,7 @@ import {
 import type { MenuProps } from "antd";
 import type { Property } from "@/Types";
 import { generatePropertySubtitle } from "@/lib/utils";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface PropertyCardProps {
     property: Property;
@@ -258,14 +259,7 @@ const PropertyCard: React.FC<PropertyCardProps> = ({
                     {property.created_at && (
                         <span className="flex items-center gap-1 text-gray-400">
                             <Calendar size={11} />
-                            {new Date(property.created_at).toLocaleDateString(
-                                "en-GB",
-                                {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                },
-                            )}
+                            {formatCompanyDate(property.created_at)}
                         </span>
                     )}
                 </div>

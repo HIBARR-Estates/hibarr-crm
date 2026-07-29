@@ -23,6 +23,7 @@ import { useApiQuery } from "@/lib/api/client";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
 import { generatePropertySubtitle } from "@/lib/utils";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 interface EditAccessRequest {
     id: number;
@@ -232,16 +233,7 @@ const Index = () => {
             title: "Requested",
             key: "created_at",
             width: 160,
-            render: (_, record) => {
-                const date = new Date(record.created_at);
-                return date.toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                });
-            },
+            render: (_, record) => formatCompanyDateTime(record.created_at),
         },
         {
             title: "Actions",

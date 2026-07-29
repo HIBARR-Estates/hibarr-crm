@@ -32,6 +32,7 @@ import {
     ArrowUpOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type {
     CrmEvent,
@@ -318,7 +319,7 @@ function Index({
             width: 140,
             sorter: true,
             render: (val: string) => (
-                <Tooltip title={dayjs(val).format("YYYY-MM-DD HH:mm:ss")}>
+                <Tooltip title={formatCompanyDateTime(val, { separator: " " })}>
                     <Text className="text-[12px]">{dayjs(val).fromNow()}</Text>
                 </Tooltip>
             ),

@@ -1,4 +1,5 @@
 import dayjs, { Dayjs } from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 export type AgeRangeValue =
     | "under 20"
@@ -170,7 +171,7 @@ export function formatLeadAgeDisplay(
 
     if (hasDob || hasAge) {
         const dateLabel = hasDob
-            ? dayjs(fields.dateOfBirth).format("DD MMM YYYY")
+            ? formatCompanyDate(fields.dateOfBirth)
             : null;
         const ageLabel = hasAge ? `${fields.age} yrs old` : null;
 

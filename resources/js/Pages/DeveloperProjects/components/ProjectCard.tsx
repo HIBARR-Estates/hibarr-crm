@@ -14,14 +14,13 @@ import type { DeveloperProject } from "@/Types/developerProject";
 import { usePermission } from "@/lib/permissionUtils";
 import { formatLocationNameForDisplay } from "@/lib/utils";
 import HiddenBadge from "./HiddenBadge";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 function formatCompletionDate(
     dateStr: string | null | undefined,
 ): string | null {
     if (!dateStr) return null;
-    const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    return d.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
+    return formatCompanyDate(dateStr);
 }
 
 interface ProjectCardProps {

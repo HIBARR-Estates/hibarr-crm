@@ -40,6 +40,11 @@ import {
     FlightDirection,
     ILeadFlightItinerary,
 } from "@/Types/api/lead-flight-itinerary";
+import {
+    formatCompanyDate,
+    formatCompanyDateTime,
+    formatCompanyTime,
+} from "@/lib/companyDateTime";
 
 const { Option } = Select;
 
@@ -59,48 +64,27 @@ function applyServerErrorsToForm(
     );
 }
 
-function createFlightDateFormatters(locale: string) {
-    const intlLocale = locale || "en";
-    const dateFormatter = new Intl.DateTimeFormat(intlLocale, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-    });
-    const timeFormatter = new Intl.DateTimeFormat(intlLocale, {
-        hour: "numeric",
-        minute: "2-digit",
-    });
-    const dateTimeFormatter = new Intl.DateTimeFormat(intlLocale, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-    });
+function parseFlightDate(value: string) {
+    const normalized =
+        value.includes(" ") && !value.includes("T")
+            ? value.replace(" ", "T")
+            : value;
+    const parsed = new Date(normalized);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
-    const parseDate = (value: string) => {
-        const normalized =
-            value.includes(" ") && !value.includes("T")
-                ? value.replace(" ", "T")
-                : value;
-        const parsed = new Date(normalized);
-        return Number.isNaN(parsed.getTime()) ? null : parsed;
-    };
-
+function formatFlightDateParts(value: string) {
+    const parsed = parseFlightDate(value);
+    if (!parsed) return null;
     return {
-        formatDateParts: (value: string) => {
-            const parsed = parseDate(value);
-            if (!parsed) return null;
-            return {
-                date: dateFormatter.format(parsed),
-                time: timeFormatter.format(parsed),
-            };
-        },
-        formatDateTime: (value: string) => {
-            const parsed = parseDate(value);
-            return parsed ? dateTimeFormatter.format(parsed) : null;
-        },
+        date: formatCompanyDate(parsed),
+        time: formatCompanyTime(parsed),
     };
+}
+
+function formatFlightDateTime(value: string) {
+    const parsed = parseFlightDate(value);
+    return parsed ? formatCompanyDateTime(parsed) : null;
 }
 
 function countPluralSuffix(locale: string, count: number): string {
@@ -327,10 +311,6 @@ export default function LeadFlightItineraryTab({
     const { t, locale } = useTranslation();
     const ft = (key: string, options?: Record<string, unknown>) =>
         t(`${FT}.${key}`, options);
-    const flightDateFormatters = useMemo(
-        () => createFlightDateFormatters(locale),
-        [locale],
-    );
     const [isModalVisible, setIsModalVisible] = useState(false);
     const [viewingLeg, setViewingLeg] = useState<ILeadFlightItinerary | null>(
         null,
@@ -736,9 +716,7 @@ export default function LeadFlightItineraryTab({
             key: "flight_date",
             width: 140,
             render: (date: string) => {
-                const formatted = date
-                    ? flightDateFormatters.formatDateParts(date)
-                    : null;
+                const formatted = date ? formatFlightDateParts(date) : null;
                 return formatted ? (
                     <div>
                         <div className="font-semibold text-sm text-gray-900">
@@ -799,7 +777,7 @@ export default function LeadFlightItineraryTab({
     const renderMobileCard = (record: ILeadFlightItinerary) => {
         const isArrival = record.direction === FlightDirection.ARRIVAL;
         const formattedDate = record.flight_date
-            ? flightDateFormatters.formatDateParts(record.flight_date)
+            ? formatFlightDateParts(record.flight_date)
             : null;
         return (
             <div
@@ -1256,7 +1234,7 @@ export default function LeadFlightItineraryTab({
                         </Descriptions.Item>
                         <Descriptions.Item label={ft("date_time")}>
                             {viewingLeg.flight_date
-                                ? (flightDateFormatters.formatDateTime(
+                                ? (formatFlightDateTime(
                                       viewingLeg.flight_date,
                                   ) ?? "—")
                                 : "—"}

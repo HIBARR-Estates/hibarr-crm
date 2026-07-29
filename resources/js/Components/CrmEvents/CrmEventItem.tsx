@@ -16,6 +16,7 @@ import {
     ArrowDownOutlined,
     ArrowUpOutlined,
 } from "@ant-design/icons";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import type {
@@ -209,9 +210,9 @@ export default function CrmEventItem({ event, compact = false }: Props) {
 
                 <div className="flex shrink-0 items-center gap-2 pr-6">
                     <Tooltip
-                        title={dayjs(event.occurred_at).format(
-                            "MMM D, YYYY • h:mm A",
-                        )}
+                        title={formatCompanyDateTime(event.occurred_at, {
+                            separator: " • ",
+                        })}
                     >
                         <div className="flex items-center gap-1.5 text-[11px] font-medium text-gray-400">
                             <ClockCircleOutlined className="text-[10px]" />

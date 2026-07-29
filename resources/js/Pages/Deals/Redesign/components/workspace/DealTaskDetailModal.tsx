@@ -22,6 +22,10 @@ import { extractLocalTime, todayIsoDate } from "../../hooks/taskDateUtils";
 import DealAssigneeField from "./DealAssigneeField";
 import { formatDate, formatDateWithTime } from "../../adapters/dateFormat";
 import { initialsFromName } from "../../adapters/initials";
+import {
+    parseTaskDateTime,
+    toDateInputValue,
+} from "@/lib/taskDateTime";
 
 interface DealTaskDetailModalProps {
     task: Task | null;
@@ -51,8 +55,8 @@ function toFormState(task: Task): EditFormState {
     return {
         title: task.heading,
         description: task.description || "",
-        startDate: task.start_date ? task.start_date.slice(0, 10) : todayIsoDate(),
-        dueDate: task.due_date ? task.due_date.slice(0, 10) : "",
+        startDate: toDateInputValue(task.start_date) || todayIsoDate(),
+        dueDate: toDateInputValue(task.due_date),
         dueTime: extractLocalTime(task.due_date),
         priority: task.priority,
         assignees: (task.users ?? []).map((user) => user.id),
@@ -109,8 +113,8 @@ export default function DealTaskDetailModal({
     const statusSlug = taskStatusSlug(task);
     const done =
         isCompletedColumn(statusSlug, taskBoardColumns) || Boolean(task.completed_on);
-    const startDate = task.start_date ? new Date(task.start_date) : null;
-    const dueDate = task.due_date ? new Date(task.due_date) : null;
+    const startDate = parseTaskDateTime(task.start_date);
+    const dueDate = parseTaskDateTime(task.due_date);
     const dueLabel = formatDateWithTime(dueDate, "-");
     const overdue =
         !done && dueDate != null && dueDate.getTime() < Date.now();

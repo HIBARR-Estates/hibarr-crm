@@ -2,7 +2,10 @@ import React from "react";
 import { Card, Dropdown, Button, Typography, Tooltip } from "antd";
 import { MoreOutlined, CalendarOutlined } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import dayjs from "dayjs";
+import {
+    formatTaskDateWithCompanyTime,
+    parseTaskDateTime,
+} from "@/lib/taskDateTime";
 import MultiUserIndicator from "./MultiUserIndicator";
 import { getPriorityConfig } from "@/lib/priority";
 
@@ -47,8 +50,14 @@ const KanbanTaskCard: React.FC<KanbanTaskCardProps> = ({
 }) => {
     const priorityInfo = getPriorityConfig(priority);
 
-    const formattedDueDate = dueDate
-        ? dayjs(dueDate).format("MMM D, YYYY h:mm A")
+    const parsed =
+        typeof dueDate === "string"
+            ? parseTaskDateTime(dueDate)
+            : dueDate instanceof Date && !Number.isNaN(dueDate.getTime())
+              ? dueDate
+              : null;
+    const formattedDueDate = parsed
+        ? formatTaskDateWithCompanyTime(parsed)
         : null;
 
     const fullDueDate = formattedDueDate;

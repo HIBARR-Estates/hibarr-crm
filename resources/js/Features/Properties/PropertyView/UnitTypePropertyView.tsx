@@ -31,7 +31,7 @@ import type {
 import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 import UnitSoldOutBadge from "@/Components/UnitSoldOutBadge";
 import { capitalizeFirstLetter, formatLocationNameForDisplay } from "@/lib/utils";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 // import UnitTypePropertyHeader from "./UnitTypePropertyHeader";
 
 const { Text, Paragraph } = Typography;
@@ -321,9 +321,7 @@ export default function UnitTypePropertyView({
                                     )}
                                 {unitType.completion_date && (
                                     <Descriptions.Item label="Completion Date">
-                                        {dayjs(unitType.completion_date).format(
-                                            "DD-MM-YYYY",
-                                        )}
+                                        {formatCompanyDate(unitType.completion_date)}
                                     </Descriptions.Item>
                                 )}
                                 {unitType.military_base_distance_km != null && (
@@ -562,9 +560,9 @@ export default function UnitTypePropertyView({
                                 )}
                                 {developerProject.completion_date && (
                                     <Descriptions.Item label="Project Completion">
-                                        {dayjs(
+                                        {formatCompanyDate(
                                             developerProject.completion_date,
-                                        ).format("DD-MM-YYYY")}
+                                        )}
                                     </Descriptions.Item>
                                 )}
                                 {developerProject.title_deed_type && (
@@ -859,11 +857,7 @@ export default function UnitTypePropertyView({
                                     <Tag>{unitType.reference_code || "—"}</Tag>
                                 </Descriptions.Item>
                                 <Descriptions.Item label="Created">
-                                    {unitType.created_at
-                                        ? new Date(
-                                              unitType.created_at,
-                                          ).toLocaleDateString()
-                                        : "—"}
+                                    {formatCompanyDate(unitType.created_at)}
                                 </Descriptions.Item>
                                 {developerProject.rental_guarantee && (
                                     <Descriptions.Item label="Rental Guarantee">

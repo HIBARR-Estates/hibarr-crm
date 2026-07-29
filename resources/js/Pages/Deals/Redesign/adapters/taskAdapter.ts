@@ -1,4 +1,5 @@
 import type { Task } from "@/Types/api/tasks";
+import { parseTaskDateTime } from "@/lib/taskDateTime";
 import { formatDateWithTime } from "./dateFormat";
 import { initialsFromName } from "./initials";
 
@@ -34,9 +35,7 @@ const PRIORITY_WEIGHT: Record<WorkspaceTaskPreview["priority"], number> = {
 
 
 function parseDueDate(value: string | undefined): Date | null {
-    if (!value) return null;
-    const parsed = new Date(value);
-    return Number.isNaN(parsed.getTime()) ? null : parsed;
+    return parseTaskDateTime(value);
 }
 
 function formatDueDate(date: Date | null): string {

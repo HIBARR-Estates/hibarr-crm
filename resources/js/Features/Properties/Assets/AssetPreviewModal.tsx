@@ -26,7 +26,7 @@ import {
 } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse } from "@/lib/api/types";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -246,9 +246,7 @@ const AssetPreviewModal: React.FC<AssetPreviewModalProps> = ({
                                 </Text>
                             )}
                             <Text className="text-gray-600">
-                                {dayjs(currentAsset.created_at).format(
-                                    "MMM D, YYYY h:mm A",
-                                )}
+                                {formatCompanyDateTime(currentAsset.created_at)}
                             </Text>
                         </Space>
                     </div>

@@ -9,7 +9,10 @@ import {
     LockOutlined,
 } from "@ant-design/icons";
 import { Deal } from "@/Types/api/deals";
-import dayjs from "dayjs";
+import {
+    formatCompanyDate,
+    formatCompanyTime,
+} from "@/lib/companyDateTime";
 import PageDataSorter from "@/Components/PageDataSorter";
 import UserIndicator from "@/Components/UserIndicator";
 import AgentSelector from "@/Components/AgentSelector";
@@ -54,14 +57,10 @@ export const DEAL_TABLE_COLUMNS = (
                 return (
                     <div className="flex flex-col text-sm">
                         <span className="text-gray-950 font-medium">
-                            {dayjs(record.created_at).format(
-                                "MMM DD, YYYY",
-                            )}
+                            {formatCompanyDate(record.created_at)}
                         </span>
                         <span className="text-gray-600">
-                             {dayjs(record.created_at).format(
-                                "HH:mm",
-                            )}
+                            {formatCompanyTime(record.created_at)}
                         </span>
                     </div>
                 );
@@ -362,14 +361,10 @@ export const DEAL_TABLE_COLUMNS = (
                 return (
                     <div className="flex flex-col text-sm">
                         <span className="text-gray-950 font-medium">
-                            {dayjs(record.updated_at).format(
-                                "MMM DD, YYYY",
-                            )}
+                            {formatCompanyDate(record.updated_at)}
                         </span>
                         <span className="text-gray-600">
-                             {dayjs(record.updated_at).format(
-                                "HH:mm",
-                            )}
+                            {formatCompanyTime(record.updated_at)}
                         </span>
                     </div>
                 );

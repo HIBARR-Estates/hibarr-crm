@@ -16,6 +16,10 @@ import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import { AgentReportSummary } from "@/Types/api";
 import dayjs from "dayjs";
+import {
+    formatCompanyDate,
+    formatCompanyDateTime,
+} from "@/lib/companyDateTime";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import DeleteSummary from "../components/DeleteSummary";
@@ -101,7 +105,7 @@ const Index: React.FC = () => {
                 dataIndex: "created_at",
                 key: "created_at",
                 render: (value: string) =>
-                    value ? new Date(value).toLocaleString() : "-",
+                    formatCompanyDateTime(value, { fallback: "-" }),
             },
             {
                 title: "Filters",
@@ -109,9 +113,9 @@ const Index: React.FC = () => {
                 render: (_: unknown, row: AgentReportSummary) => (
                     <Space direction="vertical" size={2}>
                         <span className="text-xs text-gray-500">
-                            {dayjs(row.filter_start_date).format("D MMMM YYYY")}{" "}
+                            {formatCompanyDate(row.filter_start_date)}{" "}
                             to{" "}
-                            {dayjs(row.filter_end_date).format("D MMMM YYYY")}
+                            {formatCompanyDate(row.filter_end_date)}
                         </span>
                         <span className="text-xs text-gray-500">
                             {row.filter_view_type === "department"
@@ -231,13 +235,9 @@ const Index: React.FC = () => {
                                     {viewing.filter_view_type}
                                 </Tag>
                                 <Tag>
-                                    {dayjs(viewing.filter_start_date).format(
-                                        "D MMMM YYYY",
-                                    )}{" "}
+                                    {formatCompanyDate(viewing.filter_start_date)}{" "}
                                     to{" "}
-                                    {dayjs(viewing.filter_end_date).format(
-                                        "D MMMM YYYY",
-                                    )}
+                                    {formatCompanyDate(viewing.filter_end_date)}
                                 </Tag>
                                 <Tag>{viewing.context_label}</Tag>
                                 <Tag>
