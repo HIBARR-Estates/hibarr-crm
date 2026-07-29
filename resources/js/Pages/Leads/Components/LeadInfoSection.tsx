@@ -40,7 +40,7 @@ import SaveTaskModal from "@/Features/Tasks/SaveTask/SaveTaskModal";
 import FindDuplicatesModal from "@/Features/Leads/Merge/FindDuplicatesModal";
 import useLeadMergeAccess from "@/Features/Leads/Merge/useLeadMergeAccess";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { formatMobileForDisplay } from "@/lib/utils";
@@ -1322,8 +1322,8 @@ const ageRangeOptions = useMemo(
                             {currentLeadState.created_at ? (
                                 <span className="flex items-center gap-1">
                                     <CalendarOutlined className="text-gray-400" />
-                                    {dayjs(currentLeadState.created_at).format(
-                                        "MMM DD, YYYY HH:mm",
+                                    {formatCompanyDateTime(
+                                        currentLeadState.created_at,
                                     )}
                                 </span>
                             ) : (
@@ -1335,8 +1335,8 @@ const ageRangeOptions = useMemo(
                             {currentLeadState.updated_at ? (
                                 <span className="flex items-center gap-1">
                                     <CalendarOutlined className="text-gray-400" />
-                                    {dayjs(currentLeadState.updated_at).format(
-                                        "MMM DD, YYYY HH:mm",
+                                    {formatCompanyDateTime(
+                                        currentLeadState.updated_at,
                                     )}
                                 </span>
                             ) : (

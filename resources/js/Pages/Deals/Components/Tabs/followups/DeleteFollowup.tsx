@@ -8,6 +8,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { useApiMutate } from "@/lib/api/client";
 import { isLoading } from "@/lib/utils";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props extends IModalProps {
     followup?: DealFollowup;
@@ -49,7 +50,7 @@ const DeleteFollowup: React.FC<Props> = ({
     const formatFollowupTitle = (followup: DealFollowup) => {
         if (!followup) return "this follow-up";
 
-        const date = dayjs(followup.next_follow_up_date).format("MMM DD, YYYY");
+        const date = formatCompanyDate(followup.next_follow_up_date);
         const meetingType = followup.meeting_type?.name || "Meeting";
         return `"${meetingType} on ${date}"`;
     };

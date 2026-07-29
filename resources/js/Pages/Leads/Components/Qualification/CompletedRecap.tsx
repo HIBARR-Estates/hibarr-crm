@@ -1,7 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Button, Collapse, Descriptions, Spin, Tag } from "antd";
 import { PlusOutlined, CheckCircleOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
+import {
+    formatCompanyDate,
+    formatCompanyDateTime,
+} from "@/lib/companyDateTime";
 import { LeadQualification, TemplateTree } from "@/Types/qualification";
 import { QualificationTemplateService } from "@/Services/QualificationTemplateService";
 import { formatAnswerDisplay } from "./qualificationUtils";
@@ -61,8 +64,8 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                     <Tag>{item.outcome ?? item.status}</Tag>
                     <span className="text-gray-400 text-xs">
                         {item.completed_at
-                            ? dayjs(item.completed_at).format("MMM D, YYYY")
-                            : dayjs(item.created_at).format("MMM D, YYYY")}
+                            ? formatCompanyDate(item.completed_at)
+                            : formatCompanyDate(item.created_at)}
                     </span>
                 </span>
             ),
@@ -101,9 +104,7 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                         {qualification.completed_at && (
                             <>
                                 {" · "}
-                                {dayjs(qualification.completed_at).format(
-                                    "MMM D, YYYY h:mm A",
-                                )}
+                                {formatCompanyDateTime(qualification.completed_at)}
                             </>
                         )}
                     </p>

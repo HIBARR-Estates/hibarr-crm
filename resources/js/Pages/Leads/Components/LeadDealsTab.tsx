@@ -27,6 +27,7 @@ import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import DealInformationGatheringForm from "@/Features/Deals/DealInformationGathering/DealInformationGatheringForm";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props {
     lead: Lead;
@@ -175,7 +176,7 @@ export default function LeadDealsTab({
 
                 return (
                     <span className="text-sm text-gray-900">
-                        {dayjs(record.close_date).format("MMM DD, YYYY")}
+                        {formatCompanyDate(record.close_date)}
                     </span>
                 );
             },

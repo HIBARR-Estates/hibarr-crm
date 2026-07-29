@@ -39,6 +39,7 @@ import type {
     ActiveCycleSummary,
 } from "@/Features/Mlm/types";
 import { formatNumber } from "@/lib/utils";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props extends PageProps {
     stats: MlmAdminDashboardStats;
@@ -152,7 +153,7 @@ const MlmAdminDashboard: React.FC<Props> = ({ stats: initialStats }) => {
             title: "Date",
             dataIndex: "assigned_at",
             key: "assigned_at",
-            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+            render: (d: string) => formatCompanyDate(d, "—"),
         },
         {
             title: "Method",

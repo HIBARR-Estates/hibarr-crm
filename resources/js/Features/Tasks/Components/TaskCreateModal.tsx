@@ -30,6 +30,7 @@ import {
     SaveOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { companyDateDayjsFormat } from "@/lib/companyDateTime";
 
 const { Option } = Select;
 const { TextArea } = Input;
@@ -168,7 +169,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             >
                                 <DatePicker
                                     style={{ width: "100%" }}
-                                    format="YYYY-MM-DD"
+                                    format={companyDateDayjsFormat()}
                                     placeholder="Select start date"
                                 />
                             </Form.Item>
@@ -181,7 +182,7 @@ export const TaskCreateModal: React.FC<TaskCreateModalProps> = ({
                             >
                                 <DatePicker
                                     style={{ width: "100%" }}
-                                    format="YYYY-MM-DD"
+                                    format={companyDateDayjsFormat()}
                                     placeholder="Select due date"
                                 />
                             </Form.Item>

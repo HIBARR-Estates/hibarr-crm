@@ -22,7 +22,7 @@ import type {
     DeveloperProject,
     DeveloperProjectUnitType,
 } from "@/Types/developerProject";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import { generatePropertySubtitle } from "@/lib/utils";
 
 const { Text } = Typography;
@@ -199,15 +199,11 @@ const OfferDetailDrawer: React.FC<OfferDetailDrawerProps> = ({
                         {(offer.starts_at || offer.ends_at) && (
                             <Descriptions.Item label="Date Range" span={2}>
                                 {offer.starts_at
-                                    ? dayjs(offer.starts_at).format(
-                                          "MMM DD, YYYY",
-                                      )
+                                    ? formatCompanyDate(offer.starts_at)
                                     : "No start"}{" "}
                                 →{" "}
                                 {offer.ends_at
-                                    ? dayjs(offer.ends_at).format(
-                                          "MMM DD, YYYY",
-                                      )
+                                    ? formatCompanyDate(offer.ends_at)
                                     : "No end"}
                             </Descriptions.Item>
                         )}

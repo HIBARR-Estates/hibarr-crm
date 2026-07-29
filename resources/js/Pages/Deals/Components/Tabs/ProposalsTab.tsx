@@ -28,6 +28,7 @@ import {
     DollarOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import type { TableColumnsType } from "antd";
 import { usePage } from "@inertiajs/react";
 import AddProposal from "./proposals/AddProposal";
@@ -178,7 +179,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             width: "12%",
             render: (date: string) => (
                 <span className="text-sm text-gray-600">
-                    {dayjs(date).format("MMM DD, YYYY")}
+                    {formatCompanyDate(date)}
                 </span>
             ),
         },
@@ -189,7 +190,7 @@ export default function ProposalsTab({ deal, proposals, permissions }: Props) {
             width: "12%",
             render: (date: string) => (
                 <span className="text-sm text-gray-600">
-                    {dayjs(date).format("MMM DD, YYYY")}
+                    {formatCompanyDate(date)}
                 </span>
             ),
         },

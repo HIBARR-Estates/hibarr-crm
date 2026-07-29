@@ -16,6 +16,11 @@ import {
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { usePage } from "@inertiajs/react";
+import {
+    taskDateTimeToDayjs,
+    companyTimeDayjsFormat,
+    companyDateDayjsFormat,
+} from "@/lib/taskDateTime";
 
 
 const { TextArea } = Input;
@@ -325,8 +330,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
         if (data && visible) {
             form.setFieldsValue({
                 ...data,
-                start_date: data.start_date ? dayjs(data.start_date) : dayjs(),
-                due_date:   data.due_date   ? dayjs(data.due_date)   : undefined,
+                start_date: data.start_date
+                    ? taskDateTimeToDayjs(data.start_date) ?? dayjs()
+                    : dayjs(),
+                due_date: data.due_date
+                    ? taskDateTimeToDayjs(data.due_date) ?? undefined
+                    : undefined,
             });
         } else if (!data && visible) {
             form.resetFields();
@@ -414,7 +423,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     <Form.Item name="start_date" label={td("Start Date")}>
                         <DatePicker
                             style={{ width: "100%" }}
-                            showTime={{ format: "HH:mm" }}
+                            format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
+                            showTime={{ format: companyTimeDayjsFormat() }}
                             placeholder="Select start date"
                         />
                     </Form.Item>
@@ -427,7 +437,8 @@ const TaskForm: React.FC<TaskFormProps> = ({
                     >
                         <DatePicker
                             style={{ width: "100%" }}
-                            showTime={{ format: "HH:mm" }}
+                            format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
+                            showTime={{ format: companyTimeDayjsFormat() }}
                             placeholder={td("Select due date")}
                         />
                     </Form.Item>

@@ -10,7 +10,7 @@ import {
     ClockCircleOutlined,
 } from "@ant-design/icons";
 import { Activity } from "@/Types/api/activity";
-import dayjs from "dayjs";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 const { Text, Paragraph } = Typography;
 
@@ -23,10 +23,8 @@ interface Props {
 export default function ViewActivity({ open, onClose, activity }: Props) {
     if (!activity) return null;
 
-    const formatDate = (timestamp: string) => {
-        const date = dayjs(timestamp);
-        return date.format("MMMM DD, YYYY [at] h:mm A");
-    };
+    const formatDate = (timestamp: string) =>
+        formatCompanyDateTime(timestamp, { separator: " at " });
 
     const getChannelIcon = (channelType?: string) => {
         const iconProps = { className: "text-base mr-2" };

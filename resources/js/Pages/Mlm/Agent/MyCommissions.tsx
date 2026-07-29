@@ -28,6 +28,7 @@ import {
     COMMISSION_STATUS_LABELS,
     COMMISSION_TYPE_LABELS,
 } from "@/Features/Mlm/types";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 const { RangePicker } = DatePicker;
 
@@ -139,7 +140,7 @@ const MyCommissions: React.FC<Props> = ({
             title: "Date",
             dataIndex: "created_at",
             key: "created_at",
-            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+            render: (d: string) => formatCompanyDate(d, "—"),
         },
     ];
 

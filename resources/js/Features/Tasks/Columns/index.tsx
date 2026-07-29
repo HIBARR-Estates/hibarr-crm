@@ -17,6 +17,11 @@ import {
 import type { MenuProps } from "antd";
 import dayjs from "dayjs";
 import { usePage } from "@inertiajs/react";
+import {
+    taskDateTimeToDayjs,
+    formatTaskCompanyTime,
+} from "@/lib/taskDateTime";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 import PageDataSorter from "@/Components/PageDataSorter";
 import { getPriorityConfig } from "@/lib/priority";
@@ -182,7 +187,8 @@ export const useTasksTableColumns = ({
             render: (date: string) => {
                 if (!date) return <span className="text-gray-400">—</span>;
 
-                const dueDate = dayjs(date);
+                const dueDate = taskDateTimeToDayjs(date);
+                if (!dueDate) return <span className="text-gray-400">—</span>;
                 const now = dayjs();
                 const isOverdue = dueDate.isBefore(now, "day");
                 const isDueToday = dueDate.isSame(now, "day");
@@ -191,10 +197,10 @@ export const useTasksTableColumns = ({
                 return (
                     <div className="py-0.5">
                         <div className="font-medium tabular-nums" style={{ color }}>
-                            {dueDate.format("MMM D, YYYY")}
+                            {formatCompanyDate(dueDate)}
                         </div>
                         <div className="text-xs tabular-nums text-gray-400">
-                            {dueDate.format("h:mm A")}
+                            {formatTaskCompanyTime(dueDate)}
                             {isOverdue && (
                                 <span className="ml-1.5 font-semibold text-red-500">· Overdue</span>
                             )}
@@ -257,7 +263,7 @@ export const useTasksTableColumns = ({
 
                 return (
                     <span className="text-gray-900">
-                        {dayjs(date).format("MMM DD, YYYY")}
+                        {formatCompanyDate(date, { omitCurrentYear: true })}
                     </span>
                 );
             },

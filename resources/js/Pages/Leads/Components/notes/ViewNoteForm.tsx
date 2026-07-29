@@ -3,6 +3,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import { Typography, Tag, Modal } from "antd";
 import { EditOutlined, DeleteOutlined, ClockCircleOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import { LeadNote } from "@/Types/api/lead-note";
 import { Lead } from "@/Types/api/leads";
 import { ContentRenderer } from "@/Components/ContentRenderer";
@@ -62,7 +63,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                     {note.updated_at !== note.created_at && (
                         <Tag color="orange" className="shrink-0 mt-1">
                             {t("pages.leads.notes.view_updated")}{" "}
-                            {dayjs(note.updated_at).format("MMM DD, YYYY")}
+                            {formatCompanyDate(note.updated_at)}
                         </Tag>
                     )}
                 </div>
@@ -70,7 +71,9 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                     <span className="inline-flex items-center gap-1.5">
                         <ClockCircleOutlined />
                         {t("pages.leads.notes.view_created")}{" "}
-                        {dayjs(note.created_at).format("MMMM DD, YYYY at HH:mm")}
+                        {formatCompanyDateTime(note.created_at, {
+                            separator: " at ",
+                        })}
                     </span>
                     {note.added_by_user && (
                         <UserIndicator

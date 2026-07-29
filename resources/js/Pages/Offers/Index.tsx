@@ -22,6 +22,7 @@ import type { TableColumnsType } from "antd";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import OfferDetailDrawer from "@/Features/Offers/OfferDetailDrawer";
 
 interface OffersIndexProps {
@@ -206,10 +207,10 @@ const Index = ({
                 render: (_, record) => {
                     if (!record.starts_at && !record.ends_at) return "-";
                     const start = record.starts_at
-                        ? dayjs(record.starts_at).format("MMM DD, YYYY")
+                        ? formatCompanyDate(record.starts_at)
                         : "No start";
                     const end = record.ends_at
-                        ? dayjs(record.ends_at).format("MMM DD, YYYY")
+                        ? formatCompanyDate(record.ends_at)
                         : "No end";
                     return `${start} → ${end}`;
                 },

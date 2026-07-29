@@ -1,37 +1,11 @@
 import dayjs from "dayjs";
+import {
+    formatCompanyTime,
+    mapPhpToDayjsFormat,
+    toTimeInputValue,
+} from "@/lib/taskDateTime";
 
-const PHP_TO_DAYJS: Record<string, string> = {
-    d: "DD",
-    D: "ddd",
-    j: "D",
-    l: "dddd",
-    N: "E",
-    S: "Do",
-    w: "d",
-    z: "DDD",
-    W: "W",
-    F: "MMMM",
-    m: "MM",
-    M: "MMM",
-    n: "M",
-    Y: "YYYY",
-    y: "YY",
-    a: "a",
-    A: "A",
-    g: "h",
-    G: "H",
-    h: "hh",
-    H: "HH",
-    i: "mm",
-    s: "ss",
-};
-
-export function mapPhpToDayjsFormat(format: string): string {
-    return format
-        .split("")
-        .map((char) => PHP_TO_DAYJS[char] || char)
-        .join("");
-}
+export { mapPhpToDayjsFormat } from "@/lib/taskDateTime";
 
 /** Default due time for new/undated tasks — end of business day. */
 export const DEFAULT_DUE_TIME = "17:00";
@@ -49,17 +23,15 @@ export function formatDueDateTimeForApi(
     return dayjs(`${isoDate}T${safeTime}`).format(mapPhpToDayjsFormat(dateFormat));
 }
 
-/** Local `HH:mm` for a `<input type="time">`, extracted from an ISO due-date string. */
+/** `HH:mm` for a `<input type="time">` from a task due/start datetime string. */
 export function extractLocalTime(isoDateTime: string | undefined): string {
-    if (!isoDateTime) return DEFAULT_DUE_TIME;
-    const date = new Date(isoDateTime);
-    if (Number.isNaN(date.getTime())) return DEFAULT_DUE_TIME;
-    return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+    return toTimeInputValue(isoDateTime, DEFAULT_DUE_TIME);
 }
 
-/** `YYYY-MM-DD` for today, matching how `<input type="date">` values and
- * `task.due_date`/`task.start_date`'s leading 10 chars are compared elsewhere
- * in this file — kept consistent rather than local-timezone-converted. */
+/** `YYYY-MM-DD` for today — UTC calendar day for input defaults. */
 export function todayIsoDate(): string {
     return new Date().toISOString().slice(0, 10);
 }
+
+/** Re-export for call sites that already import from this module. */
+export { formatCompanyTime };

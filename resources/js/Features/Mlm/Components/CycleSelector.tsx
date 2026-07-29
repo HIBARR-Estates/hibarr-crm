@@ -4,6 +4,7 @@ import { CalendarDays } from "lucide-react";
 import { useActiveCycle, useMlmCycles } from "../api";
 import type { ActiveCycleSummary } from "../types";
 import CycleStatusBadge from "./CycleStatusBadge";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props {
     /** Called when user picks a different cycle (or "all-time") */
@@ -45,14 +46,8 @@ const CycleSelector: React.FC<Props> = ({
     }
 
     const { cycle } = summary;
-    const startLabel = new Date(cycle.start_date).toLocaleDateString(
-        undefined,
-        { month: "short", day: "numeric" },
-    );
-    const endLabel = new Date(cycle.end_date).toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-    });
+    const startLabel = formatCompanyDate(cycle.start_date);
+    const endLabel = formatCompanyDate(cycle.end_date);
 
     if (infoOnly) {
         return (
@@ -72,7 +67,7 @@ const CycleSelector: React.FC<Props> = ({
         { value: 0, label: "All Time" },
         ...cycles.map((c: any) => ({
             value: c.id,
-            label: `${c.name} (${new Date(c.start_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })} – ${new Date(c.end_date).toLocaleDateString(undefined, { month: "short", day: "numeric" })})`,
+            label: `${c.name} (${formatCompanyDate(c.start_date)} – ${formatCompanyDate(c.end_date)})`,
         })),
     ];
 

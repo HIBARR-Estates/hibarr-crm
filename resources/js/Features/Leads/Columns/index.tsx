@@ -5,7 +5,10 @@ import { MoreOutlined, MailOutlined, PhoneOutlined } from "@ant-design/icons";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import { Lead } from "@/Types/api/leads";
-import dayjs from "dayjs";
+import {
+    formatCompanyDate,
+    formatCompanyTime,
+} from "@/lib/companyDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
@@ -334,14 +337,10 @@ export const LEAD_TABLE_COLUMNS = (
                 return (
                     <div className="flex flex-col text-sm">
                         <span className="text-gray-950 font-medium">
-                            {dayjs(record.created_at).format(
-                                "MMM DD, YYYY",
-                            )}
+                            {formatCompanyDate(record.created_at)}
                         </span>
                         <span className="text-gray-600">
-                             {dayjs(record.created_at).format(
-                                "HH:mm",
-                            )}
+                            {formatCompanyTime(record.created_at)}
                         </span>
                     </div>
                 );

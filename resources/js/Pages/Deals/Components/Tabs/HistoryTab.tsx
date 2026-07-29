@@ -5,6 +5,7 @@ import { ClockCircleOutlined } from "@ant-design/icons";
 import { DataTable } from "@/Components/DataTable";
 import type { LaravelPaginationMeta } from "@/Components/DataTable";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyTime } from "@/lib/companyDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 
 interface Props {
@@ -67,9 +68,9 @@ export default function HistoryTab({ deal, histories }: Props) {
                 <div className="flex items-center space-x-2 text-sm text-gray-600">
                     <ClockCircleOutlined className="text-gray-400" />
                     <div>
-                        <div>{dayjs(date).format("MMM DD, YYYY")}</div>
+                        <div>{formatCompanyDate(date)}</div>
                         <div className="text-xs">
-                            {dayjs(date).format("h:mm A")}
+                            {formatCompanyTime(date)}
                         </div>
                     </div>
                 </div>

@@ -33,6 +33,7 @@ import type {
     EnrollmentStatus,
     LevelData,
 } from "@/Features/Mlm/types";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props extends PageProps {
     levelData: LevelData;
@@ -76,7 +77,7 @@ const MyLevel: React.FC<Props> = ({ levelData: initialData }) => {
             title: "Date",
             dataIndex: "assigned_at",
             key: "assigned_at",
-            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+            render: (d: string) => formatCompanyDate(d, "—"),
         },
     ];
 

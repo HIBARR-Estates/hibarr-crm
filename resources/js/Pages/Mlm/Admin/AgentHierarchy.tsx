@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { Link } from "@inertiajs/react";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyDateTime } from "@/lib/companyDateTime";
 import DashboardLayout, { PageProps } from "@/Components/DashboardLayout";
 import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
@@ -99,7 +100,7 @@ const AgentLevelHistorySection: React.FC<{ agentId: number }> = ({
                             )}
                         </div>
                         <div className="text-xs text-gray-500 mt-1">
-                            {dayjs(r.assigned_at).format("MMM DD, YYYY h:mm A")}
+                            {formatCompanyDateTime(r.assigned_at)}
                         </div>
                         {r.trigger_deal && (
                             <div className="text-xs text-gray-400 mt-0.5">
@@ -139,7 +140,7 @@ const AgentDetailContent: React.FC<{
                     {node.joined_date && (
                         <div className="text-xs text-gray-400">
                             Joined{" "}
-                            {dayjs(node.joined_date).format("MMM DD, YYYY")}
+                            {formatCompanyDate(node.joined_date)}
                         </div>
                     )}
                 </div>

@@ -2,7 +2,7 @@ import React from "react";
 import { Tag, Space, Typography } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
 import { TFilter } from "@/Types/common";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import { THEME_COLOR } from "@/providers/antd/utils";
 
 const { Text } = Typography;
@@ -55,11 +55,11 @@ const defaultFilterConfig: Record<
     category_id: { label: "Category" },
     start_date: {
         label: "Start Date",
-        formatValue: (value: string) => dayjs(value).format("MMM DD, YYYY"),
+        formatValue: (value: string) => formatCompanyDate(value),
     },
     end_date: {
         label: "End Date",
-        formatValue: (value: string) => dayjs(value).format("MMM DD, YYYY"),
+        formatValue: (value: string) => formatCompanyDate(value),
     },
     min_price: {
         label: "Min Price",

@@ -20,6 +20,7 @@ import {
 } from "@ant-design/icons";
 import { Link, router } from "@inertiajs/react";
 import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 import { useGenericEntityAction } from "@/Hooks/useGenericEntityAction";
 import UserIndicator from "@/Components/UserIndicator";
 import SaveAgentModal from "@/Features/Agents/SaveAgentModal";
@@ -115,16 +116,12 @@ const Show = ({
                             </Descriptions.Item>
                             <Descriptions.Item label="Created">
                                 {agent.created_at
-                                    ? dayjs(agent.created_at).format(
-                                          "MMM DD, YYYY",
-                                      )
+                                    ? formatCompanyDate(agent.created_at)
                                     : "--"}
                             </Descriptions.Item>
                             <Descriptions.Item label="Last Updated">
                                 {agent.updated_at
-                                    ? dayjs(agent.updated_at).format(
-                                          "MMM DD, YYYY",
-                                      )
+                                    ? formatCompanyDate(agent.updated_at)
                                     : "--"}
                             </Descriptions.Item>
                         </Descriptions>
@@ -187,7 +184,7 @@ const Show = ({
                                     key: "created_at",
                                     render: (date: string) =>
                                         date
-                                            ? dayjs(date).format("MMM DD, YYYY")
+                                            ? formatCompanyDate(date)
                                             : "--",
                                 },
                             ]}

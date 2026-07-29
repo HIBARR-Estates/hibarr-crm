@@ -92,6 +92,7 @@ class AppSettingController extends AccountBaseController
         }
 
         session()->forget('company');
+        session()->forget('user');
         cache()->forget('global_setting');
         session()->forget('companyOrGlobalSetting');
 

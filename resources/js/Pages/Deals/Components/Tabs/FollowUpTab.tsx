@@ -19,6 +19,7 @@ import {
     EyeOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { formatCompanyDate, formatCompanyTime } from "@/lib/companyDateTime";
 import { DealFollowup } from "@/Types/api/deal-followup";
 import type { TableColumnsType } from "antd";
 import { usePage } from "@inertiajs/react";
@@ -162,12 +163,10 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
                 >
                     <div>
                         <div className="font-medium whitespace-nowrap">
-                            {dayjs(record.next_follow_up_date).format(
-                                "MMM DD, YYYY"
-                            )}
+                            {formatCompanyDate(record.next_follow_up_date)}
                         </div>
                         <div className="text-sm text-gray-500 whitespace-nowrap">
-                            {dayjs(record.next_follow_up_date).format("h:mm A")}
+                            {formatCompanyTime(record.next_follow_up_date)}
                         </div>
                     </div>
                 </div>

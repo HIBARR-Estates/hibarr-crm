@@ -1,7 +1,7 @@
 import { Deal } from "@/Types/api/deals";
 import { Tag, Empty } from "antd";
 import { DataTable } from "@/Components/DataTable";
-import dayjs from "dayjs";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 interface Props {
     deal: Deal;
@@ -52,9 +52,7 @@ export default function GdprTab({ deal, consents, gdprSetting }: Props) {
                 if (record.lead && record.lead.length > 0) {
                     return (
                         <span className="text-sm text-gray-600">
-                            {dayjs(record.lead[0].created_at).format(
-                                "MMM DD, YYYY"
-                            )}
+                            {formatCompanyDate(record.lead[0].created_at)}
                         </span>
                     );
                 }

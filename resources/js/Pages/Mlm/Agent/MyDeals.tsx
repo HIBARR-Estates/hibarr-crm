@@ -18,6 +18,7 @@ import PageLayout from "@/Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import { useMyDealContributions, useMyEnrollment } from "@/Features/Mlm/api";
 import type { PaginatedResponse } from "@/Features/Mlm/types";
+import { formatCompanyDate } from "@/lib/companyDateTime";
 
 const { RangePicker } = DatePicker;
 
@@ -138,7 +139,7 @@ const MyDeals: React.FC<Props> = ({ contributions: initialContributions }) => {
             title: "Date",
             dataIndex: "date",
             key: "date",
-            render: (d: string) => (d ? new Date(d).toLocaleDateString() : "—"),
+            render: (d: string) => formatCompanyDate(d, "—"),
         },
     ];
 

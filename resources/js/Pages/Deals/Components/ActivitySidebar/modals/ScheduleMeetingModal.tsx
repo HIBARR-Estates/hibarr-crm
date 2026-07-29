@@ -15,6 +15,12 @@ import {
 } from "@ant-design/icons";
 import { useState } from "react";
 import dayjs from "dayjs";
+import {
+    companyDateDayjsFormat,
+    formatCompanyDate,
+    formatCompanyTime,
+    companyTimeDayjsFormat,
+} from "@/lib/companyDateTime";
 
 const { TextArea } = Input;
 
@@ -46,10 +52,10 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
 
         try {
             const meetingDate = values.date
-                ? dayjs(values.date).format("MMMM DD, YYYY")
+                ? formatCompanyDate(values.date)
                 : "TBD";
             const meetingTime = values.time
-                ? dayjs(values.time).format("h:mm A")
+                ? formatCompanyTime(values.time)
                 : "TBD";
 
             const subject = encodeURIComponent(
@@ -208,6 +214,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                         <DatePicker
                             className="w-full"
                             placeholder="Select date"
+                            format={companyDateDayjsFormat()}
                             disabledDate={(current) =>
                                 current && current < dayjs().startOf("day")
                             }
@@ -218,8 +225,7 @@ export default function ScheduleMeetingModal({ open, onClose, deal }: Props) {
                         <TimePicker
                             className="w-full"
                             placeholder="Select time"
-                            format="h:mm A"
-                            use12Hours
+                            format={companyTimeDayjsFormat()}
                         />
                     </Form.Item>
                 </div>
