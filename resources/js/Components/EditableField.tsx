@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useContext } from "react";
+import { useState, useRef, useEffect, useLayoutEffect, useCallback, useContext } from "react";
 import {
     Input,
     Typography,
@@ -121,34 +121,72 @@ interface EditableFieldProps {
     activateOnSingleClick?: boolean;
 }
 
-const TRUNCATE_LENGTH = 250;
-
-/** Long custom-field values (e.g. a textarea) rendered in full were pushing
- * out the layout — collapse anything over TRUNCATE_LENGTH behind "show more".
- * Only plain strings are truncated; JSX displayValues (badges, tags, etc.)
- * pass through untouched. */
-function TruncatableText({ text }: { text: React.ReactNode }) {
+/** Wrap + clip long display values; offer "Show more" when content overflows. */
+function ClampedText({
+    text,
+    textClassName = "",
+    trailing,
+}: {
+    text: React.ReactNode;
+    textClassName?: string;
+    trailing?: React.ReactNode;
+}) {
     const { t } = useTranslation();
     const [expanded, setExpanded] = useState(false);
+    const [canExpand, setCanExpand] = useState(false);
+    const contentRef = useRef<HTMLDivElement>(null);
 
-    if (typeof text !== "string" || text.length <= TRUNCATE_LENGTH) {
-        return <>{text}</>;
-    }
+    const measureOverflow = useCallback(() => {
+        const el = contentRef.current;
+        if (!el || expanded) {
+            setCanExpand(expanded);
+            return;
+        }
+        setCanExpand(el.scrollHeight > el.clientHeight + 1);
+    }, [expanded]);
+
+    useLayoutEffect(() => {
+        measureOverflow();
+    }, [text, expanded, measureOverflow]);
+
+    useEffect(() => {
+        const el = contentRef.current;
+        if (!el || typeof ResizeObserver === "undefined") return;
+        const observer = new ResizeObserver(() => measureOverflow());
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [measureOverflow]);
 
     return (
-        <>
-            {expanded ? text : `${text.slice(0, TRUNCATE_LENGTH)}…`}{" "}
-            <button
-                type="button"
-                className="text-blue-600 hover:underline text-xs font-medium"
-                onClick={(event) => {
-                    event.stopPropagation();
-                    setExpanded((prev) => !prev);
-                }}
-            >
-                {expanded ? t("app.show_less") : t("app.show_more")}
-            </button>
-        </>
+        <div className="min-w-0 max-w-full">
+            {/* inline-flex keeps underline + pencil to the value width;
+                hover reveal is driven by the parent DetailField `group` */}
+            <div className="inline-flex max-w-full items-start gap-1.5">
+                <div
+                    ref={contentRef}
+                    className={`max-w-full break-words whitespace-normal [overflow-wrap:anywhere] ${
+                        expanded ? "" : "line-clamp-3"
+                    } ${textClassName}`}
+                >
+                    {text}
+                </div>
+                {trailing}
+            </div>
+            {canExpand && (
+                <button
+                    type="button"
+                    className="mt-0.5 block cursor-pointer text-xs font-medium text-blue-800 hover:underline"
+                    onClick={(event) => {
+                        event.stopPropagation();
+                        setExpanded((prev) => !prev);
+                    }}
+                >
+                    {expanded
+                        ? t("pages.deals.common.show_less")
+                        : t("pages.deals.common.show_more")}
+                </button>
+            )}
+        </div>
     );
 }
 
@@ -1222,14 +1260,12 @@ export default function EditableField({
         return (
             <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
                 <div
-                    className={`w-full ${
+                    className={`w-full min-w-0 ${
                         isLocked ? "cursor-not-allowed opacity-50" : ""
                     } ${className}`}
                     onDoubleClick={canStartEditing ? startEditing : undefined}
                 >
-                    <span className="break-words whitespace-normal">
-                        <TruncatableText text={displayText} />
-                    </span>
+                    <ClampedText text={displayText} />
                 </div>
             </Skeleton>
         );
@@ -1238,30 +1274,29 @@ export default function EditableField({
     return (
         <Skeleton active loading={loading || saving} paragraph={{ rows: 1 }}>
             <div
-                className={`group/editable w-full ${
+                className={`w-full min-w-0 ${
                     isLocked ? "cursor-not-allowed opacity-50" : ""
                 } ${canStartEditing ? "cursor-pointer" : ""} ${className}`}
-                onDoubleClick={canStartEditing ? startEditing : undefined}
                 onClick={canStartEditing ? startEditing : undefined}
+                onDoubleClick={canStartEditing ? startEditing : undefined}
             >
-                <span className="inline-flex max-w-full items-center gap-1.5">
-                    <span
-                        className={`break-words whitespace-normal border-b border-dashed ${
-                            canStartEditing
-                                ? "border-transparent transition-colors group-hover/editable:border-blue-300"
-                                : ""
-                        } ${isEmptyValue ? "italic text-gray-400" : ""}`}
-                    >
-                        <TruncatableText text={displayText} />
-                    </span>
-                    {canStartEditing && (
-                        <EditOutlined
-                            aria-hidden="true"
-                            className="shrink-0 text-blue-600 opacity-0 transition-opacity group-hover/editable:opacity-100"
-                            style={{ fontSize: 11 }}
-                        />
-                    )}
-                </span>
+                <ClampedText
+                    text={displayText}
+                    textClassName={`border-b border-dashed ${
+                        canStartEditing
+                            ? "border-transparent transition-colors group-hover:border-blue-300"
+                            : ""
+                    } ${isEmptyValue ? "italic text-gray-400" : ""}`}
+                    trailing={
+                        canStartEditing ? (
+                            <EditOutlined
+                                aria-hidden="true"
+                                className="mt-1 shrink-0 text-blue-600 opacity-0 transition-opacity group-hover:opacity-100"
+                                style={{ fontSize: 11 }}
+                            />
+                        ) : undefined
+                    }
+                />
             </div>
         </Skeleton>
     );

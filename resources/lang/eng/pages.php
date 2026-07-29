@@ -408,6 +408,8 @@ return [
             'refreshing'                 => 'Refreshing…',
             'less'                       => 'Less',
             'more'                       => 'More',
+            'show_more'                  => 'Show more',
+            'show_less'                  => 'Show less',
             'yes'                        => 'Yes',
             'no'                         => 'No',
             'not_set'                    => 'Not set',

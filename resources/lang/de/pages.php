@@ -400,6 +400,8 @@ return [
             'refreshing'                 => 'Wird aktualisiert…',
             'less'                       => 'Weniger',
             'more'                       => 'Mehr',
+            'show_more'                  => 'Mehr anzeigen',
+            'show_less'                  => 'Weniger anzeigen',
             'yes'                        => 'Ja',
             'no'                         => 'Nein',
             'not_set'                    => 'Nicht festgelegt',

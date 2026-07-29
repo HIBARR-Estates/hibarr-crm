@@ -1198,9 +1198,10 @@ export default function CustomFieldDisplay({
             }
 
             case "textarea":
-                // Preserve line breaks for textarea content
+                // Preserve line breaks; EditableField's display wrapper clips
+                // tall values so deal-info grids stay compact.
                 return (
-                    <div className="whitespace-pre-wrap break-words">
+                    <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                         {value}
                     </div>
                 );

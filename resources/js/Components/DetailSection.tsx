@@ -214,17 +214,19 @@ export function DetailField({
                     )}
                 </div>
 
-                {/* Value area — full width, no truncation */}
-                <div className="text-[15px] text-gray-900 min-h-[1.5rem] flex items-start gap-1.5">
-                    <div className="w-full min-w-0 flex items-center gap-1">
-                        {children}
+                {/* Value area — allow wrap; display components clip long content */}
+                <div className="min-h-[1.5rem] min-w-0 text-[15px] text-gray-900">
+                    <div className="flex w-full min-w-0 items-start gap-1.5">
+                        <div className="min-w-0 flex-1 overflow-hidden break-words [overflow-wrap:anywhere]">
+                            {children}
+                        </div>
                         {copyValue && !isFieldEditing && (
                             <Tooltip title={copied ? "Copied!" : "Copy"}>
                                 {copied ? (
-                                    <CheckOutlined className="text-green-500 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                                    <CheckOutlined className="mt-1 flex-shrink-0 text-[11px] text-green-500 opacity-0 transition-opacity group-hover:opacity-100" />
                                 ) : (
                                     <CopyOutlined
-                                        className="text-gray-400 hover:text-gray-600 text-[11px] opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex-shrink-0"
+                                        className="mt-1 flex-shrink-0 cursor-pointer text-[11px] text-gray-400 opacity-0 transition-opacity hover:text-gray-600 group-hover:opacity-100"
                                         onClick={handleCopy}
                                     />
                                 )}
