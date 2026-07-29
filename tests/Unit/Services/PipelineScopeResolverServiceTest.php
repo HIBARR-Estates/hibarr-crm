@@ -31,11 +31,13 @@ class PipelineScopeResolverServiceTest extends TestCase
 
         Schema::create('lead_pipelines', function (Blueprint $table) {
             $table->id();
+            $table->unsignedInteger('company_id')->nullable();
             $table->string('name')->nullable();
             $table->string('slug')->nullable();
             $table->integer('priority')->default(0);
             $table->string('label_color')->nullable();
             $table->integer('default')->default(0);
+            $table->boolean('hide_all_categories')->default(false);
             $table->timestamps();
         });
 
@@ -176,5 +178,36 @@ class PipelineScopeResolverServiceTest extends TestCase
 
         sort($result);
         $this->assertSame([10, 20], $result);
+    }
+
+    public function test_hide_all_categories_wins_outright_over_configured_scopes(): void
+    {
+        [$pipeline, $stages] = $this->makePipelineWithStages(2);
+
+        CustomFieldCategoryScope::create([
+            'company_id' => 1,
+            'category_id' => 100,
+            'pipeline_id' => $pipeline->id,
+            'pipeline_stage_id' => null, // pipeline-wide
+        ]);
+
+        CustomFieldCategoryScope::create([
+            'company_id' => 1,
+            'category_id' => 200,
+            'pipeline_id' => $pipeline->id,
+            'pipeline_stage_id' => $stages[0]->id,
+        ]);
+
+        $pipeline->company_id = 1;
+        $pipeline->hide_all_categories = true;
+        $pipeline->save();
+
+        $resolver = app(PipelineScopeResolverService::class);
+
+        // Even with real scopes configured, "hide all" overrides them entirely.
+        $this->assertSame([], $resolver->resolveCategoryIds($pipeline->id, $stages[0]->id, 1));
+        $this->assertSame([], $resolver->resolveAllCategoryIds($pipeline->id, 1));
+        $this->assertTrue($resolver->pipelineHidesAllCategories($pipeline->id));
+        $this->assertSame([$pipeline->id], $resolver->getHideAllCategoriesPipelineIds(1));
     }
 }

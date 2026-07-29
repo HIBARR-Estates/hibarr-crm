@@ -71,6 +71,10 @@ class PipelineScopeResolverService
             return null;
         }
 
+        if ($this->pipelineHidesAllCategories($pipelineId)) {
+            return [];
+        }
+
         $companyId = $companyId ?? company()?->id;
 
         $scopesQuery = CustomFieldCategoryScope::query()
@@ -138,6 +142,10 @@ class PipelineScopeResolverService
     {
         if (!$pipelineId) {
             return null;
+        }
+
+        if ($this->pipelineHidesAllCategories($pipelineId)) {
+            return [];
         }
 
         $companyId = $companyId ?? company()?->id;
@@ -226,6 +234,39 @@ class PipelineScopeResolverService
         }
 
         return $query->get();
+    }
+
+    /**
+     * Whether a pipeline is configured to hide all custom field categories,
+     * overriding any category_scopes rows (pipeline-wide or per-stage).
+     */
+    public function pipelineHidesAllCategories(?int $pipelineId): bool
+    {
+        if (!$pipelineId) {
+            return false;
+        }
+
+        return (bool) LeadPipeline::where('id', $pipelineId)->value('hide_all_categories');
+    }
+
+    /**
+     * Pipeline IDs (for the company) configured to hide all custom field
+     * categories. Exposed to the frontend so client-resolved scope maps
+     * (SaveDealModal / legacy DealInfoSection) can honor the same override.
+     *
+     * @return array<int>
+     */
+    public function getHideAllCategoriesPipelineIds(?int $companyId = null): array
+    {
+        $companyId = $companyId ?? company()?->id;
+
+        return LeadPipeline::query()
+            ->where('hide_all_categories', true)
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
 
     /**

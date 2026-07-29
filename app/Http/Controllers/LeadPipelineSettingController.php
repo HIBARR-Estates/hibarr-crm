@@ -83,6 +83,7 @@ class LeadPipelineSettingController extends AccountBaseController
             ->firstOrFail();
         $pipeline->name = $request->name;
         $pipeline->label_color = $request->label_color;
+        $pipeline->hide_all_categories = $request->boolean('hide_all_categories');
         $pipeline->save();
 
         $validated = $request->validated();

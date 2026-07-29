@@ -108,6 +108,7 @@ export default function DealInfoSection({
 
     const pipelineCategoryScopeMap = props.pipelineCategoryScopeMap || {};
     const pipelineFieldScopeMap = props.pipelineFieldScopeMap || {};
+    const hideAllCategoriesPipelineIds = props.hideAllCategoriesPipelineIds || [];
     const stages = props.stages || [];
     const scopedCategoryIdsFromServer =
         props.scopedCustomFieldCategoryIds ?? null;
@@ -147,6 +148,7 @@ export default function DealInfoSection({
                       pipelineCategoryScopeMap,
                       currentDeal.lead_pipeline_id,
                       allPipelineCategoryIdsFromServer,
+                      hideAllCategoriesPipelineIds,
                   )
                 : filterCategoriesByScope(
                       allCustomFieldCategories,
@@ -155,6 +157,7 @@ export default function DealInfoSection({
                       currentDeal.pipeline_stage_id,
                       stages,
                       scopedCategoryIdsFromServer,
+                      hideAllCategoriesPipelineIds,
                   ),
         [
             showAllFields,
@@ -165,6 +168,7 @@ export default function DealInfoSection({
             stages,
             scopedCategoryIdsFromServer,
             allPipelineCategoryIdsFromServer,
+            hideAllCategoriesPipelineIds,
         ],
     );
 

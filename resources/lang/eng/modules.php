@@ -2507,6 +2507,8 @@ return array(
         'product' => 'Product',
         'assignAgent' => 'Assign Agent',
         'pipelineCategoryHint' => 'Only selected categories will be shown on deals in this pipeline. Categories assigned to earlier stages remain visible as the deal progresses. Leave all unchecked to show all categories.',
+        'hideAllCategories' => 'Show none',
+        'hideAllCategoriesHint' => 'No custom field categories will be shown on deals in this pipeline, regardless of any categories selected below.',
         'pipelineWideCategories' => 'Pipeline-wide categories',
         'stageCategories' => 'Stage categories',
         'pipelineWideFields' => 'Pipeline-wide fields',
