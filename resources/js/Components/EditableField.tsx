@@ -209,7 +209,6 @@ export default function EditableField({
     activateOnSingleClick = false,
 }: EditableFieldProps) {
     const { props } = usePage<any>();
-    const { t } = useTranslation();
     const { countries } = useCountries();
     const { currencies } = useCurrencies();
     const {
@@ -788,18 +787,12 @@ export default function EditableField({
                     })()
                   : formatValue
                 ? formatValue(normalizedValue)
-                : normalizedValue?.toString() ||
-                  // v2.2 mode shows "Not set" for empty values (deal-v2-2.jsx:866);
-                  // other consumers keep the legacy "--" placeholder.
-                  (activateOnSingleClick
-                      ? t("pages.deals.common.not_set")
-                      : "--");
+                : normalizedValue?.toString() || "--";
 
-    // v2.2 renders "Not set" in muted italics so it reads as a placeholder,
-    // not a real value (deal-v2-2.jsx:860-861: color MUTED, fontStyle
-    // italic when empty). Only applies when this component generated the
-    // fallback text itself — a caller-supplied displayValue/currency format
-    // manages its own styling.
+    // v2.2 renders the empty placeholder in muted italics so it reads as a
+    // placeholder, not a real value. Only applies when this component
+    // generated the fallback text itself — a caller-supplied
+    // displayValue/currency format manages its own styling.
     const isEmptyValue =
         activateOnSingleClick &&
         displayValue === undefined &&

@@ -148,6 +148,73 @@
     box-shadow: 0 0 0 2px #e8f1fb;
 }
 
+/* Analysis modal — large panel (~95vw × ~90vh), portaled to document.body */
+.analysis-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    background: rgba(22, 41, 77, 0.5);
+    backdrop-filter: blur(3px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2.5vh 2.5vw;
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.analysis-modal-panel {
+    background: #ffffff;
+    border-radius: 14px;
+    border: 1px solid #e2e5ea;
+    box-shadow: 0 20px 60px rgba(22, 41, 77, 0.22);
+    width: 95vw;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.analysis-section-heading {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9ca3af;
+    padding: 16px 16px 8px;
+}
+
+.analysis-guide-text {
+    background: #e8f1fb;
+    border-left: 3px solid #1a6bb5;
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    font-style: italic;
+    color: #16294d;
+    line-height: 1.55;
+    white-space: pre-wrap;
+}
+
+/* Pulsing dot for the analysis status banner */
+@keyframes analysis-dot-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22, 41, 77, 0.45); }
+    50%       { box-shadow: 0 0 0 7px rgba(22, 41, 77, 0); }
+}
+.analysis-dot-pulse {
+    animation: analysis-dot-pulse 1.8s ease-in-out infinite;
+}
+
+/* Pulsing border glow on the whole banner card */
+@keyframes analysis-banner-glow {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(22, 41, 77, 0.15), 0 1px 4px rgba(22,41,77,0.08); }
+    50%       { box-shadow: 0 0 0 4px rgba(22, 41, 77, 0.08), 0 2px 8px rgba(22,41,77,0.12); }
+}
+.analysis-banner-pulse {
+    animation: analysis-banner-glow 1.8s ease-in-out infinite;
+}
+
 /* ==================================================================== */
 /*  v2.2 parity — structural classes ported from the playground source  */
 /*  of truth (hibarr-playground/src/deal-v2-2.jsx). Colors/spacing here */

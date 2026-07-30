@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\GlobalSetting;
 use App\Models\SmtpSetting;
+use App\Support\FeatureFlags;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,6 +13,7 @@ use Illuminate\Notifications\Messages\SlackMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
+use Symfony\Component\Mime\Email;
 
 class BaseNotification extends Notification implements ShouldQueue
 {
@@ -20,11 +22,14 @@ class BaseNotification extends Notification implements ShouldQueue
 
     protected $company = null;
     protected $slack = null;
-    /**
-     * When true, notification via() implementations should avoid the `mail` channel.
-     * This allows bulk actions to suppress per-record transactional emails while keeping database notifications.
-     */
     protected bool $suppressBulkTransactionalEmails = false;
+    // Resolved at HTTP dispatch time so queue workers don't call the flag service.
+    protected bool $unsRoutingEnabled = false;
+
+    protected function initUnsRouting(): void
+    {
+        $this->unsRoutingEnabled = FeatureFlags::enabled('crm.notification-service-routing');
+    }
 
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
@@ -79,6 +84,12 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Initialize a mail message instance
         $build = (new MailMessage);
+
+        if ($this->unsRoutingEnabled) {
+            $build->withSymfonyMessage(static function (Email $message): void {
+                $message->getHeaders()->addTextHeader('X-Uns-Route', 'true');
+            });
+        }
 
         // Set default reply name and email to SMTP settings
         $replyName = $companyName = $smtpSetting->mail_from_name;

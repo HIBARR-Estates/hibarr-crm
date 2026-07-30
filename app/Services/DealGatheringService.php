@@ -363,14 +363,20 @@ class DealGatheringService
                 break;
 
             case DealUpdateType::CONTACT:
-                // Handle contact updates
-                $contactData = [];
-                if (isset($data['client_email'])) $contactData['client_email'] = $data['client_email'];
-                if (isset($data['mobile'])) $contactData['mobile'] = $data['mobile'];
-                if (isset($data['company_name'])) $contactData['company_name'] = $data['company_name'];
-
+                $allowedContactFields = [
+                    'client_name', 'client_email', 'mobile', 'cell', 'office',
+                    'company_name', 'salutation', 'gender', 'address',
+                    'postal_code', 'city', 'state', 'country', 'source_id',
+                ];
+                $contactData = array_intersect_key($data, array_flip($allowedContactFields));
                 if (!empty($contactData) && $deal->contact) {
                     $deal->contact->update($contactData);
+                }
+                break;
+
+            case DealUpdateType::LEAD_CUSTOM_FIELD:
+                if ($deal->contact) {
+                    $deal->contact->updateCustomFieldData($data);
                 }
                 break;
 

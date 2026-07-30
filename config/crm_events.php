@@ -373,6 +373,18 @@ return [
             ],
         ],
         [
+            'slug' => 'deal_analysis_completed',
+            'name' => 'Analysis Completed',
+            'category' => 'deal',
+            'model_type' => 'App\\Models\\Deal',
+            'description' => 'Deal analysis was marked as completed.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'completion_type' => ['type' => 'string', 'label' => 'Completion Type'],
+                'unfilled_fields' => ['type' => 'number', 'label' => 'Unfilled Fields'],
+            ],
+        ],
+        [
             'slug' => 'deal_lead_marketing_field_updated',
             'name' => 'Deal Lead Marketing Field Updated',
             'category' => 'deal',

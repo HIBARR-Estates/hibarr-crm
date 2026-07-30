@@ -31,7 +31,7 @@ class TaskApproval extends BaseNotification
         $this->company = $this->task->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
                                 ->where('slug', 'task-status-updated')->first();
-
+        $this->initUnsRouting();
     }
 
     /**

@@ -157,6 +157,8 @@ class Deal extends BaseModel
         'manual_value' => 'decimal:2',
         'calculated_value' => 'decimal:2',
         'won_at' => 'datetime',
+        'analysis_completed_at' => 'datetime',
+        'analysis_completed_by' => 'integer',
     ];
 
     public function leadFlightItineraries()

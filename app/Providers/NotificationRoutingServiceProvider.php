@@ -5,7 +5,6 @@ namespace App\Providers;
 use App\Services\Notifications\UnsClient;
 use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Services\Notifications\UnsRoutingTransport;
-use App\Support\FeatureFlags;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\ServiceProvider;
@@ -34,8 +33,8 @@ class NotificationRoutingServiceProvider extends ServiceProvider
             );
         });
 
-        if (FeatureFlags::enabled('crm.notification-service-routing')) {
-            Config::set('mail.default', 'uns-routing');
-        }
+        // Always active — per-notification routing is decided by X-Uns-Route header
+        // set at dispatch time (HTTP context), so no flag service call needed at boot.
+        Config::set('mail.default', 'uns-routing');
     }
 }
