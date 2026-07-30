@@ -71,11 +71,11 @@ class PipelineScopeResolverService
             return null;
         }
 
-        if ($this->pipelineHidesAllCategories($pipelineId)) {
+        $companyId = $companyId ?? company()?->id;
+
+        if ($this->pipelineHidesAllCategories($pipelineId, $companyId)) {
             return [];
         }
-
-        $companyId = $companyId ?? company()?->id;
 
         $scopesQuery = CustomFieldCategoryScope::query()
             ->where('pipeline_id', $pipelineId);
@@ -144,11 +144,11 @@ class PipelineScopeResolverService
             return null;
         }
 
-        if ($this->pipelineHidesAllCategories($pipelineId)) {
+        $companyId = $companyId ?? company()?->id;
+
+        if ($this->pipelineHidesAllCategories($pipelineId, $companyId)) {
             return [];
         }
-
-        $companyId = $companyId ?? company()?->id;
 
         $scopesQuery = CustomFieldCategoryScope::query()
             ->where('pipeline_id', $pipelineId);
@@ -239,14 +239,22 @@ class PipelineScopeResolverService
     /**
      * Whether a pipeline is configured to hide all custom field categories,
      * overriding any category_scopes rows (pipeline-wide or per-stage).
+     *
+     * When $companyId is given, the pipeline must belong to that company —
+     * a mismatched pipeline/company pair (stale or cross-tenant data) returns
+     * false so callers fall through to their existing "show all" behavior
+     * instead of hiding categories based on the wrong company's setting.
      */
-    public function pipelineHidesAllCategories(?int $pipelineId): bool
+    public function pipelineHidesAllCategories(?int $pipelineId, ?int $companyId = null): bool
     {
         if (!$pipelineId) {
             return false;
         }
 
-        return (bool) LeadPipeline::where('id', $pipelineId)->value('hide_all_categories');
+        return (bool) LeadPipeline::query()
+            ->where('id', $pipelineId)
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->value('hide_all_categories');
     }
 
     /**

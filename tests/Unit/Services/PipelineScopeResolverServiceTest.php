@@ -207,7 +207,35 @@ class PipelineScopeResolverServiceTest extends TestCase
         // Even with real scopes configured, "hide all" overrides them entirely.
         $this->assertSame([], $resolver->resolveCategoryIds($pipeline->id, $stages[0]->id, 1));
         $this->assertSame([], $resolver->resolveAllCategoryIds($pipeline->id, 1));
-        $this->assertTrue($resolver->pipelineHidesAllCategories($pipeline->id));
+        $this->assertTrue($resolver->pipelineHidesAllCategories($pipeline->id, 1));
         $this->assertSame([$pipeline->id], $resolver->getHideAllCategoriesPipelineIds(1));
+    }
+
+    public function test_hide_all_categories_does_not_apply_across_a_mismatched_company(): void
+    {
+        [$pipeline, $stages] = $this->makePipelineWithStages(2);
+
+        CustomFieldCategoryScope::create([
+            'company_id' => 1,
+            'category_id' => 200,
+            'pipeline_id' => $pipeline->id,
+            'pipeline_stage_id' => $stages[0]->id,
+        ]);
+
+        $pipeline->company_id = 1;
+        $pipeline->hide_all_categories = true;
+        $pipeline->save();
+
+        $resolver = app(PipelineScopeResolverService::class);
+
+        // Pipeline belongs to company 1; querying it under company 2 (stale or
+        // cross-tenant pairing) must not honor "hide all" — it should fall
+        // through to normal resolution instead of silently hiding categories.
+        $this->assertFalse($resolver->pipelineHidesAllCategories($pipeline->id, 2));
+        $this->assertNull($resolver->resolveCategoryIds($pipeline->id, $stages[0]->id, 2));
+        $this->assertNull($resolver->resolveAllCategoryIds($pipeline->id, 2));
+
+        // Same pipeline, correct company: "hide all" still applies.
+        $this->assertSame([], $resolver->resolveCategoryIds($pipeline->id, $stages[0]->id, 1));
     }
 }

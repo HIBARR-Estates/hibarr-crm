@@ -98,7 +98,7 @@
                         </div>
 
                         <div id="pipelineCategoriesSelection" class="{{ $pipeline->hide_all_categories ? 'opacity-50' : '' }}"
-                            style="pointer-events: {{ $pipeline->hide_all_categories ? 'none' : 'auto' }};">
+                            @if($pipeline->hide_all_categories) inert @endif>
                         <div class="bg-light rounded p-3 mb-3">
                             <x-forms.label fieldId="pipeline_wide_categories" :fieldLabel="__('modules.deal.pipelineWideCategories')" />
                             <x-deal.pipeline-scope-pills
@@ -245,9 +245,12 @@
 
     $('#hide_all_categories').on('change', function() {
         var checked = $(this).is(':checked');
-        $('#pipelineCategoriesSelection')
-            .toggleClass('opacity-50', checked)
-            .css('pointer-events', checked ? 'none' : 'auto');
+        var selectionEl = document.getElementById('pipelineCategoriesSelection');
+        $(selectionEl).toggleClass('opacity-50', checked);
+        // `inert` (not pointer-events) so disabled category pills also can't
+        // receive keyboard focus, and the search dropdown (portaled to <body>
+        // on open) never gets a chance to open in the first place.
+        selectionEl.inert = checked;
     });
 
     $('#save-status').click(function() {
