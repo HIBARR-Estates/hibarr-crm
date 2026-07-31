@@ -37,7 +37,7 @@ import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { ContentRenderer } from "@/Components/ContentRenderer";
-import ZohoCalendarSyncStatus from "@/Features/Meetings/ZohoCalendarSyncStatus";
+import CalendarSyncStatus from "@/Features/Meetings/CalendarSyncStatus";
 
 dayjs.extend(utc);
 
@@ -330,11 +330,9 @@ const ViewFollowup: React.FC<Props> = ({
 
     const featureEnabled =
         props?.featureFlags?.["integrations.zoho-calendar-sync"] === true;
-    const hasZohoProfile = Boolean(props?.auth?.user?.has_zoho_profile);
-    const shouldShowZohoSync =
+    const shouldShowCalendarSync =
         featureEnabled &&
         isCreator &&
-        hasZohoProfile &&
         (followup?.zoho_calendar_job_id ||
             followup?.zoho_calendar_sync_status);
 
@@ -465,17 +463,16 @@ const ViewFollowup: React.FC<Props> = ({
                             )}
                         </div>
 
-                        {/* Zoho Calendar Sync */}
-                        {shouldShowZohoSync && (
+                        {/* Calendar Sync */}
+                        {shouldShowCalendarSync && (
                             <div className="flex items-center gap-3 px-4 py-3">
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">
                                     Calendar Sync
                                 </span>
-                                <ZohoCalendarSyncStatus
+                                <CalendarSyncStatus
                                     followup={followup}
                                     featureEnabled={featureEnabled}
                                     isCreator={isCreator}
-                                    hasZohoProfile={hasZohoProfile}
                                 />
                             </div>
                         )}

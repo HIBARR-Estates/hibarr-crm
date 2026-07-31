@@ -1,41 +1,44 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ZohoCalendarSyncService } from "@/Services/ZohoCalendarSyncService";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { CalendarSyncService } from "@/Services/CalendarSyncService";
 import type {
-    ZohoCalendarEventJobStatusData,
-    ZohoCalendarSyncUiStatus,
-} from "@/Types/zoho-calendar-sync";
+    CalendarSyncStatusData,
+    CalendarSyncUiStatus,
+} from "@/Types/calendar-sync";
 
 type PollerOptions = {
+    followUpId: number | string;
     jobId: string | null | undefined;
-    initialStatus: ZohoCalendarSyncUiStatus | null | undefined;
+    initialStatus: CalendarSyncUiStatus | null | undefined;
     intervalMs?: number;
     maxAttempts?: number;
     enabled?: boolean;
+    onStatus?: (data: CalendarSyncStatusData) => void;
 };
 
-function mapOlStatusToUiStatus(
-    data: ZohoCalendarEventJobStatusData,
-): ZohoCalendarSyncUiStatus {
-    if (data.error || data.status === "failed") return "failed";
-    if (data.status === "pending") return "pending";
+function mapProxyStatusToUiStatus(
+    data: CalendarSyncStatusData,
+): CalendarSyncUiStatus {
+    if (data.error || data.syncStatus === "failed") return "failed";
+    if (data.syncStatus === "synced") return "synced";
+    if (data.syncStatus === "pending") return "pending";
 
-    // OL may return other terminal values (e.g. "completed") while still
-    // representing a successful sync.
-    if (data.zohoEventId) return "synced";
-
-    return "synced";
+    return "pending";
 }
 
-export function useZohoCalendarJobPoller({
+export function useCalendarSyncJobPoller({
+    followUpId,
     jobId,
     initialStatus,
     intervalMs = 5000,
     maxAttempts = 5,
     enabled = true,
+    onStatus,
 }: PollerOptions) {
-    const service = useMemo(() => new ZohoCalendarSyncService(), []);
+    const service = useMemo(() => new CalendarSyncService(), []);
+    const onStatusRef = useRef(onStatus);
+    onStatusRef.current = onStatus;
 
-    const [status, setStatus] = useState<ZohoCalendarSyncUiStatus | null>(
+    const [status, setStatus] = useState<CalendarSyncUiStatus | null>(
         initialStatus ?? (jobId ? "pending" : null),
     );
     const [attemptsMade, setAttemptsMade] = useState(0);
@@ -49,7 +52,7 @@ export function useZohoCalendarJobPoller({
         // We intentionally do not include intervalMs/maxAttempts to avoid
         // restarting mid-poll when those props change.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [jobId, initialStatus]);
+    }, [followUpId, jobId, initialStatus]);
 
     const refresh = useCallback(() => {
         if (!jobId) return;
@@ -72,12 +75,13 @@ export function useZohoCalendarJobPoller({
             setAttemptsMade(attempt);
 
             try {
-                const response = await service.getJobStatus(jobId);
+                const response = await service.getJobStatus(followUpId);
                 if (!isMounted) return;
 
-                const nextStatus = mapOlStatusToUiStatus(
-                    response.data,
-                );
+                const payload = response.data;
+                onStatusRef.current?.(payload);
+
+                const nextStatus = mapProxyStatusToUiStatus(payload);
 
                 if (nextStatus !== "pending") {
                     setStatus(nextStatus);
@@ -91,7 +95,6 @@ export function useZohoCalendarJobPoller({
                     return;
                 }
 
-                // Keep polling while pending.
                 window.setTimeout(
                     () => pollOnce(attempt + 1),
                     intervalMs,
@@ -120,6 +123,7 @@ export function useZohoCalendarJobPoller({
         };
     }, [
         enabled,
+        followUpId,
         jobId,
         status,
         hasMaxAttempts,
@@ -136,4 +140,3 @@ export function useZohoCalendarJobPoller({
         refresh,
     };
 }
-
