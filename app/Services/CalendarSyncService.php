@@ -9,13 +9,15 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
-class ZohoCalendarSyncService
+class CalendarSyncService
 {
-    public function enqueueEvent(DealFollowUp $followUp): ?string
+    public const PLATFORM_ZOHO = 'zoho';
+
+    public function enqueueEvent(DealFollowUp $followUp, string $platform = self::PLATFORM_ZOHO): ?string
     {
         $payload = $this->buildPayload($followUp);
 
-        $response = $this->olRequest('POST', '/integrations/zoho/calendar/events', $payload);
+        $response = $this->olRequest('POST', "/crm/events/{$platform}", $payload);
         if (!$response) {
             return null;
         }
@@ -27,7 +29,7 @@ class ZohoCalendarSyncService
     {
         $response = $this->olRequest(
             'POST',
-            "/integrations/zoho/calendar/events/{$jobId}/retry",
+            "/crm/events/jobs/{$jobId}/retry",
             []
         );
 
@@ -36,6 +38,67 @@ class ZohoCalendarSyncService
         }
 
         return $this->extractJobIdFromCreateLikeResponse($response, $jobId);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getJobStatus(string $jobId): ?array
+    {
+        $response = $this->olRequest(
+            'GET',
+            "/crm/events/jobs/{$jobId}/status",
+            []
+        );
+
+        if (!$response) {
+            return null;
+        }
+
+        if (!$response->successful()) {
+            Log::error('CalendarSyncService: OL status returned non-2xx', [
+                'jobId' => $jobId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+
+            return [
+                '_httpStatus' => $response->status(),
+                'error' => $response->json('data.error')
+                    ?? ['code' => (string) $response->status(), 'message' => $response->json('message') ?? 'Status request failed'],
+            ];
+        }
+
+        $data = $response->json('data');
+
+        return is_array($data) ? $data : null;
+    }
+
+    public function deleteEvent(string $eventUid, int $creatorUserId): bool
+    {
+        $response = $this->olRequest(
+            'DELETE',
+            "/crm/events/{$eventUid}",
+            ['creatorUserId' => $creatorUserId]
+        );
+
+        if (!$response) {
+            return false;
+        }
+
+        // 204 No Content or any 2xx
+        if ($response->successful() || $response->status() === 204) {
+            return true;
+        }
+
+        Log::error('CalendarSyncService: OL delete returned non-2xx', [
+            'eventUid' => $eventUid,
+            'creatorUserId' => $creatorUserId,
+            'status' => $response->status(),
+            'body' => $response->body(),
+        ]);
+
+        return false;
     }
 
     /**
@@ -48,7 +111,7 @@ class ZohoCalendarSyncService
         $timeout = (int) config('services.ol.timeout', 15);
 
         if ($baseUrl === '' || $apiKey === '') {
-            Log::error('ZohoCalendarSyncService: OL config missing', [
+            Log::error('CalendarSyncService: OL config missing', [
                 'base_url_set' => $baseUrl !== '',
                 'api_key_set' => $apiKey !== '',
             ]);
@@ -57,17 +120,25 @@ class ZohoCalendarSyncService
         }
 
         $url = rtrim($baseUrl, '/') . $path;
+        $method = strtoupper($method);
 
         try {
-            return Http::timeout($timeout)
+            $pending = Http::timeout($timeout)
                 ->withHeaders([
                     'Content-Type' => 'application/json',
                     'X-Api-Key' => $apiKey,
                     'Accept' => 'application/json',
-                ])
-                ->{$method === 'GET' ? 'get' : 'post'}($url, $payload);
+                ]);
+
+            return match ($method) {
+                'GET' => $pending->get($url, $payload),
+                'DELETE' => $pending->delete($url, $payload),
+                'POST' => $pending->post($url, $payload),
+                'PUT' => $pending->put($url, $payload),
+                default => throw new \InvalidArgumentException("Unsupported HTTP method: {$method}"),
+            };
         } catch (\Throwable $e) {
-            Log::error('ZohoCalendarSyncService: OL request failed', [
+            Log::error('CalendarSyncService: OL request failed', [
                 'method' => $method,
                 'url' => $url,
                 'error' => $e->getMessage(),
@@ -80,7 +151,7 @@ class ZohoCalendarSyncService
     private function extractJobIdFromCreateLikeResponse(Response $response, string|int $context): ?string
     {
         if (!$response->successful()) {
-            Log::error('ZohoCalendarSyncService: OL returned non-2xx', [
+            Log::error('CalendarSyncService: OL returned non-2xx', [
                 'context' => $context,
                 'status' => $response->status(),
                 'body' => $response->body(),
@@ -92,7 +163,7 @@ class ZohoCalendarSyncService
         $jobId = $data['jobId'] ?? null;
 
         if (!is_string($jobId) || trim($jobId) === '') {
-            Log::warning('ZohoCalendarSyncService: OL response missing jobId', [
+            Log::warning('CalendarSyncService: OL response missing jobId', [
                 'context' => $context,
                 'data' => $data,
             ]);
@@ -104,7 +175,7 @@ class ZohoCalendarSyncService
 
     /**
      * OL payload contract for:
-     * POST /v1/integrations/zoho/calendar/events
+     * POST /v1/crm/events/{platform}
      *
      * @return array<string, mixed>
      */
@@ -152,4 +223,3 @@ class ZohoCalendarSyncService
         ];
     }
 }
-

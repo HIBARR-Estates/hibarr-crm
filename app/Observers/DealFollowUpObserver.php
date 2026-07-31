@@ -2,15 +2,15 @@
 
 namespace App\Observers;
 
-use App\Models\EmployeeDetails;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
+use App\Jobs\DeleteCalendarSyncEventJob;
+use App\Jobs\SyncCalendarEventJob;
 use App\Services\DealActivityEventService;
 use App\Services\DealAutomationService;
 use App\Services\DealNotificationService;
 use App\Support\FeatureFlags;
 use Illuminate\Support\Facades\Log;
-use App\Jobs\SyncZohoCalendarEventJob;
 
 class DealFollowUpObserver
 {
@@ -64,23 +64,15 @@ class DealFollowUpObserver
             return;
         }
 
-        $hasLinkedZohoProfile = EmployeeDetails::query()
-            ->where('user_id', $creatorUserId)
-            ->whereNotNull('zoho_id')
-            ->exists();
-
-        if (!$hasLinkedZohoProfile) {
-            return;
-        }
-
         // Show the user an immediate "pending" indicator, while the queued job
         // performs the OL enqueue request and stores the returned jobId.
+        // OL resolves CRM user → WORKSUITE_USER; missing link surfaces as 404.
         $dealFollowUp->update([
             'zoho_calendar_job_id' => $dealFollowUp->zoho_calendar_job_id,
             'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
         ]);
 
-        SyncZohoCalendarEventJob::dispatch($dealFollowUp->id);
+        SyncCalendarEventJob::dispatch($dealFollowUp->id);
     }
 
     /**
@@ -111,7 +103,22 @@ class DealFollowUpObserver
      */
     public function deleted(DealFollowUp $dealFollowUp): void
     {
-        //
+        if (!FeatureFlags::enabled('integrations.zoho-calendar-sync')) {
+            return;
+        }
+
+        $eventUid = $dealFollowUp->zoho_calendar_event_uid;
+        $creatorUserId = $dealFollowUp->added_by;
+
+        if (!$eventUid || !$creatorUserId) {
+            return;
+        }
+
+        DeleteCalendarSyncEventJob::dispatch(
+            (string) $eventUid,
+            (int) $creatorUserId,
+            $dealFollowUp->id
+        );
     }
 
     /**
