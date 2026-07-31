@@ -17,6 +17,7 @@ export interface DealItineraryFormInput {
     airport_name: string;
     flight_date: string;
     is_transfer_required: boolean;
+    ticket_image_url?: string | null;
 }
 
 export default function useDealItinerary(dealId: number) {

@@ -6,11 +6,13 @@ import {
     FlightDirection,
     ILeadFlightItinerary,
 } from "@/Types/api/lead-flight-itinerary";
+import { FlightItineraryType, IFlightItineraryEntry } from "@/Types/api/ocr";
 import useDealItinerary, {
     DealItineraryFormInput,
 } from "../../hooks/useDealItinerary";
 import DealButton from "../primitives/DealButton";
 import { DealModal, DealModalField } from "../primitives/DealModal";
+import DealItineraryOcrScanner from "./DealItineraryOcrScanner";
 import {
     DEAL_REDESIGN_RADIUS as R,
     DEAL_REDESIGN_TOKENS as T,
@@ -44,6 +46,7 @@ interface ItineraryFormState {
     date: string;
     time: string;
     is_transfer_required: boolean;
+    ticket_image_url: string | null;
 }
 
 const EMPTY_FORM: ItineraryFormState = {
@@ -53,6 +56,7 @@ const EMPTY_FORM: ItineraryFormState = {
     date: "",
     time: "12:00",
     is_transfer_required: false,
+    ticket_image_url: null,
 };
 
 function humanizeAirportName(value: string): string {
@@ -70,6 +74,64 @@ function pad2(value: number): string {
     return String(value).padStart(2, "0");
 }
 
+function directionFromFlightType(
+    type: FlightItineraryType | null,
+): FlightDirection | null {
+    if (type === FlightItineraryType.ARRIVAL) return FlightDirection.ARRIVAL;
+    if (type === FlightItineraryType.DEPARTURE) return FlightDirection.DEPARTURE;
+    return null;
+}
+
+function splitFlightDateTime(
+    value: string | null,
+): { date: string; time: string } | null {
+    if (!value) return null;
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return null;
+    return {
+        date: `${parsed.getFullYear()}-${pad2(parsed.getMonth() + 1)}-${pad2(parsed.getDate())}`,
+        time: `${pad2(parsed.getHours())}:${pad2(parsed.getMinutes())}`,
+    };
+}
+
+/** The OCR result carries both origin and destination text; only the
+ * Cyprus-side airport is relevant to this form's single `airport_name`
+ * field — arrival airport for an Arrival leg, departure airport for a
+ * Departure leg. */
+function ocrAirportText(entry: IFlightItineraryEntry): string {
+    if (entry.flightType === FlightItineraryType.DEPARTURE) {
+        return entry.departureAirport ?? entry.arrivalAirport ?? "";
+    }
+    return entry.arrivalAirport ?? entry.departureAirport ?? "";
+}
+
+/** Best-effort match of raw OCR airport text against the configured airport
+ * list — by IATA code first, then by substring on the display label. Falls
+ * back to the raw text so the user can still see what was detected and pick
+ * the right option manually. */
+function matchAirportOption(
+    text: string,
+    options: Array<{ value: string; label: string }>,
+): string {
+    if (!text) return "";
+    const codeMatch = text.match(/\b[A-Z]{3}\b/);
+    const needle = text.toLowerCase();
+
+    const byCode = codeMatch
+        ? options.find((option) =>
+              option.label.toUpperCase().includes(codeMatch[0]),
+          )
+        : undefined;
+    if (byCode) return byCode.value;
+
+    const byLabel = options.find((option) =>
+        needle.includes(option.label.toLowerCase()),
+    );
+    if (byLabel) return byLabel.value;
+
+    return text;
+}
+
 function formFromLeg(leg: ILeadFlightItinerary): ItineraryFormState {
     const parsed = leg.flight_date ? new Date(leg.flight_date) : null;
     const valid = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
@@ -85,6 +147,7 @@ function formFromLeg(leg: ILeadFlightItinerary): ItineraryFormState {
             ? `${pad2(valid.getHours())}:${pad2(valid.getMinutes())}`
             : "12:00",
         is_transfer_required: Boolean(leg.is_transfer_required),
+        ticket_image_url: leg.ticket_image_url ?? null,
     };
 }
 
@@ -159,6 +222,30 @@ export default function DealItineraryModal({
         onClose();
     };
 
+    const applyDetectedFlight = (
+        entry: IFlightItineraryEntry,
+        fileUrl: string | null,
+    ) => {
+        const detectedDirection = directionFromFlightType(entry.flightType);
+        const dateTime = splitFlightDateTime(entry.flightDateTime);
+        const airportText = ocrAirportText(entry);
+        const matchedAirport = airportText
+            ? matchAirportOption(airportText, selectOptions)
+            : "";
+
+        setForm((current) => ({
+            ...current,
+            direction: detectedDirection ?? current.direction,
+            flight_number: entry.flightNumber
+                ? entry.flightNumber.toUpperCase()
+                : current.flight_number,
+            airport_name: matchedAirport || current.airport_name,
+            date: dateTime?.date ?? current.date,
+            time: dateTime?.time ?? current.time,
+            ticket_image_url: fileUrl ?? current.ticket_image_url,
+        }));
+    };
+
     const handleSubmit = () => {
         if (!form.flight_number.trim() || !form.date || !form.airport_name) {
             return;
@@ -169,6 +256,7 @@ export default function DealItineraryModal({
             airport_name: form.airport_name,
             flight_date: `${form.date} ${form.time}:00`,
             is_transfer_required: form.is_transfer_required,
+            ticket_image_url: form.ticket_image_url,
         };
         if (isEdit && leg) {
             updateLeg(leg, payload, handleClose);
@@ -215,6 +303,13 @@ export default function DealItineraryModal({
                 </>
             }
         >
+            {!isEdit && (
+                <DealItineraryOcrScanner
+                    disabled={saving}
+                    onApply={applyDetectedFlight}
+                />
+            )}
+
             <DealModalField label={ft("direction")}>
                 <div
                     className="grid grid-cols-2 gap-1.5"

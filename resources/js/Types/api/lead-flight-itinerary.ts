@@ -13,5 +13,5 @@ export interface ILeadFlightItinerary {
     flight_date?: string;                // date/time string of this arrival or departure
     status: string; // arrived/not arrived or for departures left/still on the island
     is_transfer_required?: boolean;
-    ticket_image_url?: string;
+    ticket_image_url?: string | null;
 }
