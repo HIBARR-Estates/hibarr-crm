@@ -41,7 +41,7 @@ export default function useDealFlightItineraryOcr() {
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
     const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const cancelledRef = useRef(false);
+    const generationRef = useRef(0);
 
     const clearPoll = useCallback(() => {
         if (pollTimeoutRef.current) {
@@ -50,20 +50,31 @@ export default function useDealFlightItineraryOcr() {
         }
     }, []);
 
+    const bumpGeneration = useCallback(() => {
+        generationRef.current += 1;
+        return generationRef.current;
+    }, []);
+
+    const isStaleGeneration = useCallback(
+        (generation: number) => generationRef.current !== generation,
+        [],
+    );
+
     useEffect(() => {
         return () => {
-            cancelledRef.current = true;
+            bumpGeneration();
             clearPoll();
         };
-    }, [clearPoll]);
+    }, [bumpGeneration, clearPoll]);
 
     const checkStatus = useCallback(
         async (
             requestId: number,
             attempt: number,
             config: { baseUrl: string; apiKey: string },
+            generation: number,
         ) => {
-            if (cancelledRef.current) return;
+            if (isStaleGeneration(generation)) return;
 
             try {
                 const response = await axios.get<
@@ -71,7 +82,7 @@ export default function useDealFlightItineraryOcr() {
                 >(`${config.baseUrl}/ocr/flight-itineraries/${requestId}`, {
                     headers: { "X-Api-Key": config.apiKey },
                 });
-                if (cancelledRef.current) return;
+                if (isStaleGeneration(generation)) return;
 
                 const data = response.data.data;
 
@@ -98,10 +109,15 @@ export default function useDealFlightItineraryOcr() {
                 }
 
                 pollTimeoutRef.current = setTimeout(() => {
-                    void checkStatus(requestId, attempt + 1, config);
+                    void checkStatus(
+                        requestId,
+                        attempt + 1,
+                        config,
+                        generation,
+                    );
                 }, POLL_INTERVAL_MS);
             } catch (error) {
-                if (cancelledRef.current) return;
+                if (isStaleGeneration(generation)) return;
                 setErrorMessage(
                     extractErrorMessage(
                         error,
@@ -111,12 +127,12 @@ export default function useDealFlightItineraryOcr() {
                 setScanState("failed");
             }
         },
-        [],
+        [isStaleGeneration],
     );
 
     const scanTicketImage = useCallback(
         async (file: File) => {
-            cancelledRef.current = false;
+            const generation = bumpGeneration();
             clearPoll();
             setErrorMessage(null);
             setFlights([]);
@@ -136,14 +152,14 @@ export default function useDealFlightItineraryOcr() {
                         "Content-Type": "multipart/form-data",
                     },
                 });
-                if (cancelledRef.current) return;
+                if (isStaleGeneration(generation)) return;
 
                 const data = response.data.data;
                 setFileUrl(data.fileUrl);
                 setScanState("processing");
-                void checkStatus(data.requestId, 0, config);
+                void checkStatus(data.requestId, 0, config, generation);
             } catch (error) {
-                if (cancelledRef.current) return;
+                if (isStaleGeneration(generation)) return;
                 setErrorMessage(
                     extractErrorMessage(
                         error,
@@ -153,18 +169,17 @@ export default function useDealFlightItineraryOcr() {
                 setScanState("failed");
             }
         },
-        [checkStatus, clearPoll],
+        [bumpGeneration, checkStatus, clearPoll, isStaleGeneration],
     );
 
     const reset = useCallback(() => {
-        cancelledRef.current = true;
+        bumpGeneration();
         clearPoll();
-        cancelledRef.current = false;
         setScanState("idle");
         setFlights([]);
         setFileUrl(null);
         setErrorMessage(null);
-    }, [clearPoll]);
+    }, [bumpGeneration, clearPoll]);
 
     return { scanState, flights, fileUrl, errorMessage, scanTicketImage, reset };
 }
