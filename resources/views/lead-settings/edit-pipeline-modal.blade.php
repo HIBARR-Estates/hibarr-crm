@@ -43,6 +43,17 @@
             'id' => 'cat_item_' . $category->id,
         ])->all()
         : [];
+
+    // Analysis Script steps must be built from categories actually linked to this
+    // pipeline (pipeline-wide or on any of its stages), not every category in the company.
+    $linkedCategoryIds = collect($pipelineCategoryIds)
+        ->merge(collect($stageCategoryIds)->flatten())
+        ->map(fn ($id) => (int) $id)
+        ->unique();
+
+    $linkedCustomFieldCategories = isset($customFieldCategories)
+        ? $customFieldCategories->whereIn('id', $linkedCategoryIds)->values()
+        : collect();
 @endphp
 
 <x-form id="editStatus" method="PUT" class="ajax-form">
@@ -231,9 +242,7 @@
                                     $existingItems = $analysisScript?->items ?? collect();
                                 @endphp
                                 @foreach($existingItems->sortBy('position') as $item)
-                                    <div class="analysis-script-item list-group-item p-0" data-type="{{ $item->type }}" data-key="{{ $item->item_key }}">
-                                        @include('lead-settings.partials.analysis-script-item', ['item' => $item])
-                                    </div>
+                                    @include('lead-settings.partials.analysis-script-item', ['item' => $item])
                                 @endforeach
                             </div>
 
@@ -243,9 +252,9 @@
                                     <i class="fa fa-plus mr-1"></i> Add Step
                                 </button>
                                 <div class="dropdown-menu analysis-add-dropdown" aria-labelledby="addAnalysisItemDropdown" style="max-height:320px;overflow-y:auto;min-width:260px;">
-                                    @if($customFieldCategories->count())
+                                    @if($linkedCustomFieldCategories->count())
                                         <h6 class="dropdown-header">Custom Field Categories</h6>
-                                        @foreach($customFieldCategories as $cat)
+                                        @foreach($linkedCustomFieldCategories as $cat)
                                             <a class="dropdown-item add-analysis-item" href="#"
                                                 data-type="custom_field_category"
                                                 data-key="{{ $cat->id }}"
@@ -311,6 +320,17 @@
                                             {{ $label }}
                                         </a>
                                     @endforeach
+                                    <div class="dropdown-divider"></div>
+
+                                    <h6 class="dropdown-header">Prompts &amp; Instructions</h6>
+                                    <a class="dropdown-item" href="#" id="add-question-item">
+                                        <span class="badge badge-dark mr-1" style="font-size:10px;background:#7c3aed;">Question</span>
+                                        Add a question to ask the lead
+                                    </a>
+                                    <a class="dropdown-item" href="#" id="add-instruction-item">
+                                        <span class="badge badge-dark mr-1" style="font-size:10px;">Instruction</span>
+                                        Add an instruction / talking point
+                                    </a>
                                 </div>
                             </div>
 
@@ -373,26 +393,32 @@
         native_field:          '<span class="badge badge-primary"   style="font-size:10px;">Deal</span>',
         hibarr_field:          '<span class="badge badge-info"      style="font-size:10px;">HIBARR</span>',
         lead_field:            '<span class="badge badge-warning"   style="font-size:10px;">Lead</span>',
+        question:              '<span class="badge" style="font-size:10px;background:#7c3aed;color:#fff;">Question</span>',
+        instruction:           '<span class="badge badge-dark"      style="font-size:10px;">Instruction</span>',
     };
 
     function makeItemRow(type, key, label, labelOverride, guideText) {
         labelOverride = labelOverride || '';
         guideText     = guideText     || '';
-        var guideOpen = guideText ? 'show' : '';
-        var guideLink = guideText ? '▲ Hide talking points' : '▼ Add talking points';
-        var badge = BADGE_MAP[type] || '';
+        var isPrompt  = (type === 'question' || type === 'instruction');
+        var guideOpen = (guideText || isPrompt) ? 'show' : '';
+        var badge     = BADGE_MAP[type] || '';
+        var guidePlaceholder = type === 'question'
+            ? 'Enter the question to ask the lead…'
+            : (type === 'instruction' ? 'Enter the instruction or talking point…' : 'Agent talking points / script for this step…');
+        var toggleLink = isPrompt ? '' : '<a href="#" class="toggle-guide-text f-11 text-muted mt-1 d-inline-block">' + (guideText ? '▲ Hide talking points' : '▼ Add talking points') + '</a>';
         return '<div class="d-flex align-items-start p-2 bg-white border rounded mb-2 analysis-item-row" data-type="' + type + '" data-key="' + key + '" style="gap:8px;">'
             + '<span class="drag-handle text-lightest mt-1 cursor-move" style="font-size:16px;line-height:1;">&#9776;</span>'
             + '<div class="flex-grow-1" style="min-width:0;">'
                 + '<div class="d-flex align-items-center mb-1" style="gap:6px;">'
                     + badge
-                    + '<span class="f-12 text-dark font-weight-semibold item-key-label">' + $('<span>').text(key).html() + '</span>'
+                    + '<span class="f-12 text-dark font-weight-semibold item-key-label">' + $('<span>').text(label || key).html() + '</span>'
                 + '</div>'
-                + '<input type="text" class="form-control form-control-sm item-label-override mb-1" placeholder="Label (leave blank for default)" value="' + $('<span>').text(labelOverride).html() + '" style="font-size:12px;">'
+                + '<input type="text" class="form-control form-control-sm item-label-override mb-1" placeholder="' + (isPrompt ? 'Step title (optional)' : 'Label (leave blank for default)') + '" value="' + $('<span>').text(labelOverride).html() + '" style="font-size:12px;">'
                 + '<div class="collapse analysis-guide-collapse ' + guideOpen + '">'
-                    + '<textarea class="form-control form-control-sm item-guide-text mt-1" rows="3" placeholder="Agent talking points / script for this step…" style="font-size:12px;resize:vertical;">' + $('<span>').text(guideText).html() + '</textarea>'
+                    + '<textarea class="form-control form-control-sm item-guide-text mt-1" rows="' + (isPrompt ? 4 : 3) + '" placeholder="' + guidePlaceholder + '" style="font-size:12px;resize:vertical;">' + $('<span>').text(guideText).html() + '</textarea>'
                 + '</div>'
-                + '<a href="#" class="toggle-guide-text f-11 text-muted mt-1 d-inline-block">' + guideLink + '</a>'
+                + toggleLink
             + '</div>'
             + '<button type="button" class="btn btn-link text-danger p-0 remove-analysis-item" title="Remove" style="font-size:14px;line-height:1;"><i class="fa fa-times"></i></button>'
             + '</div>';
@@ -408,6 +434,18 @@
         var key   = $(this).data('key').toString();
         var label = $(this).data('label');
         $('#analysis-script-items').append(makeItemRow(type, key, label, '', ''));
+    });
+
+    $('body').off('click.addQuestion', '#add-question-item').on('click.addQuestion', '#add-question-item', function(e) {
+        e.preventDefault();
+        $('#analysis-script-items').append(makeItemRow('question', 'q_' + Date.now(), 'New Question', '', ''));
+        $('.analysis-add-dropdown').removeClass('show');
+    });
+
+    $('body').off('click.addInstruction', '#add-instruction-item').on('click.addInstruction', '#add-instruction-item', function(e) {
+        e.preventDefault();
+        $('#analysis-script-items').append(makeItemRow('instruction', 'i_' + Date.now(), 'New Instruction', '', ''));
+        $('.analysis-add-dropdown').removeClass('show');
     });
 
     // Remove item
@@ -444,7 +482,7 @@
             url:         "{{ route('pipeline.analysis-script.upsert', $pipeline->id) }}",
             type:        'PUT',
             contentType: 'application/json',
-            headers:     { 'X-CSRF-TOKEN': "{{ csrf_token() }}" },
+            headers:     { 'X-CSRF-TOKEN': "{{ csrf_token() }}", 'Accept': 'application/json' },
             data:        JSON.stringify({ items: items }),
             success: function(resp) {
                 $btn.prop('disabled', false).html('<i class="fa fa-check mr-1"></i> Save Analysis Script');

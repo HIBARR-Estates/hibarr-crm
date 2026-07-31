@@ -25,7 +25,7 @@ class PipelineAnalysisScriptController extends Controller
     {
         $request->validate([
             'items'                => ['array'],
-            'items.*.type'         => ['required', 'in:custom_field_category,native_field,hibarr_field,lead_field'],
+            'items.*.type'         => ['required', 'in:custom_field_category,native_field,hibarr_field,lead_field,question,instruction'],
             'items.*.item_key'     => ['required', 'string', 'max:255'],
             'items.*.label_override' => ['nullable', 'string', 'max:255'],
             'items.*.guide_text'   => ['nullable', 'string'],

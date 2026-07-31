@@ -48,12 +48,6 @@ class UnsClient
             return false;
         }
 
-        Log::debug('UNS request sent.', [
-            'status' => $response->status(),
-            'payload' => $payload,
-            'response' => $response->body(),
-        ]);
-
         if (in_array($response->status(), [200, 202, 409], true)) {
             return true;
         }

@@ -37,8 +37,9 @@ class UnsEmailPayloadMapper
             'priority' => 'DEFAULT',
             'idempotencyKey' => $this->buildIdempotencyKey($recipient, $subject, $body),
             'data' => [
-                'fromEmail' => $sender,
                 'emailAddress' => $recipient,
+                // 'templateSlug' => 'b85ba808-313b-4aee-bd9b-dfc6ed4df216',
+                // 'templateVariables' => ['body' => $body],
                 'subject' => $subject,
                 'body' => $body,
                 'metadata' => [
