@@ -1,10 +1,9 @@
 <?php
 
-namespace Tests\Feature\ZohoCalendarSync;
+namespace Tests\Feature\CalendarSync;
 
-use App\Jobs\SyncZohoCalendarEventJob;
+use App\Jobs\SyncCalendarEventJob;
 use App\Models\DealFollowUp;
-use App\Models\EmployeeDetails;
 use App\Observers\DealFollowUpObserver;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -18,17 +17,12 @@ class ObserverDispatchTest extends TestCase
     use RefreshDatabase;
     use SetsFeatureFlags;
 
-    public function test_it_dispatches_job_when_flag_enabled_and_creator_has_zoho_profile(): void
+    public function test_it_dispatches_job_when_flag_enabled_without_zoho_id(): void
     {
         $this->setFeatureFlag('integrations.zoho-calendar-sync', true);
         Queue::fake();
 
         $creator = User::factory()->create();
-
-        $employeeDetails = new EmployeeDetails();
-        $employeeDetails->user_id = $creator->id;
-        $employeeDetails->zoho_id = 'zoho-123';
-        $employeeDetails->save();
 
         $followUp = new DealFollowUp();
         $followUp->added_by = $creator->id;
@@ -43,7 +37,7 @@ class ObserverDispatchTest extends TestCase
         $observer = app(DealFollowUpObserver::class);
         $observer->created($followUp);
 
-        Queue::assertPushed(SyncZohoCalendarEventJob::class);
+        Queue::assertPushed(SyncCalendarEventJob::class);
     }
 
     public function test_it_skips_job_when_flag_disabled(): void
@@ -52,11 +46,6 @@ class ObserverDispatchTest extends TestCase
         Queue::fake();
 
         $creator = User::factory()->create();
-
-        $employeeDetails = new EmployeeDetails();
-        $employeeDetails->user_id = $creator->id;
-        $employeeDetails->zoho_id = 'zoho-123';
-        $employeeDetails->save();
 
         $followUp = new DealFollowUp();
         $followUp->added_by = $creator->id;
@@ -74,21 +63,13 @@ class ObserverDispatchTest extends TestCase
         Queue::assertNothingPushed();
     }
 
-    public function test_it_skips_job_when_creator_has_no_linked_zoho_profile(): void
+    public function test_it_skips_job_when_creator_missing(): void
     {
         $this->setFeatureFlag('integrations.zoho-calendar-sync', true);
         Queue::fake();
 
-        $creator = User::factory()->create();
-
-        // Create employee details without zoho_id
-        $employeeDetails = new EmployeeDetails();
-        $employeeDetails->user_id = $creator->id;
-        $employeeDetails->zoho_id = null;
-        $employeeDetails->save();
-
         $followUp = new DealFollowUp();
-        $followUp->added_by = $creator->id;
+        $followUp->added_by = null;
         $followUp->next_follow_up_date = now();
         $followUp->duration = 30;
         $followUp->location = 'office';
@@ -111,7 +92,7 @@ class ObserverDispatchTest extends TestCase
         Http::fake(function ($request) {
             if (
                 $request->url() ===
-                'https://ol.test/v1/integrations/zoho/calendar/events' &&
+                'https://ol.test/v1/crm/events/zoho' &&
                 $request->method() === 'POST'
             ) {
                 return Http::response(['success' => false], 500);
@@ -125,11 +106,6 @@ class ObserverDispatchTest extends TestCase
         config()->set('services.ol.timeout', 5);
 
         $creator = User::factory()->create();
-
-        $employeeDetails = new EmployeeDetails();
-        $employeeDetails->user_id = $creator->id;
-        $employeeDetails->zoho_id = 'zoho-123';
-        $employeeDetails->save();
 
         $followUp = new DealFollowUp();
         $followUp->added_by = $creator->id;
@@ -152,4 +128,3 @@ class ObserverDispatchTest extends TestCase
         );
     }
 }
-
