@@ -42,6 +42,7 @@ export interface DealFollowup {
     deal?: Pick<Deal, "id" | "name"> | Deal;
     zoho_calendar_job_id?: string | null;
     zoho_calendar_sync_status?: "pending" | "synced" | "failed" | null;
+    zoho_calendar_event_uid?: string | null;
     lead?: Pick<
         Lead,
         "id" | "client_name" | "client_name_salutation" | "company_name"

@@ -203,7 +203,7 @@ export function DetailField({
             >
                 {/* Label row — edit pencil appears here on group hover */}
                 <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-700 leading-[1.5]">
+                    <span className="text-[13px] font-semibold uppercase tracking-wider text-black leading-[1.5]">
                         {td(label)}
                     </span>
                     {editHandler && (

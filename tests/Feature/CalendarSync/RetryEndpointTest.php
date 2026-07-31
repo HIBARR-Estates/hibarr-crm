@@ -1,9 +1,8 @@
 <?php
 
-namespace Tests\Feature\ZohoCalendarSync;
+namespace Tests\Feature\CalendarSync;
 
 use App\Models\DealFollowUp;
-use App\Models\EmployeeDetails;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -22,11 +21,6 @@ class RetryEndpointTest extends TestCase
         $creator = User::factory()->create();
         $otherUser = User::factory()->create();
 
-        $employeeDetails = new EmployeeDetails();
-        $employeeDetails->user_id = $creator->id;
-        $employeeDetails->zoho_id = 'zoho-123';
-        $employeeDetails->save();
-
         $followUp = new DealFollowUp();
         $followUp->added_by = $creator->id;
         $followUp->next_follow_up_date = now();
@@ -41,7 +35,7 @@ class RetryEndpointTest extends TestCase
 
         $this->actingAs($otherUser);
 
-        $this->post(route('zoho_calendar_sync.retry', ['followUp' => $followUp->id]))
+        $this->post(route('calendar_sync.retry', ['followUp' => $followUp->id]))
             ->assertStatus(403);
     }
 
@@ -54,11 +48,6 @@ class RetryEndpointTest extends TestCase
         $this->setFeatureFlag('integrations.zoho-calendar-sync', true);
 
         $creator = User::factory()->create();
-
-        $employeeDetails = new EmployeeDetails();
-        $employeeDetails->user_id = $creator->id;
-        $employeeDetails->zoho_id = 'zoho-123';
-        $employeeDetails->save();
 
         $followUp = new DealFollowUp();
         $followUp->added_by = $creator->id;
@@ -76,16 +65,16 @@ class RetryEndpointTest extends TestCase
         Http::fake(function ($request) {
             if (
                 $request->url() ===
-                'https://ol.test/v1/integrations/zoho/calendar/events' &&
+                'https://ol.test/v1/crm/events/zoho' &&
                 $request->method() === 'POST'
             ) {
                 return Http::response(
                     [
                         'success' => true,
-                        'message' => 'Zoho calendar event job enqueued',
+                        'message' => 'Calendar event job enqueued',
                         'data' => ['jobId' => 'job-new'],
                     ],
-                    200,
+                    202,
                 );
             }
 
@@ -95,7 +84,7 @@ class RetryEndpointTest extends TestCase
         $this->actingAs($creator);
 
         $this->post(
-            route('zoho_calendar_sync.retry', ['followUp' => $followUp->id]),
+            route('calendar_sync.retry', ['followUp' => $followUp->id]),
         )
             ->assertStatus(200)
             ->assertJsonPath('status', 'success');
@@ -119,11 +108,6 @@ class RetryEndpointTest extends TestCase
 
         $creator = User::factory()->create();
 
-        $employeeDetails = new EmployeeDetails();
-        $employeeDetails->user_id = $creator->id;
-        $employeeDetails->zoho_id = 'zoho-123';
-        $employeeDetails->save();
-
         $followUp = new DealFollowUp();
         $followUp->added_by = $creator->id;
         $followUp->next_follow_up_date = now();
@@ -140,16 +124,16 @@ class RetryEndpointTest extends TestCase
         Http::fake(function ($request) {
             if (
                 $request->url() ===
-                    'https://ol.test/v1/integrations/zoho/calendar/events/job-old/retry' &&
+                    'https://ol.test/v1/crm/events/jobs/job-old/retry' &&
                 $request->method() === 'POST'
             ) {
                 return Http::response(
                     [
                         'success' => true,
-                        'message' => 'Zoho calendar event job enqueued',
+                        'message' => 'Calendar event job enqueued',
                         'data' => ['jobId' => 'job-new'],
                     ],
-                    200,
+                    202,
                 );
             }
 
@@ -159,7 +143,7 @@ class RetryEndpointTest extends TestCase
         $this->actingAs($creator);
 
         $this->post(
-            route('zoho_calendar_sync.retry', ['followUp' => $followUp->id]),
+            route('calendar_sync.retry', ['followUp' => $followUp->id]),
         )
             ->assertStatus(200)
             ->assertJsonPath('status', 'success');
@@ -173,4 +157,3 @@ class RetryEndpointTest extends TestCase
         );
     }
 }
-

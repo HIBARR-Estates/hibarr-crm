@@ -537,11 +537,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deals/change-follow-up-status', [DealController::class, 'changeFollowUpStatus'])->name('deals.change_follow_up_status');
     Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate-meeting-link');
 
-    // Zoho Calendar Sync (jobId retry + fresh enqueue when jobId is null)
+    // Calendar Sync (OL /crm/events; platform=zoho today)
     Route::post(
-        'follow-ups/{followUp}/zoho-calendar-sync/retry',
-        [\App\Http\Controllers\ZohoCalendarSyncController::class, 'retry']
-    )->name('zoho_calendar_sync.retry');
+        'follow-ups/{followUp}/calendar-sync/retry',
+        [\App\Http\Controllers\CalendarSyncController::class, 'retry']
+    )->name('calendar_sync.retry');
+    Route::get(
+        'follow-ups/{followUp}/calendar-sync/status',
+        [\App\Http\Controllers\CalendarSyncController::class, 'status']
+    )->name('calendar_sync.status');
 
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');

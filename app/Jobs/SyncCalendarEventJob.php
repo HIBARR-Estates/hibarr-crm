@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\DealFollowUp;
-use App\Services\ZohoCalendarSyncService;
+use App\Services\CalendarSyncService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,7 +12,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
-class SyncZohoCalendarEventJob implements ShouldQueue
+class SyncCalendarEventJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -23,21 +23,21 @@ class SyncZohoCalendarEventJob implements ShouldQueue
     {
     }
 
-    public function handle(ZohoCalendarSyncService $syncService): void
+    public function handle(CalendarSyncService $syncService): void
     {
         $followUp = DealFollowUp::query()
             ->with(['meetingType', 'deal'])
             ->find($this->followUpId);
 
         if (!$followUp) {
-            Log::warning('SyncZohoCalendarEventJob: follow-up not found', [
+            Log::warning('SyncCalendarEventJob: follow-up not found', [
                 'follow_up_id' => $this->followUpId,
             ]);
             return;
         }
 
         try {
-            $jobId = $syncService->enqueueEvent($followUp);
+            $jobId = $syncService->enqueueEvent($followUp, CalendarSyncService::PLATFORM_ZOHO);
 
             if ($jobId) {
                 $followUp->update([
@@ -51,7 +51,7 @@ class SyncZohoCalendarEventJob implements ShouldQueue
                 ]);
             }
         } catch (Throwable $e) {
-            Log::error('SyncZohoCalendarEventJob failed', [
+            Log::error('SyncCalendarEventJob failed', [
                 'follow_up_id' => $this->followUpId,
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -72,16 +72,15 @@ class SyncZohoCalendarEventJob implements ShouldQueue
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
             ]);
         } catch (Throwable $e) {
-            Log::error('SyncZohoCalendarEventJob.failed failed to persist', [
+            Log::error('SyncCalendarEventJob.failed failed to persist', [
                 'follow_up_id' => $this->followUpId,
                 'error' => $e->getMessage(),
             ]);
         }
 
-        Log::error('SyncZohoCalendarEventJob exhausted retries', [
+        Log::error('SyncCalendarEventJob exhausted retries', [
             'follow_up_id' => $this->followUpId,
             'error' => $exception->getMessage(),
         ]);
     }
 }
-
