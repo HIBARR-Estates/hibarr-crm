@@ -13,19 +13,54 @@ interface FailedKey {
 
 export default function useAnalysisFieldSave(dealId: number) {
     const pending = useRef<Map<string, PendingWrite>>(new Map());
+    const inFlight = useRef<Set<Promise<unknown>>>(new Set());
     const [failedKeys, setFailedKeys] = useState<FailedKey[]>([]);
 
-    const flushAll = useCallback(() => {
+    // Saving state is published to subscribers rather than held in state here:
+    // a setState in this hook would re-render the whole modal on every keystroke.
+    const listeners = useRef<Set<(saving: boolean) => void>>(new Set());
+
+    const notify = useCallback(() => {
+        const saving = pending.current.size > 0 || inFlight.current.size > 0;
+        listeners.current.forEach((l) => l(saving));
+    }, []);
+
+    const subscribeSaving = useCallback((cb: (saving: boolean) => void) => {
+        listeners.current.add(cb);
+        cb(pending.current.size > 0 || inFlight.current.size > 0);
+        return () => {
+            listeners.current.delete(cb);
+        };
+    }, []);
+
+    // Track a request so flushAll() can await everything still on the wire.
+    const track = useCallback((p: Promise<unknown>) => {
+        inFlight.current.add(p);
+        notify();
+        p.catch(() => {}).then(() => {
+            inFlight.current.delete(p);
+            notify();
+        });
+        return p;
+    }, [notify]);
+
+    // Dispatches every debounced write immediately and resolves once all
+    // outstanding requests settle — so callers can reload after saves land.
+    const flushAll = useCallback((): Promise<void> => {
         pending.current.forEach(({ timer, payload }) => {
             clearTimeout(timer);
-            axios.patch(
-                route("deals.gathering.inline_update", { id: dealId }),
-                payload,
-                { headers: { Accept: "application/json", "X-Analysis-Lean": "1" } },
-            ).catch(() => {});
+            track(
+                axios.patch(
+                    route("deals.gathering.inline_update", { id: dealId }),
+                    payload,
+                    { headers: { Accept: "application/json", "X-Analysis-Lean": "1" } },
+                ).catch(() => {}),
+            );
         });
         pending.current.clear();
-    }, [dealId]);
+        notify();
+        return Promise.all([...inFlight.current]).then(() => undefined);
+    }, [dealId, track, notify]);
 
     // Flush on unmount and page unload
     useEffect(() => {
@@ -68,25 +103,25 @@ export default function useAnalysisFieldSave(dealId: number) {
         const data = buildData(key, value);
         const payload = { type, data };
 
-        const timer = setTimeout(async () => {
+        const timer = setTimeout(() => {
             pending.current.delete(key);
-            try {
-                await axios.patch(
+            track(
+                axios.patch(
                     route("deals.gathering.inline_update", { id: dealId }),
                     payload,
                     { headers: { Accept: "application/json", "X-Analysis-Lean": "1" } },
-                );
-            } catch {
-                setFailedKeys((prev) => {
-                    // deduplicate by key
-                    const filtered = prev.filter((f) => f.key !== key);
-                    return [...filtered, { key, payload }];
-                });
-            }
+                ).catch(() => {
+                    setFailedKeys((prev) => {
+                        const filtered = prev.filter((f) => f.key !== key);
+                        return [...filtered, { key, payload }];
+                    });
+                }),
+            );
         }, 400);
 
         pending.current.set(key, { timer, payload });
-    }, [dealId, resolveUpdateType, buildData]);
+        notify();
+    }, [dealId, resolveUpdateType, buildData, track, notify]);
 
     const retry = useCallback((key: string) => {
         const failed = failedKeys.find((f) => f.key === key);
@@ -105,5 +140,5 @@ export default function useAnalysisFieldSave(dealId: number) {
         setFailedKeys((prev) => prev.filter((f) => f.key !== key));
     }, []);
 
-    return { save, failedKeys, retry, dismissError, flushAll };
+    return { save, failedKeys, retry, dismissError, flushAll, subscribeSaving };
 }

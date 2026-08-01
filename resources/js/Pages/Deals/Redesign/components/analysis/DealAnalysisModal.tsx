@@ -47,7 +47,7 @@ export default function DealAnalysisModal({
     const { deal } = useDealWorkspace();
     const { props } = usePage<any>();
     const { td } = useTd();
-    const { save, failedKeys, retry, dismissError } = useAnalysisFieldSave(deal.id);
+    const { save, failedKeys, retry, dismissError, flushAll, subscribeSaving } = useAnalysisFieldSave(deal.id);
     const { canEdit } = useDealPermissions(deal);
     const panelRef = useRef<HTMLDivElement>(null);
     const scrollPanelRef = useRef<ScrollPanelHandle>(null);
@@ -55,6 +55,16 @@ export default function DealAnalysisModal({
 
     const [activeSection, setActiveSection] = useState<string>("");
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+    // Stepped flow: the centre panel reveals one section at a time. Everything past
+    // currentStep stays locked until the footer's Next button advances it.
+    const [currentStep, setCurrentStep] = useState(0);
+    const lastStep = useRef(-1);
+
+    // Close is never blocked: flushAll() dispatches pending writes right away and
+    // minimize() defers the deal reload until they land.
+    const requestClose = useCallback(() => {
+        analysis.minimize(flushAll());
+    }, [flushAll, analysis]);
 
     // Single flat value store for all custom fields (deal + lead), keyed as field_${id}.
     // IDs are globally unique across the custom_fields table so no collision.
@@ -83,9 +93,7 @@ export default function DealAnalysisModal({
         setLocalValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
     }, []);
 
-    const leadCustomFieldsRaw = props.leadCustomFields as any[] | null | undefined;
-    const isLoadingCustomFields = leadCustomFieldsRaw == null;
-    const leadCustomFields: any[] = leadCustomFieldsRaw ?? [];
+    const leadCustomFields: any[] = (props.leadCustomFields as any[] | null | undefined) ?? [];
 
     const scriptItems: AnalysisScriptItem[] = useMemo(() => {
         if (analysisScript?.items?.length) return analysisScript.items;
@@ -166,11 +174,37 @@ export default function DealAnalysisModal({
     const unfilledCount = totalFields - totalFilled;
     const allFilled = totalFields > 0 && unfilledCount === 0;
 
+    // Only the active section and the ones already stepped through are rendered.
+    const visibleSections = useMemo(
+        () => sections.slice(0, currentStep + 1),
+        [sections, currentStep],
+    );
+
+    const goToStep = useCallback((index: number) => {
+        setCurrentStep(Math.max(0, Math.min(index, sections.length - 1)));
+    }, [sections.length]);
+
+    // Keep the step in range if the section list changes underneath us.
     useEffect(() => {
-        if (sections.length > 0 && !activeSection) {
-            setActiveSection(sections[0].id);
-        }
-    }, [sections, activeSection]);
+        setCurrentStep((s) => Math.min(s, Math.max(0, sections.length - 1)));
+    }, [sections.length]);
+
+    // Sync the active section to the current step and scroll the newly revealed one
+    // into view. Guarded on the step actually changing: `sections` is rebuilt on every
+    // keystroke, and without this the panel would scroll while the user is typing.
+    useEffect(() => {
+        if (lastStep.current === currentStep) return;
+        const target = sections[currentStep];
+        if (!target) return;
+        const isFirstRun = lastStep.current === -1;
+        lastStep.current = currentStep;
+        setActiveSection(target.id);
+        if (isFirstRun) return; // don't scroll on open
+        const raf = requestAnimationFrame(() =>
+            scrollPanelRef.current?.scrollToSection(target.id),
+        );
+        return () => cancelAnimationFrame(raf);
+    }, [currentStep, sections]);
 
     // Fire-and-forget save for deal custom fields
     const handleDealFieldSave = useCallback((fieldId: number, value: any) => {
@@ -206,10 +240,13 @@ export default function DealAnalysisModal({
 
     const handleJump = useCallback(
         (id: string) => {
+            // Sections past the current step aren't rendered yet — ignore the jump.
+            const index = sections.findIndex((s) => s.id === id);
+            if (index === -1 || index > currentStep) return;
             setActiveSection(id);
             scrollPanelRef.current?.scrollToSection(id);
         },
-        [],
+        [sections, currentStep],
     );
 
     const handleKeyDown = useCallback(
@@ -218,7 +255,7 @@ export default function DealAnalysisModal({
                 if (showCompleteConfirm) {
                     setShowCompleteConfirm(false);
                 } else {
-                    analysis.minimize();
+                    requestClose();
                 }
                 return;
             }
@@ -235,14 +272,14 @@ export default function DealAnalysisModal({
                 if (document.activeElement === last) { e.preventDefault(); first.focus(); }
             }
         },
-        [analysis, showCompleteConfirm],
+        [showCompleteConfirm, requestClose],
     );
 
     useEffect(() => {
         if (analysis.isOpen) {
             const panel = panelRef.current;
             const first = panel?.querySelector<HTMLElement>(FOCUSABLE);
-            first?.focus();
+            first?.focus({ preventScroll: true });
         }
     }, [analysis.isOpen]);
 
@@ -263,6 +300,15 @@ export default function DealAnalysisModal({
                 aria-modal="true"
                 aria-labelledby={titleId}
                 onKeyDown={handleKeyDown}
+                onScroll={(e) => {
+                    // The panel must never scroll. It's overflow:hidden, so a stray
+                    // focus/scrollIntoView would strand the header off-screen with no
+                    // scrollbar to recover. (target check: only self, never children.)
+                    if (e.target !== e.currentTarget) return;
+                    const el = e.currentTarget;
+                    el.scrollTop = 0;
+                    el.scrollLeft = 0;
+                }}
             >
                 {/* Navy header */}
                 <AnalysisHeaderBar
@@ -270,7 +316,8 @@ export default function DealAnalysisModal({
                     isCompleted={analysis.isCompleted}
                     totalFilled={totalFilled}
                     totalFields={totalFields}
-                    onMinimize={analysis.minimize}
+                    subscribeSaving={subscribeSaving}
+                    onMinimize={requestClose}
                 />
 
                 {/* 3-column body */}
@@ -280,7 +327,6 @@ export default function DealAnalysisModal({
                         <AnalysisLeadContextPanel
                             leadCustomFields={leadCustomFields}
                             leadCustomFieldsData={leadFieldValues}
-                            isLoadingCustomFields={isLoadingCustomFields}
                             onLeadCustomFieldSave={handleLeadFieldSave}
                             onLeadCustomFieldChange={handleFieldChange}
                             onContactFieldSave={handleContactFieldSave}
@@ -292,7 +338,11 @@ export default function DealAnalysisModal({
                     <div className="analysis-3col-center">
                         <AnalysisScrollPanel
                             ref={scrollPanelRef}
-                            sections={sections}
+                            sections={visibleSections}
+                            currentStep={currentStep}
+                            stepCount={sections.length}
+                            onPrevStep={() => goToStep(currentStep - 1)}
+                            onNextStep={() => goToStep(currentStep + 1)}
                             fields={fields}
                             localDealFieldValues={dealFieldValues}
                             canEdit={canEdit}
@@ -311,6 +361,7 @@ export default function DealAnalysisModal({
                             sections={sections}
                             sectionProgress={sectionProgress}
                             activeSection={activeSection}
+                            unlockedCount={currentStep + 1}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
                             isCompleting={analysis.isCompleting}
@@ -439,6 +490,7 @@ export default function DealAnalysisModal({
                         </div>
                     </div>
                 )}
+
             </div>
         </div>,
         document.body,

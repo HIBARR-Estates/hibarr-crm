@@ -16,7 +16,6 @@ import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 interface Props {
     leadCustomFields: any[];
     leadCustomFieldsData: Record<string, any>;
-    isLoadingCustomFields: boolean;
     onLeadCustomFieldSave: (fieldId: number, value: any) => void;
     onLeadCustomFieldChange: (fieldId: number, value: any) => void;
     onContactFieldSave: (fieldKey: string, value: any) => void;
@@ -85,25 +84,36 @@ function FieldSkeleton() {
 
 // ── ProfileCard (revamp §C.1) ──────────────────────────────────────────────
 
-function ProfileCard({ leadName, email, phones, whatsapp }: {
+function ProfileCard({ leadName, email, phones, whatsapp, imageUrl }: {
     leadName: string;
     email: string;
     phones: string[];
     whatsapp: string;
+    imageUrl?: string;
 }) {
     const { td } = useTd();
     const initials = initialsFromName(leadName);
+    const [imgError, setImgError] = useState(false);
 
     return (
         <div className="p-4 border-b border-slate-200">
             {/* Avatar + info row */}
             <div className="flex items-center gap-3 mb-3">
-                <div
-                    className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold"
-                    style={{ backgroundColor: "#0A2E5D" }}
-                >
-                    {initials}
-                </div>
+                {imageUrl && !imgError ? (
+                    <img
+                        src={imageUrl}
+                        alt={initials}
+                        onError={() => setImgError(true)}
+                        className="w-11 h-11 rounded-full object-cover shrink-0"
+                    />
+                ) : (
+                    <div
+                        className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold"
+                        style={{ backgroundColor: "#0A2E5D" }}
+                    >
+                        {initials}
+                    </div>
+                )}
                 <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-slate-900 truncate">
                         {leadName || td("No name")}
@@ -183,7 +193,6 @@ function CoreFieldRow({ label, value }: { label: string; value: string }) {
 export default function AnalysisLeadContextPanel({
     leadCustomFields,
     leadCustomFieldsData,
-    isLoadingCustomFields,
     onLeadCustomFieldSave,
     onLeadCustomFieldChange,
     onContactFieldSave,
@@ -223,13 +232,14 @@ export default function AnalysisLeadContextPanel({
         return null;
     })();
 
-    // Read-only relation lookups for Personal Info
-    const readOnlyRows: Array<{ label: string; value: string | null }> = [
+    // Read-only relation rows — always-visible + conditional
+    const alwaysReadOnlyRows: Array<{ label: string; value: string | null }> = [
         { label: td("Source"), value: contact?.leadSource?.name ?? null },
+        { label: td("Lead Owner"), value: contact?.leadOwner?.name ?? null },
+        { label: td("Status"), value: contact?.lifecycleStatus?.name ?? null },
+    ];
+    const conditionalReadOnlyRows: Array<{ label: string; value: string | null }> = [
         { label: td("Category"), value: contact?.category?.name ?? null },
-        { label: td("Owner"), value: contact?.leadOwner?.name ?? null },
-        { label: td("Lifecycle"), value: contact?.lifecycleStatus?.name ?? null },
-        { label: td("WhatsApp group"), value: whatsappDisplay },
     ].filter((r) => r.value !== null && r.value !== "");
 
     // Optimistic local state for editable core contact fields
@@ -240,6 +250,14 @@ export default function AnalysisLeadContextPanel({
         nationality: contact?.nationality ?? null,
         occupation: contact?.occupation ?? null,
     }));
+
+    // Age range — show only when both age and date_of_birth are absent
+    const ageRange: string | null = (() => {
+        if (editableContactVals.age || editableContactVals.date_of_birth) return null;
+        const ar = contact?.age_range;
+        if (!ar) return null;
+        return String(ar?.value ?? ar);
+    })();
 
     const GENDER_OPTIONS = useMemo(() => [
         { value: "male", label: td("Male") },
@@ -340,6 +358,7 @@ export default function AnalysisLeadContextPanel({
                 email={email}
                 phones={phones}
                 whatsapp={whatsapp}
+                imageUrl={contact?.image_url}
             />
 
             {/* Tab bar — revamp §C.2 style */}
@@ -389,14 +408,11 @@ export default function AnalysisLeadContextPanel({
                     aria-labelledby="analysis-tab-lead"
                     hidden={activeTab !== "lead"}
                 >
+                    {alwaysReadOnlyRows.map(({ label, value }) => (
+                        <CoreFieldRow key={label} label={label} value={value ?? ""} />
+                    ))}
                     {/* Personal Info — mix of read-only and editable core contact fields */}
                     <FieldGroup label={td("Personal Info")}>
-                        {leadName && <CoreFieldRow label={td("Name")} value={leadName} />}
-                        {email && <CoreFieldRow label={td("Email")} value={email} />}
-                        {phones[0] && <CoreFieldRow label={td("Mobile")} value={phones[0]} />}
-                        {phones[1] && <CoreFieldRow label={td("Cell")} value={phones[1]} />}
-                        {phones[2] && <CoreFieldRow label={td("Office")} value={phones[2]} />}
-
                         {/* Editable: gender, date_of_birth, age, nationality, occupation */}
                         <AnalysisCustomFieldRow
                             field={{ id: 0, label: td("Gender"), type: "select", values: GENDER_OPTIONS }}
@@ -419,6 +435,9 @@ export default function AnalysisLeadContextPanel({
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, age: v }))}
                             onSave={(v) => onContactFieldSave("age", v)}
                         />
+                        {ageRange && (
+                            <CoreFieldRow label={td("Age Range")} value={ageRange} />
+                        )}
                         <AnalysisCustomFieldRow
                             field={{ id: 3, label: td("Nationality"), type: "country", values: null }}
                             value={editableContactVals.nationality}
@@ -434,30 +453,76 @@ export default function AnalysisLeadContextPanel({
                             onSave={(v) => onContactFieldSave("occupation", v)}
                         />
 
-                        {/* Languages — read-only until language options are plumbed to the analysis modal */}
-                        {/* ponytail: read-only, add language options prop when needed */}
-                        {languages.length > 0 && (
-                            <CoreFieldRow label={td("Languages")} value={languages.join(", ")} />
-                        )}
+                        {/* ponytail: languages read-only, add language options prop when needed */}
 
-                        {contact?.company_name && (
-                            <CoreFieldRow label={td("Company")} value={contact.company_name} />
-                        )}
-                        {address && <CoreFieldRow label={td("Address")} value={address} />}
+                        <AnalysisCustomFieldRow
+                            field={{ id: 6, label: td("Company"), type: "text", values: null }}
+                            value={editableContactVals.company}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, company: v }))}
+                            onSave={(v) => onContactFieldSave("company", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 7, label: td("Address"), type: "text", values: null }}
+                            value={editableContactVals.address}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, address: v }))}
+                            onSave={(v) => onContactFieldSave("address", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 8, label: td("City"), type: "text", values: null }}
+                            value={editableContactVals.address}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, city: v }))}
+                            onSave={(v) => onContactFieldSave("city", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 9, label: td("State"), type: "text", values: null }}
+                            value={editableContactVals.state}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, state: v }))}
+                            onSave={(v) => onContactFieldSave("state", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 10, label: td("Country"), type: "country", values: null }}
+                            value={editableContactVals.country}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, country: v }))}
+                            onSave={(v) => onContactFieldSave("country", v)}
+                        />
 
-                        {readOnlyRows.map(({ label, value }) => (
+                        {conditionalReadOnlyRows.map(({ label, value }) => (
                             <CoreFieldRow key={label} label={label} value={value ?? ""} />
                         ))}
                     </FieldGroup>
 
-                    {/* Category groups */}
-                    {isLoadingCustomFields && (
-                        <FieldGroup label="…">
-                            <FieldSkeleton />
-                            <FieldSkeleton />
-                            <FieldSkeleton />
-                        </FieldGroup>
-                    )}
+                    {/* Marketing — non-editable, only when data exists */}
+                    {contact?.marketing && (() => {
+                        const m = contact.marketing;
+                        const boolField = (val: boolean | null | undefined, td: (s: string) => string) =>
+                            val == null ? "" : val ? td("Yes") : td("No");
+                        const rows = [
+                            { label: td("UTM Source"), value: m.utm_source ?? "" },
+                            { label: td("UTM Medium"), value: m.utm_medium ?? "" },
+                            { label: td("UTM Campaign"), value: m.utm_campaign ?? "" },
+                            { label: td("UTM Content"), value: m.utm_content ?? "" },
+                            { label: td("UTM Term"), value: m.utm_term ?? "" },
+                            { label: td("UTM Audience"), value: m.utm_audience ?? "" },
+                            { label: td("Ebook"), value: boolField(m.has_downloaded_the_ebook, td) },
+                            { label: td("Facebook Group"), value: boolField(m.has_joined_the_facebook_group, td) },
+                            { label: td("WhatsApp Group"), value: boolField(m.has_joined_the_whatsapp_group, td) },
+                            { label: td("Webinar Registration"), value: boolField(m.has_registered_for_the_webinar, td) },
+                            { label: td("Webinar Attendance"), value: boolField(m.has_attended_the_webinar, td) },
+                        ].filter((r) => r.value !== "");
+                        if (!rows.length) return null;
+                        return (
+                            <FieldGroup label={td("Marketing")}>
+                                {rows.map(({ label, value }) => (
+                                    <CoreFieldRow key={label} label={label} value={value} />
+                                ))}
+                            </FieldGroup>
+                        );
+                    })()}
 
                     {categorized.map(({ category, fields: catFields }) => (
                         <FieldGroup key={category.id} label={category.name}>

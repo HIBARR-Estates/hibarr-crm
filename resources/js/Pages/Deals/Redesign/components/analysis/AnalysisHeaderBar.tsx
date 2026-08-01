@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 
@@ -6,6 +7,7 @@ interface Props {
     isCompleted: boolean;
     totalFilled: number;
     totalFields: number;
+    subscribeSaving?: (cb: (saving: boolean) => void) => () => void;
     onMinimize: () => void;
 }
 
@@ -14,9 +16,14 @@ export default function AnalysisHeaderBar({
     isCompleted,
     totalFilled,
     totalFields,
+    subscribeSaving,
     onMinimize,
 }: Props) {
     const { td } = useTd();
+
+    // Held here, not in the save hook — keeps save re-renders out of the modal body.
+    const [isSaving, setIsSaving] = useState(false);
+    useEffect(() => subscribeSaving?.(setIsSaving), [subscribeSaving]);
     const pct = totalFields > 0 ? Math.round((totalFilled / totalFields) * 100) : 0;
 
     return (
@@ -105,6 +112,20 @@ export default function AnalysisHeaderBar({
                         >
                             {pct}%
                         </span>
+                    </div>
+                )}
+
+                {isSaving && (
+                    <div
+                        className="hidden sm:flex items-center gap-1.5"
+                        style={{ color: "rgba(255,255,255,0.6)" }}
+                        aria-live="polite"
+                    >
+                        <svg className="w-3 h-3 animate-spin shrink-0" viewBox="0 0 24 24" fill="none">
+                            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25" />
+                            <path fill="currentColor" fillOpacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                        <span className="text-xs whitespace-nowrap">{td("Saving")}&hellip;</span>
                     </div>
                 )}
 

@@ -10,6 +10,8 @@ interface Props {
     sections: AnalysisSection[];
     sectionProgress: Record<string, { filled: number; total: number }>;
     activeSection: string;
+    /** Sections at or past this index are not revealed yet and can't be jumped to. */
+    unlockedCount?: number;
     totalFilled: number;
     totalFields: number;
     isCompleting: boolean;
@@ -23,6 +25,7 @@ export default function AnalysisSectionNavigator({
     sections,
     sectionProgress,
     activeSection,
+    unlockedCount,
     totalFilled,
     totalFields,
     isCompleting,
@@ -58,7 +61,7 @@ export default function AnalysisSectionNavigator({
                 className="flex-1 overflow-y-auto min-h-0"
                 style={{ borderBottom: `1px solid ${T.BORDER}` }}
             >
-                {sections.map((section) => {
+                {sections.map((section, i) => {
                     const p = sectionProgress[section.id] ?? { filled: 0, total: 0 };
                     return (
                         <AnalysisSectionNavItem
@@ -67,6 +70,7 @@ export default function AnalysisSectionNavigator({
                             filled={p.filled}
                             total={p.total}
                             isActive={activeSection === section.id}
+                            isLocked={unlockedCount !== undefined && i >= unlockedCount}
                             onClick={() => onJump(section.id)}
                         />
                     );

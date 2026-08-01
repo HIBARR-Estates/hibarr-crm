@@ -593,6 +593,17 @@ class DealController extends AccountBaseController
         // Get custom fields data explicitly
         $customFieldsData = $deal->getCustomFieldsData();
 
+        // Lead custom fields — computed eagerly so the analysis modal has them on first open
+        if ($deal->contact) {
+            $deal->contact->withCustomFields();
+            $leadCustomFieldsData = $deal->contact->getCustomFieldsData()->toArray();
+            $leadContactGroup     = $deal->contact->getCustomFieldGroupsWithFields();
+            $leadCustomFields     = $leadContactGroup ? ($leadContactGroup->fields ?? []) : [];
+        } else {
+            $leadCustomFieldsData = [];
+            $leadCustomFields     = [];
+        }
+
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $this->fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
 
@@ -767,20 +778,8 @@ class DealController extends AccountBaseController
                 fn () => $this->buildStageAutomationRequirements(),
                 'formMeta'
             ),
-            'leadCustomFieldsData' => Inertia::defer(function () use ($deal) {
-                if (!$deal->contact) {
-                    return [];
-                }
-                $deal->contact->withCustomFields();
-                return $deal->contact->getCustomFieldsData()->toArray();
-            }, 'formMeta'),
-            'leadCustomFields' => Inertia::defer(function () use ($deal) {
-                if (!$deal->contact) {
-                    return [];
-                }
-                $group = $deal->contact->getCustomFieldGroupsWithFields();
-                return $group ? ($group->fields ?? []) : [];
-            }, 'formMeta'),
+            'leadCustomFieldsData' => $leadCustomFieldsData,
+            'leadCustomFields' => $leadCustomFields,
             ...(\App\Support\FeatureFlags::enabled('crm.deal-analysis') ? [
                 'analysisScript' => Inertia::defer(function () use ($deal) {
                     $script = \App\Models\PipelineAnalysisScript::with('items')

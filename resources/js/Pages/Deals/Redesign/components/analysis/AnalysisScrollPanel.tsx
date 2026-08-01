@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import AnalysisSectionBlock from "./AnalysisSectionBlock";
 import type { AnalysisSection } from "./types/analysisTypes";
 
@@ -14,6 +15,10 @@ interface Props {
     numberByKey?: Record<string, number>;
     totalFilled: number;
     totalFields: number;
+    currentStep: number;
+    stepCount: number;
+    onPrevStep: () => void;
+    onNextStep: () => void;
     onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
     onFieldChange?: (fieldId: number, value: any) => void;
     onActiveSectionChange: (id: string) => void;
@@ -28,10 +33,16 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
         numberByKey,
         totalFilled,
         totalFields,
+        currentStep,
+        stepCount,
+        onPrevStep,
+        onNextStep,
         onFieldUpdate,
         onFieldChange,
         onActiveSectionChange,
     } = props;
+
+    const { td } = useTd();
 
     const containerRef = useRef<HTMLDivElement>(null);
     const sectionRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -80,8 +91,12 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
         );
     }
 
+    const isFirst = currentStep <= 0;
+    const isLast = currentStep >= stepCount - 1;
+
     return (
-        <div ref={containerRef} className="flex-1 overflow-y-auto bg-slate-50">
+        <>
+        <div ref={containerRef} className="flex-1 min-h-0 overflow-y-auto bg-slate-50">
             {/* Sticky progress bar */}
             <div
                 className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-slate-50/95 backdrop-blur-sm"
@@ -124,6 +139,39 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 ))}
             </div>
         </div>
+
+        {/* Step footer — the only way to reach a section that isn't revealed yet */}
+        <div className="shrink-0 flex items-center justify-between gap-3 px-6 py-3 bg-white border-t border-slate-200">
+            <button
+                type="button"
+                onClick={onPrevStep}
+                disabled={isFirst}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white"
+            >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+                {td("Previous")}
+            </button>
+
+            <span className="text-xs font-medium tabular-nums text-slate-500">
+                {td("Section")} {Math.min(currentStep + 1, stepCount)} {td("of")} {stepCount}
+            </span>
+
+            <button
+                type="button"
+                onClick={onNextStep}
+                disabled={isLast}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{ backgroundColor: "#0A2E5D" }}
+            >
+                {td("Next")}
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
+            </button>
+        </div>
+        </>
     );
 });
 

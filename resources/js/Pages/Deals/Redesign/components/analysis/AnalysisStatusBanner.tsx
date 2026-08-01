@@ -1,5 +1,4 @@
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
 
 interface Props {
@@ -21,50 +20,35 @@ export default function AnalysisStatusBanner({ analysis }: Props) {
         <button
             type="button"
             onClick={analysis.open}
-            className="analysis-banner-pulse shrink-0 cursor-pointer rounded-[10px] border bg-white text-left transition-colors"
+            className="analysis-banner-pulse shrink-0 cursor-pointer text-left h-full flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
             style={{
-                borderColor: T.NAVY,
-                padding: "10px 14px",
+                background: "linear-gradient(135deg, #0A2E5D 0%, #1a4a9c 100%)",
+                border: "none",
+                borderRadius: 12,
+                padding: "12px 16px",
                 width: 220,
-                outline: "none",
-            }}
-            onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = T.BLUE;
-                (e.currentTarget as HTMLButtonElement).style.background = T.BLUE_LIGHT;
-            }}
-            onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = T.NAVY;
-                (e.currentTarget as HTMLButtonElement).style.background = T.WHITE;
+                minWidth: 200,
             }}
         >
             {/* Title row with pulsing dot */}
             <div className="flex items-center gap-2">
                 <span
                     className="analysis-dot-pulse inline-block shrink-0 rounded-full"
-                    style={{ width: 9, height: 9, background: T.NAVY }}
+                    style={{ width: 9, height: 9, background: "#38BDF8" }}
                     aria-hidden
                 />
-                <span
-                    className="text-[13px] font-semibold leading-snug"
-                    style={{ color: T.TEXT }}
-                >
+                <span className="text-[13px] font-semibold leading-snug text-white">
                     {td("Analysis Incomplete")}
                 </span>
             </div>
 
             {/* Subtitle */}
-            <p
-                className="mt-1 text-[12px] leading-snug"
-                style={{ color: T.TEXT_MUTED }}
-            >
+            <p className="mt-1.5 text-[12px] leading-snug text-white/70">
                 {td("Fill in deal info before proceeding")}
             </p>
 
             {/* CTA affordance */}
-            <p
-                className="mt-2 text-[12px] font-semibold"
-                style={{ color: T.BLUE }}
-            >
+            <p className="mt-auto pt-3 text-[12px] font-semibold text-sky-300">
                 {td("Open Analysis")} →
             </p>
         </button>

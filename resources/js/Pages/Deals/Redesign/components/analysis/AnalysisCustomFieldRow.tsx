@@ -1,6 +1,5 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { parseCurrencyValue } from "./AnalysisCustomFieldForm";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
@@ -164,22 +163,26 @@ interface Props {
 const TEXT_TYPES = ["text", "number", "email", "url"] as const;
 const MULTI_TYPES = ["checkbox", "multiselect"] as const;
 
+// Revamp §C.4 input class — sky ring, rounded-lg
+const INPUT_CLS = "w-full bg-white border border-sky-400 ring-2 ring-sky-100 rounded-lg px-2 py-1.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none transition-colors";
+
+const LABEL_CLS = "w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-900 truncate";
+
 function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: () => void; td: (s: string) => string }) {
     return (
-        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+        <div className="flex items-center gap-2 mt-1.5">
             <button
                 type="button"
-                onClick={onSave}
-                className="dr-btn dr-btn-primary dr-btn-sm"
-                style={{ fontSize: 11, padding: "3px 10px" }}
+                onMouseDown={(e) => { e.preventDefault(); onSave(); }}
+                className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
             >
                 {td("Save")} ↵
             </button>
+            <span className="text-slate-300">·</span>
             <button
                 type="button"
-                onClick={onCancel}
-                className="dr-btn dr-btn-ghost dr-btn-sm"
-                style={{ fontSize: 11, padding: "3px 10px" }}
+                onMouseDown={(e) => { e.preventDefault(); onCancel(); }}
+                className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
             >
                 {td("Cancel")}
             </button>
@@ -205,6 +208,20 @@ export default function AnalysisCustomFieldRow({
     const [editing, setEditing] = useState(false);
     const [editVal, setEditVal] = useState<string | string[]>("");
     const portalFieldWrapperRef = useRef<HTMLDivElement>(null);
+    const editContainerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!editing) return;
+        const c = editContainerRef.current;
+        if (!c) return;
+        const el = c.querySelector<HTMLElement>(
+            'input:not([type="hidden"]):not([disabled]), textarea:not([disabled])'
+        ) ?? c.querySelector<HTMLElement>('button:not([disabled])');
+        // preventScroll is required: .analysis-modal-panel is overflow:hidden but
+        // still scrollable programmatically, so a scroll-into-view here shifts the
+        // header off-screen with no scrollbar to get it back.
+        el?.focus({ preventScroll: true });
+    }, [editing]);
 
     const options = useMemo(() => parseOptions(field.values), [field.values]);
     const displayValue = useMemo(
@@ -249,70 +266,33 @@ export default function AnalysisCustomFieldRow({
         [editVal, onChange, commit],
     );
 
-    const baseInputStyle: React.CSSProperties = {
-        width: "100%",
-        border: `1px solid ${T.BLUE_MID}`,
-        borderRadius: 6,
-        padding: "7px 10px",
-        fontSize: 14,
-        color: T.TEXT,
-        fontFamily: "inherit",
-        outline: "none",
-        background: "#fff",
-        boxShadow: `0 0 0 2px ${T.BLUE_LIGHT}`,
-    };
-
     return (
         <div>
-            {/* ── Read mode ── */}
+            {/* ── Read mode — revamp InlineField display shape ── */}
             {!editing && (
-                <div
-                    className="group"
-                    style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: 8,
-                        cursor: canEdit ? "pointer" : "default",
-                        borderRadius: 4,
-                        padding: "2px 0",
-                        transition: "background 0.12s",
-                    }}
-                    onClick={canEdit ? startEdit : undefined}
-                    role={canEdit ? "button" : undefined}
-                    tabIndex={canEdit ? 0 : undefined}
+                <button
+                    type="button"
+                    onClick={startEdit}
+                    disabled={!canEdit}
+                    className="flex items-center gap-3 py-2 px-4 w-full text-left hover:bg-slate-50 group transition-colors disabled:hover:bg-transparent disabled:cursor-default"
                     aria-label={
                         canEdit
                             ? `${field.label}: ${isEmpty ? "empty, click to fill" : displayValue + ", click to edit"}`
                             : undefined
                     }
-                    onKeyDown={
-                        canEdit
-                            ? (e) => { if (e.key === "Enter" || e.key === " ") startEdit(); }
-                            : undefined
-                    }
-                    onMouseEnter={(e) => { if (canEdit) (e.currentTarget as HTMLElement).style.background = T.SURFACE_2; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
-                    <span style={{ fontSize: 12, color: T.TEXT_MUTED, flexShrink: 0, minWidth: 80, paddingTop: 1 }}>
-                        {field.label}
-                    </span>
+                    <span className={LABEL_CLS}>{field.label}</span>
                     <span
-                        style={{
-                            fontSize: 13,
-                            color: isEmpty ? T.TEXT_HINT : T.TEXT,
-                            fontWeight: isEmpty ? 400 : 500,
-                            fontStyle: isEmpty ? "italic" : "normal",
-                            wordBreak: "break-word",
-                            flex: 1,
-                            textAlign: "right",
-                        }}
+                        className={`flex-1 text-sm min-w-0 overflow-hidden text-ellipsis whitespace-nowrap ${
+                            isEmpty ? "text-slate-300" : "text-slate-800 font-medium"
+                        }`}
+                        title={isEmpty ? undefined : displayValue}
                     >
                         {isEmpty ? "—" : displayValue}
                     </span>
                     {canEdit && (
                         <svg
-                            className="opacity-0 group-hover:opacity-100 w-3.5 h-3.5 shrink-0 transition-opacity"
-                            style={{ color: T.TEXT_MUTED, marginTop: 2 }}
+                            className="w-3 h-3 text-slate-400 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity"
                             fill="none"
                             viewBox="0 0 24 24"
                             stroke="currentColor"
@@ -325,176 +305,173 @@ export default function AnalysisCustomFieldRow({
                             />
                         </svg>
                     )}
-                </div>
+                </button>
             )}
 
-            {/* ── Edit mode ── */}
+            {/* ── Edit mode — revamp InlineField edit shape ── */}
             {editing && (
-                <div>
-                    <div style={{ fontSize: 11, fontWeight: 600, color: T.TEXT_MUTED, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
-                        {field.label}
-                    </div>
+                <div
+                    ref={editContainerRef}
+                    className="flex items-start gap-3 py-2 px-4"
+                    onBlur={(e) => {
+                        const rel = e.relatedTarget as Node | null;
+                        if (e.currentTarget.contains(rel)) return;
+                        // FloatingDropdown portals render outside the modal panel — focus landing
+                        // there isn't a real blur. (Can't test document.body.lastElementChild:
+                        // the modal is portaled to body too and is usually that element.)
+                        const panel = e.currentTarget.closest(".analysis-modal-panel");
+                        if (rel && panel && !panel.contains(rel)) return;
+                        setEditing(false);
+                        setEditVal(toEditValue(field.type, rawValue));
+                    }}
+                >
+                    <span className={LABEL_CLS + " pt-1.5"}>{field.label}</span>
+                    <div className="flex-1 min-w-0">
 
-                    {/* Text / Number / Phone / Email / URL — explicit Save/Cancel */}
-                    {isText && (
-                        <>
-                            <input
-                                type={field.type === "number" ? "number" : "text"}
-                                value={editVal as string}
-                                onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") { e.preventDefault(); commit(); }
-                                    if (e.key === "Escape") { e.preventDefault(); cancel(); }
-                                }}
-                                style={baseInputStyle}
-                                // ponytail: no autoFocus — never shifts scroll when a field opens
-                            />
-                            <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
-                        </>
-                    )}
-
-                    {/* Textarea — explicit Save/Cancel */}
-                    {field.type === "textarea" && (
-                        <>
-                            <textarea
-                                value={editVal as string}
-                                rows={3}
-                                onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
-                                onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); cancel(); } }}
-                                style={{ ...baseInputStyle, resize: "vertical" }}
-                            />
-                            <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
-                        </>
-                    )}
-
-                    {/* Phone — flag + dial code picker, explicit Save/Cancel */}
-                    {field.type === "phone" && (
-                        <>
-                            <div ref={portalFieldWrapperRef}>
-                                <PhoneInput
+                        {/* Text / Number — explicit Save ↵ · Cancel */}
+                        {isText && (
+                            <>
+                                <input
+                                    type={field.type === "number" ? "number" : "text"}
                                     value={editVal as string}
-                                    onChange={(val) => { setEditVal(val); onChange?.(val || null); }}
+                                    onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") { e.preventDefault(); commit(); }
+                                        // stopPropagation: Escape must cancel the edit, not reach the modal's close handler
+                                        if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); }
+                                    }}
+                                    className={INPUT_CLS}
                                 />
-                            </div>
-                            <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
-                        </>
-                    )}
+                                <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
+                            </>
+                        )}
 
-                    {/* Currency — code picker + amount, explicit Save/Cancel */}
-                    {field.type === "currency" && (
-                        <>
-                            <div ref={portalFieldWrapperRef}>
-                                <CurrencyInput
+                        {/* Textarea — explicit Save ↵ · Cancel */}
+                        {field.type === "textarea" && (
+                            <>
+                                <textarea
                                     value={editVal as string}
+                                    rows={3}
+                                    onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
+                                    onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); } }}
+                                    className={INPUT_CLS + " resize-none"}
+                                />
+                                <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
+                            </>
+                        )}
+
+                        {/* Phone — flag + dial code picker, explicit Save ↵ · Cancel */}
+                        {field.type === "phone" && (
+                            <>
+                                <div ref={portalFieldWrapperRef}>
+                                    <PhoneInput
+                                        value={editVal as string}
+                                        onChange={(val) => { setEditVal(val); onChange?.(val || null); }}
+                                    />
+                                </div>
+                                <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
+                            </>
+                        )}
+
+                        {/* Currency — code picker + amount, explicit Save ↵ · Cancel */}
+                        {field.type === "currency" && (
+                            <>
+                                <div ref={portalFieldWrapperRef}>
+                                    <CurrencyInput
+                                        value={editVal as string}
+                                        onChange={(val) => {
+                                            setEditVal(val);
+                                            onChange?.(pipeToAmountObj(val));
+                                        }}
+                                    />
+                                </div>
+                                <SaveCancel onSave={() => commit(pipeToAmountObj(editVal as string))} onCancel={cancel} td={td} />
+                            </>
+                        )}
+
+                        {/* Date — auto-saves on pick */}
+                        {field.type === "date" && (
+                            <DateInput
+                                value={editVal as string}
+                                onChange={(val) => {
+                                    onChange?.(val || null);
+                                    commit(val);
+                                }}
+                            />
+                        )}
+
+                        {/* Select — portal dropdown, auto-saves on pick */}
+                        {field.type === "select" && (
+                            <SelectInput
+                                value={editVal as string}
+                                options={options}
+                                onChange={(val) => {
+                                    onChange?.(val || null);
+                                    commit(val);
+                                }}
+                            />
+                        )}
+
+                        {/* Radio — pill buttons, auto-saves on pick */}
+                        {field.type === "radio" && (
+                            <RadioInput
+                                value={editVal as string}
+                                options={options}
+                                onChange={(val) => {
+                                    onChange?.(val || null);
+                                    commit(val);
+                                }}
+                            />
+                        )}
+
+                        {/* Country — single select, auto-saves on pick */}
+                        {field.type === "country" && (
+                            <CountrySelectInput
+                                value={editVal as string}
+                                onChange={(val) => {
+                                    onChange?.(val || null);
+                                    commit(val);
+                                }}
+                            />
+                        )}
+
+                        {/* Country multiselect — auto-saves on each toggle */}
+                        {field.type === "multiSelectCountry" && (
+                            <div ref={portalFieldWrapperRef}>
+                                <CountryMultiSelectInput
+                                    value={editVal as string[]}
                                     onChange={(val) => {
                                         setEditVal(val);
-                                        onChange?.(pipeToAmountObj(val));
+                                        onChange?.(val.length > 0 ? val : null);
+                                        commit(val.length > 0 ? val : null);
                                     }}
                                 />
                             </div>
-                            <SaveCancel onSave={() => commit(pipeToAmountObj(editVal as string))} onCancel={cancel} td={td} />
-                        </>
-                    )}
+                        )}
 
-                    {/* Date — DateInput, auto-saves on pick */}
-                    {field.type === "date" && (
-                        <DateInput
-                            value={editVal as string}
-                            onChange={(val) => {
-                                onChange?.(val || null);
-                                commit(val);
-                            }}
-                        />
-                    )}
-
-                    {/* Select — portal dropdown, auto-saves on pick */}
-                    {field.type === "select" && (
-                        <SelectInput
-                            value={editVal as string}
-                            options={options}
-                            onChange={(val) => {
-                                onChange?.(val || null);
-                                commit(val);
-                            }}
-                        />
-                    )}
-
-                    {/* Radio — pill buttons, auto-saves on pick */}
-                    {field.type === "radio" && (
-                        <RadioInput
-                            value={editVal as string}
-                            options={options}
-                            onChange={(val) => {
-                                onChange?.(val || null);
-                                commit(val);
-                            }}
-                        />
-                    )}
-
-                    {/* Country — single country select, auto-saves on pick */}
-                    {field.type === "country" && (
-                        <CountrySelectInput
-                            value={editVal as string}
-                            onChange={(val) => {
-                                onChange?.(val || null);
-                                commit(val);
-                            }}
-                        />
-                    )}
-
-                    {/* Country multiselect — auto-saves on each toggle */}
-                    {field.type === "multiSelectCountry" && (
-                        <CountryMultiSelectInput
-                            value={editVal as string[]}
-                            onChange={(val) => {
-                                setEditVal(val);
-                                onChange?.(val.length > 0 ? val : null);
-                                commit(val.length > 0 ? val : null);
-                            }}
-                        />
-                    )}
-
-                    {/* Checkbox / Multiselect — each toggle saves immediately */}
-                    {isMultiType && (
-                        <div
-                            style={{
-                                display: "flex",
-                                flexDirection: "column",
-                                gap: 7,
-                                padding: "10px 12px",
-                                border: `1px solid ${T.BLUE_MID}`,
-                                borderRadius: 6,
-                                background: "#fff",
-                                boxShadow: `0 0 0 2px ${T.BLUE_LIGHT}`,
-                                maxHeight: 200,
-                                overflowY: "auto",
-                            }}
-                            onKeyDown={(e) => { if (e.key === "Escape") cancel(); }}
-                        >
-                            {options.map((o) => (
-                                <label
-                                    key={o.value}
-                                    style={{
-                                        display: "flex",
-                                        alignItems: "center",
-                                        gap: 8,
-                                        fontSize: 13,
-                                        color: T.TEXT,
-                                        cursor: "pointer",
-                                        userSelect: "none",
-                                    }}
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={(editVal as string[]).includes(o.value)}
-                                        onChange={() => handleCheckboxToggle(o.value)}
-                                        style={{ accentColor: T.BLUE }}
-                                    />
-                                    {o.label}
-                                </label>
-                            ))}
-                        </div>
-                    )}
+                        {/* Checkbox / Multiselect — each toggle saves immediately */}
+                        {isMultiType && (
+                            <div
+                                className="flex flex-col gap-1.5 p-3 border border-sky-400 ring-2 ring-sky-100 rounded-lg bg-white max-h-48 overflow-y-auto"
+                                onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); } }}
+                            >
+                                {options.map((o) => (
+                                    <label
+                                        key={o.value}
+                                        className="flex items-center gap-2 text-sm text-slate-800 cursor-pointer select-none"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={(editVal as string[]).includes(o.value)}
+                                            onChange={() => handleCheckboxToggle(o.value)}
+                                            className="accent-sky-500"
+                                        />
+                                        {o.label}
+                                    </label>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

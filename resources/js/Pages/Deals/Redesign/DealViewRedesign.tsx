@@ -334,7 +334,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                     />
 
                     <div className="">
-                        <div className="mb-[14px] flex items-start gap-4" data-tour="deal-pipeline-stepper">
+                        <div className="mb-[14px] flex items-stretch gap-4" data-tour="deal-pipeline-stepper">
                             <div className="min-w-0 flex-1">
                                 <DealPipelineStepper
                                     deal={deal}
