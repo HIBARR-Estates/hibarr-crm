@@ -452,13 +452,13 @@ export default function AnalysisCustomFieldRow({
                         {/* Checkbox / Multiselect — each toggle saves immediately */}
                         {isMultiType && (
                             <div
-                                className="flex flex-col gap-1.5 p-3 border border-sky-400 ring-2 ring-sky-100 rounded-lg bg-white max-h-48 overflow-y-auto"
+                                className="flex flex-wrap gap-x-3 gap-y-1.5 p-3 border border-sky-400 ring-2 ring-sky-100 rounded-lg bg-white max-h-48 overflow-y-auto"
                                 onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancel(); } }}
                             >
                                 {options.map((o) => (
                                     <label
                                         key={o.value}
-                                        className="flex items-center gap-2 text-sm text-slate-800 cursor-pointer select-none"
+                                        className="inline-flex items-center gap-2 text-sm text-slate-800 cursor-pointer select-none max-w-full"
                                     >
                                         <input
                                             type="checkbox"

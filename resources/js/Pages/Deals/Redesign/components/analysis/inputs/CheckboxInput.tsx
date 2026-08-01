@@ -17,13 +17,14 @@ export default function CheckboxInput({ value, options, disabled, onChange }: Ch
     };
 
     return (
-        <div className="flex flex-col gap-2">
+        // flex-wrap + content-sized chips: options flow across rows instead of stacking
+        <div className="flex flex-wrap gap-2">
             {options.map((o) => {
                 const checked = value.includes(o.value);
                 return (
                     <label
                         key={o.value}
-                        className="flex items-center gap-3 rounded-xl px-3 py-2.5 cursor-pointer transition-colors border"
+                        className="inline-flex items-center gap-2.5 rounded-xl px-3 py-2.5 cursor-pointer transition-colors border max-w-full"
                         style={{
                             backgroundColor: checked ? "#f0f9ff" : "#fff",
                             borderColor: checked ? "#38bdf8" : "#e2e8f0",
