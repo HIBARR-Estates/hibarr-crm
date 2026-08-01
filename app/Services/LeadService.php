@@ -8,6 +8,7 @@ use App\Models\PipelineStage;
 use App\Models\CustomFieldGroup;
 use App\Models\CustomFieldCategory;
 use App\Services\LeadCoreFieldsService;
+use App\Support\LeadSearchQuery;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -180,12 +181,13 @@ class LeadService
     {
         if ($request->filled('search')) {
             $search = $request->get('search');
-            $query->where(function($q) use ($search) {
-                $q->where('client_name', 'like', '%' . $search . '%')
-                  ->orWhere('client_email', 'like', '%' . $search . '%')
-                  ->orWhere('company_name', 'like', '%' . $search . '%')
-                  ->orWhere('mobile', 'like', '%' . $search . '%')
-                  ->orWhere('country', 'like', '%' . $search . '%');
+            $query->where(function ($q) use ($search) {
+                $term = '%' . $search . '%';
+                $q->where('client_name', 'like', $term)
+                    ->orWhere('client_email', 'like', $term)
+                    ->orWhere('company_name', 'like', $term)
+                    ->orWhere('country', 'like', $term);
+                LeadSearchQuery::applyMobileMatch($q, $search);
             });
         }
 
