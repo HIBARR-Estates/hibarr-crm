@@ -6,7 +6,7 @@ import {
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { Task } from "@/Types/api/tasks";
 import { taskApi } from "@/lib/api/tasks";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import OverviewPriorityBadge from "@/Pages/Deals/Redesign/components/workspace/overview/OverviewPriorityBadge";
 import type { LeadTaskPreview } from "../../../../adapters/taskAdapter";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../../types";
@@ -167,7 +167,7 @@ export default function OverviewTasksColumn({
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1 text-[10px] text-[#9ca3af]">
-                                            <DealIcon name="calendar" size={11} />
+                                            <Icon name="calendar" size={11} />
                                             {task.dueDateLabel}
                                         </div>
                                         {expanded && (

@@ -6,7 +6,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import type { Lead } from "@/Types/api/leads";
 import type { LeadNote } from "@/Types/api/lead-note";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import LeadIcon from "../primitives/LeadIcon";
 
 interface SaveNoteFormData {
@@ -106,7 +106,7 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
                         className="text-sm"
                     />
                     <div className="flex justify-end">
-                        <DealButton
+                        <Button
                             variant="primary"
                             onClick={handleSave}
                             disabled={
@@ -114,7 +114,7 @@ const QuickNoteCard = forwardRef<QuickNoteCardHandle, QuickNoteCardProps>(
                             }
                         >
                             Save note
-                        </DealButton>
+                        </Button>
                     </div>
                     {previewText && (
                         <div className="rounded-md border border-[#edf1f5] bg-[#fbfcfd] p-3">

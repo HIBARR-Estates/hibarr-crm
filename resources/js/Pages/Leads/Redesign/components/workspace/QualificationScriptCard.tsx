@@ -2,7 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import { Spin } from "antd";
 import type { Lead } from "@/Types/api/leads";
 import { getRegistrationService } from "@/Services/RegistrationService";
-import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
+import Badge from "@/Components/Redesign/primitives/Badge";
 import type useLeadQualificationWorkspace from "../../hooks/useLeadQualificationWorkspace";
 import { LEAD_REDESIGN_TOKENS as T } from "../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -97,7 +97,7 @@ export default function QualificationScriptCard({
                 rightSlot={
                     <>
                         {stepBadge && (
-                            <DealBadge variant="blue">{stepBadge}</DealBadge>
+                            <Badge variant="blue">{stepBadge}</Badge>
                         )}
                         <select
                             value={selectedTemplateId ?? ""}

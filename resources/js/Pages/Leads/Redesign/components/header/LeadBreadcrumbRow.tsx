@@ -1,4 +1,4 @@
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import useTranslation from "@/Hooks/useTranslation";
 import LeadIcon from "../primitives/LeadIcon";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -33,14 +33,14 @@ export default function LeadBreadcrumbRow({
                 <span>·</span>
                 <span className="font-medium text-[#1a1f2e]">{leadName}</span>
             </nav>
-            <DealButton
+            <Button
                 variant="ghost"
                 onClick={onRefresh}
                 disabled={refreshDisabled || isRefreshing}
             >
                 <LeadIcon name="refresh" size={13} />
                 {td("Refresh")}
-            </DealButton>
+            </Button>
         </div>
     );
 }

@@ -9,9 +9,9 @@ import {
     toWorkspaceTaskListItem,
     type WorkspaceTaskListItem,
 } from "@/Pages/Deals/Redesign/adapters/taskAdapter";
-import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import OverviewPriorityBadge from "@/Pages/Deals/Redesign/components/workspace/overview/OverviewPriorityBadge";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
@@ -151,9 +151,9 @@ export default function LeadTasksTab({
                 </div>
 
                 {showAddTask && (
-                    <DealButton variant="navy" onClick={onAddTask}>
+                    <Button variant="navy" onClick={onAddTask}>
                         + {td("Add task")}
-                    </DealButton>
+                    </Button>
                 )}
             </div>
 
@@ -163,7 +163,7 @@ export default function LeadTasksTab({
                 </div>
             ) : filteredTasks.length === 0 ? (
                 <div className="rounded-lg border border-[#e2e5ea] bg-white px-5 py-9 text-center">
-                    <DealIcon
+                    <Icon
                         name="check-square"
                         size={28}
                         color={T.TEXT_HINT}
@@ -173,9 +173,9 @@ export default function LeadTasksTab({
                         {td("No")} {filter} {td("tasks")}
                     </p>
                     {showAddTask && (
-                        <DealButton variant="navy" onClick={onAddTask}>
+                        <Button variant="navy" onClick={onAddTask}>
                             + {td("Add task")}
-                        </DealButton>
+                        </Button>
                     )}
                 </div>
             ) : (
@@ -224,11 +224,11 @@ export default function LeadTasksTab({
 
                                 <div className="flex flex-wrap items-center gap-2.5 text-[11px] text-[#9ca3af]">
                                     <span className="inline-flex items-center gap-1">
-                                        <DealIcon name="calendar" size={11} />
+                                        <Icon name="calendar" size={11} />
                                         {task.dueDateLabel}
                                     </span>
                                     <span className="inline-flex items-center gap-1.5">
-                                        <DealAvatar
+                                        <Avatar
                                             size={18}
                                             initials={task.assigneeInitials}
                                         />

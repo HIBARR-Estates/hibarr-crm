@@ -1,5 +1,5 @@
-export { DEAL_REDESIGN_TOKENS as LEAD_REDESIGN_TOKENS } from "@/Pages/Deals/Redesign/tokens";
-export { DEAL_REDESIGN_FONT_STACK as LEAD_REDESIGN_FONT_STACK } from "@/Pages/Deals/Redesign/tokens";
+export { REDESIGN_TOKENS as LEAD_REDESIGN_TOKENS } from "@/Components/Redesign/tokens";
+export { REDESIGN_FONT_STACK as LEAD_REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
 
 import type { LeadShowProps } from "../Show";
 

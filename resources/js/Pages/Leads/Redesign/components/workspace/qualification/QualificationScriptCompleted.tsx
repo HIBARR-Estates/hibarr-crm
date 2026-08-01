@@ -1,4 +1,4 @@
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import type { LeadQualification } from "@/Types/qualification";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -40,14 +40,14 @@ export default function QualificationScriptCompleted({
                 {td("Last run outcome")}:{" "}
                 <strong style={{ color: T.TEXT }}>{outcomeLabel}</strong>
             </span>
-            <DealButton
+            <Button
                 variant="ghost"
                 onClick={onRunAgain}
                 loading={isStarting}
                 disabled={isStarting}
             >
                 {td("Run again")}
-            </DealButton>
+            </Button>
         </div>
     );
 }
