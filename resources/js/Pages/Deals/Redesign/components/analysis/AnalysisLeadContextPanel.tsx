@@ -58,19 +58,52 @@ function PanelTab({
     );
 }
 
-function SectionLabel({ children }: { children: React.ReactNode }) {
+function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
+    const [open, setOpen] = useState(true);
     return (
-        <div
-            style={{
-                fontSize: 10,
-                fontWeight: 700,
-                textTransform: "uppercase",
-                letterSpacing: "0.07em",
-                color: T.TEXT_MUTED,
-                marginBottom: 10,
-            }}
-        >
-            {children}
+        <div style={{ borderBottom: `1px solid ${T.BORDER}` }}>
+            <button
+                type="button"
+                onClick={() => setOpen((o) => !o)}
+                className="flex w-full items-center justify-between px-[18px] py-2.5 transition-colors"
+                style={{ background: T.SURFACE_2 }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = T.BORDER; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = T.SURFACE_2; }}
+            >
+                <span
+                    style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.07em",
+                        color: T.TEXT_MUTED,
+                    }}
+                >
+                    {label}
+                </span>
+                <svg
+                    className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
+                    style={{ color: T.TEXT_MUTED }}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            {open && (
+                <div
+                    style={{
+                        padding: "8px 18px 12px",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 8,
+                    }}
+                >
+                    {children}
+                </div>
+            )}
         </div>
     );
 }
@@ -347,72 +380,61 @@ export default function AnalysisLeadContextPanel({
                         </div>
                     </div>
 
-                    {/* Key details + inline-editable custom fields — all in one section */}
-                    {(profileRows.length > 0 || isLoadingCustomFields || visibleRegularFields.length > 0) && (
-                        <div
-                            style={{
-                                padding: "16px 18px",
-                                borderBottom: `1px solid ${T.BORDER}`,
-                            }}
-                        >
-                            <SectionLabel>{td("Details")}</SectionLabel>
-                            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                                {profileRows.map(({ label, value }) => (
-                                    <div
-                                        key={label}
+                    {/* Contact Details — read-only profile rows */}
+                    {profileRows.length > 0 && (
+                        <FieldGroup label={td("Contact Details")}>
+                            {profileRows.map(({ label, value }) => (
+                                <div
+                                    key={label}
+                                    style={{
+                                        display: "flex",
+                                        justifyContent: "space-between",
+                                        alignItems: "flex-start",
+                                        gap: 12,
+                                    }}
+                                >
+                                    <span style={{ fontSize: 12, color: T.TEXT_MUTED, flexShrink: 0, minWidth: 80 }}>
+                                        {label}
+                                    </span>
+                                    <span
                                         style={{
-                                            display: "flex",
-                                            justifyContent: "space-between",
-                                            alignItems: "flex-start",
-                                            gap: 12,
+                                            fontSize: 13,
+                                            color: T.TEXT,
+                                            fontWeight: 500,
+                                            textAlign: "right",
+                                            wordBreak: "break-word",
                                         }}
                                     >
-                                        <span
-                                            style={{
-                                                fontSize: 12,
-                                                color: T.TEXT_MUTED,
-                                                flexShrink: 0,
-                                                minWidth: 80,
-                                            }}
-                                        >
-                                            {label}
-                                        </span>
-                                        <span
-                                            style={{
-                                                fontSize: 14,
-                                                color: T.TEXT,
-                                                fontWeight: 500,
-                                                textAlign: "right",
-                                                wordBreak: "break-word",
-                                            }}
-                                        >
-                                            {value}
-                                        </span>
-                                    </div>
-                                ))}
+                                        {value}
+                                    </span>
+                                </div>
+                            ))}
+                        </FieldGroup>
+                    )}
 
-                                {/* Custom fields rendered inline — same visual weight as profileRows */}
-                                {isLoadingCustomFields ? (
-                                    <>
-                                        <FieldSkeleton />
-                                        <FieldSkeleton />
-                                        <FieldSkeleton />
-                                    </>
-                                ) : (
-                                    visibleRegularFields.map((field: any) => (
-                                        <AnalysisCustomFieldRow
-                                            key={field.id}
-                                            field={field}
-                                            value={leadCustomFieldsData[`field_${field.id}`] ?? null}
-                                            saving={updatingField === `field_${field.id}`}
-                                            canEdit={canEdit}
-                                            onChange={(value) => handleFieldChange(field.id, value)}
-                                            onSave={(value) => onLeadCustomFieldUpdate(field, value)}
-                                        />
-                                    ))
-                                )}
-                            </div>
-                        </div>
+                    {/* Custom Fields — inline-editable */}
+                    {(isLoadingCustomFields || visibleRegularFields.length > 0) && (
+                        <FieldGroup label={td("Custom Fields")}>
+                            {isLoadingCustomFields ? (
+                                <>
+                                    <FieldSkeleton />
+                                    <FieldSkeleton />
+                                    <FieldSkeleton />
+                                </>
+                            ) : (
+                                visibleRegularFields.map((field: any) => (
+                                    <AnalysisCustomFieldRow
+                                        key={field.id}
+                                        field={field}
+                                        value={leadCustomFieldsData[`field_${field.id}`] ?? null}
+                                        saving={updatingField === `field_${field.id}`}
+                                        canEdit={canEdit}
+                                        onChange={(value) => handleFieldChange(field.id, value)}
+                                        onSave={(value) => onLeadCustomFieldUpdate(field, value)}
+                                    />
+                                ))
+                            )}
+                        </FieldGroup>
                     )}
                 </div>
 

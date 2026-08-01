@@ -31,6 +31,21 @@ class BaseNotification extends Notification implements ShouldQueue
         $this->unsRoutingEnabled = FeatureFlags::enabled('crm.notification-service-routing');
     }
 
+    /**
+     * Attach a Plunk template ID and variables to the mail message via custom
+     * Symfony headers so UnsEmailPayloadMapper can switch to templateSlug mode.
+     * The headers are harmless on the SMTP fallback path — they're just ignored.
+     *
+     * @param array<string, mixed> $variables
+     */
+    protected function attachPlunkTemplate(MailMessage $build, string $templateId, array $variables): void
+    {
+        $build->withSymfonyMessage(function (Email $message) use ($templateId, $variables): void {
+            $message->getHeaders()->addTextHeader('X-Plunk-Template-Id', $templateId);
+            $message->getHeaders()->addTextHeader('X-Plunk-Template-Variables', base64_encode((string) json_encode($variables)));
+        });
+    }
+
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
         $this->suppressBulkTransactionalEmails = $value;

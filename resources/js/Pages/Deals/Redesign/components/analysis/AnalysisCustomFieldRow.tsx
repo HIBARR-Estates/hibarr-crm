@@ -1,10 +1,14 @@
-// Value-first custom field display with inline edit.
-// Intentionally has no autoFocus on any input — never shifts scroll when a field becomes visible.
-
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import { InlineCurrencyInput, parseCurrencyValue } from "./AnalysisCustomFieldForm";
+import { parseCurrencyValue } from "./AnalysisCustomFieldForm";
+import DateInput from "./inputs/DateInput";
+import SelectInput from "./inputs/SelectInput";
+import RadioInput from "./inputs/RadioInput";
+import CountrySelectInput from "./inputs/CountrySelectInput";
+import CountryMultiSelectInput from "./inputs/CountryMultiSelectInput";
+import PhoneInput from "./inputs/PhoneInput";
+import CurrencyInput from "./inputs/CurrencyInput";
 
 interface FieldOption {
     value: string;
@@ -64,7 +68,8 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
         }
 
         case "checkbox":
-        case "multiselect": {
+        case "multiselect":
+        case "country-multiselect": {
             let arr: string[] = [];
             if (typeof rawValue === "string") {
                 try {
@@ -75,6 +80,7 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
             } else if (Array.isArray(rawValue)) {
                 arr = rawValue.map(String);
             }
+            if (type === "country-multiselect") return arr.join(", ");
             return arr
                 .map((v) => {
                     const found = options.find((o) => o.value === v);
@@ -93,13 +99,29 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
         case "boolean":
             return rawValue ? "Yes" : "No";
 
+        case "country":
+            return String(rawValue);
+
+        case "phone": {
+            const s = String(rawValue);
+            if (s.includes("|")) {
+                const [dial, num] = s.split("|");
+                return `${dial} ${num}`.trim();
+            }
+            return s;
+        }
+
         default:
             return typeof rawValue === "object" ? JSON.stringify(rawValue) : String(rawValue);
     }
 }
 
 function toEditValue(type: string, rawValue: any): string | string[] {
-    if (type === "checkbox" || type === "multiselect") {
+    if (type === "currency") {
+        const p = parseCurrencyValue(rawValue, "GBP");
+        return `${p.currency}|${p.amount ?? ""}`;
+    }
+    if (type === "checkbox" || type === "multiselect" || type === "country-multiselect") {
         if (Array.isArray(rawValue)) return rawValue.map(String);
         if (typeof rawValue === "string") {
             try {
@@ -135,14 +157,41 @@ interface Props {
     value: any;
     saving?: boolean;
     canEdit?: boolean;
-    /** Fires immediately on every change — for optimistic visibility in parent */
     onChange?: (value: any) => void;
     onSave: (value: any) => void;
 }
 
+const TEXT_TYPES = ["text", "number", "email", "url"] as const;
 const MULTI_TYPES = ["checkbox", "multiselect"] as const;
-const SELECT_TYPES = ["select", "radio"] as const;
-const TEXT_TYPES = ["text", "number", "phone", "email", "url"] as const;
+
+function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: () => void; td: (s: string) => string }) {
+    return (
+        <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <button
+                type="button"
+                onClick={onSave}
+                className="dr-btn dr-btn-primary dr-btn-sm"
+                style={{ fontSize: 11, padding: "3px 10px" }}
+            >
+                {td("Save")} ↵
+            </button>
+            <button
+                type="button"
+                onClick={onCancel}
+                className="dr-btn dr-btn-ghost dr-btn-sm"
+                style={{ fontSize: 11, padding: "3px 10px" }}
+            >
+                {td("Cancel")}
+            </button>
+        </div>
+    );
+}
+
+function pipeToAmountObj(val: string): { amount: number | null; currency: string } {
+    const [code = "GBP", rawAmt = ""] = val.split("|");
+    const digits = rawAmt.replace(/[^0-9.]/g, "");
+    return { amount: digits ? Number(digits) : null, currency: code };
+}
 
 export default function AnalysisCustomFieldRow({
     field,
@@ -155,6 +204,7 @@ export default function AnalysisCustomFieldRow({
     const { td } = useTd();
     const [editing, setEditing] = useState(false);
     const [editVal, setEditVal] = useState<string | string[]>("");
+    const portalFieldWrapperRef = useRef<HTMLDivElement>(null);
 
     const options = useMemo(() => parseOptions(field.values), [field.values]);
     const displayValue = useMemo(
@@ -163,8 +213,8 @@ export default function AnalysisCustomFieldRow({
     );
     const isEmpty = displayValue === "";
 
+    const isText = (TEXT_TYPES as readonly string[]).includes(field.type);
     const isMultiType = (MULTI_TYPES as readonly string[]).includes(field.type);
-    const isSelectType = (SELECT_TYPES as readonly string[]).includes(field.type);
 
     const startEdit = useCallback(() => {
         if (!canEdit) return;
@@ -188,22 +238,23 @@ export default function AnalysisCustomFieldRow({
         setEditVal(toEditValue(field.type, rawValue));
     }, [field.type, rawValue]);
 
-    const handleCheckboxToggle = (optVal: string) => {
-        const arr = Array.isArray(editVal) ? editVal : [];
-        const next = arr.includes(optVal) ? arr.filter((v) => v !== optVal) : [...arr, optVal];
-        setEditVal(next);
-        onChange?.(next.length > 0 ? next : null);
-        // save immediately without closing — user may still be ticking boxes
-        const finalValue = next.length > 0 ? next : null;
-        onSave(finalValue);
-    };
+    const handleCheckboxToggle = useCallback(
+        (optVal: string) => {
+            const arr = Array.isArray(editVal) ? editVal : [];
+            const next = arr.includes(optVal) ? arr.filter((v) => v !== optVal) : [...arr, optVal];
+            setEditVal(next);
+            onChange?.(next.length > 0 ? next : null);
+            commit(next.length > 0 ? next : null);
+        },
+        [editVal, onChange, commit],
+    );
 
     const baseInputStyle: React.CSSProperties = {
         width: "100%",
         border: `1px solid ${T.BLUE_MID}`,
         borderRadius: 6,
         padding: "7px 10px",
-        fontSize: 15,
+        fontSize: 14,
         color: T.TEXT,
         fontFamily: "inherit",
         outline: "none",
@@ -212,143 +263,198 @@ export default function AnalysisCustomFieldRow({
     };
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-            {/* Read mode — horizontal label/value identical to profileRows */}
+        <div>
+            {/* ── Read mode ── */}
             {!editing && (
                 <div
+                    className="group"
                     style={{
                         display: "flex",
-                        justifyContent: "space-between",
                         alignItems: "flex-start",
-                        gap: 12,
+                        gap: 8,
                         cursor: canEdit ? "pointer" : "default",
                         borderRadius: 4,
-                        padding: "1px 0",
+                        padding: "2px 0",
                         transition: "background 0.12s",
                     }}
                     onClick={canEdit ? startEdit : undefined}
                     role={canEdit ? "button" : undefined}
                     tabIndex={canEdit ? 0 : undefined}
-                    aria-label={canEdit ? `${field.label}: ${isEmpty ? "empty, click to fill" : displayValue + ", click to edit"}` : undefined}
-                    onKeyDown={canEdit ? (e) => { if (e.key === "Enter" || e.key === " ") startEdit(); } : undefined}
+                    aria-label={
+                        canEdit
+                            ? `${field.label}: ${isEmpty ? "empty, click to fill" : displayValue + ", click to edit"}`
+                            : undefined
+                    }
+                    onKeyDown={
+                        canEdit
+                            ? (e) => { if (e.key === "Enter" || e.key === " ") startEdit(); }
+                            : undefined
+                    }
                     onMouseEnter={(e) => { if (canEdit) (e.currentTarget as HTMLElement).style.background = T.SURFACE_2; }}
                     onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
                 >
-                    <span style={{ fontSize: 12, color: T.TEXT_MUTED, flexShrink: 0, minWidth: 80 }}>
+                    <span style={{ fontSize: 12, color: T.TEXT_MUTED, flexShrink: 0, minWidth: 80, paddingTop: 1 }}>
                         {field.label}
                     </span>
                     <span
                         style={{
-                            fontSize: 14,
+                            fontSize: 13,
                             color: isEmpty ? T.TEXT_HINT : T.TEXT,
                             fontWeight: isEmpty ? 400 : 500,
                             fontStyle: isEmpty ? "italic" : "normal",
-                            textAlign: "right",
                             wordBreak: "break-word",
                             flex: 1,
+                            textAlign: "right",
                         }}
                     >
                         {saving ? td("Saving…") : isEmpty ? "—" : displayValue}
                     </span>
+                    {canEdit && (
+                        <svg
+                            className="opacity-0 group-hover:opacity-100 w-3.5 h-3.5 shrink-0 transition-opacity"
+                            style={{ color: T.TEXT_MUTED, marginTop: 2 }}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                        >
+                            <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                            />
+                        </svg>
+                    )}
                 </div>
             )}
 
-            {/* Edit mode — expands below the label/value row */}
+            {/* ── Edit mode ── */}
             {editing && (
-                <>
-                    {/* Label stays visible above the input */}
-                    <div style={{ fontSize: 12, color: T.TEXT_MUTED, marginBottom: 4 }}>
+                <div>
+                    <div style={{ fontSize: 11, fontWeight: 600, color: T.TEXT_MUTED, textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>
                         {field.label}
                     </div>
-                    <div>
-                    {/* Text / Number / Email / Phone / URL */}
-                    {(TEXT_TYPES as readonly string[]).includes(field.type) && (
-                        <input
-                            type={field.type === "number" ? "number" : "text"}
-                            value={editVal as string}
-                            onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") { e.preventDefault(); commit(); }
-                                if (e.key === "Escape") { e.preventDefault(); cancel(); }
-                            }}
-                            onBlur={() => commit()}
-                            style={baseInputStyle}
-                        />
+
+                    {/* Text / Number / Phone / Email / URL — explicit Save/Cancel */}
+                    {isText && (
+                        <>
+                            <input
+                                type={field.type === "number" ? "number" : "text"}
+                                value={editVal as string}
+                                onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
+                                onKeyDown={(e) => {
+                                    if (e.key === "Enter") { e.preventDefault(); commit(); }
+                                    if (e.key === "Escape") { e.preventDefault(); cancel(); }
+                                }}
+                                style={baseInputStyle}
+                                // ponytail: no autoFocus — never shifts scroll when a field opens
+                            />
+                            <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
+                        </>
                     )}
 
-                    {/* Textarea */}
+                    {/* Textarea — explicit Save/Cancel */}
                     {field.type === "textarea" && (
-                        <textarea
-                            value={editVal as string}
-                            rows={3}
-                            onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Escape") { e.preventDefault(); cancel(); }
-                            }}
-                            onBlur={() => commit()}
-                            style={{ ...baseInputStyle, resize: "vertical" }}
-                        />
+                        <>
+                            <textarea
+                                value={editVal as string}
+                                rows={3}
+                                onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
+                                onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); cancel(); } }}
+                                style={{ ...baseInputStyle, resize: "vertical" }}
+                            />
+                            <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
+                        </>
                     )}
 
-                    {/* Currency */}
+                    {/* Phone — flag + dial code picker, explicit Save/Cancel */}
+                    {field.type === "phone" && (
+                        <>
+                            <div ref={portalFieldWrapperRef}>
+                                <PhoneInput
+                                    value={editVal as string}
+                                    onChange={(val) => { setEditVal(val); onChange?.(val || null); }}
+                                />
+                            </div>
+                            <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
+                        </>
+                    )}
+
+                    {/* Currency — code picker + amount, explicit Save/Cancel */}
                     {field.type === "currency" && (
-                        <input
-                            type="text"
-                            value={editVal as string}
-                            placeholder="USD|1000"
-                            onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") { e.preventDefault(); commit(); }
-                                if (e.key === "Escape") { e.preventDefault(); cancel(); }
-                            }}
-                            onBlur={() => commit()}
-                            style={baseInputStyle}
-                        />
+                        <>
+                            <div ref={portalFieldWrapperRef}>
+                                <CurrencyInput
+                                    value={editVal as string}
+                                    onChange={(val) => {
+                                        setEditVal(val);
+                                        onChange?.(pipeToAmountObj(val));
+                                    }}
+                                />
+                            </div>
+                            <SaveCancel onSave={() => commit(pipeToAmountObj(editVal as string))} onCancel={cancel} td={td} />
+                        </>
                     )}
 
-                    {/* Date */}
+                    {/* Date — DateInput, auto-saves on pick */}
                     {field.type === "date" && (
-                        <input
-                            type="date"
+                        <DateInput
                             value={editVal as string}
-                            onChange={(e) => { setEditVal(e.target.value); onChange?.(e.target.value || null); }}
-                            onKeyDown={(e) => {
-                                if (e.key === "Escape") { e.preventDefault(); cancel(); }
+                            onChange={(val) => {
+                                onChange?.(val || null);
+                                commit(val);
                             }}
-                            onBlur={() => commit()}
-                            style={baseInputStyle}
                         />
                     )}
 
-                    {/* Currency — proper selector + amount input */}
-                    {field.type === "currency" && (
-                        <InlineCurrencyInput
-                            rawValue={rawValue}
-                            canEdit={canEdit ?? true}
-                            onChange={(val) => onChange?.(val)}
-                            onSave={(val) => commit(val)}
+                    {/* Select — portal dropdown, auto-saves on pick */}
+                    {field.type === "select" && (
+                        <SelectInput
+                            value={editVal as string}
+                            options={options}
+                            onChange={(val) => {
+                                onChange?.(val || null);
+                                commit(val);
+                            }}
                         />
                     )}
 
-                    {/* Select / Radio — saves immediately on change */}
-                    {isSelectType && (
-                        <select
+                    {/* Radio — pill buttons, auto-saves on pick */}
+                    {field.type === "radio" && (
+                        <RadioInput
                             value={editVal as string}
-                            onChange={(e) => {
-                                setEditVal(e.target.value);
-                                onChange?.(e.target.value || null);
-                                commit(e.target.value);
+                            options={options}
+                            onChange={(val) => {
+                                onChange?.(val || null);
+                                commit(val);
                             }}
-                            style={{ ...baseInputStyle, cursor: "pointer" }}
-                        >
-                            <option value="">— {td("select")} —</option>
-                            {options.map((o) => (
-                                <option key={o.value} value={o.value}>{o.label}</option>
-                            ))}
-                        </select>
+                        />
                     )}
 
-                    {/* Checkbox / Multiselect — each toggle saves immediately, Escape to close */}
+                    {/* Country — single country select, auto-saves on pick */}
+                    {field.type === "country" && (
+                        <CountrySelectInput
+                            value={editVal as string}
+                            onChange={(val) => {
+                                onChange?.(val || null);
+                                commit(val);
+                            }}
+                        />
+                    )}
+
+                    {/* Country multiselect — auto-saves on each toggle */}
+                    {field.type === "country-multiselect" && (
+                        <CountryMultiSelectInput
+                            value={editVal as string[]}
+                            onChange={(val) => {
+                                setEditVal(val);
+                                onChange?.(val.length > 0 ? val : null);
+                                commit(val.length > 0 ? val : null);
+                            }}
+                        />
+                    )}
+
+                    {/* Checkbox / Multiselect — each toggle saves immediately */}
                     {isMultiType && (
                         <div
                             style={{
@@ -372,7 +478,7 @@ export default function AnalysisCustomFieldRow({
                                         display: "flex",
                                         alignItems: "center",
                                         gap: 8,
-                                        fontSize: 14,
+                                        fontSize: 13,
                                         color: T.TEXT,
                                         cursor: "pointer",
                                         userSelect: "none",
@@ -389,28 +495,7 @@ export default function AnalysisCustomFieldRow({
                             ))}
                         </div>
                     )}
-
-                    {/* Fallback for unhandled types */}
-                    {!isSelectType &&
-                        !isMultiType &&
-                        !(TEXT_TYPES as readonly string[]).includes(field.type) &&
-                        field.type !== "textarea" &&
-                        field.type !== "date" &&
-                        field.type !== "currency" && (
-                            <input
-                                type="text"
-                                value={editVal as string}
-                                onChange={(e) => setEditVal(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter") { e.preventDefault(); commit(); }
-                                    if (e.key === "Escape") { e.preventDefault(); cancel(); }
-                                }}
-                                onBlur={() => commit()}
-                                style={baseInputStyle}
-                            />
-                        )}
                 </div>
-                </>
             )}
         </div>
     );

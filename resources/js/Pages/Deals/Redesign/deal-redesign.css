@@ -148,6 +148,39 @@
     box-shadow: 0 0 0 2px #e8f1fb;
 }
 
+/* Analysis modal — 3-column scroll layout */
+.analysis-3col-body {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.analysis-3col-left {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid #e2e5ea;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.analysis-3col-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.analysis-3col-right {
+    width: 260px;
+    flex-shrink: 0;
+    border-left: 1px solid #e2e5ea;
+    position: relative;
+    overflow: hidden;
+}
+
 /* Analysis modal — large panel (~95vw × ~90vh), portaled to document.body */
 .analysis-modal-overlay {
     position: fixed;

@@ -7,13 +7,13 @@ import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
 import useDealInfoFieldUpdate from "../../hooks/useDealInfoFieldUpdate";
-import { initialsFromName } from "../../adapters/initials";
 import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
-import DealAvatar from "../primitives/DealAvatar";
 import AnalysisLeadContextPanel from "./AnalysisLeadContextPanel";
-import AnalysisScriptNav, { type ScriptStep } from "./AnalysisScriptNav";
-import AnalysisScriptStep, { type AnalysisScriptItem } from "./AnalysisScriptStep";
-import AnalysisFooter from "./AnalysisFooter";
+import AnalysisHeaderBar from "./AnalysisHeaderBar";
+import AnalysisScrollPanel, { type ScrollPanelHandle } from "./AnalysisScrollPanel";
+import AnalysisSectionNavigator from "./AnalysisSectionNavigator";
+import { adaptScriptItems } from "./adapters/analysisScriptAdapter";
+import type { AnalysisSection, AnalysisScriptItem } from "./types/analysisTypes";
 
 interface Props {
     analysis: UseDealAnalysisReturn;
@@ -29,6 +29,37 @@ function isFieldFilled(value: unknown): boolean {
     if (value === null || value === undefined || value === "") return false;
     if (Array.isArray(value)) return value.length > 0;
     return true;
+}
+
+function computeSectionProgress(
+    section: AnalysisSection,
+    fields: any[],
+    localDealFieldValues: Record<string, any>,
+    deal: any,
+): { filled: number; total: number } {
+    let filled = 0;
+    let total = 0;
+
+    if (section.categoryId !== null) {
+        const p = getCustomFieldCategoryProgress(fields, section.categoryId, localDealFieldValues);
+        filled += p.filled;
+        total += p.total;
+    }
+
+    for (const item of section.items) {
+        if (item.kind === "native_field") {
+            total += 1;
+            filled += isFieldFilled((deal as any)[item.scriptItem.item_key]) ? 1 : 0;
+        } else if (item.kind === "hibarr_field") {
+            total += 1;
+            filled += isFieldFilled((deal as any).hibarrFields?.[item.scriptItem.item_key]) ? 1 : 0;
+        } else if (item.kind === "lead_field") {
+            total += 1;
+            filled += isFieldFilled((deal.contact as any)?.[item.scriptItem.item_key]) ? 1 : 0;
+        }
+    }
+
+    return { filled, total };
 }
 
 const FOCUSABLE =
@@ -48,13 +79,15 @@ export default function DealAnalysisModal({
     const { handleFieldUpdate, updatingField, canEdit } = useDealInfoFieldUpdate();
     const { td } = useTd();
     const panelRef = useRef<HTMLDivElement>(null);
+    const scrollPanelRef = useRef<ScrollPanelHandle>(null);
     const titleId = "analysis-modal-title";
 
     const [localLeadCustomFieldsData, setLocalLeadCustomFieldsData] = useState<
         Record<string, any>
     >(() => (props.leadCustomFieldsData as Record<string, any>) ?? {});
     const [updatingLeadField, setUpdatingLeadField] = useState<string | null>(null);
-    const [currentStep, setCurrentStep] = useState(0);
+    const [activeSection, setActiveSection] = useState<string>("");
+    const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
     // Optimistic deal custom field values — updated immediately on every field change
     // so progress numbers react without waiting for the server.
@@ -68,25 +101,19 @@ export default function DealAnalysisModal({
     const handleDealFieldChange = useCallback((fieldId: number, value: any) => {
         setLocalDealFieldValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
     }, []);
-    const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
-    // null = deferred prop not yet loaded (show skeleton); [] = loaded, no fields
     const leadCustomFieldsRaw = props.leadCustomFields as any[] | null | undefined;
     const isLoadingCustomFields = leadCustomFieldsRaw == null;
     const leadCustomFields: any[] = leadCustomFieldsRaw ?? [];
 
     useEffect(() => {
         if (props.leadCustomFieldsData) {
-            setLocalLeadCustomFieldsData(
-                props.leadCustomFieldsData as Record<string, any>,
-            );
+            setLocalLeadCustomFieldsData(props.leadCustomFieldsData as Record<string, any>);
         }
     }, [props.leadCustomFieldsData]);
 
     const scriptItems: AnalysisScriptItem[] = useMemo(() => {
-        if (analysisScript?.items?.length) {
-            return analysisScript.items;
-        }
+        if (analysisScript?.items?.length) return analysisScript.items;
         return dealInfoCategories.map((cat: any, i: number) => ({
             id: -(cat.id),
             type: "custom_field_category" as const,
@@ -97,62 +124,33 @@ export default function DealAnalysisModal({
         }));
     }, [analysisScript, dealInfoCategories]);
 
-    const stepProgress = useMemo((): ScriptStep[] => {
-        return scriptItems.map((item) => {
-            let filled = 0;
-            let total = 0;
+    // Sections + per-section progress + totals — all in one memo to avoid cascaded re-renders
+    const { sections, sectionProgress, totalFilled, totalFields } = useMemo(() => {
+        const sections = adaptScriptItems(scriptItems);
 
-            if (item.type === "custom_field_category") {
-                // Only visible, non-file fields count — uses optimistic values so
-                // progress updates immediately on change, not after server confirms.
-                const progress = getCustomFieldCategoryProgress(
-                    fields,
-                    parseInt(item.item_key, 10),
-                    localDealFieldValues,
-                );
-                total = progress.total;
-                filled = progress.filled;
-            } else if (item.type === "native_field") {
-                total = 1;
-                filled = isFieldFilled((deal as any)[item.item_key]) ? 1 : 0;
-            } else if (item.type === "hibarr_field") {
-                total = 1;
-                filled = isFieldFilled(
-                    (deal as any).hibarrFields?.[item.item_key],
-                )
-                    ? 1
-                    : 0;
-            } else if (item.type === "lead_field") {
-                total = 1;
-                filled = isFieldFilled(
-                    (deal.contact as any)?.[item.item_key],
-                )
-                    ? 1
-                    : 0;
-            }
-            // question and instruction: total = 0, not tracked in progress
+        const sectionProgress: Record<string, { filled: number; total: number }> = {};
+        let totalFilled = 0;
+        let totalFields = 0;
 
-            return {
-                id: String(item.id),
-                label: item.label_override || item.item_key,
-                filled,
-                total,
-            };
-        });
-    }, [scriptItems, fields, deal, localDealFieldValues]);
+        for (const section of sections) {
+            const p = computeSectionProgress(section, fields, localDealFieldValues, deal);
+            sectionProgress[section.id] = p;
+            totalFilled += p.filled;
+            totalFields += p.total;
+        }
 
-    const totalFilled = stepProgress.reduce((acc, s) => acc + s.filled, 0);
-    const totalFields = stepProgress.reduce((acc, s) => acc + s.total, 0);
+        return { sections, sectionProgress, totalFilled, totalFields };
+    }, [scriptItems, fields, localDealFieldValues, deal]);
+
     const unfilledCount = totalFields - totalFilled;
     const allFilled = totalFields > 0 && unfilledCount === 0;
 
-    const goTo = useCallback(
-        (i: number) =>
-            setCurrentStep(Math.max(0, Math.min(scriptItems.length - 1, i))),
-        [scriptItems.length],
-    );
-    const goPrev = useCallback(() => goTo(currentStep - 1), [currentStep, goTo]);
-    const goNext = useCallback(() => goTo(currentStep + 1), [currentStep, goTo]);
+    // Default first section as active when sections load
+    useEffect(() => {
+        if (sections.length > 0 && !activeSection) {
+            setActiveSection(sections[0].id);
+        }
+    }, [sections, activeSection]);
 
     const handleLeadCustomFieldUpdate = useCallback(
         async (field: any, value: any) => {
@@ -165,10 +163,7 @@ export default function DealAnalysisModal({
                     { headers: { Accept: "application/json" } },
                 );
                 if (resp.data?.status === "success") {
-                    setLocalLeadCustomFieldsData((prev) => ({
-                        ...prev,
-                        [fieldKey]: value,
-                    }));
+                    setLocalLeadCustomFieldsData((prev) => ({ ...prev, [fieldKey]: value }));
                 }
             } finally {
                 setUpdatingLeadField(null);
@@ -191,6 +186,14 @@ export default function DealAnalysisModal({
         }
     }, [allFilled, analysis]);
 
+    const handleJump = useCallback(
+        (id: string) => {
+            setActiveSection(id);
+            scrollPanelRef.current?.scrollToSection(id);
+        },
+        [],
+    );
+
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
             if (e.key === "Escape") {
@@ -204,22 +207,14 @@ export default function DealAnalysisModal({
             if (e.key !== "Tab") return;
             const panel = panelRef.current;
             if (!panel) return;
-            const focusable = Array.from(
-                panel.querySelectorAll<HTMLElement>(FOCUSABLE),
-            );
+            const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
             if (!focusable.length) return;
             const first = focusable[0];
             const last = focusable[focusable.length - 1];
             if (e.shiftKey) {
-                if (document.activeElement === first) {
-                    e.preventDefault();
-                    last.focus();
-                }
+                if (document.activeElement === first) { e.preventDefault(); last.focus(); }
             } else {
-                if (document.activeElement === last) {
-                    e.preventDefault();
-                    first.focus();
-                }
+                if (document.activeElement === last) { e.preventDefault(); first.focus(); }
             }
         },
         [analysis, showCompleteConfirm],
@@ -234,9 +229,7 @@ export default function DealAnalysisModal({
     }, [analysis.isOpen]);
 
     const activeUpdatingField = updatingField ?? updatingLeadField;
-    const leadName =
-        (deal as any).client_name || deal.contact?.client_name || "";
-    const currentItem = scriptItems[currentStep] ?? null;
+    const leadName = (deal as any).client_name || deal.contact?.client_name || "";
 
     if (!analysis.isOpen || typeof document === "undefined") return null;
 
@@ -250,72 +243,19 @@ export default function DealAnalysisModal({
                 aria-labelledby={titleId}
                 onKeyDown={handleKeyDown}
             >
-                {/* ── Header ── */}
-                <div
-                    className="flex shrink-0 items-center justify-between gap-3 px-5 py-3.5"
-                    style={{ borderBottom: `1px solid ${T.BORDER}` }}
-                >
-                    <div className="flex min-w-0 items-center gap-3">
-                        <DealAvatar size={26} initials={initialsFromName(leadName)} />
-                        <h2
-                            id={titleId}
-                            className="text-[15px] font-semibold"
-                            style={{ color: T.TEXT }}
-                        >
-                            {td("Deal Analysis")}
-                            {leadName && (
-                                <span
-                                    className="font-normal"
-                                    style={{ color: T.TEXT_MUTED }}
-                                >
-                                    {" · "}
-                                    {leadName}
-                                </span>
-                            )}
-                        </h2>
-                        {analysis.isCompleted && (
-                            <span className="dr-pill dr-pill-green">
-                                {td("Completed")}
-                            </span>
-                        )}
-                    </div>
+                {/* ── Navy header ── */}
+                <AnalysisHeaderBar
+                    leadName={leadName}
+                    isCompleted={analysis.isCompleted}
+                    totalFilled={totalFilled}
+                    totalFields={totalFields}
+                    onMinimize={analysis.minimize}
+                />
 
-                    <div className="flex shrink-0 items-center gap-2">
-                        <button
-                            type="button"
-                            className="dr-btn dr-btn-ghost dr-btn-sm"
-                            onClick={onAddTask}
-                        >
-                            + {td("Task")}
-                        </button>
-                        <button
-                            type="button"
-                            className="dr-btn dr-btn-ghost dr-btn-sm"
-                            onClick={onScheduleMeeting}
-                        >
-                            📅 {td("Meeting")}
-                        </button>
-                        <button
-                            type="button"
-                            className="dr-btn dr-btn-ghost dr-btn-sm"
-                            aria-label={td("Minimize analysis")}
-                            onClick={analysis.minimize}
-                        >
-                            ⊟ {td("Hide")}
-                        </button>
-                    </div>
-                </div>
-
-                {/* ── Body ── */}
-                <div className="flex min-h-0 flex-1">
-                    {/* Left panel ~38% */}
-                    <div
-                        className="flex shrink-0 flex-col overflow-hidden"
-                        style={{
-                            width: "38%",
-                            borderRight: `1px solid ${T.BORDER}`,
-                        }}
-                    >
+                {/* ── 3-column body ── */}
+                <div className="analysis-3col-body">
+                    {/* Left — lead context */}
+                    <div className="analysis-3col-left">
                         <AnalysisLeadContextPanel
                             leadCustomFields={leadCustomFields}
                             leadCustomFieldsData={localLeadCustomFieldsData}
@@ -326,62 +266,41 @@ export default function DealAnalysisModal({
                         />
                     </div>
 
-                    {/* Right panel — script steps */}
-                    <div className="flex min-w-0 flex-1 flex-col">
-                        {scriptItems.length === 0 ? (
-                            <div
-                                className="flex flex-1 flex-col items-center justify-center gap-2"
-                                style={{ color: T.TEXT_HINT }}
-                            >
-                                <p className="text-[14px]">
-                                    {td("No analysis steps configured.")}
-                                </p>
-                                <p className="text-[12px] italic">
-                                    {td("Add steps in pipeline settings to get started.")}
-                                </p>
-                            </div>
-                        ) : (
-                            <>
-                                <AnalysisScriptNav
-                                    steps={stepProgress}
-                                    current={currentStep}
-                                    onSelect={setCurrentStep}
-                                    onPrev={goPrev}
-                                    onNext={goNext}
-                                />
-                                <div className="flex-1 overflow-y-auto">
-                                    {currentItem && (
-                                        <AnalysisScriptStep
-                                            key={currentItem.id}
-                                            item={currentItem}
-                                            fields={fields}
-                                            canEdit={canEdit}
-                                            updatingField={
-                                                activeUpdatingField ?? undefined
-                                            }
-                                            onFieldUpdate={onFieldUpdate}
-                                            onFieldChange={handleDealFieldChange}
-                                        />
-                                    )}
-                                </div>
-                            </>
-                        )}
+                    {/* Center — scroll panel with all sections */}
+                    <div className="analysis-3col-center">
+                        <AnalysisScrollPanel
+                            ref={scrollPanelRef}
+                            sections={sections}
+                            fields={fields}
+                            localDealFieldValues={localDealFieldValues}
+                            canEdit={canEdit}
+                            updatingField={activeUpdatingField ?? undefined}
+                            totalFilled={totalFilled}
+                            totalFields={totalFields}
+                            onFieldUpdate={onFieldUpdate}
+                            onFieldChange={handleDealFieldChange}
+                            onActiveSectionChange={setActiveSection}
+                        />
+                    </div>
+
+                    {/* Right — section navigator + quick actions */}
+                    <div className="analysis-3col-right">
+                        <AnalysisSectionNavigator
+                            sections={sections}
+                            sectionProgress={sectionProgress}
+                            activeSection={activeSection}
+                            totalFilled={totalFilled}
+                            totalFields={totalFields}
+                            isCompleting={analysis.isCompleting}
+                            allFilled={allFilled}
+                            onJump={handleJump}
+                            onScheduleMeeting={onScheduleMeeting}
+                            onComplete={handleCompleteClick}
+                        />
                     </div>
                 </div>
 
-                {/* ── Footer ── */}
-                <AnalysisFooter
-                    filledCount={totalFilled}
-                    totalCount={totalFields}
-                    currentStep={currentStep}
-                    totalSteps={scriptItems.length}
-                    isCompleting={analysis.isCompleting}
-                    onPrev={goPrev}
-                    onNext={goNext}
-                    onComplete={handleCompleteClick}
-                />
-
-                {/* ── In-modal complete confirmation overlay (fix #9) ── */}
+                {/* ── Complete confirmation overlay ── */}
                 {showCompleteConfirm && (
                     <div
                         style={{
@@ -428,14 +347,7 @@ export default function DealAnalysisModal({
                                     "Completing now will mark this analysis as done, but the missing data won't be captured.",
                                 )}
                             </p>
-                            <div
-                                style={{
-                                    display: "flex",
-                                    gap: 12,
-                                    justifyContent: "center",
-                                    flexWrap: "wrap",
-                                }}
-                            >
+                            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                                 <button
                                     type="button"
                                     className="dr-btn dr-btn-ghost"

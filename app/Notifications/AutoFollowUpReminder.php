@@ -25,6 +25,7 @@ class AutoFollowUpReminder extends BaseNotification
         $this->subject = $subject;
         $this->company = $leadFollowup->deal->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'follow-up-reminder')->first();
+        $this->initUnsRouting();
     }
 
     /**
@@ -83,6 +84,15 @@ class AutoFollowUpReminder extends BaseNotification
                 'actionText' => __('email.followUpReminder.action'),
                 'notifiableName' => $notifiable->name
             ]);
+
+        $this->attachPlunkTemplate($build, '24330e3e-a357-41d2-8762-7014732d5b7e', [
+            'leadName'      => $this->leadFollowup->deal->client_name,
+            'leadEmail'     => optional($this->leadFollowup->deal->contact)->client_email ?? '',
+            'meetingDate'   => $followUpDate,
+            'meetingTime'   => $followUpTime,
+            'meetingRemark' => $this->leadFollowup->remark ?? '',
+            'leadUrl'       => $url,
+        ]);
 
         parent::resetLocale();
 

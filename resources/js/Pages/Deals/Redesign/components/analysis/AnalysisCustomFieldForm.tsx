@@ -9,11 +9,16 @@
 //   FormField.localVal state ← what the input shows; only synced from prop on server confirm
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePage } from "@inertiajs/react";
-import { useCurrencies } from "@/Hooks/useFormData";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import DateInput from "./inputs/DateInput";
+import SelectInput from "./inputs/SelectInput";
+import RadioInput from "./inputs/RadioInput";
+import CountrySelectInput from "./inputs/CountrySelectInput";
+import CountryMultiSelectInput from "./inputs/CountryMultiSelectInput";
+import PhoneInput from "./inputs/PhoneInput";
+import CurrencyInput from "./inputs/CurrencyInput";
 
 // ─── Currency helpers ────────────────────────────────────────────────────────
 
@@ -43,71 +48,17 @@ export function parseCurrencyValue(
     return fallback;
 }
 
-export function InlineCurrencyInput({
-    rawValue,
-    canEdit,
-    onChange,
-    onSave,
-}: {
-    rawValue: any;
-    canEdit: boolean;
-    onChange: (val: { amount: number | null; currency: string }) => void;
-    onSave: (val: { amount: number | null; currency: string }) => void;
-}) {
-    const { props } = usePage<any>();
-    const defaultCurrency = (props.default_currency_code as string) || "TRY";
-    const { currencies } = useCurrencies();
+/** Convert CRM's {amount, currency} JSON to CurrencyInput's CODE|amount string */
+function currencyToPipe(rawValue: any, defaultCurrency = "GBP"): string {
+    const p = parseCurrencyValue(rawValue, defaultCurrency);
+    return `${p.currency}|${p.amount ?? ""}`;
+}
 
-    const parsed = useMemo(() => parseCurrencyValue(rawValue, defaultCurrency), [rawValue, defaultCurrency]);
-    const [amount, setAmount] = useState(() => parsed.amount !== null ? String(parsed.amount) : "");
-    const [currency, setCurrency] = useState(() => parsed.currency);
-    const [focused, setFocused] = useState(false);
-
-    const prevRef = useRef(rawValue);
-    useEffect(() => {
-        if (prevRef.current !== rawValue) {
-            prevRef.current = rawValue;
-            const p = parseCurrencyValue(rawValue, defaultCurrency);
-            setAmount(p.amount !== null ? String(p.amount) : "");
-            setCurrency(p.currency);
-        }
-    }, [rawValue, defaultCurrency]);
-
-    const build = (amt: string, cur: string) => ({
-        amount: amt.trim() === "" ? null : (Number(amt) || null),
-        currency: cur,
-    });
-
-    const focusRing: React.CSSProperties = focused ? FOCUSED_STYLE : {};
-    const base: React.CSSProperties = { ...INPUT_BASE, ...focusRing };
-
-    return (
-        <div style={{ display: "flex", gap: 6 }}>
-            <select
-                value={currency}
-                disabled={!canEdit}
-                onChange={(e) => { setCurrency(e.target.value); onChange(build(amount, e.target.value)); }}
-                style={{ ...base, width: 84, flexShrink: 0, cursor: canEdit ? "pointer" : "not-allowed", padding: "9px 6px" }}
-            >
-                {(currencies ?? []).map((c: any) => (
-                    <option key={c.currency_code} value={c.currency_code}>
-                        {c.currency_code}{c.currency_name ? ` — ${c.currency_name}` : ""}
-                    </option>
-                ))}
-            </select>
-            <input
-                type="number"
-                value={amount}
-                disabled={!canEdit}
-                placeholder="0"
-                onChange={(e) => { setAmount(e.target.value); onChange(build(e.target.value, currency)); }}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
-                onFocus={() => setFocused(true)}
-                onBlur={(e) => { setFocused(false); onSave(build(e.target.value, currency)); }}
-                style={{ ...base, flex: 1, cursor: canEdit ? "text" : "not-allowed" }}
-            />
-        </div>
-    );
+/** Convert CurrencyInput's CODE|amount string back to CRM's {amount, currency} */
+function pipeToAmountObj(val: string): { amount: number | null; currency: string } {
+    const [code = "GBP", rawAmt = ""] = val.split("|");
+    const digits = rawAmt.replace(/[^0-9.]/g, "");
+    return { amount: digits ? Number(digits) : null, currency: code };
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -135,7 +86,8 @@ function parseOptions(rawValues: any): FieldOption[] {
 }
 
 function toInputValue(type: string, rawValue: any): string | string[] {
-    if (type === "checkbox" || type === "multiselect") {
+    if (type === "currency") return currencyToPipe(rawValue);
+    if (type === "checkbox" || type === "multiselect" || type === "country-multiselect") {
         if (Array.isArray(rawValue)) return rawValue.map(String);
         if (typeof rawValue === "string") {
             try { return JSON.parse(rawValue); }
@@ -205,6 +157,7 @@ const FOCUSED_STYLE: React.CSSProperties = {
 function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }: FieldProps) {
     const { td } = useTd();
     const options = useMemo(() => parseOptions(field.values), [field.values]);
+    const portalFieldWrapperRef = useRef<HTMLDivElement>(null);
 
     const [localVal, setLocalVal] = useState<string | string[]>(() =>
         toInputValue(field.type, rawValue),
@@ -244,8 +197,7 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
         cursor: canEdit ? "text" : "not-allowed",
     };
 
-    const isText = ["text", "number", "phone", "email", "url"].includes(field.type);
-    const isSelect = ["select", "radio"].includes(field.type);
+    const isText = ["text", "number", "email", "url"].includes(field.type);
     const isMulti = ["checkbox", "multiselect"].includes(field.type);
 
     return (
@@ -294,52 +246,111 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
                 />
             )}
 
-            {/* Currency — proper selector + amount input */}
-            {field.type === "currency" && (
-                <InlineCurrencyInput
-                    rawValue={rawValue}
-                    canEdit={canEdit}
-                    onChange={(val) => notifyChange(val)}
-                    onSave={(val) => commit(val)}
-                />
-            )}
-
-            {/* Date */}
-            {field.type === "date" && (
-                <input
-                    type="date"
-                    value={localVal as string}
-                    disabled={!canEdit}
-                    onChange={(e) => {
-                        setLocalVal(e.target.value);
-                        notifyChange(e.target.value);
+            {/* Phone — flag + dial code picker, commits on blur-out */}
+            {field.type === "phone" && (
+                <div
+                    ref={portalFieldWrapperRef}
+                    onBlur={(e) => {
+                        const next = e.relatedTarget as Element | null;
+                        const inPortal = next && document.body.lastElementChild?.contains(next);
+                        if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
+                            commit(localVal);
+                        }
                     }}
-                    onFocus={() => setFocused(true)}
-                    onBlur={(e) => { setFocused(false); commit(e.target.value); }}
-                    style={{ ...inputStyle, cursor: canEdit ? "pointer" : "not-allowed" }}
-                />
-            )}
-
-            {/* Select / Radio — saves immediately on change (no blur needed) */}
-            {isSelect && (
-                <select
-                    value={localVal as string}
-                    disabled={!canEdit}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        setLocalVal(val);
-                        notifyChange(val); // immediate visibility
-                        commit(val);       // save in background
-                    }}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
-                    style={{ ...inputStyle, cursor: canEdit ? "pointer" : "not-allowed" }}
                 >
-                    <option value="">— {td("select")} —</option>
-                    {options.map((o) => (
-                        <option key={o.value} value={o.value}>{o.label}</option>
-                    ))}
-                </select>
+                    <PhoneInput
+                        value={localVal as string}
+                        onChange={(val) => {
+                            setLocalVal(val);
+                            notifyChange(val);
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* Currency — code picker + amount input, commits on blur-out */}
+            {field.type === "currency" && (
+                <div
+                    ref={portalFieldWrapperRef}
+                    onBlur={(e) => {
+                        const next = e.relatedTarget as Element | null;
+                        const inPortal = next && document.body.lastElementChild?.contains(next);
+                        if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
+                            commit(pipeToAmountObj(localVal as string));
+                        }
+                    }}
+                >
+                    <CurrencyInput
+                        value={localVal as string}
+                        onChange={(val) => {
+                            setLocalVal(val);
+                            notifyChange(pipeToAmountObj(val));
+                        }}
+                    />
+                </div>
+            )}
+
+            {/* Date — custom calendar, auto-saves on pick */}
+            {field.type === "date" && (
+                <DateInput
+                    value={localVal as string}
+                    onChange={(val) => {
+                        setLocalVal(val);
+                        notifyChange(val);
+                        commit(val);
+                    }}
+                />
+            )}
+
+            {/* Select — portal dropdown, auto-saves on pick */}
+            {field.type === "select" && (
+                <SelectInput
+                    value={localVal as string}
+                    options={options}
+                    placeholder={td("Select…")}
+                    onChange={(val) => {
+                        setLocalVal(val);
+                        notifyChange(val);
+                        commit(val);
+                    }}
+                />
+            )}
+
+            {/* Radio — pill buttons, auto-saves on pick */}
+            {field.type === "radio" && (
+                <RadioInput
+                    value={localVal as string}
+                    options={options}
+                    onChange={(val) => {
+                        setLocalVal(val);
+                        notifyChange(val);
+                        commit(val);
+                    }}
+                />
+            )}
+
+            {/* Country — single select, auto-saves on pick */}
+            {field.type === "country" && (
+                <CountrySelectInput
+                    value={localVal as string}
+                    onChange={(val) => {
+                        setLocalVal(val);
+                        notifyChange(val);
+                        commit(val);
+                    }}
+                />
+            )}
+
+            {/* Country multiselect — auto-saves on each toggle */}
+            {field.type === "country-multiselect" && (
+                <CountryMultiSelectInput
+                    value={localVal as string[]}
+                    onChange={(val) => {
+                        setLocalVal(val);
+                        notifyChange(val);
+                        commit(val);
+                    }}
+                />
             )}
 
             {/* Checkbox / Multiselect — each toggle saves immediately, no Save button */}
@@ -396,8 +407,8 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
             )}
 
             {/* Fallback for unhandled types */}
-            {!isText && !isSelect && !isMulti &&
-             !["textarea", "date", "currency"].includes(field.type) && (
+            {!isText && !isMulti &&
+             !["textarea", "date", "currency", "phone", "select", "radio", "country", "country-multiselect"].includes(field.type) && (
                 <input
                     type="text"
                     value={localVal as string}
