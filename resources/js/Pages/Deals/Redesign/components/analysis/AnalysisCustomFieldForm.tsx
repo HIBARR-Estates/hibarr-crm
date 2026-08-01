@@ -1,17 +1,10 @@
 // Right-panel form experience: inputs are always visible and ready to fill.
 // Agent can Tab through fields rapidly during a live call — no click-to-activate.
-//
-// Reactivity model:
-//   localValues (optimistic) ← updated immediately on every input change
-//   visibility               ← derived from localValues, reacts instantly
-//   onSave                   ← silent background confirmation; does NOT drive visibility
-//   FormField.value prop     ← server-confirmed value only (for init + post-save sync)
-//   FormField.localVal state ← what the input shows; only synced from prop on server confirm
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import AnalysisFieldRow from "./center/AnalysisFieldRow";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
 import RadioInput from "./inputs/RadioInput";
@@ -19,9 +12,25 @@ import CountrySelectInput from "./inputs/CountrySelectInput";
 import CountryMultiSelectInput from "./inputs/CountryMultiSelectInput";
 import PhoneInput from "./inputs/PhoneInput";
 import CurrencyInput from "./inputs/CurrencyInput";
+import CurrencyRangeInput from "./inputs/CurrencyRangeInput";
+import NumberInput from "./inputs/NumberInput";
+import NumberRangeInput from "./inputs/NumberRangeInput";
+import PasswordInput from "./inputs/PasswordInput";
+import CheckboxInput from "./inputs/CheckboxInput";
+import MultiSelectInput from "./inputs/MultiSelectInput";
+import FileInput from "./inputs/FileInput";
+import {
+    parseOptions,
+    toInputValue,
+    toSaveValue,
+    pipeToAmountObj,
+    pipeToCurrencyRangeObj,
+    pipeToRangeObj,
+    pipePhoneToPlain,
+} from "./inputs/fieldValueCodecs";
+import { A } from "./analysisTokens";
 
-// ─── Currency helpers ────────────────────────────────────────────────────────
-
+// ─── Currency helper (kept for external callers like DealAnalysisModal) ──────
 
 export function parseCurrencyValue(
     rawValue: any,
@@ -48,101 +57,25 @@ export function parseCurrencyValue(
     return fallback;
 }
 
-/** Convert CRM's {amount, currency} JSON to CurrencyInput's CODE|amount string */
-function currencyToPipe(rawValue: any, defaultCurrency = "GBP"): string {
-    const p = parseCurrencyValue(rawValue, defaultCurrency);
-    return `${p.currency}|${p.amount ?? ""}`;
-}
-
-/** Convert CurrencyInput's CODE|amount string back to CRM's {amount, currency} */
-function pipeToAmountObj(val: string): { amount: number | null; currency: string } {
-    const [code = "GBP", rawAmt = ""] = val.split("|");
-    const digits = rawAmt.replace(/[^0-9.]/g, "");
-    return { amount: digits ? Number(digits) : null, currency: code };
-}
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-interface FieldOption { value: string; label: string; }
-
-function parseOptions(rawValues: any): FieldOption[] {
-    if (!rawValues) return [];
-    if (typeof rawValues === "string") {
-        try { return parseOptions(JSON.parse(rawValues)); }
-        catch {
-            return rawValues.split(",").map((v: string) => v.trim()).filter(Boolean)
-                .map((v: string) => ({ value: v, label: v }));
-        }
-    }
-    if (Array.isArray(rawValues)) {
-        return rawValues.map((v: any) => typeof v === "string"
-            ? { value: v, label: v }
-            : { value: String(v.value ?? v.id ?? v), label: String(v.label ?? v.name ?? v.value ?? v) });
-    }
-    if (typeof rawValues === "object") {
-        return Object.entries(rawValues).map(([k, v]) => ({ value: k, label: String(v) }));
-    }
-    return [];
-}
-
-function toInputValue(type: string, rawValue: any): string | string[] {
-    if (type === "currency") return currencyToPipe(rawValue);
-    if (type === "checkbox" || type === "multiselect" || type === "country-multiselect") {
-        if (Array.isArray(rawValue)) return rawValue.map(String);
-        if (typeof rawValue === "string") {
-            try { return JSON.parse(rawValue); }
-            catch { return rawValue.split(",").map((v: string) => v.trim()).filter(Boolean); }
-        }
-        return [];
-    }
-    if (type === "date" && rawValue) {
-        try {
-            const d = new Date(rawValue);
-            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        } catch { return String(rawValue); }
-    }
-    if (rawValue === null || rawValue === undefined) return "";
-    return String(rawValue);
-}
-
-/** Normalise an input value to what the visibility evaluator expects */
-function toVisibilityValue(_type: string, val: any): any {
-    if (Array.isArray(val)) return val.length > 0 ? val : null;
-    if (typeof val === "string") return val.trim() === "" ? null : val;
-    return val ?? null;
-}
-
 // ─── Single form field ───────────────────────────────────────────────────────
 
 interface FieldProps {
     field: { id: number; label: string; type: string; values?: any };
-    /** Server-confirmed value — used only for initialisation and post-save sync */
     value: any;
-    saving: boolean;
+    fieldNumber?: number;
     canEdit: boolean;
-    /** Fires immediately on every change — for optimistic visibility in parent */
     onChange: (value: any) => void;
-    /** Fires on blur / explicit Save — persists to server */
     onSave: (value: any) => void;
+    onFileSelect?: (fieldId: number, file: File) => void;
 }
-
-const LABEL_STYLE: React.CSSProperties = {
-    display: "block",
-    fontSize: 12,
-    fontWeight: 600,
-    textTransform: "uppercase",
-    letterSpacing: "0.06em",
-    color: T.TEXT_MUTED,
-    marginBottom: 6,
-};
 
 const INPUT_BASE: React.CSSProperties = {
     width: "100%",
-    border: `1.5px solid ${T.BORDER}`,
+    border: `1.5px solid ${A.BORDER}`,
     borderRadius: 8,
     padding: "9px 12px",
     fontSize: 15,
-    color: T.TEXT,
+    color: A.TEXT,
     fontFamily: "inherit",
     background: "#fff",
     outline: "none",
@@ -150,11 +83,17 @@ const INPUT_BASE: React.CSSProperties = {
 };
 
 const FOCUSED_STYLE: React.CSSProperties = {
-    borderColor: T.BLUE_MID,
-    boxShadow: `0 0 0 2.5px ${T.BLUE_LIGHT}`,
+    borderColor: "#38bdf8",
+    boxShadow: "0 0 0 2.5px #e0f2fe",
 };
 
-function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }: FieldProps) {
+function isFieldFilled(value: unknown): boolean {
+    if (value === null || value === undefined || value === "") return false;
+    if (Array.isArray(value)) return value.length > 0;
+    return true;
+}
+
+function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onSave, onFileSelect }: FieldProps) {
     const { td } = useTd();
     const options = useMemo(() => parseOptions(field.values), [field.values]);
     const portalFieldWrapperRef = useRef<HTMLDivElement>(null);
@@ -164,8 +103,6 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
     );
     const [focused, setFocused] = useState(false);
 
-    // Sync from server value — only when rawValue changes (post-save confirmation).
-    // We deliberately do NOT track localVal or onChange here, so typing never resets the input.
     const prevRawRef = useRef(rawValue);
     useEffect(() => {
         if (prevRawRef.current !== rawValue) {
@@ -175,20 +112,16 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
     }, [rawValue, field.type]);
 
     const notifyChange = useCallback(
-        (val: any) => {
-            onChange(toVisibilityValue(field.type, val));
-        },
-        [onChange, field.type],
+        (val: any) => { onChange(val); },
+        [onChange],
     );
 
     const commit = useCallback(
-        (val: any) => {
-            let finalValue: any = val;
-            if (typeof finalValue === "string" && finalValue.trim() === "") finalValue = null;
-            if (Array.isArray(finalValue) && finalValue.length === 0) finalValue = null;
-            onSave(finalValue);
+        (val?: any) => {
+            const finalVal = val !== undefined ? val : localVal;
+            onSave(toSaveValue(field.type, finalVal as string | string[]));
         },
-        [onSave],
+        [localVal, onSave, field.type],
     );
 
     const inputStyle: React.CSSProperties = {
@@ -197,30 +130,18 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
         cursor: canEdit ? "text" : "not-allowed",
     };
 
-    const isText = ["text", "number", "email", "url"].includes(field.type);
-    const isMulti = ["checkbox", "multiselect"].includes(field.type);
+    const isText = ["text", "email", "url"].includes(field.type);
+    const answered = isFieldFilled(rawValue);
 
     return (
-        <div style={{ marginBottom: 20 }}>
-            <label style={LABEL_STYLE}>
-                {field.label}
-                {saving && (
-                    <span style={{ marginLeft: 8, fontSize: 10, color: T.BLUE, fontWeight: 500, textTransform: "none" }}>
-                        {td("Saving…")}
-                    </span>
-                )}
-            </label>
+        <AnalysisFieldRow number={fieldNumber} answered={answered} label={field.label}>
 
-            {/* Text / Number / Phone / Email / URL */}
             {isText && (
                 <input
-                    type={field.type === "number" ? "number" : "text"}
+                    type="text"
                     value={localVal as string}
                     disabled={!canEdit}
-                    onChange={(e) => {
-                        setLocalVal(e.target.value);
-                        notifyChange(e.target.value); // immediate visibility update
-                    }}
+                    onChange={(e) => { setLocalVal(e.target.value); notifyChange(e.target.value || null); }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
@@ -229,24 +150,36 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
                 />
             )}
 
-            {/* Textarea */}
+            {field.type === "number" && (
+                <NumberInput
+                    value={localVal as string}
+                    disabled={!canEdit}
+                    onChange={(val) => { setLocalVal(val); notifyChange(val || null); }}
+                />
+            )}
+
+            {field.type === "password" && (
+                <PasswordInput
+                    value={localVal as string}
+                    disabled={!canEdit}
+                    onChange={(val) => { setLocalVal(val); notifyChange(val || null); }}
+                    onBlur={() => commit()}
+                />
+            )}
+
             {field.type === "textarea" && (
                 <textarea
                     value={localVal as string}
                     disabled={!canEdit}
                     rows={3}
-                    onChange={(e) => {
-                        setLocalVal(e.target.value);
-                        notifyChange(e.target.value);
-                    }}
+                    onChange={(e) => { setLocalVal(e.target.value); notifyChange(e.target.value || null); }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
                     placeholder={td("Fill in…")}
-                    style={{ ...inputStyle, resize: "vertical", cursor: canEdit ? "auto" : "not-allowed" }}
+                    style={{ ...inputStyle, resize: "none", cursor: canEdit ? "auto" : "not-allowed" }}
                 />
             )}
 
-            {/* Phone — flag + dial code picker, commits on blur-out */}
             {field.type === "phone" && (
                 <div
                     ref={portalFieldWrapperRef}
@@ -254,7 +187,8 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
                         const next = e.relatedTarget as Element | null;
                         const inPortal = next && document.body.lastElementChild?.contains(next);
                         if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
-                            commit(localVal);
+                            // Save plain concatenated number (no pipe) to match CRM storage
+                            onSave(pipePhoneToPlain(localVal as string));
                         }
                     }}
                 >
@@ -262,13 +196,12 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
                         value={localVal as string}
                         onChange={(val) => {
                             setLocalVal(val);
-                            notifyChange(val);
+                            notifyChange(pipePhoneToPlain(val) || null);
                         }}
                     />
                 </div>
             )}
 
-            {/* Currency — code picker + amount input, commits on blur-out */}
             {field.type === "currency" && (
                 <div
                     ref={portalFieldWrapperRef}
@@ -276,7 +209,7 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
                         const next = e.relatedTarget as Element | null;
                         const inPortal = next && document.body.lastElementChild?.contains(next);
                         if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
-                            commit(pipeToAmountObj(localVal as string));
+                            onSave(pipeToAmountObj(localVal as string));
                         }
                     }}
                 >
@@ -290,133 +223,129 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
                 </div>
             )}
 
-            {/* Date — custom calendar, auto-saves on pick */}
+            {field.type === "currency_range" && (
+                <div
+                    ref={portalFieldWrapperRef}
+                    onBlur={(e) => {
+                        const next = e.relatedTarget as Element | null;
+                        const inPortal = next && document.body.lastElementChild?.contains(next);
+                        if (!inPortal && !portalFieldWrapperRef.current?.contains(next)) {
+                            onSave(pipeToCurrencyRangeObj(localVal as string));
+                        }
+                    }}
+                >
+                    <CurrencyRangeInput
+                        value={localVal as string}
+                        onChange={(val) => {
+                            setLocalVal(val);
+                            notifyChange(pipeToCurrencyRangeObj(val));
+                        }}
+                    />
+                </div>
+            )}
+
+            {field.type === "range" && (
+                <div
+                    onBlur={(e) => {
+                        const container = e.currentTarget;
+                        if (!container.contains(e.relatedTarget as Node)) {
+                            onSave(pipeToRangeObj(localVal as string));
+                        }
+                    }}
+                >
+                    <NumberRangeInput
+                        value={localVal as string}
+                        disabled={!canEdit}
+                        onChange={(val) => {
+                            setLocalVal(val);
+                            notifyChange(pipeToRangeObj(val));
+                        }}
+                    />
+                </div>
+            )}
+
             {field.type === "date" && (
                 <DateInput
                     value={localVal as string}
-                    onChange={(val) => {
-                        setLocalVal(val);
-                        notifyChange(val);
-                        commit(val);
-                    }}
+                    onChange={(val) => { setLocalVal(val); notifyChange(val); commit(val); }}
                 />
             )}
 
-            {/* Select — portal dropdown, auto-saves on pick */}
             {field.type === "select" && (
                 <SelectInput
                     value={localVal as string}
                     options={options}
                     placeholder={td("Select…")}
-                    onChange={(val) => {
-                        setLocalVal(val);
-                        notifyChange(val);
-                        commit(val);
-                    }}
+                    onChange={(val) => { setLocalVal(val); notifyChange(val); commit(val); }}
                 />
             )}
 
-            {/* Radio — pill buttons, auto-saves on pick */}
             {field.type === "radio" && (
                 <RadioInput
                     value={localVal as string}
                     options={options}
-                    onChange={(val) => {
-                        setLocalVal(val);
-                        notifyChange(val);
-                        commit(val);
-                    }}
+                    onChange={(val) => { setLocalVal(val); notifyChange(val); commit(val); }}
                 />
             )}
 
-            {/* Country — single select, auto-saves on pick */}
             {field.type === "country" && (
                 <CountrySelectInput
                     value={localVal as string}
-                    onChange={(val) => {
-                        setLocalVal(val);
-                        notifyChange(val);
-                        commit(val);
-                    }}
+                    onChange={(val) => { setLocalVal(val); notifyChange(val); commit(val); }}
                 />
             )}
 
-            {/* Country multiselect — auto-saves on each toggle */}
-            {field.type === "country-multiselect" && (
+            {/* Fixed: was "country-multiselect", real CRM type is "multiSelectCountry" */}
+            {field.type === "multiSelectCountry" && (
                 <CountryMultiSelectInput
                     value={localVal as string[]}
+                    onChange={(val) => { setLocalVal(val); notifyChange(val.length > 0 ? val : null); commit(val.length > 0 ? val : null); }}
+                />
+            )}
+
+            {field.type === "checkbox" && (
+                <CheckboxInput
+                    value={localVal as string[]}
+                    options={options}
+                    disabled={!canEdit}
                     onChange={(val) => {
                         setLocalVal(val);
-                        notifyChange(val);
-                        commit(val);
+                        notifyChange(val.length > 0 ? val : null);
+                        onSave(val.length > 0 ? val : null);
                     }}
                 />
             )}
 
-            {/* Checkbox / Multiselect — each toggle saves immediately, no Save button */}
-            {isMulti && (
-                <div
-                    style={{
-                        border: `1.5px solid ${T.BORDER}`,
-                        borderRadius: 8,
-                        padding: "10px 14px",
-                        background: "#fff",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 10,
-                        maxHeight: 220,
-                        overflowY: "auto",
+            {field.type === "multiselect" && (
+                <MultiSelectInput
+                    value={localVal as string[]}
+                    options={options}
+                    disabled={!canEdit}
+                    onChange={(val) => {
+                        setLocalVal(val);
+                        notifyChange(val.length > 0 ? val : null);
+                        onSave(val.length > 0 ? val : null);
                     }}
-                >
-                    {options.map((o) => {
-                        const current = localVal as string[];
-                        const checked = current.includes(o.value);
-                        return (
-                            <label
-                                key={o.value}
-                                style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: 10,
-                                    fontSize: 15,
-                                    color: T.TEXT,
-                                    cursor: canEdit ? "pointer" : "default",
-                                    userSelect: "none",
-                                    fontWeight: checked ? 500 : 400,
-                                }}
-                            >
-                                <input
-                                    type="checkbox"
-                                    disabled={!canEdit}
-                                    checked={checked}
-                                    style={{ accentColor: T.BLUE, width: 16, height: 16 }}
-                                    onChange={() => {
-                                        const next = checked
-                                            ? current.filter((v) => v !== o.value)
-                                            : [...current, o.value];
-                                        setLocalVal(next);
-                                        notifyChange(next);
-                                        commit(next);
-                                    }}
-                                />
-                                {o.label}
-                            </label>
-                        );
-                    })}
-                </div>
+                />
             )}
 
-            {/* Fallback for unhandled types */}
-            {!isText && !isMulti &&
-             !["textarea", "date", "currency", "phone", "select", "radio", "country", "country-multiselect"].includes(field.type) && (
+            {field.type === "file" && (
+                <FileInput
+                    value={localVal as string}
+                    disabled={!canEdit}
+                    onFileSelect={(file) => {
+                        onFileSelect?.(field.id, file);
+                    }}
+                />
+            )}
+
+            {/* repeatable: keep existing CRM approach, no revamp equivalent */}
+            {field.type === "repeatable" && (
                 <input
                     type="text"
                     value={localVal as string}
                     disabled={!canEdit}
-                    onChange={(e) => {
-                        setLocalVal(e.target.value);
-                        notifyChange(e.target.value);
-                    }}
+                    onChange={(e) => { setLocalVal(e.target.value); notifyChange(e.target.value || null); }}
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
@@ -424,21 +353,21 @@ function FormField({ field, value: rawValue, saving, canEdit, onChange, onSave }
                     style={inputStyle}
                 />
             )}
-        </div>
+        </AnalysisFieldRow>
     );
 }
 
-// ─── Form section (category → list of FormFields) ───────────────────────────
+// ─── Form section ────────────────────────────────────────────────────────────
 
 interface Props {
     fields: any[];
     categoryId?: number;
     values: Record<string, any>;
     canEdit: boolean;
-    updatingField?: string | null;
+    numberByKey?: Record<string, number>;
     onSave: (fieldId: number, value: any) => void;
-    /** Fires immediately on every change — for optimistic progress in parent */
     onChange?: (fieldId: number, value: any) => void;
+    onFileSelect?: (fieldId: number, file: File) => void;
 }
 
 export default function AnalysisCustomFieldForm({
@@ -446,17 +375,15 @@ export default function AnalysisCustomFieldForm({
     categoryId,
     values,
     canEdit,
-    updatingField,
+    numberByKey,
     onSave,
     onChange,
+    onFileSelect,
 }: Props) {
     const { td } = useTd();
 
-    // Optimistic local values — updated immediately when any field changes.
-    // Visibility is derived from this, not from the server-confirmed `values` prop.
     const [localValues, setLocalValues] = useState<Record<string, any>>(() => ({ ...values }));
 
-    // Merge server-confirmed values in (post-save) without overwriting in-progress typing.
     useEffect(() => {
         setLocalValues((prev) => ({ ...prev, ...values }));
     }, [values]);
@@ -473,7 +400,6 @@ export default function AnalysisCustomFieldForm({
         return scoped.filter((f: any) => f.type !== "file");
     }, [fields, categoryId]);
 
-    // Visibility reacts to localValues — instant, no server round-trip needed
     const visibleFields = useMemo(() => {
         const visibilityMap = evaluateAllFieldsVisibility(scopedFields, localValues);
         return scopedFields.filter((f: any) => visibilityMap[f.id] !== false);
@@ -481,7 +407,7 @@ export default function AnalysisCustomFieldForm({
 
     if (visibleFields.length === 0) {
         return (
-            <p style={{ fontSize: 13, color: T.TEXT_HINT, fontStyle: "italic", margin: 0 }}>
+            <p style={{ fontSize: 13, color: A.TEXT_HINT, fontStyle: "italic", margin: 0 }}>
                 {td("No fields in this section.")}
             </p>
         );
@@ -493,12 +419,12 @@ export default function AnalysisCustomFieldForm({
                 <FormField
                     key={field.id}
                     field={field}
-                    // Server value only — so post-save sync doesn't fight with typing
                     value={values[`field_${field.id}`] ?? null}
-                    saving={updatingField === `field_${field.id}`}
+                    fieldNumber={numberByKey?.[`deal_field_${field.id}`]}
                     canEdit={canEdit}
                     onChange={(value) => handleFieldChange(field.id, value)}
                     onSave={(value) => onSave(field.id, value)}
+                    onFileSelect={onFileSelect}
                 />
             ))}
         </div>

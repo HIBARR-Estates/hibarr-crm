@@ -69,7 +69,7 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
 
         case "checkbox":
         case "multiselect":
-        case "country-multiselect": {
+        case "multiSelectCountry": {
             let arr: string[] = [];
             if (typeof rawValue === "string") {
                 try {
@@ -80,7 +80,7 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
             } else if (Array.isArray(rawValue)) {
                 arr = rawValue.map(String);
             }
-            if (type === "country-multiselect") return arr.join(", ");
+            if (type === "multiSelectCountry") return arr.join(", ");
             return arr
                 .map((v) => {
                     const found = options.find((o) => o.value === v);
@@ -121,7 +121,7 @@ function toEditValue(type: string, rawValue: any): string | string[] {
         const p = parseCurrencyValue(rawValue, "GBP");
         return `${p.currency}|${p.amount ?? ""}`;
     }
-    if (type === "checkbox" || type === "multiselect" || type === "country-multiselect") {
+    if (type === "checkbox" || type === "multiselect" || type === "multiSelectCountry") {
         if (Array.isArray(rawValue)) return rawValue.map(String);
         if (typeof rawValue === "string") {
             try {
@@ -307,7 +307,7 @@ export default function AnalysisCustomFieldRow({
                             textAlign: "right",
                         }}
                     >
-                        {saving ? td("Saving…") : isEmpty ? "—" : displayValue}
+                        {isEmpty ? "—" : displayValue}
                     </span>
                     {canEdit && (
                         <svg
@@ -443,7 +443,7 @@ export default function AnalysisCustomFieldRow({
                     )}
 
                     {/* Country multiselect — auto-saves on each toggle */}
-                    {field.type === "country-multiselect" && (
+                    {field.type === "multiSelectCountry" && (
                         <CountryMultiSelectInput
                             value={editVal as string[]}
                             onChange={(val) => {

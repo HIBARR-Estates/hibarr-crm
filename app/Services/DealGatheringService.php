@@ -367,10 +367,28 @@ class DealGatheringService
                     'client_name', 'client_email', 'mobile', 'cell', 'office',
                     'company_name', 'salutation', 'gender', 'address',
                     'postal_code', 'city', 'state', 'country', 'source_id',
+                    'nationality', 'occupation', 'date_of_birth', 'age', 'languages',
                 ];
                 $contactData = array_intersect_key($data, array_flip($allowedContactFields));
                 if (!empty($contactData) && $deal->contact) {
-                    $deal->contact->update($contactData);
+                    $promotedFields = ['nationality', 'occupation', 'date_of_birth', 'age', 'languages'];
+                    $promotedData = array_intersect_key($contactData, array_flip($promotedFields));
+                    $regularData = array_diff_key($contactData, array_flip($promotedFields));
+
+                    if (!empty($regularData)) {
+                        $deal->contact->update($regularData);
+                    }
+
+                    if (!empty($promotedData)) {
+                        /** @var \App\Services\LeadCoreFieldsService $coreFields */
+                        $coreFields = app(\App\Services\LeadCoreFieldsService::class);
+                        if ($coreFields->useCoreFields()) {
+                            $coreFields->write($deal->contact, $promotedData);
+                            $deal->contact->save();
+                        } else {
+                            $deal->contact->update($promotedData);
+                        }
+                    }
                 }
                 break;
 

@@ -11,8 +11,8 @@ interface Props {
     fields: any[];
     localDealFieldValues: Record<string, any>;
     canEdit: boolean;
-    updatingField?: string | null;
-    onFieldUpdate: (fieldKey: string, value: any, updateType: string) => Promise<void>;
+    numberByKey?: Record<string, number>;
+    onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
     onFieldChange?: (fieldId: number, value: any) => void;
 }
 
@@ -27,7 +27,7 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
     fields,
     localDealFieldValues,
     canEdit,
-    updatingField,
+    numberByKey,
     onFieldUpdate,
     onFieldChange,
 }, ref) => {
@@ -37,14 +37,12 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
         let filled = 0;
         let total = 0;
 
-        // Custom fields for this section
         if (section.categoryId !== null) {
             const p = getCustomFieldCategoryProgress(fields, section.categoryId, localDealFieldValues);
             filled += p.filled;
             total += p.total;
         }
 
-        // Native/hibarr/lead field items
         for (const item of section.items) {
             if (item.kind === "native_field") {
                 total += 1;
@@ -56,7 +54,6 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
                 total += 1;
                 filled += isFieldFilled((deal.contact as any)?.[item.scriptItem.item_key]) ? 1 : 0;
             }
-            // question and instruction: not counted
         }
 
         return { filled, total };
@@ -66,32 +63,25 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
     const complete = progress.total > 0 && pct === 100;
 
     return (
-        <div
-            ref={ref}
-            data-section-id={section.id}
-            className="mb-10"
-        >
+        <div ref={ref} data-section-id={section.id} className="mb-10">
             {/* Section header */}
             <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0 pr-4">
-                    <h2 className="text-[15px] font-semibold leading-snug" style={{ color: T.NAVY }}>
+                    <h2 className="text-base font-semibold text-slate-900 leading-snug">
                         {section.title}
                     </h2>
                     {section.guideText && (
-                        <p className="text-xs mt-0.5 leading-relaxed" style={{ color: T.TEXT_MUTED }}>
+                        <p className="text-xs mt-0.5 leading-relaxed text-slate-500">
                             {section.guideText}
                         </p>
                     )}
                 </div>
                 {progress.total > 0 && (
                     <div className="shrink-0 flex items-center gap-2 mt-0.5">
-                        <span className="text-xs tabular-nums" style={{ color: T.TEXT_MUTED }}>
+                        <span className="text-xs tabular-nums text-slate-500">
                             {progress.filled}/{progress.total}
                         </span>
-                        <div
-                            className="w-14 h-1.5 rounded-full overflow-hidden"
-                            style={{ backgroundColor: T.BORDER }}
-                        >
+                        <div className="w-16 h-1.5 bg-slate-200 rounded-full overflow-hidden">
                             <div
                                 className="h-full rounded-full transition-all duration-500"
                                 style={{
@@ -104,54 +94,39 @@ const AnalysisSectionBlock = forwardRef<HTMLDivElement, Props>(({
                 )}
             </div>
 
-            <div
-                className="rounded-xl overflow-hidden"
-                style={{ border: `1px solid ${T.BORDER}`, background: T.SURFACE }}
-            >
+            {/* Body */}
+            <div className="border-t border-slate-100 pt-4">
                 {/* Custom fields for this section's category */}
                 {section.categoryId !== null && (
-                    <div className="px-4 py-3">
-                        <AnalysisCustomFieldForm
-                            fields={fields}
-                            categoryId={section.categoryId}
-                            values={localDealFieldValues}
-                            canEdit={canEdit}
-                            updatingField={updatingField}
-                            onSave={(fieldId, value) =>
-                                onFieldUpdate(`field_${fieldId}`, value, "custom_field")
-                            }
-                            onChange={onFieldChange}
-                        />
-                    </div>
+                    <AnalysisCustomFieldForm
+                        fields={fields}
+                        categoryId={section.categoryId}
+                        values={localDealFieldValues}
+                        canEdit={canEdit}
+                        numberByKey={numberByKey}
+                        onSave={(fieldId, value) =>
+                            onFieldUpdate(`deal_field_${fieldId}`, value, "custom_field")
+                        }
+                        onChange={onFieldChange}
+                    />
                 )}
 
                 {/* Question/instruction/field items */}
-                {section.items.length > 0 && (
-                    <div
-                        className="px-4 py-4"
-                        style={
-                            section.categoryId !== null
-                                ? { borderTop: `1px solid ${T.BORDER_SOFT}` }
-                                : {}
-                        }
-                    >
-                        {section.items.map((item, i) => (
-                            <AnalysisQuestionRow
-                                key={`${item.kind}-${item.scriptItem.id}-${i}`}
-                                item={item}
-                                canEdit={canEdit}
-                                updatingField={updatingField}
-                                onFieldUpdate={onFieldUpdate}
-                                onFieldChange={onFieldChange}
-                            />
-                        ))}
-                    </div>
-                )}
+                {section.items.map((item, i) => (
+                    <AnalysisQuestionRow
+                        key={`${item.kind}-${item.scriptItem.id}-${i}`}
+                        item={item}
+                        number={numberByKey?.[`script_${item.scriptItem.id}`]}
+                        canEdit={canEdit}
+                        onFieldUpdate={onFieldUpdate}
+                        onFieldChange={onFieldChange}
+                    />
+                ))}
 
                 {section.categoryId !== null && section.items.length === 0 && fields.filter(
-                    (f: any) => f.category_id === section.categoryId
+                    (f: any) => f.custom_field_category_id === section.categoryId
                 ).length === 0 && (
-                    <p className="px-4 py-3 text-xs italic" style={{ color: T.TEXT_HINT }}>
+                    <p className="text-xs italic text-slate-400 py-2">
                         No fields configured for this section.
                     </p>
                 )}

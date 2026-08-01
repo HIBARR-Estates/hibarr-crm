@@ -1,5 +1,4 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import AnalysisSectionBlock from "./AnalysisSectionBlock";
 import type { AnalysisSection } from "./types/analysisTypes";
 
@@ -12,10 +11,10 @@ interface Props {
     fields: any[];
     localDealFieldValues: Record<string, any>;
     canEdit: boolean;
-    updatingField?: string | null;
+    numberByKey?: Record<string, number>;
     totalFilled: number;
     totalFields: number;
-    onFieldUpdate: (fieldKey: string, value: any, updateType: string) => Promise<void>;
+    onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
     onFieldChange?: (fieldId: number, value: any) => void;
     onActiveSectionChange: (id: string) => void;
 }
@@ -26,7 +25,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
         fields,
         localDealFieldValues,
         canEdit,
-        updatingField,
+        numberByKey,
         totalFilled,
         totalFields,
         onFieldUpdate,
@@ -74,10 +73,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
 
     if (sections.length === 0) {
         return (
-            <div
-                className="flex flex-1 flex-col items-center justify-center gap-2"
-                style={{ color: T.TEXT_HINT }}
-            >
+            <div className="flex flex-1 flex-col items-center justify-center gap-2 text-slate-400">
                 <p className="text-sm">No analysis steps configured.</p>
                 <p className="text-xs italic">Add steps in pipeline settings to get started.</p>
             </div>
@@ -85,27 +81,23 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
     }
 
     return (
-        <div ref={containerRef} className="flex-1 overflow-y-auto" style={{ background: T.BG }}>
+        <div ref={containerRef} className="flex-1 overflow-y-auto bg-slate-50">
             {/* Sticky progress bar */}
             <div
-                className="sticky top-0 z-10 px-6 pt-4 pb-3"
-                style={{
-                    borderBottom: `1px solid ${T.BORDER}`,
-                    background: T.BG,
-                    backdropFilter: "blur(4px)",
-                }}
+                className="sticky top-0 z-10 px-6 pt-4 pb-3 bg-slate-50/95 backdrop-blur-sm"
+                style={{ borderBottom: "1px solid #e2e8f0" }}
             >
                 <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: T.TEXT_MUTED }}>
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
                         Analysis Progress
                     </span>
-                    <span className="text-xs tabular-nums" style={{ color: T.TEXT_MUTED }}>
-                        <span className="font-semibold" style={{ color: T.TEXT }}>{totalFilled}</span>
+                    <span className="text-xs tabular-nums text-slate-500">
+                        <span className="font-semibold text-slate-800">{totalFilled}</span>
                         {" of "}
                         {totalFields} fields
                     </span>
                 </div>
-                <div className="w-full h-2 rounded-full overflow-hidden" style={{ backgroundColor: T.BORDER }}>
+                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                     <div
                         className="h-full rounded-full transition-all duration-700"
                         style={{
@@ -125,7 +117,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                         fields={fields}
                         localDealFieldValues={localDealFieldValues}
                         canEdit={canEdit}
-                        updatingField={updatingField}
+                        numberByKey={numberByKey}
                         onFieldUpdate={onFieldUpdate}
                         onFieldChange={onFieldChange}
                     />

@@ -12,11 +12,9 @@ import type { AnalysisSection, AnalysisSectionItem } from "../types/analysisType
 export function adaptScriptItems(items: AnalysisScriptItem[]): AnalysisSection[] {
     const sections: AnalysisSection[] = [];
     let current: AnalysisSection | null = null;
-    let questionNumber = 0;
 
     for (const item of items) {
         if (item.type === "custom_field_category") {
-            questionNumber = 0;
             current = {
                 id: String(item.id),
                 title: item.label_override || item.item_key,
@@ -40,12 +38,6 @@ export function adaptScriptItems(items: AnalysisScriptItem[]): AnalysisSection[]
 
             const kind = item.type as AnalysisSectionItem["kind"];
             const sectionItem: AnalysisSectionItem = { kind, scriptItem: item };
-
-            if (item.type === "question" || item.type === "native_field" || item.type === "hibarr_field" || item.type === "lead_field") {
-                questionNumber += 1;
-                sectionItem.number = questionNumber;
-            }
-
             current.items.push(sectionItem);
         }
     }

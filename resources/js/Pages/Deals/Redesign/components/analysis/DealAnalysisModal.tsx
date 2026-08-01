@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
-import axios from "axios";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
+import useAnalysisFieldSave from "../../hooks/useAnalysisFieldSave";
 import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
-import useDealInfoFieldUpdate from "../../hooks/useDealInfoFieldUpdate";
 import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
 import AnalysisLeadContextPanel from "./AnalysisLeadContextPanel";
 import AnalysisHeaderBar from "./AnalysisHeaderBar";
@@ -19,6 +20,7 @@ interface Props {
     analysis: UseDealAnalysisReturn;
     dealInfoCategories: any[];
     fields: any[];
+    // ponytail: kept for parent compat, not used here (pipeline scope filtering is server-side)
     visibleLeadFieldKeys?: string[] | null;
     analysisScript?: { items: AnalysisScriptItem[] } | null;
     onAddTask: () => void;
@@ -31,37 +33,6 @@ function isFieldFilled(value: unknown): boolean {
     return true;
 }
 
-function computeSectionProgress(
-    section: AnalysisSection,
-    fields: any[],
-    localDealFieldValues: Record<string, any>,
-    deal: any,
-): { filled: number; total: number } {
-    let filled = 0;
-    let total = 0;
-
-    if (section.categoryId !== null) {
-        const p = getCustomFieldCategoryProgress(fields, section.categoryId, localDealFieldValues);
-        filled += p.filled;
-        total += p.total;
-    }
-
-    for (const item of section.items) {
-        if (item.kind === "native_field") {
-            total += 1;
-            filled += isFieldFilled((deal as any)[item.scriptItem.item_key]) ? 1 : 0;
-        } else if (item.kind === "hibarr_field") {
-            total += 1;
-            filled += isFieldFilled((deal as any).hibarrFields?.[item.scriptItem.item_key]) ? 1 : 0;
-        } else if (item.kind === "lead_field") {
-            total += 1;
-            filled += isFieldFilled((deal.contact as any)?.[item.scriptItem.item_key]) ? 1 : 0;
-        }
-    }
-
-    return { filled, total };
-}
-
 const FOCUSABLE =
     'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -69,48 +40,52 @@ export default function DealAnalysisModal({
     analysis,
     dealInfoCategories,
     fields,
-    visibleLeadFieldKeys,
     analysisScript,
     onAddTask,
     onScheduleMeeting,
 }: Props) {
     const { deal } = useDealWorkspace();
     const { props } = usePage<any>();
-    const { handleFieldUpdate, updatingField, canEdit } = useDealInfoFieldUpdate();
     const { td } = useTd();
+    const { save, failedKeys, retry, dismissError } = useAnalysisFieldSave(deal.id);
+    const { canEdit } = useDealPermissions(deal);
     const panelRef = useRef<HTMLDivElement>(null);
     const scrollPanelRef = useRef<ScrollPanelHandle>(null);
     const titleId = "analysis-modal-title";
 
-    const [localLeadCustomFieldsData, setLocalLeadCustomFieldsData] = useState<
-        Record<string, any>
-    >(() => (props.leadCustomFieldsData as Record<string, any>) ?? {});
-    const [updatingLeadField, setUpdatingLeadField] = useState<string | null>(null);
     const [activeSection, setActiveSection] = useState<string>("");
     const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
 
-    // Optimistic deal custom field values — updated immediately on every field change
-    // so progress numbers react without waiting for the server.
-    const [localDealFieldValues, setLocalDealFieldValues] = useState<Record<string, any>>(
-        () => ({ ...(deal.custom_fields_data ?? {}) }),
-    );
+    // Single flat value store for all custom fields (deal + lead), keyed as field_${id}.
+    // IDs are globally unique across the custom_fields table so no collision.
+    const [localValues, setLocalValues] = useState<Record<string, any>>(() => ({
+        ...(deal.custom_fields_data ?? {}),
+        ...((props.leadCustomFieldsData as Record<string, any>) ?? {}),
+    }));
+
     useEffect(() => {
-        setLocalDealFieldValues((prev) => ({ ...prev, ...(deal.custom_fields_data ?? {}) }));
+        setLocalValues((prev) => ({
+            ...prev,
+            ...(deal.custom_fields_data ?? {}),
+        }));
     }, [deal.custom_fields_data]);
 
-    const handleDealFieldChange = useCallback((fieldId: number, value: any) => {
-        setLocalDealFieldValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
+    useEffect(() => {
+        if (props.leadCustomFieldsData) {
+            setLocalValues((prev) => ({
+                ...prev,
+                ...(props.leadCustomFieldsData as Record<string, any>),
+            }));
+        }
+    }, [props.leadCustomFieldsData]);
+
+    const handleFieldChange = useCallback((fieldId: number, value: any) => {
+        setLocalValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
     }, []);
 
     const leadCustomFieldsRaw = props.leadCustomFields as any[] | null | undefined;
     const isLoadingCustomFields = leadCustomFieldsRaw == null;
     const leadCustomFields: any[] = leadCustomFieldsRaw ?? [];
-
-    useEffect(() => {
-        if (props.leadCustomFieldsData) {
-            setLocalLeadCustomFieldsData(props.leadCustomFieldsData as Record<string, any>);
-        }
-    }, [props.leadCustomFieldsData]);
 
     const scriptItems: AnalysisScriptItem[] = useMemo(() => {
         if (analysisScript?.items?.length) return analysisScript.items;
@@ -124,59 +99,102 @@ export default function DealAnalysisModal({
         }));
     }, [analysisScript, dealInfoCategories]);
 
-    // Sections + per-section progress + totals — all in one memo to avoid cascaded re-renders
-    const { sections, sectionProgress, totalFilled, totalFields } = useMemo(() => {
+    // Sections + progress + global numbering — all in one memo.
+    const { sections, sectionProgress, totalFilled, totalFields, numberByKey } = useMemo(() => {
         const sections = adaptScriptItems(scriptItems);
 
         const sectionProgress: Record<string, { filled: number; total: number }> = {};
+        const numberByKey: Record<string, number> = {};
         let totalFilled = 0;
         let totalFields = 0;
+        let counter = 0;
 
         for (const section of sections) {
-            const p = computeSectionProgress(section, fields, localDealFieldValues, deal);
-            sectionProgress[section.id] = p;
-            totalFilled += p.filled;
-            totalFields += p.total;
+            // Number deal custom fields first (they render before script items in each section)
+            if (section.categoryId !== null) {
+                const sectionFields = fields.filter(
+                    (f: any) => f.custom_field_category_id === section.categoryId && f.type !== "file",
+                );
+                const visMap = evaluateAllFieldsVisibility(sectionFields, localValues);
+                for (const f of sectionFields) {
+                    if (visMap[f.id] !== false) {
+                        counter++;
+                        numberByKey[`deal_field_${f.id}`] = counter;
+                    }
+                }
+            }
+
+            // Number script items
+            for (const item of section.items) {
+                if (["question", "native_field", "hibarr_field", "lead_field"].includes(item.kind)) {
+                    counter++;
+                    numberByKey[`script_${item.scriptItem.id}`] = counter;
+                }
+            }
+
+            // Progress for the section
+            let filled = 0;
+            let total = 0;
+
+            if (section.categoryId !== null) {
+                const p = getCustomFieldCategoryProgress(fields, section.categoryId, localValues);
+                filled += p.filled;
+                total += p.total;
+            }
+
+            for (const item of section.items) {
+                if (item.kind === "native_field") {
+                    total += 1;
+                    filled += isFieldFilled((deal as any)[item.scriptItem.item_key]) ? 1 : 0;
+                } else if (item.kind === "hibarr_field") {
+                    total += 1;
+                    filled += isFieldFilled((deal as any).hibarrFields?.[item.scriptItem.item_key]) ? 1 : 0;
+                } else if (item.kind === "lead_field") {
+                    total += 1;
+                    filled += isFieldFilled((deal.contact as any)?.[item.scriptItem.item_key]) ? 1 : 0;
+                }
+            }
+
+            sectionProgress[section.id] = { filled, total };
+            totalFilled += filled;
+            totalFields += total;
         }
 
-        return { sections, sectionProgress, totalFilled, totalFields };
-    }, [scriptItems, fields, localDealFieldValues, deal]);
+        return { sections, sectionProgress, totalFilled, totalFields, numberByKey };
+    }, [scriptItems, fields, localValues, deal]);
 
     const unfilledCount = totalFields - totalFilled;
     const allFilled = totalFields > 0 && unfilledCount === 0;
 
-    // Default first section as active when sections load
     useEffect(() => {
         if (sections.length > 0 && !activeSection) {
             setActiveSection(sections[0].id);
         }
     }, [sections, activeSection]);
 
-    const handleLeadCustomFieldUpdate = useCallback(
-        async (field: any, value: any) => {
-            const fieldKey = `field_${field.id}`;
-            setUpdatingLeadField(fieldKey);
-            try {
-                const resp = await axios.patch(
-                    route("deals.gathering.inline_update", { id: deal.id }),
-                    { type: "lead_custom_field", data: { [fieldKey]: value } },
-                    { headers: { Accept: "application/json" } },
-                );
-                if (resp.data?.status === "success") {
-                    setLocalLeadCustomFieldsData((prev) => ({ ...prev, [fieldKey]: value }));
-                }
-            } finally {
-                setUpdatingLeadField(null);
-            }
-        },
-        [deal.id],
-    );
+    // Fire-and-forget save for deal custom fields
+    const handleDealFieldSave = useCallback((fieldId: number, value: any) => {
+        save(`deal_field_${fieldId}`, value);
+    }, [save]);
 
-    const onFieldUpdate = useCallback(
-        (fieldKey: string, value: any, updateType: string) =>
-            handleFieldUpdate(fieldKey, value, updateType as any),
-        [handleFieldUpdate],
-    );
+    // Fire-and-forget save for lead custom fields
+    const handleLeadFieldSave = useCallback((fieldId: number, value: any) => {
+        save(`lead_field_${fieldId}`, value);
+    }, [save]);
+
+    // Script item field save — routes by updateType (details, hibarr_field, contact)
+    const handleScriptFieldSave = useCallback((fieldKey: string, value: any, updateType: string) => {
+        let key: string;
+        if (updateType === "hibarr_field") key = `hibarr:${fieldKey}`;
+        else if (updateType === "contact") key = `contact:${fieldKey}`;
+        else key = fieldKey;
+        save(key, value);
+    }, [save]);
+
+    // Core contact field save (Personal Info editable rows)
+    const handleContactFieldSave = useCallback((fieldKey: string, value: any) => {
+        save(`contact:${fieldKey}`, value);
+    }, [save]);
 
     const handleCompleteClick = useCallback(() => {
         if (allFilled) {
@@ -228,10 +246,13 @@ export default function DealAnalysisModal({
         }
     }, [analysis.isOpen]);
 
-    const activeUpdatingField = updatingField ?? updatingLeadField;
     const leadName = (deal as any).client_name || deal.contact?.client_name || "";
 
     if (!analysis.isOpen || typeof document === "undefined") return null;
+
+    // Derive per-deal and per-lead slices of localValues for downstream components
+    const dealFieldValues = localValues;
+    const leadFieldValues = localValues;
 
     return createPortal(
         <div className="analysis-modal-overlay">
@@ -243,7 +264,7 @@ export default function DealAnalysisModal({
                 aria-labelledby={titleId}
                 onKeyDown={handleKeyDown}
             >
-                {/* ── Navy header ── */}
+                {/* Navy header */}
                 <AnalysisHeaderBar
                     leadName={leadName}
                     isCompleted={analysis.isCompleted}
@@ -252,16 +273,17 @@ export default function DealAnalysisModal({
                     onMinimize={analysis.minimize}
                 />
 
-                {/* ── 3-column body ── */}
+                {/* 3-column body */}
                 <div className="analysis-3col-body">
                     {/* Left — lead context */}
                     <div className="analysis-3col-left">
                         <AnalysisLeadContextPanel
                             leadCustomFields={leadCustomFields}
-                            leadCustomFieldsData={localLeadCustomFieldsData}
+                            leadCustomFieldsData={leadFieldValues}
                             isLoadingCustomFields={isLoadingCustomFields}
-                            onLeadCustomFieldUpdate={handleLeadCustomFieldUpdate}
-                            updatingField={activeUpdatingField ?? undefined}
+                            onLeadCustomFieldSave={handleLeadFieldSave}
+                            onLeadCustomFieldChange={handleFieldChange}
+                            onContactFieldSave={handleContactFieldSave}
                             canEdit={canEdit}
                         />
                     </div>
@@ -272,13 +294,13 @@ export default function DealAnalysisModal({
                             ref={scrollPanelRef}
                             sections={sections}
                             fields={fields}
-                            localDealFieldValues={localDealFieldValues}
+                            localDealFieldValues={dealFieldValues}
                             canEdit={canEdit}
-                            updatingField={activeUpdatingField ?? undefined}
+                            numberByKey={numberByKey}
                             totalFilled={totalFilled}
                             totalFields={totalFields}
-                            onFieldUpdate={onFieldUpdate}
-                            onFieldChange={handleDealFieldChange}
+                            onFieldUpdate={handleScriptFieldSave}
+                            onFieldChange={handleFieldChange}
                             onActiveSectionChange={setActiveSection}
                         />
                     </div>
@@ -300,7 +322,53 @@ export default function DealAnalysisModal({
                     </div>
                 </div>
 
-                {/* ── Complete confirmation overlay ── */}
+                {/* Failed-save retry banner */}
+                {failedKeys.length > 0 && (
+                    <div
+                        style={{
+                            position: "absolute",
+                            bottom: 12,
+                            left: "50%",
+                            transform: "translateX(-50%)",
+                            background: "#fff",
+                            border: "1px solid #fca5a5",
+                            borderRadius: 8,
+                            padding: "8px 14px",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 10,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                            zIndex: 40,
+                            maxWidth: 380,
+                        }}
+                    >
+                        <svg className="w-4 h-4 text-red-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm text-slate-700 flex-1">
+                            {failedKeys.length} {failedKeys.length === 1 ? td("field") : td("fields")} {td("couldn't save")} —{" "}
+                            <button
+                                type="button"
+                                className="underline font-medium text-slate-800"
+                                onClick={() => failedKeys.forEach((f) => retry(f.key))}
+                            >
+                                {td("Retry")}
+                            </button>
+                        </span>
+                        <button
+                            type="button"
+                            className="text-slate-400 hover:text-slate-600"
+                            onClick={() => failedKeys.forEach((f) => dismissError(f.key))}
+                            aria-label="Dismiss"
+                        >
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                )}
+
+                {/* Complete confirmation overlay */}
                 {showCompleteConfirm && (
                     <div
                         style={{

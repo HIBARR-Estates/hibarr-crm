@@ -10,24 +10,24 @@ import type { AnalysisSectionItem } from "./types/analysisTypes";
 
 interface Props {
     item: AnalysisSectionItem;
+    number?: number;
     canEdit: boolean;
-    updatingField?: string | null;
-    onFieldUpdate: (fieldKey: string, value: any, updateType: string) => Promise<void>;
+    onFieldUpdate: (fieldKey: string, value: any, updateType: string) => void;
     onFieldChange?: (fieldId: number, value: any) => void;
 }
 
 function NumberBadge({ number, answered }: { number?: number; answered: boolean }) {
     return (
         <div
-            className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-0.5 transition-all"
+            className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mt-0.5 transition-all"
             style={
                 answered
-                    ? { backgroundColor: "#d1fae5", color: "#065f46" }
-                    : { backgroundColor: T.SURFACE_2, color: T.TEXT_MUTED, border: `1.5px solid ${T.BORDER}` }
+                    ? { backgroundColor: "#d1fae5", color: "#065f46", boxShadow: "0 0 0 2px #a7f3d0" }
+                    : { backgroundColor: "#f1f5f9", color: "#94a3b8" }
             }
         >
             {answered ? (
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
             ) : (
@@ -40,8 +40,8 @@ function NumberBadge({ number, answered }: { number?: number; answered: boolean 
 function InstructionCard({ text }: { text: string }) {
     return (
         <div
-            className="flex items-start gap-2.5 rounded-lg px-3 py-2.5 my-3"
-            style={{ background: "#fffbeb", border: "1px solid #fde68a", borderLeft: "3px solid #f59e0b" }}
+            className="flex items-start gap-2.5 rounded-md px-3 py-2.5 my-3 border border-amber-200"
+            style={{ background: "#fffbeb" }}
         >
             <svg
                 className="w-4 h-4 shrink-0 mt-0.5"
@@ -60,8 +60,8 @@ function InstructionCard({ text }: { text: string }) {
 
 export default function AnalysisQuestionRow({
     item,
+    number,
     canEdit,
-    updatingField,
     onFieldUpdate,
     onFieldChange,
 }: Props) {
@@ -90,8 +90,8 @@ export default function AnalysisQuestionRow({
 
     if (item.kind === "question") {
         return (
-            <div className="flex gap-3 mb-5">
-                <NumberBadge number={item.number} answered={saved} />
+            <div className="flex gap-4 mb-7">
+                <NumberBadge number={number} answered={saved} />
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium mb-2 leading-snug" style={{ color: T.TEXT }}>
                         {item.scriptItem.guide_text || td("No question text provided.")}
@@ -101,22 +101,22 @@ export default function AnalysisQuestionRow({
                         onChange={(e) => setAnswer(e.target.value)}
                         placeholder={td("Type the lead's answer here…")}
                         rows={3}
-                        className="w-full resize-y rounded-lg px-3 py-2 text-sm placeholder-slate-400 focus:outline-none transition-colors"
+                        className="w-full resize-y rounded-xl px-3 py-2 text-sm placeholder-slate-400 focus:outline-none transition-colors"
                         style={{
                             border: `1px solid ${T.BORDER}`,
                             color: T.TEXT,
                             fontFamily: "inherit",
-                            background: T.SURFACE_2,
+                            background: "#f8fafc",
                         }}
                         onFocus={(e) => {
-                            e.target.style.borderColor = "#93c5fd";
-                            e.target.style.boxShadow = `0 0 0 2px ${T.BLUE_LIGHT}`;
+                            e.target.style.borderColor = "#38bdf8";
+                            e.target.style.boxShadow = "0 0 0 2px #e0f2fe";
                             e.target.style.background = "#fff";
                         }}
                         onBlur={(e) => {
                             e.target.style.borderColor = T.BORDER;
                             e.target.style.boxShadow = "none";
-                            e.target.style.background = T.SURFACE_2;
+                            e.target.style.background = "#f8fafc";
                         }}
                     />
                     {answer.trim() && (
@@ -139,8 +139,8 @@ export default function AnalysisQuestionRow({
     // native_field, hibarr_field, lead_field
     if (!meta) {
         return (
-            <div className="flex gap-3 mb-5">
-                <NumberBadge number={item.number} answered={false} />
+            <div className="flex gap-4 mb-7">
+                <NumberBadge number={number} answered={false} />
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: T.TEXT_MUTED }}>
                         {td(label)}
@@ -167,8 +167,8 @@ export default function AnalysisQuestionRow({
     const filled = currentValue !== null && currentValue !== undefined && currentValue !== "";
 
     return (
-        <div className="flex gap-3 mb-5">
-            <NumberBadge number={item.number} answered={filled} />
+        <div className="flex gap-4 mb-7">
+            <NumberBadge number={number} answered={filled} />
             <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: T.TEXT_MUTED }}>
                     {td(label)}
@@ -178,7 +178,6 @@ export default function AnalysisQuestionRow({
                         checked={!!currentValue}
                         label={td(label)}
                         disabled={!canEdit}
-                        loading={updatingField === item.scriptItem.item_key}
                         onChange={() =>
                             onFieldUpdate(item.scriptItem.item_key, !currentValue, updateType)
                         }
@@ -189,7 +188,6 @@ export default function AnalysisQuestionRow({
                         fieldName={item.scriptItem.item_key}
                         fieldType={meta.fieldType as any}
                         disabled={!canEdit}
-                        loading={updatingField === item.scriptItem.item_key}
                         onSave={(val: unknown) => onFieldUpdate(item.scriptItem.item_key, val, updateType)}
                     />
                 )}

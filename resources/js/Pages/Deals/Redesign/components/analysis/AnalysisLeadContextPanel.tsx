@@ -7,83 +7,56 @@ import {
     sortItineraryItems,
     toWorkspaceItineraryItem,
 } from "../../adapters/itineraryAdapter";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import DealAvatar from "../primitives/DealAvatar";
 import AnalysisQuickNote from "./AnalysisQuickNote";
 import AnalysisCustomFieldRow from "./AnalysisCustomFieldRow";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
+
+// ── Types ──────────────────────────────────────────────────────────────────
 
 interface Props {
     leadCustomFields: any[];
     leadCustomFieldsData: Record<string, any>;
     isLoadingCustomFields: boolean;
-    onLeadCustomFieldUpdate: (field: any, value: any) => Promise<void>;
-    updatingField?: string | null;
+    onLeadCustomFieldSave: (fieldId: number, value: any) => void;
+    onLeadCustomFieldChange: (fieldId: number, value: any) => void;
+    onContactFieldSave: (fieldKey: string, value: any) => void;
     canEdit: boolean;
 }
 
-type Tab = "profile" | "notes" | "files" | "flights";
+type Tab = "lead" | "files" | "notes" | "flights";
 
-function PanelTab({
-    id,
-    label,
-    active,
-    controls,
-    onClick,
-}: {
-    id: string;
-    label: string;
-    active: boolean;
-    controls: string;
-    onClick: () => void;
-}) {
-    return (
-        <button
-            type="button"
-            role="tab"
-            id={id}
-            aria-selected={active}
-            aria-controls={controls}
-            onClick={onClick}
-            className="flex-1 py-2.5 text-[12px] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
-            style={{
-                borderBottom: `2px solid ${active ? T.BLUE : "transparent"}`,
-                color: active ? T.BLUE : T.TEXT_MUTED,
-                background: active ? `${T.BLUE}0d` : "transparent",
-                marginBottom: -1,
-            }}
-        >
-            {label}
-        </button>
-    );
+// ── Formatters ────────────────────────────────────────────────────────────
+
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+function formatDate(iso: string): string {
+    try {
+        return new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    } catch {
+        return iso;
+    }
+}
+
+// ── FieldGroup (revamp §C.3 styling) ──────────────────────────────────────
 
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
     const [open, setOpen] = useState(true);
     return (
-        <div style={{ borderBottom: `1px solid ${T.BORDER}` }}>
+        <div className="border-b border-slate-200">
             <button
                 type="button"
                 onClick={() => setOpen((o) => !o)}
-                className="flex w-full items-center justify-between px-[18px] py-2.5 transition-colors"
-                style={{ background: T.SURFACE_2 }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = T.BORDER; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = T.SURFACE_2; }}
+                className="flex w-full items-center justify-between px-4 py-2.5 transition-colors bg-slate-50 hover:bg-slate-100"
             >
-                <span
-                    style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        textTransform: "uppercase",
-                        letterSpacing: "0.07em",
-                        color: T.TEXT_MUTED,
-                    }}
-                >
+                <span className="text-xs font-semibold uppercase tracking-widest text-slate-900">
                     {label}
                 </span>
                 <svg
-                    className={`w-3.5 h-3.5 shrink-0 transition-transform ${open ? "" : "-rotate-90"}`}
-                    style={{ color: T.TEXT_MUTED }}
+                    className={`w-3.5 h-3.5 shrink-0 transition-transform text-slate-400 ${open ? "" : "-rotate-90"}`}
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -93,14 +66,7 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
                 </svg>
             </button>
             {open && (
-                <div
-                    style={{
-                        padding: "8px 18px 12px",
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 8,
-                    }}
-                >
+                <div className="divide-y divide-slate-100">
                     {children}
                 </div>
             )}
@@ -110,34 +76,117 @@ function FieldGroup({ label, children }: { label: string; children: React.ReactN
 
 function FieldSkeleton() {
     return (
-        <div className="animate-pulse" style={{ padding: "10px 0", borderBottom: `1px solid ${T.BORDER}` }}>
-            <div
-                style={{
-                    height: 10,
-                    width: 60,
-                    borderRadius: 4,
-                    background: T.BORDER,
-                    marginBottom: 8,
-                }}
-            />
-            <div
-                style={{
-                    height: 16,
-                    width: "80%",
-                    borderRadius: 4,
-                    background: T.BORDER,
-                }}
-            />
+        <div className="animate-pulse px-4 py-2.5 border-b border-slate-100">
+            <div className="h-2.5 w-16 bg-slate-200 rounded mb-2" />
+            <div className="h-3.5 w-3/4 bg-slate-200 rounded" />
         </div>
     );
 }
+
+// ── ProfileCard (revamp §C.1) ──────────────────────────────────────────────
+
+function ProfileCard({ leadName, email, phones, whatsapp }: {
+    leadName: string;
+    email: string;
+    phones: string[];
+    whatsapp: string;
+}) {
+    const { td } = useTd();
+    const initials = initialsFromName(leadName);
+
+    return (
+        <div className="p-4 border-b border-slate-200">
+            {/* Avatar + info row */}
+            <div className="flex items-center gap-3 mb-3">
+                <div
+                    className="w-11 h-11 rounded-full flex items-center justify-center shrink-0 text-white text-sm font-bold"
+                    style={{ backgroundColor: "#0A2E5D" }}
+                >
+                    {initials}
+                </div>
+                <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold text-slate-900 truncate">
+                        {leadName || td("No name")}
+                    </div>
+                    {email && (
+                        <div className="text-xs text-slate-500 truncate">{email}</div>
+                    )}
+                    {phones[0] && (
+                        <div className="text-xs text-slate-500 truncate">{phones[0]}</div>
+                    )}
+                </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex gap-2">
+                {phones[0] && (
+                    <a
+                        href={`tel:${phones[0]}`}
+                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-white transition-colors"
+                        style={{ backgroundColor: "#0A2E5D" }}
+                    >
+                        {/* Handset icon */}
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                        </svg>
+                        {td("Call")}
+                    </a>
+                )}
+                {email && (
+                    <a
+                        href={`mailto:${email}`}
+                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-slate-700 border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors"
+                    >
+                        {/* Envelope icon */}
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                        </svg>
+                        {td("Email")}
+                    </a>
+                )}
+                {whatsapp && (
+                    <a
+                        href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex flex-1 items-center justify-center gap-1.5 py-1.5 rounded-md text-xs font-medium text-slate-700 border border-slate-200 bg-slate-100 hover:bg-slate-200 transition-colors"
+                    >
+                        {/* WhatsApp icon */}
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                        </svg>
+                        WhatsApp
+                    </a>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ── CoreFieldRow (read-only display, same shape as AnalysisCustomFieldRow display mode) ──
+
+function CoreFieldRow({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="flex items-start gap-3 py-2 px-4">
+            <span className="w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-500 truncate">
+                {label}
+            </span>
+            <span className="flex-1 text-sm text-slate-800 font-medium break-words">
+                {value || <span className="text-slate-300">—</span>}
+            </span>
+        </div>
+    );
+}
+
+// ── Main component ─────────────────────────────────────────────────────────
 
 export default function AnalysisLeadContextPanel({
     leadCustomFields,
     leadCustomFieldsData,
     isLoadingCustomFields,
-    onLeadCustomFieldUpdate,
-    updatingField,
+    onLeadCustomFieldSave,
+    onLeadCustomFieldChange,
+    onContactFieldSave,
     canEdit,
 }: Props) {
     const { td } = useTd();
@@ -147,78 +196,59 @@ export default function AnalysisLeadContextPanel({
     const { uploadFiles, isUploading } = useDealFileUpload(deal.id);
 
     const hasFlights = (deal.lead_flight_itineraries?.length ?? 0) > 0;
-    const [activeTab, setActiveTab] = useState<Tab>("profile");
+    const [activeTab, setActiveTab] = useState<Tab>("lead");
 
     const leadName = contact?.client_name || (deal as any).client_name || "";
     const email = contact?.client_email || "";
     const phones = [contact?.mobile, contact?.cell, contact?.office].filter(Boolean);
     const whatsapp = contact?.client_whatsapp || "";
 
-    const ageDisplay = (() => {
-        if (contact?.date_of_birth) {
-            try {
-                const d = new Date(contact.date_of_birth);
-                const age = Math.floor(
-                    (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000),
-                );
-                return `${d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })} (${age} yrs)`;
-            } catch {}
-        }
-        return contact?.age ? `${contact.age} yrs` : null;
-    })();
+    // ── Data derivations ─────────────────────────────────────────────────
 
-    const languages: string[] = Array.isArray(contact?.languages)
-        ? contact.languages
-        : [];
+    const languages: string[] = Array.isArray(contact?.languages) ? contact.languages : [];
 
     const address =
-        [
-            contact?.address,
-            contact?.city,
-            contact?.state,
-            contact?.country,
-            contact?.postal_code,
-        ]
+        [contact?.address, contact?.city, contact?.state, contact?.country, contact?.postal_code]
             .filter(Boolean)
             .join(", ") || null;
 
-    const whatsappGroupJoined: boolean | null =
-        contact?.marketing?.has_joined_the_whatsapp_group ?? null;
-
+    const whatsappGroupJoined: boolean | null = contact?.marketing?.has_joined_the_whatsapp_group ?? null;
     const whatsappDisplay = (() => {
         const num = contact?.client_whatsapp;
-        const groupSuffix =
-            whatsappGroupJoined !== null
-                ? whatsappGroupJoined
-                    ? ` · ✓ ${td("Group")}`
-                    : ` · ✗ ${td("Group")}`
-                : "";
+        const groupSuffix = whatsappGroupJoined !== null
+            ? whatsappGroupJoined ? ` · ✓ ${td("Group")}` : ` · ✗ ${td("Group")}`
+            : "";
         if (num) return `${num}${groupSuffix}`;
-        if (whatsappGroupJoined !== null)
-            return whatsappGroupJoined
-                ? `✓ ${td("In group")}`
-                : `✗ ${td("Not in group")}`;
+        if (whatsappGroupJoined !== null) return whatsappGroupJoined ? `✓ ${td("In group")}` : `✗ ${td("Not in group")}`;
         return null;
     })();
 
-    const profileRows: Array<{ label: string; value: string }> = [
-        { label: td("Gender"), value: contact?.gender?.value ?? contact?.gender },
-        { label: td("Age"), value: ageDisplay },
-        { label: td("Nationality"), value: contact?.nationality },
-        { label: td("Occupation"), value: contact?.occupation },
-        { label: td("Company"), value: contact?.company_name },
-        { label: td("Languages"), value: languages.length ? languages.join(", ") : null },
-        { label: td("Source"), value: contact?.leadSource?.name },
-        { label: td("Category"), value: contact?.category?.name },
-        { label: td("Owner"), value: contact?.leadOwner?.name },
-        { label: td("Lifecycle"), value: contact?.lifecycleStatus?.name },
+    // Read-only relation lookups for Personal Info
+    const readOnlyRows: Array<{ label: string; value: string | null }> = [
+        { label: td("Source"), value: contact?.leadSource?.name ?? null },
+        { label: td("Category"), value: contact?.category?.name ?? null },
+        { label: td("Owner"), value: contact?.leadOwner?.name ?? null },
+        { label: td("Lifecycle"), value: contact?.lifecycleStatus?.name ?? null },
         { label: td("WhatsApp group"), value: whatsappDisplay },
-        { label: td("Address"), value: address },
-    ].filter((r): r is { label: string; value: string } =>
-        r.value !== null && r.value !== undefined && r.value !== "",
-    );
+    ].filter((r) => r.value !== null && r.value !== "");
 
-    // Separate regular custom fields from file-type custom fields
+    // Optimistic local state for editable core contact fields
+    const [editableContactVals, setEditableContactVals] = useState<Record<string, any>>(() => ({
+        gender: contact?.gender?.value ?? contact?.gender ?? null,
+        date_of_birth: contact?.date_of_birth ?? null,
+        age: contact?.age ?? null,
+        nationality: contact?.nationality ?? null,
+        occupation: contact?.occupation ?? null,
+    }));
+
+    const GENDER_OPTIONS = useMemo(() => [
+        { value: "male", label: td("Male") },
+        { value: "female", label: td("Female") },
+        { value: "other", label: td("Other") },
+    ], [td]);
+
+    // ── Custom field grouping ─────────────────────────────────────────────
+
     const regularCustomFields = useMemo(
         () => leadCustomFields.filter((f: any) => f.type !== "file"),
         [leadCustomFields],
@@ -228,8 +258,7 @@ export default function AnalysisLeadContextPanel({
         [leadCustomFields],
     );
 
-    // Optimistic local values — visibility reacts immediately when a field changes,
-    // without waiting for the server to confirm.
+    // Optimistic local values for live visibility
     const [localFieldValues, setLocalFieldValues] = useState<Record<string, any>>(
         () => ({ ...leadCustomFieldsData }),
     );
@@ -239,203 +268,341 @@ export default function AnalysisLeadContextPanel({
 
     const handleFieldChange = useCallback((fieldId: number, value: any) => {
         setLocalFieldValues((prev) => ({ ...prev, [`field_${fieldId}`]: value }));
-    }, []);
+        onLeadCustomFieldChange(fieldId, value);
+    }, [onLeadCustomFieldChange]);
 
-    // Visibility uses localFieldValues so hidden fields appear/disappear instantly
     const visibilityMap = useMemo(
         () => evaluateAllFieldsVisibility(regularCustomFields, localFieldValues),
         [regularCustomFields, localFieldValues],
     );
-    const visibleRegularFields = useMemo(
-        () => regularCustomFields.filter((f: any) => visibilityMap[f.id] !== false),
-        [regularCustomFields, visibilityMap],
-    );
+
+    // Group visible custom fields by category
+    const { categorized, uncategorized } = useMemo(() => {
+        const visible = regularCustomFields.filter((f: any) => visibilityMap[f.id] !== false);
+        const catMap = new Map<number, { category: any; fields: any[] }>();
+        const uncategorized: any[] = [];
+
+        for (const f of visible) {
+            const cat = f.customFieldCategory ?? f.custom_field_category ?? null;
+            if (!cat) {
+                uncategorized.push(f);
+            } else {
+                if (!catMap.has(cat.id)) catMap.set(cat.id, { category: cat, fields: [] });
+                catMap.get(cat.id)!.fields.push(f);
+            }
+        }
+
+        // Sort categories by display_order then name
+        const categorized = Array.from(catMap.values()).sort((a, b) => {
+            const ao = a.category.display_order ?? 999;
+            const bo = b.category.display_order ?? 999;
+            if (ao !== bo) return ao - bo;
+            return (a.category.name ?? "").localeCompare(b.category.name ?? "");
+        });
+
+        return { categorized, uncategorized };
+    }, [regularCustomFields, visibilityMap]);
+
+    // ── Itinerary ─────────────────────────────────────────────────────────
 
     const itineraryItems = useMemo(
-        () =>
-            sortItineraryItems(
-                (deal.lead_flight_itineraries ?? []).map(toWorkspaceItineraryItem),
-                "upcoming",
-            ),
+        () => sortItineraryItems(
+            (deal.lead_flight_itineraries ?? []).map(toWorkspaceItineraryItem),
+            "upcoming",
+        ),
         [deal.lead_flight_itineraries],
     );
 
-    const tabs: Array<{ id: Tab; label: string }> = [
-        { id: "profile", label: td("Profile") },
+    // ── Tab bar ───────────────────────────────────────────────────────────
+
+    const tabs: Array<{ id: Tab; label: string; count?: number }> = [
+        { id: "lead", label: td("Lead Info") },
+        { id: "files", label: td("Files"), count: (files?.length ?? 0) + fileCustomFields.length },
         { id: "notes", label: td("Notes") },
-        { id: "files", label: td("Files") },
         ...(hasFlights ? [{ id: "flights" as Tab, label: td("Flights") }] : []),
     ];
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // ── File upload ───────────────────────────────────────────────────────
+
+    const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
         const chosen = Array.from(e.target.files ?? []);
         if (chosen.length) uploadFiles(chosen);
         e.target.value = "";
-    };
+    }, [uploadFiles]);
+
+    // ── Render ────────────────────────────────────────────────────────────
 
     return (
         <div className="flex h-full flex-col overflow-hidden">
-            {/* Tab bar */}
+            {/* ProfileCard — replaces gradient hero */}
+            <ProfileCard
+                leadName={leadName}
+                email={email}
+                phones={phones}
+                whatsapp={whatsapp}
+            />
+
+            {/* Tab bar — revamp §C.2 style */}
             <div
                 role="tablist"
                 aria-label={td("Lead context")}
-                className="flex shrink-0"
-                style={{ borderBottom: `1px solid ${T.BORDER}` }}
+                className="flex shrink-0 border-b border-slate-200 px-4"
             >
                 {tabs.map((tab) => (
-                    <PanelTab
+                    <button
                         key={tab.id}
+                        type="button"
+                        role="tab"
                         id={`analysis-tab-${tab.id}`}
-                        controls={`analysis-panel-${tab.id}`}
-                        label={tab.label}
-                        active={activeTab === tab.id}
+                        aria-selected={activeTab === tab.id}
+                        aria-controls={`analysis-panel-${tab.id}`}
                         onClick={() => setActiveTab(tab.id)}
-                    />
+                        className="flex items-center gap-1.5 py-3 px-3 text-sm font-medium border-b-2 transition-colors focus-visible:outline-none"
+                        style={{
+                            borderColor: activeTab === tab.id ? "#1e293b" : "transparent",
+                            color: activeTab === tab.id ? "#1e293b" : "#64748b",
+                        }}
+                        onMouseEnter={(e) => {
+                            if (activeTab !== tab.id) (e.currentTarget as HTMLElement).style.color = "#334155";
+                        }}
+                        onMouseLeave={(e) => {
+                            if (activeTab !== tab.id) (e.currentTarget as HTMLElement).style.color = "#64748b";
+                        }}
+                    >
+                        {tab.label}
+                        {tab.count != null && tab.count > 0 && (
+                            <span className="text-xs bg-slate-100 text-slate-600 rounded px-1.5 py-0.5 font-semibold">
+                                {tab.count}
+                            </span>
+                        )}
+                    </button>
                 ))}
             </div>
 
-            {/* Scrollable panel content */}
+            {/* Tab panels */}
             <div className="min-h-0 flex-1 overflow-y-auto">
 
-                {/* ── Profile ── */}
+                {/* ── Lead Info ── */}
                 <div
                     role="tabpanel"
-                    id="analysis-panel-profile"
-                    aria-labelledby="analysis-tab-profile"
-                    hidden={activeTab !== "profile"}
+                    id="analysis-panel-lead"
+                    aria-labelledby="analysis-tab-lead"
+                    hidden={activeTab !== "lead"}
                 >
-                    {/* Hero */}
-                    <div
-                        style={{
-                            background: `linear-gradient(160deg, ${T.BLUE_LIGHT} 0%, #f0f7ff 100%)`,
-                            borderBottom: `1px solid ${T.BORDER}`,
-                            padding: "20px 18px 16px",
-                        }}
-                    >
-                        <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 14 }}>
-                            <DealAvatar size={56} initials={initialsFromName(leadName)} />
-                            <div style={{ flex: 1, minWidth: 0 }}>
+                    {/* Personal Info — mix of read-only and editable core contact fields */}
+                    <FieldGroup label={td("Personal Info")}>
+                        {leadName && <CoreFieldRow label={td("Name")} value={leadName} />}
+                        {email && <CoreFieldRow label={td("Email")} value={email} />}
+                        {phones[0] && <CoreFieldRow label={td("Mobile")} value={phones[0]} />}
+                        {phones[1] && <CoreFieldRow label={td("Cell")} value={phones[1]} />}
+                        {phones[2] && <CoreFieldRow label={td("Office")} value={phones[2]} />}
+
+                        {/* Editable: gender, date_of_birth, age, nationality, occupation */}
+                        <AnalysisCustomFieldRow
+                            field={{ id: 0, label: td("Gender"), type: "select", values: GENDER_OPTIONS }}
+                            value={editableContactVals.gender}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, gender: v }))}
+                            onSave={(v) => onContactFieldSave("gender", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 1, label: td("Date of Birth"), type: "date", values: null }}
+                            value={editableContactVals.date_of_birth}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, date_of_birth: v }))}
+                            onSave={(v) => onContactFieldSave("date_of_birth", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 2, label: td("Age"), type: "number", values: null }}
+                            value={editableContactVals.age}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, age: v }))}
+                            onSave={(v) => onContactFieldSave("age", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 3, label: td("Nationality"), type: "country", values: null }}
+                            value={editableContactVals.nationality}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, nationality: v }))}
+                            onSave={(v) => onContactFieldSave("nationality", v)}
+                        />
+                        <AnalysisCustomFieldRow
+                            field={{ id: 4, label: td("Occupation"), type: "text", values: null }}
+                            value={editableContactVals.occupation}
+                            canEdit={canEdit}
+                            onChange={(v) => setEditableContactVals((p) => ({ ...p, occupation: v }))}
+                            onSave={(v) => onContactFieldSave("occupation", v)}
+                        />
+
+                        {/* Languages — read-only until language options are plumbed to the analysis modal */}
+                        {/* ponytail: read-only, add language options prop when needed */}
+                        {languages.length > 0 && (
+                            <CoreFieldRow label={td("Languages")} value={languages.join(", ")} />
+                        )}
+
+                        {contact?.company_name && (
+                            <CoreFieldRow label={td("Company")} value={contact.company_name} />
+                        )}
+                        {address && <CoreFieldRow label={td("Address")} value={address} />}
+
+                        {readOnlyRows.map(({ label, value }) => (
+                            <CoreFieldRow key={label} label={label} value={value ?? ""} />
+                        ))}
+                    </FieldGroup>
+
+                    {/* Category groups */}
+                    {isLoadingCustomFields && (
+                        <FieldGroup label="…">
+                            <FieldSkeleton />
+                            <FieldSkeleton />
+                            <FieldSkeleton />
+                        </FieldGroup>
+                    )}
+
+                    {categorized.map(({ category, fields: catFields }) => (
+                        <FieldGroup key={category.id} label={category.name}>
+                            {catFields.map((field: any) => (
+                                <AnalysisCustomFieldRow
+                                    key={field.id}
+                                    field={field}
+                                    value={leadCustomFieldsData[`field_${field.id}`] ?? null}
+                                    canEdit={canEdit}
+                                    onChange={(value) => handleFieldChange(field.id, value)}
+                                    onSave={(value) => onLeadCustomFieldSave(field.id, value)}
+                                />
+                            ))}
+                        </FieldGroup>
+                    ))}
+
+                    {/* "More" — uncategorized custom fields */}
+                    {uncategorized.length > 0 && (
+                        <FieldGroup label={td("More")}>
+                            {uncategorized.map((field: any) => (
+                                <AnalysisCustomFieldRow
+                                    key={field.id}
+                                    field={field}
+                                    value={leadCustomFieldsData[`field_${field.id}`] ?? null}
+                                    canEdit={canEdit}
+                                    onChange={(value) => handleFieldChange(field.id, value)}
+                                    onSave={(value) => onLeadCustomFieldSave(field.id, value)}
+                                />
+                            ))}
+                        </FieldGroup>
+                    )}
+                </div>
+
+                {/* ── Files ── (revamp §C.6) */}
+                <div
+                    role="tabpanel"
+                    id="analysis-panel-files"
+                    aria-labelledby="analysis-tab-files"
+                    hidden={activeTab !== "files"}
+                    className="p-4 space-y-2"
+                >
+                    {/* Deal files */}
+                    {filesLoading ? (
+                        <div className="text-xs text-slate-400">{td("Loading…")}</div>
+                    ) : (
+                        <>
+                            {files?.map((file: any) => (
                                 <div
-                                    style={{
-                                        fontSize: 18,
-                                        fontWeight: 700,
-                                        color: T.NAVY,
-                                        lineHeight: 1.2,
-                                        marginBottom: 4,
-                                        wordBreak: "break-word",
-                                    }}
+                                    key={file.id}
+                                    className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200 hover:border-slate-300 transition-colors"
                                 >
-                                    {leadName || td("No name")}
-                                </div>
-                                {email && (
+                                    {/* Red document tile — no border-radius per revamp */}
+                                    <div
+                                        className="w-8 h-8 flex items-center justify-center shrink-0"
+                                        style={{ background: "#fee2e2", border: "1px solid #fca5a5" }}
+                                    >
+                                        <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="text-sm font-medium text-slate-700 truncate">
+                                            {file.filename}
+                                        </div>
+                                        <div className="text-xs text-slate-400">
+                                            {file.size}{file.created_at ? ` · ${formatDate(file.created_at)}` : ""}
+                                        </div>
+                                    </div>
                                     <a
-                                        href={`mailto:${email}`}
-                                        style={{
-                                            fontSize: 13,
-                                            color: T.BLUE,
-                                            textDecoration: "none",
-                                            display: "block",
-                                            overflow: "hidden",
-                                            textOverflow: "ellipsis",
-                                            whiteSpace: "nowrap",
-                                        }}
+                                        href={file.file_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="text-slate-400 hover:text-slate-600 shrink-0"
+                                        aria-label={td("Download")}
                                     >
-                                        {email}
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                        </svg>
                                     </a>
-                                )}
-                            </div>
-                        </div>
-
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                            {phones.map((p, i) => (
-                                <a
-                                    key={i}
-                                    href={`tel:${p}`}
-                                    className="dr-btn dr-btn-ghost dr-btn-sm"
-                                    style={{ textDecoration: "none", fontSize: 12 }}
-                                >
-                                    📞 {p}
-                                </a>
-                            ))}
-                            {email && (
-                                <a
-                                    href={`mailto:${email}`}
-                                    className="dr-btn dr-btn-ghost dr-btn-sm"
-                                    style={{ textDecoration: "none", fontSize: 12 }}
-                                >
-                                    ✉ {td("Email")}
-                                </a>
-                            )}
-                            {whatsapp && (
-                                <a
-                                    href={`https://wa.me/${whatsapp.replace(/\D/g, "")}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="dr-btn dr-btn-ghost dr-btn-sm"
-                                    style={{ textDecoration: "none", fontSize: 12 }}
-                                >
-                                    💬 WhatsApp
-                                </a>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Contact Details — read-only profile rows */}
-                    {profileRows.length > 0 && (
-                        <FieldGroup label={td("Contact Details")}>
-                            {profileRows.map(({ label, value }) => (
-                                <div
-                                    key={label}
-                                    style={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        alignItems: "flex-start",
-                                        gap: 12,
-                                    }}
-                                >
-                                    <span style={{ fontSize: 12, color: T.TEXT_MUTED, flexShrink: 0, minWidth: 80 }}>
-                                        {label}
-                                    </span>
-                                    <span
-                                        style={{
-                                            fontSize: 13,
-                                            color: T.TEXT,
-                                            fontWeight: 500,
-                                            textAlign: "right",
-                                            wordBreak: "break-word",
-                                        }}
-                                    >
-                                        {value}
-                                    </span>
                                 </div>
                             ))}
-                        </FieldGroup>
+
+                            {files?.length === 0 && fileCustomFields.length === 0 && (
+                                <p className="text-sm italic text-slate-400">{td("No files attached yet.")}</p>
+                            )}
+
+                            {/* File custom fields */}
+                            {fileCustomFields.length > 0 && (
+                                <div className="pt-2">
+                                    <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">
+                                        {td("Document fields")}
+                                    </div>
+                                    {fileCustomFields.map((field: any) => {
+                                        const val = leadCustomFieldsData[`field_${field.id}`];
+                                        return (
+                                            <div
+                                                key={field.id}
+                                                className="flex items-center gap-3 p-3 rounded-md bg-slate-50 border border-slate-200 mb-1.5"
+                                            >
+                                                <div
+                                                    className="w-8 h-8 flex items-center justify-center shrink-0"
+                                                    style={{ background: "#fee2e2", border: "1px solid #fca5a5" }}
+                                                >
+                                                    <svg className="w-4 h-4 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                    </svg>
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-[10px] font-semibold uppercase tracking-widest text-slate-500 mb-0.5">
+                                                        {field.label}
+                                                    </div>
+                                                    {val ? (
+                                                        <a
+                                                            href={typeof val === "string" && val.startsWith("http") ? val : undefined}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-sm text-sky-600 truncate block"
+                                                        >
+                                                            {typeof val === "string" ? val.split("/").pop() ?? val : String(val)}
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-sm italic text-slate-300">—</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </>
                     )}
 
-                    {/* Custom Fields — inline-editable */}
-                    {(isLoadingCustomFields || visibleRegularFields.length > 0) && (
-                        <FieldGroup label={td("Custom Fields")}>
-                            {isLoadingCustomFields ? (
-                                <>
-                                    <FieldSkeleton />
-                                    <FieldSkeleton />
-                                    <FieldSkeleton />
-                                </>
-                            ) : (
-                                visibleRegularFields.map((field: any) => (
-                                    <AnalysisCustomFieldRow
-                                        key={field.id}
-                                        field={field}
-                                        value={leadCustomFieldsData[`field_${field.id}`] ?? null}
-                                        saving={updatingField === `field_${field.id}`}
-                                        canEdit={canEdit}
-                                        onChange={(value) => handleFieldChange(field.id, value)}
-                                        onSave={(value) => onLeadCustomFieldUpdate(field, value)}
-                                    />
-                                ))
-                            )}
-                        </FieldGroup>
-                    )}
+                    {/* Upload button */}
+                    <button
+                        type="button"
+                        disabled={isUploading}
+                        onClick={() => fileInputRef.current?.click()}
+                        className="flex w-full items-center justify-center gap-1.5 py-3 rounded-md border-2 border-dashed border-slate-300 text-sm font-medium text-slate-500 transition-colors hover:border-[#0A2E5D] hover:text-[#0A2E5D] disabled:opacity-50"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        {isUploading ? td("Uploading…") : td("Upload File")}
+                    </button>
+                    <input ref={fileInputRef} type="file" multiple className="sr-only" onChange={handleFileChange} />
                 </div>
 
                 {/* ── Notes ── */}
@@ -448,195 +615,33 @@ export default function AnalysisLeadContextPanel({
                 >
                     <AnalysisQuickNote />
                     {notes.length === 0 && (
-                        <p
-                            className="text-[12px] italic"
-                            style={{ color: T.TEXT_HINT }}
-                        >
+                        <p className="text-xs italic text-slate-400">
                             {td("Notes from this call appear here.")}
                         </p>
                     )}
                     {notes.map((note: any) => (
                         <div
                             key={note.id}
-                            className="rounded-lg px-3 py-2.5"
-                            style={{
-                                background: T.SURFACE_2,
-                                border: `1px solid ${T.BORDER}`,
-                            }}
+                            className="rounded-md px-3 py-2.5 bg-slate-50 border border-slate-200"
                         >
                             {note.title && (
-                                <div
-                                    className="mb-0.5 text-[12px] font-semibold dr-clamp-1"
-                                    style={{ color: T.TEXT }}
-                                >
+                                <div className="mb-0.5 text-xs font-semibold text-slate-800 dr-clamp-1">
                                     {note.title}
                                 </div>
                             )}
                             <div
-                                className="dr-clamp-3 text-[12px]"
-                                style={{ color: T.TEXT_MUTED }}
+                                className="dr-clamp-3 text-xs text-slate-500"
                                 dangerouslySetInnerHTML={{
                                     __html: note.details || note.text || "",
                                 }}
                             />
                             {note.added_by?.name && (
-                                <div
-                                    className="mt-1.5 text-[11px] font-medium"
-                                    style={{ color: T.TEXT_MUTED }}
-                                >
+                                <div className="mt-1.5 text-[11px] font-medium text-slate-400">
                                     {note.added_by.name}
                                 </div>
                             )}
                         </div>
                     ))}
-                </div>
-
-                {/* ── Files ── (now a dedicated tab, not buried at the bottom of Profile) */}
-                <div
-                    role="tabpanel"
-                    id="analysis-panel-files"
-                    aria-labelledby="analysis-tab-files"
-                    hidden={activeTab !== "files"}
-                    style={{ padding: "16px 18px" }}
-                >
-                    {/* Upload button — prominent, at the top */}
-                    <div style={{ marginBottom: 16 }}>
-                        <button
-                            type="button"
-                            className="dr-btn dr-btn-primary dr-btn-sm"
-                            disabled={isUploading}
-                            onClick={() => fileInputRef.current?.click()}
-                            style={{ width: "100%", justifyContent: "center" }}
-                        >
-                            {isUploading ? td("Uploading…") : `+ ${td("Upload file")}`}
-                        </button>
-                        <input
-                            ref={fileInputRef}
-                            type="file"
-                            multiple
-                            style={{ display: "none" }}
-                            onChange={handleFileChange}
-                        />
-                    </div>
-
-                    {/* Deal files */}
-                    {filesLoading ? (
-                        <div style={{ fontSize: 12, color: T.TEXT_HINT }}>{td("Loading…")}</div>
-                    ) : files.length === 0 && fileCustomFields.length === 0 ? (
-                        <p style={{ fontSize: 13, color: T.TEXT_HINT, fontStyle: "italic" }}>
-                            {td("No files attached yet.")}
-                        </p>
-                    ) : (
-                        <>
-                            {files.length > 0 && (
-                                <div style={{ marginBottom: 16 }}>
-                                    <SectionLabel>{td("Uploaded files")}</SectionLabel>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                        {files.map((file) => (
-                                            <a
-                                                key={file.id}
-                                                href={file.file_url}
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                style={{
-                                                    display: "flex",
-                                                    alignItems: "center",
-                                                    gap: 8,
-                                                    padding: "8px 10px",
-                                                    borderRadius: 7,
-                                                    background: T.SURFACE_2,
-                                                    border: `1px solid ${T.BORDER}`,
-                                                    textDecoration: "none",
-                                                }}
-                                            >
-                                                <span style={{ fontSize: 18 }}>{file.icon}</span>
-                                                <span
-                                                    style={{
-                                                        fontSize: 13,
-                                                        color: T.TEXT,
-                                                        flex: 1,
-                                                        minWidth: 0,
-                                                        overflow: "hidden",
-                                                        textOverflow: "ellipsis",
-                                                        whiteSpace: "nowrap",
-                                                    }}
-                                                >
-                                                    {file.filename}
-                                                </span>
-                                                <span
-                                                    style={{
-                                                        fontSize: 11,
-                                                        color: T.TEXT_HINT,
-                                                        flexShrink: 0,
-                                                    }}
-                                                >
-                                                    {file.size}
-                                                </span>
-                                            </a>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* File-type custom fields */}
-                            {fileCustomFields.length > 0 && (
-                                <div>
-                                    <SectionLabel>{td("Document fields")}</SectionLabel>
-                                    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                        {fileCustomFields.map((field: any) => {
-                                            const val = leadCustomFieldsData[`field_${field.id}`];
-                                            return (
-                                                <div
-                                                    key={field.id}
-                                                    style={{
-                                                        padding: "10px 12px",
-                                                        borderRadius: 7,
-                                                        background: T.SURFACE_2,
-                                                        border: `1px solid ${T.BORDER}`,
-                                                    }}
-                                                >
-                                                    <div
-                                                        style={{
-                                                            fontSize: 11,
-                                                            fontWeight: 600,
-                                                            textTransform: "uppercase",
-                                                            letterSpacing: "0.06em",
-                                                            color: T.TEXT_MUTED,
-                                                            marginBottom: 4,
-                                                        }}
-                                                    >
-                                                        {field.label}
-                                                    </div>
-                                                    {val ? (
-                                                        <a
-                                                            href={typeof val === "string" && val.startsWith("http") ? val : undefined}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                            style={{
-                                                                fontSize: 13,
-                                                                color: T.BLUE,
-                                                                textDecoration: "none",
-                                                                display: "block",
-                                                                overflow: "hidden",
-                                                                textOverflow: "ellipsis",
-                                                                whiteSpace: "nowrap",
-                                                            }}
-                                                        >
-                                                            {typeof val === "string" ? val.split("/").pop() ?? val : String(val)}
-                                                        </a>
-                                                    ) : (
-                                                        <span style={{ fontSize: 13, color: T.TEXT_HINT, fontStyle: "italic" }}>
-                                                            —
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    )}
                 </div>
 
                 {/* ── Flights ── */}
@@ -651,40 +656,25 @@ export default function AnalysisLeadContextPanel({
                         {itineraryItems.map((leg) => (
                             <div
                                 key={leg.id}
-                                className="rounded-lg px-3 py-2.5"
-                                style={{
-                                    background: T.SURFACE_2,
-                                    border: `1px solid ${T.BORDER}`,
-                                }}
+                                className="rounded-md px-3 py-2.5 bg-slate-50 border border-slate-200"
                             >
                                 <div className="mb-1 flex items-center gap-2">
                                     <span
                                         className={`dr-pill dr-pill-${leg.direction === "arrival" ? "green" : "blue"}`}
                                         style={{ fontSize: 10 }}
                                     >
-                                        {leg.direction === "arrival"
-                                            ? td("Arrival")
-                                            : td("Departure")}
+                                        {leg.direction === "arrival" ? td("Arrival") : td("Departure")}
                                     </span>
                                     {leg.isTransferRequired && (
-                                        <span
-                                            className="dr-pill dr-pill-amber"
-                                            style={{ fontSize: 10 }}
-                                        >
+                                        <span className="dr-pill dr-pill-amber" style={{ fontSize: 10 }}>
                                             {td("Transfer")}
                                         </span>
                                     )}
                                 </div>
-                                <div
-                                    className="truncate text-[12px] font-semibold"
-                                    style={{ color: T.TEXT }}
-                                >
+                                <div className="truncate text-xs font-semibold text-slate-800">
                                     {leg.airportLabel}
                                 </div>
-                                <div
-                                    className="text-[11px]"
-                                    style={{ color: T.TEXT_MUTED }}
-                                >
+                                <div className="text-[11px] text-slate-500">
                                     {leg.dateLabel} · {leg.timeLabel}
                                 </div>
                             </div>
