@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Select } from "antd";
+import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import {
@@ -18,6 +19,8 @@ import {
     DEAL_REDESIGN_TOKENS as T,
     DEAL_REDESIGN_TYPE as TY,
 } from "../../tokens";
+
+const FLIGHT_ITINERARY_EXTRACTION_FLAG = "crm.flight-itinerary-extraction";
 
 interface DealItineraryModalProps {
     open: boolean;
@@ -154,6 +157,9 @@ export default function DealItineraryModal({
     leg = null,
 }: DealItineraryModalProps) {
     const { t } = useTranslation();
+    const { props } = usePage();
+    const showOcrScanner =
+        props.featureFlags?.[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const isEdit = Boolean(leg?.id);
     const [form, setForm] = useState(EMPTY_FORM);
@@ -298,7 +304,7 @@ export default function DealItineraryModal({
                 </>
             }
         >
-            {!isEdit && (
+            {!isEdit && showOcrScanner && (
                 <DealItineraryOcrScanner
                     key={open ? "open" : "closed"}
                     disabled={saving}

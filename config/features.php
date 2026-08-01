@@ -25,5 +25,6 @@ return [
         'crm.unit-sold-out-grid-diagonal-ribbon',
         'crm.deals-product-tour',
         'crm.deal-info-count-indicator',
+        'crm.flight-itinerary-extraction',
     ],
 ];
