@@ -3,18 +3,16 @@ import { createPortal } from "react-dom";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
-import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useAnalysisFieldSave from "../../hooks/useAnalysisFieldSave";
 import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
-import { getCustomFieldCategoryProgress } from "./AnalysisCustomFieldForm";
 import AnalysisLeadContextPanel from "./AnalysisLeadContextPanel";
 import AnalysisHeaderBar from "./AnalysisHeaderBar";
 import AnalysisScrollPanel, { type ScrollPanelHandle } from "./AnalysisScrollPanel";
 import AnalysisSectionNavigator from "./AnalysisSectionNavigator";
-import { adaptScriptItems } from "./adapters/analysisScriptAdapter";
-import type { AnalysisSection, AnalysisScriptItem } from "./types/analysisTypes";
+import { buildScriptItems, computeAnalysisProgress } from "./analysisProgress";
+import type { AnalysisScriptItem } from "./types/analysisTypes";
 
 interface Props {
     analysis: UseDealAnalysisReturn;
@@ -25,12 +23,6 @@ interface Props {
     analysisScript?: { items: AnalysisScriptItem[] } | null;
     onAddTask: () => void;
     onScheduleMeeting: () => void;
-}
-
-function isFieldFilled(value: unknown): boolean {
-    if (value === null || value === undefined || value === "") return false;
-    if (Array.isArray(value)) return value.length > 0;
-    return true;
 }
 
 const FOCUSABLE =
@@ -54,15 +46,17 @@ export default function DealAnalysisModal({
     const titleId = "analysis-modal-title";
 
     const [activeSection, setActiveSection] = useState<string>("");
-    const [showCompleteConfirm, setShowCompleteConfirm] = useState(false);
+    // Which action raised the missing-information warning. Closing and completing
+    // share the same overlay — only the confirming button differs.
+    const [confirmIntent, setConfirmIntent] = useState<null | "complete" | "close">(null);
     // Stepped flow: the centre panel reveals one section at a time. Everything past
     // currentStep stays locked until the footer's Next button advances it.
     const [currentStep, setCurrentStep] = useState(0);
     const lastStep = useRef(-1);
 
-    // Close is never blocked: flushAll() dispatches pending writes right away and
-    // minimize() defers the deal reload until they land.
-    const requestClose = useCallback(() => {
+    // flushAll() dispatches pending writes right away and minimize() defers the
+    // deal reload until they land, so closing never loses an edit.
+    const doClose = useCallback(() => {
         analysis.minimize(flushAll());
     }, [flushAll, analysis]);
 
@@ -95,81 +89,17 @@ export default function DealAnalysisModal({
 
     const leadCustomFields: any[] = (props.leadCustomFields as any[] | null | undefined) ?? [];
 
-    const scriptItems: AnalysisScriptItem[] = useMemo(() => {
-        if (analysisScript?.items?.length) return analysisScript.items;
-        return dealInfoCategories.map((cat: any, i: number) => ({
-            id: -(cat.id),
-            type: "custom_field_category" as const,
-            item_key: String(cat.id),
-            label_override: cat.name,
-            guide_text: null,
-            position: i,
-        }));
-    }, [analysisScript, dealInfoCategories]);
+    const scriptItems: AnalysisScriptItem[] = useMemo(
+        () => buildScriptItems(analysisScript, dealInfoCategories),
+        [analysisScript, dealInfoCategories],
+    );
 
-    // Sections + progress + global numbering — all in one memo.
-    const { sections, sectionProgress, totalFilled, totalFields, numberByKey } = useMemo(() => {
-        const sections = adaptScriptItems(scriptItems);
-
-        const sectionProgress: Record<string, { filled: number; total: number }> = {};
-        const numberByKey: Record<string, number> = {};
-        let totalFilled = 0;
-        let totalFields = 0;
-        let counter = 0;
-
-        for (const section of sections) {
-            // Number deal custom fields first (they render before script items in each section)
-            if (section.categoryId !== null) {
-                const sectionFields = fields.filter(
-                    (f: any) => f.custom_field_category_id === section.categoryId && f.type !== "file",
-                );
-                const visMap = evaluateAllFieldsVisibility(sectionFields, localValues);
-                for (const f of sectionFields) {
-                    if (visMap[f.id] !== false) {
-                        counter++;
-                        numberByKey[`deal_field_${f.id}`] = counter;
-                    }
-                }
-            }
-
-            // Number script items
-            for (const item of section.items) {
-                if (["question", "native_field", "hibarr_field", "lead_field"].includes(item.kind)) {
-                    counter++;
-                    numberByKey[`script_${item.scriptItem.id}`] = counter;
-                }
-            }
-
-            // Progress for the section
-            let filled = 0;
-            let total = 0;
-
-            if (section.categoryId !== null) {
-                const p = getCustomFieldCategoryProgress(fields, section.categoryId, localValues);
-                filled += p.filled;
-                total += p.total;
-            }
-
-            for (const item of section.items) {
-                if (item.kind === "native_field") {
-                    total += 1;
-                    filled += isFieldFilled((deal as any)[item.scriptItem.item_key]) ? 1 : 0;
-                } else if (item.kind === "hibarr_field") {
-                    total += 1;
-                    filled += isFieldFilled((deal as any).hibarrFields?.[item.scriptItem.item_key]) ? 1 : 0;
-                } else if (item.kind === "lead_field") {
-                    total += 1;
-                    filled += isFieldFilled((deal.contact as any)?.[item.scriptItem.item_key]) ? 1 : 0;
-                }
-            }
-
-            sectionProgress[section.id] = { filled, total };
-            totalFilled += filled;
-            totalFields += total;
-        }
-
-        return { sections, sectionProgress, totalFilled, totalFields, numberByKey };
-    }, [scriptItems, fields, localValues, deal]);
+    // Sections + progress + global numbering — all in one pass, shared with the
+    // deal-view status card so both use the same denominator.
+    const { sections, sectionProgress, totalFilled, totalFields, numberByKey } = useMemo(
+        () => computeAnalysisProgress(scriptItems, fields, localValues, deal),
+        [scriptItems, fields, localValues, deal],
+    );
 
     const unfilledCount = totalFields - totalFilled;
     const allFilled = totalFields > 0 && unfilledCount === 0;
@@ -247,9 +177,15 @@ export default function DealAnalysisModal({
         if (allFilled) {
             analysis.complete("auto", 0);
         } else {
-            setShowCompleteConfirm(true);
+            setConfirmIntent("complete");
         }
     }, [allFilled, analysis]);
+
+    // Closing raises the same missing-information warning as completing does.
+    const requestClose = useCallback(() => {
+        if (unfilledCount > 0) setConfirmIntent("close");
+        else doClose();
+    }, [unfilledCount, doClose]);
 
     const handleJump = useCallback(
         (id: string) => {
@@ -265,8 +201,8 @@ export default function DealAnalysisModal({
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
             if (e.key === "Escape") {
-                if (showCompleteConfirm) {
-                    setShowCompleteConfirm(false);
+                if (confirmIntent) {
+                    setConfirmIntent(null);
                 } else {
                     requestClose();
                 }
@@ -285,7 +221,7 @@ export default function DealAnalysisModal({
                 if (document.activeElement === last) { e.preventDefault(); first.focus(); }
             }
         },
-        [showCompleteConfirm, requestClose],
+        [confirmIntent, requestClose],
     );
 
     useEffect(() => {
@@ -432,8 +368,8 @@ export default function DealAnalysisModal({
                     </div>
                 )}
 
-                {/* Complete confirmation overlay */}
-                {showCompleteConfirm && (
+                {/* Missing-information warning — raised by both Complete and Close */}
+                {confirmIntent && (
                     <div
                         style={{
                             position: "absolute",
@@ -475,15 +411,19 @@ export default function DealAnalysisModal({
                                         : td("fields are still empty")}
                                 </strong>
                                 .{" "}
-                                {td(
-                                    "Completing now will mark this analysis as done, but the missing data won't be captured.",
-                                )}
+                                {confirmIntent === "complete"
+                                    ? td(
+                                        "Completing now will mark this analysis as done, but the missing data won't be captured.",
+                                    )
+                                    : td(
+                                        "You can reopen the analysis later to fill in the rest.",
+                                    )}
                             </p>
                             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                                 <button
                                     type="button"
                                     className="dr-btn dr-btn-ghost"
-                                    onClick={() => setShowCompleteConfirm(false)}
+                                    onClick={() => setConfirmIntent(null)}
                                 >
                                     {td("Go back and fill in")}
                                 </button>
@@ -493,11 +433,13 @@ export default function DealAnalysisModal({
                                     disabled={analysis.isCompleting}
                                     style={{ background: T.NAVY }}
                                     onClick={() => {
-                                        setShowCompleteConfirm(false);
-                                        analysis.complete("manual", unfilledCount);
+                                        const intent = confirmIntent;
+                                        setConfirmIntent(null);
+                                        if (intent === "complete") analysis.complete("manual", unfilledCount);
+                                        else doClose();
                                     }}
                                 >
-                                    {td("Finish anyway")}
+                                    {confirmIntent === "complete" ? td("Finish anyway") : td("Close anyway")}
                                 </button>
                             </div>
                         </div>

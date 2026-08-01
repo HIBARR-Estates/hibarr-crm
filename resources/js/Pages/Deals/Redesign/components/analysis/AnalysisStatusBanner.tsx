@@ -3,26 +3,64 @@ import type { UseDealAnalysisReturn } from "../../hooks/useDealAnalysis";
 
 interface Props {
     analysis: UseDealAnalysisReturn;
+    totalFilled: number;
+    totalFields: number;
 }
 
-export default function AnalysisStatusBanner({ analysis }: Props) {
+/**
+ * Deal-view analysis card. Keeps one fixed footprint in every state — the card
+ * never collapses to a pill on completion — and always reports field progress,
+ * including when the analysis was marked complete with fields still empty.
+ */
+export default function AnalysisStatusBanner({ analysis, totalFilled, totalFields }: Props) {
     const { td } = useTd();
 
-    if (analysis.isCompleted) {
-        return (
-            <span className="dr-pill dr-pill-green self-center whitespace-nowrap">
-                ✓ {td("Analysis complete")}
-            </span>
-        );
-    }
+    const missing = Math.max(0, totalFields - totalFilled);
+    const allFilled = totalFields > 0 && missing === 0;
+    const pct = totalFields > 0 ? Math.round((totalFilled / totalFields) * 100) : 0;
+
+    // Completed with gaps is its own state: the analysis is closed out, but the
+    // record is not, and that has to stay visible.
+    const completedWithGaps = analysis.isCompleted && !allFilled;
+
+    const theme = allFilled && analysis.isCompleted
+        ? {
+            background: "linear-gradient(135deg, #065F46 0%, #0F9D6E 100%)",
+            dot: "#6EE7B7",
+            bar: "#6EE7B7",
+            cta: "text-emerald-200",
+            title: td("Analysis Complete"),
+            subtitle: td("All fields captured"),
+        }
+        : completedWithGaps
+            ? {
+                background: "linear-gradient(135deg, #0A2E5D 0%, #1a4a9c 100%)",
+                dot: "#FBBF24",
+                bar: "#FBBF24",
+                cta: "text-amber-200",
+                title: td("Completed with gaps"),
+                subtitle: `${missing} ${missing === 1 ? td("field still empty") : td("fields still empty")}`,
+            }
+            : {
+                background: "linear-gradient(135deg, #0A2E5D 0%, #1a4a9c 100%)",
+                dot: "#38BDF8",
+                bar: "#38BDF8",
+                cta: "text-sky-300",
+                title: td("Analysis Incomplete"),
+                subtitle: totalFields > 0
+                    ? `${missing} ${missing === 1 ? td("field left to fill") : td("fields left to fill")}`
+                    : td("Fill in deal info before proceeding"),
+            };
+
+    const shouldPulse = !analysis.isCompleted;
 
     return (
         <button
             type="button"
             onClick={analysis.open}
-            className="analysis-banner-pulse shrink-0 cursor-pointer text-left h-full flex flex-col justify-between focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+            className={`${shouldPulse ? "analysis-banner-pulse " : ""}shrink-0 cursor-pointer text-left h-full overflow-hidden flex flex-col focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60`}
             style={{
-                background: "linear-gradient(135deg, #0A2E5D 0%, #1a4a9c 100%)",
+                background: theme.background,
                 border: "none",
                 borderRadius: 12,
                 padding: "12px 16px",
@@ -30,26 +68,43 @@ export default function AnalysisStatusBanner({ analysis }: Props) {
                 minWidth: 200,
             }}
         >
-            {/* Title row with pulsing dot */}
+            {/* Title row with status dot */}
             <div className="flex items-center gap-2">
                 <span
-                    className="analysis-dot-pulse inline-block shrink-0 rounded-full"
-                    style={{ width: 9, height: 9, background: "#38BDF8" }}
+                    className={`${shouldPulse ? "analysis-dot-pulse " : ""}inline-block shrink-0 rounded-full`}
+                    style={{ width: 9, height: 9, background: theme.dot }}
                     aria-hidden
                 />
-                <span className="text-[13px] font-semibold leading-snug text-white">
-                    {td("Analysis Incomplete")}
+                <span className="text-[13px] font-semibold leading-snug text-white truncate">
+                    {theme.title}
                 </span>
             </div>
 
-            {/* Subtitle */}
-            <p className="mt-1.5 text-[12px] leading-snug text-white/70">
-                {td("Fill in deal info before proceeding")}
-            </p>
+            {/* Progress — bar and count share one line so the card stays the same
+                height as the pipeline stepper beside it. */}
+            {totalFields > 0 ? (
+                <div className="mt-2 flex items-center gap-2">
+                    <div
+                        className="flex-1 h-1.5 rounded-full overflow-hidden"
+                        style={{ backgroundColor: "rgba(255,255,255,0.18)" }}
+                    >
+                        <div
+                            className="h-full rounded-full transition-all duration-700"
+                            style={{ width: `${pct}%`, backgroundColor: theme.bar }}
+                        />
+                    </div>
+                    <span className="shrink-0 text-[11px] tabular-nums text-white/70">
+                        {totalFilled}/{totalFields}
+                    </span>
+                </div>
+            ) : (
+                <p className="mt-2 text-[12px] leading-snug text-white/70">
+                    {theme.subtitle}
+                </p>
+            )}
 
-            {/* CTA affordance */}
-            <p className="mt-auto pt-3 text-[12px] font-semibold text-sky-300">
-                {td("Open Analysis")} →
+            <p className={`mt-auto pt-2 text-[12px] font-semibold ${theme.cta}`}>
+                {analysis.isCompleted ? td("Review Analysis") : td("Open Analysis")} →
             </p>
         </button>
     );
