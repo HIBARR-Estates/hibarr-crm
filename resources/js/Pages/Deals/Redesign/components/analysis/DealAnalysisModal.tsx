@@ -193,18 +193,31 @@ export default function DealAnalysisModal({
     // into view. Guarded on the step actually changing: `sections` is rebuilt on every
     // keystroke, and without this the panel would scroll while the user is typing.
     useEffect(() => {
+        if (sections.length === 0) return;
+
+        // On open, unlock through the furthest section that already holds data so
+        // previously-filled sections aren't stepped through again.
+        if (lastStep.current === -1) {
+            let seeded = 0;
+            sections.forEach((s, i) => {
+                if ((sectionProgress[s.id]?.filled ?? 0) > 0) seeded = i;
+            });
+            lastStep.current = seeded;
+            setCurrentStep(seeded);
+            setActiveSection(sections[seeded].id);
+            return; // adopted without scrolling
+        }
+
         if (lastStep.current === currentStep) return;
         const target = sections[currentStep];
         if (!target) return;
-        const isFirstRun = lastStep.current === -1;
         lastStep.current = currentStep;
         setActiveSection(target.id);
-        if (isFirstRun) return; // don't scroll on open
         const raf = requestAnimationFrame(() =>
             scrollPanelRef.current?.scrollToSection(target.id),
         );
         return () => cancelAnimationFrame(raf);
-    }, [currentStep, sections]);
+    }, [currentStep, sections, sectionProgress]);
 
     // Fire-and-forget save for deal custom fields
     const handleDealFieldSave = useCallback((fieldId: number, value: any) => {
