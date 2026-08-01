@@ -17,12 +17,15 @@ interface DealItineraryOcrScannerProps {
     onApply: (entry: IFlightItineraryEntry, fileUrl: string | null) => void;
 }
 
-function flightSummaryLabel(entry: IFlightItineraryEntry): string {
+function flightSummaryLabel(
+    entry: IFlightItineraryEntry,
+    fallback: string,
+): string {
     const parts: string[] = [];
     if (entry.flightNumber) parts.push(entry.flightNumber.toUpperCase());
     if (entry.flightType) parts.push(entry.flightType);
     if (entry.flightDateTime) parts.push(formatDateWithTime(entry.flightDateTime));
-    return parts.length > 0 ? parts.join(" · ") : "Flight";
+    return parts.length > 0 ? parts.join(" · ") : fallback;
 }
 
 /**
@@ -235,6 +238,7 @@ export default function DealItineraryOcrScanner({
                                     <button
                                         key={`${entry.flightNumber ?? "flight"}-${index}`}
                                         type="button"
+                                        aria-pressed={selected}
                                         onClick={() => handleApply(entry, index)}
                                         className="font-medium"
                                         style={{
@@ -251,7 +255,7 @@ export default function DealItineraryOcrScanner({
                                             cursor: "pointer",
                                         }}
                                     >
-                                        {flightSummaryLabel(entry)}
+                                        {flightSummaryLabel(entry, td("Flight"))}
                                     </button>
                                 );
                             })}

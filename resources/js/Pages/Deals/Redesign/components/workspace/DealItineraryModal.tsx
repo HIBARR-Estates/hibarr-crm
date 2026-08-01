@@ -125,7 +125,7 @@ function matchAirportOption(
     if (byCode) return byCode.value;
 
     const byLabel = options.find((option) =>
-        needle.includes(option.label.toLowerCase()),
+        option.label.toLowerCase().includes(needle),
     );
     if (byLabel) return byLabel.value;
 
@@ -133,19 +133,14 @@ function matchAirportOption(
 }
 
 function formFromLeg(leg: ILeadFlightItinerary): ItineraryFormState {
-    const parsed = leg.flight_date ? new Date(leg.flight_date) : null;
-    const valid = parsed && !Number.isNaN(parsed.getTime()) ? parsed : null;
+    const dateTime = splitFlightDateTime(leg.flight_date ?? null);
 
     return {
         direction: leg.direction,
         flight_number: leg.flight_number ?? "",
         airport_name: leg.airport_name ?? "",
-        date: valid
-            ? `${valid.getFullYear()}-${pad2(valid.getMonth() + 1)}-${pad2(valid.getDate())}`
-            : "",
-        time: valid
-            ? `${pad2(valid.getHours())}:${pad2(valid.getMinutes())}`
-            : "12:00",
+        date: dateTime?.date ?? "",
+        time: dateTime?.time ?? "12:00",
         is_transfer_required: Boolean(leg.is_transfer_required),
         ticket_image_url: leg.ticket_image_url ?? null,
     };
@@ -305,6 +300,7 @@ export default function DealItineraryModal({
         >
             {!isEdit && (
                 <DealItineraryOcrScanner
+                    key={open ? "open" : "closed"}
                     disabled={saving}
                     onApply={applyDetectedFlight}
                 />

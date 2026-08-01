@@ -18,6 +18,8 @@ export type OcrScanState =
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_POLL_ATTEMPTS = 30; // ~1 minute of polling
+/** Matches config/file_storage.php FILE_UPLOAD_TIMEOUT default (120s). */
+const REQUEST_TIMEOUT_MS = 120_000;
 
 function extractErrorMessage(error: unknown, fallback: string): string {
     if (axios.isAxiosError(error)) {
@@ -81,6 +83,7 @@ export default function useDealFlightItineraryOcr() {
                     OcrApiResponse<IFlightItineraryStatusData>
                 >(`${config.baseUrl}/ocr/flight-itineraries/${requestId}`, {
                     headers: { "X-Api-Key": config.apiKey },
+                    timeout: REQUEST_TIMEOUT_MS,
                 });
                 if (isStaleGeneration(generation)) return;
 
@@ -151,6 +154,7 @@ export default function useDealFlightItineraryOcr() {
                         "X-Api-Key": config.apiKey,
                         "Content-Type": "multipart/form-data",
                     },
+                    timeout: REQUEST_TIMEOUT_MS,
                 });
                 if (isStaleGeneration(generation)) return;
 
