@@ -43,6 +43,8 @@ import AiSummaryCard from "./components/workspace/AiSummaryCard";
 import QuickStats from "./components/workspace/QuickStats";
 import WorkspaceCard from "./components/workspace/WorkspaceCard";
 import LeadDossier from "./components/dossier/LeadDossier";
+import LeadMeetingDetailModal from "./components/workspace/LeadMeetingDetailModal";
+import LeadTaskDetailModal from "./components/workspace/LeadTaskDetailModal";
 import OverviewTab from "./components/workspace/tabs/OverviewTab";
 import NotesTab from "./components/workspace/tabs/NotesTab";
 import TasksTab from "./components/workspace/tabs/TasksTab";
@@ -53,6 +55,9 @@ import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
 import TimelineTab from "./components/workspace/tabs/TimelineTab";
 import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
+import type { Deal } from "@/Types/api/deals";
+import type { DealFollowup } from "@/Types/api/deal-followup";
+import type { Task } from "@/Types/api/tasks";
 import TemplatePickerModal from "./components/qualification/TemplatePickerModal";
 import QualifyModal from "./components/qualification/QualifyModal";
 import AnswersReviewModal from "./components/qualification/AnswersReviewModal";
@@ -144,6 +149,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+    const [detailMeeting, setDetailMeeting] = useState<DealFollowup | null>(
+        null,
+    );
+    const [detailTask, setDetailTask] = useState<Task | null>(null);
 
     const firstName = useMemo(() => {
         const parts = (lead.client_name ?? "").trim().split(/\s+/);
@@ -203,19 +212,32 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         tasksLoading,
     ]);
 
-    const openTasksCount = tabCounts.tasks ?? 0;
-    const nextMeetingLabel = useMemo(() => {
-        const upcoming = [...leadFollowUps]
-            .filter((f) => f.status !== "completed")
-            .sort(
-                (a, b) =>
-                    new Date(a.next_follow_up_date).getTime() -
-                    new Date(b.next_follow_up_date).getTime(),
-            )[0];
-        return upcoming?.next_follow_up_date
-            ? String(upcoming.next_follow_up_date)
-            : undefined;
+    const nextMeeting = useMemo(() => {
+        return (
+            [...leadFollowUps]
+                .filter((f) => f.status !== "completed")
+                .sort(
+                    (a, b) =>
+                        new Date(a.next_follow_up_date).getTime() -
+                        new Date(b.next_follow_up_date).getTime(),
+                )[0] ?? null
+        );
     }, [leadFollowUps]);
+
+    const openTasks = useMemo(
+        () => tasks.filter((task) => toLeadTaskPreview(task).isOpen),
+        [tasks],
+    );
+    const nextTask = useMemo(() => {
+        if (openTasks.length === 0) return null;
+        return [...openTasks].sort((a, b) => {
+            const aDue = toLeadTaskPreview(a).dueDate?.getTime() ?? Infinity;
+            const bDue = toLeadTaskPreview(b).dueDate?.getTime() ?? Infinity;
+            return aDue - bDue;
+        })[0];
+    }, [openTasks]);
+
+    const primaryDeal = useMemo((): Deal | null => deals[0] ?? null, [deals]);
 
     const handleMissionAction = useCallback(
         (action: LeadMissionCtaAction) => {
@@ -446,12 +468,29 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             )}
 
                             <QuickStats
-                                nextMeetingLabel={nextMeetingLabel}
-                                openTasksCount={openTasksCount}
+                                nextMeeting={nextMeeting}
+                                nextTask={nextTask}
+                                openTasksCount={openTasks.length}
+                                primaryDeal={primaryDeal}
                                 dealsCount={deals.length}
+                                taskBoardColumns={props.taskBoardColumns ?? []}
+                                meetingLoading={leadFollowUpsLoading}
+                                tasksLoading={tasksLoading}
+                                // Deals are shell props (not deferred) — keep
+                                // the slot in sync visually with the other two
+                                // while workspace deferred data is resolving.
+                                dealsLoading={
+                                    leadFollowUpsLoading || tasksLoading
+                                }
                                 onSchedule={() => setAddMeetingOpen(true)}
                                 onCreateTask={() => setAddTaskOpen(true)}
                                 onCreateDeal={() => setCreateDealOpen(true)}
+                                onOpenMeeting={setDetailMeeting}
+                                onOpenTask={setDetailTask}
+                                onOpenDeal={(deal) =>
+                                    router.visit(route("deals.show", deal.id))
+                                }
+                                onViewAllDeals={() => nav.setTab("deals")}
                             />
 
                             <WorkspaceCard
@@ -679,6 +718,19 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     </div>
                 </div>
             )}
+
+            <LeadMeetingDetailModal
+                meeting={detailMeeting}
+                meetingTypes={props.meetingTypes ?? []}
+                permissions={props.followUpPermissions}
+                onClose={() => setDetailMeeting(null)}
+            />
+
+            <LeadTaskDetailModal
+                task={detailTask}
+                taskBoardColumns={props.taskBoardColumns ?? []}
+                onClose={() => setDetailTask(null)}
+            />
 
             <ConfirmDialog {...deleteLead.dialogProps} />
         </PageLayout>

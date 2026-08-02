@@ -212,8 +212,9 @@ class LeadContactController extends AccountBaseController
         $deals = Deal::where('lead_id', $id)
             ->with([
                 'leadAgent.user',
-                'leadStage:id,name',
-                'pipeline:id,name'
+                'leadStage:id,name,label_color',
+                'pipeline:id,name',
+                'currency',
             ])
             ->get()
             ->map(function ($deal) {
