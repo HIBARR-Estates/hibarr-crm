@@ -36,7 +36,7 @@ export default function DealAnalysisModal({
     onAddTask,
     onScheduleMeeting,
 }: Props) {
-    const { deal } = useDealWorkspace();
+    const { deal, setDeal } = useDealWorkspace();
     const { props } = usePage<any>();
     const { td } = useTd();
     const { save, failedKeys, retry, dismissError, flushAll, subscribeSaving } = useAnalysisFieldSave(deal.id);
@@ -149,29 +149,48 @@ export default function DealAnalysisModal({
         return () => cancelAnimationFrame(raf);
     }, [currentStep, sections, sectionProgress]);
 
-    // Fire-and-forget save for deal custom fields
-    const handleDealFieldSave = useCallback((fieldId: number, value: any) => {
-        save(`deal_field_${fieldId}`, value);
-    }, [save]);
-
     // Fire-and-forget save for lead custom fields
     const handleLeadFieldSave = useCallback((fieldId: number, value: any) => {
         save(`lead_field_${fieldId}`, value);
     }, [save]);
 
-    // Script item field save — routes by updateType (details, hibarr_field, contact)
+    // Script item field save — routes by updateType (custom_field, details,
+    // hibarr_field, contact). Also mirrors the value onto the workspace deal so the
+    // Deal Info tab reflects the edit while the modal is still open.
     const handleScriptFieldSave = useCallback((fieldKey: string, value: any, updateType: string) => {
         let key: string;
         if (updateType === "hibarr_field") key = `hibarr:${fieldKey}`;
         else if (updateType === "contact") key = `contact:${fieldKey}`;
         else key = fieldKey;
         save(key, value);
-    }, [save]);
+
+        setDeal((prev: any) => {
+            if (updateType === "hibarr_field") {
+                return { ...prev, hibarrFields: { ...(prev.hibarrFields ?? {}), [fieldKey]: value } };
+            }
+            if (updateType === "contact") {
+                return { ...prev, contact: { ...(prev.contact ?? {}), [fieldKey]: value } };
+            }
+            if (updateType === "custom_field") {
+                // fieldKey arrives prefixed (deal_field_12); custom_fields_data is keyed field_12
+                const id = fieldKey.replace(/^deal_field_/, "");
+                return {
+                    ...prev,
+                    custom_fields_data: { ...(prev.custom_fields_data ?? {}), [`field_${id}`]: value },
+                };
+            }
+            return { ...prev, [fieldKey]: value };
+        });
+    }, [save, setDeal]);
 
     // Core contact field save (Personal Info editable rows)
     const handleContactFieldSave = useCallback((fieldKey: string, value: any) => {
         save(`contact:${fieldKey}`, value);
-    }, [save]);
+        setDeal((prev: any) => ({
+            ...prev,
+            contact: { ...(prev.contact ?? {}), [fieldKey]: value },
+        }));
+    }, [save, setDeal]);
 
     const handleCompleteClick = useCallback(() => {
         if (allFilled) {

@@ -424,9 +424,6 @@
             + '</div>';
     }
 
-    // Make list sortable via jQuery UI
-    $('#analysis-script-items').sortable({ handle: '.drag-handle', tolerance: 'pointer' });
-
     // Add item from dropdown
     $('body').off('click.addAnalysis', '.add-analysis-item').on('click.addAnalysis', '.add-analysis-item', function(e) {
         e.preventDefault();
@@ -497,6 +494,29 @@
             }
         });
     });
+
+    // Drag-to-reorder. jQuery UI is not in the global bundle on this page, so it's
+    // loaded on demand — and this runs LAST, after every handler above is bound.
+    // Previously $.fn.sortable was called first and threw, aborting the whole
+    // script block: no handler bound, so clicking a step just followed href="#"
+    // and looked like a page reload that changed nothing.
+    function initAnalysisSortable() {
+        if (!$.fn.sortable) return;
+        $('#analysis-script-items').sortable({ handle: '.drag-handle', tolerance: 'pointer' });
+    }
+
+    if ($.fn.sortable) {
+        initAnalysisSortable();
+    } else {
+        $.getScript("{{ asset('vendor/jquery/jquery-ui.min.js') }}")
+            .done(initAnalysisSortable)
+            .fail(function() {
+                // Reordering unavailable; adding, editing and saving still work.
+                $('#analysis-script-items .drag-handle').css('opacity', 0.3).attr(
+                    'title', 'Drag reordering unavailable — could not load jQuery UI'
+                );
+            });
+    }
 
     $('body').off('click.deletePipelineModal', '.delete-pipeline-from-modal').on('click.deletePipelineModal', '.delete-pipeline-from-modal', function() {
         var id = {{ $pipeline->id }};

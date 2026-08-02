@@ -155,6 +155,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     value={localVal as string}
                     disabled={!canEdit}
                     onChange={(val) => { setLocalVal(val); notifyChange(val || null); }}
+                    onCommit={(val) => commit(val)}
                 />
             )}
 
@@ -205,6 +206,8 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
             {field.type === "currency" && (
                 <div
                     ref={portalFieldWrapperRef}
+                    // Code picker + amount doesn't need the full row width
+                    className="w-1/2 min-w-[220px] max-w-full"
                     onBlur={(e) => {
                         const next = e.relatedTarget as Element | null;
                         const inPortal = next && document.body.lastElementChild?.contains(next);

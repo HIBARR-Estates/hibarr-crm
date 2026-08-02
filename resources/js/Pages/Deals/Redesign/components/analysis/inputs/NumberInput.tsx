@@ -5,9 +5,14 @@ interface NumberInputProps {
     max?: number;
     disabled?: boolean;
     onChange: (value: string) => void;
+    /**
+     * Fired when the value should be persisted — on input blur, and immediately
+     * after a stepper click (which may never blur the input).
+     */
+    onCommit?: (value: string) => void;
 }
 
-export default function NumberInput({ value, placeholder, min, max, disabled, onChange }: NumberInputProps) {
+export default function NumberInput({ value, placeholder, min, max, disabled, onChange, onCommit }: NumberInputProps) {
     const numeric = parseInt(value) || 0;
 
     const step = (delta: number) => {
@@ -16,6 +21,7 @@ export default function NumberInput({ value, placeholder, min, max, disabled, on
         if (min !== undefined && next < min) return;
         if (max !== undefined && next > max) return;
         onChange(String(next));
+        onCommit?.(String(next));
     };
 
     return (
@@ -37,6 +43,7 @@ export default function NumberInput({ value, placeholder, min, max, disabled, on
                 placeholder={placeholder || "0"}
                 disabled={disabled}
                 onChange={(e) => onChange(e.target.value.replace(/[^0-9]/g, ""))}
+                onBlur={(e) => onCommit?.(e.target.value)}
                 className="w-24 h-10 bg-white border border-slate-200 px-3 text-sm text-center text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-100 focus:border-sky-400 transition-colors disabled:opacity-40"
             />
             <button

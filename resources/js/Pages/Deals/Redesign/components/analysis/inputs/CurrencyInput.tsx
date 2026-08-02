@@ -50,6 +50,8 @@ export default function CurrencyInput({ value, placeholder, onChange }: Currency
     const update = (newCode: string, newAmount: string) => onChange(`${newCode}|${newAmount}`);
 
     return (
+        // Fills its container; callers constrain the width (the left panel's edit
+        // area is far narrower than the centre panel's).
         <div ref={containerRef} className="flex items-center w-full">
             <div className="relative shrink-0">
                 <button
