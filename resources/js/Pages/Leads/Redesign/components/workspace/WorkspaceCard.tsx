@@ -1,11 +1,11 @@
 import { ReactNode } from "react";
-import type { WorkspaceTabId } from "../../types";
+import type { LeadTabCount, WorkspaceTabId } from "../../types";
 import WorkspaceTabBar from "./WorkspaceTabBar";
 
 interface WorkspaceCardProps {
     activeTab: WorkspaceTabId;
     onTabChange: (tab: WorkspaceTabId) => void;
-    tabCounts?: Partial<Record<WorkspaceTabId, number>>;
+    tabCounts?: LeadTabCount;
     children: ReactNode;
 }
 
@@ -16,13 +16,21 @@ export default function WorkspaceCard({
     children,
 }: WorkspaceCardProps) {
     return (
-        <div className="v2-workspace">
+        <section
+            className="v2-workspace"
+            style={{
+                background: "#fff",
+                border: "1px solid #e2e5ea",
+                borderRadius: 12,
+                overflow: "hidden",
+            }}
+        >
             <WorkspaceTabBar
                 active={activeTab}
                 onChange={onTabChange}
                 counts={tabCounts}
             />
-            <div className="v2-workspace-body">{children}</div>
-        </div>
+            <div style={{ padding: 16 }}>{children}</div>
+        </section>
     );
 }

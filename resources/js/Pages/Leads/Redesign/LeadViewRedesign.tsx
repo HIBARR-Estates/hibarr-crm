@@ -44,17 +44,18 @@ import NotesTab from "./components/workspace/tabs/NotesTab";
 import TasksTab from "./components/workspace/tabs/TasksTab";
 import MeetingsTab from "./components/workspace/tabs/MeetingsTab";
 import DealsTab from "./components/workspace/tabs/DealsTab";
-import FieldsTab from "./components/workspace/tabs/FieldsTab";
+import LeadInfoTab from "./components/workspace/tabs/LeadInfoTab";
 import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
+import TimelineTab from "./components/workspace/tabs/TimelineTab";
 import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
-import ActivitiesTab from "./components/workspace/tabs/ActivitiesTab";
 import TemplatePickerModal from "./components/qualification/TemplatePickerModal";
 import QualifyModal from "./components/qualification/QualifyModal";
 import AnswersReviewModal from "./components/qualification/AnswersReviewModal";
 import EditLeadDetailsModal from "./components/qualification/EditLeadDetailsModal";
 import CreateDealModal from "./components/dealCreate/CreateDealModal";
 import "@/Components/Redesign/redesign.css";
+import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "./lead-redesign.css";
 
 function WorkspaceDeferredSkeleton() {
@@ -114,7 +115,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         addTask,
     } = useLeadWorkspace();
 
-    const nav = useLeadViewNavigation();
+    const nav = useLeadViewNavigation(props.customFieldCategories);
 
     const lifecycle = useMemo(
         () => resolveLifecycle(lead, props.leadLifecycleStatuses),
@@ -319,7 +320,15 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     <OverviewTab
                         meetingTypes={props.meetingTypes ?? []}
                         taskBoardColumns={props.taskBoardColumns ?? []}
+                        permissions={{
+                            notes: props.notePermissions,
+                            tasks: props.taskPermissions ?? props.permissions,
+                            followUps: props.followUpPermissions,
+                        }}
                         onNavigateTab={nav.setTab}
+                        onAddNote={() => setAddNoteOpen(true)}
+                        onAddTask={() => setAddTaskOpen(true)}
+                        onAddMeeting={() => setAddMeetingOpen(true)}
                     />
                 );
             case "notes":
@@ -328,7 +337,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         {td("Loading notes…")}
                     </p>
                 ) : (
-                    <NotesTab />
+                    <NotesTab permissions={props.notePermissions} />
                 );
             case "tasks":
                 return tasksLoading ? (
@@ -336,7 +345,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         {td("Loading tasks…")}
                     </p>
                 ) : (
-                    <TasksTab taskBoardColumns={props.taskBoardColumns ?? []} />
+                    <TasksTab
+                        taskBoardColumns={props.taskBoardColumns ?? []}
+                        permissions={props.taskPermissions ?? props.permissions}
+                        onAddTask={() => setAddTaskOpen(true)}
+                    />
                 );
             case "meetings":
                 return leadFollowUpsLoading ? (
@@ -346,13 +359,12 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 ) : (
                     <MeetingsTab
                         meetingTypes={props.meetingTypes ?? []}
+                        permissions={props.followUpPermissions}
                         onMeetingCreated={() =>
                             router.reload({ only: ["leadFollowUps"] })
                         }
                     />
                 );
-            case "activities":
-                return <ActivitiesTab leadId={lead.id} leadName={lead.client_name} />;
             case "deals":
                 return (
                     <DealsTab
@@ -366,15 +378,27 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         }}
                     />
                 );
-            case "fields":
+            case "leadinfo":
                 return (
-                    <FieldsTab
+                    <LeadInfoTab
                         fields={props.fields}
                         customFieldCategories={props.customFieldCategories}
+                        activeSection={nav.infoSection}
+                        onSectionChange={nav.setInfoSection}
                     />
                 );
             case "itinerary":
-                return <ItineraryTab />;
+                return (
+                    <ItineraryTab onCreateDeal={() => setCreateDealOpen(true)} />
+                );
+            case "timeline":
+                return (
+                    <TimelineTab
+                        leadId={lead.id}
+                        leadName={lead.client_name}
+                        userId={page.props.auth?.user?.id}
+                    />
+                );
             case "files":
                 return <FilesTab />;
             case "marketing":

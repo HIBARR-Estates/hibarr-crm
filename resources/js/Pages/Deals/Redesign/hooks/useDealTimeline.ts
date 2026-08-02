@@ -8,14 +8,22 @@ import {
 } from "../adapters/timelineAdapter";
 
 // Controller normalizes model_type with stripslashes(); send escaped slashes.
-const DEAL_MODEL_TYPE = "App\\\\Models\\\\Deal";
+export const DEAL_TIMELINE_MODEL_TYPE = "App\\\\Models\\\\Deal";
+export const LEAD_TIMELINE_MODEL_TYPE = "App\\\\Models\\\\Lead";
 
 export interface DealTimelineDateRange {
     from: string;
     to: string;
 }
 
-export default function useDealTimeline(dealId: number) {
+/**
+ * CRM-event timeline for any entity. Deals pass DEAL_TIMELINE_MODEL_TYPE;
+ * Leads pass LEAD_TIMELINE_MODEL_TYPE — same list/filters/infinite-scroll UI.
+ */
+export default function useDealTimeline(
+    entityId: number,
+    modelType: string = DEAL_TIMELINE_MODEL_TYPE,
+) {
     const [filter, setFilter] = useState<TimelineFilter>("all");
     const [dateRange, setDateRange] = useState<DealTimelineDateRange | null>(
         null,
@@ -23,8 +31,8 @@ export default function useDealTimeline(dealId: number) {
 
     const queryParams = useMemo(
         () => ({
-            model_type: DEAL_MODEL_TYPE,
-            model_id: dealId,
+            model_type: modelType,
+            model_id: entityId,
             per_page: 50,
             sort_order: "desc" as const,
             page: 1,
@@ -35,7 +43,7 @@ export default function useDealTimeline(dealId: number) {
                 ? { date_from: dateRange.from, date_to: dateRange.to }
                 : {}),
         }),
-        [dateRange, dealId, filter],
+        [dateRange, entityId, filter, modelType],
     );
 
     const {

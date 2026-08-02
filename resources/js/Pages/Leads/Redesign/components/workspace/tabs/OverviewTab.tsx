@@ -1,104 +1,131 @@
-import { useMemo, useState, type ReactNode } from "react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
-import {
-    AddNoteModal,
-    AddTaskModal,
-    Button,
-    NoteDetailModal,
-    ScheduleMeetingModal,
-    TaskDetailModal,
-    MeetingDetailModal,
-} from "@/Components/Redesign";
-import { usePage } from "@inertiajs/react";
-import type { AddNoteFormState } from "@/Components/Redesign/modals/AddNoteModal";
-import type { AddTaskFormState } from "@/Components/Redesign/modals/AddTaskModal";
+import { ReactNode, useState } from "react";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { LeadNote } from "@/Types/api/lead-note";
 import type { Task } from "@/Types/api/tasks";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
-import {
-    buildEmptyMeetingForm,
-    type MeetingFormState,
-} from "@/Components/Redesign/meeting/meetingFormUtils";
-import { toLeadNotePreview } from "../../../adapters/noteAdapter";
-import { toLeadMeetingPreview } from "../../../adapters/meetingAdapter";
-import { toLeadTaskPreview } from "../../../adapters/taskAdapter";
+import useTranslation from "@/Hooks/useTranslation";
+import useWorkspaceOverview from "@/Pages/Deals/Redesign/hooks/useWorkspaceOverview";
+import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
+import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import DealDateBlock from "@/Pages/Deals/Redesign/components/primitives/DealDateBlock";
+import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
-import useLeadNoteCreate from "../../../hooks/useLeadNoteCreate";
-import useLeadTaskCreate from "../../../hooks/useLeadTaskCreate";
-import useLeadMeetingCreate from "../../../hooks/useLeadMeetingCreate";
 import useLeadTaskStatus from "../../../hooks/useLeadTaskStatus";
 import type { WorkspaceTabId } from "../../../types";
-import NoteCard from "../cards/NoteCard";
-import TaskCard from "../cards/TaskCard";
-import MeetingCard from "../cards/MeetingCard";
+import LeadNoteDetailModal from "../LeadNoteDetailModal";
+import LeadTaskDetailModal from "../LeadTaskDetailModal";
+import LeadMeetingDetailModal from "../LeadMeetingDetailModal";
 
-const PREVIEW_LIMIT = 3;
+interface LeadWorkspacePermissions {
+    notes?: Record<string, string>;
+    tasks?: Record<string, string>;
+    followUps?: Record<string, string>;
+}
 
 interface OverviewTabProps {
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
     taskBoardColumns: TaskboardColumn[];
+    permissions?: LeadWorkspacePermissions;
     onNavigateTab: (tab: WorkspaceTabId) => void;
+    onAddNote: () => void;
+    onAddTask: () => void;
+    onAddMeeting: () => void;
 }
 
-function OverviewSection({
+interface EmptyMeta {
+    icon: string;
+    title: string;
+    hint: string;
+    actionLabel: string;
+}
+
+function permAllowed(
+    permissions: Record<string, string> | undefined,
+    key: string,
+): boolean {
+    if (!permissions) return true;
+    return permissions[key] !== "none";
+}
+
+function OverviewColumn({
     title,
     count,
-    emptyTitle,
-    emptyHint,
-    actionLabel,
+    total,
     onAdd,
     onViewAll,
+    empty,
     isEmpty,
+    canAdd = true,
     children,
 }: {
     title: string;
     count: number;
-    emptyTitle: string;
-    emptyHint: string;
-    actionLabel: string;
+    total: number;
     onAdd: () => void;
     onViewAll: () => void;
+    empty: EmptyMeta;
     isEmpty: boolean;
+    canAdd?: boolean;
     children: ReactNode;
 }) {
+    const { t } = useTranslation();
     return (
-        <div className="border-r border-[#e2e5ea] p-4 last:border-r-0">
+        <div className="dr-ov-col">
             <div className="mb-2.5 flex items-center justify-between gap-2">
-                <span className="text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
-                    {title} · {count}
+                <span className="dr-label">
+                    {title} <span style={{ fontWeight: 400 }}>· {count}</span>
                 </span>
-                {!isEmpty && (
-                    <button
-                        type="button"
-                        className="v2-btn-link !px-0 !py-0 text-[#1a6bb5]"
+                {!isEmpty && canAdd && (
+                    <DealButton
+                        variant="ghost"
+                        size="sm"
                         onClick={onAdd}
+                        aria-label={`${t("pages.deals.workspace.overview.add")} - ${title}`}
                     >
-                        + Add
-                    </button>
+                        + {t("pages.deals.workspace.overview.add")}
+                    </DealButton>
                 )}
             </div>
-            {isEmpty ? (
-                <div className="rounded-[10px] border border-dashed border-[#e2e5ea] px-3 py-5 text-center">
-                    <p className="mb-1 text-[13px] font-semibold text-[#1a1f2e]">
-                        {emptyTitle}
-                    </p>
-                    <p className="mb-3 text-xs text-[#6b7280]">{emptyHint}</p>
-                    <Button variant="primary" onClick={onAdd}>
-                        + {actionLabel}
-                    </Button>
-                </div>
-            ) : (
-                children
-            )}
-            {count > 0 && (
+            <div className="flex-1">
+                {isEmpty ? (
+                    <div
+                        role="status"
+                        className="rounded-[10px] border border-dashed px-3.5 py-[22px] text-center"
+                        style={{ borderColor: T.BORDER, background: T.SURFACE }}
+                    >
+                        <div
+                            aria-hidden="true"
+                            className="mx-auto mb-2 flex h-[38px] w-[38px] items-center justify-center rounded-full"
+                            style={{ background: T.BLUE_LIGHT }}
+                        >
+                            <DealIcon name={empty.icon} size={17} color="#14538c" />
+                        </div>
+                        <div className="mb-[3px] text-[13px] font-semibold text-[#1a1f2e]">
+                            {empty.title}
+                        </div>
+                        <div className="mb-3 text-xs leading-relaxed text-[#5b6472]">
+                            {empty.hint}
+                        </div>
+                        {canAdd && (
+                            <DealButton variant="primary" onClick={onAdd}>
+                                + {empty.actionLabel}
+                            </DealButton>
+                        )}
+                    </div>
+                ) : (
+                    children
+                )}
+            </div>
+            {total > 0 && (
                 <button
                     type="button"
-                    className="mt-2 cursor-pointer border-none bg-transparent p-0 text-xs font-semibold text-[#1a6bb5]"
                     onClick={onViewAll}
+                    className="mt-2 cursor-pointer border-none bg-transparent px-0 py-1.5 text-left text-xs font-semibold"
+                    style={{ color: T.BLUE }}
                 >
-                    View all →
+                    {t("pages.deals.workspace.overview.view_all")} →
                 </button>
             )}
         </div>
@@ -108,314 +135,273 @@ function OverviewSection({
 export default function OverviewTab({
     meetingTypes,
     taskBoardColumns,
+    permissions,
     onNavigateTab,
+    onAddNote,
+    onAddTask,
+    onAddMeeting,
 }: OverviewTabProps) {
-    const { td } = useTd();
-    const { props } = usePage();
-    const { lead, notes, tasks, leadFollowUps, addNote, addTask } =
-        useLeadWorkspace();
-
-    const [noteModalOpen, setNoteModalOpen] = useState(false);
-    const [taskModalOpen, setTaskModalOpen] = useState(false);
-    const [meetingModalOpen, setMeetingModalOpen] = useState(false);
+    const { t } = useTranslation();
+    const { notes, tasks, leadFollowUps } = useLeadWorkspace();
+    const { setStatus, isPending } = useLeadTaskStatus();
     const [selectedNote, setSelectedNote] = useState<LeadNote | null>(null);
     const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-    const [selectedMeeting, setSelectedMeeting] =
-        useState<DealFollowup | null>(null);
+    const [selectedMeeting, setSelectedMeeting] = useState<DealFollowup | null>(
+        null,
+    );
 
-    const { createNote, isSaving: isSavingNote, errors: noteErrors } =
-        useLeadNoteCreate(lead.id);
-    const { createTask, isCreating: isCreatingTask, errors: taskErrors } =
-        useLeadTaskCreate(lead.id);
-    const {
-        createMeeting,
-        isCreating: isCreatingMeeting,
-        errors: meetingErrors,
-    } = useLeadMeetingCreate(lead);
-    const { setStatus, isPending } = useLeadTaskStatus();
+    const overview = useWorkspaceOverview({
+        notes: notes as Parameters<typeof useWorkspaceOverview>[0]["notes"],
+        tasks,
+        dealFollowUps: leadFollowUps,
+    });
 
-    const notePreviews = useMemo(
-        () => notes.slice(0, PREVIEW_LIMIT).map(toLeadNotePreview),
-        [notes],
-    );
-    const openTasks = useMemo(
-        () => tasks.filter((t) => toLeadTaskPreview(t).isOpen),
-        [tasks],
-    );
-    const taskPreviews = useMemo(
-        () => openTasks.slice(0, PREVIEW_LIMIT).map(toLeadTaskPreview),
-        [openTasks],
-    );
-    const meetingPreviews = useMemo(() => {
-        const sorted = [...leadFollowUps].sort((a, b) => {
-            const aTime = new Date(a.next_follow_up_date ?? 0).getTime();
-            const bTime = new Date(b.next_follow_up_date ?? 0).getTime();
-            return bTime - aTime;
-        });
-        return sorted.slice(0, PREVIEW_LIMIT).map(toLeadMeetingPreview);
-    }, [leadFollowUps]);
+    const notePerms = permissions?.notes;
+    const taskPerms = permissions?.tasks;
+    const followUpPerms = permissions?.followUps;
 
-    const meetingInitialForm = useMemo(
-        () => buildEmptyMeetingForm(null, props.auth?.user?.id),
-        [props.auth?.user?.id],
+    const canViewNotes = permAllowed(notePerms, "view_lead_note");
+    const canViewTasks = permAllowed(taskPerms, "view_tasks");
+    const canViewMeetings = permAllowed(followUpPerms, "view_lead_follow_up");
+    const canAddNote =
+        !notePerms || notePerms.add_lead_note !== "none";
+    const canAddTask = !taskPerms || taskPerms.add_tasks !== "none";
+    const canAddMeeting =
+        !followUpPerms || followUpPerms.add_lead_follow_up !== "none";
+
+    const topNotes = overview.notes.slice(0, 5);
+    const openTasks = overview.tasks.filter((task) => task.isOpen);
+    const topTasks = openTasks.slice(0, 5);
+    const upcomingMeetings = overview.meetings.filter(
+        (meeting) => meeting.isUpcoming,
     );
+    const topMeetings = upcomingMeetings.slice(0, 5);
+
+    const rawTask = (id: number) => tasks.find((task) => task.id === id) ?? null;
+    const rawNote = (id: number) => notes.find((note) => note.id === id) ?? null;
+    const rawMeeting = (id: number) =>
+        leadFollowUps.find((meeting) => meeting.id === id) ?? null;
 
     return (
-        <>
-            <div className="v2-overview-grid">
-                <OverviewSection
-                    title="Notes"
+        <div className="dr-overview">
+            {canViewNotes && (
+                <OverviewColumn
+                    canAdd={canAddNote}
+                    title={t("pages.deals.tabs.notes")}
                     count={notes.length}
-                    emptyTitle="No notes yet"
-                    emptyHint="Capture context from calls and conversations."
-                    actionLabel="Add note"
-                    onAdd={() => setNoteModalOpen(true)}
+                    total={notes.length}
+                    onAdd={onAddNote}
                     onViewAll={() => onNavigateTab("notes")}
-                    isEmpty={notes.length === 0}
+                    isEmpty={topNotes.length === 0}
+                    empty={{
+                        icon: "file-text",
+                        title: t("pages.deals.workspace.overview.notes_empty_title"),
+                        hint: t("pages.deals.workspace.overview.notes_empty_hint"),
+                        actionLabel: t("pages.deals.workspace.notes.add_note"),
+                    }}
                 >
-                    {notePreviews.map((note) => {
-                        const raw = notes.find((n) => n.id === note.id);
-                        return (
-                            <NoteCard
-                                key={note.id}
-                                note={note}
-                                onClick={() => raw && setSelectedNote(raw)}
-                            />
-                        );
-                    })}
-                </OverviewSection>
+                    {topNotes.map((note) => (
+                        <button
+                            key={note.id}
+                            type="button"
+                            className="dr-card dr-card-btn mb-2 w-full cursor-pointer text-left"
+                            style={{ padding: "10px 12px" }}
+                            onClick={() => setSelectedNote(rawNote(note.id))}
+                        >
+                            <div className="mb-1.5 flex items-center justify-between gap-2">
+                                <span className="flex min-w-0 items-center gap-1.5">
+                                    <DealAvatar size={20} initials={note.authorInitials} />
+                                    <span className="truncate text-xs font-semibold">
+                                        {note.title || note.authorName}
+                                    </span>
+                                </span>
+                                <span
+                                    className="shrink-0 text-[12px]"
+                                    style={{ color: T.TEXT_MUTED }}
+                                >
+                                    {note.timeLabel}
+                                </span>
+                            </div>
+                            <div
+                                className="dr-clamp-3 text-xs leading-relaxed"
+                                style={{ color: T.TEXT_MUTED }}
+                            >
+                                {note.body}
+                            </div>
+                        </button>
+                    ))}
+                </OverviewColumn>
+            )}
 
-                <OverviewSection
-                    title="Tasks"
+            {canViewTasks && (
+                <OverviewColumn
+                    canAdd={canAddTask}
+                    title={t("pages.deals.workspace.overview.open_tasks_col")}
                     count={openTasks.length}
-                    emptyTitle="No open tasks"
-                    emptyHint="Track follow-ups and action items for this lead."
-                    actionLabel="Create task"
-                    onAdd={() => setTaskModalOpen(true)}
+                    total={tasks.length}
+                    onAdd={onAddTask}
                     onViewAll={() => onNavigateTab("tasks")}
-                    isEmpty={openTasks.length === 0}
+                    isEmpty={topTasks.length === 0}
+                    empty={{
+                        icon: "check-square",
+                        title: t("pages.deals.workspace.overview.tasks_empty_title"),
+                        hint: t("pages.deals.workspace.overview.tasks_empty_hint"),
+                        actionLabel: t("pages.deals.workspace.tasks.add_task"),
+                    }}
                 >
-                    {taskPreviews.map((preview) => {
-                        const raw = tasks.find((t) => t.id === preview.id);
+                    {topTasks.map((task) => {
+                        const raw = rawTask(task.id);
+                        const overdue =
+                            task.dueDate != null &&
+                            task.dueDate.getTime() < Date.now() &&
+                            task.isOpen;
                         return (
-                            <TaskCard
-                                key={preview.id}
-                                task={preview}
-                                onClick={() => raw && setSelectedTask(raw)}
-                                statusControl={
-                                    raw ? (
-                                        <TaskStatusDropdownPill
-                                            status={
-                                                (
-                                                    raw as Task & {
-                                                        board_column?: {
-                                                            slug?: string;
-                                                        };
-                                                    }
-                                                ).board_column?.slug ||
-                                                raw.status ||
-                                                "to_do"
-                                            }
-                                            columns={taskBoardColumns}
-                                            onChange={(slug) =>
-                                                setStatus(raw.id, slug)
-                                            }
-                                            loading={isPending(raw.id)}
-                                            disabled={isPending(raw.id)}
-                                        />
-                                    ) : undefined
-                                }
-                            />
+                            <div
+                                key={task.id}
+                                className="dr-card mb-2 flex items-center gap-2"
+                                style={{ padding: "8px 10px" }}
+                            >
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedTask(raw)}
+                                    className="min-w-0 flex-1 cursor-pointer border-none bg-transparent px-0 py-1 text-left"
+                                >
+                                    <div className="text-xs font-semibold">{task.title}</div>
+                                    <div
+                                        className="mt-[3px] flex items-center gap-1 text-[12px]"
+                                        style={{
+                                            color: overdue ? T.RED : T.TEXT_MUTED,
+                                            fontWeight: overdue ? 600 : 400,
+                                        }}
+                                    >
+                                        <DealIcon name="calendar" size={11} />
+                                        {task.dueDateLabel || t("pages.deals.common.no_due_date")}
+                                        {overdue
+                                            ? ` · ${t("pages.deals.workspace.tasks.overdue")}`
+                                            : ""}
+                                    </div>
+                                </button>
+                                {raw && (
+                                    <TaskStatusDropdownPill
+                                        status={
+                                            (raw as Task & { board_column?: { slug?: string } })
+                                                .board_column?.slug ||
+                                            raw.status ||
+                                            "to_do"
+                                        }
+                                        columns={taskBoardColumns}
+                                        loading={isPending(raw.id)}
+                                        onChange={(slug) => setStatus(raw.id, slug)}
+                                    />
+                                )}
+                            </div>
                         );
                     })}
-                </OverviewSection>
+                </OverviewColumn>
+            )}
 
-                <OverviewSection
-                    title="Meetings"
-                    count={leadFollowUps.length}
-                    emptyTitle="No meetings scheduled"
-                    emptyHint="Book the next conversation with this lead."
-                    actionLabel="Schedule"
-                    onAdd={() => setMeetingModalOpen(true)}
+            {canViewMeetings && (
+                <OverviewColumn
+                    canAdd={canAddMeeting}
+                    title={t("pages.deals.workspace.overview.upcoming_meetings_col")}
+                    count={upcomingMeetings.length}
+                    total={leadFollowUps.length}
+                    onAdd={onAddMeeting}
                     onViewAll={() => onNavigateTab("meetings")}
-                    isEmpty={leadFollowUps.length === 0}
+                    isEmpty={topMeetings.length === 0}
+                    empty={{
+                        icon: "calendar",
+                        title: t("pages.deals.workspace.overview.meetings_empty_title"),
+                        hint: t("pages.deals.workspace.overview.meetings_empty_hint"),
+                        actionLabel: t("pages.deals.workspace.meetings.schedule"),
+                    }}
                 >
-                    {meetingPreviews.map((meeting) => {
-                        const raw = leadFollowUps.find(
-                            (m) => m.id === meeting.id,
-                        );
+                    {topMeetings.map((meeting) => {
+                        const raw = rawMeeting(meeting.id);
+                        const typeColor = raw?.meeting_type?.color || T.TEXT_MUTED;
                         return (
-                            <MeetingCard
+                            <div
                                 key={meeting.id}
-                                meeting={meeting}
-                                onClick={() => raw && setSelectedMeeting(raw)}
-                            />
+                                className="dr-card mb-2 flex gap-2.5"
+                                style={{ padding: "10px 12px" }}
+                            >
+                                <DealDateBlock
+                                    monthLabel={meeting.monthLabel}
+                                    dayLabel={meeting.dayLabel}
+                                    onClick={() => setSelectedMeeting(raw)}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setSelectedMeeting(raw)}
+                                    className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
+                                >
+                                    <span className="flex items-center gap-1.5">
+                                        <span
+                                            aria-hidden="true"
+                                            className="inline-block h-[7px] w-[7px] shrink-0 rounded-full"
+                                            style={{ background: typeColor }}
+                                        />
+                                        <span className="text-xs font-semibold">
+                                            {meeting.title}
+                                        </span>
+                                    </span>
+                                    <span
+                                        className="mt-[3px] block text-[12px]"
+                                        style={{ color: T.TEXT_MUTED }}
+                                    >
+                                        {meeting.timeLabel}
+                                    </span>
+                                    {meeting.attendeesLabel && (
+                                        <span
+                                            className="mt-[3px] flex items-center gap-1 text-[12px]"
+                                            style={{ color: T.TEXT_MUTED }}
+                                        >
+                                            <DealIcon name="users" size={11} />
+                                            {meeting.attendeesLabel}
+                                        </span>
+                                    )}
+                                </button>
+                                {meeting.locationType === "video" &&
+                                    meeting.status === "scheduled" && (
+                                        <DealButton
+                                            variant="primary"
+                                            size="sm"
+                                            className="self-start"
+                                            onClick={(event) => {
+                                                event.stopPropagation();
+                                                window.open(
+                                                    meeting.location,
+                                                    "_blank",
+                                                    "noopener,noreferrer",
+                                                );
+                                            }}
+                                        >
+                                            <DealIcon name="video" size={12} />
+                                            {t("pages.deals.workspace.overview.join")}
+                                        </DealButton>
+                                    )}
+                            </div>
                         );
                     })}
-                </OverviewSection>
-            </div>
+                </OverviewColumn>
+            )}
 
-            <AddNoteModal
-                open={noteModalOpen}
-                onClose={() => setNoteModalOpen(false)}
-                saving={isSavingNote}
-                errors={noteErrors}
-                onSubmit={(form: AddNoteFormState) =>
-                    createNote({ text: form.text || form.title }, (note) => {
-                        addNote(note);
-                        setNoteModalOpen(false);
-                    })
-                }
-                labels={{
-                    title: td("Add note"),
-                    cancel: td("Cancel"),
-                    submit: td("Save note"),
-                    titleField: td("Title"),
-                    titlePlaceholder: td("Optional title"),
-                    detailsField: td("Details"),
-                    bodyPlaceholder: td("Write your note…"),
-                }}
-            />
-
-            <AddTaskModal
-                open={taskModalOpen}
-                onClose={() => setTaskModalOpen(false)}
-                saving={isCreatingTask}
-                errors={taskErrors}
-                defaultAssigneeUserId={lead.lead_owner?.id}
-                onSubmit={(form: AddTaskFormState) =>
-                    createTask(form, (task) => {
-                        if (task) addTask(task);
-                        setTaskModalOpen(false);
-                    })
-                }
-                labels={{
-                    title: td("Create task"),
-                    cancel: td("Cancel"),
-                    submit: td("Create task"),
-                    titleField: td("Title"),
-                    titlePlaceholder: td("What needs to be done?"),
-                    description: td("Description"),
-                    descriptionPlaceholder: td("Optional details"),
-                    startDate: td("Start date"),
-                    dueDate: td("Due date"),
-                    dueTime: td("Due time"),
-                    priority: td("Priority"),
-                    priorityHigh: td("High"),
-                    priorityMedium: td("Medium"),
-                    priorityLow: td("Low"),
-                    assignees: td("Assignees"),
-                    dateRangeError: td("Due date must be on or after start date"),
-                }}
-            />
-
-            <ScheduleMeetingModal
-                open={meetingModalOpen}
-                onClose={() => setMeetingModalOpen(false)}
-                saving={isCreatingMeeting}
-                errors={meetingErrors}
-                meetingTypes={meetingTypes}
-                initialForm={meetingInitialForm}
-                onSubmit={(form: MeetingFormState) =>
-                    createMeeting(
-                        {
-                            meetingTypeId: form.meetingTypeId,
-                            date: form.date,
-                            startTime: form.startTime,
-                            endTime: form.endTime,
-                            duration: form.duration,
-                            platform: form.platform,
-                            meetingLink: form.meetingLink,
-                            participants: form.participants,
-                            remark: form.remark,
-                            reminders: form.reminders,
-                        },
-                        () => setMeetingModalOpen(false),
-                    )
-                }
-                labels={{
-                    title: td("Schedule meeting"),
-                    cancel: td("Cancel"),
-                    submit: td("Schedule"),
-                }}
-            />
-
-            <NoteDetailModal
+            <LeadNoteDetailModal
                 note={selectedNote}
+                permissions={notePerms}
                 onClose={() => setSelectedNote(null)}
-                canEdit={false}
-                canDelete={false}
-                isUpdating={false}
-                isDeleting={false}
-                onUpdate={() => {}}
-                onDelete={() => {}}
-                labels={{
-                    viewTitle: td("Note"),
-                    editTitle: td("Edit note"),
-                    cancel: td("Cancel"),
-                    save: td("Save"),
-                    delete: td("Delete"),
-                    edit: td("Edit"),
-                    titleField: td("Title"),
-                    detailsField: td("Details"),
-                    editedTag: td("Edited"),
-                    unknownAuthor: td("Unknown"),
-                    deleteConfirmTitle: td("Delete note?"),
-                    deleteConfirmMessage: td("This cannot be undone."),
-                    deleteConfirmLabel: td("Delete"),
-                }}
             />
-
-            <TaskDetailModal
+            <LeadTaskDetailModal
                 task={selectedTask}
-                onClose={() => setSelectedTask(null)}
                 taskBoardColumns={taskBoardColumns}
-                canWrite={false}
-                isStatusPending={
-                    selectedTask ? isPending(selectedTask.id) : false
-                }
-                isUpdating={false}
-                errors={[]}
-                clearErrors={() => {}}
-                onUpdate={() => {}}
-                onStatusChange={(slug) =>
-                    selectedTask && setStatus(selectedTask.id, slug)
-                }
-                labels={{
-                    viewTitle: td("Task"),
-                    editTitle: td("Edit task"),
-                    cancel: td("Cancel"),
-                    save: td("Save"),
-                    delete: td("Delete"),
-                    edit: td("Edit"),
-                    titleField: td("Title"),
-                    description: td("Description"),
-                    descriptionPlaceholder: td("Optional details"),
-                    startDate: td("Start date"),
-                    dueDate: td("Due date"),
-                    dueTime: td("Due time"),
-                    priority: td("Priority"),
-                    priorityHigh: td("High"),
-                    priorityMedium: td("Medium"),
-                    priorityLow: td("Low"),
-                    assignees: td("Assignees"),
-                    overdue: td("Overdue"),
-                    noDescription: td("No description"),
-                    unassigned: td("Unassigned"),
-                    dateRangeError: td(
-                        "Due date must be on or after start date",
-                    ),
-                }}
+                onClose={() => setSelectedTask(null)}
             />
-
-            <MeetingDetailModal
+            <LeadMeetingDetailModal
                 meeting={selectedMeeting}
-                canEdit={false}
-                canDelete={false}
+                meetingTypes={meetingTypes}
+                permissions={followUpPerms}
                 onClose={() => setSelectedMeeting(null)}
-                isUpdating={false}
-                onCancelMeeting={() => {}}
             />
-        </>
+        </div>
     );
 }

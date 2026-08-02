@@ -1,18 +1,26 @@
 import useIsAdminRole from "@/Hooks/useIsAdminRole";
-import useDealTimeline from "../../hooks/useDealTimeline";
+import useDealTimeline, {
+    DEAL_TIMELINE_MODEL_TYPE,
+} from "../../hooks/useDealTimeline";
 import DealTimelineEventList from "../timeline/DealTimelineEventList";
 import DealTimelineFilters from "../timeline/DealTimelineFilters";
 
 interface TimelineTabProps {
+    /** Entity id (deal or lead). */
     dealId: number;
     dealName?: string;
     userId?: number;
+    /**
+     * Escaped Eloquent type for /api/v1/crm-events.
+     * Defaults to Deal; Leads pass LEAD_TIMELINE_MODEL_TYPE.
+     */
+    modelType?: string;
 }
 
 export default function TimelineTab({
     dealId,
-    dealName,
     userId,
+    modelType = DEAL_TIMELINE_MODEL_TYPE,
 }: TimelineTabProps) {
     // Editing/deleting agent-logged events is admin-only, mirroring the
     // backend gate in CrmEventController@update/@destroy (hasRole('admin')).
@@ -30,12 +38,15 @@ export default function TimelineTab({
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-    } = useDealTimeline(dealId);
+    } = useDealTimeline(dealId, modelType);
+
+    // LogActionModal / filters still take dealId naming — same numeric id.
+    const entityId = dealId;
 
     return (
         <div className="w-full">
             <DealTimelineFilters
-                dealId={dealId}
+                dealId={entityId}
                 userId={userId}
                 filter={filter}
                 onFilterChange={setFilter}
@@ -43,6 +54,11 @@ export default function TimelineTab({
                 onDateRangeChange={setDateRange}
                 isRefetching={isRefetching}
                 onRefresh={() => refetch()}
+                modelType={
+                    modelType.includes("Lead")
+                        ? "App\\Models\\Lead"
+                        : "App\\Models\\Deal"
+                }
             />
 
             <DealTimelineEventList

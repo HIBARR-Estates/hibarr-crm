@@ -7,18 +7,24 @@ import {
 export const LEAD_REDESIGN_TOKENS = REDESIGN_TOKENS;
 export const LEAD_REDESIGN_FONT_STACK = REDESIGN_FONT_STACK;
 
-/** Workspace tab ids — 9 mockup tabs + marketing appended. */
-export type WorkspaceTabId =
+/** Record tabs — same order as Deals, plus lead-only deals/marketing. */
+export type LeadRecordTab =
     | "overview"
     | "notes"
     | "tasks"
     | "meetings"
-    | "deals"
-    | "fields"
-    | "itinerary"
     | "files"
-    | "activities"
+    | "deals"
+    | "itinerary"
     | "marketing";
+
+/** Meta tabs — match Deals' dealinfo/timeline split (past the divider). */
+export type LeadMetaTab = "leadinfo" | "timeline";
+
+export type WorkspaceTabId = LeadRecordTab | LeadMetaTab;
+
+/** Lead-info sidebar section — category panels + optional core. */
+export type LeadInfoSectionId = `category-${number}` | "general";
 
 export type DossierSectionId =
     | "contact"
@@ -45,3 +51,12 @@ export type LeadMissionCtaAction =
     | null;
 
 export type LeadRedesignProps = LeadShowProps;
+
+export interface LeadTabCount {
+    notes?: number;
+    tasks?: number;
+    meetings?: number;
+    files?: number;
+    deals?: number;
+    itinerary?: number;
+}

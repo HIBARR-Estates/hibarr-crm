@@ -389,7 +389,7 @@
     border-radius: 12px;
     overflow: hidden;
     background: var(--lr-surface);
-    margin-bottom: 16px;
+    margin: 16px 0;
 }
 
 .lead-redesign .v2-quick-stat {

@@ -1,189 +1,645 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import {
-    AddTaskModal,
-    Button,
-    EmptyState,
-    Icon,
-    TaskDetailModal,
-} from "@/Components/Redesign";
-import type { AddTaskFormState } from "@/Components/Redesign/modals/AddTaskModal";
-import type { Task } from "@/Types/api/tasks";
+import useTranslation from "@/Hooks/useTranslation";
+import { isCompletedColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskStatusDropdownPill from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
-import { toLeadTaskPreview } from "../../../adapters/taskAdapter";
+import { useApiMutate } from "@/lib/api/client";
+import type { ApiResponse } from "@/lib/api/types";
+import { isLoading } from "@/lib/utils";
+import type { Task } from "@/Types/api/tasks";
+import {
+    toWorkspaceTaskListItem,
+    type WorkspaceTaskListItem,
+} from "@/Pages/Deals/Redesign/adapters/taskAdapter";
+import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
+import DealBulkActionBar from "@/Pages/Deals/Redesign/components/primitives/DealBulkActionBar";
+import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
+import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import DealMenuSelect from "@/Pages/Deals/Redesign/components/primitives/DealMenuSelect";
+import DealPeoplePicker, {
+    type DealPersonOption,
+} from "@/Pages/Deals/Redesign/components/primitives/DealPeoplePicker";
+import DealSelectCheckbox from "@/Pages/Deals/Redesign/components/primitives/DealSelectCheckbox";
+import DealPriorityBadge from "@/Pages/Deals/Redesign/components/primitives/DealPriorityBadge";
+import useFloatingMenuPosition from "@/Pages/Deals/Redesign/hooks/useFloatingMenuPosition";
+import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
-import useLeadTaskCreate from "../../../hooks/useLeadTaskCreate";
 import useLeadTaskStatus from "../../../hooks/useLeadTaskStatus";
-import TaskCard from "../cards/TaskCard";
+import LeadTaskDetailModal from "../LeadTaskDetailModal";
 
 type TaskFilter = "open" | "done" | "all";
 
-interface TasksTabProps {
-    taskBoardColumns: TaskboardColumn[];
+interface EmployeeRecord {
+    id: number;
+    name: string;
+    designation_name?: string;
 }
 
-export default function TasksTab({ taskBoardColumns }: TasksTabProps) {
-    const { td } = useTd();
-    const { lead, tasks, addTask } = useLeadWorkspace();
-    const [filter, setFilter] = useState<TaskFilter>("open");
-    const [modalOpen, setModalOpen] = useState(false);
-    const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+function BulkReassignButton({
+    people,
+    disabled,
+    onPick,
+}: {
+    people: DealPersonOption[];
+    disabled: boolean;
+    onPick: (userId: number) => void;
+}) {
+    const { t } = useTranslation();
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const floatStyle = useFloatingMenuPosition(open, btnRef, {
+        align: "left",
+        maxHeight: 300,
+    });
 
-    const { createTask, isCreating, errors, clearErrors } = useLeadTaskCreate(
-        lead.id,
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDoc = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (btnRef.current?.contains(target)) return;
+            if (menuRef.current?.contains(target)) return;
+            setOpen(false);
+        };
+        const onKey = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setOpen(false);
+        };
+        document.addEventListener("mousedown", onDoc);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("mousedown", onDoc);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [open]);
+
+    return (
+        <div style={{ display: "inline-flex" }}>
+            <button
+                ref={btnRef}
+                type="button"
+                className="dr-btn dr-btn-sm"
+                style={{ background: T.WHITE, color: T.NAVY }}
+                disabled={disabled}
+                aria-haspopup="dialog"
+                aria-expanded={open}
+                onClick={() => setOpen((v) => !v)}
+            >
+                {t("pages.deals.workspace.tasks.reassign_to")}
+            </button>
+            {open &&
+                floatStyle &&
+                typeof document !== "undefined" &&
+                createPortal(
+                    <div
+                        ref={menuRef}
+                        className="dr-menu"
+                        role="dialog"
+                        aria-label={t("pages.deals.workspace.tasks.reassign_to")}
+                        style={{ ...floatStyle, minWidth: 240, padding: 8 }}
+                    >
+                        <DealPeoplePicker
+                            people={people}
+                            autoFocus
+                            onPick={(person) => {
+                                setOpen(false);
+                                onPick(person.id);
+                            }}
+                        />
+                    </div>,
+                    document.body,
+                )}
+        </div>
     );
-    const { setStatus, isPending } = useLeadTaskStatus();
+}
 
-    const filteredTasks = useMemo(() => {
-        const withPreview = tasks.map((task) => ({
-            task,
-            preview: toLeadTaskPreview(task),
-        }));
-        if (filter === "all") return withPreview;
-        if (filter === "open") {
-            return withPreview.filter(({ preview }) => preview.isOpen);
-        }
-        return withPreview.filter(({ preview }) => !preview.isOpen);
-    }, [filter, tasks]);
+interface TasksTabProps {
+    taskBoardColumns: TaskboardColumn[];
+    permissions?: Record<string, string>;
+    onAddTask?: () => void;
+}
+
+function canAddTasks(permissions?: Record<string, string>): boolean {
+    if (!permissions) return true;
+    const permission = permissions.add_tasks;
+    return (
+        permission === "all" ||
+        permission === "added" ||
+        permission === "both"
+    );
+}
+
+function AssigneeStack({
+    people,
+    size = 18,
+    max = 3,
+}: {
+    people: Array<{ id: number; name: string; initials: string }>;
+    size?: number;
+    max?: number;
+}) {
+    if (!people.length) return null;
+    const shown = people.slice(0, max);
+    const overflow = people.length - shown.length;
+    return (
+        <span
+            className="inline-flex items-center"
+            title={people.map((person) => person.name).join(", ")}
+        >
+            {shown.map((person, index) => (
+                <span
+                    key={person.id}
+                    className="flex rounded-full"
+                    style={{
+                        marginLeft: index === 0 ? 0 : -6,
+                        border: `2px solid ${T.WHITE}`,
+                    }}
+                >
+                    <DealAvatar size={size} initials={person.initials} />
+                </span>
+            ))}
+            {overflow > 0 && (
+                <span
+                    className="flex shrink-0 items-center justify-center rounded-full font-bold"
+                    style={{
+                        marginLeft: -6,
+                        width: size,
+                        height: size,
+                        border: `2px solid ${T.WHITE}`,
+                        background: T.BORDER,
+                        color: T.TEXT_MUTED,
+                        fontSize: Math.max(9, size * 0.4),
+                    }}
+                >
+                    +{overflow}
+                </span>
+            )}
+        </span>
+    );
+}
+
+function taskStatusSlug(task: Task): string {
+    return (
+        (task as Task & { board_column?: { slug?: string } }).board_column
+            ?.slug ||
+        task.status ||
+        "to_do"
+    );
+}
+
+function isTaskDone(
+    task: Task,
+    taskBoardColumns: TaskboardColumn[],
+): boolean {
+    const status = taskStatusSlug(task);
+    return (
+        isCompletedColumn(status, taskBoardColumns) || Boolean(task.completed_on)
+    );
+}
+
+function filterTasks(
+    items: WorkspaceTaskListItem[],
+    rawTasks: Task[],
+    taskBoardColumns: TaskboardColumn[],
+    filter: TaskFilter,
+): WorkspaceTaskListItem[] {
+    return items.filter((item) => {
+        const rawTask = rawTasks.find((task) => task.id === item.id);
+        if (!rawTask) return filter === "all";
+
+        const done = isTaskDone(rawTask, taskBoardColumns);
+        if (filter === "open") return !done;
+        if (filter === "done") return done;
+        return true;
+    });
+}
+
+export default function TasksTab({
+    taskBoardColumns,
+    permissions,
+    onAddTask,
+}: TasksTabProps) {
+    const { td } = useTd();
+    const { t } = useTranslation();
+    const { props } = usePage();
+    const employees = (props as { employees?: EmployeeRecord[] }).employees;
+    const [filter, setFilter] = useState<TaskFilter>("open");
+    const [selectMode, setSelectMode] = useState(false);
+    const [selected, setSelected] = useState<Set<number>>(() => new Set());
+    const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
+    const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+    const { setStatus, isPending } = useLeadTaskStatus();
+    const { tasks, setTasks } = useLeadWorkspace();
+    const selectedTask =
+        tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+    const employeeOptions: DealPersonOption[] = useMemo(
+        () =>
+            (employees ?? []).map((employee) => ({
+                id: employee.id,
+                name: employee.name,
+                designation: employee.designation_name,
+            })),
+        [employees],
+    );
+
+    const { mutate: applyBulkAction, status: bulkActionStatus } = useApiMutate<
+        {
+            row_ids: string;
+            action_type: string;
+            status?: number;
+            user_id?: number[];
+        },
+        unknown,
+        ApiResponse<unknown>
+    >("/account/tasks/apply-quick-action", "POST");
+    const isBulkActing = isLoading({ status: bulkActionStatus });
+
+    const canBulkReassign =
+        (!permissions || permissions.edit_tasks === "all") &&
+        employeeOptions.length > 0;
+
+    const taskItems = useMemo(
+        () => tasks.map((task) => toWorkspaceTaskListItem(task)),
+        [tasks],
+    );
+
+    const filteredTasks = useMemo(
+        () => filterTasks(taskItems, tasks, taskBoardColumns, filter),
+        [filter, taskBoardColumns, taskItems, tasks],
+    );
+
+    const filterLabels: Record<TaskFilter, string> = {
+        open: t("pages.deals.workspace.tasks.filter_open"),
+        done: t("pages.deals.workspace.tasks.filter_done"),
+        all: t("pages.deals.workspace.tasks.filter_all"),
+    };
+
+    const showAddTask = canAddTasks(permissions) && Boolean(onAddTask);
+    const canBulkDelete = !permissions || permissions.delete_tasks === "all";
+    const showSelectMode = true;
+
+    const exitSelectMode = () => {
+        setSelectMode(false);
+        setSelected(new Set());
+    };
+
+    const toggleSelect = (taskId: number) => {
+        setSelected((prev) => {
+            const next = new Set(prev);
+            if (next.has(taskId)) next.delete(taskId);
+            else next.add(taskId);
+            return next;
+        });
+    };
+
+    const allSelected =
+        filteredTasks.length > 0 &&
+        filteredTasks.every((task) => selected.has(task.id));
+    const toggleSelectAll = () =>
+        setSelected(
+            allSelected
+                ? new Set()
+                : new Set(filteredTasks.map((task) => task.id)),
+        );
+
+    const handleBulkStatusChange = (columnId: number) => {
+        const column = taskBoardColumns.find((c) => c.id === columnId);
+        if (!column) return;
+        const ids = Array.from(selected);
+        applyBulkAction(
+            { row_ids: ids.join(","), action_type: "change-status", status: columnId },
+            {
+                onSuccess: () => {
+                    setTasks((prev) =>
+                        prev.map((task) =>
+                            ids.includes(task.id)
+                                ? ({
+                                      ...task,
+                                      status: column.slug,
+                                      board_column: column,
+                                      completed_on:
+                                          column.slug === "done"
+                                              ? new Date()
+                                                    .toISOString()
+                                                    .slice(0, 10)
+                                              : undefined,
+                                  } as Task)
+                                : task,
+                        ),
+                    );
+                    exitSelectMode();
+                },
+            },
+        );
+    };
+
+    const handleBulkReassign = (userId: number) => {
+        const ids = Array.from(selected);
+        const assignee = employees?.find(
+            (employee) => employee.id === userId,
+        );
+        applyBulkAction(
+            {
+                row_ids: ids.join(","),
+                action_type: "change-assignee",
+                user_id: [userId],
+            },
+            {
+                onSuccess: () => {
+                    setTasks((prev) =>
+                        prev.map((task) =>
+                            ids.includes(task.id)
+                                ? ({
+                                      ...task,
+                                      users: assignee
+                                          ? [
+                                                {
+                                                    id: assignee.id,
+                                                    name: assignee.name,
+                                                },
+                                            ]
+                                          : [],
+                                  } as Task)
+                                : task,
+                        ),
+                    );
+                    exitSelectMode();
+                },
+            },
+        );
+    };
+
+    const handleBulkDelete = () => {
+        const ids = Array.from(selected);
+        applyBulkAction(
+            { row_ids: ids.join(","), action_type: "delete" },
+            {
+                onSuccess: () => {
+                    setTasks((prev) =>
+                        prev.filter((task) => !ids.includes(task.id)),
+                    );
+                    setConfirmBulkDelete(false);
+                    exitSelectMode();
+                },
+            },
+        );
+    };
 
     return (
         <div>
-            <div className="mb-4 flex flex-wrap items-center gap-2">
-                {(["open", "done", "all"] as TaskFilter[]).map((key) => (
-                    <button
-                        key={key}
-                        type="button"
-                        className={`rounded-full border px-2.5 py-1 text-xs capitalize${
-                            filter === key
-                                ? " border-[#16294d] bg-[#16294d] font-medium text-white"
-                                : " border-[#e2e5ea] bg-white text-[#6b7280]"
-                        }`}
-                        onClick={() => setFilter(key)}
-                    >
-                        {key}
-                    </button>
-                ))}
-                <div className="ml-auto">
-                    <Button
-                        variant="primary"
-                        icon={<Icon name="plus" size={14} />}
-                        onClick={() => {
-                            clearErrors();
-                            setModalOpen(true);
-                        }}
-                    >
-                        {td("Create task")}
-                    </Button>
+            <div className="mb-3.5 flex items-center justify-between gap-3">
+                <div
+                    className="flex gap-1"
+                    role="group"
+                    aria-label={t("pages.deals.workspace.tasks.filter_aria_label")}
+                >
+                    {(["open", "done", "all"] as const).map((option) => (
+                        <button
+                            key={option}
+                            type="button"
+                            className="dr-filter"
+                            aria-pressed={filter === option}
+                            onClick={() => setFilter(option)}
+                        >
+                            {filterLabels[option]}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="flex gap-1.5">
+                    {showSelectMode && (
+                        <DealButton
+                            variant="ghost"
+                            onClick={() =>
+                                selectMode
+                                    ? exitSelectMode()
+                                    : setSelectMode(true)
+                            }
+                        >
+                            {selectMode
+                                ? t("pages.deals.common.cancel")
+                                : t("pages.deals.common.select")}
+                        </DealButton>
+                    )}
+                    {showAddTask && onAddTask && (
+                        <DealButton variant="primary" size="sm" onClick={onAddTask}>
+                            + {t("pages.deals.workspace.tasks.add_task")}
+                        </DealButton>
+                    )}
                 </div>
             </div>
 
-            {filteredTasks.length === 0 ? (
-                <EmptyState
-                    title={td("No tasks")}
-                    description={td(
-                        "Create a task to track follow-ups for this lead.",
-                    )}
-                />
-            ) : (
-                filteredTasks.map(({ task, preview }) => (
-                    <TaskCard
-                        key={task.id}
-                        task={preview}
-                        onClick={() => setSelectedTask(task)}
-                        statusControl={
-                            <TaskStatusDropdownPill
-                                status={
-                                    (
-                                        task as Task & {
-                                            board_column?: { slug?: string };
-                                        }
-                                    ).board_column?.slug ||
-                                    task.status ||
-                                    "to_do"
-                                }
-                                columns={taskBoardColumns}
-                                onChange={(slug) => setStatus(task.id, slug)}
-                                loading={isPending(task.id)}
-                                disabled={isPending(task.id)}
-                            />
-                        }
+            {selectMode && (
+                <DealBulkActionBar
+                    count={selected.size}
+                    onClear={() => setSelected(new Set())}
+                    clearLabel={t("pages.deals.common.clear")}
+                >
+                    <button
+                        type="button"
+                        className="dr-btn dr-btn-sm"
+                        style={{ background: T.WHITE, color: T.NAVY }}
+                        onClick={toggleSelectAll}
+                    >
+                        {allSelected
+                            ? t("pages.deals.common.deselect_all")
+                            : t("pages.deals.common.select_all")}
+                    </button>
+                    <DealMenuSelect
+                        value={null}
+                        placeholder={t("pages.deals.workspace.tasks.set_status_placeholder")}
+                        size="sm"
+                        disabled={!selected.size || isBulkActing}
+                        width={140}
+                        triggerClassName="dr-btn dr-btn-sm"
+                        triggerStyle={{ background: T.WHITE, color: T.NAVY, border: "none" }}
+                        options={taskBoardColumns
+                            .slice()
+                            .sort((a, b) => a.priority - b.priority)
+                            .map((column) => ({
+                                value: column.id,
+                                label: td(column.column_name),
+                            }))}
+                        onChange={(value) => handleBulkStatusChange(Number(value))}
                     />
-                ))
+                    {canBulkReassign && (
+                        <BulkReassignButton
+                            people={employeeOptions}
+                            disabled={!selected.size || isBulkActing}
+                            onPick={handleBulkReassign}
+                        />
+                    )}
+                    {canBulkDelete && (
+                        <button
+                            type="button"
+                            className="dr-btn dr-btn-sm"
+                            style={{ background: T.RED, color: T.WHITE }}
+                            disabled={!selected.size || isBulkActing}
+                            onClick={() => setConfirmBulkDelete(true)}
+                        >
+                            {t("pages.deals.common.delete")}
+                        </button>
+                    )}
+                </DealBulkActionBar>
             )}
 
-            <AddTaskModal
-                open={modalOpen}
-                onClose={() => setModalOpen(false)}
-                saving={isCreating}
-                errors={errors}
-                defaultAssigneeUserId={lead.lead_owner?.id}
-                onSubmit={(form: AddTaskFormState) =>
-                    createTask(form, (task) => {
-                        if (task) addTask(task);
-                        setModalOpen(false);
-                    })
-                }
-                labels={{
-                    title: td("Create task"),
-                    cancel: td("Cancel"),
-                    submit: td("Create task"),
-                    titleField: td("Title"),
-                    titlePlaceholder: td("What needs to be done?"),
-                    description: td("Description"),
-                    descriptionPlaceholder: td("Optional details"),
-                    startDate: td("Start date"),
-                    dueDate: td("Due date"),
-                    dueTime: td("Due time"),
-                    priority: td("Priority"),
-                    priorityHigh: td("High"),
-                    priorityMedium: td("Medium"),
-                    priorityLow: td("Low"),
-                    assignees: td("Assignees"),
-                    dateRangeError: td("Due date must be on or after start date"),
-                }}
+            {filteredTasks.length === 0 ? (
+                <div className="rounded-lg border border-[#e2e5ea] bg-white px-5 py-9 text-center">
+                    <DealIcon
+                        name="check-square"
+                        size={28}
+                        color={T.TEXT_HINT}
+                        className="mx-auto mb-2 opacity-50"
+                    />
+                    <p className="mb-3 text-[13px] text-[#5b6472]">
+                        {t("pages.deals.workspace.tasks.no_items_prefix")} {filterLabels[filter]}{" "}
+                        {t("pages.deals.workspace.tasks.tasks_label")}
+                    </p>
+                    {showAddTask && onAddTask && (
+                        <DealButton variant="primary" size="sm" onClick={onAddTask}>
+                            + {t("pages.deals.workspace.tasks.add_task")}
+                        </DealButton>
+                    )}
+                </div>
+            ) : (
+                filteredTasks.map((task) => {
+                    const rawTask = tasks.find((item) => item.id === task.id);
+                    const done = rawTask
+                        ? isTaskDone(rawTask, taskBoardColumns)
+                        : !task.isOpen;
+                    const statusSlug = rawTask ? taskStatusSlug(rawTask) : "to_do";
+                    const overdue =
+                        !done &&
+                        task.dueDate != null &&
+                        task.dueDate.getTime() < Date.now();
+
+                    return (
+                        <article
+                            key={task.id}
+                            className="mb-2 flex flex-wrap items-start gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-3 last:mb-0"
+                            style={{ opacity: done ? 0.65 : 1 }}
+                        >
+                            {selectMode && (
+                                <div className="pt-0.5">
+                                    <DealSelectCheckbox
+                                        checked={selected.has(task.id)}
+                                        onChange={() => toggleSelect(task.id)}
+                                        label={`Select task ${task.title}`}
+                                    />
+                                </div>
+                            )}
+
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    selectMode
+                                        ? toggleSelect(task.id)
+                                        : setSelectedTaskId(task.id)
+                                }
+                                aria-label={
+                                    selectMode
+                                        ? `Select task ${task.title}`
+                                        : `Open task — ${task.title}`
+                                }
+                                className="min-w-0 flex-1 cursor-pointer border-none bg-transparent p-0 text-left"
+                            >
+                                <div className="mb-1 flex items-start justify-between gap-2">
+                                    <span
+                                        className="min-w-0 flex-1 truncate text-[13px] font-semibold text-[#1a1f2e]"
+                                        style={{
+                                            textDecoration: done
+                                                ? "line-through"
+                                                : "none",
+                                        }}
+                                    >
+                                        {task.title}
+                                    </span>
+                                    <DealPriorityBadge
+                                        priority={task.priority}
+                                    />
+                                </div>
+                                {task.descriptionText && (
+                                    <div
+                                        className="mb-1.5 text-xs leading-normal break-words"
+                                        style={{
+                                            color: T.TEXT_MUTED,
+                                            overflowWrap: "break-word",
+                                            wordBreak: "break-word",
+                                        }}
+                                    >
+                                        {task.descriptionText}
+                                    </div>
+                                )}
+
+                                <div className="flex flex-wrap items-center gap-2.5 text-xs text-[#5b6472]">
+                                    {task.dueDateLabel && (
+                                        <span
+                                            className="inline-flex items-center gap-1"
+                                            style={{
+                                                color: overdue
+                                                    ? T.RED
+                                                    : T.TEXT_MUTED,
+                                                fontWeight: overdue ? 600 : 400,
+                                            }}
+                                        >
+                                            <DealIcon name="calendar" size={11} />
+                                            {task.dueDateLabel}
+                                            {overdue &&
+                                                ` · ${t("pages.deals.workspace.tasks.overdue")}`}
+                                        </span>
+                                    )}
+                                    {task.assignees.length > 0 && (
+                                        <span className="inline-flex items-center gap-1.5">
+                                            <AssigneeStack
+                                                people={task.assignees}
+                                            />
+                                            {task.assignees.length === 1
+                                                ? task.assignees[0].name
+                                                : `${task.assignees.length} ${t(
+                                                      "pages.deals.workspace.tasks.assignees_label",
+                                                  )}`}
+                                        </span>
+                                    )}
+                                </div>
+                            </button>
+
+                            <div className="shrink-0">
+                                <TaskStatusDropdownPill
+                                    status={statusSlug}
+                                    columns={taskBoardColumns}
+                                    disabled={selectMode}
+                                    loading={isPending(task.id)}
+                                    onChange={(slug) => setStatus(task.id, slug)}
+                                />
+                            </div>
+                        </article>
+                    );
+                })
+            )}
+
+            <LeadTaskDetailModal
+                task={selectedTask}
+                taskBoardColumns={taskBoardColumns}
+                onClose={() => setSelectedTaskId(null)}
             />
 
-            <TaskDetailModal
-                task={selectedTask}
-                onClose={() => setSelectedTask(null)}
-                taskBoardColumns={taskBoardColumns}
-                canWrite={false}
-                isStatusPending={
-                    selectedTask ? isPending(selectedTask.id) : false
-                }
-                isUpdating={false}
-                errors={[]}
-                clearErrors={() => {}}
-                onUpdate={() => {}}
-                onStatusChange={(slug) =>
-                    selectedTask && setStatus(selectedTask.id, slug)
-                }
-                labels={{
-                    viewTitle: td("Task"),
-                    editTitle: td("Edit task"),
-                    cancel: td("Cancel"),
-                    save: td("Save"),
-                    delete: td("Delete"),
-                    edit: td("Edit"),
-                    titleField: td("Title"),
-                    description: td("Description"),
-                    descriptionPlaceholder: td("Optional details"),
-                    startDate: td("Start date"),
-                    dueDate: td("Due date"),
-                    dueTime: td("Due time"),
-                    priority: td("Priority"),
-                    priorityHigh: td("High"),
-                    priorityMedium: td("Medium"),
-                    priorityLow: td("Low"),
-                    assignees: td("Assignees"),
-                    overdue: td("Overdue"),
-                    noDescription: td("No description"),
-                    unassigned: td("Unassigned"),
-                    dateRangeError: td(
-                        "Due date must be on or after start date",
-                    ),
-                }}
+            <DealConfirmDialog
+                open={confirmBulkDelete}
+                title={`${t("pages.deals.common.delete")} ${selected.size} ${
+                    selected.size === 1
+                        ? t("pages.deals.workspace.tasks.item_singular")
+                        : t("pages.deals.workspace.tasks.item_plural")
+                }?`}
+                message={t("pages.deals.workspace.tasks.delete_confirm_message")}
+                confirmLabel={t("pages.deals.workspace.tasks.delete_tasks")}
+                danger
+                confirmLoading={isBulkActing}
+                onConfirm={handleBulkDelete}
+                onCancel={() => setConfirmBulkDelete(false)}
             />
         </div>
     );
