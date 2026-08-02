@@ -23,15 +23,16 @@ export type LeadMetaTab = "leadinfo" | "timeline";
 
 export type WorkspaceTabId = LeadRecordTab | LeadMetaTab;
 
-/** Lead-info sidebar section — category panels + optional core. */
-export type LeadInfoSectionId = `category-${number}` | "general";
+/** Built-in Lead info sections (native lead fields). */
+export type LeadInfoCoreSectionId = "personal" | "contact" | "attribution";
 
-export type DossierSectionId =
-    | "contact"
-    | "engagement"
-    | "personal"
-    | "financial"
-    | "attribution";
+/** Lead-info sidebar section — core panels + custom-field categories. */
+export type LeadInfoSectionId =
+    | LeadInfoCoreSectionId
+    | `category-${number}`;
+
+/** Dossier rail — glanceable overview + marketing engagement. */
+export type DossierSectionId = "overview" | "engagement";
 
 export type LeadBannerMode =
     | "qualify_start"

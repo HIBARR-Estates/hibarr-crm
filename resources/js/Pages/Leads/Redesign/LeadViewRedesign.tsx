@@ -120,6 +120,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 id: status.id,
                 key: status.key,
                 label: status.label,
+                label_color: status.label_color ?? null,
             })),
         [props.leadLifecycleStatuses],
     );
@@ -391,6 +392,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         customFieldCategories={props.customFieldCategories}
                         activeSection={nav.infoSection}
                         onSectionChange={nav.setInfoSection}
+                        editLeadPermission={props.editLeadPermission}
                     />
                 );
             case "itinerary":
@@ -502,7 +504,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             </WorkspaceCard>
                         </div>
 
-                        <LeadDossier lead={lead} />
+                        <LeadDossier
+                            lead={lead}
+                            onOpenLeadInfo={() => {
+                                nav.setInfoSection("personal");
+                                nav.setTab("leadinfo");
+                            }}
+                        />
                     </div>
                 </div>
             </div>
@@ -729,6 +737,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             <LeadTaskDetailModal
                 task={detailTask}
                 taskBoardColumns={props.taskBoardColumns ?? []}
+                permissions={props.taskPermissions ?? props.permissions}
                 onClose={() => setDetailTask(null)}
             />
 

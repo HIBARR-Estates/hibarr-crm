@@ -1,0 +1,554 @@
+import { type ReactNode, useMemo, useState } from "react";
+import { message } from "antd";
+import { usePage } from "@inertiajs/react";
+import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
+import { DetailField } from "@/Components/DetailSection";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import { useFormData } from "@/Hooks/useFormData";
+import useTranslation from "@/Hooks/useTranslation";
+import { formatMobileForDisplay } from "@/lib/utils";
+import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
+import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
+import type { Lead } from "@/Types/api/leads";
+import { getDossierFieldValue } from "../../adapters/dossierAdapter";
+import {
+    getLeadInfoSection,
+    isLeadInfoCoreSection,
+} from "../../config/leadInfoSections";
+import type { LeadFieldChange } from "../../hooks/useLeadInfoFieldUpdate";
+import type { LeadInfoSectionId } from "../../types";
+
+type AppLanguage = {
+    language_code: string;
+    language_name: string;
+};
+
+interface LeadInfoSectionPanelProps {
+    sectionId: LeadInfoSectionId;
+    lead: Lead;
+    fields?: any[];
+    customFieldCategories?: Array<{ id: number; name: string }>;
+    canEdit: boolean;
+    isFieldLoading: (fieldName: string) => boolean;
+    updatingField: string | null;
+    onFieldUpdate: (
+        fieldName: string,
+        value: unknown,
+        type?: "custom_field",
+    ) => Promise<void>;
+    onFieldsUpdate: (changes: LeadFieldChange[]) => Promise<void>;
+}
+
+function FieldGrid({ children }: { children: ReactNode }) {
+    return (
+        <div className="mb-5 grid grid-cols-1 gap-4 gap-x-6 @lg:grid-cols-2">
+            {children}
+        </div>
+    );
+}
+
+function resolvePhoneValue(
+    raw: string | null | undefined,
+    formattedFallback?: string | null,
+): string {
+    if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
+        try {
+            const parsed = JSON.parse(raw.trim());
+            if (typeof parsed?.phone === "string") return parsed.phone.trim();
+        } catch {
+            /* fall through */
+        }
+        const formatted = formatMobileForDisplay(raw);
+        if (formatted && formatted !== "--") return formatted;
+    }
+    if (raw) return String(raw);
+    if (formattedFallback && formattedFallback !== "--") return formattedFallback;
+    return "";
+}
+
+export default function LeadInfoSectionPanel({
+    sectionId,
+    lead,
+    fields = [],
+    customFieldCategories = [],
+    canEdit,
+    isFieldLoading,
+    updatingField,
+    onFieldUpdate,
+    onFieldsUpdate,
+}: LeadInfoSectionPanelProps) {
+    const { t } = useTranslation();
+    const { td } = useTd();
+    const { props } = usePage<any>();
+
+    const [isEditing, setIsEditing] = useState(false);
+    const [pendingChanges, setPendingChanges] = useState<
+        Record<string, { value: unknown; type?: "custom_field" }>
+    >({});
+    const [isSavingAll, setIsSavingAll] = useState(false);
+
+    const editing = isEditing && canEdit;
+    const hasUnsavedChanges = Object.keys(pendingChanges).length > 0;
+
+    // Prefer shared page languages when present; otherwise fetch enabled
+    // LanguageSetting rows from app language settings (same source as lead forms).
+    const pageLanguages = useMemo(
+        () => (props.languages as AppLanguage[]) || [],
+        [props.languages],
+    );
+    const { data: fetchedLanguages } = useFormData<AppLanguage>("languages", {
+        paginate: false,
+        enabled: pageLanguages.length === 0,
+    });
+    const languageOptions = useMemo(() => {
+        const source: AppLanguage[] =
+            pageLanguages.length > 0 ? pageLanguages : fetchedLanguages || [];
+        return source.map((lang: AppLanguage) => ({
+            value: lang.language_code,
+            label: lang.language_name,
+        }));
+    }, [pageLanguages, fetchedLanguages]);
+
+    const resolveLanguageLabel = (code: string) =>
+        languageOptions.find(
+            (option: { value: string; label: string }) =>
+                String(option.value).toLowerCase() === code.toLowerCase(),
+        )?.label || code;
+
+    const handleFieldChange = (
+        fieldName: string,
+        value: unknown,
+        type?: "custom_field",
+    ) => {
+        setPendingChanges((previous) => ({
+            ...previous,
+            [fieldName]: { value, type },
+        }));
+    };
+
+    const handleEnterEdit = () => {
+        setPendingChanges({});
+        setIsEditing(true);
+    };
+
+    const handleCancelEdit = () => {
+        setPendingChanges({});
+        setIsEditing(false);
+    };
+
+    const handleSaveAll = async () => {
+        if (!hasUnsavedChanges) return;
+        setIsSavingAll(true);
+        try {
+            await onFieldsUpdate(
+                Object.entries(pendingChanges).map(([fieldName, change]) => ({
+                    fieldName,
+                    value: change.value,
+                    type: change.type,
+                })),
+            );
+            message.success(t("pages.leads.info.save_all_success"));
+            setPendingChanges({});
+            setIsEditing(false);
+        } catch {
+            message.error(t("pages.leads.info.save_all_error"));
+        } finally {
+            setIsSavingAll(false);
+        }
+    };
+
+    const categoryId = parseCategorySectionId(sectionId);
+    const isCore = isLeadInfoCoreSection(sectionId);
+    const coreSection = isCore ? getLeadInfoSection(sectionId) : undefined;
+    const category = customFieldCategories.find(
+        (item) => item.id === categoryId,
+    );
+
+    const sectionTitle = category?.name || coreSection?.title || "Lead info";
+    const sectionSubtitle =
+        coreSection?.subtitle ||
+        "Click any field to edit, or switch the whole section into edit mode";
+
+    const renderContact = () => (
+        <FieldGrid>
+            <DetailField
+                label={t("pages.leads.info.fields.mobile")}
+                copyValue={
+                    resolvePhoneValue(
+                        lead.mobile,
+                        lead.mobile_with_phonecode,
+                    ) || undefined
+                }
+            >
+                <DealEditableField
+                    value={resolvePhoneValue(
+                        lead.mobile,
+                        lead.mobile_with_phonecode,
+                    )}
+                    fieldName="mobile"
+                    fieldType="phone"
+                    onSave={(value) => onFieldUpdate("mobile", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t("pages.leads.info.placeholders.mobile")}
+                    loading={isFieldLoading("mobile")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField
+                label={t("pages.leads.info.fields.email")}
+                copyValue={lead.client_email || undefined}
+            >
+                <DealEditableField
+                    value={lead.client_email || ""}
+                    fieldName="client_email"
+                    fieldType="email"
+                    onSave={(value) => onFieldUpdate("client_email", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t("pages.leads.info.placeholders.email")}
+                    loading={isFieldLoading("client_email")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={td("WhatsApp")}>
+                <span className="text-[13px] text-[#0f172a]">
+                    {getDossierFieldValue(lead, "whatsapp") || (
+                        <span className="italic text-gray-400">--</span>
+                    )}
+                </span>
+            </DetailField>
+            <DetailField label={td("Telegram")}>
+                <span className="text-[13px] text-[#0f172a]">
+                    {getDossierFieldValue(lead, "telegram") || (
+                        <span className="italic text-gray-400">--</span>
+                    )}
+                </span>
+            </DetailField>
+            <DetailField label={td("Instagram")}>
+                <span className="text-[13px] text-[#0f172a]">
+                    {getDossierFieldValue(lead, "instagram") || (
+                        <span className="italic text-gray-400">--</span>
+                    )}
+                </span>
+            </DetailField>
+        </FieldGrid>
+    );
+
+    const renderPersonal = () => (
+        <FieldGrid>
+            <DetailField
+                label={td("Lead name")}
+                span={2}
+                useContainerQuery
+            >
+                <DealEditableField
+                    value={lead.client_name || ""}
+                    fieldName="client_name"
+                    fieldType="text"
+                    onSave={(value) => onFieldUpdate("client_name", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("client_name")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={td("Salutation")}>
+                <DealEditableField
+                    value={lead.salutation || ""}
+                    fieldName="salutation"
+                    selectorType="salutations"
+                    displayValue={
+                        getDossierFieldValue(lead, "salutation") ? (
+                            <span className="capitalize">
+                                {getDossierFieldValue(lead, "salutation")}
+                            </span>
+                        ) : undefined
+                    }
+                    onSave={(value) => onFieldUpdate("salutation", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("salutation")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={td("Age")}>
+                <DealEditableField
+                    value={lead.age ?? ""}
+                    fieldName="age"
+                    fieldType="number"
+                    displayValue={
+                        getDossierFieldValue(lead, "age") || undefined
+                    }
+                    onSave={(value) => onFieldUpdate("age", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("age")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={td("Nationality")}>
+                <DealEditableField
+                    value={(lead as any).nationality || ""}
+                    fieldName="nationality"
+                    fieldType="country"
+                    onSave={(value) => onFieldUpdate("nationality", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("nationality")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.gender")}>
+                <DealEditableField
+                    value={lead.gender || ""}
+                    fieldName="gender"
+                    fieldType="select"
+                    options={[
+                        {
+                            label: t("pages.leads.info.fields.gender_male"),
+                            value: "male",
+                        },
+                        {
+                            label: t("pages.leads.info.fields.gender_female"),
+                            value: "female",
+                        },
+                    ]}
+                    displayValue={
+                        lead.gender ? (
+                            <span className="capitalize">{lead.gender}</span>
+                        ) : undefined
+                    }
+                    onSave={(value) => onFieldUpdate("gender", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("gender")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={td("Languages")}>
+                <DealEditableField
+                    value={(lead as any).languages || []}
+                    fieldName="languages"
+                    fieldType="multiselect"
+                    options={languageOptions}
+                    displayValue={
+                        Array.isArray((lead as any).languages) &&
+                        (lead as any).languages.length ? (
+                            <span>
+                                {(lead as any).languages
+                                    .map((code: string) =>
+                                        resolveLanguageLabel(String(code)),
+                                    )
+                                    .join(", ")}
+                            </span>
+                        ) : undefined
+                    }
+                    onSave={(value) => onFieldUpdate("languages", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("languages")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={td("Occupation")}>
+                <DealEditableField
+                    value={(lead as any).occupation || ""}
+                    fieldName="occupation"
+                    fieldType="text"
+                    onSave={(value) => onFieldUpdate("occupation", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("occupation")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.company")}>
+                <DealEditableField
+                    value={lead.company_name || ""}
+                    fieldName="company_name"
+                    fieldType="text"
+                    onSave={(value) => onFieldUpdate("company_name", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t("pages.leads.info.placeholders.company")}
+                    loading={isFieldLoading("company_name")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.city")}>
+                <DealEditableField
+                    value={lead.city || ""}
+                    fieldName="city"
+                    fieldType="text"
+                    onSave={(value) => onFieldUpdate("city", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t("pages.leads.info.placeholders.city")}
+                    loading={isFieldLoading("city")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.country")}>
+                <DealEditableField
+                    value={lead.country || ""}
+                    fieldName="country"
+                    fieldType="country"
+                    onSave={(value) => onFieldUpdate("country", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t("pages.leads.info.placeholders.country")}
+                    loading={isFieldLoading("country")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+        </FieldGrid>
+    );
+
+    const renderAttribution = () => (
+        <FieldGrid>
+            <DetailField label={t("pages.leads.info.fields.lead_source")}>
+                <DealEditableField
+                    value={lead.source_id || null}
+                    fieldName="source_id"
+                    selectorType="sources"
+                    displayValue={
+                        getDossierFieldValue(lead, "source") ? (
+                            <span className="text-gray-700">
+                                {getDossierFieldValue(lead, "source")}
+                            </span>
+                        ) : (
+                            <span className="italic text-gray-400">--</span>
+                        )
+                    }
+                    onSave={(value) => onFieldUpdate("source_id", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("source_id")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.category")}>
+                <DealEditableField
+                    value={lead.category_id || null}
+                    fieldName="category_id"
+                    selectorType="categories"
+                    displayValue={
+                        lead.category?.category_name ? (
+                            <span className="text-gray-700">
+                                {lead.category.category_name}
+                            </span>
+                        ) : (
+                            <span className="italic text-gray-400">--</span>
+                        )
+                    }
+                    onSave={(value) => onFieldUpdate("category_id", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    loading={isFieldLoading("category_id")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.added_by")}>
+                <span className="text-[13px] text-[#0f172a]">
+                    {getDossierFieldValue(lead, "addedBy") || (
+                        <span className="italic text-gray-400">--</span>
+                    )}
+                </span>
+            </DetailField>
+        </FieldGrid>
+    );
+
+    const renderCategorySection = () => {
+        if (categoryId == null) return null;
+        return (
+            <CustomFieldDisplay
+                fields={fields}
+                customFieldsData={lead.custom_fields_data ?? {}}
+                categoryId={categoryId}
+                useContainerQuery
+                bare
+                column={2}
+                onUpdate={(field, value) =>
+                    onFieldUpdate(field, value, "custom_field")
+                }
+                editable={editing}
+                onChange={(fieldName, value) =>
+                    handleFieldChange(fieldName, value, "custom_field")
+                }
+                loadingField={updatingField}
+                disabled={!canEdit}
+                activateOnSingleClick
+            />
+        );
+    };
+
+    const renderSectionBody = () => {
+        if (categoryId != null) return renderCategorySection();
+        switch (sectionId) {
+            case "personal":
+                return renderPersonal();
+            case "contact":
+                return renderContact();
+            case "attribution":
+                return renderAttribution();
+            default:
+                return null;
+        }
+    };
+
+    return (
+        <section className="@container pl-[26px] pt-1">
+            <div className="mb-3.5 flex items-start justify-between gap-3">
+                <div>
+                    <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
+                        {td(sectionTitle)}
+                    </h3>
+                    <p className="text-xs text-[#5b6472]">
+                        {td(sectionSubtitle)}
+                    </p>
+                </div>
+                {canEdit &&
+                    (isEditing ? (
+                        <div className="flex shrink-0 items-center gap-2">
+                            {hasUnsavedChanges && (
+                                <span className="text-xs text-amber-600">
+                                    {t("pages.deals.info.unsaved_changes", {
+                                        count: Object.keys(pendingChanges)
+                                            .length,
+                                    })}
+                                </span>
+                            )}
+                            <DealButton
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleCancelEdit}
+                                disabled={isSavingAll}
+                            >
+                                {t("pages.leads.info.actions.cancel_edit")}
+                            </DealButton>
+                            <DealButton
+                                variant="primary"
+                                size="sm"
+                                onClick={handleSaveAll}
+                                disabled={!hasUnsavedChanges || isSavingAll}
+                                loading={isSavingAll}
+                            >
+                                {t("pages.leads.info.actions.save_all_tooltip")}
+                            </DealButton>
+                        </div>
+                    ) : (
+                        <DealButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleEnterEdit}
+                        >
+                            {t("pages.deals.info.edit_fields")}
+                        </DealButton>
+                    ))}
+            </div>
+            {renderSectionBody()}
+        </section>
+    );
+}

@@ -43,6 +43,15 @@ export default function useLeadFieldUpdate() {
                                 : val;
                     });
 
+                    // Normalize lifecycle relation keys from the patch response.
+                    const lifecycle =
+                        updated.lead_lifecycle_status ??
+                        updated.lifecycleStatus;
+                    if (lifecycle != null) {
+                        next.lead_lifecycle_status = lifecycle;
+                        next.lifecycleStatus = lifecycle;
+                    }
+
                     if (updated.mobile !== undefined) {
                         const formatted = formatMobileForDisplay(
                             updated.mobile as string,

@@ -394,6 +394,7 @@ export default function OverviewTab({
             <LeadTaskDetailModal
                 task={selectedTask}
                 taskBoardColumns={taskBoardColumns}
+                permissions={permissions?.tasks}
                 onClose={() => setSelectedTask(null)}
             />
             <LeadMeetingDetailModal

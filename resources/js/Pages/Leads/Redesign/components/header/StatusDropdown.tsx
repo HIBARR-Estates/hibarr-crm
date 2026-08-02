@@ -41,20 +41,37 @@ export default function StatusDropdown({
         return () => document.removeEventListener("mousedown", onDoc);
     }, [open]);
 
+    useEffect(() => {
+        if (saving) setOpen(false);
+    }, [saving]);
+
     return (
         <div ref={ref} style={{ position: "relative" }}>
             <button
                 type="button"
-                className={`v2-pill v2-pill-${tone} v2-pill-status`}
-                onClick={() => setOpen((value) => !value)}
+                className={`v2-pill v2-pill-${tone} v2-pill-status${
+                    saving ? " is-saving" : ""
+                }`}
+                onClick={() => {
+                    if (saving) return;
+                    setOpen((value) => !value);
+                }}
                 aria-haspopup="listbox"
                 aria-expanded={open}
+                aria-busy={saving}
                 disabled={saving}
             >
                 {td(statusLabel)}{" "}
-                <Icon name="chevron-down" size={12} />
+                {saving ? (
+                    <span
+                        className="v2-pill-status-spinner"
+                        aria-hidden="true"
+                    />
+                ) : (
+                    <Icon name="chevron-down" size={12} />
+                )}
             </button>
-            {open && (
+            {open && !saving && (
                 <div
                     className="v2-menu v2-menu-left"
                     role="listbox"

@@ -1,5 +1,6 @@
 import type { Lead } from "@/Types/api/leads";
 import type { DossierFieldKey } from "../config/dossierSections";
+import type { LeadNativeFieldKey } from "../config/leadInfoSections";
 
 const AGE_RANGES = [
     { id: "18-24", min: 18, max: 24 },
@@ -42,38 +43,73 @@ function asString(value: unknown): string {
     return String(value);
 }
 
+function marketingOf(lead: Lead): Record<string, unknown> {
+    const marketing = (lead as unknown as { marketing?: Record<string, unknown> })
+        .marketing;
+    return marketing ?? {};
+}
+
+type AnyFieldKey = DossierFieldKey | LeadNativeFieldKey;
+
 /**
- * Resolve display values for dossier keys from a Lead (+ related props).
+ * Resolve display values for dossier / lead-info native field keys.
  */
-export function getDossierFieldValue(
-    lead: Lead,
-    key: DossierFieldKey,
-): string {
+export function getDossierFieldValue(lead: Lead, key: AnyFieldKey): string {
     const l = lead as unknown as Record<string, unknown>;
+    const m = marketingOf(lead);
 
     switch (key) {
+        case "clientName":
+            return asString(l.client_name);
         case "salutation":
-            return asString(l.salutation);
+            return asString(l.salutation_value ?? l.salutation);
         case "mobile":
             return asString(l.mobile_with_phonecode || l.mobile);
         case "email":
-            return asString(l.email);
+            return asString(l.client_email ?? l.email);
         case "whatsapp":
-            return asString(l.whatsapp || l.mobile_with_phonecode || l.mobile);
+            return asString(
+                l.client_whatsapp ||
+                    l.whatsapp ||
+                    l.mobile_with_phonecode ||
+                    l.mobile,
+            );
         case "telegram":
-            return asString(l.telegram);
+            return asString(l.client_telegram ?? l.telegram);
         case "instagram":
-            return asString(l.instagram);
+            return asString(l.client_instagram ?? l.instagram);
         case "contactScore":
-            return asString(l.contact_score ?? l.score);
+            return asString(m.contact_score ?? l.contact_score ?? l.score);
+        case "hasRegisteredWebinar":
+            return yesNo(
+                m.has_registered_for_the_webinar ?? l.has_registered_for_the_webinar,
+            );
         case "hasAttendedWebinar":
-            return yesNo(l.has_attended_webinar ?? l.webinar_attended);
+            return yesNo(
+                m.has_attended_the_webinar ??
+                    l.has_attended_webinar ??
+                    l.webinar_attended,
+            );
         case "lastWebinarDate":
-            return asString(l.last_webinar_date ?? l.last_webinar_at);
+            return asString(
+                m.last_webinar_date ?? l.last_webinar_date ?? l.last_webinar_at,
+            );
         case "hasDownloadedEbook":
-            return yesNo(l.has_downloaded_ebook ?? l.ebook_downloaded);
+            return yesNo(
+                m.has_downloaded_the_ebook ??
+                    l.has_downloaded_ebook ??
+                    l.ebook_downloaded,
+            );
         case "hasJoinedFbGroup":
-            return yesNo(l.has_joined_fb_group ?? l.fb_group_joined);
+            return yesNo(
+                m.has_joined_the_facebook_group ??
+                    l.has_joined_fb_group ??
+                    l.fb_group_joined,
+            );
+        case "hasJoinedWhatsappGroup":
+            return yesNo(
+                m.has_joined_the_whatsapp_group ?? l.has_joined_the_whatsapp_group,
+            );
         case "age":
             return formatAgeDisplay(l.age, asString(l.age_range));
         case "nationality":
@@ -82,7 +118,7 @@ export function getDossierFieldValue(
                     l.nationality,
             );
         case "gender":
-            return asString(l.gender);
+            return asString(l.gender_value ?? l.gender);
         case "languages":
             return asString(l.languages);
         case "occupation":
@@ -107,7 +143,13 @@ export function getDossierFieldValue(
             );
         case "source":
             return asString(
-                (l.source as { name?: string })?.name || l.source_name,
+                (l.lead_source as { type?: string; name?: string })?.type ||
+                    (l.leadSource as { type?: string; name?: string })?.type ||
+                    (l.lead_source as { name?: string })?.name ||
+                    (l.leadSource as { name?: string })?.name ||
+                    (l.source as { type?: string; name?: string })?.type ||
+                    (l.source as { name?: string })?.name ||
+                    l.source_name,
             );
         case "category":
             return asString(
@@ -122,8 +164,6 @@ export function getDossierFieldValue(
                     (l.creator as { name?: string })?.name ||
                     l.added_by_name,
             );
-        case "nextFollowUp":
-            return asString(l.next_follow_up_date ?? l.next_follow_up);
         default:
             return "";
     }
@@ -131,11 +171,47 @@ export function getDossierFieldValue(
 
 export function countFilledFields(
     lead: Lead,
-    keys: DossierFieldKey[],
+    keys: AnyFieldKey[],
 ): { filled: number; total: number } {
     let filled = 0;
     for (const key of keys) {
         if (getDossierFieldValue(lead, key).trim()) filled += 1;
     }
     return { filled, total: keys.length };
+}
+
+/** Raw edit value for patch payloads (IDs / plain strings, not display labels). */
+export function getLeadNativeEditValue(
+    lead: Lead,
+    key: LeadNativeFieldKey,
+    leadField?: string,
+): string {
+    const record = lead as unknown as Record<string, unknown>;
+
+    if (key === "clientName") return String(record.client_name ?? "");
+    if (key === "email") return String(record.client_email ?? "");
+    if (key === "age") return String(record.age ?? "");
+    if (key === "languages") {
+        const languages = record.languages;
+        return Array.isArray(languages)
+            ? languages.map(String).filter(Boolean).join(", ")
+            : String(languages ?? "");
+    }
+    if (key === "source") return String(record.source_id ?? "");
+    if (key === "category") return String(record.category_id ?? "");
+    if (key === "currency") return String(record.currency_id ?? "");
+    if (key === "leadValue") return String(record.value ?? "");
+    if (key === "gender") return String(record.gender_value ?? record.gender ?? "");
+    if (key === "salutation") {
+        return String(record.salutation ?? "");
+    }
+    if (key === "country") {
+        const country = record.country;
+        if (country && typeof country === "object" && "iso" in country) {
+            return String((country as { iso?: string }).iso ?? "");
+        }
+        return String(country ?? "");
+    }
+    if (leadField) return String(record[leadField] ?? "");
+    return getDossierFieldValue(lead, key);
 }

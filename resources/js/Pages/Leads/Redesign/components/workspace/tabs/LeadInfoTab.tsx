@@ -1,11 +1,11 @@
 import { useMemo } from "react";
-import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
-import { useTd } from "@/Hooks/useDynamicTranslation";
-import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
+import useTranslation from "@/Hooks/useTranslation";
 import DealInfoSidebar from "@/Pages/Deals/Redesign/components/deal-info/DealInfoSidebar";
 import type { DealInfoSectionId } from "@/Pages/Deals/Redesign/types";
-import { useLeadWorkspace } from "../../../context/LeadWorkspaceContext";
-import useLeadCustomFieldUpdate from "../../../hooks/useLeadCustomFieldUpdate";
+import { countFilledFields } from "../../../adapters/dossierAdapter";
+import { LEAD_INFO_CORE_SECTIONS } from "../../../config/leadInfoSections";
+import LeadInfoSectionPanel from "../../lead-info/LeadInfoSectionPanel";
+import useLeadInfoFieldUpdate from "../../../hooks/useLeadInfoFieldUpdate";
 import type { LeadInfoSectionId } from "../../../types";
 
 interface LeadInfoTabProps {
@@ -13,6 +13,7 @@ interface LeadInfoTabProps {
     customFieldCategories?: Array<{ id: number; name: string }>;
     activeSection: LeadInfoSectionId;
     onSectionChange: (section: LeadInfoSectionId) => void;
+    editLeadPermission?: string;
 }
 
 function isFilledValue(value: unknown): boolean {
@@ -52,47 +53,74 @@ export default function LeadInfoTab({
     customFieldCategories = [],
     activeSection,
     onSectionChange,
+    editLeadPermission = "all",
 }: LeadInfoTabProps) {
-    const { td } = useTd();
-    const { lead } = useLeadWorkspace();
-    const { updateCustomField, updatingField } = useLeadCustomFieldUpdate();
+    const { t } = useTranslation();
+    const canEdit = ["all", "added", "owned", "both"].includes(
+        editLeadPermission,
+    );
+    const {
+        lead,
+        isFieldLoading,
+        updatingField,
+        handleFieldUpdate,
+        handleFieldsUpdate,
+    } = useLeadInfoFieldUpdate(canEdit);
 
     const navGroups = useMemo(
         () => [
             {
-                label: "Lead fields",
-                items: customFieldCategories.map((category) => {
-                    const { filled, total } = countCategoryCompletion(
-                        category.id,
-                        fields,
-                        lead.custom_fields_data ?? {},
+                label: "Lead profile",
+                items: LEAD_INFO_CORE_SECTIONS.map((section) => {
+                    const completionKeys = section.fields
+                        .filter((field) => !field.readOnly)
+                        .map((field) => field.key);
+                    const { filled, total } = countFilledFields(
+                        lead,
+                        completionKeys,
                     );
                     return {
-                        id: `category-${category.id}` as DealInfoSectionId,
-                        label: category.name,
-                        icon: "layers",
+                        id: section.id as DealInfoSectionId,
+                        label: section.title,
+                        icon: section.icon,
                         badgeVariant: "gray" as const,
                         badge: total > 0 ? `${filled}/${total}` : undefined,
                         completion: total > 0 ? { filled, total } : undefined,
+                        searchTerms: section.fields.map((field) => field.label),
                     };
                 }),
             },
+            ...(customFieldCategories.length > 0
+                ? [
+                      {
+                          label: "Custom fields",
+                          items: customFieldCategories.map((category) => {
+                              const { filled, total } = countCategoryCompletion(
+                                  category.id,
+                                  fields,
+                                  lead.custom_fields_data ?? {},
+                              );
+                              return {
+                                  id: `category-${category.id}` as DealInfoSectionId,
+                                  label: category.name,
+                                  icon: "layers",
+                                  badgeVariant: "gray" as const,
+                                  badge:
+                                      total > 0
+                                          ? `${filled}/${total}`
+                                          : undefined,
+                                  completion:
+                                      total > 0
+                                          ? { filled, total }
+                                          : undefined,
+                              };
+                          }),
+                      },
+                  ]
+                : []),
         ],
-        [customFieldCategories, fields, lead.custom_fields_data],
+        [customFieldCategories, fields, lead],
     );
-
-    const categoryId = parseCategorySectionId(activeSection);
-    const activeCategory = customFieldCategories.find(
-        (category) => category.id === categoryId,
-    );
-
-    if (customFieldCategories.length === 0) {
-        return (
-            <p className="text-xs text-[#9ca3af]">
-                {td("No custom field categories configured for leads.")}
-            </p>
-        );
-    }
 
     return (
         <div
@@ -105,38 +133,20 @@ export default function LeadInfoTab({
                 onSectionChange={(section) =>
                     onSectionChange(section as LeadInfoSectionId)
                 }
+                showCompletionDot
+                title={t("pages.leads.info.title")}
             />
-            <section className="@container pl-[26px] pt-1">
-                {activeCategory && categoryId != null ? (
-                    <>
-                        <div className="mb-3.5">
-                            <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
-                                {td(activeCategory.name)}
-                            </h3>
-                            <p className="text-xs text-[#5b6472]">
-                                {td("Click any field to edit.")}
-                            </p>
-                        </div>
-                        <CustomFieldDisplay
-                            fields={fields}
-                            customFieldsData={lead.custom_fields_data ?? {}}
-                            categoryId={categoryId}
-                            useContainerQuery
-                            bare
-                            column={2}
-                            editable
-                            activateOnSingleClick
-                            onUpdate={updateCustomField}
-                            loading={Boolean(updatingField)}
-                            loadingField={updatingField}
-                        />
-                    </>
-                ) : (
-                    <p className="text-xs text-[#8b95a7]">
-                        {td("Select a category from the sidebar.")}
-                    </p>
-                )}
-            </section>
+            <LeadInfoSectionPanel
+                sectionId={activeSection}
+                lead={lead}
+                fields={fields}
+                customFieldCategories={customFieldCategories}
+                canEdit={canEdit}
+                isFieldLoading={isFieldLoading}
+                updatingField={updatingField}
+                onFieldUpdate={handleFieldUpdate}
+                onFieldsUpdate={handleFieldsUpdate}
+            />
         </div>
     );
 }

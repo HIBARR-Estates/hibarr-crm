@@ -624,6 +624,7 @@ export default function TasksTab({
             <LeadTaskDetailModal
                 task={selectedTask}
                 taskBoardColumns={taskBoardColumns}
+                permissions={permissions}
                 onClose={() => setSelectedTaskId(null)}
             />
 

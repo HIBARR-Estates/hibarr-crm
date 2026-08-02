@@ -177,6 +177,29 @@
 .lead-redesign .v2-pill-status {
     cursor: pointer;
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.lead-redesign .v2-pill-status:disabled,
+.lead-redesign .v2-pill-status.is-saving {
+    cursor: wait;
+    opacity: 0.85;
+}
+.lead-redesign .v2-pill-status-spinner {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    border-top-color: transparent;
+    animation: v2-pill-spin 0.65s linear infinite;
+    flex-shrink: 0;
+}
+@keyframes v2-pill-spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .lead-redesign .v2-menu {
@@ -321,14 +344,13 @@
     font-weight: 500;
     word-break: break-word;
     border-radius: 6px;
-    padding: 2px 6px;
-    margin: -2px -6px;
-    cursor: text;
-    transition: background 0.12s;
+    padding: 2px 0;
     min-height: 22px;
-}
-.lead-redesign .v2-dossier-value:hover {
-    background: var(--lr-bg);
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    color: inherit;
+    text-align: left;
 }
 .lead-redesign .v2-dossier-value.empty {
     color: var(--lr-text-dim);
@@ -338,6 +360,45 @@
 .lead-redesign .v2-dossier-value.green {
     color: var(--lr-green);
     font-weight: 600;
+}
+.lead-redesign .v2-dossier-value--copy {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 100%;
+    background: none;
+    border: none;
+    padding: 2px 0;
+    margin: 0;
+    cursor: pointer;
+    border-radius: 0;
+}
+.lead-redesign .v2-dossier-value__text {
+    min-width: 0;
+    word-break: break-word;
+}
+.lead-redesign .v2-dossier-value__action {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    flex-shrink: 0;
+    color: var(--lr-text-dim);
+    opacity: 0.55;
+    transition: opacity 0.12s, color 0.12s;
+}
+.lead-redesign .v2-dossier-value--copy:hover .v2-dossier-value__action {
+    opacity: 1;
+    color: var(--lr-blue);
+}
+.lead-redesign .v2-dossier-value--copy.is-copied .v2-dossier-value__action {
+    opacity: 1;
+    color: var(--lr-green);
+}
+.lead-redesign .v2-dossier-value__copied {
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.01em;
 }
 
 .lead-redesign .v2-grid {

@@ -1,43 +1,47 @@
 import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
 
 interface DossierFieldProps {
     value: string;
     placeholder?: string;
     tone?: "green";
-    editing: boolean;
-    autoFocus?: boolean;
-    onCommit?: (next: string) => void;
-    onCancel?: () => void;
+    /** When true, clicking a filled value copies it to the clipboard. */
+    copyable?: boolean;
 }
 
 export default function DossierField({
     value,
     placeholder = "Not set",
     tone,
-    editing,
-    autoFocus = false,
-    onCommit,
-    onCancel,
+    copyable = true,
 }: DossierFieldProps) {
     const { td } = useTd();
-    const [draft, setDraft] = useState(value);
-    const inputRef = useRef<HTMLInputElement>(null);
+    const [copied, setCopied] = useState(false);
+    const timerRef = useRef<number | null>(null);
+    const empty = !value.trim();
     const resolvedPlaceholder = td(placeholder);
+    const canCopy = copyable && !empty;
 
     useEffect(() => {
-        setDraft(value);
-    }, [value]);
+        return () => {
+            if (timerRef.current != null) window.clearTimeout(timerRef.current);
+        };
+    }, []);
 
-    useEffect(() => {
-        if (editing && autoFocus && inputRef.current) {
-            inputRef.current.focus();
-            inputRef.current.select();
+    const handleCopy = async () => {
+        if (!canCopy) return;
+        try {
+            await navigator.clipboard.writeText(value);
+            setCopied(true);
+            if (timerRef.current != null) window.clearTimeout(timerRef.current);
+            timerRef.current = window.setTimeout(() => setCopied(false), 1600);
+        } catch {
+            /* clipboard may be unavailable */
         }
-    }, [editing, autoFocus]);
+    };
 
-    if (!editing) {
-        const empty = !value.trim();
+    if (!canCopy) {
         return (
             <span
                 className={`v2-dossier-value${empty ? " empty" : ""}${
@@ -50,23 +54,28 @@ export default function DossierField({
     }
 
     return (
-        <input
-            ref={inputRef}
-            className="v2-inline-input"
-            value={draft}
-            placeholder={resolvedPlaceholder}
-            onChange={(event) => setDraft(event.target.value)}
-            onBlur={() => onCommit?.(draft)}
-            onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                    event.currentTarget.blur();
-                }
-                if (event.key === "Escape") {
-                    event.preventDefault();
-                    setDraft(value);
-                    onCancel?.();
-                }
-            }}
-        />
+        <button
+            type="button"
+            className={`v2-dossier-value v2-dossier-value--copy${
+                tone === "green" ? " green" : ""
+            }${copied ? " is-copied" : ""}`}
+            onClick={() => void handleCopy()}
+            title={copied ? td("Copied") : td("Click to copy")}
+            aria-label={copied ? td("Copied") : td("Click to copy")}
+        >
+            <span className="v2-dossier-value__text">{value}</span>
+            <span className="v2-dossier-value__action" aria-hidden="true">
+                {copied ? (
+                    <>
+                        <DealIcon name="check" size={12} />
+                        <span className="v2-dossier-value__copied">
+                            {td("Copied")}
+                        </span>
+                    </>
+                ) : (
+                    <DealIcon name="copy" size={12} />
+                )}
+            </span>
+        </button>
     );
 }

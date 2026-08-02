@@ -29,6 +29,8 @@ interface DealInfoSidebarProps {
     onSectionChange: (section: DealInfoSectionId) => void;
     /** crm.deal-info-count-indicator — dot instead of the "filled/total" text badge. */
     showCompletionDot?: boolean;
+    /** Sidebar heading — defaults to Deal information; Lead info passes its own. */
+    title?: string;
 }
 
 export default function DealInfoSidebar({
@@ -36,10 +38,12 @@ export default function DealInfoSidebar({
     activeSection,
     onSectionChange,
     showCompletionDot = false,
+    title,
 }: DealInfoSidebarProps) {
     const { td } = useTd();
     const { t } = useTranslation();
     const [search, setSearch] = useState("");
+    const sidebarTitle = title ?? t("pages.deals.sidebar.title");
 
     const query = search.trim().toLowerCase();
     const filteredGroups = useMemo(() => {
@@ -66,7 +70,7 @@ export default function DealInfoSidebar({
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
             <div className="dr-label pr-2.5 pb-1" style={{ fontSize: 12 }}>
-                {t("pages.deals.sidebar.title")}
+                {sidebarTitle}
             </div>
             <div className="pr-2.5 pb-2">
                 <input

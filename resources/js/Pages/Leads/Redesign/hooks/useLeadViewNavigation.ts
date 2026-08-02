@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router } from "@inertiajs/react";
 import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
+import { isLeadInfoCoreSection } from "../config/leadInfoSections";
 import type { LeadInfoSectionId, WorkspaceTabId } from "../types";
 import { normalizeTabId, WORKSPACE_TABS } from "../config/workspaceTabs";
 
 const VALID_TABS: WorkspaceTabId[] = WORKSPACE_TABS.map((t) => t.id);
+const DEFAULT_INFO_SECTION: LeadInfoSectionId = "personal";
 
 function isValidLeadInfoSection(
     section: string,
     categories?: Array<{ id: number }>,
 ): section is LeadInfoSectionId {
-    if (section === "general") return true;
+    if (isLeadInfoCoreSection(section)) return true;
     const categoryId = parseCategorySectionId(section);
     if (categoryId == null) return false;
     if (!categories?.length) return true;
@@ -38,8 +40,7 @@ function getInitialLeadInfoSection(
             return section;
         }
     }
-    if (categories?.[0]) return `category-${categories[0].id}`;
-    return "general";
+    return DEFAULT_INFO_SECTION;
 }
 
 function getInitialFlag(key: string): boolean {
@@ -103,17 +104,9 @@ export default function useLeadViewNavigation(
     answersOpenRef.current = answersOpen;
 
     useEffect(() => {
-        if (!categories?.length) return;
         setInfoSectionState((current) => {
-            const categoryId = parseCategorySectionId(current);
-            if (
-                current !== "general" &&
-                categoryId != null &&
-                categories.some((category) => category.id === categoryId)
-            ) {
-                return current;
-            }
-            return `category-${categories[0].id}`;
+            if (isValidLeadInfoSection(current, categories)) return current;
+            return DEFAULT_INFO_SECTION;
         });
     }, [categories]);
 

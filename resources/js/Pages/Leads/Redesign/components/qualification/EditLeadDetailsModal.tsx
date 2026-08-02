@@ -3,12 +3,13 @@ import axios from "axios";
 import { message } from "antd";
 import type { Lead, LeadCategory } from "@/Types/api/leads";
 import { Modal, ModalField } from "@/Components/Redesign";
-import { DOSSIER_SECTIONS } from "../../config/dossierSections";
-import { getDossierFieldValue } from "../../adapters/dossierAdapter";
+import { getLeadNativeEditValue } from "../../adapters/dossierAdapter";
+import { LEAD_INFO_CORE_SECTIONS } from "../../config/leadInfoSections";
+import type { LeadInfoCoreSectionId } from "../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useLeadWorkspace } from "../../context/LeadWorkspaceContext";
 
-type EditTabId = "identity" | "contact" | "engagement" | "personal" | "financial" | "attribution";
+type EditTabId = "identity" | LeadInfoCoreSectionId;
 
 interface EditLeadDetailsModalProps {
     open: boolean;
@@ -51,10 +52,14 @@ export default function EditLeadDetailsModal({
             salutation: String(lead.salutation ?? ""),
         };
 
-        for (const section of DOSSIER_SECTIONS) {
+        for (const section of LEAD_INFO_CORE_SECTIONS) {
             for (const field of section.fields) {
-                if (!field.leadField || section.readOnly) continue;
-                values[field.leadField] = getDossierFieldValue(lead, field.key);
+                if (!field.leadField || field.readOnly) continue;
+                values[field.leadField] = getLeadNativeEditValue(
+                    lead,
+                    field.key,
+                    field.leadField,
+                );
             }
         }
 
@@ -76,7 +81,7 @@ export default function EditLeadDetailsModal({
 
     const tabs: { id: EditTabId; label: string }[] = [
         { id: "identity", label: "Identity" },
-        ...DOSSIER_SECTIONS.map((section) => ({
+        ...LEAD_INFO_CORE_SECTIONS.map((section) => ({
             id: section.id as EditTabId,
             label: section.title,
         })),
@@ -90,10 +95,9 @@ export default function EditLeadDetailsModal({
                 salutation: form.salutation || null,
             };
 
-            for (const section of DOSSIER_SECTIONS) {
-                if (section.readOnly) continue;
+            for (const section of LEAD_INFO_CORE_SECTIONS) {
                 for (const field of section.fields) {
-                    if (!field.leadField) continue;
+                    if (!field.leadField || field.readOnly) continue;
                     const raw = form[field.leadField];
                     if (field.leadField === "value") {
                         payload.value = raw ? Number(raw) : null;
@@ -108,6 +112,8 @@ export default function EditLeadDetailsModal({
                         payload.languages = raw
                             ? raw.split(",").map((s) => s.trim()).filter(Boolean)
                             : [];
+                    } else if (field.leadField === "age") {
+                        payload.age = raw ? Number(raw) : null;
                     } else {
                         payload[field.leadField] = raw || null;
                     }
@@ -235,22 +241,27 @@ export default function EditLeadDetailsModal({
                 </>
             )}
 
-            {DOSSIER_SECTIONS.map((section) => {
+            {LEAD_INFO_CORE_SECTIONS.map((section) => {
                 if (tab !== section.id) return null;
-                if (section.readOnly) {
+
+                const editableFields = section.fields.filter(
+                    (field) => field.leadField && !field.readOnly,
+                );
+
+                if (editableFields.length === 0) {
                     return (
                         <p
                             key={section.id}
                             style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}
                         >
-                            {td("Engagement fields are read-only.")}
+                            {td("No editable fields in this section.")}
                         </p>
                     );
                 }
 
                 return (
                     <div key={section.id}>
-                        {section.fields.map((field) => {
+                        {editableFields.map((field) => {
                             if (!field.leadField) return null;
 
                             if (field.leadField === "country") {
@@ -283,6 +294,31 @@ export default function EditLeadDetailsModal({
                                     categories.map((c) => ({
                                         value: String(c.id),
                                         label: c.category_name,
+                                    })),
+                                );
+                            }
+                            if (field.leadField === "gender") {
+                                return renderFieldInput(
+                                    "gender",
+                                    field.label,
+                                    "select",
+                                    [
+                                        { value: "male", label: td("Male") },
+                                        {
+                                            value: "female",
+                                            label: td("Female"),
+                                        },
+                                    ],
+                                );
+                            }
+                            if (field.leadField === "salutation") {
+                                return renderFieldInput(
+                                    "salutation",
+                                    field.label,
+                                    "select",
+                                    salutations.map((s) => ({
+                                        value: s.value,
+                                        label: s.label,
                                     })),
                                 );
                             }
