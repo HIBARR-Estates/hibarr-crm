@@ -2,6 +2,7 @@ import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Task } from "@/Types/api/tasks";
 import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
+import { Icon } from "@/Components/Redesign";
 import PriorityBadge from "@/Components/Redesign/primitives/PriorityBadge";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatCurrencyWithSymbol } from "@/lib/utils";
@@ -60,8 +61,7 @@ function resolveTaskStatus(
     columns: TaskboardColumn[],
 ): { label: string; color: string } {
     const withBoard = task as TaskWithBoard;
-    const related =
-        withBoard.board_column ?? withBoard.boardColumn ?? null;
+    const related = withBoard.board_column ?? withBoard.boardColumn ?? null;
     const slug =
         related?.slug ||
         task.status ||
@@ -77,8 +77,7 @@ function resolveTaskStatus(
         column?.column_name ||
         related?.column_name ||
         (slug ? humanizeStatus(slug) : "Open");
-    const color =
-        column?.label_color || related?.label_color || "#6b7280";
+    const color = column?.label_color || related?.label_color || "#6b7280";
 
     return { label, color };
 }
@@ -86,39 +85,47 @@ function resolveTaskStatus(
 function formatDealValue(deal: Deal): string {
     const value = deal.value ?? deal.calculated_value ?? deal.manual_value;
     if (value == null) return "—";
-    const symbol = deal.currency?.currency_symbol ?? deal.currency?.currency_code ?? "";
+    const symbol =
+        deal.currency?.currency_symbol ?? deal.currency?.currency_code ?? "";
     if (!symbol) return Number(value).toLocaleString();
     return formatCurrencyWithSymbol(Number(value), symbol);
 }
 
-function StatHeader({
-    label,
-    actionLabel,
-    onAction,
-    actionPrefix = "+",
-}: {
-    label: string;
-    actionLabel?: string;
-    onAction?: () => void;
-    /** Prefix before the action label (`+` for create, empty for nav links). */
-    actionPrefix?: string;
-}) {
+function StatHeader({ label }: { label: string }) {
     return (
         <div className="v2-quick-stat-head">
             <span className="v2-quick-stat-label">{label}</span>
-            {actionLabel && onAction ? (
-                <button
-                    type="button"
-                    className="v2-quick-stat-action"
-                    onClick={(event) => {
-                        event.stopPropagation();
-                        onAction();
-                    }}
-                >
-                    {actionPrefix ? `${actionPrefix} ${actionLabel}` : actionLabel}
-                </button>
-            ) : null}
         </div>
+    );
+}
+
+/** Compact text CTAs — clear affordance without loud fills. */
+function StatAction({
+    label,
+    onClick,
+    variant = "primary",
+    icon,
+}: {
+    label: string;
+    onClick?: () => void;
+    variant?: "primary" | "secondary";
+    icon?: "plus" | "chevron-right" | "external-link";
+}) {
+    return (
+        <button
+            type="button"
+            className={`v2-quick-stat-cta v2-quick-stat-cta-${variant}`}
+            onClick={(event) => {
+                event.stopPropagation();
+                onClick?.();
+            }}
+        >
+            {icon === "plus" ? <Icon name="plus" size={11} /> : null}
+            <span>{label}</span>
+            {icon === "chevron-right" || icon === "external-link" ? (
+                <Icon name={icon} size={11} />
+            ) : null}
+        </button>
     );
 }
 
@@ -238,131 +245,180 @@ export default function QuickStats({
         <div className="v2-quick-stats">
             {/* ── Next meeting ─────────────────────────────────────────── */}
             <div className="v2-quick-stat">
-                <StatHeader
-                    label={td("Next meeting")}
-                    actionLabel={meetingLoading ? undefined : td("Schedule")}
-                    onAction={meetingLoading ? undefined : onSchedule}
-                />
+                <StatHeader label={td("Next meeting")} />
                 {meetingLoading ? (
                     <StatBodySkeleton />
                 ) : meetingPreview && nextMeeting ? (
-                    <button
-                        type="button"
-                        className="v2-quick-stat-open"
-                        onClick={() => onOpenMeeting?.(nextMeeting)}
-                        title={td("Open meeting")}
-                    >
-                        <span className="v2-quick-stat-value">
-                            {meetingPreview.title}
-                        </span>
-                        <span className="v2-quick-stat-meta">
-                            {meetingPreview.startsAt
-                                ? formatDateTime(
-                                      meetingPreview.startsAt,
-                                      meetingPreview.startsAtLabel,
-                                  )
-                                : meetingPreview.startsAtLabel}
-                        </span>
-                    </button>
+                    <>
+                        <div className="v2-quick-stat-body">
+                            <span className="v2-quick-stat-value">
+                                {meetingPreview.title}
+                            </span>
+                            <span className="v2-quick-stat-meta">
+                                {meetingPreview.startsAt
+                                    ? formatDateTime(
+                                          meetingPreview.startsAt,
+                                          meetingPreview.startsAtLabel,
+                                      )
+                                    : meetingPreview.startsAtLabel}
+                            </span>
+                        </div>
+                        <div className="v2-quick-stat-actions">
+                            <StatAction
+                                label={td("View meeting")}
+                                icon="chevron-right"
+                                variant="primary"
+                                onClick={() => onOpenMeeting?.(nextMeeting)}
+                            />
+                            <StatAction
+                                label={td("Schedule")}
+                                icon="plus"
+                                variant="secondary"
+                                onClick={onSchedule}
+                            />
+                        </div>
+                    </>
                 ) : (
-                    <span className="v2-quick-stat-muted">{td("None")}</span>
+                    <>
+                        <span className="v2-quick-stat-muted">{td("None")}</span>
+                        <div className="v2-quick-stat-actions">
+                            <StatAction
+                                label={td("Schedule meeting")}
+                                icon="plus"
+                                variant="primary"
+                                onClick={onSchedule}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
 
             {/* ── Open tasks ───────────────────────────────────────────── */}
             <div className="v2-quick-stat">
-                <StatHeader
-                    label={td("Open tasks")}
-                    actionLabel={tasksLoading ? undefined : td("Create")}
-                    onAction={tasksLoading ? undefined : onCreateTask}
-                />
+                <StatHeader label={td("Open tasks")} />
                 {tasksLoading ? (
                     <StatBodySkeleton withChips />
                 ) : openTasksCount > 0 && nextTask && taskPreview ? (
-                    <button
-                        type="button"
-                        className="v2-quick-stat-open"
-                        onClick={() => onOpenTask?.(nextTask)}
-                        title={td("Open task")}
-                    >
-                        <span className="v2-quick-stat-value">
-                            {openTasksCount > 1
-                                ? `${openTasksCount} · ${taskPreview.title}`
-                                : taskPreview.title}
-                        </span>
-                        <span className="v2-quick-stat-chips">
-                            {taskStatus ? (
-                                <TaskStatusPill
-                                    label={td(taskStatus.label)}
-                                    color={taskStatus.color}
-                                />
-                            ) : null}
-                            <PriorityBadge priority={taskPreview.priority} />
-                            <span className="v2-quick-stat-meta-inline">
-                                {taskPreview.dueDateLabel
-                                    ? `${td("Due")} ${taskPreview.dueDateLabel}`
-                                    : td("No due date")}
+                    <>
+                        <div className="v2-quick-stat-body">
+                            <span className="v2-quick-stat-value">
+                                {openTasksCount > 1
+                                    ? `${openTasksCount} · ${taskPreview.title}`
+                                    : taskPreview.title}
                             </span>
-                        </span>
-                    </button>
+                            <span className="v2-quick-stat-chips">
+                                {taskStatus ? (
+                                    <TaskStatusPill
+                                        label={td(taskStatus.label)}
+                                        color={taskStatus.color}
+                                    />
+                                ) : null}
+                                <PriorityBadge
+                                    priority={taskPreview.priority}
+                                />
+                                <span className="v2-quick-stat-meta-inline">
+                                    {taskPreview.dueDateLabel
+                                        ? `${td("Due")} ${taskPreview.dueDateLabel}`
+                                        : td("No due date")}
+                                </span>
+                            </span>
+                        </div>
+                        <div className="v2-quick-stat-actions">
+                            <StatAction
+                                label={td("View task")}
+                                icon="chevron-right"
+                                variant="primary"
+                                onClick={() => onOpenTask?.(nextTask)}
+                            />
+                            <StatAction
+                                label={td("Create")}
+                                icon="plus"
+                                variant="secondary"
+                                onClick={onCreateTask}
+                            />
+                        </div>
+                    </>
                 ) : (
-                    <span className="v2-quick-stat-muted">{td("None")}</span>
+                    <>
+                        <span className="v2-quick-stat-muted">{td("None")}</span>
+                        <div className="v2-quick-stat-actions">
+                            <StatAction
+                                label={td("Create task")}
+                                icon="plus"
+                                variant="primary"
+                                onClick={onCreateTask}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
 
             {/* ── Deals ────────────────────────────────────────────────── */}
             <div className="v2-quick-stat">
-                <StatHeader
-                    label={td("Deals")}
-                    actionLabel={
-                        dealsLoading
-                            ? undefined
-                            : dealsCount > 1
-                              ? td("View all")
-                              : td("Create")
-                    }
-                    actionPrefix={dealsCount > 1 ? "" : "+"}
-                    onAction={
-                        dealsLoading
-                            ? undefined
-                            : dealsCount > 1
-                              ? onViewAllDeals
-                              : onCreateDeal
-                    }
-                />
+                <StatHeader label={td("Deals")} />
                 {dealsLoading ? (
                     <StatBodySkeleton lines={2} withChips />
                 ) : primaryDeal && dealsCount > 0 ? (
-                    <button
-                        type="button"
-                        className="v2-quick-stat-open"
-                        onClick={() => onOpenDeal?.(primaryDeal)}
-                        title={td("Open deal")}
-                    >
-                        <span className="v2-quick-stat-value">
-                            {primaryDeal.name}
-                        </span>
-                        <span className="v2-quick-stat-value-secondary">
-                            {formatDealValue(primaryDeal)}
-                        </span>
-                        <span className="v2-quick-stat-chips">
-                            {pipelineName ? (
-                                <span className="v2-quick-stat-meta-inline">
-                                    {pipelineName}
-                                </span>
-                            ) : null}
-                            {stageName ? (
-                                <StagePill
-                                    name={stageName}
-                                    color={stageColor}
+                    <>
+                        <div className="v2-quick-stat-body">
+                            <span className="v2-quick-stat-value">
+                                {primaryDeal.name}
+                            </span>
+                            <span className="v2-quick-stat-value-secondary">
+                                {formatDealValue(primaryDeal)}
+                            </span>
+                            <span className="v2-quick-stat-chips">
+                                {pipelineName ? (
+                                    <span className="v2-quick-stat-meta-inline">
+                                        {pipelineName}
+                                    </span>
+                                ) : null}
+                                {stageName ? (
+                                    <StagePill
+                                        name={stageName}
+                                        color={stageColor}
+                                    />
+                                ) : null}
+                            </span>
+                        </div>
+                        <div className="v2-quick-stat-actions">
+                            <StatAction
+                                label={td("Open deal")}
+                                icon="external-link"
+                                variant="primary"
+                                onClick={() => onOpenDeal?.(primaryDeal)}
+                            />
+                            {dealsCount > 1 ? (
+                                <StatAction
+                                    label={td("View all")}
+                                    icon="chevron-right"
+                                    variant="secondary"
+                                    onClick={onViewAllDeals}
                                 />
-                            ) : null}
-                        </span>
-                    </button>
+                            ) : (
+                                <StatAction
+                                    label={td("Create")}
+                                    icon="plus"
+                                    variant="secondary"
+                                    onClick={onCreateDeal}
+                                />
+                            )}
+                        </div>
+                    </>
                 ) : (
-                    <span className="v2-quick-stat-muted">
-                        {td("None yet")}
-                    </span>
+                    <>
+                        <span className="v2-quick-stat-muted">
+                            {td("None yet")}
+                        </span>
+                        <div className="v2-quick-stat-actions">
+                            <StatAction
+                                label={td("Create deal")}
+                                icon="plus"
+                                variant="primary"
+                                onClick={onCreateDeal}
+                            />
+                        </div>
+                    </>
                 )}
             </div>
         </div>
