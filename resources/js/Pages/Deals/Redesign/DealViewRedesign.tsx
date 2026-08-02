@@ -37,6 +37,7 @@ import {
     resolveScopedFieldKeys,
 } from "@/Features/Deals/pipelineScopeUtils";
 import { DealShowProps, DealTab } from "./types";
+import "@/Components/Redesign/redesign.css";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";

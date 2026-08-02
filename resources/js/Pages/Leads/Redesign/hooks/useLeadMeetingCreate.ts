@@ -11,12 +11,12 @@ import {
     getBrowserTimezone,
     persistUserTimezoneOnce,
 } from "@/lib/userTimezone";
-import type { MeetingPlatform } from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
+import type { MeetingPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
     isMeetingStartInFuture,
-} from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 
 export interface LeadMeetingCreateInput {
     meetingTypeId: number | null;

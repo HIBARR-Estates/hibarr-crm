@@ -1,7 +1,7 @@
 import { useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import type { LeadMeetingPreview } from "../../../../adapters/meetingAdapter";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../../types";
 import {
@@ -91,7 +91,7 @@ export default function OverviewMeetingsColumn({
                                             {meeting.title}
                                         </div>
                                         <div className="flex items-center gap-1 text-[10px] text-[#9ca3af]">
-                                            <DealIcon name="clock" size={11} />
+                                            <Icon name="clock" size={11} />
                                             {meeting.timeLabel}
                                             {meeting.isPast
                                                 ? ` · ${td("Past")}`
@@ -100,7 +100,7 @@ export default function OverviewMeetingsColumn({
                                         {expanded && (
                                             <div className="mt-1.5 border-t border-[#e2e5ea] pt-1.5 text-[11px] leading-relaxed text-[#6b7280]">
                                                 <div className="mb-1 flex items-center gap-1">
-                                                    <DealIcon
+                                                    <Icon
                                                         name={
                                                             meeting.locationType ===
                                                             "video"
@@ -121,7 +121,7 @@ export default function OverviewMeetingsColumn({
                                                           : meeting.location}
                                                 </div>
                                                 <div className="flex items-center gap-1">
-                                                    <DealIcon
+                                                    <Icon
                                                         name="users"
                                                         size={11}
                                                     />

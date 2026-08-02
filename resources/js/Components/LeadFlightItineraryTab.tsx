@@ -3,20 +3,13 @@ import {
     Button,
     Table,
     Modal,
-    Form,
-    Input,
-    Select,
-    DatePicker,
-    Switch,
     Segmented,
     message,
     Dropdown,
     Descriptions,
     Empty,
-    Upload,
-    Progress,
 } from "antd";
-import type { MenuProps, TableColumnsType, FormInstance } from "antd";
+import type { MenuProps, TableColumnsType } from "antd";
 import {
     PlusOutlined,
     DeleteOutlined,
@@ -28,14 +21,10 @@ import {
     WarningOutlined,
     CaretDownOutlined,
     CaretUpOutlined,
-    UploadOutlined,
-    LoadingOutlined,
-    CloseCircleOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import dayjs from "dayjs";
 import useTranslation from "@/Hooks/useTranslation";
-import { useFileUpload } from "@/Hooks/useFileUpload";
 import {
     FlightDirection,
     ILeadFlightItinerary,
@@ -45,24 +34,14 @@ import {
     formatCompanyDateTime,
     formatCompanyTime,
 } from "@/lib/companyDateTime";
-
-const { Option } = Select;
+import ItineraryModal, {
+    type ItineraryFormInput,
+} from "@/Components/Redesign/modals/ItineraryModal";
+import "@/Components/Redesign/redesign.css";
 
 const FT = "pages.flight_itinerary";
 
 type FilterKey = "all" | "arrival" | "departure" | "transfer";
-
-function applyServerErrorsToForm(
-    form: FormInstance,
-    errors: Record<string, string | string[]>,
-) {
-    form.setFields(
-        Object.entries(errors).map(([name, error]) => ({
-            name,
-            errors: Array.isArray(error) ? error : [error],
-        })),
-    );
-}
 
 function parseFlightDate(value: string) {
     const normalized =
@@ -188,101 +167,6 @@ function StatusBadge({
     );
 }
 
-function FlightPlanImageField({
-    form,
-    fieldName,
-    label,
-    uploadHint,
-    removeLabel,
-    uploadingLabel,
-    isUploading,
-    uploadProgress,
-    onUpload,
-    onRemove,
-}: {
-    form: FormInstance;
-    fieldName: string;
-    label: string;
-    uploadHint: string;
-    removeLabel: string;
-    uploadingLabel: string;
-    isUploading: boolean;
-    uploadProgress: number;
-    onUpload: (fieldName: string, file: File) => void;
-    onRemove: (fieldName: string) => void;
-}) {
-    const imageUrl = Form.useWatch(fieldName, form);
-
-    return (
-        <>
-            <Form.Item name={fieldName} hidden>
-                <Input />
-            </Form.Item>
-            <Form.Item label={label} className="mb-0">
-                {imageUrl ? (
-                    <div className="flex flex-col gap-2">
-                        <a
-                            href={imageUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-block"
-                        >
-                            <img
-                                src={imageUrl}
-                                alt={label}
-                                className="max-h-40 rounded-md border border-gray-200 object-contain"
-                            />
-                        </a>
-                        <Button
-                            type="text"
-                            danger
-                            size="small"
-                            icon={<CloseCircleOutlined />}
-                            onClick={() => onRemove(fieldName)}
-                            className="self-start px-0"
-                        >
-                            {removeLabel}
-                        </Button>
-                    </div>
-                ) : (
-                    <Upload.Dragger
-                        accept="image/png,image/jpeg,image/webp"
-                        showUploadList={false}
-                        multiple={false}
-                        beforeUpload={(file) => {
-                            onUpload(fieldName, file);
-                            return false;
-                        }}
-                        disabled={isUploading}
-                        className="!p-4"
-                    >
-                        {isUploading ? (
-                            <div className="text-center">
-                                <LoadingOutlined className="text-2xl text-blue-500 mb-2" />
-                                <p className="text-sm text-gray-500 mb-1">
-                                    {uploadingLabel}
-                                </p>
-                                <Progress
-                                    percent={uploadProgress}
-                                    size="small"
-                                    showInfo={false}
-                                />
-                            </div>
-                        ) : (
-                            <div className="text-center">
-                                <UploadOutlined className="text-2xl text-gray-400 mb-2" />
-                                <p className="text-sm text-gray-600">
-                                    {uploadHint}
-                                </p>
-                            </div>
-                        )}
-                    </Upload.Dragger>
-                )}
-            </Form.Item>
-        </>
-    );
-}
-
 function TransferCell({
     required,
     requiredLabel,
@@ -312,49 +196,15 @@ export default function LeadFlightItineraryTab({
     const ft = (key: string, options?: Record<string, unknown>) =>
         t(`${FT}.${key}`, options);
     const [isModalVisible, setIsModalVisible] = useState(false);
+    const [isSavingItinerary, setIsSavingItinerary] = useState(false);
     const [viewingLeg, setViewingLeg] = useState<ILeadFlightItinerary | null>(
         null,
     );
     const [editingLeg, setEditingLeg] = useState<ILeadFlightItinerary | null>(
         null,
     );
-    const [form] = Form.useForm();
-    const [isRoundtrip, setIsRoundtrip] = useState(false);
-    const [direction, setDirection] = useState<FlightDirection>(
-        FlightDirection.ARRIVAL,
-    );
     const [activeFilter, setActiveFilter] = useState<FilterKey>("all");
     const [sortAsc, setSortAsc] = useState(false);
-    const [uploadingImageField, setUploadingImageField] = useState<
-        string | null
-    >(null);
-
-    const {
-        uploadSingle,
-        aggregateProgress,
-        reset: resetUpload,
-    } = useFileUpload({
-        maxFileSize: 5 * 1024 * 1024,
-        allowedTypes: ["image/png", "image/jpeg", "image/webp"],
-        targetFolder: "lead-flight-itineraries",
-        onError: (error) => {
-            message.error(error.message || ft("messages.upload_failed"));
-        },
-    });
-
-    const isTransferRequired = Form.useWatch("is_transfer_required", form);
-
-    const showArrivalSection =
-        editingLeg != null
-            ? editingLeg.direction === FlightDirection.ARRIVAL
-            : isRoundtrip || direction === FlightDirection.ARRIVAL;
-
-    const showDepartureSection =
-        editingLeg != null
-            ? editingLeg.direction === FlightDirection.DEPARTURE
-            : isRoundtrip || direction === FlightDirection.DEPARTURE;
-
-    const departureUsesReturnFields = isRoundtrip && !editingLeg;
 
     const statusLabel = (status: string) => {
         const key = STATUS_STYLES[status]?.label;
@@ -418,120 +268,52 @@ export default function LeadFlightItineraryTab({
             return;
         }
 
-        if (leg) {
-            setEditingLeg(leg);
-            setIsRoundtrip(false);
-            setDirection(leg.direction);
-            form.setFieldsValue({
-                direction: leg.direction,
-                airport_name: leg.airport_name,
-                flight_number: leg.flight_number,
-                flight_date: leg.flight_date
-                    ? dayjs(leg.flight_date)
-                    : undefined,
-                status: leg.status,
-                is_transfer_required: leg.is_transfer_required ?? false,
-                is_roundtrip: false,
-                ticket_image_url: leg.ticket_image_url || undefined,
-            });
-        } else {
-            setEditingLeg(null);
-            setIsRoundtrip(false);
-            setDirection(FlightDirection.ARRIVAL);
-            form.resetFields();
-            form.setFieldsValue({
-                direction: FlightDirection.ARRIVAL,
-                is_roundtrip: false,
-                is_transfer_required: false,
-                status: "not arrived",
-                return_status: "not departed",
-            });
-        }
+        setEditingLeg(leg ?? null);
         setIsModalVisible(true);
     };
 
     const handleCloseModal = () => {
+        if (isSavingItinerary) return;
         setIsModalVisible(false);
         setEditingLeg(null);
-        form.resetFields();
-        setIsRoundtrip(false);
-        setDirection(FlightDirection.ARRIVAL);
-        setUploadingImageField(null);
-        resetUpload();
     };
 
-    const handleFlightPlanUpload = async (fieldName: string, file: File) => {
-        setUploadingImageField(fieldName);
-        try {
-            const result = await uploadSingle(file, "lead-flight-itineraries");
-            form.setFieldValue(fieldName, result.downloadUrl);
-        } catch {
-            // handled by onError callback
-        } finally {
-            setUploadingImageField(null);
-        }
-    };
+    const handleItinerarySubmit = (payload: ItineraryFormInput) => {
+        setIsSavingItinerary(true);
+        const body = {
+            ...payload,
+            lead_id: leadId,
+            deal_id: dealId,
+            status:
+                editingLeg?.status ??
+                (payload.direction === FlightDirection.ARRIVAL
+                    ? "not arrived"
+                    : "not departed"),
+        };
 
-    const handleRemoveFlightPlan = (fieldName: string) => {
-        form.setFieldValue(fieldName, undefined);
-    };
+        const finish = (okMessage: string) => {
+            message.success(okMessage);
+            setIsSavingItinerary(false);
+            setIsModalVisible(false);
+            setEditingLeg(null);
+        };
 
-    const handleSubmit = async () => {
-        if (uploadingImageField) {
-            message.warning(ft("uploading_flight_plan"));
-            return;
-        }
-
-        try {
-            const values = await form.validateFields();
-
-            const payload = {
-                ...values,
-                lead_id: leadId,
-                deal_id: dealId,
-                direction: editingLeg
-                    ? editingLeg.direction
-                    : isRoundtrip
-                      ? FlightDirection.ARRIVAL
-                      : values.direction,
-                flight_date: values.flight_date
-                    ? values.flight_date.format("YYYY-MM-DD HH:mm:ss")
-                    : null,
-                return_flight_date: values.return_flight_date
-                    ? values.return_flight_date.format("YYYY-MM-DD HH:mm:ss")
-                    : null,
-                ticket_image_url: values.ticket_image_url || null,
-                return_ticket_image_url:
-                    values.return_ticket_image_url || null,
-            };
-
-            if (editingLeg) {
-                router.put(
-                    route("lead-flight-itineraries.update", editingLeg.id),
-                    payload,
-                    {
-                        onSuccess: () => {
-                            message.success(ft("messages.updated"));
-                            handleCloseModal();
-                        },
-                        onError: (errors) => {
-                            applyServerErrorsToForm(form, errors);
-                        },
-                    },
-                );
-            } else {
-                router.post(route("lead-flight-itineraries.store"), payload, {
-                    onSuccess: () => {
-                        message.success(ft("messages.added"));
-                        handleCloseModal();
-                    },
-                    onError: (errors) => {
-                        applyServerErrorsToForm(form, errors);
-                    },
-                });
-            }
-        } catch (error) {
-            console.error("Validation Failed:", error);
+        if (editingLeg) {
+            router.put(
+                route("lead-flight-itineraries.update", editingLeg.id),
+                body,
+                {
+                    onSuccess: () => finish(ft("messages.updated")),
+                    onError: () => setIsSavingItinerary(false),
+                    onFinish: () => setIsSavingItinerary(false),
+                },
+            );
+        } else {
+            router.post(route("lead-flight-itineraries.store"), body, {
+                onSuccess: () => finish(ft("messages.added")),
+                onError: () => setIsSavingItinerary(false),
+                onFinish: () => setIsSavingItinerary(false),
+            });
         }
     };
 
@@ -586,83 +368,6 @@ export default function LeadFlightItineraryTab({
         }
 
         return items;
-    };
-
-    const renderFlightFields = (
-        prefix: "" | "return_",
-        isDeparture: boolean,
-    ) => {
-        const airportName = prefix ? "return_airport_name" : "airport_name";
-        const flightNumber = prefix ? "return_flight_number" : "flight_number";
-        const flightDate = prefix ? "return_flight_date" : "flight_date";
-        const statusField = prefix ? "return_status" : "status";
-        const ticketImageField = prefix
-            ? "return_ticket_image_url"
-            : "ticket_image_url";
-
-        return (
-            <>
-                <div className="grid grid-cols-2 gap-4">
-                    <Form.Item name={airportName} label={ft("airport_name")}>
-                        <Input className="h-[38px] rounded-[6px]" />
-                    </Form.Item>
-                    <Form.Item name={flightNumber} label={ft("flight_number")}>
-                        <Input className="h-[38px] rounded-[6px]" />
-                    </Form.Item>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                    <Form.Item name={flightDate} label={ft("date_time")}>
-                        <DatePicker
-                            showTime
-                            className="w-full h-[38px]"
-                            placeholder={ft("select_date")}
-                        />
-                    </Form.Item>
-                    <Form.Item name={statusField} label={ft("status")}>
-                        <Select
-                            key={
-                                isDeparture
-                                    ? "departure-status"
-                                    : "arrival-status"
-                            }
-                            className="h-[38px]"
-                        >
-                            {isDeparture ? (
-                                <>
-                                    <Option value="not departed">
-                                        {ft("status_not_departed")}
-                                    </Option>
-                                    <Option value="departed">
-                                        {ft("status_departed")}
-                                    </Option>
-                                </>
-                            ) : (
-                                <>
-                                    <Option value="not arrived">
-                                        {ft("status_not_arrived")}
-                                    </Option>
-                                    <Option value="arrived">
-                                        {ft("status_arrived")}
-                                    </Option>
-                                </>
-                            )}
-                        </Select>
-                    </Form.Item>
-                </div>
-                <FlightPlanImageField
-                    form={form}
-                    fieldName={ticketImageField}
-                    label={ft("flight_plan_image")}
-                    uploadHint={ft("upload_flight_plan")}
-                    removeLabel={ft("remove_flight_plan")}
-                    uploadingLabel={ft("uploading_flight_plan")}
-                    isUploading={uploadingImageField === ticketImageField}
-                    uploadProgress={aggregateProgress.overallProgress}
-                    onUpload={handleFlightPlanUpload}
-                    onRemove={handleRemoveFlightPlan}
-                />
-            </>
-        );
     };
 
     const columns: TableColumnsType<ILeadFlightItinerary> = [
@@ -937,260 +642,32 @@ export default function LeadFlightItineraryTab({
                 </div>
             )}
 
-            <Modal
-                title={editingLeg ? ft("edit_flight") : ft("add_flight")}
+            <ItineraryModal
                 open={isModalVisible}
-                onOk={handleSubmit}
-                onCancel={handleCloseModal}
-                okButtonProps={{ disabled: !!uploadingImageField }}
-                width={520}
-                destroyOnClose
-            >
-                <Form
-                    form={form}
-                    layout="vertical"
-                    onValuesChange={(changedValues) => {
-                        if (changedValues.is_roundtrip !== undefined) {
-                            setIsRoundtrip(changedValues.is_roundtrip);
-                        }
-                        if (changedValues.direction !== undefined) {
-                            const nextDirection =
-                                changedValues.direction as FlightDirection;
-                            setDirection(nextDirection);
-                            form.setFieldsValue({
-                                status:
-                                    nextDirection === FlightDirection.DEPARTURE
-                                        ? "not departed"
-                                        : "not arrived",
-                            });
-                        }
-                    }}
-                >
-                    {!editingLeg && (
-                        <Form.Item
-                            name="direction"
-                            label={ft("direction")}
-                            hidden={isRoundtrip}
-                            className="mb-5"
-                        >
-                            <Select className="h-[40px]">
-                                <Option value="arrival">{ft("arrival")}</Option>
-                                <Option value="departure">
-                                    {ft("departure")}
-                                </Option>
-                            </Select>
-                        </Form.Item>
-                    )}
-
-                    <div className="mb-6 transition-all duration-300">
-                        {showArrivalSection && (
-                            <div>
-                                <h4 className="font-semibold mb-5 text-sm text-gray-700">
-                                    {ft("arrival_details")}
-                                </h4>
-                                {renderFlightFields("", false)}
-                            </div>
-                        )}
-
-                        {showDepartureSection && (
-                            <div
-                                className={
-                                    isRoundtrip
-                                        ? "border-t border-dashed border-[#dcdfe6] pt-5 mt-5"
-                                        : ""
-                                }
-                            >
-                                <h4 className="font-semibold mb-5 text-sm text-gray-700">
-                                    {ft("departure_details")}
-                                </h4>
-                                {departureUsesReturnFields
-                                    ? renderFlightFields("return_", true)
-                                    : renderFlightFields("", true)}
-                            </div>
-                        )}
-
-                        {!editingLeg && (
-                            <div className="flex flex-wrap items-center gap-x-8 gap-y-3 mt-5">
-                                <div className="flex items-center gap-3">
-                                    <Form.Item
-                                        name="is_transfer_required"
-                                        valuePropName="checked"
-                                        className="mb-0"
-                                        hidden
-                                    >
-                                        <Switch />
-                                    </Form.Item>
-                                    <button
-                                        type="button"
-                                        className="flex items-center gap-3 bg-transparent border-0 p-0 cursor-pointer"
-                                        onClick={() =>
-                                            form.setFieldsValue({
-                                                is_transfer_required:
-                                                    !isTransferRequired,
-                                            })
-                                        }
-                                    >
-                                        <div
-                                            className={`w-10 h-[22px] rounded-[11px] relative transition-colors duration-200 ${
-                                                isTransferRequired
-                                                    ? "bg-[#1a8cff]"
-                                                    : "bg-[#bfc4cd]"
-                                            }`}
-                                        >
-                                            <div
-                                                className={`w-[18px] h-[18px] rounded-full bg-white absolute top-[2px] transition-all duration-200 ${
-                                                    isTransferRequired
-                                                        ? "left-5"
-                                                        : "left-0.5"
-                                                }`}
-                                            />
-                                        </div>
-                                        <span className="text-sm text-[#333]">
-                                            {ft(
-                                                "airport_transfer_required_question",
-                                            )}
-                                        </span>
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center gap-3">
-                                    <Form.Item
-                                        name="is_roundtrip"
-                                        valuePropName="checked"
-                                        hidden
-                                    >
-                                        <Switch />
-                                    </Form.Item>
-                                    <button
-                                        type="button"
-                                        className="flex items-center gap-3 bg-transparent border-0 p-0 cursor-pointer"
-                                        onClick={() => {
-                                            const next = !isRoundtrip;
-                                            setIsRoundtrip(next);
-
-                                            if (next) {
-                                                const values =
-                                                    form.getFieldsValue();
-                                                const wasDeparture =
-                                                    values.direction ===
-                                                    FlightDirection.DEPARTURE;
-
-                                                if (wasDeparture) {
-                                                    form.setFieldsValue({
-                                                        is_roundtrip: next,
-                                                        direction:
-                                                            FlightDirection.ARRIVAL,
-                                                        return_airport_name:
-                                                            values.airport_name,
-                                                        return_flight_number:
-                                                            values.flight_number,
-                                                        return_flight_date:
-                                                            values.flight_date,
-                                                        return_status:
-                                                            values.status ||
-                                                            "not departed",
-                                                        return_ticket_image_url:
-                                                            values.ticket_image_url,
-                                                        airport_name: undefined,
-                                                        flight_number:
-                                                            undefined,
-                                                        flight_date: undefined,
-                                                        status: "not arrived",
-                                                        ticket_image_url:
-                                                            undefined,
-                                                    });
-                                                } else {
-                                                    form.setFieldsValue({
-                                                        is_roundtrip: next,
-                                                        direction:
-                                                            FlightDirection.ARRIVAL,
-                                                        status:
-                                                            values.status ||
-                                                            "not arrived",
-                                                        return_status:
-                                                            "not departed",
-                                                    });
-                                                }
-                                            } else {
-                                                form.setFieldsValue({
-                                                    is_roundtrip: next,
-                                                });
-                                            }
-
-                                            setDirection(
-                                                FlightDirection.ARRIVAL,
-                                            );
-                                        }}
-                                    >
-                                        <div
-                                            className={`w-10 h-[22px] rounded-[11px] relative transition-colors duration-200 ${
-                                                isRoundtrip
-                                                    ? "bg-[#1a8cff]"
-                                                    : "bg-[#bfc4cd]"
-                                            }`}
-                                        >
-                                            <div
-                                                className={`w-[18px] h-[18px] rounded-full bg-white absolute top-[2px] transition-all duration-200 ${
-                                                    isRoundtrip
-                                                        ? "left-5"
-                                                        : "left-0.5"
-                                                }`}
-                                            />
-                                        </div>
-                                        <span className="text-sm text-[#333]">
-                                            {ft("add_roundtrip")}
-                                        </span>
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {editingLeg && (
-                            <div className="flex items-center gap-3 mt-5">
-                                <Form.Item
-                                    name="is_transfer_required"
-                                    valuePropName="checked"
-                                    className="mb-0"
-                                    hidden
-                                >
-                                    <Switch />
-                                </Form.Item>
-                                <button
-                                    type="button"
-                                    className="flex items-center gap-3 bg-transparent border-0 p-0 cursor-pointer"
-                                    onClick={() =>
-                                        form.setFieldsValue({
-                                            is_transfer_required:
-                                                !isTransferRequired,
-                                        })
-                                    }
-                                >
-                                    <div
-                                        className={`w-10 h-[22px] rounded-[11px] relative transition-colors duration-200 ${
-                                            isTransferRequired
-                                                ? "bg-[#1a8cff]"
-                                                : "bg-[#bfc4cd]"
-                                        }`}
-                                    >
-                                        <div
-                                            className={`w-[18px] h-[18px] rounded-full bg-white absolute top-[2px] transition-all duration-200 ${
-                                                isTransferRequired
-                                                    ? "left-5"
-                                                    : "left-0.5"
-                                            }`}
-                                        />
-                                    </div>
-                                    <span className="text-sm text-[#333]">
-                                        {ft(
-                                            "airport_transfer_required_question",
-                                        )}
-                                    </span>
-                                </button>
-                            </div>
-                        )}
-                    </div>
-                </Form>
-            </Modal>
+                onClose={handleCloseModal}
+                leg={editingLeg}
+                saving={isSavingItinerary}
+                onSubmit={handleItinerarySubmit}
+                labels={{
+                    addTitle: ft("add_flight"),
+                    editTitle: ft("edit_flight"),
+                    cancel: t("app.cancel"),
+                    save: t("app.update"),
+                    addSubmit: ft("add_flight"),
+                    arrival: ft("arrival"),
+                    departure: ft("departure"),
+                    direction: ft("direction"),
+                    flightNumber: ft("flight_number"),
+                    flightNumberPlaceholder: ft("flight_number"),
+                    airportName: ft("airport_name"),
+                    selectAirport: ft("airport_name"),
+                    date: t("app.date"),
+                    time: t("app.time"),
+                    transferQuestion: ft("airport_transfer_required_question"),
+                    yes: t("app.yes"),
+                    no: t("app.no"),
+                }}
+            />
 
             <Modal
                 title={ft("view_details")}

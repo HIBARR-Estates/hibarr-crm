@@ -1,7 +1,7 @@
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
-import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
 import LeadIcon from "../primitives/LeadIcon";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatPhoneNumber } from "@/lib/utils";
@@ -134,7 +134,7 @@ export default function ContactRailPanel({
 
                 {/* <div className="mt-2">
                     {!contactLogged ? (
-                        <DealButton
+                        <Button
                             variant="primary"
                             onClick={onLogContact}
                             loading={isLoggingContact}
@@ -142,9 +142,9 @@ export default function ContactRailPanel({
                             style={{ width: "100%", fontSize: 12 }}
                         >
                             {td("Log contact")}
-                        </DealButton>
+                        </Button>
                     ) : (
-                        <DealBadge variant="green">{td("Contact logged")}</DealBadge>
+                        <Badge variant="green">{td("Contact logged")}</Badge>
                     )}
                 </div> */}
             </div>

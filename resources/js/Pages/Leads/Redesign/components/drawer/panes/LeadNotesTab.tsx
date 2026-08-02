@@ -5,8 +5,8 @@ import type { Lead } from "@/Types/api/leads";
 import type { LeadNote } from "@/Types/api/lead-note";
 import { toLeadNotePreview } from "../../../adapters/noteAdapter";
 import useLeadNoteCreate from "../../../hooks/useLeadNoteCreate";
-import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
 
 interface LeadNotesTabProps {
@@ -89,7 +89,7 @@ export default function LeadNotesTab({
                     </div>
 
                     <div className="flex justify-end border-t border-[#e2e5ea] pt-2">
-                        <DealButton
+                        <Button
                             variant="navy"
                             onClick={handleSave}
                             disabled={!noteText.trim() || isSaving}
@@ -97,7 +97,7 @@ export default function LeadNotesTab({
                             style={{ fontSize: 12, padding: "6px 11px" }}
                         >
                             {td("Save note")}
-                        </DealButton>
+                        </Button>
                     </div>
                 </section>
             )}
@@ -118,7 +118,7 @@ export default function LeadNotesTab({
                     >
                         <div className="mb-1.5 flex items-center justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-1.5">
-                                <DealAvatar
+                                <Avatar
                                     size={24}
                                     initials={note.authorInitials}
                                 />
