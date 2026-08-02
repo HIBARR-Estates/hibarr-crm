@@ -1,16 +1,11 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
+import ScheduleMeetingModal from "@/Components/Redesign/modals/ScheduleMeetingModal";
+import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { buildEmptyMeetingForm } from "./meetingFormUtils";
 import useDealMeetingCreate from "../../hooks/useDealMeetingCreate";
-import DealButton from "../primitives/DealButton";
-import { DealModal } from "../primitives/DealModal";
-import {
-    MeetingFormState,
-    buildEmptyMeetingForm,
-} from "./meetingFormUtils";
-import DealMeetingFormFields from "./meeting/DealMeetingFormFields";
 
 interface DealScheduleMeetingModalProps {
     open: boolean;
@@ -25,29 +20,23 @@ export default function DealScheduleMeetingModal({
     deal,
     meetingTypes,
 }: DealScheduleMeetingModalProps) {
-    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
-    const [form, setForm] = useState<MeetingFormState>(() =>
-        buildEmptyMeetingForm(deal, currentUserId),
+    const initialForm = useMemo(
+        () => buildEmptyMeetingForm(deal, currentUserId),
+        [deal, currentUserId],
     );
     const { createMeeting, isCreating, errors, clearErrors } =
         useDealMeetingCreate(deal);
 
-    useEffect(() => {
-        if (!open) {
-            setForm(buildEmptyMeetingForm(deal, currentUserId));
-            clearErrors();
-        }
-    }, [clearErrors, currentUserId, deal, open]);
-
     const handleClose = () => {
         if (isCreating) return;
+        clearErrors();
         onClose();
     };
 
-    const handleSubmit = () => {
+    const handleSubmit = (form: MeetingFormState) => {
         createMeeting(
             {
                 meetingTypeId: form.meetingTypeId,
@@ -66,48 +55,19 @@ export default function DealScheduleMeetingModal({
     };
 
     return (
-        <DealModal
+        <ScheduleMeetingModal
             open={open}
-            title={t("pages.deals.workspace.meetings.schedule")}
             onClose={handleClose}
-            footer={
-                <>
-                    <DealButton
-                        variant="ghost"
-                        onClick={handleClose}
-                        disabled={isCreating}
-                    >
-                        {t("pages.deals.common.cancel")}
-                    </DealButton>
-                    <DealButton
-                        variant="primary"
-                        onClick={handleSubmit}
-                        loading={isCreating}
-                        disabled={isCreating}
-                    >
-                        {t("pages.deals.workspace.meetings.schedule_button")}
-                    </DealButton>
-                </>
-            }
-        >
-            {errors.length > 0 && (
-                <div className="mb-3 space-y-1">
-                    {errors.map((error, index) => (
-                        <p key={index} className="text-xs text-red-600">
-                            {td(error)}
-                        </p>
-                    ))}
-                </div>
-            )}
-
-            <DealMeetingFormFields
-                form={form}
-                onChange={(patch) =>
-                    setForm((current) => ({ ...current, ...patch }))
-                }
-                meetingTypes={meetingTypes}
-                disabled={isCreating}
-            />
-        </DealModal>
+            saving={isCreating}
+            errors={errors}
+            meetingTypes={meetingTypes}
+            initialForm={initialForm}
+            onSubmit={handleSubmit}
+            labels={{
+                title: t("pages.deals.workspace.meetings.schedule"),
+                cancel: t("pages.deals.common.cancel"),
+                submit: t("pages.deals.workspace.meetings.schedule_button"),
+            }}
+        />
     );
 }

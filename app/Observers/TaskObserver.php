@@ -222,7 +222,7 @@ class TaskObserver
                     $notification = 'TaskStatusUpdated';
                 }
 
-                if($task->boardColumn->slug == 'waiting_approval'){
+                if($task->boardColumn->slug == 'in_review'){
                     // For waiting_approval, notify admins, task users, and project admins
                     $admins = User::allAdmins($task->company->id);
 
@@ -280,7 +280,7 @@ class TaskObserver
                 }
 
                 $sendLegacyStatusNotification = !FeatureFlags::enabled('crm.task-lifecycle-notifications')
-                    || in_array($task->boardColumn->slug, ['waiting_approval', 'in_review']);
+                    || $task->boardColumn->slug === 'in_review';
 
                 if ($sendLegacyStatusNotification) {
                     event(new TaskEvent($task, $taskUser, $notification));

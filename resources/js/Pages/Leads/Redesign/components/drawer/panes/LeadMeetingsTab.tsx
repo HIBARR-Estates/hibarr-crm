@@ -7,9 +7,9 @@ import type { DealFollowup } from "@/Types/api/deal-followup";
 import DeleteFollowup from "@/Pages/Deals/Components/Tabs/followups/DeleteFollowup";
 import ViewFollowup from "@/Pages/Deals/Components/Tabs/followups/ViewFollowup";
 import { toWorkspaceMeetingListItem } from "@/Pages/Deals/Redesign/adapters/meetingListAdapter";
-import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
 import LeadEditMeetingModal from "./LeadEditMeetingModal";
 import LeadRescheduleMeetingModal from "./LeadRescheduleMeetingModal";
@@ -73,12 +73,12 @@ function SummaryStatusBadge({
                 onClick={onView}
                 className="border-none bg-transparent p-0"
             >
-                <DealBadge variant="green">{td("View summary")}</DealBadge>
+                <Badge variant="green">{td("View summary")}</Badge>
             </button>
         );
     }
 
-    return <DealBadge variant="gray">{td("Summary pending")}</DealBadge>;
+    return <Badge variant="gray">{td("Summary pending")}</Badge>;
 }
 
 function MeetingCard({
@@ -130,12 +130,12 @@ function MeetingCard({
                     <span className="text-[13px] font-medium text-[#1a1f2e]">
                         {meeting.title}
                     </span>
-                    <DealBadge variant={meeting.platformBadgeVariant}>
+                    <Badge variant={meeting.platformBadgeVariant}>
                         {meeting.platformLabel}
-                    </DealBadge>
-                    <DealBadge variant="navy" className="capitalize">
+                    </Badge>
+                    <Badge variant="navy" className="capitalize">
                         {meeting.statusLabel}
-                    </DealBadge>
+                    </Badge>
                     <SummaryStatusBadge
                         status={meeting.summaryStatus}
                         onView={onViewSummary}
@@ -143,12 +143,12 @@ function MeetingCard({
                 </div>
 
                 <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#6b7280]">
-                    <DealIcon name="clock" size={12} />
+                    <Icon name="clock" size={12} />
                     {meeting.timeRangeLabel}
                 </div>
 
                 <div className="mb-0.5 flex items-center gap-1.5 text-xs text-[#6b7280]">
-                    <DealIcon
+                    <Icon
                         name={
                             meeting.locationType === "video"
                                 ? "video"
@@ -176,38 +176,38 @@ function MeetingCard({
                 </div>
 
                 <div className="flex items-center gap-1.5 text-[11px] text-[#9ca3af]">
-                    <DealIcon name="users" size={11} />
+                    <Icon name="users" size={11} />
                     <span className="truncate">{meeting.attendeesLabel}</span>
                 </div>
 
                 {(canEdit || canDelete) && (
                     <div className="mt-2.5 flex flex-wrap gap-1.5 border-t border-[#e2e5ea] pt-2">
                         {canEdit && (
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 onClick={onEdit}
                                 style={{ fontSize: 11, padding: "4px 10px" }}
                             >
                                 {td("Edit")}
-                            </DealButton>
+                            </Button>
                         )}
                         {showReschedule && (
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 onClick={onReschedule}
                                 style={{ fontSize: 11, padding: "4px 10px" }}
                             >
                                 {td("Reschedule")}
-                            </DealButton>
+                            </Button>
                         )}
                         {canDelete && (
-                            <DealButton
+                            <Button
                                 variant="ghost"
                                 onClick={onDelete}
                                 style={{ fontSize: 11, padding: "4px 10px" }}
                             >
                                 {td("Delete")}
-                            </DealButton>
+                            </Button>
                         )}
                     </div>
                 )}
@@ -287,15 +287,15 @@ export default function LeadMeetingsTab({
                     {td("past")}
                 </span>
                 {showSchedule && (
-                    <DealButton variant="navy" onClick={onScheduleMeeting}>
+                    <Button variant="navy" onClick={onScheduleMeeting}>
                         + {td("Schedule meeting")}
-                    </DealButton>
+                    </Button>
                 )}
             </div>
 
             {meetings.length === 0 ? (
                 <div className="rounded-lg border border-[#e2e5ea] bg-white px-5 py-9 text-center">
-                    <DealIcon
+                    <Icon
                         name="calendar"
                         size={28}
                         color={T.TEXT_HINT}
@@ -305,9 +305,9 @@ export default function LeadMeetingsTab({
                         {td("No meetings yet")}
                     </p>
                     {showSchedule && (
-                        <DealButton variant="navy" onClick={onScheduleMeeting}>
+                        <Button variant="navy" onClick={onScheduleMeeting}>
                             + {td("Schedule meeting")}
-                        </DealButton>
+                        </Button>
                     )}
                 </div>
             ) : (

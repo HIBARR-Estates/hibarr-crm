@@ -1,4 +1,4 @@
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import type { PublishedTemplate } from "@/Types/qualification";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -68,7 +68,7 @@ export default function QualificationScriptIdle({
             >
                 {detail}
             </p>
-            <DealButton
+            <Button
                 variant="navy"
                 onClick={onBegin}
                 loading={isStarting}
@@ -76,7 +76,7 @@ export default function QualificationScriptIdle({
                 style={{ fontSize: 13, padding: "10px 18px", fontWeight: 600 }}
             >
                 {td("Begin script")}
-            </DealButton>
+            </Button>
         </div>
     );
 }

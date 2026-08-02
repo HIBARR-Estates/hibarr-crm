@@ -9,7 +9,7 @@ import {
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
-} from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 
 export interface LeadMeetingRescheduleInput {
     date: string;

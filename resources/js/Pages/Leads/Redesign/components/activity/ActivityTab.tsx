@@ -3,8 +3,8 @@ import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import type { CrmEvent, CrmEventsIndexResponse } from "@/Types/api/crm-event";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import Button from "@/Components/Redesign/primitives/Button";
+import Icon from "@/Components/Redesign/primitives/Icon";
 import { LEAD_REDESIGN_TOKENS as T } from "../../types";
 
 interface ActivityTabProps {
@@ -161,13 +161,13 @@ export default function ActivityTab({ leadId }: ActivityTabProps) {
                     ),
                 )}
                 <div className="ml-auto">
-                    <DealButton
+                    <Button
                         variant="ghost"
-                        icon={<DealIcon name="refresh" size={12} />}
+                        icon={<Icon name="refresh" size={12} />}
                         onClick={() => refetch()}
                     >
                         {isRefetching ? "Refreshing..." : "Refresh"}
-                    </DealButton>
+                    </Button>
                 </div>
             </div>
 

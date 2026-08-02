@@ -1,22 +1,15 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { Lead } from "@/Types/api/leads";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { LeadMeetingCreateInput } from "../../../hooks/useLeadMeetingCreate";
 import useLeadMeetingUpdate from "../../../hooks/useLeadMeetingUpdate";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import { DealModal } from "@/Pages/Deals/Redesign/components/primitives/DealModal";
-import DealMeetingFormFields from "@/Pages/Deals/Redesign/components/workspace/meeting/DealMeetingFormFields";
+import EditMeetingModal from "@/Components/Redesign/modals/EditMeetingModal";
 import {
-    MeetingFormState,
-    MeetingPlatform,
-    addMinutesToTime,
-} from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
-import dayjs from "dayjs";
-import utc from "dayjs/plugin/utc";
-
-dayjs.extend(utc);
+    buildMeetingFormFromFollowup,
+    type MeetingFormState,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 
 interface LeadEditMeetingModalProps {
     open: boolean;
@@ -24,36 +17,6 @@ interface LeadEditMeetingModalProps {
     lead: Lead;
     followup: DealFollowup | null;
     meetingTypes: Array<{ id: number; name: string; color?: string }>;
-}
-
-function buildLeadMeetingFormFromFollowup(
-    followup: DealFollowup,
-    currentUserId?: number,
-): MeetingFormState {
-    const localDate = dayjs.utc(followup.next_follow_up_date).local();
-    const duration = followup.duration ?? followup.effective_duration ?? 30;
-    const startTime = localDate.format("HH:mm");
-    const customReminders =
-        followup.reminders?.filter((reminder) => !reminder.is_default) ?? [];
-    const participants =
-        followup.participants?.length && followup.participants.length > 0
-            ? followup.participants
-            : currentUserId
-              ? [currentUserId]
-              : [];
-
-    return {
-        meetingTypeId: followup.meeting_type?.id ?? null,
-        date: localDate.format("YYYY-MM-DD"),
-        startTime,
-        endTime: addMinutesToTime(startTime, duration),
-        duration,
-        platform: (followup.location || "zoho") as MeetingPlatform,
-        meetingLink: followup.meeting_link || "",
-        participants,
-        remark: followup.remark || "",
-        reminders: customReminders,
-    };
 }
 
 function toSubmitInput(
@@ -85,7 +48,6 @@ export default function LeadEditMeetingModal({
     const { td } = useTd();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
-    const [form, setForm] = useState<MeetingFormState | null>(null);
     const [localErrors, setLocalErrors] = useState<string[]>([]);
     const { updateMeeting, isUpdating, errors, clearErrors } =
         useLeadMeetingUpdate(lead);
@@ -95,27 +57,20 @@ export default function LeadEditMeetingModal({
         (followup?.deal as { id?: number } | undefined)?.id ??
         null;
 
-    useEffect(() => {
-        if (open && followup) {
-            setForm(buildLeadMeetingFormFromFollowup(followup, currentUserId));
-            setLocalErrors([]);
-            clearErrors();
-        }
-
-        if (!open) {
-            setForm(null);
-            setLocalErrors([]);
-            clearErrors();
-        }
-    }, [clearErrors, currentUserId, followup, open]);
+    const initialForm = useMemo(() => {
+        if (!open || !followup) return null;
+        return buildMeetingFormFromFollowup(followup, null, currentUserId);
+    }, [open, followup, currentUserId]);
 
     const handleClose = () => {
         if (isUpdating) return;
+        setLocalErrors([]);
+        clearErrors();
         onClose();
     };
 
-    const handleSubmit = () => {
-        if (!form || !followup) return;
+    const handleSubmit = (form: MeetingFormState) => {
+        if (!followup) return;
 
         const validationErrors: string[] = [];
         if (!dealId) {
@@ -145,56 +100,21 @@ export default function LeadEditMeetingModal({
         updateMeeting(followup.id, toSubmitInput(form, dealId), handleClose);
     };
 
-    if (!open || !form) return null;
-
-    const displayErrors = [...localErrors, ...errors];
-
     return (
-        <DealModal
+        <EditMeetingModal
             open={open}
-            title={td("Edit meeting")}
             onClose={handleClose}
-            footer={
-                <>
-                    <DealButton
-                        variant="ghost"
-                        onClick={handleClose}
-                        disabled={isUpdating}
-                    >
-                        {td("Cancel")}
-                    </DealButton>
-                    <DealButton
-                        variant="navy"
-                        onClick={handleSubmit}
-                        loading={isUpdating}
-                        disabled={isUpdating}
-                    >
-                        {td("Save changes")}
-                    </DealButton>
-                </>
-            }
-        >
-            {displayErrors.length > 0 && (
-                <div className="mb-3 space-y-1">
-                    {displayErrors.map((error, index) => (
-                        <p key={index} className="text-xs text-red-600">
-                            {error}
-                        </p>
-                    ))}
-                </div>
-            )}
-
-            <DealMeetingFormFields
-                form={form}
-                onChange={(patch) =>
-                    setForm((current) =>
-                        current ? { ...current, ...patch } : current,
-                    )
-                }
-                meetingTypes={meetingTypes}
-                disabled={isUpdating}
-                showExistingMeetingLinkHint={Boolean(form.meetingLink)}
-            />
-        </DealModal>
+            saving={isUpdating}
+            errors={[...localErrors, ...errors]}
+            meetingTypes={meetingTypes}
+            initialForm={initialForm}
+            onSubmit={handleSubmit}
+            showExistingMeetingLinkHint={Boolean(initialForm?.meetingLink)}
+            labels={{
+                title: td("Edit meeting"),
+                cancel: td("Cancel"),
+                submit: td("Save changes"),
+            }}
+        />
     );
 }

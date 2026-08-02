@@ -12,7 +12,7 @@ import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
 import BranchChangeWarningModal from "@/Pages/Leads/Components/Qualification/BranchChangeWarningModal";
 import WebinarSessionPickerModal from "@/Pages/Leads/Components/Qualification/WebinarSessionPickerModal";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import LeadIcon from "../../primitives/LeadIcon";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -179,14 +179,14 @@ export default function QualificationScriptFlow({
                             </option>
                         ))}
                     </select>
-                    <DealButton
+                    <Button
                         variant="ghost"
                         onClick={() => void handleAbandon()}
                         loading={flow.completing}
                         style={{ fontSize: 11, color: "#b91c1c" }}
                     >
                         {td("Abandon")}
-                    </DealButton>
+                    </Button>
                 </div>
 
                 <div
@@ -393,7 +393,7 @@ export default function QualificationScriptFlow({
                             justifyContent: "space-between",
                         }}
                     >
-                        <DealButton
+                        <Button
                             variant="ghost"
                             disabled={!flow.canGoBack || flow.saving}
                             onClick={() => void flow.goBack()}
@@ -402,8 +402,8 @@ export default function QualificationScriptFlow({
                             }}
                         >
                             ← {td("Back")}
-                        </DealButton>
-                        <DealButton
+                        </Button>
+                        <Button
                             variant="primary"
                             disabled={
                                 flow.isLastSegment ||
@@ -423,7 +423,7 @@ export default function QualificationScriptFlow({
                             }}
                         >
                             {td("Next")} →
-                        </DealButton>
+                        </Button>
                     </div>
                 )}
             </div>

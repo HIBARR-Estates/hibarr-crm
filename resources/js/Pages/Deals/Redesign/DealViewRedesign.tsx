@@ -28,6 +28,10 @@ import WorkspaceContextRail from "./components/workspace/rail/WorkspaceContextRa
 import DealAddTaskModal from "./components/workspace/DealAddTaskModal";
 import DealAddNoteModal from "./components/workspace/DealAddNoteModal";
 import DealScheduleMeetingModal from "./components/workspace/DealScheduleMeetingModal";
+import DealAnalysisModal from "./components/analysis/DealAnalysisModal";
+import AnalysisStatusBanner from "./components/analysis/AnalysisStatusBanner";
+import useDealAnalysis from "./hooks/useDealAnalysis";
+
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
@@ -37,6 +41,7 @@ import {
     resolveScopedFieldKeys,
 } from "@/Features/Deals/pipelineScopeUtils";
 import { DealShowProps, DealTab } from "./types";
+import "@/Components/Redesign/redesign.css";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
@@ -56,6 +61,7 @@ function DealViewRedesignInner(props: DealShowProps) {
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
+    const analysis = useDealAnalysis();
     // undefined = not yet known (tab not visited); the tab bar hides the
     // count pill until a real number is reported, instead of showing 0.
     const [offersCount, setOffersCount] = useState<number | undefined>(
@@ -71,6 +77,7 @@ function DealViewRedesignInner(props: DealShowProps) {
     const showProductTour = featureFlags?.["crm.deals-product-tour"] === true;
     const showCompletionDot =
         featureFlags?.["crm.deal-info-count-indicator"] === true;
+    const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -265,6 +272,17 @@ function DealViewRedesignInner(props: DealShowProps) {
                 { name: td(pageTitle) },
             ]}
         >
+            {showAnalysis && (
+                <DealAnalysisModal
+                    analysis={analysis}
+                    dealInfoCategories={dealInfoCategories}
+                    fields={fields}
+                    visibleLeadFieldKeys={props.visibleLeadFieldKeys}
+                    analysisScript={props.analysisScript}
+                    onAddTask={() => setAddTaskOpen(true)}
+                    onScheduleMeeting={() => setAddMeetingOpen(true)}
+                />
+            )}
             <DealAddTaskModal
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
@@ -308,6 +326,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                         onAddNote={() => setAddNoteOpen(true)}
                         onAddTask={() => setAddTaskOpen(true)}
                         onScheduleMeeting={() => setAddMeetingOpen(true)}
+                        onOpenAnalysis={showAnalysis ? analysis.open : undefined}
                         onReplayGuide={
                             showProductTour
                                 ? () => tourRef.current?.restart()
@@ -316,11 +335,14 @@ function DealViewRedesignInner(props: DealShowProps) {
                     />
 
                     <div className="">
-                        <div className="mb-[14px]" data-tour="deal-pipeline-stepper">
-                            <DealPipelineStepper
-                                deal={deal}
-                                permissions={permissions}
-                            />
+                        <div className="mb-[14px] flex items-start gap-4" data-tour="deal-pipeline-stepper">
+                            <div className="min-w-0 flex-1">
+                                <DealPipelineStepper
+                                    deal={deal}
+                                    permissions={permissions}
+                                />
+                            </div>
+                            {showAnalysis && <AnalysisStatusBanner analysis={analysis} />}
                         </div>
                         <div className="dr-grid">
                             <div className="flex min-w-0 flex-col gap-[14px]">

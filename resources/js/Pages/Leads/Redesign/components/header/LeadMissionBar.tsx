@@ -1,4 +1,4 @@
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Button from "@/Components/Redesign/primitives/Button";
 import LeadIcon from "../primitives/LeadIcon";
 import type { LeadMission } from "../../types";
 import { LEAD_REDESIGN_TOKENS as T } from "../../types";
@@ -109,7 +109,7 @@ export default function LeadMissionBar({
                         </a>
                     )}
                     {/* {mission.cta && onCta && (
-                        <DealButton
+                        <Button
                             variant="navy"
                             onClick={onCta}
                             loading={ctaLoading}
@@ -121,7 +121,7 @@ export default function LeadMissionBar({
                             }}
                         >
                             {mission.cta}
-                        </DealButton>
+                        </Button>
                     )} */}
                 </div>
             </div>

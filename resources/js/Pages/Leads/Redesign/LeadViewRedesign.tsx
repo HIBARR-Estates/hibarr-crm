@@ -5,6 +5,7 @@ import { router } from "@inertiajs/react";
 import type { LeadRedesignProps } from "./types";
 import type { LeadNote } from "@/Types/api/lead-note";
 import type { Task } from "@/Types/api/tasks";
+import "@/Components/Redesign/redesign.css";
 import "./lead-redesign.css";
 import useLeadHeaderData from "./hooks/useLeadHeaderData";
 import useLeadViewNavigation from "./hooks/useLeadViewNavigation";

@@ -666,6 +666,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('gathering/custom-fields/{id}', [DealGatheringController::class, 'getDealCustomFields'])->name('gathering.get_custom_fields');
         // Accept both POST (for file uploads with method spoofing) and PATCH
         Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
+        Route::patch('gathering/analysis-complete/{id}', [DealGatheringController::class, 'completeAnalysis'])->name('gathering.analysis_complete');
     });
 
     // Explicit deal routes (no resource)

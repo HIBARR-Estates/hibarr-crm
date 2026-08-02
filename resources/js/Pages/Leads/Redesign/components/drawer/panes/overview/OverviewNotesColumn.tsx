@@ -7,8 +7,8 @@ import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import type { Lead } from "@/Types/api/leads";
 import type { LeadNote } from "@/Types/api/lead-note";
-import DealAvatar from "@/Pages/Deals/Redesign/components/primitives/DealAvatar";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Avatar from "@/Components/Redesign/primitives/Avatar";
+import Button from "@/Components/Redesign/primitives/Button";
 import type { LeadNotePreview } from "../../../../adapters/noteAdapter";
 import { LEAD_REDESIGN_TOKENS as T } from "../../../../types";
 import {
@@ -123,7 +123,7 @@ export default function OverviewNotesColumn({
                             className="flex justify-end pt-1.5"
                             style={{ borderTop: `1px solid ${T.BLUE_MID}` }}
                         >
-                            <DealButton
+                            <Button
                                 variant="navy"
                                 onClick={handleSave}
                                 disabled={
@@ -133,7 +133,7 @@ export default function OverviewNotesColumn({
                                 style={{ fontSize: 11, padding: "4px 10px" }}
                             >
                                 {td("Save")}
-                            </DealButton>
+                            </Button>
                         </div>
                     </div>
                 )}
@@ -165,7 +165,7 @@ export default function OverviewNotesColumn({
                             >
                                 <div className="mb-1.5 flex items-center justify-between">
                                     <div className="flex items-center gap-1.5">
-                                        <DealAvatar
+                                        <Avatar
                                             size={20}
                                             initials={note.authorInitials}
                                         />

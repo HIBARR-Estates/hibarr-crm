@@ -1,5 +1,5 @@
-import DealBadge from "@/Pages/Deals/Redesign/components/primitives/DealBadge";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
+import Badge from "@/Components/Redesign/primitives/Badge";
+import Button from "@/Components/Redesign/primitives/Button";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import LeadIcon from "../primitives/LeadIcon";
 import type { LeadHeaderData } from "../../hooks/useLeadHeaderData";
@@ -51,12 +51,12 @@ export default function LeadIdentityHeader({
                         {header.leadName}
                     </h1>
 
-                    <DealBadge variant="gray">#{header.leadId}</DealBadge>
+                    <Badge variant="gray">#{header.leadId}</Badge>
 
                     {header.languages.map((language) => (
-                        <DealBadge key={language} variant="gray">
+                        <Badge key={language} variant="gray">
                             {language}
-                        </DealBadge>
+                        </Badge>
                     ))}
 
                     {header.statusLabel &&
@@ -76,13 +76,13 @@ export default function LeadIdentityHeader({
                                 {header.statusLabel}
                             </span>
                         ) : (
-                            <DealBadge
+                            <Badge
                                 variant={
                                     header.statusIsActive ? "green" : "gray"
                                 }
                             >
                                 {header.statusLabel}
-                            </DealBadge>
+                            </Badge>
                         ))}
 
                     {header.sourceLabel && (
@@ -98,7 +98,7 @@ export default function LeadIdentityHeader({
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                    <DealButton
+                    <Button
                         variant="ghost"
                         onClick={onRefresh}
                         disabled={refreshDisabled || isRefreshing}
@@ -106,19 +106,19 @@ export default function LeadIdentityHeader({
                         style={{ fontSize: 12 }}
                     >
                         {isRefreshing ? td("Refreshing...") : td("Refresh")}
-                    </DealButton>
+                    </Button>
 
                     {canEdit && (
-                        <DealButton
+                        <Button
                             variant="ghost"
                             onClick={onEditLead}
                             style={{ fontSize: 12 }}
                         >
                             {td("Edit lead info")}
-                        </DealButton>
+                        </Button>
                     )}
 
-                    <DealButton
+                    <Button
                         variant="ghost"
                         onClick={canEdit ? onEditLead : undefined}
                         disabled={!canEdit}
@@ -130,7 +130,7 @@ export default function LeadIdentityHeader({
                         style={{ fontSize: 12 }}
                     >
                         {assignLabel}
-                    </DealButton>
+                    </Button>
                 </div>
             </div>
         </header>
