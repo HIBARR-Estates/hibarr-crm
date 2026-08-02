@@ -42,6 +42,7 @@ use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadQualificationService;
 use App\Services\PermissionService;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadService;
@@ -278,19 +279,32 @@ class LeadContactController extends AccountBaseController
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
+            // Small lookup table; needed for the lifecycle banner's reactivate action.
+            'leadLifecycleStatuses' => LeadLifecycleStatus::query()
+                ->orderBy('sort_order')
+                ->get(['id', 'key', 'label', 'label_color']),
             'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
                 ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($leadContact)
                 : null,
 
+            // Synchronous so the qualification workspace paints without an extra
+            // round-trip — `activeQualification.answers` is already eager-loaded above.
+            'leadQualification' => \App\Support\FeatureFlags::enabled('crm.lead-qualification-tab')
+                ? app(LeadQualificationService::class)->resolveWorkspaceForLead($leadContact)
+                : null,
+
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
+            // Each key carries a named group. Inertia resolves one group per request,
+            // so a slow or throwing closure can no longer stall every other tab —
+            // the same failure documented in DealController::show().
             'notes' => Inertia::defer(fn () => LeadNote::where('lead_id', $leadId)
                 ->with('addedBy')
                 ->orderBy('created_at', 'desc')
-                ->get()),
+                ->get(), 'workspace'),
             'tasks' => Inertia::defer(fn () => $leadContact->tasks()
                 ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
                 ->orderBy('id', 'desc')
-                ->get()),
+                ->get(), 'workspace'),
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
                 $leadFollowUpsQuery = DealFollowUp::with([
                     'addedBy:id,name,image',
@@ -326,29 +340,29 @@ class LeadContactController extends AccountBaseController
                 });
 
                 return $leadFollowUps;
-            }),
-            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all()),
-            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all()),
-            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()),
-            'projects' => Inertia::defer(fn () => \App\Models\Project::all()),
-            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get()),
-            'leadStages' => Inertia::defer(fn () => PipelineStage::all()),
-            'stages' => Inertia::defer(fn () => PipelineStage::all()),
+            }, 'workspace'),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all(), 'taskMeta'),
+            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
+            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
+            'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'taskMeta'),
+            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get(), 'dealMeta'),
+            'leadStages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
+            'stages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
             'leadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', 'active');
-            })->get()),
+            })->get(), 'formMeta'),
             'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', '!=', 'active');
-            })->get()),
-            'leadContacts' => Inertia::defer(fn () => Lead::allLeads()),
-            'products' => Inertia::defer(fn () => Product::all()),
-            'packages' => Inertia::defer(fn () => \App\Models\Package::all()),
+            })->get(), 'formMeta'),
+            'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
+            'products' => Inertia::defer(fn () => Product::all(), 'dealMeta'),
+            'packages' => Inertia::defer(fn () => \App\Models\Package::all(), 'dealMeta'),
             'dealCustomFields' => Inertia::defer(function () {
                 $deal = new Deal();
                 $groups = $deal->getCustomFieldGroupsWithFields();
 
                 return $groups ? $groups->fields : [];
-            }),
+            }, 'dealMeta'),
             'dealCustomFieldCategories' => Inertia::defer(function () {
                 $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
                 if (!$dealCustomFieldGroup) {
@@ -360,7 +374,7 @@ class LeadContactController extends AccountBaseController
                     ->orderBy(DB::raw('`order`'), 'asc')
                     ->orderBy('id', 'asc')
                     ->get();
-            }),
+            }, 'dealMeta'),
             'pipelineCustomFieldCategoryIdsByPipeline' => Inertia::defer(function () {
                 return LeadPipeline::query()
                     ->with('customFieldCategories:id')
@@ -371,7 +385,7 @@ class LeadContactController extends AccountBaseController
                         ];
                     })
                     ->toArray();
-            }),
+            }, 'dealMeta'),
         ]));
     }
 

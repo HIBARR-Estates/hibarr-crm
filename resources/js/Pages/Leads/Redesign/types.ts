@@ -1,66 +1,47 @@
-export { REDESIGN_TOKENS as LEAD_REDESIGN_TOKENS } from "@/Components/Redesign/tokens";
-export { REDESIGN_FONT_STACK as LEAD_REDESIGN_FONT_STACK } from "@/Components/Redesign/tokens";
-
 import type { LeadShowProps } from "../Show";
+import {
+    REDESIGN_FONT_STACK,
+    REDESIGN_TOKENS,
+} from "@/Components/Redesign";
 
-export type LeadDrawerTab =
+export const LEAD_REDESIGN_TOKENS = REDESIGN_TOKENS;
+export const LEAD_REDESIGN_FONT_STACK = REDESIGN_FONT_STACK;
+
+/** Workspace tab ids — 9 mockup tabs + marketing appended. */
+export type WorkspaceTabId =
     | "overview"
-    | "profile"
     | "notes"
     | "tasks"
     | "meetings"
-    | "itinerary"
     | "deals"
-    | "marketing"
-    | "activity";
+    | "fields"
+    | "itinerary"
+    | "files"
+    | "activities"
+    | "marketing";
 
-export type LeadMissionUrgency = "amber" | "blue" | "green";
+export type DossierSectionId =
+    | "contact"
+    | "engagement"
+    | "personal"
+    | "financial"
+    | "attribution";
+
+export type LeadBannerMode =
+    | "qualify_start"
+    | "qualify_resume"
+    | "qualified"
+    | "converted"
+    | "nurture"
+    | "closed";
 
 export type LeadMissionCtaAction =
-    | "logContact"
-    | "startFlow"
-    | "focusNote"
-    | "scrollMeetings"
-    | "completeTopTask";
-
-export interface LeadMission {
-    phase: string;
-    headline: string;
-    detail: string;
-    cta: string | null;
-    ctaAction?: LeadMissionCtaAction;
-    urgency: LeadMissionUrgency;
-}
-
-export interface BantChecks {
-    contactability: boolean;
-    need: boolean;
-    budget: boolean;
-    timeline: boolean;
-}
-
-export interface BantCaptures {
-    contactability?: string;
-    need?: string;
-    budget?: string;
-    timeline?: string;
-}
-
-export interface LeadContextRailData {
-    openTasksCount: number;
-    upcomingMeetingsCount: number;
-    dealsCount: number;
-    nextMeeting: {
-        id: number;
-        title: string;
-        startsAtLabel: string;
-    } | null;
-    topOpenTask: {
-        id: number;
-        title: string;
-        dueDateLabel: string;
-        priority: string;
-    } | null;
-}
+    | "qualify_start"
+    | "qualify_resume"
+    | "create_deal"
+    | "open_deal"
+    | "reactivate"
+    | "view_answers"
+    | null;
 
 export type LeadRedesignProps = LeadShowProps;

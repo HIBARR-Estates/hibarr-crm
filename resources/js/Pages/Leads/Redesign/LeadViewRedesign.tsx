@@ -1,359 +1,691 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { Deferred, router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
-import usePageRefresh from "@/Hooks/usePageRefresh";
-import { router } from "@inertiajs/react";
+import {
+    AddNoteModal,
+    AddTaskModal,
+    AgentPicker,
+    ConfirmDialog,
+    ScheduleMeetingModal,
+} from "@/Components/Redesign";
+import type { AddNoteFormState } from "@/Components/Redesign/modals/AddNoteModal";
+import type { AddTaskFormState } from "@/Components/Redesign/modals/AddTaskModal";
+import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { buildEmptyMeetingForm } from "@/Components/Redesign/meeting/meetingFormUtils";
+import type { PageProps } from "@/Components/DashboardLayout";
+import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { LeadRedesignProps } from "./types";
-import type { LeadNote } from "@/Types/api/lead-note";
-import type { Task } from "@/Types/api/tasks";
+import type { LeadMissionCtaAction, WorkspaceTabId } from "./types";
+import type { MoreMenuActionId } from "./config/moreMenuItems";
+import { resolveLifecycle } from "./adapters/lifecycleAdapter";
+import { getDossierFieldValue } from "./adapters/dossierAdapter";
+import { toLeadTaskPreview } from "./adapters/taskAdapter";
+import { itineraryCount } from "./adapters/itineraryAdapter";
+import {
+    LeadWorkspaceProvider,
+    useLeadWorkspace,
+} from "./context/LeadWorkspaceContext";
+import useLeadViewNavigation from "./hooks/useLeadViewNavigation";
+import useLeadQualificationWorkspace from "./hooks/useLeadQualificationWorkspace";
+import useLeadLifecycleChange from "./hooks/useLeadLifecycleChange";
+import useLeadOwnerReassign from "./hooks/useLeadOwnerReassign";
+import useLeadDelete from "./hooks/useLeadDelete";
+import useLeadDealCreate from "./hooks/useLeadDealCreate";
+import useLeadNoteCreate from "./hooks/useLeadNoteCreate";
+import useLeadTaskCreate from "./hooks/useLeadTaskCreate";
+import useLeadMeetingCreate from "./hooks/useLeadMeetingCreate";
+import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
+import AiSummaryCard from "./components/workspace/AiSummaryCard";
+import QuickStats from "./components/workspace/QuickStats";
+import WorkspaceCard from "./components/workspace/WorkspaceCard";
+import LeadDossier from "./components/dossier/LeadDossier";
+import OverviewTab from "./components/workspace/tabs/OverviewTab";
+import NotesTab from "./components/workspace/tabs/NotesTab";
+import TasksTab from "./components/workspace/tabs/TasksTab";
+import MeetingsTab from "./components/workspace/tabs/MeetingsTab";
+import DealsTab from "./components/workspace/tabs/DealsTab";
+import FieldsTab from "./components/workspace/tabs/FieldsTab";
+import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
+import FilesTab from "./components/workspace/tabs/FilesTab";
+import MarketingTab from "./components/workspace/tabs/MarketingTab";
+import ActivitiesTab from "./components/workspace/tabs/ActivitiesTab";
+import TemplatePickerModal from "./components/qualification/TemplatePickerModal";
+import QualifyModal from "./components/qualification/QualifyModal";
+import AnswersReviewModal from "./components/qualification/AnswersReviewModal";
+import EditLeadDetailsModal from "./components/qualification/EditLeadDetailsModal";
+import CreateDealModal from "./components/dealCreate/CreateDealModal";
 import "@/Components/Redesign/redesign.css";
 import "./lead-redesign.css";
-import useLeadHeaderData from "./hooks/useLeadHeaderData";
-import useLeadViewNavigation from "./hooks/useLeadViewNavigation";
-import useLeadContextRail from "./hooks/useLeadContextRail";
-import useLeadBantChecks from "./hooks/useLeadBantChecks";
-import useLeadMission from "./hooks/useLeadMission";
-import useLeadOverview from "./hooks/useLeadOverview";
-import useLeadQualificationWorkspace from "./hooks/useLeadQualificationWorkspace";
-import useLeadFirstContact from "./hooks/useLeadFirstContact";
-import LeadIdentityHeader from "./components/header/LeadIdentityHeader";
-import LeadMissionBar from "./components/header/LeadMissionBar";
-import LeadContextRail from "./components/rail/LeadContextRail";
-import QualificationScriptCard from "./components/workspace/QualificationScriptCard";
-import QuickNoteCard, {
-    type QuickNoteCardHandle,
-} from "./components/workspace/QuickNoteCard";
-import LeadDrawer from "./components/drawer/LeadDrawer";
-import EntityAiSummaryCard from "@/Components/EntitySummary/EntityAiSummaryCard";
-import { usePage } from "@inertiajs/react";
-import type { PageProps } from "@/Components/DashboardLayout";
-import useTranslation from "@/Hooks/useTranslation";
+
+function WorkspaceDeferredSkeleton() {
+    return (
+        <div className="v2-workspace" style={{ padding: 24 }}>
+            <div
+                style={{
+                    height: 36,
+                    background: "#eef0f3",
+                    borderRadius: 8,
+                    marginBottom: 16,
+                }}
+            />
+            <div
+                style={{
+                    height: 120,
+                    background: "#f8f9fb",
+                    borderRadius: 10,
+                }}
+            />
+        </div>
+    );
+}
 
 export default function LeadViewRedesign(props: LeadRedesignProps) {
+    return (
+        <LeadWorkspaceProvider
+            lead={props.lead}
+            notes={props.notes}
+            tasks={props.tasks}
+            leadFollowUps={props.leadFollowUps}
+            deals={props.deals}
+        >
+            <LeadViewRedesignInner {...props} />
+        </LeadWorkspaceProvider>
+    );
+}
+
+function LeadViewRedesignInner(props: LeadRedesignProps) {
+    const { td } = useTd();
+    const page = usePage<PageProps>();
+    const featureFlags = props.featureFlags ?? page.props.featureFlags;
+    const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
+    const showQualification =
+        featureFlags?.["crm.lead-qualification-tab"] === true;
+
     const {
         lead,
-        notes,
-        tasks,
-        deals = [],
+        deals,
+        notesLoading,
+        tasksLoading,
+        leadFollowUpsLoading,
         leadFollowUps,
-        editLeadPermission,
-        leadAiSummary,
-        featureFlags: pageFeatureFlags,
-    } = props;
+        tasks,
+        notes,
+        addNote,
+        addTask,
+    } = useLeadWorkspace();
 
-    const page = usePage<PageProps>();
-    const featureFlags = pageFeatureFlags ?? page.props.featureFlags;
-    const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
-    const showQualificationTab =
-        featureFlags?.["crm.lead-qualification-tab"] === true;
-    const { t } = useTranslation();
+    const nav = useLeadViewNavigation();
 
-    // Local lists — mutated after CRUD so deferred remounts do not wipe UI.
-    const [localNotes, setLocalNotes] = useState<LeadNote[] | undefined>(notes);
-    const [localTasks, setLocalTasks] = useState<Task[] | undefined>(tasks);
-    useEffect(() => {
-        setLocalNotes(notes);
-    }, [notes]);
-    useEffect(() => {
-        setLocalTasks(tasks);
-    }, [tasks]);
-
-    const handleNoteCreated = useCallback((note: LeadNote) => {
-        setLocalNotes((prev) => [
-            note,
-            ...(prev ?? []).filter((n) => n.id !== note.id),
-        ]);
-    }, []);
-
-    const handleTaskCreated = useCallback((task: Task) => {
-        setLocalTasks((prev) => [
-            task,
-            ...(prev ?? []).filter((t) => t.id !== task.id),
-        ]);
-    }, []);
-
-    const handleTaskStatusChange = useCallback(
-        (taskId: number, statusSlug: string, rollbackTask?: Task) => {
-            setLocalTasks((prev) =>
-                (prev ?? []).map((task) => {
-                    if (task.id !== taskId) return task;
-                    if (rollbackTask) return rollbackTask;
-                    return {
-                        ...task,
-                        status: statusSlug,
-                        completed_on:
-                            statusSlug === "done"
-                                ? new Date().toISOString()
-                                : undefined,
-                        board_column: {
-                            ...((task as any).board_column ?? {}),
-                            slug: statusSlug,
-                        },
-                    } as Task;
-                }),
-            );
-        },
-        [],
+    const lifecycle = useMemo(
+        () => resolveLifecycle(lead, props.leadLifecycleStatuses),
+        [lead, props.leadLifecycleStatuses],
     );
 
-    const header = useLeadHeaderData(lead);
-    const nav = useLeadViewNavigation();
-    const railData = useLeadContextRail({
-        tasks: localTasks,
-        leadFollowUps,
-        deals,
-    });
-    const qualificationWorkspace = useLeadQualificationWorkspace(lead, {
-        enabled: showQualificationTab,
-    });
-    const overview = useLeadOverview({
-        notes: localNotes,
-        tasks: localTasks,
-        leadFollowUps,
-    });
-    const firstContact = useLeadFirstContact(lead.id);
+    const lifecycleStatuses = useMemo(
+        () =>
+            (props.leadLifecycleStatuses ?? []).map((status) => ({
+                id: status.id,
+                key: status.key,
+                label: status.label,
+            })),
+        [props.leadLifecycleStatuses],
+    );
 
-    const [ctaLoading, setCtaLoading] = useState(false);
+    const { changeStatus, saving: statusSaving } =
+        useLeadLifecycleChange(lifecycleStatuses);
+    const { reassign, pendingAgentId, saving: reassignSaving } =
+        useLeadOwnerReassign();
+    const deleteLead = useLeadDelete(lead);
+    const dealCreate = useLeadDealCreate(lead);
+    const { createNote, isSaving: noteSaving, errors: noteErrors, clearErrors: clearNoteErrors } =
+        useLeadNoteCreate(lead.id);
+    const { createTask, isCreating: taskCreating, errors: taskErrors, clearErrors: clearTaskErrors } =
+        useLeadTaskCreate(lead.id);
+    const { createMeeting, isCreating: meetingCreating, errors: meetingErrors, clearErrors: clearMeetingErrors } =
+        useLeadMeetingCreate(lead);
 
-    const qualificationRef = useRef<HTMLDivElement>(null);
-    const noteRef = useRef<QuickNoteCardHandle>(null);
-    const drawerRef = useRef<HTMLDivElement>(null);
-
-    const { checks } = useLeadBantChecks({
-        lead,
-        answers: showQualificationTab
-            ? qualificationWorkspace.current?.answers
-            : undefined,
-        contactLogged: firstContact.contactLogged,
+    const qualification = useLeadQualificationWorkspace(lead, {
+        enabled: showQualification,
+        seed: props.leadQualification ?? null,
     });
 
-    const mission = useLeadMission({
-        lead,
-        leadName: header.leadName,
-        tasks: localTasks,
-        leadFollowUps,
-        flowActive: qualificationWorkspace.flowActive,
-        outcome: qualificationWorkspace.outcome,
-        qualificationAnswers: showQualificationTab
-            ? qualificationWorkspace.current?.answers
-            : undefined,
-        contactLogged: firstContact.contactLogged,
-        qualificationEnabled: showQualificationTab,
-    });
+    const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
+    const [editLeadOpen, setEditLeadOpen] = useState(false);
+    const [createDealOpen, setCreateDealOpen] = useState(false);
+    const [reassignOpen, setReassignOpen] = useState(false);
+    const [addNoteOpen, setAddNoteOpen] = useState(false);
+    const [addTaskOpen, setAddTaskOpen] = useState(false);
+    const [addMeetingOpen, setAddMeetingOpen] = useState(false);
 
-    const { refresh, isRefreshing } = usePageRefresh({
-        canRefresh: () => !nav.profileEditMode,
-        onRefresh: () =>
-            new Promise<void>((resolve, reject) => {
-                router.reload({
-                    only: [
-                        "lead",
-                        "notes",
-                        "tasks",
-                        "leadFollowUps",
-                        "taskBoardColumns",
-                        "deals",
-                        "leadAiSummary",
-                    ],
-                    onSuccess: () => resolve(),
-                    onError: (errors) => reject(errors),
-                });
-            }),
-    });
+    const firstName = useMemo(() => {
+        const parts = (lead.client_name ?? "").trim().split(/\s+/);
+        return parts[0] || lead.client_name || "Lead";
+    }, [lead.client_name]);
 
-    const latestNote = localNotes?.[0] ?? null;
-    const canEdit =
-        editLeadPermission === "all" || editLeadPermission === "added";
+    const valueLabel = useMemo(() => {
+        const value = getDossierFieldValue(lead, "leadValue");
+        const currency = getDossierFieldValue(lead, "currency");
+        if (!value.trim()) return null;
+        return currency ? `${currency} ${value}` : value;
+    }, [lead]);
 
-    const handleLogContact = useCallback(async () => {
-        await firstContact.logContact();
-    }, [firstContact]);
+    const answerCount = useMemo(() => {
+        const runs = [...qualification.history];
+        if (qualification.current) runs.push(qualification.current);
+        return runs.reduce(
+            (sum, run) => sum + (run.answers?.length ?? 0),
+            0,
+        );
+    }, [qualification.current, qualification.history]);
 
-    const handleMissionCta = useCallback(async () => {
-        if (mission.ctaAction === "logContact") {
-            setCtaLoading(true);
-            try {
-                await handleLogContact();
-            } finally {
-                setCtaLoading(false);
-            }
-            return;
+    const qualificationProgress = useMemo(() => {
+        const tree = qualification.templateTree;
+        const current = qualification.current;
+        if (!tree || !current) {
+            return { answered: 0, total: 0 };
         }
+        const total = tree.segments.filter((s) => s.type === "question").length;
+        const answered = current.answers?.length ?? 0;
+        return { answered, total };
+    }, [qualification.current, qualification.templateTree]);
 
-        if (mission.ctaAction === "startFlow") {
-            setCtaLoading(true);
-            try {
-                const started =
-                    await qualificationWorkspace.startQualificationScript();
-                if (started) {
-                    qualificationRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                    });
-                } else {
-                    qualificationRef.current?.scrollIntoView({
-                        behavior: "smooth",
-                        block: "start",
-                    });
+    const tabCounts = useMemo((): Partial<Record<WorkspaceTabId, number>> => {
+        const itineraryLegs = deals.flatMap(
+            (d) => d.lead_flight_itineraries ?? [],
+        );
+        return {
+            notes: notes.length,
+            tasks: tasks.filter((t) => toLeadTaskPreview(t).isOpen).length,
+            meetings: leadFollowUps.length,
+            deals: deals.length,
+            itinerary: itineraryCount(itineraryLegs),
+            files: 0,
+        };
+    }, [deals, leadFollowUps.length, notes.length, tasks]);
+
+    const openTasksCount = tabCounts.tasks ?? 0;
+    const nextMeetingLabel = useMemo(() => {
+        const upcoming = [...leadFollowUps]
+            .filter((f) => f.status !== "completed")
+            .sort(
+                (a, b) =>
+                    new Date(a.next_follow_up_date).getTime() -
+                    new Date(b.next_follow_up_date).getTime(),
+            )[0];
+        return upcoming?.next_follow_up_date
+            ? String(upcoming.next_follow_up_date)
+            : undefined;
+    }, [leadFollowUps]);
+
+    const handleMissionAction = useCallback(
+        (action: LeadMissionCtaAction) => {
+            switch (action) {
+                case "qualify_start":
+                    setTemplatePickerOpen(true);
+                    break;
+                case "qualify_resume":
+                    nav.setQualificationOpen(true);
+                    break;
+                case "create_deal":
+                    setCreateDealOpen(true);
+                    break;
+                case "open_deal": {
+                    const first = deals[0];
+                    if (first?.id) {
+                        router.visit(route("deals.show", first.id));
+                    }
+                    break;
                 }
-            } finally {
-                setCtaLoading(false);
+                case "reactivate":
+                    void changeStatus("new");
+                    break;
+                case "view_answers":
+                    nav.setAnswersOpen(true);
+                    break;
+                default:
+                    break;
             }
-            return;
+        },
+        [changeStatus, deals, nav],
+    );
+
+    const handleBannerPrimary = useCallback(() => {
+        handleMissionAction(lifecycle.banner.primaryCta.action);
+    }, [handleMissionAction, lifecycle.banner.primaryCta.action]);
+
+    const handleBannerViewAnswers = useCallback(() => {
+        const action = lifecycle.banner.secondaryCta?.action;
+        if (action) handleMissionAction(action);
+    }, [handleMissionAction, lifecycle.banner.secondaryCta?.action]);
+
+    const handleMoreAction = useCallback(
+        (id: MoreMenuActionId) => {
+            switch (id) {
+                case "answers":
+                    nav.setAnswersOpen(true);
+                    break;
+                case "edit":
+                    setEditLeadOpen(true);
+                    break;
+                case "reassign":
+                    setReassignOpen(true);
+                    break;
+                case "task":
+                    setAddTaskOpen(true);
+                    break;
+                case "deal":
+                    setCreateDealOpen(true);
+                    break;
+                case "note":
+                    setAddNoteOpen(true);
+                    break;
+                case "delete":
+                    deleteLead.requestDelete();
+                    break;
+                default:
+                    break;
+            }
+        },
+        [deleteLead, nav],
+    );
+
+    const handleTemplateSelect = useCallback(
+        async (templateId: string) => {
+            const started =
+                await qualification.startQualificationScript(templateId);
+            if (started) {
+                setTemplatePickerOpen(false);
+                nav.setQualificationOpen(true);
+            }
+        },
+        [nav, qualification],
+    );
+
+    const renderTabBody = () => {
+        if (
+            nav.tab === "overview" &&
+            (notesLoading || tasksLoading || leadFollowUpsLoading)
+        ) {
+            return (
+                <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>
+                    {td("Loading workspace…")}
+                </p>
+            );
         }
 
-        if (mission.ctaAction === "focusNote") {
-            noteRef.current?.focus();
-            return;
+        switch (nav.tab) {
+            case "overview":
+                return (
+                    <OverviewTab
+                        meetingTypes={props.meetingTypes ?? []}
+                        taskBoardColumns={props.taskBoardColumns ?? []}
+                        onNavigateTab={nav.setTab}
+                    />
+                );
+            case "notes":
+                return notesLoading ? (
+                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                        {td("Loading notes…")}
+                    </p>
+                ) : (
+                    <NotesTab />
+                );
+            case "tasks":
+                return tasksLoading ? (
+                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                        {td("Loading tasks…")}
+                    </p>
+                ) : (
+                    <TasksTab taskBoardColumns={props.taskBoardColumns ?? []} />
+                );
+            case "meetings":
+                return leadFollowUpsLoading ? (
+                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                        {td("Loading meetings…")}
+                    </p>
+                ) : (
+                    <MeetingsTab
+                        meetingTypes={props.meetingTypes ?? []}
+                        onMeetingCreated={() =>
+                            router.reload({ only: ["leadFollowUps"] })
+                        }
+                    />
+                );
+            case "activities":
+                return <ActivitiesTab leadId={lead.id} leadName={lead.client_name} />;
+            case "deals":
+                return (
+                    <DealsTab
+                        dealMeta={{
+                            categories: props.categories,
+                            packages: props.packages,
+                            products: props.products,
+                            pipelines: props.leadPipelines,
+                            stages: props.leadStages ?? props.stages,
+                            leadAgents: props.leadAgents,
+                        }}
+                    />
+                );
+            case "fields":
+                return (
+                    <FieldsTab
+                        fields={props.fields}
+                        customFieldCategories={props.customFieldCategories}
+                    />
+                );
+            case "itinerary":
+                return <ItineraryTab />;
+            case "files":
+                return <FilesTab />;
+            case "marketing":
+                return <MarketingTab />;
+            default:
+                return (
+                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                        {td("This tab is coming soon.")}
+                    </p>
+                );
         }
+    };
 
-        if (mission.ctaAction === "scrollMeetings") {
-            nav.setDrawerTab("meetings");
-            drawerRef.current?.scrollIntoView({
-                behavior: "smooth",
-                block: "start",
-            });
-            return;
-        }
-
-        if (mission.ctaAction === "completeTopTask" && railData.topOpenTask) {
-            router.reload({ only: ["tasks"] });
-        }
-    }, [
-        handleLogContact,
-        mission.ctaAction,
-        nav,
-        qualificationWorkspace,
-        railData.topOpenTask,
-    ]);
-
-    const handleOutcomeComplete = useCallback(() => {
-        nav.setDrawerTab("meetings");
-        drawerRef.current?.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-        });
-    }, [nav]);
-
-    const pageTitle = useMemo(() => header.leadName, [header.leadName]);
-    const leadName = [
-        lead?.salutation_value
-            ? lead.salutation_value.charAt(0).toUpperCase() +
-              lead.salutation_value.slice(1)
-            : null,
-        lead?.client_name,
-    ]
-        .filter(Boolean)
-        .join(" ");
+    const pageTitle = lead.client_name ?? td("Lead");
 
     return (
-        <PageLayout
-            title={pageTitle}
-            breadcrumbs={[
-                {
-                    name: t("pages.leads.contacts"),
-                    url: route("lead-contact.index"),
-                },
-                { name: leadName },
-            ]}
-            mainContentClassName=""
-        >
-            <div className="lead-redesign min-h-screen bg-[#f5f6f8]">
-                <div className="mx-auto w-full max-w-[1320px]">
-                    <LeadIdentityHeader
-                        isRefreshing={isRefreshing}
-                        refreshDisabled={nav.profileEditMode}
-                        header={header}
-                        onRefresh={refresh}
-                        canEdit={canEdit}
-                        onEditLead={nav.openProfileEdit}
-                    />
-
-                    <LeadMissionBar
-                        mission={mission}
-                        leadPhone={lead.mobile || lead.cell}
-                        onCta={
-                            mission.cta
-                                ? () => void handleMissionCta()
-                                : undefined
-                        }
-                        ctaLoading={
-                            ctaLoading ||
-                            firstContact.isLogging ||
-                            qualificationWorkspace.isStartingFlow
-                        }
-                    />
-
-                    <div className="grid grid-cols-1 gap-4 p-[26px] lg:grid-cols-[232px_minmax(0,1fr)]">
-                        <LeadContextRail
+        <PageLayout title={pageTitle}>
+            <div className="lead-redesign">
+                <div className="v2-page">
+                    <div
+                        style={{
+                            maxWidth: 1180,
+                            margin: "0 auto",
+                            padding: "16px 20px 32px",
+                        }}
+                    >
+                        <LeadHeaderRoot
                             lead={lead}
-                            checks={checks}
-                            railData={railData}
-                            contactLogged={firstContact.contactLogged}
-                            isLoggingContact={firstContact.isLogging}
-                            onLogContact={() => void handleLogContact()}
-                            onEditProfile={
-                                canEdit ? nav.openProfileEdit : undefined
+                            lifecycle={lifecycle}
+                            statuses={lifecycleStatuses}
+                            valueLabel={valueLabel}
+                            answerCount={answerCount}
+                            firstName={firstName}
+                            templateName={
+                                qualification.current?.template_name ??
+                                qualification.current?.template_id
                             }
-                            onNavigateMeetings={() =>
-                                nav.setDrawerTab("meetings")
+                            qualificationAnswered={qualificationProgress.answered}
+                            qualificationTotal={qualificationProgress.total}
+                            canDelete={props.deleteLeadPermission !== "none"}
+                            onStatusChange={(key) => void changeStatus(key)}
+                            statusSaving={statusSaving}
+                            onOpenAnswers={() => nav.setAnswersOpen(true)}
+                            onMoreAction={handleMoreAction}
+                            onBannerPrimary={handleBannerPrimary}
+                            onBannerViewAnswers={
+                                lifecycle.banner.secondaryCta
+                                    ? handleBannerViewAnswers
+                                    : undefined
                             }
-                            onNavigateTasks={() => nav.setDrawerTab("tasks")}
-                            onNavigateDeals={() => nav.setDrawerTab("deals")}
-                            quickNoteCard={{
-                                ref: noteRef,
-                                props: {
-                                    lead,
-                                    latestNote,
-                                    onNoteCreated: handleNoteCreated,
-                                },
-                            }}
                         />
-                        <div className="flex flex-col gap-4">
-                            {showAiSummary && (
-                                <EntityAiSummaryCard
-                                    entityType="lead"
-                                    entityId={lead.id}
-                                    initialSummary={leadAiSummary}
-                                    variant="redesign"
-                                    leadPhone={lead.mobile || lead.cell}
-                                    onQualifyLead={() => {
-                                        qualificationRef.current?.scrollIntoView(
-                                            {
-                                                behavior: "smooth",
-                                                block: "start",
-                                            },
-                                        );
-                                    }}
-                                    className=""
-                                />
-                            )}
-                            {showQualificationTab && (
-                                <QualificationScriptCard
-                                    lead={lead}
-                                    workspace={qualificationWorkspace}
-                                    workspaceRef={qualificationRef}
-                                    onOutcomeComplete={handleOutcomeComplete}
-                                />
-                            )}
 
-                            <LeadDrawer
-                                {...props}
-                                notes={localNotes}
-                                tasks={localTasks}
-                                drawerTab={nav.drawerTab}
-                                onDrawerTabChange={nav.setDrawerTab}
-                                overview={overview}
-                                profileEditMode={nav.profileEditMode}
-                                onProfileEditModeChange={nav.setProfileEditMode}
-                                drawerRef={drawerRef}
-                                onNoteCreated={handleNoteCreated}
-                                onTaskCreated={handleTaskCreated}
-                                onTaskStatusChange={handleTaskStatusChange}
-                            />
+                        <div className="v2-grid">
+                            <div>
+                                {showAiSummary && (
+                                    <AiSummaryCard
+                                        leadId={lead.id}
+                                        summary={props.leadAiSummary}
+                                        leadPhone={lead.mobile ?? lead.cell ?? undefined}
+                                        onCta={{
+                                            onQualifyLead: () =>
+                                                setTemplatePickerOpen(true),
+                                            onCreateTask: () => setAddTaskOpen(true),
+                                            onScheduleCall: () =>
+                                                setAddMeetingOpen(true),
+                                        }}
+                                    />
+                                )}
+
+                                <QuickStats
+                                    nextMeetingLabel={nextMeetingLabel}
+                                    openTasksCount={openTasksCount}
+                                    dealsCount={deals.length}
+                                    onSchedule={() => setAddMeetingOpen(true)}
+                                    onCreateTask={() => setAddTaskOpen(true)}
+                                    onCreateDeal={() => setCreateDealOpen(true)}
+                                />
+
+                                <Deferred
+                                    data={["notes", "tasks", "leadFollowUps"]}
+                                    fallback={<WorkspaceDeferredSkeleton />}
+                                >
+                                    <WorkspaceCard
+                                        activeTab={nav.tab}
+                                        onTabChange={nav.setTab}
+                                        tabCounts={tabCounts}
+                                    >
+                                        {renderTabBody()}
+                                    </WorkspaceCard>
+                                </Deferred>
+                            </div>
+
+                            <LeadDossier lead={lead} />
                         </div>
                     </div>
                 </div>
             </div>
+
+            {showQualification && (
+                <>
+                    <TemplatePickerModal
+                        open={templatePickerOpen}
+                        leadName={lead.client_name ?? td("Lead")}
+                        templates={qualification.templates}
+                        loading={qualification.templatesLoading}
+                        onClose={() => setTemplatePickerOpen(false)}
+                        onSelect={(id) => void handleTemplateSelect(id)}
+                    />
+
+                    {qualification.current &&
+                        qualification.templateTree &&
+                        nav.qualificationOpen && (
+                            <QualifyModal
+                                open={nav.qualificationOpen}
+                                lead={lead}
+                                qualification={qualification.current}
+                                templateTree={qualification.templateTree}
+                                onClose={() => nav.setQualificationOpen(false)}
+                                onCompleted={(updated) => {
+                                    qualification.handleQualificationUpdated(
+                                        updated,
+                                    );
+                                    nav.setQualificationOpen(false);
+                                }}
+                            />
+                        )}
+
+                    <AnswersReviewModal
+                        open={nav.answersOpen}
+                        leadName={lead.client_name ?? td("Lead")}
+                        history={qualification.history}
+                        current={qualification.current}
+                        onClose={() => nav.setAnswersOpen(false)}
+                    />
+                </>
+            )}
+
+            <EditLeadDetailsModal
+                open={editLeadOpen}
+                onClose={() => setEditLeadOpen(false)}
+                lead={lead}
+                salutations={props.salutations ?? []}
+                countries={props.countries ?? []}
+                sources={props.sources ?? []}
+                categories={props.categories ?? []}
+            />
+
+            <CreateDealModal
+                open={createDealOpen}
+                onClose={() => {
+                    setCreateDealOpen(false);
+                    dealCreate.clearErrors();
+                }}
+                saving={dealCreate.isCreating}
+                errors={dealCreate.errors}
+                defaultAgentId={
+                    (lead as { agent_id?: number }).agent_id ??
+                    lead.lead_owner?.id ??
+                    null
+                }
+                meetingTypes={props.meetingTypes ?? []}
+                dealMeta={{
+                    categories: props.categories,
+                    packages: props.packages,
+                    products: props.products,
+                    pipelines: props.leadPipelines,
+                    stages: props.leadStages ?? props.stages,
+                    leadAgents: props.leadAgents,
+                }}
+                onSubmit={(input) =>
+                    dealCreate.createDeal(input, () => {
+                        setCreateDealOpen(false);
+                        if (input.addKickoffMeeting) {
+                            router.reload({ only: ["leadFollowUps"] });
+                        }
+                    })
+                }
+            />
+
+            <AddNoteModal
+                open={addNoteOpen}
+                onClose={() => {
+                    setAddNoteOpen(false);
+                    clearNoteErrors();
+                }}
+                saving={noteSaving}
+                errors={noteErrors}
+                onSubmit={(form: AddNoteFormState) =>
+                    createNote({ text: form.text || form.title }, (note) => {
+                        addNote(note);
+                        setAddNoteOpen(false);
+                    })
+                }
+                labels={{
+                    title: td("Add note"),
+                    cancel: td("Cancel"),
+                    submit: td("Save note"),
+                    titleField: td("Title"),
+                    titlePlaceholder: td("Optional title"),
+                    detailsField: td("Details"),
+                    bodyPlaceholder: td("Write your note…"),
+                }}
+            />
+
+            <AddTaskModal
+                open={addTaskOpen}
+                onClose={() => {
+                    setAddTaskOpen(false);
+                    clearTaskErrors();
+                }}
+                saving={taskCreating}
+                errors={taskErrors}
+                defaultAssigneeUserId={lead.lead_owner?.id}
+                onSubmit={(form: AddTaskFormState) =>
+                    createTask(form, (task) => {
+                        if (task) addTask(task);
+                        setAddTaskOpen(false);
+                    })
+                }
+                labels={{
+                    title: td("Create task"),
+                    cancel: td("Cancel"),
+                    submit: td("Create task"),
+                    titleField: td("Title"),
+                    titlePlaceholder: td("What needs to be done?"),
+                    description: td("Description"),
+                    descriptionPlaceholder: td("Optional details"),
+                    startDate: td("Start date"),
+                    dueDate: td("Due date"),
+                    dueTime: td("Due time"),
+                    priority: td("Priority"),
+                    priorityHigh: td("High"),
+                    priorityMedium: td("Medium"),
+                    priorityLow: td("Low"),
+                    assignees: td("Assignees"),
+                    dateRangeError: td(
+                        "Due date must be on or after start date",
+                    ),
+                }}
+            />
+
+            <ScheduleMeetingModal
+                open={addMeetingOpen}
+                onClose={() => {
+                    setAddMeetingOpen(false);
+                    clearMeetingErrors();
+                }}
+                saving={meetingCreating}
+                errors={meetingErrors}
+                meetingTypes={props.meetingTypes ?? []}
+                initialForm={buildEmptyMeetingForm(
+                    null,
+                    page.props.auth?.user?.id,
+                )}
+                onSubmit={(form: MeetingFormState) =>
+                    createMeeting(
+                        {
+                            meetingTypeId: form.meetingTypeId,
+                            date: form.date,
+                            startTime: form.startTime,
+                            endTime: form.endTime,
+                            duration: form.duration,
+                            platform: form.platform,
+                            meetingLink: form.meetingLink,
+                            participants: form.participants,
+                            remark: form.remark,
+                            reminders: form.reminders,
+                        },
+                        () => setAddMeetingOpen(false),
+                    )
+                }
+                labels={{
+                    title: td("Schedule meeting"),
+                    cancel: td("Cancel"),
+                    submit: td("Schedule"),
+                }}
+            />
+
+            {reassignOpen && (
+                <div
+                    className="modal-overlay redesign-modal-overlay"
+                    onClick={() => !reassignSaving && setReassignOpen(false)}
+                    role="presentation"
+                >
+                    <div
+                        className="modal-panel"
+                        style={{ maxWidth: 360 }}
+                        onClick={(e) => e.stopPropagation()}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label={td("Reassign owner")}
+                    >
+                        <div style={{ padding: "16px 18px" }}>
+                            <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>
+                                {td("Reassign owner")}
+                            </h3>
+                            <AgentPicker
+                                autoFocus
+                                pendingId={pendingAgentId}
+                                onPick={(agent) => {
+                                    void reassign(agent).then(() =>
+                                        setReassignOpen(false),
+                                    );
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <ConfirmDialog {...deleteLead.dialogProps} />
         </PageLayout>
     );
 }
