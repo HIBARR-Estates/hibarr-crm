@@ -13,7 +13,7 @@ export const createDealSearchConfig = (): SearchConfig => ({
 // Lead search configuration
 export const createLeadSearchConfig = (): SearchConfig => ({
     routeName: "lead-contact.index",
-    placeholder: "Search leads by contact name, email...",
+    placeholder: "Search leads by contact name, email, phone, country code, area code...",
     searchKeys: ["search"],
     debounceMs: 300,
     minLength: 1,

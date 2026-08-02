@@ -12,6 +12,7 @@ use App\Models\CustomFieldGroup;
 use App\Models\Currency;
 use Illuminate\Support\Str;
 use App\Enums\DealUpdateType;
+use App\Support\LeadSearchQuery;
 use Illuminate\Support\Facades\DB;
 
 class DealGatheringService
@@ -44,9 +45,14 @@ class DealGatheringService
      */
     public function searchLeads($query)
     {
-        return Lead::where('client_name', 'like', "%{$query}%")
-            ->orWhere('client_email', 'like', "%{$query}%")
-            ->orWhere('company_name', 'like', "%{$query}%")
+        return Lead::query()
+            ->where(function ($leadQuery) use ($query) {
+                $term = '%' . $query . '%';
+                $leadQuery->where('client_name', 'like', $term)
+                    ->orWhere('client_email', 'like', $term)
+                    ->orWhere('company_name', 'like', $term);
+                LeadSearchQuery::applyMobileMatch($leadQuery, $query);
+            })
             ->limit(10)
             ->get();
     }
