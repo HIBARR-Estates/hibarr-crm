@@ -76,7 +76,6 @@ export default function LeadHeaderRoot({
                     alignItems: "center",
                     gap: 14,
                     flexWrap: "wrap",
-                    marginBottom: 14,
                 }}
             >
                 <LeadAvatarButton
@@ -201,23 +200,21 @@ export default function LeadHeaderRoot({
                 </div>
             </header>
 
-            <div style={{ marginBottom: 16 }}>
-                <LifecycleBanner
-                    mode={lifecycle.bannerMode}
-                    statusLabel={lifecycle.statusLabel}
-                    statusKey={lifecycle.statusKey}
-                    firstName={firstName}
-                    description={
-                        (lead.lead_lifecycle_status as { description?: string })
-                            ?.description
-                    }
-                    templateName={templateName}
-                    answered={qualificationAnswered}
-                    total={qualificationTotal}
-                    onPrimary={onBannerPrimary}
-                    onViewAnswers={onBannerViewAnswers}
-                />
-            </div>
+            <LifecycleBanner
+                mode={lifecycle.bannerMode}
+                statusLabel={lifecycle.statusLabel}
+                statusKey={lifecycle.statusKey}
+                firstName={firstName}
+                description={
+                    (lead.lead_lifecycle_status as { description?: string })
+                        ?.description
+                }
+                templateName={templateName}
+                answered={qualificationAnswered}
+                total={qualificationTotal}
+                onPrimary={onBannerPrimary}
+                onViewAnswers={onBannerViewAnswers}
+            />
         </>
     );
 }

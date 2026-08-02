@@ -11,8 +11,9 @@ interface TimelineTabProps {
     dealName?: string;
     userId?: number;
     /**
-     * Escaped Eloquent type for /api/v1/crm-events.
-     * Defaults to Deal; Leads pass LEAD_TIMELINE_MODEL_TYPE.
+     * Eloquent type for /api/v1/crm-events (fetch + Log Action).
+     * Defaults to Deal; Leads pass LEAD_TIMELINE_MODEL_TYPE. Same value is
+     * used for GET and POST so store/index stay aligned.
      */
     modelType?: string;
 }
@@ -54,11 +55,7 @@ export default function TimelineTab({
                 onDateRangeChange={setDateRange}
                 isRefetching={isRefetching}
                 onRefresh={() => refetch()}
-                modelType={
-                    modelType.includes("Lead")
-                        ? "App\\Models\\Lead"
-                        : "App\\Models\\Deal"
-                }
+                modelType={modelType}
             />
 
             <DealTimelineEventList

@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Deferred, router, usePage } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
 import {
     AddNoteModal,
@@ -14,6 +14,10 @@ import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingForm
 import { buildEmptyMeetingForm } from "@/Components/Redesign/meeting/meetingFormUtils";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import {
+    OverviewDeferredSkeleton,
+    TabDeferredSkeleton,
+} from "@/Pages/Deals/Redesign/components/workspace/overview/overviewShared";
 import type { LeadRedesignProps } from "./types";
 import type { LeadMissionCtaAction, WorkspaceTabId } from "./types";
 import type { MoreMenuActionId } from "./config/moreMenuItems";
@@ -58,28 +62,6 @@ import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "./lead-redesign.css";
 
-function WorkspaceDeferredSkeleton() {
-    return (
-        <div className="v2-workspace" style={{ padding: 24 }}>
-            <div
-                style={{
-                    height: 36,
-                    background: "#eef0f3",
-                    borderRadius: 8,
-                    marginBottom: 16,
-                }}
-            />
-            <div
-                style={{
-                    height: 120,
-                    background: "#f8f9fb",
-                    borderRadius: 10,
-                }}
-            />
-        </div>
-    );
-}
-
 export default function LeadViewRedesign(props: LeadRedesignProps) {
     return (
         <LeadWorkspaceProvider
@@ -114,6 +96,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         addNote,
         addTask,
     } = useLeadWorkspace();
+
+    const overviewPending =
+        (notesLoading && notes.length === 0) ||
+        (tasksLoading && tasks.length === 0) ||
+        (leadFollowUpsLoading && leadFollowUps.length === 0);
 
     const nav = useLeadViewNavigation(props.customFieldCategories);
 
@@ -195,14 +182,26 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             (d) => d.lead_flight_itineraries ?? [],
         );
         return {
-            notes: notes.length,
-            tasks: tasks.filter((t) => toLeadTaskPreview(t).isOpen).length,
-            meetings: leadFollowUps.length,
+            // Hide counts while deferred props resolve (Deal pattern) so the
+            // tab bar doesn't flash 0 → N.
+            notes: notesLoading ? undefined : notes.length,
+            tasks: tasksLoading
+                ? undefined
+                : tasks.filter((t) => toLeadTaskPreview(t).isOpen).length,
+            meetings: leadFollowUpsLoading ? undefined : leadFollowUps.length,
             deals: deals.length,
             itinerary: itineraryCount(itineraryLegs),
             files: 0,
         };
-    }, [deals, leadFollowUps.length, notes.length, tasks]);
+    }, [
+        deals,
+        leadFollowUps.length,
+        leadFollowUpsLoading,
+        notes.length,
+        notesLoading,
+        tasks,
+        tasksLoading,
+    ]);
 
     const openTasksCount = tabCounts.tasks ?? 0;
     const nextMeetingLabel = useMemo(() => {
@@ -303,20 +302,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     );
 
     const renderTabBody = () => {
-        if (
-            nav.tab === "overview" &&
-            (notesLoading || tasksLoading || leadFollowUpsLoading)
-        ) {
-            return (
-                <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>
-                    {td("Loading workspace…")}
-                </p>
-            );
-        }
-
         switch (nav.tab) {
             case "overview":
-                return (
+                return overviewPending ? (
+                    <OverviewDeferredSkeleton />
+                ) : (
                     <OverviewTab
                         meetingTypes={props.meetingTypes ?? []}
                         taskBoardColumns={props.taskBoardColumns ?? []}
@@ -332,18 +322,14 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     />
                 );
             case "notes":
-                return notesLoading ? (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
-                        {td("Loading notes…")}
-                    </p>
+                return notesLoading && notes.length === 0 ? (
+                    <TabDeferredSkeleton />
                 ) : (
                     <NotesTab permissions={props.notePermissions} />
                 );
             case "tasks":
-                return tasksLoading ? (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
-                        {td("Loading tasks…")}
-                    </p>
+                return tasksLoading && tasks.length === 0 ? (
+                    <TabDeferredSkeleton />
                 ) : (
                     <TasksTab
                         taskBoardColumns={props.taskBoardColumns ?? []}
@@ -352,10 +338,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     />
                 );
             case "meetings":
-                return leadFollowUpsLoading ? (
-                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
-                        {td("Loading meetings…")}
-                    </p>
+                return leadFollowUpsLoading && leadFollowUps.length === 0 ? (
+                    <TabDeferredSkeleton />
                 ) : (
                     <MeetingsTab
                         meetingTypes={props.meetingTypes ?? []}
@@ -417,82 +401,69 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     return (
         <PageLayout title={pageTitle}>
             <div className="lead-redesign">
-                <div className="v2-page">
-                    <div
-                        style={{
-                            maxWidth: 1180,
-                            margin: "0 auto",
-                            padding: "16px 20px 32px",
-                        }}
-                    >
-                        <LeadHeaderRoot
-                            lead={lead}
-                            lifecycle={lifecycle}
-                            statuses={lifecycleStatuses}
-                            valueLabel={valueLabel}
-                            answerCount={answerCount}
-                            firstName={firstName}
-                            templateName={
-                                qualification.current?.template_name ??
-                                qualification.current?.template_id
-                            }
-                            qualificationAnswered={qualificationProgress.answered}
-                            qualificationTotal={qualificationProgress.total}
-                            canDelete={props.deleteLeadPermission !== "none"}
-                            onStatusChange={(key) => void changeStatus(key)}
-                            statusSaving={statusSaving}
-                            onOpenAnswers={() => nav.setAnswersOpen(true)}
-                            onMoreAction={handleMoreAction}
-                            onBannerPrimary={handleBannerPrimary}
-                            onBannerViewAnswers={
-                                lifecycle.banner.secondaryCta
-                                    ? handleBannerViewAnswers
-                                    : undefined
-                            }
-                        />
+                <div className="v2-page mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
+                    <LeadHeaderRoot
+                        lead={lead}
+                        lifecycle={lifecycle}
+                        statuses={lifecycleStatuses}
+                        valueLabel={valueLabel}
+                        answerCount={answerCount}
+                        firstName={firstName}
+                        templateName={
+                            qualification.current?.template_name ??
+                            qualification.current?.template_id
+                        }
+                        qualificationAnswered={qualificationProgress.answered}
+                        qualificationTotal={qualificationProgress.total}
+                        canDelete={props.deleteLeadPermission !== "none"}
+                        onStatusChange={(key) => void changeStatus(key)}
+                        statusSaving={statusSaving}
+                        onOpenAnswers={() => nav.setAnswersOpen(true)}
+                        onMoreAction={handleMoreAction}
+                        onBannerPrimary={handleBannerPrimary}
+                        onBannerViewAnswers={
+                            lifecycle.banner.secondaryCta
+                                ? handleBannerViewAnswers
+                                : undefined
+                        }
+                    />
 
-                        <div className="v2-grid">
-                            <div>
-                                {showAiSummary && (
-                                    <AiSummaryCard
-                                        leadId={lead.id}
-                                        summary={props.leadAiSummary}
-                                        leadPhone={lead.mobile ?? lead.cell ?? undefined}
-                                        onCta={{
-                                            onQualifyLead: () =>
-                                                setTemplatePickerOpen(true),
-                                            onCreateTask: () => setAddTaskOpen(true),
-                                            onScheduleCall: () =>
-                                                setAddMeetingOpen(true),
-                                        }}
-                                    />
-                                )}
-
-                                <QuickStats
-                                    nextMeetingLabel={nextMeetingLabel}
-                                    openTasksCount={openTasksCount}
-                                    dealsCount={deals.length}
-                                    onSchedule={() => setAddMeetingOpen(true)}
-                                    onCreateTask={() => setAddTaskOpen(true)}
-                                    onCreateDeal={() => setCreateDealOpen(true)}
+                    <div className="v2-grid">
+                        <div>
+                            {showAiSummary && (
+                                <AiSummaryCard
+                                    leadId={lead.id}
+                                    summary={props.leadAiSummary}
+                                    leadPhone={lead.mobile ?? lead.cell ?? undefined}
+                                    onCta={{
+                                        onQualifyLead: () =>
+                                            setTemplatePickerOpen(true),
+                                        onCreateTask: () => setAddTaskOpen(true),
+                                        onScheduleCall: () =>
+                                            setAddMeetingOpen(true),
+                                    }}
                                 />
+                            )}
 
-                                <Deferred
-                                    data={["notes", "tasks", "leadFollowUps"]}
-                                    fallback={<WorkspaceDeferredSkeleton />}
-                                >
-                                    <WorkspaceCard
-                                        activeTab={nav.tab}
-                                        onTabChange={nav.setTab}
-                                        tabCounts={tabCounts}
-                                    >
-                                        {renderTabBody()}
-                                    </WorkspaceCard>
-                                </Deferred>
-                            </div>
+                            <QuickStats
+                                nextMeetingLabel={nextMeetingLabel}
+                                openTasksCount={openTasksCount}
+                                dealsCount={deals.length}
+                                onSchedule={() => setAddMeetingOpen(true)}
+                                onCreateTask={() => setAddTaskOpen(true)}
+                                onCreateDeal={() => setCreateDealOpen(true)}
+                            />
 
-                            <LeadDossier lead={lead} />
+                            <WorkspaceCard
+                                activeTab={nav.tab}
+                                onTabChange={nav.setTab}
+                                tabCounts={tabCounts}
+                            >
+                                {renderTabBody()}
+                            </WorkspaceCard>
                         </div>
+
+                        <LeadDossier lead={lead} />
                     </div>
                 </div>
             </div>

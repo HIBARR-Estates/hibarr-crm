@@ -29,7 +29,11 @@ type FilterMode = "all" | "agent" | "system" | "external";
 type TimelineVariant = "default" | "deal-redesign";
 
 interface Props {
-    /** Fully-qualified model class, e.g. "App\\Models\\Deal" */
+    /**
+     * Fully-qualified model class. Prefer escaped form matching the redesign
+     * timeline (`App\\\\Models\\\\Deal`) so store/index normalize identically;
+     * single-backslash also works after controller normalization.
+     */
     modelType: string;
     modelId: number;
     userId?: number;

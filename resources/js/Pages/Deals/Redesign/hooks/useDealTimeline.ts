@@ -7,7 +7,8 @@ import {
     crmEventToTimelineViewModel,
 } from "../adapters/timelineAdapter";
 
-// Controller normalizes model_type with stripslashes(); send escaped slashes.
+// Escaped FQCNs — CrmEventController::normalizeModelType() collapses these
+// (and single-backslash forms) to App\Models\{Deal,Lead}.
 export const DEAL_TIMELINE_MODEL_TYPE = "App\\\\Models\\\\Deal";
 export const LEAD_TIMELINE_MODEL_TYPE = "App\\\\Models\\\\Lead";
 

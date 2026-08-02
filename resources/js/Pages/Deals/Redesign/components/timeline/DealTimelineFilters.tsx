@@ -25,7 +25,10 @@ interface DealTimelineFiltersProps {
     onDateRangeChange: (range: DealTimelineDateRange | null) => void;
     isRefetching: boolean;
     onRefresh: () => void;
-    /** Eloquent model type for LogActionModal — single-backslash form. */
+    /**
+     * Eloquent model type for LogActionModal. Prefer the same escaped form
+     * used by useDealTimeline (App\\\\Models\\\\Deal) so GET and POST agree.
+     */
     modelType?: string;
 }
 
@@ -38,7 +41,7 @@ export default function DealTimelineFilters({
     onDateRangeChange,
     isRefetching,
     onRefresh,
-    modelType = "App\\Models\\Deal",
+    modelType = "App\\\\Models\\\\Deal",
 }: DealTimelineFiltersProps) {
     const { t } = useTranslation();
     const [logModalOpen, setLogModalOpen] = useState(false);
