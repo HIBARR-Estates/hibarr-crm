@@ -1,31 +1,16 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import RescheduleMeetingModal, {
+    type RescheduleMeetingSubmitPayload,
+} from "@/Components/Redesign/modals/RescheduleMeetingModal";
+import { buildRescheduleFormFromFollowup } from "@/Components/Redesign/meeting/meetingFormUtils";
 import useLeadMeetingReschedule from "../../../hooks/useLeadMeetingReschedule";
-import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
-import {
-    DealModal,
-    DealModalField,
-} from "@/Pages/Deals/Redesign/components/primitives/DealModal";
-import { LEAD_REDESIGN_TOKENS as T } from "../../../types";
-import {
-    MEETING_DURATION_OPTIONS,
-    addMinutesToTime,
-    buildRescheduleFormFromFollowup,
-    diffMinutesBetweenTimes,
-} from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
 
 interface LeadRescheduleMeetingModalProps {
     open: boolean;
     onClose: () => void;
     followup: DealFollowup | null;
-}
-
-interface RescheduleFormState {
-    date: string;
-    startTime: string;
-    endTime: string;
-    duration: number | null;
 }
 
 export default function LeadRescheduleMeetingModal({
@@ -34,196 +19,43 @@ export default function LeadRescheduleMeetingModal({
     followup,
 }: LeadRescheduleMeetingModalProps) {
     const { td } = useTd();
-    const [form, setForm] = useState<RescheduleFormState | null>(null);
-    const [showDuration, setShowDuration] = useState(false);
     const { rescheduleMeeting, isRescheduling, errors, clearErrors } =
         useLeadMeetingReschedule(followup?.id ?? null);
 
-    useEffect(() => {
-        if (open && followup) {
-            const initial = buildRescheduleFormFromFollowup(followup);
-            setForm(initial);
-            setShowDuration(Boolean(initial.duration));
-            clearErrors();
-        }
-    }, [clearErrors, followup, open]);
+    const initialForm = useMemo(() => {
+        if (!open || !followup) return null;
+        return buildRescheduleFormFromFollowup(followup);
+    }, [open, followup]);
 
     const handleClose = () => {
         if (isRescheduling) return;
+        clearErrors();
         onClose();
     };
 
-    const handleDurationSelect = (duration: number) => {
-        if (!form) return;
-        const nextDuration = form.duration === duration ? null : duration;
-        setForm({
-            ...form,
-            duration: nextDuration,
-            endTime:
-                nextDuration && form.startTime
-                    ? addMinutesToTime(form.startTime, nextDuration)
-                    : form.endTime,
-        });
+    const handleSubmit = (payload: RescheduleMeetingSubmitPayload) => {
+        rescheduleMeeting(payload, handleClose);
     };
-
-    const handleSubmit = () => {
-        if (!form) return;
-        rescheduleMeeting(
-            {
-                date: form.date,
-                startTime: form.startTime,
-                duration: form.duration,
-            },
-            handleClose,
-        );
-    };
-
-    if (!open) return null;
 
     return (
-        <DealModal
+        <RescheduleMeetingModal
             open={open}
-            title={td("Reschedule meeting")}
             onClose={handleClose}
-            footer={
-                <>
-                    <DealButton
-                        variant="ghost"
-                        onClick={handleClose}
-                        disabled={isRescheduling || !form}
-                    >
-                        {td("Cancel")}
-                    </DealButton>
-                    <DealButton
-                        variant="navy"
-                        onClick={handleSubmit}
-                        loading={isRescheduling}
-                        disabled={isRescheduling || !form}
-                    >
-                        {td("Reschedule")}
-                    </DealButton>
-                </>
-            }
-        >
-            {!form ? (
-                <p className="text-xs text-[#9ca3af]">{td("Loading...")}</p>
-            ) : (
-                <>
-                    {errors.length > 0 && (
-                        <div className="mb-3 space-y-1">
-                            {errors.map((error, index) => (
-                                <p key={index} className="text-xs text-red-600">
-                                    {error}
-                                </p>
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <DealModalField label={td("New date")}>
-                            <input
-                                type="date"
-                                value={form.date}
-                                min={new Date().toISOString().split("T")[0]}
-                                disabled={isRescheduling}
-                                onChange={(event) =>
-                                    setForm({
-                                        ...form,
-                                        date: event.target.value,
-                                    })
-                                }
-                            />
-                        </DealModalField>
-
-                        <DealModalField label={td("New start time")}>
-                            <input
-                                type="time"
-                                value={form.startTime}
-                                disabled={isRescheduling}
-                                onChange={(event) => {
-                                    const startTime = event.target.value;
-                                    setForm({
-                                        ...form,
-                                        startTime,
-                                        endTime:
-                                            form.duration && startTime
-                                                ? addMinutesToTime(
-                                                      startTime,
-                                                      form.duration,
-                                                  )
-                                                : form.endTime,
-                                    });
-                                }}
-                            />
-                        </DealModalField>
-                    </div>
-
-                    <DealModalField label={td("Duration")}>
-                        <button
-                            type="button"
-                            onClick={() =>
-                                setShowDuration((current) => !current)
-                            }
-                            className="mb-2 border-none bg-transparent p-0 text-[11px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
-                        >
-                            {showDuration
-                                ? td("Hide duration")
-                                : `+ ${td("Add duration")}`}
-                        </button>
-                        {showDuration && (
-                            <div className="flex flex-wrap gap-1.5">
-                                {MEETING_DURATION_OPTIONS.map((option) => {
-                                    const active =
-                                        form.duration === option.value;
-
-                                    return (
-                                        <button
-                                            key={option.value}
-                                            type="button"
-                                            disabled={isRescheduling}
-                                            onClick={() =>
-                                                handleDurationSelect(
-                                                    option.value,
-                                                )
-                                            }
-                                            className="rounded-md border px-2.5 py-1 text-[11px] font-medium transition-colors"
-                                            style={{
-                                                borderColor: active
-                                                    ? T.NAVY
-                                                    : T.BORDER,
-                                                background: active
-                                                    ? T.NAVY
-                                                    : T.WHITE,
-                                                color: active
-                                                    ? T.WHITE
-                                                    : T.TEXT_MUTED,
-                                            }}
-                                        >
-                                            {option.label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </DealModalField>
-
-                    <DealModalField label={td("End time")}>
-                        <input
-                            type="time"
-                            value={form.endTime}
-                            disabled={isRescheduling}
-                            onChange={(event) => {
-                                const endTime = event.target.value;
-                                const duration = diffMinutesBetweenTimes(
-                                    form.startTime,
-                                    endTime,
-                                );
-                                setForm({ ...form, endTime, duration });
-                            }}
-                        />
-                    </DealModalField>
-                </>
-            )}
-        </DealModal>
+            saving={isRescheduling}
+            errors={errors}
+            initialForm={initialForm}
+            onSubmit={handleSubmit}
+            labels={{
+                title: td("Reschedule meeting"),
+                cancel: td("Cancel"),
+                submit: td("Reschedule"),
+                newDate: td("New date"),
+                newStartTime: td("New start time"),
+                duration: td("Duration"),
+                hideDuration: td("Hide duration"),
+                addDuration: td("Add duration"),
+                endTime: td("End time"),
+            }}
+        />
     );
 }

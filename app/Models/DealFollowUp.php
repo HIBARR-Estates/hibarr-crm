@@ -69,6 +69,7 @@ class DealFollowUp extends BaseModel
         'summary_id',
         'zoho_calendar_job_id',
         'zoho_calendar_sync_status',
+        'zoho_calendar_event_uid',
         'send_reminder',
         'remind_time',
         'remind_type',

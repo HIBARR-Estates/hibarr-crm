@@ -7,6 +7,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\Lead;
 use App\Helper\Common;
+use App\Support\LeadSearchQuery;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
@@ -232,8 +233,8 @@ class LeadContactDataTable extends BaseDataTable
             $leadContact = $leadContact->where(function ($query) {
                 $safeTerm = Common::safeString(request('searchText'));
                 $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                    ->orwhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%');
+                LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
             });
         }
 

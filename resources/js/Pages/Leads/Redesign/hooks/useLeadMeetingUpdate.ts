@@ -14,7 +14,7 @@ import type { LeadMeetingCreateInput } from "./useLeadMeetingCreate";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
-} from "@/Pages/Deals/Redesign/components/workspace/meetingFormUtils";
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 
 interface FollowUpUpdatePayload {
     id: number;
