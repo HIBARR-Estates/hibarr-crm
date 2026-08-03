@@ -90,6 +90,12 @@
     cursor: wait;
     opacity: 0.85;
 }
+.lead-redesign .v2-lead-avatar.is-readonly {
+    cursor: default;
+}
+.lead-redesign .v2-lead-avatar.is-readonly:hover {
+    border-color: var(--lr-border);
+}
 .lead-redesign .v2-lead-avatar__img {
     width: 100%;
     height: 100%;

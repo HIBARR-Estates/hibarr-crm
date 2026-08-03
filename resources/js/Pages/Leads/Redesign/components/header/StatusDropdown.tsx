@@ -77,7 +77,7 @@ export default function StatusDropdown({
                     role="listbox"
                     style={{ minWidth: 220, maxHeight: 360, overflow: "auto" }}
                 >
-                    <div className="v2-menu-label">{td("Set status")}</div>
+                    <div className="v2-menu-label capitalize">{td("Set status")}</div>
                     {statuses.map((option) => {
                         const active = statusKey === option.key;
                         return (
@@ -86,7 +86,7 @@ export default function StatusDropdown({
                                 type="button"
                                 role="option"
                                 aria-selected={active}
-                                className={`v2-menu-item${active ? " active" : ""}`}
+                                className={`v2-menu-item${active ? " active" : ""} capitalize`}
                                 onClick={() => {
                                     onSelect(option.key);
                                     setOpen(false);

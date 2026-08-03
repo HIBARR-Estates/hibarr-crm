@@ -22,6 +22,7 @@ import type { LeadRedesignProps } from "./types";
 import type { LeadMissionCtaAction, WorkspaceTabId } from "./types";
 import type { MoreMenuActionId } from "./config/moreMenuItems";
 import { resolveLifecycle } from "./adapters/lifecycleAdapter";
+import { canEditLead } from "./adapters/leadEditAccess";
 import { getDossierFieldValue } from "./adapters/dossierAdapter";
 import { toLeadTaskPreview } from "./adapters/taskAdapter";
 import { itineraryCount } from "./adapters/itineraryAdapter";
@@ -455,6 +456,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         canDelete={props.deleteLeadPermission !== "none"}
                         canFindDuplicates={duplicates.canMerge}
                         canEditOwner={props.editLeadPermission !== "none"}
+                        canUploadPhoto={canEditLead(
+                            props.editLeadPermission,
+                            lead,
+                            page.props.auth?.user?.id,
+                        )}
                         onStatusChange={(key) => void changeStatus(key)}
                         statusSaving={statusSaving}
                         onOpenAnswers={() => nav.setAnswersOpen(true)}

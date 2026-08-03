@@ -9,18 +9,20 @@ interface LeadAvatarButtonProps {
     image?: string | null;
     imageUrl?: string | null;
     initials: string;
+    /** Requires edit_lead access for this lead (same as uploadImage). */
+    canUpload?: boolean;
 }
 
 /**
- * Header avatar with a persistent camera badge. Uploads to the server and
- * patches workspace state. Without a custom image, initials are shown so the
- * empty/upload state stays obvious (Gravatar alone is too easy to miss).
+ * Header avatar with optional camera upload. Upload controls only render when
+ * canUpload is true; otherwise the avatar is display-only.
  */
 export default function LeadAvatarButton({
     name,
     image,
     imageUrl,
     initials,
+    canUpload = false,
 }: LeadAvatarButtonProps) {
     const { td } = useTd();
     const inputRef = useRef<HTMLInputElement>(null);
@@ -35,48 +37,83 @@ export default function LeadAvatarButton({
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         event.target.value = "";
-        if (!file) return;
+        if (!file || !canUpload) return;
         void uploadImage(file);
+    };
+
+    const openPicker = () => {
+        if (!canUpload || uploading) return;
+        inputRef.current?.click();
     };
 
     return (
         <div className="v2-lead-avatar-wrap">
-            <button
-                type="button"
-                className={`v2-lead-avatar${uploading ? " is-uploading" : ""}`}
-                onClick={() => inputRef.current?.click()}
-                disabled={uploading}
-                title={label}
-                aria-label={`${label} ${name}`.trim()}
-            >
-                {displayUrl ? (
-                    <img src={displayUrl} alt="" className="v2-lead-avatar__img" />
-                ) : (
-                    <span className="v2-lead-avatar__initials">{initials}</span>
-                )}
-                <span className="v2-lead-avatar__badge" aria-hidden="true">
-                    {uploading ? (
-                        <span className="v2-lead-avatar__spinner" />
+            {canUpload ? (
+                <button
+                    type="button"
+                    className={`v2-lead-avatar${uploading ? " is-uploading" : ""}`}
+                    onClick={openPicker}
+                    disabled={uploading}
+                    title={label}
+                    aria-label={`${label} ${name}`.trim()}
+                >
+                    {displayUrl ? (
+                        <img
+                            src={displayUrl}
+                            alt=""
+                            className="v2-lead-avatar__img"
+                        />
                     ) : (
-                        <Icon name="camera" size={12} />
+                        <span className="v2-lead-avatar__initials">
+                            {initials}
+                        </span>
                     )}
-                </span>
-            </button>
-            <button
-                type="button"
-                className="v2-lead-avatar__action"
-                onClick={() => inputRef.current?.click()}
-                disabled={uploading}
-            >
-                {uploading ? td("Uploading…") : label}
-            </button>
-            <input
-                ref={inputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                hidden
-                onChange={handleFileChange}
-            />
+                    <span className="v2-lead-avatar__badge" aria-hidden="true">
+                        {uploading ? (
+                            <span className="v2-lead-avatar__spinner" />
+                        ) : (
+                            <Icon name="camera" size={12} />
+                        )}
+                    </span>
+                </button>
+            ) : (
+                <div
+                    className="v2-lead-avatar is-readonly"
+                    aria-label={name}
+                    title={name}
+                >
+                    {displayUrl ? (
+                        <img
+                            src={displayUrl}
+                            alt=""
+                            className="v2-lead-avatar__img"
+                        />
+                    ) : (
+                        <span className="v2-lead-avatar__initials">
+                            {initials}
+                        </span>
+                    )}
+                </div>
+            )}
+            {canUpload ? (
+                <>
+                    <button
+                        type="button"
+                        className="v2-lead-avatar__action"
+                        onClick={openPicker}
+                        disabled={uploading}
+                    >
+                        {uploading ? td("Uploading…") : label}
+                    </button>
+                    <input
+                        ref={inputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/gif,image/webp"
+                        hidden
+                        onChange={handleFileChange}
+                    />
+                </>
+            ) : null}
         </div>
     );
 }

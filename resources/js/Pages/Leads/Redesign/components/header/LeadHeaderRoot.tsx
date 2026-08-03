@@ -26,6 +26,7 @@ interface LeadHeaderRootProps {
     canDelete?: boolean;
     canFindDuplicates?: boolean;
     canEditOwner?: boolean;
+    canUploadPhoto?: boolean;
     onStatusChange: (key: string) => void;
     statusSaving?: boolean;
     onOpenAnswers?: () => void;
@@ -46,6 +47,7 @@ export default function LeadHeaderRoot({
     canDelete = true,
     canFindDuplicates = false,
     canEditOwner = true,
+    canUploadPhoto = false,
     onStatusChange,
     statusSaving = false,
     onOpenAnswers,
@@ -85,6 +87,7 @@ export default function LeadHeaderRoot({
                     image={lead.image}
                     imageUrl={lead.image_url}
                     initials={initialsFromName(lead.client_name)}
+                    canUpload={canUploadPhoto}
                 />
 
                 <div style={{ flex: 1, minWidth: 200 }}>
