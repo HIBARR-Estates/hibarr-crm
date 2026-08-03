@@ -22,6 +22,7 @@ class NewLeadCreated extends BaseNotification
         $this->leadContact = $leadContact;
         $this->company = $this->leadContact->company;
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'lead-notification')->first();
+        $this->initUnsRouting();
     }
 
     /**
@@ -76,6 +77,16 @@ class NewLeadCreated extends BaseNotification
                 'actionText' => __('email.lead.action'),
                 'notifiableName' => $notifiable->name
             ]);
+
+        $this->attachPlunkTemplate($build, 'd64189c5-07db-44be-8a6e-f16df5b2a9c0', [
+            'leadName'      => $this->leadContact->client_name,
+            'leadEmail'     => $this->leadContact->client_email ?? '',
+            'leadOwnerName' => optional($this->leadContact->leadOwner)->name ?? '',
+            'sourceName'    => optional($this->leadContact->leadSource)->type ?? '',
+            'createdAt'     => $this->leadContact->created_at->format($this->company->date_format),
+            'addedByName'   => optional($this->leadContact->addedBy)->name ?? '',
+            'leadUrl'       => $url,
+        ]);
 
         parent::resetLocale();
 

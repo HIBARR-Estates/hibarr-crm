@@ -99,7 +99,7 @@
 .redesign-modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 1100;
+    z-index: 1300;
     background: rgba(22, 41, 77, 0.45);
     display: flex;
     align-items: center;
@@ -149,13 +149,50 @@
     box-shadow: 0 0 0 2px #e8f1fb;
 }
 
-/* Analysis modal — large panel (~95vw × ~90vh), portaled to document.body */
+/* Analysis modal — 3-column scroll layout */
+.analysis-3col-body {
+    display: flex;
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.analysis-3col-left {
+    width: 300px;
+    flex-shrink: 0;
+    border-right: 1px solid #e2e5ea;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+    .analysis-3col-left { width: 360px; }
+}
+
+.analysis-3col-center {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.analysis-3col-right {
+    width: 280px;
+    flex-shrink: 0;
+    border-left: 1px solid #e2e5ea;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Analysis modal — large panel (~90vw × ~90vh), portaled to document.body */
 .analysis-modal-overlay {
     position: fixed;
     inset: 0;
     z-index: 1200;
-    background: rgba(22, 41, 77, 0.5);
-    backdrop-filter: blur(3px);
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -166,14 +203,24 @@
 .analysis-modal-panel {
     background: #ffffff;
     border-radius: 14px;
-    border: 1px solid #e2e5ea;
     box-shadow: 0 20px 60px rgba(22, 41, 77, 0.22);
-    width: 95vw;
+    width: 90vw;
     height: 90vh;
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    position: relative;
     font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Fields inside the analysis panel should never clamp text — the
+   ResizeObserver fires before layout settles when overflow:hidden is on
+   the parent, causing false-positive "show more" buttons on short values. */
+.analysis-modal-panel .line-clamp-3 {
+    display: block !important;
+    overflow: visible !important;
+    -webkit-line-clamp: none;
+    -webkit-box-orient: unset;
 }
 
 .analysis-section-heading {
@@ -196,6 +243,13 @@
     color: #16294d;
     line-height: 1.55;
     white-space: pre-wrap;
+}
+
+/* Single-column field rows in the analysis script panel get extra vertical
+   breathing room so agents don't see a wall of inputs on a live call.      */
+.analysis-modal-panel .field-row + .field-row,
+.analysis-modal-panel .dr-field-row + .dr-field-row {
+    margin-top: 16px;
 }
 
 /* Pulsing dot for the analysis status banner */

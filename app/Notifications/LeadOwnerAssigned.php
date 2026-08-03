@@ -4,11 +4,15 @@ namespace App\Notifications;
 
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
+use App\Models\User;
+use App\Scopes\ActiveScope;
 
 class LeadOwnerAssigned extends BaseNotification
 {
     private Lead $lead;
     private ?int $previousOwnerId;
+    private string $previousOwnerName;
+    private string $assignedAt;
     private ?EmailNotificationSetting $emailSetting;
 
     public function __construct(Lead $lead, ?int $previousOwnerId = null)
@@ -16,11 +20,16 @@ class LeadOwnerAssigned extends BaseNotification
         $this->lead = $lead;
         $this->company = $this->lead->company;
         $this->previousOwnerId = $previousOwnerId;
+        $this->previousOwnerName = $previousOwnerId
+            ? (User::withoutGlobalScope(ActiveScope::class)->find($previousOwnerId)?->name ?? 'Unassigned')
+            : 'Unassigned';
+        $this->assignedAt = now()->format($this->company?->date_format ?? 'Y-m-d');
         $this->emailSetting = $this->company
             ? EmailNotificationSetting::where('company_id', $this->company->id)
                 ->where('slug', 'lead-notification')
                 ->first()
             : null;
+        $this->initUnsRouting();
     }
 
     public function via($notifiable)
@@ -64,6 +73,14 @@ class LeadOwnerAssigned extends BaseNotification
                 'actionText' => 'View Lead',
                 'notifiableName' => $notifiable->name,
             ]);
+
+        $this->attachPlunkTemplate($build, 'cde4d601-d358-45e5-9782-1e79d5c4f9f7', [
+            'leadName'          => $this->lead->client_name,
+            'leadEmail'         => $this->lead->client_email ?? '',
+            'previousOwnerName' => $this->previousOwnerName,
+            'assignedAt'        => $this->assignedAt,
+            'leadUrl'           => $url,
+        ]);
 
         parent::resetLocale();
 

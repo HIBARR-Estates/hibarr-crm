@@ -140,6 +140,12 @@ const ICON_PATHS: Record<string, ReactNode> = {
         </>
     ),
     check: <polyline points="20 6 9 17 4 12" />,
+    ban: (
+        <>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+        </>
+    ),
     edit: (
         <>
             <path d="M12 20h9" />
@@ -180,6 +186,12 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
             <circle cx="8.5" cy="8.5" r="1.5" />
             <polyline points="21 15 16 10 5 21" />
+        </>
+    ),
+    camera: (
+        <>
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
         </>
     ),
     archive: (

@@ -51,8 +51,11 @@ const dictionaryCache = new Map<string, I18nPayload>();
  * Auth-gated JSON endpoint for flattened locale dictionaries.
  * Kept as a path (not ziggy) so boot can fetch before Ziggy is required.
  */
+/** Bump when lang keys are added so browsers that cached the old JSON refetch. */
+const I18N_DICT_VERSION = "2";
+
 export const i18nEndpoint = (locale: string): string =>
-    `/account/api/i18n/${encodeURIComponent(locale)}.json`;
+    `/account/api/i18n/${encodeURIComponent(locale)}.json?v=${I18N_DICT_VERSION}`;
 
 /**
  * Initialize i18next with translations from server
@@ -119,6 +122,7 @@ export async function loadI18n(locale: string = "en"): Promise<typeof i18n> {
     if (!payload) {
         const response = await fetch(i18nEndpoint(normalized), {
             credentials: "same-origin",
+            cache: "no-store",
             headers: { Accept: "application/json" },
         });
 

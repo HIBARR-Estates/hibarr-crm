@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { router } from "@inertiajs/react";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 type CompletionType = "auto" | "manual";
@@ -28,7 +29,7 @@ export interface UseDealAnalysisReturn {
     isCompleted: boolean;
     isCompleting: boolean;
     open: () => void;
-    minimize: () => void;
+    minimize: (afterSaves?: Promise<unknown>) => void;
     complete: (completionType: CompletionType, unfilledCount: number) => Promise<void>;
 }
 
@@ -55,9 +56,14 @@ export default function useDealAnalysis(): UseDealAnalysisReturn {
         setIsOpen(true);
     }, [deal.id]);
 
-    const minimize = useCallback(() => {
+    // Closes immediately; the reload waits on any in-flight field saves so the
+    // deal info tab shows the values just edited in the modal.
+    const minimize = useCallback((afterSaves?: Promise<unknown>) => {
         setMinimized(deal.id);
         setIsOpen(false);
+        Promise.resolve(afterSaves)
+            .catch(() => {})
+            .then(() => router.reload({ only: ["deal"] }));
     }, [deal.id]);
 
     const complete = useCallback(
