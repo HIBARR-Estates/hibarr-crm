@@ -322,6 +322,12 @@ class DealGatheringController extends AccountBaseController
             $data
         );
 
+        // Lean path: analysis modal fire-and-forget saves skip the expensive 13-relation
+        // refresh and return a minimal acknowledgement so the UI stays snappy.
+        if ($request->header('X-Analysis-Lean')) {
+            return response()->json(['status' => 'success']);
+        }
+
         // Refresh deal with all relationships and custom fields data.
         // Include leadFlightItineraries so redesign setDeal() patches do not
         // wipe the itinerary tab (same relation set as DealController::loadFullDeal).

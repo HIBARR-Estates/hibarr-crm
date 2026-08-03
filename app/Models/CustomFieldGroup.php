@@ -66,7 +66,8 @@ class CustomFieldGroup extends BaseModel
                 $query->with(['groups' => function($q) {
                     $q->where('enabled', true)->orderBy('id')->with('criteria.referenceField');
                 }]);
-            }
+            },
+            'customFieldCategory',
         ]);
     }
 
@@ -116,7 +117,7 @@ class CustomFieldGroup extends BaseModel
                 }
                 
                 return $fields->map(function ($item) {
-                    if (in_array($item->type, ['select', 'radio'])) {
+                    if (in_array($item->type, ['select', 'radio', 'checkbox', 'multiselect'])) {
                         $item->values = json_decode($item->values);
                     }
                     if ($item->type === 'repeatable' && !empty($item->values)) {

@@ -18,6 +18,7 @@ export default function AnalysisQuickNote() {
     return (
         <div className="flex flex-col gap-2">
             <textarea
+                aria-label={td("Add a note")}
                 className="w-full resize-none rounded-lg border px-3 py-2 text-[13px] outline-none transition-shadow"
                 style={{
                     borderColor: T.BORDER,

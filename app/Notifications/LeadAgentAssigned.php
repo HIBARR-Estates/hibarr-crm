@@ -15,12 +15,17 @@ class LeadAgentAssigned extends BaseNotification
      */
     private $deal;
     private $emailSetting;
+    private string $assignedByName;
+    private string $assignedAt;
 
     public function __construct(Deal $deal)
     {
         $this->deal = $deal;
         $this->company = $this->deal->company;
+        $this->assignedByName = user()?->name ?? '';
+        $this->assignedAt = now()->format($this->company->date_format);
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)->where('slug', 'lead-notification')->first();
+        $this->initUnsRouting();
     }
 
     /**
@@ -71,6 +76,15 @@ class LeadAgentAssigned extends BaseNotification
                 'actionText' => __('email.leadAgent.action'),
                 'notifiableName' => $notifiable->name
             ]);
+
+        $this->attachPlunkTemplate($build, '336e4f34-69bf-4a4f-92af-96e318a80548', [
+            'assignedByName' => $this->assignedByName,
+            'leadName'       => $this->deal->contact->client_name,
+            'leadEmail'      => $this->deal->contact->client_email ?? '',
+            'dealName'       => $this->deal->name,
+            'assignedAt'     => $this->assignedAt,
+            'leadUrl'        => $url,
+        ]);
 
         parent::resetLocale();
 

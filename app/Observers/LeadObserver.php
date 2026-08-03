@@ -84,7 +84,14 @@ class LeadObserver
 
                     info('check');
                     $admins = User::allAdmins(company()->id);
-                    Notification::send($admins, new LeadImported());
+                    $importedLeads = session('leads', []);
+                    Notification::send($admins, new LeadImported([
+                        'importedByName' => user()?->name ?? '',
+                        'importCount'    => count($importedLeads),
+                        'failedCount'    => max(0, (int) session('total_leads', 0) - count($importedLeads)),
+                        'sourceName'     => 'CSV Import',
+                        'importedAt'     => now()->format(company()->date_format),
+                    ]));
                 }
 
             }

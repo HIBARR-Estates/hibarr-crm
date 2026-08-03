@@ -544,6 +544,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             case "radio":
                 return renderRadioField(field);
             case "checkbox":
+            case "multiselect":
                 return renderCheckboxField(field);
             case "date":
                 return renderDateField(field);

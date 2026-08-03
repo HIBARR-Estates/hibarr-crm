@@ -185,6 +185,7 @@ class DealSampleExport implements FromCollection, WithHeadings, WithColumnFormat
                 return 'Option 1';
                 
             case 'checkbox':
+            case 'multiselect':
                 $options = json_decode($customField->values, true);
                 if (is_array($options) && !empty($options)) {
                     $selectedCount = min(2, count($options));

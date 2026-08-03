@@ -30,6 +30,10 @@ import DealAddNoteModal from "./components/workspace/DealAddNoteModal";
 import DealScheduleMeetingModal from "./components/workspace/DealScheduleMeetingModal";
 import DealAnalysisModal from "./components/analysis/DealAnalysisModal";
 import AnalysisStatusBanner from "./components/analysis/AnalysisStatusBanner";
+import {
+    buildScriptItems,
+    computeAnalysisProgress,
+} from "./components/analysis/analysisProgress";
 import useDealAnalysis from "./hooks/useDealAnalysis";
 
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
@@ -143,6 +147,22 @@ function DealViewRedesignInner(props: DealShowProps) {
             stages,
             scopedCategoryIdsFromServer,
         ],
+    );
+
+    // Analysis progress off saved values, so the status card reports the same
+    // totals as the modal header. Recomputed when the deal reloads on modal close.
+    const analysisProgress = useMemo(
+        () =>
+            computeAnalysisProgress(
+                buildScriptItems(props.analysisScript, dealInfoCategories),
+                fields,
+                {
+                    ...(deal.custom_fields_data ?? {}),
+                    ...((pageProps.leadCustomFieldsData as Record<string, any>) ?? {}),
+                },
+                deal,
+            ),
+        [props.analysisScript, dealInfoCategories, fields, deal, pageProps.leadCustomFieldsData],
     );
 
     const dealInfoFieldKeys = useMemo(
@@ -335,14 +355,20 @@ function DealViewRedesignInner(props: DealShowProps) {
                     />
 
                     <div className="">
-                        <div className="mb-[14px] flex items-start gap-4" data-tour="deal-pipeline-stepper">
+                        <div className="mb-[14px] flex items-stretch gap-4" data-tour="deal-pipeline-stepper">
                             <div className="min-w-0 flex-1">
                                 <DealPipelineStepper
                                     deal={deal}
                                     permissions={permissions}
                                 />
                             </div>
-                            {showAnalysis && <AnalysisStatusBanner analysis={analysis} />}
+                            {showAnalysis && (
+                                <AnalysisStatusBanner
+                                    analysis={analysis}
+                                    totalFilled={analysisProgress.totalFilled}
+                                    totalFields={analysisProgress.totalFields}
+                                />
+                            )}
                         </div>
                         <div className="dr-grid">
                             <div className="flex min-w-0 flex-col gap-[14px]">

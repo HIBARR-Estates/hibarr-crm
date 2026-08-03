@@ -2,10 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\LeadPipeline;
 use App\Models\PipelineAnalysisScript;
 use App\Models\PipelineAnalysisScriptItem;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class PipelineAnalysisScriptController extends Controller
 {
@@ -23,9 +25,13 @@ class PipelineAnalysisScriptController extends Controller
 
     public function upsert(Request $request, int $id): JsonResponse
     {
+        // LeadPipeline carries the HasCompany global scope, so this 404s for a
+        // pipeline belonging to another company rather than letting the write through.
+        LeadPipeline::findOrFail($id);
+
         $request->validate([
             'items'                => ['array'],
-            'items.*.type'         => ['required', 'in:custom_field_category,native_field,hibarr_field,lead_field'],
+            'items.*.type'         => ['required', 'in:custom_field_category,native_field,hibarr_field,lead_field,question,instruction'],
             'items.*.item_key'     => ['required', 'string', 'max:255'],
             'items.*.label_override' => ['nullable', 'string', 'max:255'],
             'items.*.guide_text'   => ['nullable', 'string'],
@@ -35,8 +41,6 @@ class PipelineAnalysisScriptController extends Controller
             ['pipeline_id' => $id],
             ['company_id'  => company()->id],
         );
-
-        $script->items()->delete();
 
         $items = collect($request->input('items', []))
             ->values()
@@ -50,9 +54,15 @@ class PipelineAnalysisScriptController extends Controller
             ])
             ->all();
 
-        if ($items) {
-            PipelineAnalysisScriptItem::insert($items);
-        }
+        // Replace-in-place: without the transaction a failed insert would leave the
+        // pipeline with no steps at all.
+        DB::transaction(function () use ($script, $items) {
+            $script->items()->delete();
+
+            if ($items) {
+                PipelineAnalysisScriptItem::insert($items);
+            }
+        });
 
         return response()->json(['status' => 'success']);
     }

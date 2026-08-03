@@ -224,7 +224,7 @@
         var v = $('#type').val();
         $('.mt-repeater input, .mt-repeater select').prop('disabled', false);
         $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', false);
-        if (v === 'select' || v === 'radio' || v === 'checkbox') {
+        if (v === 'select' || v === 'radio' || v === 'checkbox' || v === 'multiselect') {
             $('.mt-repeater').removeClass('d-none');
             $('.mt-repeater-repeatable').addClass('d-none');
             $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);
