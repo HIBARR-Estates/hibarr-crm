@@ -125,7 +125,6 @@ export function getDossierFieldValue(
             return yesNo(
                 m.has_joined_the_whatsapp_group ?? l.has_joined_the_whatsapp_group,
             );
-        case "age":
         case "dateOfBirthAndAge": {
             const resolved = resolveLeadAgeFields({
                 dateOfBirth: asString(l.date_of_birth) || null,
