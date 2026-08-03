@@ -14,6 +14,7 @@ import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingForm
 import { buildEmptyMeetingForm } from "@/Components/Redesign/meeting/meetingFormUtils";
 import type { PageProps } from "@/Components/DashboardLayout";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     OverviewDeferredSkeleton,
     TabDeferredSkeleton,
@@ -83,6 +84,7 @@ export default function LeadViewRedesign(props: LeadRedesignProps) {
 
 function LeadViewRedesignInner(props: LeadRedesignProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const page = usePage<PageProps>();
     const featureFlags = props.featureFlags ?? page.props.featureFlags;
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
@@ -423,7 +425,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const pageTitle = lead.client_name ?? td("Lead");
 
     return (
-        <PageLayout title={pageTitle}>
+        <PageLayout
+            title={pageTitle}
+            breadcrumbs={[
+                {
+                    name: t("pages.leads.contacts"),
+                    url: route("lead-contact.index"),
+                },
+                { name: pageTitle },
+            ]}
+        >
             <div className="lead-redesign">
                 <div className="v2-page mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
                     <LeadHeaderRoot

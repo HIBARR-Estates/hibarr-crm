@@ -4,12 +4,12 @@ import type {
     LeadQualification,
     TemplateTree,
 } from "@/Types/qualification";
-import { Modal } from "@/Components/Redesign";
 import { getRegistrationService } from "@/Services/RegistrationService";
 import { useLeadQualificationService } from "@/Services/LeadQualificationService";
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
 import BranchChangeWarningModal from "@/Pages/Leads/Components/Qualification/BranchChangeWarningModal";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import LeadV2Modal, { LeadV2ModalHeader } from "./LeadV2Modal";
 import QualifySegmentBody from "./QualifySegmentBody";
 import QualifyFooter from "./QualifyFooter";
 
@@ -43,6 +43,7 @@ export default function QualifyModal({
     const [agentLanguage, setAgentLanguage] = useState(
         qualification.agent_language || "en",
     );
+    const titleId = "qualify-modal-title";
 
     const flow = useQualificationFlow({
         lead,
@@ -56,44 +57,77 @@ export default function QualifyModal({
 
     const segment = flow.currentSegment;
     const showNav = segment?.type !== "outcome";
+    const segments = flow.visibleSegments;
+    const stepIndex = Math.max(flow.currentIndex, 0);
+    const leadName = lead.client_name || td("Lead");
 
-    const progress = useMemo(() => {
-        const total = Math.max(flow.visibleSegments.length, 1);
-        const current = Math.max(flow.currentIndex, 0) + 1;
-        return {
-            percent: Math.min(100, Math.round((current / total) * 100)),
-            current,
-            total,
-        };
-    }, [flow.currentIndex, flow.visibleSegments.length]);
-
-    if (!open) return null;
+    const stepKindLabel = (() => {
+        if (!segment) return "";
+        if (segment.type === "say") return td("Script");
+        if (segment.type === "instruction") return td("Instruction");
+        if (segment.type === "outcome") return td("Outcome");
+        return td("Question");
+    })();
 
     return (
         <>
-            <Modal
+            <LeadV2Modal
                 open={open}
-                title={td("Qualification script")}
                 onClose={onClose}
-                footer={
-                    <QualifyFooter flow={flow} hidden={!showNav} />
-                }
+                labelledBy={titleId}
+                ariaLabel={`${td("Qualify")} ${leadName}`}
             >
-                <div style={{ display: "grid", gap: 16 }}>
+                <LeadV2ModalHeader
+                    title={`${td("Qualify")} ${leadName}`}
+                    titleId={titleId}
+                    rightSlot={
+                        <span className="v2-pill v2-pill-gray">
+                            {templateTree.name}
+                        </span>
+                    }
+                    onClose={onClose}
+                />
+
+                <div style={{ padding: "14px 20px 0" }}>
+                    <div className="v2-progress-track">
+                        {segments.map((item, index) => (
+                            <div
+                                key={item.key}
+                                className={`v2-progress-seg${
+                                    index <= stepIndex ? " is-done" : ""
+                                }`}
+                            />
+                        ))}
+                    </div>
                     <div
                         style={{
                             display: "flex",
-                            flexWrap: "wrap",
                             alignItems: "center",
                             justifyContent: "space-between",
                             gap: 10,
+                            flexWrap: "wrap",
                         }}
                     >
+                        <div
+                            style={{
+                                fontSize: 12,
+                                color: "var(--lr-text-dim)",
+                            }}
+                        >
+                            {td("Step")} {Math.min(stepIndex + 1, segments.length || 1)}{" "}
+                            {td("of")} {Math.max(segments.length, 1)}
+                            {stepKindLabel ? ` · ${stepKindLabel}` : ""}
+                        </div>
                         <select
                             className="v2-input"
                             value={agentLanguage}
                             onChange={(e) => setAgentLanguage(e.target.value)}
-                            style={{ width: "auto", minWidth: 140 }}
+                            style={{
+                                width: "auto",
+                                minWidth: 120,
+                                padding: "6px 10px",
+                                fontSize: 12,
+                            }}
                             aria-label={td("Script language")}
                         >
                             {LANGUAGE_OPTIONS.map((option) => (
@@ -102,30 +136,13 @@ export default function QualifyModal({
                                 </option>
                             ))}
                         </select>
-                        <span style={{ fontSize: 12, color: "#6b7280" }}>
-                            {td("Step")} {progress.current} {td("of")}{" "}
-                            {progress.total}
-                        </span>
                     </div>
+                </div>
 
-                    <div
-                        style={{
-                            height: 4,
-                            background: "#eef0f3",
-                            borderRadius: 4,
-                            overflow: "hidden",
-                        }}
-                    >
-                        <div
-                            style={{
-                                width: `${progress.percent}%`,
-                                height: "100%",
-                                background: "#1a6bb5",
-                                transition: "width 0.2s ease",
-                            }}
-                        />
-                    </div>
-
+                <div
+                    className="v2-modal-body"
+                    style={{ paddingTop: 20, paddingBottom: 8 }}
+                >
                     {segment ? (
                         <QualifySegmentBody
                             flow={flow}
@@ -134,12 +151,20 @@ export default function QualifyModal({
                             agentLanguage={agentLanguage}
                         />
                     ) : (
-                        <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                        <p
+                            style={{
+                                margin: 0,
+                                color: "var(--lr-text-dim)",
+                                fontSize: 13,
+                            }}
+                        >
                             {td("No steps available for this template.")}
                         </p>
                     )}
                 </div>
-            </Modal>
+
+                <QualifyFooter flow={flow} hidden={!showNav} />
+            </LeadV2Modal>
 
             <BranchChangeWarningModal
                 open={Boolean(flow.branchChangePending)}

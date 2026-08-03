@@ -3,7 +3,6 @@ import type {
     LeadQualification,
     TemplateTree,
 } from "@/Types/qualification";
-import { Modal } from "@/Components/Redesign";
 import { getQualificationTemplateService } from "@/Services/QualificationTemplateService";
 import {
     computeVisibleSegments,
@@ -12,6 +11,11 @@ import {
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import Icon from "@/Components/Redesign/primitives/Icon";
+import LeadV2Modal, {
+    LeadV2ModalFooter,
+    LeadV2ModalHeader,
+} from "./LeadV2Modal";
 
 const OUTCOME_LABELS: Record<string, string> = {
     bookMeeting: "Consultation booked",
@@ -28,23 +32,23 @@ interface AnswersReviewModalProps {
     onClose: () => void;
 }
 
-interface RunAccordionProps {
+interface RunCardProps {
     qualification: LeadQualification;
-    defaultOpen?: boolean;
+    expanded: boolean;
+    onToggle: () => void;
 }
 
-function RunAccordion({ qualification, defaultOpen = false }: RunAccordionProps) {
+function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
     const { td } = useTd();
     const templateService = useMemo(
         () => getQualificationTemplateService(),
         [],
     );
-    const [open, setOpen] = useState(defaultOpen);
     const [tree, setTree] = useState<TemplateTree | null>(null);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (!open || tree) return;
+        if (!expanded || tree) return;
         let cancelled = false;
 
         const load = async () => {
@@ -66,7 +70,13 @@ function RunAccordion({ qualification, defaultOpen = false }: RunAccordionProps)
         return () => {
             cancelled = true;
         };
-    }, [open, qualification.template_id, qualification.template_name, templateService, tree]);
+    }, [
+        expanded,
+        qualification.template_id,
+        qualification.template_name,
+        templateService,
+        tree,
+    ]);
 
     const answerMap = useMemo(
         () =>
@@ -85,138 +95,144 @@ function RunAccordion({ qualification, defaultOpen = false }: RunAccordionProps)
     const answeredKeys = new Set(
         (qualification.answers ?? []).map((a) => a.segment_key),
     );
-
-    const title = qualification.template_name ?? qualification.template_id;
+    const answerCount = (qualification.answers ?? []).length;
     const when = qualification.completed_at ?? qualification.created_at;
     const outcomeLabel = qualification.outcome
         ? (OUTCOME_LABELS[qualification.outcome] ?? qualification.outcome)
-        : qualification.status;
+        : qualification.status === "inProgress"
+          ? "In progress"
+          : qualification.status === "completed"
+            ? "Completed"
+            : qualification.status === "abandoned"
+              ? "Abandoned"
+              : "In progress";
 
     return (
-        <div
-            style={{
-                border: "1px solid #e2e5ea",
-                borderRadius: 10,
-                overflow: "hidden",
-                marginBottom: 10,
-            }}
-        >
+        <div className="v2-answers-run">
             <button
                 type="button"
-                onClick={() => setOpen((value) => !value)}
-                style={{
-                    width: "100%",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 12,
-                    padding: "12px 14px",
-                    background: open ? "#f8f9fb" : "#ffffff",
-                    border: "none",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    textAlign: "left",
-                }}
+                className="v2-answers-run-head"
+                onClick={onToggle}
             >
-                <span style={{ minWidth: 0 }}>
-                    <span
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 650 }}>
+                        {td(outcomeLabel)}
+                    </div>
+                    <div
                         style={{
-                            display: "block",
-                            fontWeight: 600,
-                            fontSize: 13,
-                            color: "#1a1f2e",
+                            fontSize: 11,
+                            color: "var(--lr-text-dim)",
+                            marginTop: 2,
                         }}
                     >
-                        {title}
-                        {qualification.template_version
-                            ? ` · v${qualification.template_version}`
-                            : ""}
-                    </span>
-                    <span style={{ fontSize: 11, color: "#9ca3af" }}>
                         {formatCompanyDateTime(when)}
+                        {" · "}
+                        {answerCount} {td("answers")}
                         {qualification.agent?.name
                             ? ` · ${qualification.agent.name}`
                             : ""}
-                    </span>
-                </span>
-                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span className="v2-pill">{outcomeLabel}</span>
-                    <span style={{ color: "#9ca3af" }}>{open ? "▴" : "▾"}</span>
-                </span>
+                    </div>
+                </div>
+                <Icon
+                    name={expanded ? "chevron-up" : "chevron-down"}
+                    size={14}
+                />
             </button>
 
-            {open && (
-                <div style={{ padding: "12px 14px", borderTop: "1px solid #e2e5ea" }}>
+            {expanded ? (
+                <div className="v2-answers-run-body">
                     {loading ? (
-                        <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+                        <p
+                            style={{
+                                margin: 0,
+                                fontSize: 12,
+                                color: "var(--lr-text-dim)",
+                            }}
+                        >
                             {td("Loading answers…")}
                         </p>
                     ) : visibleSegments.length === 0 ? (
-                        <p style={{ margin: 0, fontSize: 12, color: "#9ca3af" }}>
+                        <p
+                            style={{
+                                margin: 0,
+                                fontSize: 12,
+                                color: "var(--lr-text-dim)",
+                            }}
+                        >
                             {td("No captured answers.")}
                         </p>
                     ) : (
-                        <div style={{ display: "grid", gap: 10 }}>
-                            {visibleSegments.map((segment) => {
-                                const answer = answerMap[segment.key];
-                                const hasStoredAnswer = answeredKeys.has(
-                                    segment.key,
-                                );
-                                const isQuestion = segment.type === "question";
-                                const display = formatAnswerDisplay(
-                                    segment,
-                                    answer,
-                                );
-                                const skipped =
-                                    isQuestion &&
-                                    !hasStoredAnswer &&
-                                    !display.trim();
+                        visibleSegments.map((segment, index) => {
+                            if (
+                                segment.type === "say" ||
+                                segment.type === "instruction"
+                            ) {
+                                return null;
+                            }
 
-                                if (
-                                    segment.type === "say" ||
-                                    segment.type === "instruction"
-                                ) {
-                                    return null;
-                                }
+                            const answer = answerMap[segment.key];
+                            const hasStoredAnswer = answeredKeys.has(
+                                segment.key,
+                            );
+                            const isQuestion = segment.type === "question";
+                            const display = formatAnswerDisplay(
+                                segment,
+                                answer,
+                            );
+                            const skipped =
+                                isQuestion &&
+                                !hasStoredAnswer &&
+                                !display.trim();
+                            const context = answer?.answer_text?.trim();
 
-                                return (
-                                    <div key={segment.key}>
-                                        <div
-                                            style={{
-                                                fontSize: 11,
-                                                fontWeight: 600,
-                                                color: "#6b7280",
-                                                marginBottom: 4,
-                                                textTransform: "uppercase",
-                                                letterSpacing: "0.04em",
-                                            }}
-                                        >
-                                            {segment.label}
-                                        </div>
-                                        <div
-                                            style={{
-                                                fontSize: 13,
-                                                color: skipped
-                                                    ? "#9ca3af"
-                                                    : "#1a1f2e",
-                                                fontStyle: skipped
-                                                    ? "italic"
-                                                    : "normal",
-                                            }}
-                                        >
-                                            {skipped
-                                                ? td("Skipped")
-                                                : display ||
-                                                  answer?.answer_text?.trim() ||
-                                                  "—"}
-                                        </div>
+                            return (
+                                <div key={segment.key}>
+                                    <div
+                                        style={{
+                                            fontSize: 11,
+                                            color: "var(--lr-text-dim)",
+                                            marginBottom: 2,
+                                        }}
+                                    >
+                                        {index + 1}. {segment.label}
                                     </div>
-                                );
-                            })}
-                        </div>
+                                    <div
+                                        style={{
+                                            fontSize: 13.5,
+                                            fontWeight: skipped ? 400 : 650,
+                                            color: skipped
+                                                ? "var(--lr-text-dim)"
+                                                : "var(--lr-text)",
+                                            fontStyle: skipped
+                                                ? "italic"
+                                                : "normal",
+                                        }}
+                                    >
+                                        {skipped
+                                            ? td("Skipped / unanswered")
+                                            : display || context || "—"}
+                                    </div>
+                                    {!skipped &&
+                                    context &&
+                                    display &&
+                                    context !== display ? (
+                                        <div
+                                            style={{
+                                                fontSize: 12,
+                                                color: "var(--lr-text-muted)",
+                                                marginTop: 4,
+                                                fontStyle: "italic",
+                                            }}
+                                        >
+                                            “{context}”
+                                        </div>
+                                    ) : null}
+                                </div>
+                            );
+                        })
                     )}
                 </div>
-            )}
+            ) : null}
         </div>
     );
 }
@@ -229,6 +245,8 @@ export default function AnswersReviewModal({
     onClose,
 }: AnswersReviewModalProps) {
     const { td } = useTd();
+    const titleId = "answers-review-title";
+    const [expandedId, setExpandedId] = useState<string | null>(null);
 
     const runs = useMemo(() => {
         const list = [...history];
@@ -242,30 +260,135 @@ export default function AnswersReviewModal({
         );
     }, [current, history]);
 
-    return (
-        <Modal
-            open={open}
-            title={td("Qualification answers")}
-            onClose={onClose}
-        >
-            <p style={{ margin: "0 0 14px", fontSize: 13, color: "#6b7280" }}>
-                {td("Review captured answers for")}{" "}
-                <strong style={{ color: "#1a1f2e" }}>{leadName}</strong>
-            </p>
+    const grouped = useMemo(() => {
+        const groups = new Map<
+            string,
+            { id: string; name: string; runs: LeadQualification[] }
+        >();
 
-            {runs.length === 0 ? (
-                <p style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}>
-                    {td("No qualification runs yet.")}
-                </p>
-            ) : (
-                runs.map((run, index) => (
-                    <RunAccordion
-                        key={run.id}
-                        qualification={run}
-                        defaultOpen={index === 0}
-                    />
-                ))
-            )}
-        </Modal>
+        for (const run of runs) {
+            const id = run.template_id || run.template_name || "unknown";
+            const name = run.template_name || run.template_id || "Template";
+            const existing = groups.get(id);
+            if (existing) {
+                existing.runs.push(run);
+            } else {
+                groups.set(id, { id, name, runs: [run] });
+            }
+        }
+
+        return Array.from(groups.values());
+    }, [runs]);
+
+    useEffect(() => {
+        if (open && runs.length) {
+            setExpandedId(String(runs[0].id));
+        }
+        if (!open) setExpandedId(null);
+    }, [open, runs]);
+
+    return (
+        <LeadV2Modal
+            open={open}
+            onClose={onClose}
+            labelledBy={titleId}
+            ariaLabel={td("Qualification history")}
+            maxWidth={560}
+        >
+            <LeadV2ModalHeader
+                title={td("Qualification history")}
+                titleId={titleId}
+                subtitle={
+                    <>
+                        {leadName} · {td("grouped by template")}
+                    </>
+                }
+                onClose={onClose}
+            />
+
+            <div
+                className="v2-modal-body"
+                style={{ maxHeight: "60vh", overflow: "auto", paddingBottom: 20 }}
+            >
+                {grouped.length === 0 ? (
+                    <p
+                        style={{
+                            margin: 0,
+                            fontSize: 13,
+                            color: "var(--lr-text-dim)",
+                        }}
+                    >
+                        {td("No qualification runs recorded yet.")}
+                    </p>
+                ) : (
+                    <div className="v2-answers-group">
+                        {grouped.map((group) => (
+                            <section key={group.id}>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        alignItems: "center",
+                                        gap: 8,
+                                        marginBottom: 10,
+                                    }}
+                                >
+                                    <h3
+                                        style={{
+                                            margin: 0,
+                                            fontSize: 13,
+                                            fontWeight: 700,
+                                            color: "var(--lr-navy)",
+                                        }}
+                                    >
+                                        {group.name}
+                                    </h3>
+                                    <span className="v2-pill v2-pill-gray">
+                                        {group.runs.length}{" "}
+                                        {group.runs.length === 1
+                                            ? td("run")
+                                            : td("runs")}
+                                    </span>
+                                </div>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        gap: 8,
+                                    }}
+                                >
+                                    {group.runs.map((run) => (
+                                        <RunCard
+                                            key={run.id}
+                                            qualification={run}
+                                            expanded={
+                                                expandedId === String(run.id)
+                                            }
+                                            onToggle={() =>
+                                                setExpandedId((currentId) =>
+                                                    currentId ===
+                                                    String(run.id)
+                                                        ? null
+                                                        : String(run.id),
+                                                )
+                                            }
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <LeadV2ModalFooter style={{ justifyContent: "flex-end" }}>
+                <button
+                    type="button"
+                    className="v2-btn v2-btn-primary"
+                    onClick={onClose}
+                >
+                    {td("Close")}
+                </button>
+            </LeadV2ModalFooter>
+        </LeadV2Modal>
     );
 }

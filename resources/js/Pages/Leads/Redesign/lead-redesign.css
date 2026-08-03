@@ -295,9 +295,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
     transition: background 0.12s, border-color 0.12s;
 }
-.lead-redesign .v2-option:hover {
+.lead-redesign .v2-option:hover:not(:disabled) {
     border-color: var(--lr-blue-mid);
     background: var(--lr-blue-light);
 }
@@ -305,6 +306,159 @@
     background: var(--lr-blue-light);
     border-color: var(--lr-blue);
     color: var(--lr-blue);
+}
+.lead-redesign .v2-option:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+.lead-redesign.v2-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1100;
+    min-height: 0;
+    background: rgba(22, 41, 77, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+.lead-redesign .v2-modal {
+    width: 100%;
+    max-width: 520px;
+    background: var(--lr-white);
+    border: 1px solid var(--lr-border);
+    border-radius: 14px;
+    box-shadow: 0 20px 50px rgba(22, 41, 77, 0.18);
+    max-height: calc(100vh - 48px);
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    font-family: var(--lr-font);
+    color: var(--lr-text);
+}
+.lead-redesign .v2-modal-header {
+    padding: 18px 20px 0;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+.lead-redesign .v2-modal-title {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--lr-text);
+    line-height: 1.25;
+}
+.lead-redesign .v2-modal-subtitle {
+    margin: 4px 0 0;
+    font-size: 12px;
+    color: var(--lr-text-muted);
+    line-height: 1.4;
+}
+.lead-redesign .v2-modal-close {
+    background: none;
+    border: none;
+    color: var(--lr-text-dim);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+.lead-redesign .v2-modal-close:hover {
+    color: var(--lr-text);
+    background: var(--lr-bg);
+}
+.lead-redesign .v2-modal-body {
+    padding: 16px 20px 8px;
+    flex: 1;
+    min-height: 0;
+}
+.lead-redesign .v2-modal-footer {
+    padding: 14px 20px 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-top: 1px solid var(--lr-border);
+    margin-top: 8px;
+}
+.lead-redesign .v2-template-card {
+    text-align: left;
+    font-family: inherit;
+    cursor: pointer;
+    background: var(--lr-surface-2);
+    border: 1px solid var(--lr-border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: background 0.12s, border-color 0.12s;
+}
+.lead-redesign .v2-template-card:hover {
+    border-color: var(--lr-blue-mid);
+    background: var(--lr-blue-light);
+}
+.lead-redesign .v2-progress-track {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+.lead-redesign .v2-progress-seg {
+    flex: 1;
+    height: 4px;
+    border-radius: 99px;
+    background: var(--lr-border);
+}
+.lead-redesign .v2-progress-seg.is-done {
+    background: var(--lr-blue);
+}
+.lead-redesign .v2-qualify-prompt {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.35;
+    margin: 0 0 8px;
+    color: var(--lr-text);
+}
+.lead-redesign .v2-qualify-guidance {
+    font-size: 12.5px;
+    color: var(--lr-text-muted);
+    margin: 0 0 16px;
+    line-height: 1.45;
+}
+.lead-redesign .v2-answers-group {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.lead-redesign .v2-answers-run {
+    border: 1px solid var(--lr-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.lead-redesign .v2-answers-run-head {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 14px;
+    border: none;
+    background: var(--lr-surface-2);
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
+    color: var(--lr-text);
+}
+.lead-redesign .v2-answers-run-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    border-top: 1px solid var(--lr-border);
 }
 
 .lead-redesign .v2-input {

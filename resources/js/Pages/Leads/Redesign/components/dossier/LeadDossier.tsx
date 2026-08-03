@@ -133,17 +133,6 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                     </DossierSection>
                 );
             })}
-
-            <p
-                style={{
-                    fontSize: 11,
-                    color: "var(--lr-text-dim)",
-                    marginTop: 8,
-                    marginBottom: 0,
-                }}
-            >
-                {td("Click a value to copy · edit profile in Lead info")}
-            </p>
         </aside>
     );
 }

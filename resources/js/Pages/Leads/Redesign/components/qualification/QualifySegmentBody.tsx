@@ -39,6 +39,13 @@ const OUTCOME_UI: Record<
     },
 };
 
+const GUIDANCE_BY_KIND: Record<string, string> = {
+    say: "Read this aloud to the lead.",
+    instruction: "Agent note — do not read aloud.",
+    question: "Capture the lead's answer below.",
+    outcome: "Choose the next action for this lead.",
+};
+
 interface ScriptPromptProps {
     text: string;
     kind: string;
@@ -48,16 +55,11 @@ interface ScriptPromptProps {
 function ScriptPrompt({ text, kind, translateScript }: ScriptPromptProps) {
     const localized = useDynamicTranslation(text);
     const translated = translateScript(localized);
+    const quoted = kind === "say" || kind === "question";
+
     return (
-        <p
-            style={{
-                fontSize: kind === "say" ? 18 : 16,
-                lineHeight: 1.45,
-                color: "#16294d",
-                margin: 0,
-            }}
-        >
-            {translated}
+        <p className="v2-qualify-prompt">
+            {quoted ? `“${translated}”` : translated}
         </p>
     );
 }
@@ -125,25 +127,21 @@ export default function QualifySegmentBody({
 
     return (
         <DynamicTranslationProvider locale={agentLanguage}>
-            <div style={{ display: "grid", gap: 14 }}>
+            <div>
                 {(kind === "say" ||
                     kind === "instruction" ||
                     isQuestion ||
                     isOutcome) && (
-                    <div
-                        style={{
-                            border: `1.5px solid ${isOutcome ? "#b8d4f0" : "#e2e5ea"}`,
-                            borderRadius: 10,
-                            padding: "14px 16px",
-                            background: kind === "say" ? "#f0f6fd" : "#ffffff",
-                        }}
-                    >
+                    <>
                         <ScriptPrompt
                             text={currentSegment.label}
                             kind={kind}
                             translateScript={flow.translateScript}
                         />
-                    </div>
+                        <p className="v2-qualify-guidance">
+                            {td(GUIDANCE_BY_KIND[kind] ?? GUIDANCE_BY_KIND.question)}
+                        </p>
+                    </>
                 )}
 
                 {isQuestion && currentSegment.answerType === "text" && (
@@ -160,50 +158,60 @@ export default function QualifySegmentBody({
                         disabled={flow.saving}
                         rows={4}
                         placeholder={td("Type the answer...")}
+                        style={{ marginBottom: 14 }}
                     />
                 )}
 
-                {isQuestion &&
-                    currentSegment.answerType === "boolean" && (
-                        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                            {(["yes", "no"] as const).map((value) => {
-                                const selected = selectedValues[0] === value;
-                                return (
-                                    <button
-                                        key={value}
-                                        type="button"
-                                        className={`v2-btn v2-btn-ghost${
-                                            selected ? " selected" : ""
-                                        }`}
-                                        style={
-                                            selected
-                                                ? {
-                                                      borderColor: "#1a6bb5",
-                                                      background: "#e8f1fb",
-                                                      color: "#1a6bb5",
-                                                  }
-                                                : undefined
-                                        }
-                                        disabled={flow.saving}
-                                        onClick={() =>
-                                            void flow.applyAnswerChange(
-                                                currentSegment,
-                                                [value],
-                                                contextText || null,
-                                            )
-                                        }
-                                    >
+                {isQuestion && currentSegment.answerType === "boolean" && (
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                            marginBottom: 14,
+                        }}
+                    >
+                        {(["yes", "no"] as const).map((value) => {
+                            const selected = selectedValues[0] === value;
+                            return (
+                                <button
+                                    key={value}
+                                    type="button"
+                                    className={`v2-option${
+                                        selected ? " selected" : ""
+                                    }`}
+                                    disabled={flow.saving}
+                                    onClick={() =>
+                                        void flow.applyAnswerChange(
+                                            currentSegment,
+                                            [value],
+                                            contextText || null,
+                                        )
+                                    }
+                                >
+                                    <span>
                                         {value === "yes" ? td("Yes") : td("No")}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
+                                    </span>
+                                    {selected ? (
+                                        <Icon name="check" size={16} />
+                                    ) : null}
+                                </button>
+                            );
+                        })}
+                    </div>
+                )}
 
                 {isQuestion &&
                     (currentSegment.answerType === "singleSelect" ||
                         currentSegment.answerType === "multiSelect") && (
-                        <div style={{ display: "grid", gap: 8 }}>
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: 8,
+                                marginBottom: 14,
+                            }}
+                        >
                             {(currentSegment.options ?? []).map((option) => {
                                 const selected = selectedValues.includes(
                                     option.id,
@@ -232,9 +240,9 @@ export default function QualifySegmentBody({
                                         }}
                                     >
                                         <span>{option.label}</span>
-                                        {selected && (
-                                            <Icon name="check" size={14} />
-                                        )}
+                                        {selected ? (
+                                            <Icon name="check" size={16} />
+                                        ) : null}
                                     </button>
                                 );
                             })}
@@ -242,7 +250,14 @@ export default function QualifySegmentBody({
                     )}
 
                 {isOutcome && (
-                    <div style={{ display: "grid", gap: 8 }}>
+                    <div
+                        style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                            marginBottom: 14,
+                        }}
+                    >
                         {outcomeButtons.map((outcome) => {
                             const ui = OUTCOME_UI[outcome];
                             const meta = currentSegment.outcomeMetadata;
@@ -276,38 +291,24 @@ export default function QualifySegmentBody({
                     </div>
                 )}
 
-                {showContextField && (
-                    <div>
-                        <label
-                            style={{
-                                display: "block",
-                                fontSize: 12,
-                                fontWeight: 600,
-                                color: "#6b7280",
-                                marginBottom: 6,
-                            }}
-                        >
-                            {td("Add context for this answer...")}
-                        </label>
-                        <textarea
-                            className="v2-input"
-                            value={contextText}
-                            onChange={(e) =>
-                                void flow.applyAnswerChange(
-                                    currentSegment,
-                                    selectedValues,
-                                    e.target.value,
-                                )
-                            }
-                            disabled={flow.saving}
-                            rows={2}
-                            placeholder={td("Optional notes for this step")}
-                        />
-                    </div>
-                )}
+                {showContextField ? (
+                    <input
+                        className="v2-input"
+                        value={contextText}
+                        onChange={(e) =>
+                            void flow.applyAnswerChange(
+                                currentSegment,
+                                selectedValues,
+                                e.target.value,
+                            )
+                        }
+                        disabled={flow.saving}
+                        placeholder={td("Add context for this answer...")}
+                    />
+                ) : null}
             </div>
 
-            {pendingWebinarId && (
+            {pendingWebinarId ? (
                 <WebinarSessionPickerModal
                     open={webinarPickerOpen}
                     webinarId={pendingWebinarId}
@@ -315,7 +316,7 @@ export default function QualifySegmentBody({
                     onClose={() => setWebinarPickerOpen(false)}
                     onSelect={handleWebinarSelect}
                 />
-            )}
+            ) : null}
         </DynamicTranslationProvider>
     );
 }

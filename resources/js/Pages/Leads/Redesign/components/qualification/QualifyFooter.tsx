@@ -1,5 +1,6 @@
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import Icon from "@/Components/Redesign/primitives/Icon";
 
 type QualificationFlow = ReturnType<typeof useQualificationFlow>;
 
@@ -18,70 +19,51 @@ export default function QualifyFooter({ flow, hidden }: QualifyFooterProps) {
 
     const isLast = flow.isLastSegment;
     const nextDisabled =
-        flow.saving ||
-        (!isLast && Boolean(flow.validationError));
+        flow.saving || (!isLast && Boolean(flow.validationError));
 
     return (
-        <div
-            style={{
-                display: "grid",
-                gridTemplateColumns: "1fr auto 1fr",
-                alignItems: "center",
-                gap: 12,
-                width: "100%",
-            }}
-        >
-            <div style={{ justifySelf: "start" }}>
-                <button
-                    type="button"
-                    className="v2-btn v2-btn-ghost"
-                    disabled={!flow.canGoBack || flow.saving}
-                    onClick={() => void flow.goBack()}
-                >
-                    ← {td("Back")}
-                </button>
-            </div>
+        <div className="v2-modal-footer">
+            <button
+                type="button"
+                className="v2-btn v2-btn-ghost"
+                disabled={!flow.canGoBack || flow.saving}
+                onClick={() => void flow.goBack()}
+            >
+                <Icon name="chevron-left" size={14} />
+                {td("Back")}
+            </button>
 
             <span
                 style={{
-                    fontSize: 12,
-                    color: "#9ca3af",
+                    flex: 1,
                     textAlign: "center",
-                    whiteSpace: "nowrap",
+                    fontSize: 11,
+                    color: "var(--lr-text-dim)",
                 }}
             >
                 {td("Answers save as you go")}
             </span>
 
-            <div
-                style={{
-                    justifySelf: "end",
-                    display: "flex",
-                    gap: 8,
-                    alignItems: "center",
-                }}
-            >
-                {!isLast && (
-                    <button
-                        type="button"
-                        className="v2-btn v2-btn-link"
-                        disabled={flow.saving}
-                        onClick={() =>
-                            void flow.goNext({ skipValidation: true })
-                        }
-                    >
-                        {td("Skip")}
-                    </button>
-                )}
+            {!isLast ? (
                 <button
                     type="button"
-                    className="v2-btn v2-btn-primary"
-                    disabled={nextDisabled}
-                    onClick={() => void flow.goNext()}
+                    className="v2-btn-link"
+                    disabled={flow.saving}
+                    onClick={() => void flow.goNext({ skipValidation: true })}
                 >
-                    {isLast ? td("Finish") : `${td("Next")} →`}
+                    {td("Skip")}
                 </button>
-            </div>
+            ) : null}
+
+            <button
+                type="button"
+                className="v2-btn v2-btn-primary"
+                disabled={nextDisabled}
+                onClick={() => void flow.goNext()}
+            >
+                {isLast ? td("Finish") : td("Next")}
+                {!isLast ? <Icon name="chevron-right" size={14} /> : null}
+            </button>
         </div>
     );
 }
