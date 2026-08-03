@@ -31,6 +31,8 @@ interface DealInfoSidebarProps {
     showCompletionDot?: boolean;
     /** Sidebar heading — defaults to Deal information; Lead info passes its own. */
     title?: string;
+    /** Product-tour spotlight id; deals keep the default, leads pass `lead-info-sidebar`. */
+    tourTarget?: string;
 }
 
 export default function DealInfoSidebar({
@@ -39,6 +41,7 @@ export default function DealInfoSidebar({
     onSectionChange,
     showCompletionDot = false,
     title,
+    tourTarget = "deal-info-sidebar",
 }: DealInfoSidebarProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -65,7 +68,7 @@ export default function DealInfoSidebar({
 
     return (
         <aside
-            data-tour="deal-info-sidebar"
+            data-tour={tourTarget}
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >

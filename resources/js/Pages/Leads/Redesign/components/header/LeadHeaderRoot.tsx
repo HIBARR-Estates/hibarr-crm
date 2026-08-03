@@ -29,6 +29,8 @@ interface LeadHeaderRootProps {
     canUploadPhoto?: boolean;
     /** When false, hides the lifecycle/qualification banner and answers chip. */
     showQualification?: boolean;
+    /** Omitted when the product-tour flag is off — hides Replay guide. */
+    onReplayGuide?: () => void;
     onStatusChange: (key: string) => void;
     statusSaving?: boolean;
     onOpenAnswers?: () => void;
@@ -51,6 +53,7 @@ export default function LeadHeaderRoot({
     canEditOwner = true,
     canUploadPhoto = false,
     showQualification = true,
+    onReplayGuide,
     onStatusChange,
     statusSaving = false,
     onOpenAnswers,
@@ -78,6 +81,7 @@ export default function LeadHeaderRoot({
     return (
         <>
             <header
+                data-tour="lead-sticky-header"
                 style={{
                     display: "flex",
                     alignItems: "center",
@@ -136,6 +140,7 @@ export default function LeadHeaderRoot({
                             canDelete={canDelete}
                             canFindDuplicates={canFindDuplicates}
                             showQualification={showQualification}
+                            onReplayGuide={onReplayGuide}
                         />
                     </div>
                     <div
@@ -153,21 +158,23 @@ export default function LeadHeaderRoot({
             </header>
 
             {showQualification ? (
-                <LifecycleBanner
-                    mode={lifecycle.bannerMode}
-                    statusLabel={lifecycle.statusLabel}
-                    statusKey={lifecycle.statusKey}
-                    firstName={firstName}
-                    description={
-                        (lead.lead_lifecycle_status as { description?: string })
-                            ?.description
-                    }
-                    templateName={templateName}
-                    answered={qualificationAnswered}
-                    total={qualificationTotal}
-                    onPrimary={onBannerPrimary}
-                    onViewAnswers={onBannerViewAnswers}
-                />
+                <div data-tour="lead-lifecycle-banner">
+                    <LifecycleBanner
+                        mode={lifecycle.bannerMode}
+                        statusLabel={lifecycle.statusLabel}
+                        statusKey={lifecycle.statusKey}
+                        firstName={firstName}
+                        description={
+                            (lead.lead_lifecycle_status as { description?: string })
+                                ?.description
+                        }
+                        templateName={templateName}
+                        answered={qualificationAnswered}
+                        total={qualificationTotal}
+                        onPrimary={onBannerPrimary}
+                        onViewAnswers={onBannerViewAnswers}
+                    />
+                </div>
             ) : null}
         </>
     );

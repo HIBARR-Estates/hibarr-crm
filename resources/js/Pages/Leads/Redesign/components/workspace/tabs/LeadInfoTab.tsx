@@ -145,6 +145,7 @@ export default function LeadInfoTab({
                 }
                 showCompletionDot
                 title={t("pages.leads.info.title")}
+                tourTarget="lead-info-sidebar"
             />
             <LeadInfoSectionPanel
                 sectionId={activeSection}

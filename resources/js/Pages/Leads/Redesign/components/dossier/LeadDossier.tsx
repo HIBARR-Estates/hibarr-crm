@@ -57,6 +57,7 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
     return (
         <aside
             className="v2-dossier"
+            data-tour="lead-dossier"
             style={{
                 padding: "14px 16px",
             }}

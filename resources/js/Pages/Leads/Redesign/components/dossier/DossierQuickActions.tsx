@@ -45,7 +45,11 @@ export default function DossierQuickActions({
     };
 
     return (
-        <section className="v2-quick-actions" aria-label={td("Quick actions")}>
+        <section
+            className="v2-quick-actions"
+            data-tour="lead-quick-actions"
+            aria-label={td("Quick actions")}
+        >
             <h2 className="v2-quick-actions__title">{td("Quick actions")}</h2>
             <div className="v2-quick-actions__list">
                 {ACTIONS.map((action) => (

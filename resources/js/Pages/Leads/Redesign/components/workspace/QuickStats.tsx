@@ -252,7 +252,7 @@ export default function QuickStats({
     const stageColor = primaryDeal?.lead_stage?.label_color ?? null;
 
     return (
-        <div className="v2-quick-stats">
+        <div className="v2-quick-stats" data-tour="lead-quick-stats">
             {/* ── Next meeting ─────────────────────────────────────────── */}
             <div className="v2-quick-stat">
                 <StatHeader label={td("Next meeting")} />

@@ -46,7 +46,7 @@ export default function StatusDropdown({
     }, [saving]);
 
     return (
-        <div ref={ref} style={{ position: "relative" }}>
+        <div ref={ref} data-tour="lead-status-dropdown" style={{ position: "relative" }}>
             <button
                 type="button"
                 className={`v2-pill v2-pill-${tone} v2-pill-status${

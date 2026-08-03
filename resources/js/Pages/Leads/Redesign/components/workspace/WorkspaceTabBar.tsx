@@ -88,7 +88,7 @@ export default function WorkspaceTabBar({
     };
 
     return (
-        <div className="dr-tabs">
+        <div className="dr-tabs" data-tour="lead-tabs">
             {hasOverflow && (
                 <DealScrollArrow
                     dir="left"

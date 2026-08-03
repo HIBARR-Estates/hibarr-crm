@@ -1,6 +1,7 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
+import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
 import {
     AddNoteModal,
     AddTaskModal,
@@ -21,6 +22,11 @@ import {
 import type { LeadRedesignProps } from "./types";
 import type { LeadMissionCtaAction, WorkspaceTabId } from "./types";
 import type { MoreMenuActionId } from "./config/moreMenuItems";
+import {
+    buildLeadTourSteps,
+    LEAD_TOUR_ID,
+    LEAD_TOUR_LABELS,
+} from "./config/leadTourSteps";
 import { resolveLifecycle } from "./adapters/lifecycleAdapter";
 import { canEditLead } from "./adapters/leadEditAccess";
 import { getDossierFieldValue } from "./adapters/dossierAdapter";
@@ -99,6 +105,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const showAiSummary = featureFlags?.["crm.lead-ai-summary"] === true;
     const showQualification =
         featureFlags?.["crm.lead-qualification-tab"] === true;
+    const showProductTour = featureFlags?.["crm.leads-product-tour"] === true;
 
     const {
         lead,
@@ -121,6 +128,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         (leadFollowUpsLoading && leadFollowUps.length === 0);
 
     const nav = useLeadViewNavigation(props.customFieldCategories);
+    const tourRef = useRef<ProductTourHandle>(null);
+    const leadTourSteps = useMemo(
+        () => buildLeadTourSteps(nav.setTab),
+        [nav.setTab],
+    );
 
     const lifecycle = useMemo(
         () => resolveLifecycle(lead, props.leadLifecycleStatuses),
@@ -357,22 +369,28 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const renderTabBody = () => {
         switch (nav.tab) {
             case "overview":
-                return overviewPending ? (
-                    <OverviewDeferredSkeleton />
-                ) : (
-                    <OverviewTab
-                        meetingTypes={props.meetingTypes ?? []}
-                        taskBoardColumns={props.taskBoardColumns ?? []}
-                        permissions={{
-                            notes: props.notePermissions,
-                            tasks: props.taskPermissions ?? props.permissions,
-                            followUps: props.followUpPermissions,
-                        }}
-                        onNavigateTab={nav.setTab}
-                        onAddNote={() => setAddNoteOpen(true)}
-                        onAddTask={() => setAddTaskOpen(true)}
-                        onAddMeeting={() => setAddMeetingOpen(true)}
-                    />
+                return (
+                    <div data-tour="lead-overview">
+                        {overviewPending ? (
+                            <OverviewDeferredSkeleton />
+                        ) : (
+                            <OverviewTab
+                                meetingTypes={props.meetingTypes ?? []}
+                                taskBoardColumns={props.taskBoardColumns ?? []}
+                                permissions={{
+                                    notes: props.notePermissions,
+                                    tasks:
+                                        props.taskPermissions ??
+                                        props.permissions,
+                                    followUps: props.followUpPermissions,
+                                }}
+                                onNavigateTab={nav.setTab}
+                                onAddNote={() => setAddNoteOpen(true)}
+                                onAddTask={() => setAddTaskOpen(true)}
+                                onAddMeeting={() => setAddMeetingOpen(true)}
+                            />
+                        )}
+                    </div>
                 );
             case "notes":
                 return notesLoading && notes.length === 0 ? (
@@ -469,6 +487,14 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             ]}
         >
             <div className="lead-redesign">
+                {showProductTour && (
+                    <ProductTour
+                        ref={tourRef}
+                        tourId={LEAD_TOUR_ID}
+                        steps={leadTourSteps}
+                        labels={LEAD_TOUR_LABELS}
+                    />
+                )}
                 <div className="v2-page mx-auto flex flex-col gap-4 w-full max-w-[1320px]">
                     <LeadHeaderRoot
                         lead={lead}
@@ -496,6 +522,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         statusSaving={statusSaving}
                         onOpenAnswers={() => nav.setAnswersOpen(true)}
                         onMoreAction={handleMoreAction}
+                        onReplayGuide={
+                            showProductTour
+                                ? () => tourRef.current?.restart()
+                                : undefined
+                        }
                         onBannerPrimary={handleBannerPrimary}
                         onBannerViewAnswers={
                             lifecycle.banner.secondaryCta
@@ -517,18 +548,23 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             )}
 
                             {showAiSummary && (
-                                <AiSummaryCard
-                                    leadId={lead.id}
-                                    summary={props.leadAiSummary}
-                                    leadPhone={lead.mobile ?? lead.cell ?? undefined}
-                                    onCta={{
-                                        onQualifyLead: () =>
-                                            setTemplatePickerOpen(true),
-                                        onCreateTask: () => setAddTaskOpen(true),
-                                        onScheduleCall: () =>
-                                            setAddMeetingOpen(true),
-                                    }}
-                                />
+                                <div data-tour="lead-ai-summary">
+                                    <AiSummaryCard
+                                        leadId={lead.id}
+                                        summary={props.leadAiSummary}
+                                        leadPhone={
+                                            lead.mobile ?? lead.cell ?? undefined
+                                        }
+                                        onCta={{
+                                            onQualifyLead: () =>
+                                                setTemplatePickerOpen(true),
+                                            onCreateTask: () =>
+                                                setAddTaskOpen(true),
+                                            onScheduleCall: () =>
+                                                setAddMeetingOpen(true),
+                                        }}
+                                    />
+                                </div>
                             )}
 
                             <QuickStats

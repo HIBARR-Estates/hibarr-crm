@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { Icon } from "@/Components/Redesign";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import useTranslation from "@/Hooks/useTranslation";
 import {
     MORE_MENU_ITEMS,
     type MoreMenuActionId,
@@ -13,6 +14,8 @@ interface MoreMenuProps {
     canDelete?: boolean;
     canFindDuplicates?: boolean;
     showQualification?: boolean;
+    /** Omitted (not just a no-op) when the product-tour flag is off. */
+    onReplayGuide?: () => void;
 }
 
 /**
@@ -24,8 +27,10 @@ export default function MoreMenu({
     canDelete = true,
     canFindDuplicates = false,
     showQualification = true,
+    onReplayGuide,
 }: MoreMenuProps) {
     const { td } = useTd();
+    const { t } = useTranslation();
     const [open, setOpen] = useState(false);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -66,7 +71,7 @@ export default function MoreMenu({
     };
 
     return (
-        <div style={{ display: "inline-flex" }}>
+        <div data-tour="lead-actions-menu" style={{ display: "inline-flex" }}>
             <button
                 ref={btnRef}
                 type="button"
@@ -110,6 +115,22 @@ export default function MoreMenu({
                                     {td(item.label)}
                                 </button>
                             ),
+                        )}
+                        {onReplayGuide && (
+                            <>
+                                <div className="dr-menu-sep" role="separator" />
+                                <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="dr-menu-item"
+                                    onClick={() => {
+                                        setOpen(false);
+                                        onReplayGuide();
+                                    }}
+                                >
+                                    {t("pages.leads.tour.replay_menu_item")}
+                                </button>
+                            </>
                         )}
                     </div>,
                     document.body,
