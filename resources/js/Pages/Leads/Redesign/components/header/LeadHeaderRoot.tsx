@@ -27,6 +27,8 @@ interface LeadHeaderRootProps {
     canFindDuplicates?: boolean;
     canEditOwner?: boolean;
     canUploadPhoto?: boolean;
+    /** When false, hides the lifecycle/qualification banner and answers chip. */
+    showQualification?: boolean;
     onStatusChange: (key: string) => void;
     statusSaving?: boolean;
     onOpenAnswers?: () => void;
@@ -48,6 +50,7 @@ export default function LeadHeaderRoot({
     canFindDuplicates = false,
     canEditOwner = true,
     canUploadPhoto = false,
+    showQualification = true,
     onStatusChange,
     statusSaving = false,
     onOpenAnswers,
@@ -110,7 +113,9 @@ export default function LeadHeaderRoot({
                             onSelect={onStatusChange}
                             saving={statusSaving}
                         />
-                        {answerCount > 0 && onOpenAnswers && (
+                        {showQualification &&
+                            answerCount > 0 &&
+                            onOpenAnswers && (
                             <button
                                 type="button"
                                 className="v2-btn v2-btn-ghost"
@@ -130,6 +135,7 @@ export default function LeadHeaderRoot({
                             onAction={onMoreAction}
                             canDelete={canDelete}
                             canFindDuplicates={canFindDuplicates}
+                            showQualification={showQualification}
                         />
                     </div>
                     <div
@@ -146,21 +152,23 @@ export default function LeadHeaderRoot({
                 <LeadOwnerCard lead={lead} canEdit={canEditOwner} />
             </header>
 
-            <LifecycleBanner
-                mode={lifecycle.bannerMode}
-                statusLabel={lifecycle.statusLabel}
-                statusKey={lifecycle.statusKey}
-                firstName={firstName}
-                description={
-                    (lead.lead_lifecycle_status as { description?: string })
-                        ?.description
-                }
-                templateName={templateName}
-                answered={qualificationAnswered}
-                total={qualificationTotal}
-                onPrimary={onBannerPrimary}
-                onViewAnswers={onBannerViewAnswers}
-            />
+            {showQualification ? (
+                <LifecycleBanner
+                    mode={lifecycle.bannerMode}
+                    statusLabel={lifecycle.statusLabel}
+                    statusKey={lifecycle.statusKey}
+                    firstName={firstName}
+                    description={
+                        (lead.lead_lifecycle_status as { description?: string })
+                            ?.description
+                    }
+                    templateName={templateName}
+                    answered={qualificationAnswered}
+                    total={qualificationTotal}
+                    onPrimary={onBannerPrimary}
+                    onViewAnswers={onBannerViewAnswers}
+                />
+            ) : null}
         </>
     );
 }

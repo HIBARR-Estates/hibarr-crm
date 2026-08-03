@@ -1,26 +1,36 @@
 import type { Lead } from "@/Types/api/leads";
 import type { DossierFieldKey } from "../config/dossierSections";
 import type { LeadNativeFieldKey } from "../config/leadInfoSections";
+import {
+    computeAgeRangeFromAge,
+    formatLeadAgeDisplay,
+    resolveLeadAgeFields,
+} from "@/lib/leadAge";
+import {
+    resolveCurrencyDisplay,
+    type CurrencyDisplay,
+} from "./currencyAdapter";
 
-const AGE_RANGES = [
-    { id: "18-24", min: 18, max: 24 },
-    { id: "25-34", min: 25, max: 34 },
-    { id: "35-44", min: 35, max: 44 },
-    { id: "45-54", min: 45, max: 54 },
-    { id: "55-64", min: 55, max: 64 },
-    { id: "65+", min: 65, max: 200 },
-];
-
+/** @deprecated Prefer computeAgeRangeFromAge from @/lib/leadAge */
 export function ageRangeFromAge(age: unknown): string {
-    const n = Number(age);
-    if (!Number.isFinite(n) || n <= 0) return "";
-    return AGE_RANGES.find((r) => n >= r.min && n <= r.max)?.id || "";
+    return computeAgeRangeFromAge(
+        age === null || age === undefined || age === ""
+            ? null
+            : Number(age),
+    ) ?? "";
 }
 
 export function formatAgeDisplay(age: unknown, ageRange?: string): string {
-    if (age === null || age === undefined || age === "") return "";
-    const range = ageRange || ageRangeFromAge(age);
-    return range ? `${age} · ${range}` : String(age);
+    return (
+        formatLeadAgeDisplay({
+            dateOfBirth: null,
+            age:
+                age === null || age === undefined || age === ""
+                    ? null
+                    : Number(age),
+            ageRange: ageRange ?? null,
+        }) ?? ""
+    );
 }
 
 function yesNo(value: unknown): string {
@@ -51,10 +61,18 @@ function marketingOf(lead: Lead): Record<string, unknown> {
 
 type AnyFieldKey = DossierFieldKey | LeadNativeFieldKey;
 
+export interface DossierFieldOptions {
+    companyCurrency?: CurrencyDisplay | null;
+}
+
 /**
  * Resolve display values for dossier / lead-info native field keys.
  */
-export function getDossierFieldValue(lead: Lead, key: AnyFieldKey): string {
+export function getDossierFieldValue(
+    lead: Lead,
+    key: AnyFieldKey,
+    options?: DossierFieldOptions,
+): string {
     const l = lead as unknown as Record<string, unknown>;
     const m = marketingOf(lead);
 
@@ -108,7 +126,20 @@ export function getDossierFieldValue(lead: Lead, key: AnyFieldKey): string {
                 m.has_joined_the_whatsapp_group ?? l.has_joined_the_whatsapp_group,
             );
         case "age":
-            return formatAgeDisplay(l.age, asString(l.age_range));
+        case "dateOfBirthAndAge": {
+            const resolved = resolveLeadAgeFields({
+                dateOfBirth: asString(l.date_of_birth) || null,
+                age:
+                    l.age === null || l.age === undefined
+                        ? null
+                        : Number(l.age),
+                ageRange: asString(l.age_range) || null,
+            });
+            return (
+                formatLeadAgeDisplay(resolved) ??
+                formatAgeDisplay(l.age, asString(l.age_range))
+            );
+        }
         case "nationality":
             return asString(
                 (l.nationality as { nicename?: string })?.nicename ||
@@ -137,13 +168,18 @@ export function getDossierFieldValue(lead: Lead, key: AnyFieldKey): string {
         case "leadValue":
             return asString(l.value ?? l.lead_value);
         case "currency":
-            return asString(
-                (l.currency as { currency_code?: string; code?: string })
-                    ?.currency_code ||
-                    (l.currency as { code?: string })?.code ||
-                    l.currency_code ||
-                    l.currency,
-            );
+            return resolveCurrencyDisplay(
+                (l.currency as
+                    | {
+                          currency_code?: string;
+                          currency_symbol?: string;
+                          code?: string;
+                      }
+                    | undefined) ??
+                    (l.currency_code as string | undefined) ??
+                    (l.currency as string | undefined),
+                options?.companyCurrency,
+            ).code;
         case "source":
             return asString(
                 (l.lead_source as { type?: string; name?: string })?.type ||
@@ -193,7 +229,9 @@ export function getLeadNativeEditValue(
 
     if (key === "clientName") return String(record.client_name ?? "");
     if (key === "email") return String(record.client_email ?? "");
-    if (key === "age") return String(record.age ?? "");
+    if (key === "dateOfBirthAndAge") {
+        return String(record.date_of_birth ?? record.age ?? "");
+    }
     if (key === "languages") {
         const languages = record.languages;
         return Array.isArray(languages)

@@ -32,7 +32,7 @@ export default function DuplicateLeadsCard({
     onMerged,
 }: DuplicateLeadsCardProps) {
     const { td } = useTd();
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(false);
     const [reviewCandidateId, setReviewCandidateId] = useState<number | null>(
         null,
     );

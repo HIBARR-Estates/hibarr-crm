@@ -1,11 +1,15 @@
-import { type ReactNode, useMemo, useState } from "react";
+import { type ReactNode, useCallback, useMemo, useState } from "react";
 import { message } from "antd";
 import { usePage } from "@inertiajs/react";
 import CustomFieldDisplay from "@/Components/CustomFieldDisplay";
 import { DetailField } from "@/Components/DetailSection";
+import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useFormData } from "@/Hooks/useFormData";
 import useTranslation from "@/Hooks/useTranslation";
+import {
+    resolveLeadAgeFields,
+} from "@/lib/leadAge";
 import { formatMobileForDisplay } from "@/lib/utils";
 import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
@@ -117,6 +121,48 @@ export default function LeadInfoSectionPanel({
                 String(option.value).toLowerCase() === code.toLowerCase(),
         )?.label || code;
 
+    const ageRangeOptions = useMemo(
+        () =>
+            (
+                (props.ageRanges as Array<{ value: string; label: string }>) ||
+                []
+            ).map((option) => ({
+                value: option.value,
+                label: option.label,
+            })),
+        [props.ageRanges],
+    );
+
+    const resolveAgeRangeLabel = useCallback(
+        (value: string) =>
+            ageRangeOptions.find((option) => option.value === value)?.label ||
+            value,
+        [ageRangeOptions],
+    );
+
+    const resolvedAgeFields = useMemo(() => {
+        const pendingDob = pendingChanges.date_of_birth?.value;
+        const pendingAge = pendingChanges.age?.value;
+        const pendingRange = pendingChanges.age_range?.value;
+
+        return resolveLeadAgeFields({
+            dateOfBirth:
+                pendingDob !== undefined
+                    ? ((pendingDob as string | null) ?? null)
+                    : (lead.date_of_birth as string | null) ?? null,
+            age:
+                pendingAge !== undefined
+                    ? pendingAge === null || pendingAge === ""
+                        ? null
+                        : Number(pendingAge)
+                    : lead.age ?? null,
+            ageRange:
+                pendingRange !== undefined
+                    ? ((pendingRange as string | null) ?? null)
+                    : ((lead.age_range as string | null) ?? null),
+        });
+    }, [lead.age, lead.age_range, lead.date_of_birth, pendingChanges]);
+
     const handleFieldChange = (
         fieldName: string,
         value: unknown,
@@ -173,7 +219,6 @@ export default function LeadInfoSectionPanel({
 
     const renderPersonal = () => (
         <>
-            <DealInfoGroupTitle>{td("Profile")}</DealInfoGroupTitle>
             <FieldGrid>
                 <DetailField label={td("Salutation")}>
                     <DealEditableField
@@ -206,19 +251,46 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("Age")}>
-                    <DealEditableField
-                        value={lead.age ?? ""}
-                        fieldName="age"
-                        fieldType="number"
-                        displayValue={
-                            getDossierFieldValue(lead, "age") || undefined
+                <DetailField
+                    label={td("Date of Birth & Age")}
+                    span={2}
+                >
+                    <LeadAgeFieldsGroup
+                        dateOfBirth={resolvedAgeFields.dateOfBirth}
+                        age={resolvedAgeFields.age}
+                        ageRange={
+                            (resolvedAgeFields.ageRange as string) || null
                         }
-                        onSave={(value) => onFieldUpdate("age", value)}
+                        ageRangeOptions={ageRangeOptions}
+                        resolveAgeRangeLabel={resolveAgeRangeLabel}
                         alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        loading={isFieldLoading("age")}
                         disabled={!canEdit}
+                        loading={
+                            isSavingAll ||
+                            updatingField === "date_of_birth" ||
+                            updatingField === "age" ||
+                            updatingField === "age_range" ||
+                            isFieldLoading("date_of_birth") ||
+                            isFieldLoading("age") ||
+                            isFieldLoading("age_range")
+                        }
+                        onSave={async (values) => {
+                            await onFieldsUpdate([
+                                {
+                                    fieldName: "date_of_birth",
+                                    value: values.date_of_birth,
+                                },
+                                {
+                                    fieldName: "age",
+                                    value: values.age,
+                                },
+                                {
+                                    fieldName: "age_range",
+                                    value: values.age_range,
+                                },
+                            ]);
+                        }}
+                        onChange={handleFieldChange}
                     />
                 </DetailField>
                 <DetailField label={td("Nationality")}>
@@ -272,7 +344,7 @@ export default function LeadInfoSectionPanel({
                         options={languageOptions}
                         displayValue={
                             Array.isArray((lead as any).languages) &&
-                            (lead as any).languages.length ? (
+                                (lead as any).languages.length ? (
                                 <span>
                                     {(lead as any).languages
                                         .map((code: string) =>
@@ -437,83 +509,6 @@ export default function LeadInfoSectionPanel({
                 </DetailField>
             </FieldGrid>
 
-            <DealInfoGroupTitle>{td("Address")}</DealInfoGroupTitle>
-            <FieldGrid>
-                <DetailField
-                    label={td("Street address")}
-                    span={2}
-                    useContainerQuery
-                >
-                    <DealEditableField
-                        value={lead.address || ""}
-                        fieldName="address"
-                        fieldType="textarea"
-                        onSave={(value) => onFieldUpdate("address", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        placeholder={td("Street, building, unit…")}
-                        loading={isFieldLoading("address")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label={t("pages.leads.info.fields.postal_code")}>
-                    <DealEditableField
-                        value={lead.postal_code || ""}
-                        fieldName="postal_code"
-                        fieldType="text"
-                        onSave={(value) => onFieldUpdate("postal_code", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        placeholder={t(
-                            "pages.leads.info.placeholders.postal_code",
-                        )}
-                        loading={isFieldLoading("postal_code")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label={t("pages.leads.info.fields.city")}>
-                    <DealEditableField
-                        value={lead.city || ""}
-                        fieldName="city"
-                        fieldType="text"
-                        onSave={(value) => onFieldUpdate("city", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        placeholder={t("pages.leads.info.placeholders.city")}
-                        loading={isFieldLoading("city")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label={t("pages.leads.info.fields.state")}>
-                    <DealEditableField
-                        value={lead.state || ""}
-                        fieldName="state"
-                        fieldType="text"
-                        onSave={(value) => onFieldUpdate("state", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        placeholder={t("pages.leads.info.placeholders.state")}
-                        loading={isFieldLoading("state")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-                <DetailField label={t("pages.leads.info.fields.country")}>
-                    <DealEditableField
-                        value={lead.country || ""}
-                        fieldName="country"
-                        fieldType="country"
-                        onSave={(value) => onFieldUpdate("country", value)}
-                        alwaysEditing={editing}
-                        onChange={handleFieldChange}
-                        placeholder={t(
-                            "pages.leads.info.placeholders.country",
-                        )}
-                        loading={isFieldLoading("country")}
-                        disabled={!canEdit}
-                    />
-                </DetailField>
-            </FieldGrid>
-
             <DealInfoGroupTitle>{td("Attribution")}</DealInfoGroupTitle>
             <FieldGrid>
                 <DetailField label={t("pages.leads.info.fields.lead_source")}>
@@ -569,6 +564,84 @@ export default function LeadInfoSectionPanel({
         </>
     );
 
+    const renderAddress = () => (
+        <FieldGrid>
+            <DetailField
+                label={td("Street address")}
+                span={2}
+                useContainerQuery
+            >
+                <DealEditableField
+                    value={lead.address || ""}
+                    fieldName="address"
+                    fieldType="textarea"
+                    onSave={(value) => onFieldUpdate("address", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={td("Street, building, unit…")}
+                    loading={isFieldLoading("address")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.postal_code")}>
+                <DealEditableField
+                    value={lead.postal_code || ""}
+                    fieldName="postal_code"
+                    fieldType="text"
+                    onSave={(value) => onFieldUpdate("postal_code", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t(
+                        "pages.leads.info.placeholders.postal_code",
+                    )}
+                    loading={isFieldLoading("postal_code")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.city")}>
+                <DealEditableField
+                    value={lead.city || ""}
+                    fieldName="city"
+                    fieldType="text"
+                    onSave={(value) => onFieldUpdate("city", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t("pages.leads.info.placeholders.city")}
+                    loading={isFieldLoading("city")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.state")}>
+                <DealEditableField
+                    value={lead.state || ""}
+                    fieldName="state"
+                    fieldType="text"
+                    onSave={(value) => onFieldUpdate("state", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t("pages.leads.info.placeholders.state")}
+                    loading={isFieldLoading("state")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+            <DetailField label={t("pages.leads.info.fields.country")}>
+                <DealEditableField
+                    value={lead.country || ""}
+                    fieldName="country"
+                    fieldType="country"
+                    onSave={(value) => onFieldUpdate("country", value)}
+                    alwaysEditing={editing}
+                    onChange={handleFieldChange}
+                    placeholder={t(
+                        "pages.leads.info.placeholders.country",
+                    )}
+                    loading={isFieldLoading("country")}
+                    disabled={!canEdit}
+                />
+            </DetailField>
+        </FieldGrid>
+    );
+
     const renderCategorySection = () => {
         if (categoryId == null) return null;
         return (
@@ -598,6 +671,8 @@ export default function LeadInfoSectionPanel({
         switch (sectionId) {
             case "personal":
                 return renderPersonal();
+            case "address":
+                return renderAddress();
             default:
                 return null;
         }

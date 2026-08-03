@@ -297,6 +297,11 @@ class Lead extends BaseModel
         return $this->belongsTo(User::class, 'client_id');
     }
 
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'currency_id');
+    }
+
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by')->withoutGlobalScope(ActiveScope::class);
@@ -387,6 +392,11 @@ class Lead extends BaseModel
     public function deals(): HasMany
     {
         return $this->hasMany(Deal::class, 'lead_id');
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(LeadContactFile::class, 'lead_id')->orderByDesc('created_at');
     }
 
     public function tasks()

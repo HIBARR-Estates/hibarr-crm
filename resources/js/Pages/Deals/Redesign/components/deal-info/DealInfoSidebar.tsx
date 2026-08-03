@@ -91,14 +91,16 @@ export default function DealInfoSidebar({
                     {t("pages.deals.sidebar.no_match")} "{search}"
                 </div>
             )}
-            {filteredGroups.map((group) => (
-                <div key={group.label}>
-                    <div
-                        className="px-2.5 pb-1 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.05em]"
-                        style={{ color: T.TEXT_HINT }}
-                    >
-                        {td(group.label)}
-                    </div>
+            {filteredGroups.map((group, groupIndex) => (
+                <div key={group.label || `group-${groupIndex}`}>
+                    {group.label ? (
+                        <div
+                            className="px-2.5 pb-1 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.05em]"
+                            style={{ color: T.TEXT_HINT }}
+                        >
+                            {td(group.label)}
+                        </div>
+                    ) : null}
                     {group.items.map((item) => {
                         const isActive = item.id === activeSection;
                         const showDot =

@@ -56,6 +56,13 @@ export interface Lead {
     note?: string | null;
     value?: number | null;
     currency_id?: number | null;
+    currency?: {
+        id?: number;
+        currency_code?: string;
+        currency_symbol?: string;
+        code?: string;
+    } | null;
+    currency_code?: string | null;
     /** Stored custom avatar filename; when set, image_url points at the upload. */
     image?: string | null;
     image_url?: string;

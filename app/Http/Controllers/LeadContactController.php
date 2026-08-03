@@ -137,6 +137,7 @@ class LeadContactController extends AccountBaseController
             'leadSource:id,type',
             'category:id,category_name',
             'client:id,name,email',
+            'currency:id,currency_name,currency_symbol,currency_code',
             'marketing',
             'lifecycleStatus:id,key,label,label_color,sort_order',
             'activeQualification.answers',
@@ -215,6 +216,7 @@ class LeadContactController extends AccountBaseController
                 'leadAgent.user',
                 'leadStage:id,name,label_color',
                 'pipeline:id,name',
+                'category:id,category_name',
                 'currency',
                 'leadFlightItineraries',
             ])
@@ -1080,7 +1082,11 @@ class LeadContactController extends AccountBaseController
                 }
 
                 // If custom fields were updated (including file uploads), include the updated custom_fields_data
-                if ($request->has('custom_fields') || $request->hasFile('custom_fields')) {
+                if (
+                    $request->has('custom_fields')
+                    || $request->hasFile('custom_fields')
+                    || isset($request->allFiles()['custom_fields'])
+                ) {
                     $leadContact->withCustomFields();
                     $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
                 }

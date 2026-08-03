@@ -3,6 +3,10 @@ import axios from "axios";
 import { message } from "antd";
 import type { Lead, LeadCategory } from "@/Types/api/leads";
 import { Modal, ModalField } from "@/Components/Redesign";
+import {
+    computeAgeFieldsFromDateOfBirth,
+    computeAgeRangeFromAge,
+} from "@/lib/leadAge";
 import { getLeadNativeEditValue } from "../../adapters/dossierAdapter";
 import { LEAD_INFO_CORE_SECTIONS } from "../../config/leadInfoSections";
 import type { LeadInfoCoreSectionId } from "../../types";
@@ -16,6 +20,7 @@ interface EditLeadDetailsModalProps {
     onClose: () => void;
     lead: Lead;
     salutations: Array<{ value: string; label: string }>;
+    ageRanges?: Array<{ value: string; label: string }>;
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     sources: Array<{ id: number; type: string }>;
     categories: LeadCategory[];
@@ -34,6 +39,7 @@ export default function EditLeadDetailsModal({
     onClose,
     lead,
     salutations,
+    ageRanges = [],
     countries,
     sources,
     categories,
@@ -45,16 +51,30 @@ export default function EditLeadDetailsModal({
 
     const initial = useMemo(() => {
         const { first, last } = splitName(lead.client_name ?? "");
+        const dob =
+            typeof lead.date_of_birth === "string"
+                ? lead.date_of_birth.split("T")[0]
+                : "";
         const values: Record<string, string> = {
             client_name: lead.client_name ?? "",
             first_name: first,
             last_name: last,
             salutation: String(lead.salutation ?? ""),
+            date_of_birth: dob,
+            age: lead.age != null ? String(lead.age) : "",
+            age_range: String(lead.age_range ?? ""),
         };
 
         for (const section of LEAD_INFO_CORE_SECTIONS) {
             for (const field of section.fields) {
                 if (!field.leadField || field.readOnly) continue;
+                if (
+                    field.leadField === "date_of_birth" ||
+                    field.leadField === "age" ||
+                    field.leadField === "age_range"
+                ) {
+                    continue;
+                }
                 values[field.leadField] = getLeadNativeEditValue(
                     lead,
                     field.key,
@@ -114,6 +134,18 @@ export default function EditLeadDetailsModal({
                             : [];
                     } else if (field.leadField === "age") {
                         payload.age = raw ? Number(raw) : null;
+                    } else if (field.leadField === "date_of_birth") {
+                        if (raw) {
+                            const computed =
+                                computeAgeFieldsFromDateOfBirth(raw);
+                            payload.date_of_birth = raw;
+                            payload.age = computed.age;
+                            payload.age_range = computed.age_range;
+                        } else {
+                            payload.date_of_birth = null;
+                            payload.age = form.age ? Number(form.age) : null;
+                            payload.age_range = form.age_range || null;
+                        }
                     } else {
                         payload[field.leadField] = raw || null;
                     }
@@ -309,6 +341,110 @@ export default function EditLeadDetailsModal({
                                             label: td("Female"),
                                         },
                                     ],
+                                );
+                            }
+                            if (field.leadField === "date_of_birth") {
+                                const hasDob = Boolean(form.date_of_birth);
+                                return (
+                                    <div
+                                        key="date_of_birth_age"
+                                        style={{
+                                            display: "grid",
+                                            gridTemplateColumns:
+                                                "minmax(0,1.2fr) 5rem minmax(0,1fr)",
+                                            gap: 10,
+                                        }}
+                                    >
+                                        <ModalField label={td("Date of birth")}>
+                                            <input
+                                                className="v2-input"
+                                                type="date"
+                                                value={form.date_of_birth ?? ""}
+                                                onChange={(e) => {
+                                                    const value =
+                                                        e.target.value;
+                                                    if (value) {
+                                                        const computed =
+                                                            computeAgeFieldsFromDateOfBirth(
+                                                                value,
+                                                            );
+                                                        setForm((prev) => ({
+                                                            ...prev,
+                                                            date_of_birth:
+                                                                value,
+                                                            age:
+                                                                computed.age !=
+                                                                null
+                                                                    ? String(
+                                                                          computed.age,
+                                                                      )
+                                                                    : "",
+                                                            age_range:
+                                                                computed.age_range ??
+                                                                "",
+                                                        }));
+                                                    } else {
+                                                        setForm((prev) => ({
+                                                            ...prev,
+                                                            date_of_birth: "",
+                                                            age: "",
+                                                            age_range: "",
+                                                        }));
+                                                    }
+                                                }}
+                                            />
+                                        </ModalField>
+                                        <ModalField label={td("Age")}>
+                                            <input
+                                                className="v2-input"
+                                                type="number"
+                                                min={0}
+                                                max={150}
+                                                value={form.age ?? ""}
+                                                disabled={hasDob}
+                                                onChange={(e) => {
+                                                    const value =
+                                                        e.target.value;
+                                                    const age = value
+                                                        ? Number(value)
+                                                        : null;
+                                                    setForm((prev) => ({
+                                                        ...prev,
+                                                        age: value,
+                                                        age_range:
+                                                            computeAgeRangeFromAge(
+                                                                age,
+                                                            ) ?? "",
+                                                    }));
+                                                }}
+                                            />
+                                        </ModalField>
+                                        <ModalField label={td("Age range")}>
+                                            <select
+                                                className="v2-input"
+                                                value={form.age_range ?? ""}
+                                                disabled={hasDob}
+                                                onChange={(e) =>
+                                                    setField(
+                                                        "age_range",
+                                                        e.target.value,
+                                                    )
+                                                }
+                                            >
+                                                <option value="">
+                                                    {td("Select…")}
+                                                </option>
+                                                {ageRanges.map((option) => (
+                                                    <option
+                                                        key={option.value}
+                                                        value={option.value}
+                                                    >
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </ModalField>
+                                    </div>
                                 );
                             }
                             if (field.leadField === "salutation") {

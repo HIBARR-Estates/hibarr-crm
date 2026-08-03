@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import useTranslation from "@/Hooks/useTranslation";
 import DealInfoSidebar from "@/Pages/Deals/Redesign/components/deal-info/DealInfoSidebar";
 import type { DealInfoSectionId } from "@/Pages/Deals/Redesign/types";
+import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
 import { countFilledFields } from "../../../adapters/dossierAdapter";
 import { LEAD_INFO_CORE_SECTIONS } from "../../../config/leadInfoSections";
 import LeadInfoSectionPanel from "../../lead-info/LeadInfoSectionPanel";
@@ -48,6 +49,15 @@ function countCategoryCompletion(
     return { filled, total: categoryFields.length };
 }
 
+/** Categories that only contain file fields live on the Files tab — hide here. */
+function categoryHasVisibleFields(categoryId: number, fields: any[]): boolean {
+    return fields.some(
+        (field) =>
+            Number(field.custom_field_category_id) === categoryId &&
+            field.type !== "file",
+    );
+}
+
 export default function LeadInfoTab({
     fields = [],
     customFieldCategories = [],
@@ -67,60 +77,60 @@ export default function LeadInfoTab({
         handleFieldsUpdate,
     } = useLeadInfoFieldUpdate(canEdit);
 
-    const navGroups = useMemo(
-        () => [
-            {
-                label: "Overview",
-                items: LEAD_INFO_CORE_SECTIONS.map((section) => {
-                    const completionKeys = section.fields
-                        .filter((field) => !field.readOnly)
-                        .map((field) => field.key);
-                    const { filled, total } = countFilledFields(
-                        lead,
-                        completionKeys,
-                    );
-                    return {
-                        id: section.id as DealInfoSectionId,
-                        label: section.title,
-                        icon: section.icon,
-                        badgeVariant: "gray" as const,
-                        badge: total > 0 ? `${filled}/${total}` : undefined,
-                        completion: total > 0 ? { filled, total } : undefined,
-                        searchTerms: section.fields.map((field) => field.label),
-                    };
-                }),
-            },
-            ...(customFieldCategories.length > 0
-                ? [
-                      {
-                          label: "Custom fields",
-                          items: customFieldCategories.map((category) => {
-                              const { filled, total } = countCategoryCompletion(
-                                  category.id,
-                                  fields,
-                                  lead.custom_fields_data ?? {},
-                              );
-                              return {
-                                  id: `category-${category.id}` as DealInfoSectionId,
-                                  label: category.name,
-                                  icon: "layers",
-                                  badgeVariant: "gray" as const,
-                                  badge:
-                                      total > 0
-                                          ? `${filled}/${total}`
-                                          : undefined,
-                                  completion:
-                                      total > 0
-                                          ? { filled, total }
-                                          : undefined,
-                              };
-                          }),
-                      },
-                  ]
-                : []),
-        ],
-        [customFieldCategories, fields, lead],
+    const visibleCategories = useMemo(
+        () =>
+            customFieldCategories.filter((category) =>
+                categoryHasVisibleFields(category.id, fields),
+            ),
+        [customFieldCategories, fields],
     );
+
+    // File-only categories are hidden — bounce off a stale URL/section id.
+    useEffect(() => {
+        const categoryId = parseCategorySectionId(String(activeSection));
+        if (categoryId == null) return;
+        if (visibleCategories.some((category) => category.id === categoryId)) {
+            return;
+        }
+        onSectionChange("personal");
+    }, [activeSection, onSectionChange, visibleCategories]);
+
+    const navGroups = useMemo(() => {
+        const coreItems = LEAD_INFO_CORE_SECTIONS.map((section) => {
+            const completionKeys = section.fields
+                .filter((field) => !field.readOnly)
+                .map((field) => field.key);
+            const { filled, total } = countFilledFields(lead, completionKeys);
+            return {
+                id: section.id as DealInfoSectionId,
+                label: section.title,
+                icon: section.icon,
+                badgeVariant: "gray" as const,
+                badge: total > 0 ? `${filled}/${total}` : undefined,
+                completion: total > 0 ? { filled, total } : undefined,
+                searchTerms: section.fields.map((field) => field.label),
+            };
+        });
+
+        const categoryItems = visibleCategories.map((category) => {
+            const { filled, total } = countCategoryCompletion(
+                category.id,
+                fields,
+                lead.custom_fields_data ?? {},
+            );
+            return {
+                id: `category-${category.id}` as DealInfoSectionId,
+                label: category.name,
+                icon: "layers",
+                badgeVariant: "gray" as const,
+                badge: total > 0 ? `${filled}/${total}` : undefined,
+                completion: total > 0 ? { filled, total } : undefined,
+            };
+        });
+
+        // One flat list — no Overview / Custom fields group split.
+        return [{ label: "", items: [...coreItems, ...categoryItems] }];
+    }, [fields, lead, visibleCategories]);
 
     return (
         <div
@@ -140,7 +150,7 @@ export default function LeadInfoTab({
                 sectionId={activeSection}
                 lead={lead}
                 fields={fields}
-                customFieldCategories={customFieldCategories}
+                customFieldCategories={visibleCategories}
                 canEdit={canEdit}
                 isFieldLoading={isFieldLoading}
                 updatingField={updatingField}

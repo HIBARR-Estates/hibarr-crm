@@ -5,9 +5,14 @@ import type { TaskboardColumn } from "@/Features/Dashboard/Components/TaskStatus
 import { Icon } from "@/Components/Redesign";
 import PriorityBadge from "@/Components/Redesign/primitives/PriorityBadge";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { formatCurrencyWithSymbol } from "@/lib/utils";
 import { formatDateTime } from "@/Pages/Deals/Redesign/adapters/dateFormat";
 import { toWorkspaceMeetingPreview } from "@/Pages/Deals/Redesign/adapters/meetingAdapter";
+import {
+    formatMoneyAmount,
+    resolveCurrencyDisplay,
+    useCompanyCurrency,
+    type CurrencyDisplay,
+} from "../../adapters/currencyAdapter";
 import { toLeadTaskPreview } from "../../adapters/taskAdapter";
 
 interface QuickStatsProps {
@@ -82,13 +87,17 @@ function resolveTaskStatus(
     return { label, color };
 }
 
-function formatDealValue(deal: Deal): string {
+function formatDealValue(
+    deal: Deal,
+    companyCurrency: CurrencyDisplay,
+): string {
     const value = deal.value ?? deal.calculated_value ?? deal.manual_value;
     if (value == null) return "—";
-    const symbol =
-        deal.currency?.currency_symbol ?? deal.currency?.currency_code ?? "";
-    if (!symbol) return Number(value).toLocaleString();
-    return formatCurrencyWithSymbol(Number(value), symbol);
+    return formatMoneyAmount(
+        Number(value),
+        resolveCurrencyDisplay(deal.currency, companyCurrency),
+        "symbol",
+    );
 }
 
 function StatHeader({ label }: { label: string }) {
@@ -229,6 +238,7 @@ export default function QuickStats({
     onViewAllDeals,
 }: QuickStatsProps) {
     const { td } = useTd();
+    const companyCurrency = useCompanyCurrency();
 
     const meetingPreview = nextMeeting
         ? toWorkspaceMeetingPreview(nextMeeting)
@@ -365,7 +375,7 @@ export default function QuickStats({
                                 {primaryDeal.name}
                             </span>
                             <span className="v2-quick-stat-value-secondary">
-                                {formatDealValue(primaryDeal)}
+                                {formatDealValue(primaryDeal, companyCurrency)}
                             </span>
                             <span className="v2-quick-stat-chips">
                                 {pipelineName ? (

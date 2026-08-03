@@ -24,6 +24,11 @@ import type { MoreMenuActionId } from "./config/moreMenuItems";
 import { resolveLifecycle } from "./adapters/lifecycleAdapter";
 import { canEditLead } from "./adapters/leadEditAccess";
 import { getDossierFieldValue } from "./adapters/dossierAdapter";
+import {
+    formatMoneyAmount,
+    resolveCurrencyDisplay,
+    useCompanyCurrency,
+} from "./adapters/currencyAdapter";
 import { toLeadTaskPreview } from "./adapters/taskAdapter";
 import { itineraryCount } from "./adapters/itineraryAdapter";
 import {
@@ -38,6 +43,7 @@ import useLeadDealCreate from "./hooks/useLeadDealCreate";
 import useLeadNoteCreate from "./hooks/useLeadNoteCreate";
 import useLeadTaskCreate from "./hooks/useLeadTaskCreate";
 import useLeadMeetingCreate from "./hooks/useLeadMeetingCreate";
+import useLeadDocuments from "./hooks/useLeadDocuments";
 import useLeadDuplicates from "./hooks/useLeadDuplicates";
 import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
 import AiSummaryCard from "./components/workspace/AiSummaryCard";
@@ -66,7 +72,6 @@ import type { Task } from "@/Types/api/tasks";
 import TemplatePickerModal from "./components/qualification/TemplatePickerModal";
 import QualifyModal from "./components/qualification/QualifyModal";
 import AnswersReviewModal from "./components/qualification/AnswersReviewModal";
-import EditLeadDetailsModal from "./components/qualification/EditLeadDetailsModal";
 import CreateDealModal from "./components/dealCreate/CreateDealModal";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
@@ -104,6 +109,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         leadFollowUps,
         tasks,
         notes,
+        files,
+        filesLoading,
         addNote,
         addTask,
     } = useLeadWorkspace();
@@ -149,7 +156,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     });
 
     const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
-    const [editLeadOpen, setEditLeadOpen] = useState(false);
     const [createDealOpen, setCreateDealOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
@@ -160,6 +166,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     );
     const [detailTask, setDetailTask] = useState<Task | null>(null);
 
+    const companyCurrency = useCompanyCurrency();
+
     const firstName = useMemo(() => {
         const parts = (lead.client_name ?? "").trim().split(/\s+/);
         return parts[0] || lead.client_name || "Lead";
@@ -167,10 +175,20 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const valueLabel = useMemo(() => {
         const value = getDossierFieldValue(lead, "leadValue");
-        const currency = getDossierFieldValue(lead, "currency");
         if (!value.trim()) return null;
-        return currency ? `${currency} ${value}` : value;
-    }, [lead]);
+        const amount = Number(value.replace(/,/g, ""));
+        const currencyCode = getDossierFieldValue(lead, "currency", {
+            companyCurrency,
+        });
+        const currency = resolveCurrencyDisplay(
+            currencyCode || null,
+            companyCurrency,
+        );
+        if (Number.isFinite(amount)) {
+            return formatMoneyAmount(amount, currency, "code");
+        }
+        return currency.code ? `${currency.code} ${value}` : value;
+    }, [companyCurrency, lead]);
 
     const answerCount = useMemo(() => {
         const runs = [...qualification.history];
@@ -192,6 +210,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         return { answered, total };
     }, [qualification.current, qualification.templateTree]);
 
+    const { uploadedCount: documentsUploaded } = useLeadDocuments(
+        lead,
+        props.fields ?? [],
+    );
+
     const tabCounts = useMemo((): Partial<Record<WorkspaceTabId, number>> => {
         const itineraryLegs = deals.flatMap(
             (d) => d.lead_flight_itineraries ?? [],
@@ -206,10 +229,15 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             meetings: leadFollowUpsLoading ? undefined : leadFollowUps.length,
             deals: deals.length,
             itinerary: itineraryCount(itineraryLegs),
-            files: 0,
+            files: filesLoading
+                ? undefined
+                : files.length + documentsUploaded,
         };
     }, [
         deals,
+        documentsUploaded,
+        files.length,
+        filesLoading,
         leadFollowUps.length,
         leadFollowUpsLoading,
         notes.length,
@@ -291,9 +319,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             switch (id) {
                 case "answers":
                     nav.setAnswersOpen(true);
-                    break;
-                case "edit":
-                    setEditLeadOpen(true);
                     break;
                 case "task":
                     setAddTaskOpen(true);
@@ -413,7 +438,12 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     />
                 );
             case "files":
-                return <FilesTab />;
+                return (
+                    <FilesTab
+                        fields={props.fields}
+                        editLeadPermission={props.editLeadPermission}
+                    />
+                );
             case "marketing":
                 return <MarketingTab />;
             default:
@@ -461,6 +491,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             lead,
                             page.props.auth?.user?.id,
                         )}
+                        showQualification={showQualification}
                         onStatusChange={(key) => void changeStatus(key)}
                         statusSaving={statusSaving}
                         onOpenAnswers={() => nav.setAnswersOpen(true)}
@@ -591,16 +622,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     />
                 </>
             )}
-
-            <EditLeadDetailsModal
-                open={editLeadOpen}
-                onClose={() => setEditLeadOpen(false)}
-                lead={lead}
-                salutations={props.salutations ?? []}
-                countries={props.countries ?? []}
-                sources={props.sources ?? []}
-                categories={props.categories ?? []}
-            />
 
             <CreateDealModal
                 open={createDealOpen}

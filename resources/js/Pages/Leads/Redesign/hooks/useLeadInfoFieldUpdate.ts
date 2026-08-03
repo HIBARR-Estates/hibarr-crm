@@ -2,8 +2,11 @@ import { useCallback, useState } from "react";
 import axios from "axios";
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
+import {
+    computeAgeFieldsFromDateOfBirth,
+    computeAgeRangeFromAge,
+} from "@/lib/leadAge";
 import { formatMobileForDisplay } from "@/lib/utils";
-import { ageRangeFromAge } from "../adapters/dossierAdapter";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
 export interface LeadFieldChange {
@@ -45,19 +48,35 @@ function processStandardField(
         return { languages: Array.isArray(value) ? value : [] };
     }
 
+    if (fieldName === "date_of_birth") {
+        if (!value) {
+            return {
+                date_of_birth: null,
+                age: null,
+                age_range: null,
+            };
+        }
+        const computed = computeAgeFieldsFromDateOfBirth(String(value));
+        return {
+            date_of_birth: String(value).split("T")[0],
+            age: computed.age,
+            age_range: computed.age_range,
+        };
+    }
+
     if (fieldName === "age") {
         const age =
             value === null || value === undefined || value === ""
                 ? null
                 : Number(value);
-        const payload: Record<string, unknown> = { age };
-        const range = ageRangeFromAge(age);
-        if (range) payload.age_range = range;
-        return payload;
+        return {
+            age,
+            age_range: computeAgeRangeFromAge(age),
+        };
     }
 
-    if (fieldName === "age_range" || fieldName === "date_of_birth") {
-        return { [fieldName]: value || null };
+    if (fieldName === "age_range") {
+        return { age_range: value || null };
     }
 
     if (fieldName === "gender" || fieldName === "salutation") {
@@ -143,10 +162,23 @@ export default function useLeadInfoFieldUpdate(canEdit = true) {
     const buildPayload = useCallback((changes: LeadFieldChange[]) => {
         const payload: Record<string, unknown> = {};
         const customFields: Record<string, unknown> = {};
+        const hasDateOfBirthChange = changes.some(
+            (change) =>
+                !isCustomFieldName(change.fieldName, change.type) &&
+                change.fieldName === "date_of_birth",
+        );
 
         for (const { fieldName, value, type } of changes) {
             if (isCustomFieldName(fieldName, type)) {
                 customFields[fieldName] = value;
+                continue;
+            }
+            // When DOB is in the batch, age/age_range come from DOB computation
+            // (or explicit null clear) — don't let a separate age pass overwrite.
+            if (
+                hasDateOfBirthChange &&
+                (fieldName === "age" || fieldName === "age_range")
+            ) {
                 continue;
             }
             Object.assign(payload, processStandardField(fieldName, value));

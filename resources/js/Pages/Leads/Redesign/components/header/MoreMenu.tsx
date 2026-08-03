@@ -12,6 +12,7 @@ interface MoreMenuProps {
     onAction: (id: MoreMenuActionId) => void;
     canDelete?: boolean;
     canFindDuplicates?: boolean;
+    showQualification?: boolean;
 }
 
 /**
@@ -22,6 +23,7 @@ export default function MoreMenu({
     onAction,
     canDelete = true,
     canFindDuplicates = false,
+    showQualification = true,
 }: MoreMenuProps) {
     const { td } = useTd();
     const [open, setOpen] = useState(false);
@@ -54,6 +56,7 @@ export default function MoreMenu({
     const items = MORE_MENU_ITEMS.filter((item) => {
         if (item.id === "delete") return canDelete;
         if (item.id === "find_duplicates") return canFindDuplicates;
+        if (item.id === "answers") return showQualification;
         return true;
     });
 

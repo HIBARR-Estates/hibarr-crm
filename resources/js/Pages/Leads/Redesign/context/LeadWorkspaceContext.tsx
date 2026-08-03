@@ -10,11 +10,18 @@ import {
     type ReactNode,
     type SetStateAction,
 } from "react";
+import { useApiQuery } from "@/lib/api/client";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import type { LeadContactFile } from "@/Types/api/file";
 import type { Lead } from "@/Types/api/leads";
 import type { LeadNote } from "@/Types/api/lead-note";
 import type { Task } from "@/Types/api/tasks";
+
+interface EntityResponse<T> {
+    status: string;
+    data: T;
+}
 
 interface LeadWorkspaceValue {
     lead: Lead;
@@ -30,6 +37,9 @@ interface LeadWorkspaceValue {
     leadFollowUpsLoading: boolean;
     deals: Deal[];
     setDeals: Dispatch<SetStateAction<Deal[]>>;
+    files: LeadContactFile[];
+    setFiles: Dispatch<SetStateAction<LeadContactFile[]>>;
+    filesLoading: boolean;
     addNote: (note: LeadNote) => void;
     addTask: (task: Task) => void;
     addLeadFollowUp: (followUp: DealFollowup) => void;
@@ -47,11 +57,12 @@ interface LeadWorkspaceProviderProps {
 }
 
 /**
- * Holds the lead + notes/tasks/meetings/deals as local React state so
+ * Holds the lead + notes/tasks/meetings/deals/files as local React state so
  * mutations patch from a REST response instead of an Inertia reload.
  *
  * Deferred props seed once on first resolve; later arrivals cannot clobber
  * in-flight edits. `deals` is synchronous and tracks the prop directly.
+ * Files are fetched via `lead-contact.files.index` (same pattern as deal files).
  */
 export function LeadWorkspaceProvider({
     lead: initialLead,
@@ -72,12 +83,28 @@ export function LeadWorkspaceProvider({
         () => leadFollowUpsProp ?? [],
     );
     const [deals, setDeals] = useState<Deal[]>(() => dealsProp ?? []);
+    const [files, setFiles] = useState<LeadContactFile[]>([]);
+
+    const filesQuery = useApiQuery<EntityResponse<LeadContactFile[]>>({
+        path: route("lead-contact.files.index", lead.id),
+        options: { staleTime: 30_000 },
+    });
 
     const seeded = useRef({
         notes: notesProp !== undefined,
         tasks: tasksProp !== undefined,
         leadFollowUps: leadFollowUpsProp !== undefined,
+        files: false,
+        filesLeadId: lead.id,
     });
+
+    // When navigating to another lead without remounting, re-seed files.
+    useEffect(() => {
+        if (seeded.current.filesLeadId === lead.id) return;
+        seeded.current.filesLeadId = lead.id;
+        seeded.current.files = false;
+        setFiles([]);
+    }, [lead.id]);
 
     useEffect(() => {
         if (!seeded.current.notes && notesProp !== undefined) {
@@ -95,19 +122,12 @@ export function LeadWorkspaceProvider({
 
     useEffect(() => {
         if (leadFollowUpsProp === undefined) return;
-        // Meetings create/update only return success (no row payload), so the
-        // tabs call `router.reload({ only: ["leadFollowUps"] })`. Re-sync the
-        // prop on every arrival — unlike notes/tasks, there is no local edit
-        // path that would be clobbered.
         setLeadFollowUps(leadFollowUpsProp);
         seeded.current.leadFollowUps = true;
     }, [leadFollowUpsProp]);
 
     useEffect(() => {
         if (dealsProp === undefined) return;
-        // Merge server deals with any locally patched itineraries so an Inertia
-        // prop refresh (or a deals payload that omitted lead_flight_itineraries)
-        // cannot wipe flights the itinerary tab just added.
         setDeals((prev) => {
             if (prev.length === 0) return dealsProp;
 
@@ -130,6 +150,13 @@ export function LeadWorkspaceProvider({
             });
         });
     }, [dealsProp]);
+
+    useEffect(() => {
+        if (!seeded.current.files && filesQuery.data?.data) {
+            setFiles(filesQuery.data.data);
+            seeded.current.files = true;
+        }
+    }, [filesQuery.data]);
 
     const addNote = useCallback((note: LeadNote) => {
         setNotes((prev) => [note, ...prev.filter((n) => n.id !== note.id)]);
@@ -161,6 +188,9 @@ export function LeadWorkspaceProvider({
             leadFollowUpsLoading: leadFollowUpsProp === undefined,
             deals,
             setDeals,
+            files,
+            setFiles,
+            filesLoading: filesQuery.isLoading,
             addNote,
             addTask,
             addLeadFollowUp,
@@ -170,6 +200,8 @@ export function LeadWorkspaceProvider({
             addNote,
             addTask,
             deals,
+            files,
+            filesQuery.isLoading,
             lead,
             leadFollowUps,
             leadFollowUpsProp,

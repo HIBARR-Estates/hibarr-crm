@@ -24,7 +24,7 @@ export type LeadMetaTab = "leadinfo" | "timeline";
 export type WorkspaceTabId = LeadRecordTab | LeadMetaTab;
 
 /** Built-in Lead info sections (native lead fields). */
-export type LeadInfoCoreSectionId = "personal";
+export type LeadInfoCoreSectionId = "personal" | "address";
 
 /** Lead-info sidebar section — core panels + custom-field categories. */
 export type LeadInfoSectionId =
