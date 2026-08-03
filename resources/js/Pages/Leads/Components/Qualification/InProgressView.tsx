@@ -168,7 +168,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                                     type="primary"
                                     icon={<ArrowRightOutlined />}
                                     iconPosition="end"
-                                    onClick={flow.goNext}
+                                    onClick={() => void flow.goNext()}
                                     disabled={
                                         flow.isLastSegment ||
                                         flow.saving ||

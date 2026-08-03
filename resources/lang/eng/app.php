@@ -121,6 +121,8 @@ return array(
     'dr' => 'Dr.',
     'sir' => 'Sir',
     'madam' => 'Madam',
+    'herr' => 'Herr',
+    'frau' => 'Frau',
     'invoiceGenerate' => 'Invoice Generated',
     'leave' => 'Leave',
     'holiday' => 'Holiday ( :name)',

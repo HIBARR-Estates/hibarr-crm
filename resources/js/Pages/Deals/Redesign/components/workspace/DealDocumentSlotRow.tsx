@@ -183,21 +183,16 @@ export default function DealDocumentSlotRow({
         >
             {fileInput}
 
-            <DealIcon
-                name="file-text"
-                size={17}
-                color={doc.uploaded ? T.GREEN : T.TEXT_MUTED}
-            />
-
-            {/* Uploaded + viewable → the label itself opens the file. */}
+            {/* Uploaded + viewable → open file. Empty → click tile to upload. */}
             {openHref ? (
                 <a
                     href={openHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     title={t("pages.deals.workspace.documents.open")}
-                    className="flex min-w-0 flex-1 items-start gap-1.5 no-underline"
+                    className="flex min-w-0 flex-1 items-center gap-2.5 no-underline"
                 >
+                    <DealIcon name="file-text" size={17} color={T.GREEN} />
                     <span className="min-w-0 flex-1">
                         <span
                             className="flex items-center gap-1.5 truncate"
@@ -215,29 +210,37 @@ export default function DealDocumentSlotRow({
                     </span>
                 </a>
             ) : (
-                <span className="min-w-0 flex-1" title={doc.label}>
-                    <span
-                        className="block truncate"
-                        style={{ fontSize: 14, color: T.TEXT }}
-                    >
-                        {td(doc.label)}
+                <button
+                    type="button"
+                    disabled={!canUpload}
+                    onClick={() => inputRef.current?.click()}
+                    title={`${doc.label} — ${statusLabel}`}
+                    className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5 border-none bg-transparent p-0 text-left"
+                    style={{ cursor: canUpload ? "pointer" : "default" }}
+                >
+                    <DealIcon name="file-text" size={17} color={T.TEXT_MUTED} />
+                    <span className="min-w-0 flex-1">
+                        <span
+                            className="block truncate"
+                            style={{ fontSize: 14, color: T.TEXT }}
+                        >
+                            {td(doc.label)}
+                        </span>
+                        <span
+                            className="block truncate"
+                            style={{ fontSize: 11, color: T.TEXT_MUTED }}
+                        >
+                            {clickHint}
+                        </span>
                     </span>
-                    <span
-                        className="block truncate"
-                        style={{ fontSize: 11, color: T.TEXT_MUTED }}
-                    >
-                        {clickHint}
-                    </span>
-                </span>
+                </button>
             )}
 
             <span
-                className={`dr-pill ${doc.uploaded ? "dr-pill-green" : "dr-pill-gray"}`}
+                className={`dr-pill ${uploading ? "dr-pill-blue" : doc.uploaded ? "dr-pill-green" : "dr-pill-gray"}`}
                 style={{ flexShrink: 0 }}
             >
-                {doc.uploaded
-                    ? t("pages.deals.workspace.documents.uploaded")
-                    : t("pages.deals.workspace.documents.missing")}
+                {pillLabel}
             </span>
 
             {canUpload && (

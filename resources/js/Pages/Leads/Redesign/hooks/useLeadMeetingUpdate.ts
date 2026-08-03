@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import { message } from "antd";
+import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Lead } from "@/Types/api/leads";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
@@ -10,11 +11,12 @@ import {
     getBrowserTimezone,
     persistUserTimezoneOnce,
 } from "@/lib/userTimezone";
-import type { LeadMeetingCreateInput } from "./useLeadMeetingCreate";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import type { LeadMeetingCreateInput } from "./useLeadMeetingCreate";
+import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
 interface FollowUpUpdatePayload {
     id: number;
@@ -30,16 +32,18 @@ interface FollowUpUpdatePayload {
     remark?: string;
     timezone?: string;
     participants?: number[];
+    status?: string;
 }
 
 export default function useLeadMeetingUpdate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
+    const { setLeadFollowUps } = useLeadWorkspace();
 
     const { mutate, status } = useApiMutate<
         FollowUpUpdatePayload,
-        null,
-        ApiResponse<null>
+        DealFollowup,
+        ApiResponse<DealFollowup>
     >(route("deals.follow_up_update"), "POST");
 
     const updateMeeting = useCallback(
@@ -47,6 +51,7 @@ export default function useLeadMeetingUpdate(lead: Lead) {
             followupId: number,
             input: LeadMeetingCreateInput & { dealId?: number | null },
             onSuccess?: () => void,
+            statusOverride?: string,
         ) => {
             if (!input.dealId) {
                 setErrors([
@@ -72,15 +77,27 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 remark: input.remark.trim(),
                 participants: input.participants,
                 timezone: getBrowserTimezone(),
+                status: statusOverride,
             };
 
             setErrors([]);
             mutate(payload, {
-                onSuccess: () => {
+                onSuccess: (response) => {
                     setErrors([]);
-                    message.success("Meeting updated");
+                    message.success(
+                        statusOverride === "cancelled"
+                            ? "Meeting cancelled"
+                            : "Meeting updated",
+                    );
+                    if (response?.data) {
+                        const updated = response.data;
+                        setLeadFollowUps((prev) =>
+                            prev.map((item) =>
+                                item.id === updated.id ? updated : item,
+                            ),
+                        );
+                    }
                     onSuccess?.();
-                    router.reload({ only: ["leadFollowUps"] });
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);
@@ -95,7 +112,7 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 },
             });
         },
-        [lead.id, mutate, props.auth?.user?.timezone],
+        [lead.id, mutate, props.auth?.user?.timezone, setLeadFollowUps],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

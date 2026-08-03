@@ -198,6 +198,75 @@ return [
             'edit_note'                => 'Notu Düzenle',
             'delete_note'              => 'Notu Sil',
         ],
+        'tour' => [
+            'next'              => 'İleri',
+            'back'              => 'Geri',
+            'done'              => 'Bitti',
+            'skip'              => 'Turu atla',
+            'replay_menu_item'  => 'Rehberi yeniden oynat',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'Lead’e bir bakışta bakın',
+                    'body'  => 'Fotoğraf, ad, yaşam döngüsü durumu ve sahip burada kalır. Özel bir avatar yüklemek için fotoğrafa tıklayın. Sahipliği sağdaki sahip kartından değiştirin.',
+                ],
+                'status_dropdown' => [
+                    'title' => 'Lead’in yaşam döngüsü durumunu güncelleyin',
+                    'body'  => 'Yeni, Nitelendirme, Nitelikli veya Kayıp gibi durumlar arasında geçmek için bu açılır menüyü kullanın — renk bugünkü durumu gösterir.',
+                ],
+                'lifecycle_banner' => [
+                    'title' => 'Sıradaki en iyi aksiyon burada',
+                    'body'  => 'Bu banner duruma göre değişir — nitelendirmeyi başlatın veya sürdürün, anlaşma oluşturun veya açın, kapanmış bir lead’i yeniden etkinleştirin. Yanıtlar varsa, sayfadan ayrılmadan görüntülemek için yanıtları görüntüle’yi kullanın.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Yapay zeka sizi güncellesin',
+                    'body'  => 'Bu özet lead’in aktivitesini okur ve sonraki adımları önerir — nitelendir, görev oluştur veya arama planla — tek tıkla.',
+                ],
+                'quick_stats' => [
+                    'title' => 'Sırada ne var görün',
+                    'body'  => 'Sonraki toplantı, açık görevler ve birincil anlaşma burada. Boş yuvalarda oluştur kısayolları vardır; mevcut öğeler ayrıntıyı açar. Tüm anlaşmaları görüntüle, Anlaşmalar sekmesine gider.',
+                ],
+                'tabs' => [
+                    'title' => 'Bu lead’le ilgili her şey, bir sekme ötede',
+                    'body'  => 'Genel bakış, notlar, görevler, toplantılar, dosyalar, anlaşmalar, uçuş planı ve pazarlama burada — rozetler sayıları gösterir. Lead bilgisi ve Zaman çizelgesi, sekme çubuğunun sağındaki ayırıcıdan sonradır.',
+                ],
+                'overview' => [
+                    'title' => 'Genel bakış temelleri bir araya getirir',
+                    'body'  => 'Son notlar, açık görevler ve yaklaşan toplantılar önce burada görünür — her sütundan sekme değiştirmeden yenilerini ekleyin.',
+                ],
+                'lead_info' => [
+                    'title' => 'Lead bilgisi tam düzenlenebilir kaydı tutar',
+                    'body'  => 'Profil, adres ve özel alan kategorileri sol listede — bir bölüme atlamak için arayın. Yerinde düzenlemek için herhangi bir alana tıklayın. Dosya tipi alanlar Dosyalar sekmesindedir.',
+                ],
+                'deals' => [
+                    'title' => 'Bu lead’e bağlı anlaşmalar',
+                    'body'  => 'Anlaşmalar sekmesinde bu lead’den oluşturulan her anlaşmayı pipeline, aşama ve değerle görün. Yeni anlaşmayı ⋮ menüden, yaşam döngüsü banner’ından veya Hızlı istatistiklerden de oluşturabilirsiniz.',
+                ],
+                'files' => [
+                    'title' => 'Belgeler ve yüklemeler Dosyalar’da',
+                    'body'  => 'Özel alan belge yuvaları ve serbest dosya yüklemeleri burada yönetilir — Lead bilgisi altında değil.',
+                ],
+                'timeline' => [
+                    'title' => 'Tam geçmişi görün',
+                    'body'  => 'Bu lead’deki her değişiklik, not ve durum güncellemesi, sırayla.',
+                ],
+                'quick_actions' => [
+                    'title' => 'Sayfadan ayrılmadan harekete geçin',
+                    'body'  => 'Eylem kaydedin, not ekleyin veya toplantı planlayın — hangi çalışma alanı sekmesinde olursanız olun bu kısayollar görünür kalır.',
+                ],
+                'dossier' => [
+                    'title' => 'Dossier önemli bilgileri görünür tutar',
+                    'body'  => 'Telefon, e-posta, kaynak, kategori ve pazarlama etkileşimi burada kalır. Düzenlenebilir profile atlamak için Lead bilgisinde düzenle’yi kullanın. Kopyalamak için bir değere tıklayın.',
+                ],
+                'actions_menu' => [
+                    'title' => 'Daha fazla eylem, bir tık ötede',
+                    'body'  => 'Adın yanındaki ⋮ ile: nitelendirme yanıtlarını görüntüle, görev veya not ekle, anlaşma oluştur, yinelenenleri bul veya lead’i sil. Bu rehberi aynı menüden istediğiniz zaman yeniden oynatın.',
+                ],
+                'closing' => [
+                    'title' => 'Hazırsınız',
+                    'body'  => 'Bu rehberi istediğiniz zaman lead adının yanındaki ⋮ menüsünden yeniden oynatın.',
+                ],
+            ],
+        ],
     ],
 
     'deals' => [
