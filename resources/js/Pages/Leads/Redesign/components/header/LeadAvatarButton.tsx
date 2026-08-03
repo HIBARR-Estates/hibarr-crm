@@ -1,93 +1,82 @@
-import { useCallback, useRef, useState, type ChangeEvent } from "react";
+import { useRef, type ChangeEvent } from "react";
 import { Icon } from "@/Components/Redesign";
+import { useTd } from "@/Hooks/useDynamicTranslation";
+import useLeadImageUpload from "../../hooks/useLeadImageUpload";
 
 interface LeadAvatarButtonProps {
     name: string;
+    /** Custom uploaded image filename — when set, show image_url. */
+    image?: string | null;
     imageUrl?: string | null;
     initials: string;
 }
 
 /**
- * 42×42 avatar trigger — shows server image_url or initials.
- * Gravatar-only on server — preview does NOT persist (no upload endpoint).
+ * Header avatar with a persistent camera badge. Uploads to the server and
+ * patches workspace state. Without a custom image, initials are shown so the
+ * empty/upload state stays obvious (Gravatar alone is too easy to miss).
  */
 export default function LeadAvatarButton({
     name,
+    image,
     imageUrl,
     initials,
 }: LeadAvatarButtonProps) {
+    const { td } = useTd();
     const inputRef = useRef<HTMLInputElement>(null);
-    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+    const { uploadImage, uploading } = useLeadImageUpload();
 
-    const displayUrl = previewUrl ?? imageUrl ?? null;
-
-    const revokePreview = useCallback((url: string | null) => {
-        if (url?.startsWith("blob:")) {
-            URL.revokeObjectURL(url);
-        }
-    }, []);
+    const hasCustomImage = Boolean(image && imageUrl);
+    const displayUrl = hasCustomImage ? imageUrl : null;
+    const label = displayUrl
+        ? td("Change photo")
+        : td("Upload photo");
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         event.target.value = "";
-        if (!file || !file.type.startsWith("image/")) return;
-
-        const url = URL.createObjectURL(file);
-        setPreviewUrl((prev) => {
-            revokePreview(prev);
-            return url;
-        });
+        if (!file) return;
+        void uploadImage(file);
     };
 
     return (
-        <>
+        <div className="v2-lead-avatar-wrap">
             <button
                 type="button"
+                className={`v2-lead-avatar${uploading ? " is-uploading" : ""}`}
                 onClick={() => inputRef.current?.click()}
-                title={displayUrl ? "Change photo" : "Upload photo"}
-                aria-label={
-                    displayUrl ? `Change photo for ${name}` : `Upload photo for ${name}`
-                }
-                style={{
-                    width: 42,
-                    height: 42,
-                    borderRadius: "50%",
-                    background: "var(--lr-blue)",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: "var(--lr-white)",
-                    flexShrink: 0,
-                    border: "none",
-                    padding: 0,
-                    cursor: "pointer",
-                    overflow: "hidden",
-                    position: "relative",
-                }}
+                disabled={uploading}
+                title={label}
+                aria-label={`${label} ${name}`.trim()}
             >
                 {displayUrl ? (
-                    <img
-                        src={displayUrl}
-                        alt=""
-                        style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                        }}
-                    />
+                    <img src={displayUrl} alt="" className="v2-lead-avatar__img" />
                 ) : (
-                    initials
+                    <span className="v2-lead-avatar__initials">{initials}</span>
                 )}
+                <span className="v2-lead-avatar__badge" aria-hidden="true">
+                    {uploading ? (
+                        <span className="v2-lead-avatar__spinner" />
+                    ) : (
+                        <Icon name="camera" size={12} />
+                    )}
+                </span>
+            </button>
+            <button
+                type="button"
+                className="v2-lead-avatar__action"
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+            >
+                {uploading ? td("Uploading…") : label}
             </button>
             <input
                 ref={inputRef}
                 type="file"
-                accept="image/*"
+                accept="image/png,image/jpeg,image/gif,image/webp"
                 hidden
                 onChange={handleFileChange}
             />
-        </>
+        </div>
     );
 }

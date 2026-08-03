@@ -62,7 +62,24 @@ export function DealWorkspaceProvider({
 }: DealWorkspaceProviderProps) {
     const [deal, setDeal] = useState<Deal>(initialDeal);
     useEffect(() => {
-        setDeal(initialDeal);
+        // Sync from props when the deal identity changes, or when Inertia
+        // refreshes the same deal. Never wipe local itinerary legs with an
+        // undefined/missing relation (Lead page deals often omit them until
+        // patched, and Lead ItineraryTab re-feeds a new object after sync).
+        setDeal((prev) => {
+            if (prev.id !== initialDeal.id) {
+                return initialDeal;
+            }
+
+            const nextLegs = initialDeal.lead_flight_itineraries;
+            const prevLegs = prev.lead_flight_itineraries;
+            const legs = nextLegs !== undefined ? nextLegs : prevLegs;
+
+            return {
+                ...initialDeal,
+                lead_flight_itineraries: legs,
+            };
+        });
     }, [initialDeal]);
 
     const notesQuery = useApiQuery<EntityResponse<Note[]>>({

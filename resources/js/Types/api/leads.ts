@@ -40,6 +40,9 @@ export interface Lead {
     source_id?: number | null;
     client_name?: string;
     client_email?: string;
+    client_whatsapp?: string | null;
+    client_telegram?: string | null;
+    client_instagram?: string | null;
     company_name?: string | null;
     website?: string | null;
     address?: string | null;
@@ -53,6 +56,8 @@ export interface Lead {
     note?: string | null;
     value?: number | null;
     currency_id?: number | null;
+    /** Stored custom avatar filename; when set, image_url points at the upload. */
+    image?: string | null;
     image_url?: string;
     client_name_salutation?: string;
     mobile_with_phonecode?: string;

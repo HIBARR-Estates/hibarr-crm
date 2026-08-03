@@ -4,6 +4,7 @@ export type LeadNativeFieldKey =
     | "clientName"
     | "salutation"
     | "mobile"
+    | "office"
     | "email"
     | "whatsapp"
     | "telegram"
@@ -14,7 +15,10 @@ export type LeadNativeFieldKey =
     | "languages"
     | "occupation"
     | "companyName"
+    | "address"
+    | "postalCode"
     | "city"
+    | "state"
     | "country"
     | "leadValue"
     | "currency"
@@ -39,8 +43,7 @@ export interface LeadInfoSectionDef {
 
 /**
  * Lead info section metadata + field inventory.
- * The panel renders Deal-style EditableFields explicitly; this config drives
- * sidebar completion, the edit-details modal, and section titles.
+ * Contact + attribution fields live in Profile; custom categories stay separate.
  */
 export const LEAD_INFO_CORE_SECTIONS: LeadInfoSectionDef[] = [
     {
@@ -52,37 +55,23 @@ export const LEAD_INFO_CORE_SECTIONS: LeadInfoSectionDef[] = [
         fields: [
             { key: "clientName", label: "Lead name", leadField: "client_name" },
             { key: "salutation", label: "Salutation", leadField: "salutation" },
+            { key: "mobile", label: "Mobile", leadField: "mobile" },
+            { key: "office", label: "Office phone", leadField: "office" },
+            { key: "email", label: "Email", leadField: "client_email" },
+            { key: "whatsapp", label: "WhatsApp", leadField: "client_whatsapp" },
+            { key: "telegram", label: "Telegram", leadField: "client_telegram" },
+            { key: "instagram", label: "Instagram", leadField: "client_instagram" },
             { key: "age", label: "Age", leadField: "age" },
             { key: "nationality", label: "Nationality", leadField: "nationality" },
             { key: "gender", label: "Gender", leadField: "gender" },
             { key: "languages", label: "Languages", leadField: "languages" },
             { key: "occupation", label: "Occupation", leadField: "occupation" },
             { key: "companyName", label: "Company", leadField: "company_name" },
+            { key: "address", label: "Street address", leadField: "address" },
+            { key: "postalCode", label: "Postal code", leadField: "postal_code" },
             { key: "city", label: "City", leadField: "city" },
+            { key: "state", label: "State", leadField: "state" },
             { key: "country", label: "Country", leadField: "country" },
-        ],
-    },
-    {
-        id: "contact",
-        title: "Contact",
-        subtitle:
-            "Click any field to edit, or switch the whole section into edit mode",
-        icon: "phone",
-        fields: [
-            { key: "mobile", label: "Mobile", leadField: "mobile" },
-            { key: "email", label: "Email", leadField: "client_email" },
-            { key: "whatsapp", label: "WhatsApp", readOnly: true },
-            { key: "telegram", label: "Telegram", readOnly: true },
-            { key: "instagram", label: "Instagram", readOnly: true },
-        ],
-    },
-    {
-        id: "attribution",
-        title: "Attribution",
-        subtitle:
-            "Click any field to edit, or switch the whole section into edit mode",
-        icon: "award",
-        fields: [
             { key: "source", label: "Source", leadField: "source_id" },
             { key: "category", label: "Category", leadField: "category_id" },
             { key: "addedBy", label: "Added by", readOnly: true },

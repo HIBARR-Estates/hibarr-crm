@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Lead } from "@/Types/api/leads";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { DOSSIER_SECTIONS } from "../../config/dossierSections";
 import {
     countFilledFields,
@@ -46,12 +47,18 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
         [lead],
     );
 
+    const createdLabel = lead.created_at
+        ? formatCompanyDateTime(lead.created_at)
+        : null;
+    const updatedLabel = lead.updated_at
+        ? formatCompanyDateTime(lead.updated_at)
+        : null;
+
     return (
         <aside
             className="v2-dossier"
             style={{
                 padding: "14px 16px",
-                alignSelf: "start",
             }}
         >
             <div
@@ -133,6 +140,21 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                     </DossierSection>
                 );
             })}
+
+            {(createdLabel || updatedLabel) && (
+                <footer className="v2-dossier-footnote">
+                    {createdLabel ? (
+                        <div>
+                            {td("Created")} {createdLabel}
+                        </div>
+                    ) : null}
+                    {updatedLabel ? (
+                        <div>
+                            {td("Updated")} {updatedLabel}
+                        </div>
+                    ) : null}
+                </footer>
+            )}
         </aside>
     );
 }

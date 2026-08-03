@@ -4,7 +4,6 @@ import PageLayout from "@/Components/PageLayout";
 import {
     AddNoteModal,
     AddTaskModal,
-    AgentPicker,
     ConfirmDialog,
     ScheduleMeetingModal,
 } from "@/Components/Redesign";
@@ -33,17 +32,21 @@ import {
 import useLeadViewNavigation from "./hooks/useLeadViewNavigation";
 import useLeadQualificationWorkspace from "./hooks/useLeadQualificationWorkspace";
 import useLeadLifecycleChange from "./hooks/useLeadLifecycleChange";
-import useLeadOwnerReassign from "./hooks/useLeadOwnerReassign";
 import useLeadDelete from "./hooks/useLeadDelete";
 import useLeadDealCreate from "./hooks/useLeadDealCreate";
 import useLeadNoteCreate from "./hooks/useLeadNoteCreate";
 import useLeadTaskCreate from "./hooks/useLeadTaskCreate";
 import useLeadMeetingCreate from "./hooks/useLeadMeetingCreate";
+import useLeadDuplicates from "./hooks/useLeadDuplicates";
 import LeadHeaderRoot from "./components/header/LeadHeaderRoot";
 import AiSummaryCard from "./components/workspace/AiSummaryCard";
+import DuplicateLeadsCard from "./components/workspace/DuplicateLeadsCard";
 import QuickStats from "./components/workspace/QuickStats";
 import WorkspaceCard from "./components/workspace/WorkspaceCard";
 import LeadDossier from "./components/dossier/LeadDossier";
+import DossierQuickActions from "./components/dossier/DossierQuickActions";
+import LogActionModal from "@/Components/CrmEvents/LogActionModal";
+import { LEAD_TIMELINE_MODEL_TYPE } from "@/Pages/Deals/Redesign/hooks/useDealTimeline";
 import LeadMeetingDetailModal from "./components/workspace/LeadMeetingDetailModal";
 import LeadTaskDetailModal from "./components/workspace/LeadTaskDetailModal";
 import OverviewTab from "./components/workspace/tabs/OverviewTab";
@@ -129,8 +132,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const { changeStatus, saving: statusSaving } =
         useLeadLifecycleChange(lifecycleStatuses);
-    const { reassign, pendingAgentId, saving: reassignSaving } =
-        useLeadOwnerReassign();
     const deleteLead = useLeadDelete(lead);
     const dealCreate = useLeadDealCreate(lead);
     const { createNote, isSaving: noteSaving, errors: noteErrors, clearErrors: clearNoteErrors } =
@@ -139,6 +140,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         useLeadTaskCreate(lead.id);
     const { createMeeting, isCreating: meetingCreating, errors: meetingErrors, clearErrors: clearMeetingErrors } =
         useLeadMeetingCreate(lead);
+    const duplicates = useLeadDuplicates(lead.id);
 
     const qualification = useLeadQualificationWorkspace(lead, {
         enabled: showQualification,
@@ -148,10 +150,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const [templatePickerOpen, setTemplatePickerOpen] = useState(false);
     const [editLeadOpen, setEditLeadOpen] = useState(false);
     const [createDealOpen, setCreateDealOpen] = useState(false);
-    const [reassignOpen, setReassignOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
+    const [logActionOpen, setLogActionOpen] = useState(false);
     const [detailMeeting, setDetailMeeting] = useState<DealFollowup | null>(
         null,
     );
@@ -292,9 +294,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 case "edit":
                     setEditLeadOpen(true);
                     break;
-                case "reassign":
-                    setReassignOpen(true);
-                    break;
                 case "task":
                     setAddTaskOpen(true);
                     break;
@@ -304,6 +303,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 case "note":
                     setAddNoteOpen(true);
                     break;
+                case "find_duplicates":
+                    void duplicates.findDuplicates();
+                    break;
                 case "delete":
                     deleteLead.requestDelete();
                     break;
@@ -311,7 +313,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     break;
             }
         },
-        [deleteLead, nav],
+        [deleteLead, duplicates, nav],
     );
 
     const handleTemplateSelect = useCallback(
@@ -451,6 +453,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         qualificationAnswered={qualificationProgress.answered}
                         qualificationTotal={qualificationProgress.total}
                         canDelete={props.deleteLeadPermission !== "none"}
+                        canFindDuplicates={duplicates.canMerge}
+                        canEditOwner={props.editLeadPermission !== "none"}
                         onStatusChange={(key) => void changeStatus(key)}
                         statusSaving={statusSaving}
                         onOpenAnswers={() => nav.setAnswersOpen(true)}
@@ -465,6 +469,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <div className="v2-grid">
                         <div>
+                            {duplicates.visible && (
+                                <DuplicateLeadsCard
+                                    leadId={lead.id}
+                                    duplicates={duplicates.duplicates}
+                                    isLoading={duplicates.isLoading}
+                                    onDismiss={duplicates.dismiss}
+                                    onMerged={() => void duplicates.invalidate()}
+                                />
+                            )}
+
                             {showAiSummary && (
                                 <AiSummaryCard
                                     leadId={lead.id}
@@ -515,13 +529,20 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             </WorkspaceCard>
                         </div>
 
-                        <LeadDossier
-                            lead={lead}
-                            onOpenLeadInfo={() => {
-                                nav.setInfoSection("personal");
-                                nav.setTab("leadinfo");
-                            }}
-                        />
+                        <div className="v2-dossier-column">
+                            <DossierQuickActions
+                                onLogAction={() => setLogActionOpen(true)}
+                                onAddNote={() => setAddNoteOpen(true)}
+                                onScheduleMeeting={() => setAddMeetingOpen(true)}
+                            />
+                            <LeadDossier
+                                lead={lead}
+                                onOpenLeadInfo={() => {
+                                    nav.setInfoSection("personal");
+                                    nav.setTab("leadinfo");
+                                }}
+                            />
+                        </div>
                     </div>
                 </div>
             </div>
@@ -605,6 +626,15 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         }
                     })
                 }
+            />
+
+            <LogActionModal
+                open={logActionOpen}
+                onClose={() => setLogActionOpen(false)}
+                onSuccess={() => setLogActionOpen(false)}
+                modelType={LEAD_TIMELINE_MODEL_TYPE}
+                modelId={lead.id}
+                userId={page.props.auth?.user?.id}
             />
 
             <AddNoteModal
@@ -705,38 +735,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     submit: td("Schedule"),
                 }}
             />
-
-            {reassignOpen && (
-                <div
-                    className="modal-overlay redesign-modal-overlay"
-                    onClick={() => !reassignSaving && setReassignOpen(false)}
-                    role="presentation"
-                >
-                    <div
-                        className="modal-panel"
-                        style={{ maxWidth: 360 }}
-                        onClick={(e) => e.stopPropagation()}
-                        role="dialog"
-                        aria-modal="true"
-                        aria-label={td("Reassign owner")}
-                    >
-                        <div style={{ padding: "16px 18px" }}>
-                            <h3 style={{ margin: "0 0 12px", fontSize: 15 }}>
-                                {td("Reassign owner")}
-                            </h3>
-                            <AgentPicker
-                                autoFocus
-                                pendingId={pendingAgentId}
-                                onPick={(agent) => {
-                                    void reassign(agent).then(() =>
-                                        setReassignOpen(false),
-                                    );
-                                }}
-                            />
-                        </div>
-                    </div>
-                </div>
-            )}
 
             <LeadMeetingDetailModal
                 meeting={detailMeeting}

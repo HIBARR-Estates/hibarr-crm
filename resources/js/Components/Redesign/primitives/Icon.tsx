@@ -188,6 +188,12 @@ const ICON_PATHS: Record<string, ReactNode> = {
             <polyline points="21 15 16 10 5 21" />
         </>
     ),
+    camera: (
+        <>
+            <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+            <circle cx="12" cy="13" r="4" />
+        </>
+    ),
     archive: (
         <>
             <polyline points="21 8 21 21 3 21 3 8" />

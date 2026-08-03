@@ -47,12 +47,6 @@ export const DOSSIER_SECTIONS: DossierSectionDef[] = [
             { key: "email", label: "Email" },
             { key: "source", label: "Source" },
             { key: "category", label: "Category" },
-            {
-                key: "leadValue",
-                label: "Lead value",
-                tone: "green",
-                placeholder: "Not set",
-            },
         ],
     },
     {

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { Button, EmptyState, Icon } from "@/Components/Redesign";
-import type { Deal } from "@/Types/api/deals";
 import {
     DealWorkspaceProvider,
     useDealWorkspace,
@@ -24,8 +23,7 @@ function ItineraryWorkspaceContent({ canEdit }: { canEdit: boolean }) {
                 item.id === deal.id
                     ? {
                           ...item,
-                          lead_flight_itineraries:
-                              deal.lead_flight_itineraries,
+                          lead_flight_itineraries: deal.lead_flight_itineraries,
                       }
                     : item,
             ),
@@ -42,14 +40,26 @@ function ItineraryWorkspaceContent({ canEdit }: { canEdit: boolean }) {
 }
 
 function ItineraryForDeal({
-    deal,
+    dealId,
     canEdit,
 }: {
-    deal: Deal;
+    dealId: number;
     canEdit: boolean;
 }) {
+    const { deals } = useLeadWorkspace();
+
+    // Seed the nested Deal workspace once per deal id. Re-feeding a new deal
+    // object on every LeadWorkspace itinerary sync was resetting the provider
+    // and wiping legs that had just been appended.
+    const seedDeal = useMemo(() => {
+        return deals.find((deal) => deal.id === dealId) ?? deals[0];
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally seed on deal switch only
+    }, [dealId]);
+
+    if (!seedDeal) return null;
+
     return (
-        <DealWorkspaceProvider deal={deal}>
+        <DealWorkspaceProvider key={dealId} deal={seedDeal}>
             <ItineraryWorkspaceContent canEdit={canEdit} />
         </DealWorkspaceProvider>
     );
@@ -129,7 +139,7 @@ export default function ItineraryTab({
                 </div>
             )}
             {selectedDeal && (
-                <ItineraryForDeal deal={selectedDeal} canEdit={canEdit} />
+                <ItineraryForDeal dealId={selectedDeal.id} canEdit={canEdit} />
             )}
         </div>
     );

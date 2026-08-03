@@ -65,15 +65,12 @@ export function getDossierFieldValue(lead: Lead, key: AnyFieldKey): string {
             return asString(l.salutation_value ?? l.salutation);
         case "mobile":
             return asString(l.mobile_with_phonecode || l.mobile);
+        case "office":
+            return asString(l.office_phone_formatted || l.office);
         case "email":
             return asString(l.client_email ?? l.email);
         case "whatsapp":
-            return asString(
-                l.client_whatsapp ||
-                    l.whatsapp ||
-                    l.mobile_with_phonecode ||
-                    l.mobile,
-            );
+            return asString(l.client_whatsapp || l.whatsapp);
         case "telegram":
             return asString(l.client_telegram ?? l.telegram);
         case "instagram":
@@ -125,8 +122,14 @@ export function getDossierFieldValue(lead: Lead, key: AnyFieldKey): string {
             return asString(l.occupation);
         case "companyName":
             return asString(l.company_name);
+        case "address":
+            return asString(l.address);
+        case "postalCode":
+            return asString(l.postal_code);
         case "city":
             return asString(l.city);
+        case "state":
+            return asString(l.state);
         case "country":
             return asString(
                 (l.country as { nicename?: string })?.nicename || l.country,

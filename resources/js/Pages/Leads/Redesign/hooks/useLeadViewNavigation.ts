@@ -36,6 +36,10 @@ function getInitialLeadInfoSection(
         const section = new URLSearchParams(window.location.search).get(
             "section",
         );
+        // Legacy contact/attribution sections were merged into Profile.
+        if (section === "contact" || section === "attribution") {
+            return DEFAULT_INFO_SECTION;
+        }
         if (section && isValidLeadInfoSection(section, categories)) {
             return section;
         }

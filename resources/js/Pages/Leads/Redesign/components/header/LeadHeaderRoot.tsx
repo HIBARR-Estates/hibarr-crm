@@ -6,6 +6,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ResolvedLifecycle } from "../../adapters/lifecycleAdapter";
 import type { MoreMenuActionId } from "../../config/moreMenuItems";
 import LeadAvatarButton from "./LeadAvatarButton";
+import LeadOwnerCard from "./LeadOwnerCard";
 import LifecycleBanner from "./LifecycleBanner";
 import MoreMenu from "./MoreMenu";
 import StatusDropdown, { type LeadStatusOption } from "./StatusDropdown";
@@ -23,6 +24,8 @@ interface LeadHeaderRootProps {
     qualificationAnswered?: number;
     qualificationTotal?: number;
     canDelete?: boolean;
+    canFindDuplicates?: boolean;
+    canEditOwner?: boolean;
     onStatusChange: (key: string) => void;
     statusSaving?: boolean;
     onOpenAnswers?: () => void;
@@ -35,13 +38,14 @@ export default function LeadHeaderRoot({
     lead,
     lifecycle,
     statuses,
-    valueLabel,
     answerCount = 0,
     firstName,
     templateName,
     qualificationAnswered,
     qualificationTotal,
     canDelete = true,
+    canFindDuplicates = false,
+    canEditOwner = true,
     onStatusChange,
     statusSaving = false,
     onOpenAnswers,
@@ -51,8 +55,6 @@ export default function LeadHeaderRoot({
 }: LeadHeaderRootProps) {
     const { td } = useTd();
 
-    const ownerName = lead.lead_owner?.name ?? td("Unassigned");
-    const ownerInitials = initialsFromName(lead.lead_owner?.name);
     const createdAgo = lead.created_at
         ? dayjs(lead.created_at).fromNow()
         : null;
@@ -80,6 +82,7 @@ export default function LeadHeaderRoot({
             >
                 <LeadAvatarButton
                     name={lead.client_name ?? ""}
+                    image={lead.image}
                     imageUrl={lead.image_url}
                     initials={initialsFromName(lead.client_name)}
                 />
@@ -104,20 +107,6 @@ export default function LeadHeaderRoot({
                             onSelect={onStatusChange}
                             saving={statusSaving}
                         />
-                        {valueLabel ? (
-                            <span className="v2-pill v2-pill-green">
-                                {valueLabel}
-                            </span>
-                        ) : (
-                            <span
-                                style={{
-                                    fontSize: 12,
-                                    color: "var(--lr-text-dim)",
-                                }}
-                            >
-                                {td("Value not set")}
-                            </span>
-                        )}
                         {answerCount > 0 && onOpenAnswers && (
                             <button
                                 type="button"
@@ -134,6 +123,11 @@ export default function LeadHeaderRoot({
                                 </span>
                             </button>
                         )}
+                        <MoreMenu
+                            onAction={onMoreAction}
+                            canDelete={canDelete}
+                            canFindDuplicates={canFindDuplicates}
+                        />
                     </div>
                     <div
                         style={{
@@ -146,58 +140,7 @@ export default function LeadHeaderRoot({
                     </div>
                 </div>
 
-                <div
-                    style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        background: "var(--lr-surface)",
-                        border: "1px solid var(--lr-border)",
-                        borderRadius: 10,
-                        padding: "8px 12px 8px 8px",
-                    }}
-                >
-                    <div
-                        style={{
-                            width: 36,
-                            height: 36,
-                            borderRadius: "50%",
-                            background: "var(--lr-navy)",
-                            color: "var(--lr-white)",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            fontSize: 12,
-                            fontWeight: 700,
-                            flexShrink: 0,
-                        }}
-                    >
-                        {ownerInitials}
-                    </div>
-                    <div>
-                        <div
-                            style={{
-                                fontSize: 10,
-                                fontWeight: 700,
-                                letterSpacing: "0.06em",
-                                textTransform: "uppercase",
-                                color: "var(--lr-text-dim)",
-                            }}
-                        >
-                            {td("Lead owner")}
-                        </div>
-                        <div
-                            style={{
-                                fontSize: 14,
-                                fontWeight: 650,
-                                color: "var(--lr-text)",
-                            }}
-                        >
-                            {ownerName}
-                        </div>
-                    </div>
-                    <MoreMenu onAction={onMoreAction} canDelete={canDelete} />
-                </div>
+                <LeadOwnerCard lead={lead} canEdit={canEditOwner} />
             </header>
 
             <LifecycleBanner

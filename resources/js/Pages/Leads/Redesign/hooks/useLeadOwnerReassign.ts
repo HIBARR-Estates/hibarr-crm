@@ -43,14 +43,19 @@ async function resolveUserIdFromAgent(agent: AgentOption): Promise<number> {
 }
 
 /**
- * AgentPicker selection → patch `lead_owner` (user id).
+ * AgentPicker selection → patch `lead_owner` (user id). Pass null to unassign.
  */
 export default function useLeadOwnerReassign() {
     const { updateField, updatingField } = useLeadFieldUpdate();
     const [pendingAgentId, setPendingAgentId] = useState<number | null>(null);
 
     const reassign = useCallback(
-        async (agent: AgentOption) => {
+        async (agent: AgentOption | null) => {
+            if (agent === null) {
+                await updateField("lead_owner", null);
+                return;
+            }
+
             setPendingAgentId(agent.id);
             try {
                 const userId = await resolveUserIdFromAgent(agent);

@@ -104,7 +104,31 @@ export function LeadWorkspaceProvider({
     }, [leadFollowUpsProp]);
 
     useEffect(() => {
-        if (dealsProp !== undefined) setDeals(dealsProp);
+        if (dealsProp === undefined) return;
+        // Merge server deals with any locally patched itineraries so an Inertia
+        // prop refresh (or a deals payload that omitted lead_flight_itineraries)
+        // cannot wipe flights the itinerary tab just added.
+        setDeals((prev) => {
+            if (prev.length === 0) return dealsProp;
+
+            const localById = new Map(prev.map((deal) => [deal.id, deal]));
+            return dealsProp.map((deal) => {
+                const local = localById.get(deal.id);
+                if (!local) return deal;
+
+                const propLegs = deal.lead_flight_itineraries;
+                const localLegs = local.lead_flight_itineraries;
+                if (
+                    (propLegs === undefined || propLegs.length === 0) &&
+                    localLegs &&
+                    localLegs.length > 0
+                ) {
+                    return { ...deal, lead_flight_itineraries: localLegs };
+                }
+
+                return deal;
+            });
+        });
     }, [dealsProp]);
 
     const addNote = useCallback((note: LeadNote) => {

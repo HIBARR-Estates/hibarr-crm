@@ -33,6 +33,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $salutation
  * @property string $client_name
  * @property string $client_email
+ * @property string|null $image
  * @property string|null $mobile
  * @property string|null $cell
  * @property string|null $office
@@ -163,6 +164,10 @@ class Lead extends BaseModel
 
     public function getImageUrlAttribute()
     {
+        if (!empty($this->image)) {
+            return asset_url_local_s3('lead-avatar/' . $this->image);
+        }
+
         $gravatarHash = !is_null($this->client_email) ? md5(strtolower(trim($this->client_email))) : '';
 
         return 'https://www.gravatar.com/avatar/' . $gravatarHash . '.png?s=200&d=mp';

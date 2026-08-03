@@ -6,6 +6,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\LeadContactDataTable;
 use App\DataTables\LeadNotesDataTable;
 use App\Enums\Salutation;
+use App\Helper\Files;
 use App\Helper\Reply;
 use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
@@ -208,13 +209,14 @@ class LeadContactController extends AccountBaseController
 
         $this->activeTab = $tab ?: 'profile';
 
-        // Shell: deals for header/summary + schedule-meeting picker
+        // Shell: deals for header/summary + schedule-meeting picker + itinerary tab
         $deals = Deal::where('lead_id', $id)
             ->with([
                 'leadAgent.user',
                 'leadStage:id,name,label_color',
                 'pipeline:id,name',
                 'currency',
+                'leadFlightItineraries',
             ])
             ->get()
             ->map(function ($deal) {
@@ -834,6 +836,15 @@ class LeadContactController extends AccountBaseController
             if ($request->has('office')) {
                 $leadContact->office = $request->office;
             }
+            if ($request->has('client_whatsapp')) {
+                $leadContact->client_whatsapp = $request->client_whatsapp;
+            }
+            if ($request->has('client_telegram')) {
+                $leadContact->client_telegram = $request->client_telegram;
+            }
+            if ($request->has('client_instagram')) {
+                $leadContact->client_instagram = $request->client_instagram;
+            }
             
             // Handle mobile with special formatting if needed
             if ($request->has('mobile')) {
@@ -1021,6 +1032,7 @@ class LeadContactController extends AccountBaseController
                 // Add only the fields that were in the request
                 $allowedFields = [
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
+                    'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
@@ -1115,6 +1127,69 @@ class LeadContactController extends AccountBaseController
             
 
             
+        }
+    }
+
+    /**
+     * Upload / replace the lead contact avatar image.
+     */
+    public function uploadImage(Request $request, $id)
+    {
+        $leadContact = Lead::findOrFail($id);
+
+        $access = PermissionService::checkAccess(user(), 'edit_lead', $leadContact, [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ]);
+
+        if (!$access['canAccess']) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'fail',
+                    'message' => __('messages.permissionDenied'),
+                ], 403);
+            }
+
+            abort(403);
+        }
+
+        $request->validate([
+            'image' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:5120',
+        ]);
+
+        try {
+            if (!empty($leadContact->image)) {
+                Files::deleteFile($leadContact->image, 'lead-avatar');
+            }
+
+            $leadContact->image = Files::uploadLocalOrS3(
+                $request->file('image'),
+                'lead-avatar',
+                300,
+            );
+            $leadContact->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('messages.updateSuccess') ?: 'Lead photo updated',
+                'data' => [
+                    'lead' => [
+                        'id' => $leadContact->id,
+                        'image' => $leadContact->image,
+                        'image_url' => $leadContact->image_url,
+                    ],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lead image upload failed: ' . $e->getMessage(), [
+                'lead_id' => $id,
+                'user_id' => user()->id,
+            ]);
+
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Failed to update lead photo',
+            ], 500);
         }
     }
 

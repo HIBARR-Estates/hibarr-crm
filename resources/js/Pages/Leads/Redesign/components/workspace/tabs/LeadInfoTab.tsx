@@ -70,7 +70,7 @@ export default function LeadInfoTab({
     const navGroups = useMemo(
         () => [
             {
-                label: "Lead profile",
+                label: "Overview",
                 items: LEAD_INFO_CORE_SECTIONS.map((section) => {
                     const completionKeys = section.fields
                         .filter((field) => !field.readOnly)

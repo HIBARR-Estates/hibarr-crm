@@ -10,6 +10,7 @@ import { formatMobileForDisplay } from "@/lib/utils";
 import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
 import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
+import DealInfoGroupTitle from "@/Pages/Deals/Redesign/components/deal-info/DealInfoGroupTitle";
 import type { Lead } from "@/Types/api/leads";
 import { getDossierFieldValue } from "../../adapters/dossierAdapter";
 import {
@@ -170,294 +171,402 @@ export default function LeadInfoSectionPanel({
         coreSection?.subtitle ||
         "Click any field to edit, or switch the whole section into edit mode";
 
-    const renderContact = () => (
-        <FieldGrid>
-            <DetailField
-                label={t("pages.leads.info.fields.mobile")}
-                copyValue={
-                    resolvePhoneValue(
-                        lead.mobile,
-                        lead.mobile_with_phonecode,
-                    ) || undefined
-                }
-            >
-                <DealEditableField
-                    value={resolvePhoneValue(
-                        lead.mobile,
-                        lead.mobile_with_phonecode,
-                    )}
-                    fieldName="mobile"
-                    fieldType="phone"
-                    onSave={(value) => onFieldUpdate("mobile", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    placeholder={t("pages.leads.info.placeholders.mobile")}
-                    loading={isFieldLoading("mobile")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField
-                label={t("pages.leads.info.fields.email")}
-                copyValue={lead.client_email || undefined}
-            >
-                <DealEditableField
-                    value={lead.client_email || ""}
-                    fieldName="client_email"
-                    fieldType="email"
-                    onSave={(value) => onFieldUpdate("client_email", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    placeholder={t("pages.leads.info.placeholders.email")}
-                    loading={isFieldLoading("client_email")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={td("WhatsApp")}>
-                <span className="text-[13px] text-[#0f172a]">
-                    {getDossierFieldValue(lead, "whatsapp") || (
-                        <span className="italic text-gray-400">--</span>
-                    )}
-                </span>
-            </DetailField>
-            <DetailField label={td("Telegram")}>
-                <span className="text-[13px] text-[#0f172a]">
-                    {getDossierFieldValue(lead, "telegram") || (
-                        <span className="italic text-gray-400">--</span>
-                    )}
-                </span>
-            </DetailField>
-            <DetailField label={td("Instagram")}>
-                <span className="text-[13px] text-[#0f172a]">
-                    {getDossierFieldValue(lead, "instagram") || (
-                        <span className="italic text-gray-400">--</span>
-                    )}
-                </span>
-            </DetailField>
-        </FieldGrid>
-    );
-
     const renderPersonal = () => (
-        <FieldGrid>
-            <DetailField
-                label={td("Lead name")}
-                span={2}
-                useContainerQuery
-            >
-                <DealEditableField
-                    value={lead.client_name || ""}
-                    fieldName="client_name"
-                    fieldType="text"
-                    onSave={(value) => onFieldUpdate("client_name", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("client_name")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={td("Salutation")}>
-                <DealEditableField
-                    value={lead.salutation || ""}
-                    fieldName="salutation"
-                    selectorType="salutations"
-                    displayValue={
-                        getDossierFieldValue(lead, "salutation") ? (
-                            <span className="capitalize">
-                                {getDossierFieldValue(lead, "salutation")}
-                            </span>
-                        ) : undefined
-                    }
-                    onSave={(value) => onFieldUpdate("salutation", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("salutation")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={td("Age")}>
-                <DealEditableField
-                    value={lead.age ?? ""}
-                    fieldName="age"
-                    fieldType="number"
-                    displayValue={
-                        getDossierFieldValue(lead, "age") || undefined
-                    }
-                    onSave={(value) => onFieldUpdate("age", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("age")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={td("Nationality")}>
-                <DealEditableField
-                    value={(lead as any).nationality || ""}
-                    fieldName="nationality"
-                    fieldType="country"
-                    onSave={(value) => onFieldUpdate("nationality", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("nationality")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={t("pages.leads.info.fields.gender")}>
-                <DealEditableField
-                    value={lead.gender || ""}
-                    fieldName="gender"
-                    fieldType="select"
-                    options={[
-                        {
-                            label: t("pages.leads.info.fields.gender_male"),
-                            value: "male",
-                        },
-                        {
-                            label: t("pages.leads.info.fields.gender_female"),
-                            value: "female",
-                        },
-                    ]}
-                    displayValue={
-                        lead.gender ? (
-                            <span className="capitalize">{lead.gender}</span>
-                        ) : undefined
-                    }
-                    onSave={(value) => onFieldUpdate("gender", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("gender")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={td("Languages")}>
-                <DealEditableField
-                    value={(lead as any).languages || []}
-                    fieldName="languages"
-                    fieldType="multiselect"
-                    options={languageOptions}
-                    displayValue={
-                        Array.isArray((lead as any).languages) &&
-                        (lead as any).languages.length ? (
-                            <span>
-                                {(lead as any).languages
-                                    .map((code: string) =>
-                                        resolveLanguageLabel(String(code)),
-                                    )
-                                    .join(", ")}
-                            </span>
-                        ) : undefined
-                    }
-                    onSave={(value) => onFieldUpdate("languages", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("languages")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={td("Occupation")}>
-                <DealEditableField
-                    value={(lead as any).occupation || ""}
-                    fieldName="occupation"
-                    fieldType="text"
-                    onSave={(value) => onFieldUpdate("occupation", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("occupation")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={t("pages.leads.info.fields.company")}>
-                <DealEditableField
-                    value={lead.company_name || ""}
-                    fieldName="company_name"
-                    fieldType="text"
-                    onSave={(value) => onFieldUpdate("company_name", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    placeholder={t("pages.leads.info.placeholders.company")}
-                    loading={isFieldLoading("company_name")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={t("pages.leads.info.fields.city")}>
-                <DealEditableField
-                    value={lead.city || ""}
-                    fieldName="city"
-                    fieldType="text"
-                    onSave={(value) => onFieldUpdate("city", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    placeholder={t("pages.leads.info.placeholders.city")}
-                    loading={isFieldLoading("city")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={t("pages.leads.info.fields.country")}>
-                <DealEditableField
-                    value={lead.country || ""}
-                    fieldName="country"
-                    fieldType="country"
-                    onSave={(value) => onFieldUpdate("country", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    placeholder={t("pages.leads.info.placeholders.country")}
-                    loading={isFieldLoading("country")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-        </FieldGrid>
-    );
+        <>
+            <DealInfoGroupTitle>{td("Profile")}</DealInfoGroupTitle>
+            <FieldGrid>
+                <DetailField label={td("Salutation")}>
+                    <DealEditableField
+                        value={lead.salutation || ""}
+                        fieldName="salutation"
+                        selectorType="salutations"
+                        displayValue={
+                            getDossierFieldValue(lead, "salutation") ? (
+                                <span className="capitalize">
+                                    {getDossierFieldValue(lead, "salutation")}
+                                </span>
+                            ) : undefined
+                        }
+                        onSave={(value) => onFieldUpdate("salutation", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("salutation")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("Full name")}>
+                    <DealEditableField
+                        value={lead.client_name || ""}
+                        fieldName="client_name"
+                        fieldType="text"
+                        onSave={(value) => onFieldUpdate("client_name", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("client_name")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("Age")}>
+                    <DealEditableField
+                        value={lead.age ?? ""}
+                        fieldName="age"
+                        fieldType="number"
+                        displayValue={
+                            getDossierFieldValue(lead, "age") || undefined
+                        }
+                        onSave={(value) => onFieldUpdate("age", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("age")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("Nationality")}>
+                    <DealEditableField
+                        value={(lead as any).nationality || ""}
+                        fieldName="nationality"
+                        fieldType="country"
+                        onSave={(value) => onFieldUpdate("nationality", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("nationality")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.gender")}>
+                    <DealEditableField
+                        value={lead.gender || ""}
+                        fieldName="gender"
+                        fieldType="select"
+                        options={[
+                            {
+                                label: t("pages.leads.info.fields.gender_male"),
+                                value: "male",
+                            },
+                            {
+                                label: t(
+                                    "pages.leads.info.fields.gender_female",
+                                ),
+                                value: "female",
+                            },
+                        ]}
+                        displayValue={
+                            lead.gender ? (
+                                <span className="capitalize">
+                                    {lead.gender}
+                                </span>
+                            ) : undefined
+                        }
+                        onSave={(value) => onFieldUpdate("gender", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("gender")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("Languages")}>
+                    <DealEditableField
+                        value={(lead as any).languages || []}
+                        fieldName="languages"
+                        fieldType="multiselect"
+                        options={languageOptions}
+                        displayValue={
+                            Array.isArray((lead as any).languages) &&
+                            (lead as any).languages.length ? (
+                                <span>
+                                    {(lead as any).languages
+                                        .map((code: string) =>
+                                            resolveLanguageLabel(String(code)),
+                                        )
+                                        .join(", ")}
+                                </span>
+                            ) : undefined
+                        }
+                        onSave={(value) => onFieldUpdate("languages", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("languages")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("Occupation")}>
+                    <DealEditableField
+                        value={(lead as any).occupation || ""}
+                        fieldName="occupation"
+                        fieldType="text"
+                        onSave={(value) => onFieldUpdate("occupation", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("occupation")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.company")}>
+                    <DealEditableField
+                        value={lead.company_name || ""}
+                        fieldName="company_name"
+                        fieldType="text"
+                        onSave={(value) =>
+                            onFieldUpdate("company_name", value)
+                        }
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t(
+                            "pages.leads.info.placeholders.company",
+                        )}
+                        loading={isFieldLoading("company_name")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+            </FieldGrid>
 
-    const renderAttribution = () => (
-        <FieldGrid>
-            <DetailField label={t("pages.leads.info.fields.lead_source")}>
-                <DealEditableField
-                    value={lead.source_id || null}
-                    fieldName="source_id"
-                    selectorType="sources"
-                    displayValue={
-                        getDossierFieldValue(lead, "source") ? (
-                            <span className="text-gray-700">
-                                {getDossierFieldValue(lead, "source")}
-                            </span>
-                        ) : (
-                            <span className="italic text-gray-400">--</span>
-                        )
+            <DealInfoGroupTitle>{td("Contact")}</DealInfoGroupTitle>
+            <FieldGrid>
+                <DetailField
+                    label={t("pages.leads.info.fields.email")}
+                    copyValue={lead.client_email || undefined}
+                >
+                    <DealEditableField
+                        value={lead.client_email || ""}
+                        fieldName="client_email"
+                        fieldType="email"
+                        onSave={(value) =>
+                            onFieldUpdate("client_email", value)
+                        }
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t("pages.leads.info.placeholders.email")}
+                        loading={isFieldLoading("client_email")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField
+                    label={t("pages.leads.info.fields.mobile")}
+                    copyValue={
+                        resolvePhoneValue(
+                            lead.mobile,
+                            lead.mobile_with_phonecode,
+                        ) || undefined
                     }
-                    onSave={(value) => onFieldUpdate("source_id", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("source_id")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={t("pages.leads.info.fields.category")}>
-                <DealEditableField
-                    value={lead.category_id || null}
-                    fieldName="category_id"
-                    selectorType="categories"
-                    displayValue={
-                        lead.category?.category_name ? (
-                            <span className="text-gray-700">
-                                {lead.category.category_name}
-                            </span>
-                        ) : (
-                            <span className="italic text-gray-400">--</span>
-                        )
+                >
+                    <DealEditableField
+                        value={resolvePhoneValue(
+                            lead.mobile,
+                            lead.mobile_with_phonecode,
+                        )}
+                        fieldName="mobile"
+                        fieldType="phone"
+                        onSave={(value) => onFieldUpdate("mobile", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t("pages.leads.info.placeholders.mobile")}
+                        loading={isFieldLoading("mobile")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField
+                    label={t("pages.leads.info.fields.office_phone")}
+                    copyValue={
+                        resolvePhoneValue(
+                            lead.office,
+                            lead.office_phone_formatted,
+                        ) || undefined
                     }
-                    onSave={(value) => onFieldUpdate("category_id", value)}
-                    alwaysEditing={editing}
-                    onChange={handleFieldChange}
-                    loading={isFieldLoading("category_id")}
-                    disabled={!canEdit}
-                />
-            </DetailField>
-            <DetailField label={t("pages.leads.info.fields.added_by")}>
-                <span className="text-[13px] text-[#0f172a]">
-                    {getDossierFieldValue(lead, "addedBy") || (
-                        <span className="italic text-gray-400">--</span>
-                    )}
-                </span>
-            </DetailField>
-        </FieldGrid>
+                >
+                    <DealEditableField
+                        value={resolvePhoneValue(
+                            lead.office,
+                            lead.office_phone_formatted,
+                        )}
+                        fieldName="office"
+                        fieldType="phone"
+                        onSave={(value) => onFieldUpdate("office", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t(
+                            "pages.leads.info.placeholders.office_phone",
+                        )}
+                        loading={isFieldLoading("office")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("WhatsApp")}>
+                    <DealEditableField
+                        value={lead.client_whatsapp || ""}
+                        fieldName="client_whatsapp"
+                        fieldType="text"
+                        onSave={(value) =>
+                            onFieldUpdate("client_whatsapp", value)
+                        }
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={td("WhatsApp number or username")}
+                        loading={isFieldLoading("client_whatsapp")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("Telegram")}>
+                    <DealEditableField
+                        value={lead.client_telegram || ""}
+                        fieldName="client_telegram"
+                        fieldType="text"
+                        onSave={(value) =>
+                            onFieldUpdate("client_telegram", value)
+                        }
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={td("Telegram username")}
+                        loading={isFieldLoading("client_telegram")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={td("Instagram")}>
+                    <DealEditableField
+                        value={lead.client_instagram || ""}
+                        fieldName="client_instagram"
+                        fieldType="text"
+                        onSave={(value) =>
+                            onFieldUpdate("client_instagram", value)
+                        }
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={td("Instagram username")}
+                        loading={isFieldLoading("client_instagram")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+            </FieldGrid>
+
+            <DealInfoGroupTitle>{td("Address")}</DealInfoGroupTitle>
+            <FieldGrid>
+                <DetailField
+                    label={td("Street address")}
+                    span={2}
+                    useContainerQuery
+                >
+                    <DealEditableField
+                        value={lead.address || ""}
+                        fieldName="address"
+                        fieldType="textarea"
+                        onSave={(value) => onFieldUpdate("address", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={td("Street, building, unit…")}
+                        loading={isFieldLoading("address")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.postal_code")}>
+                    <DealEditableField
+                        value={lead.postal_code || ""}
+                        fieldName="postal_code"
+                        fieldType="text"
+                        onSave={(value) => onFieldUpdate("postal_code", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t(
+                            "pages.leads.info.placeholders.postal_code",
+                        )}
+                        loading={isFieldLoading("postal_code")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.city")}>
+                    <DealEditableField
+                        value={lead.city || ""}
+                        fieldName="city"
+                        fieldType="text"
+                        onSave={(value) => onFieldUpdate("city", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t("pages.leads.info.placeholders.city")}
+                        loading={isFieldLoading("city")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.state")}>
+                    <DealEditableField
+                        value={lead.state || ""}
+                        fieldName="state"
+                        fieldType="text"
+                        onSave={(value) => onFieldUpdate("state", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t("pages.leads.info.placeholders.state")}
+                        loading={isFieldLoading("state")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.country")}>
+                    <DealEditableField
+                        value={lead.country || ""}
+                        fieldName="country"
+                        fieldType="country"
+                        onSave={(value) => onFieldUpdate("country", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        placeholder={t(
+                            "pages.leads.info.placeholders.country",
+                        )}
+                        loading={isFieldLoading("country")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+            </FieldGrid>
+
+            <DealInfoGroupTitle>{td("Attribution")}</DealInfoGroupTitle>
+            <FieldGrid>
+                <DetailField label={t("pages.leads.info.fields.lead_source")}>
+                    <DealEditableField
+                        value={lead.source_id || null}
+                        fieldName="source_id"
+                        selectorType="sources"
+                        displayValue={
+                            getDossierFieldValue(lead, "source") ? (
+                                <span className="text-gray-700">
+                                    {getDossierFieldValue(lead, "source")}
+                                </span>
+                            ) : (
+                                <span className="italic text-gray-400">--</span>
+                            )
+                        }
+                        onSave={(value) => onFieldUpdate("source_id", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("source_id")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.category")}>
+                    <DealEditableField
+                        value={lead.category_id || null}
+                        fieldName="category_id"
+                        selectorType="categories"
+                        displayValue={
+                            lead.category?.category_name ? (
+                                <span className="text-gray-700">
+                                    {lead.category.category_name}
+                                </span>
+                            ) : (
+                                <span className="italic text-gray-400">--</span>
+                            )
+                        }
+                        onSave={(value) => onFieldUpdate("category_id", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("category_id")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField label={t("pages.leads.info.fields.added_by")}>
+                    <span className="text-[13px] text-[#0f172a]">
+                        {getDossierFieldValue(lead, "addedBy") || (
+                            <span className="italic text-gray-400">--</span>
+                        )}
+                    </span>
+                </DetailField>
+            </FieldGrid>
+        </>
     );
 
     const renderCategorySection = () => {
@@ -489,10 +598,6 @@ export default function LeadInfoSectionPanel({
         switch (sectionId) {
             case "personal":
                 return renderPersonal();
-            case "contact":
-                return renderContact();
-            case "attribution":
-                return renderAttribution();
             default:
                 return null;
         }

@@ -616,6 +616,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('lead-contact/{lead_contact}/edit', [LeadContactController::class, 'edit'])->name('lead-contact.edit');
     Route::put('lead-contact/{lead_contact}', [LeadContactController::class, 'update'])->name('lead-contact.update');
     Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    Route::post('lead-contact/{lead_contact}/image', [LeadContactController::class, 'uploadImage'])->name('lead-contact.upload-image');
     Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
 
     // Lead qualification routes
