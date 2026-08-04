@@ -306,7 +306,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     if (latest?.id) {
                         router.visit(route("deals.show", latest.id));
                     } else if (deals.length > 0) {
-                        nav.setActiveTab("deals");
+                        nav.setTab("deals");
                     }
                     break;
                 }
@@ -456,9 +456,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     />
                 );
             case "itinerary":
-                return (
-                    <ItineraryTab onCreateDeal={() => setCreateDealOpen(true)} />
-                );
+                return <ItineraryTab />;
             case "timeline":
                 return (
                     <TimelineTab
@@ -492,7 +490,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             title={pageTitle}
             breadcrumbs={[
                 {
-                    name: t("pages.leads.contacts"),
+                    name: t("app.menu.lead"),
                     url: route("lead-contact.index"),
                 },
                 { name: pageTitle },

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import DealIcon from "@/Pages/Deals/Redesign/components/primitives/DealIcon";
+import { isMeaningfulDossierValue } from "../../adapters/dossierAdapter";
 
 interface DossierFieldProps {
     value: string;
@@ -38,8 +39,9 @@ export default function DossierField({
     const [copied, setCopied] = useState(false);
     const [copyFailed, setCopyFailed] = useState(false);
     const timerRef = useRef<number | null>(null);
-    const empty = !value.trim();
+    const empty = !isMeaningfulDossierValue(value);
     const resolvedPlaceholder = td(placeholder);
+    // Never show the copy icon for empty / placeholder / invalid display values.
     const canCopy = copyable && !empty;
 
     useEffect(() => {
@@ -57,22 +59,26 @@ export default function DossierField({
         } else {
             setCopied(false);
             setCopyFailed(true);
-            timerRef.current = window.setTimeout(() => setCopyFailed(false), 2000);
+            timerRef.current = window.setTimeout(
+                () => setCopyFailed(false),
+                2000,
+            );
         }
     };
 
     const handleCopy = async () => {
         if (!canCopy) return;
+        const text = value.trim();
         try {
             if (navigator?.clipboard?.writeText) {
-                await navigator.clipboard.writeText(value);
+                await navigator.clipboard.writeText(text);
                 markCopied(true);
                 return;
             }
         } catch {
             /* try fallback */
         }
-        markCopied(fallbackCopy(value));
+        markCopied(fallbackCopy(text));
     };
 
     if (!canCopy) {

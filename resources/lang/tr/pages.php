@@ -37,7 +37,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Kişiler',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Yenilemeden önce değişiklikleri kaydedin veya iptal edin',
         'save_before_tab_switch'   => 'Sekme değiştirmeden önce lütfen değişikliklerinizi kaydedin veya iptal edin.',
         'tabs' => [

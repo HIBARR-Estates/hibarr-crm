@@ -37,7 +37,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Kontakte',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Bitte Änderungen speichern oder abbrechen, bevor Sie aktualisieren',
         'save_before_tab_switch'   => 'Bitte speichern oder brechen Sie Ihre Änderungen ab, bevor Sie den Tab wechseln.',
         'tabs' => [

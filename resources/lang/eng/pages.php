@@ -45,7 +45,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Contacts',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'save_before_tab_switch'   => 'Please save or cancel your changes before switching tabs.',
         'tabs' => [
