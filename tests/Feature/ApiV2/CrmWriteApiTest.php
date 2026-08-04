@@ -128,6 +128,63 @@ class CrmWriteApiTest extends TestCase
         $response->assertStatus(401);
     }
 
+    public function test_list_endpoints_accept_filter_query_params(): void
+    {
+        $this->insertApiToken('test-crm-write-token');
+
+        $headers = [
+            'X-API-TOKEN' => 'test-crm-write-token',
+            'X-COMPANY-ID' => '1',
+        ];
+
+        $query = http_build_query([
+            'search' => 'follow up',
+            'from' => '2026-01-01',
+            'to' => '2026-12-31',
+            'page' => 1,
+            'per_page' => 20,
+        ]);
+
+        foreach (['/api/v2/tasks', '/api/v2/notes', '/api/v2/meetings'] as $endpoint) {
+            $response = $this->getJson($endpoint.'?'.$query, $headers);
+            $this->assertNotEquals(422, $response->status(), $endpoint.' rejected valid list filters');
+            $this->assertContains($response->status(), [200, 500], $endpoint.' unexpected status '.$response->status());
+        }
+    }
+
+    public function test_list_endpoints_reject_non_numeric_created_by_and_owned_by(): void
+    {
+        $this->insertApiToken('test-crm-write-token');
+
+        $headers = [
+            'X-API-TOKEN' => 'test-crm-write-token',
+            'X-COMPANY-ID' => '1',
+        ];
+
+        $this->getJson('/api/v2/tasks?'.http_build_query([
+            'created_by' => 'EMP-42',
+        ]), $headers)->assertStatus(422);
+
+        $this->getJson('/api/v2/tasks?'.http_build_query([
+            'owned_by' => 'EMP-42',
+        ]), $headers)->assertStatus(422);
+    }
+
+    public function test_list_endpoints_reject_invalid_time_range(): void
+    {
+        $this->insertApiToken('test-crm-write-token');
+
+        $response = $this->getJson('/api/v2/tasks?'.http_build_query([
+            'from' => '2026-12-31',
+            'to' => '2026-01-01',
+        ]), [
+            'X-API-TOKEN' => 'test-crm-write-token',
+            'X-COMPANY-ID' => '1',
+        ]);
+
+        $response->assertStatus(422);
+    }
+
     private function ensureApiTokensTable(): void
     {
         if (Schema::hasTable('api_tokens')) {
