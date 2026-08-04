@@ -1,8 +1,12 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
 import { message } from "antd";
+import {
+    AttachmentFileCard,
+    ConfirmDialog,
+    FileDropzone,
+} from "@/Components/Redesign";
 import type { PageProps } from "@/Components/DashboardLayout";
-import { Button, ConfirmDialog, EmptyState, Icon } from "@/Components/Redesign";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -32,7 +36,7 @@ interface FilesTabProps {
 
 /**
  * Lead Files tab — document slots (file custom fields) + freeform multi-upload,
- * mirroring the deal WorkspaceFilesTab pattern.
+ * mirroring the deal WorkspaceFilesTab pattern (shared dropzone + file cards).
  */
 export default function FilesTab({
     fields = [],
@@ -41,8 +45,6 @@ export default function FilesTab({
     const { td } = useTd();
     const { props } = usePage<PageProps>();
     const userId = props.auth?.user?.id;
-    const inputRef = useRef<HTMLInputElement>(null);
-    const [isDragging, setIsDragging] = useState(false);
     const [deleteFile, setDeleteFile] = useState<LeadContactFile | null>(null);
 
     const { lead, files, setFiles, filesLoading } = useLeadWorkspace();
@@ -80,13 +82,6 @@ export default function FilesTab({
         const selected = Array.from(fileList);
         if (selected.length === 0) return;
         await uploadFiles(selected);
-    };
-
-    const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        setIsDragging(false);
-        if (!canEdit) return;
-        await handleFilesSelected(event.dataTransfer.files);
     };
 
     const confirmDelete = () => {
@@ -147,75 +142,16 @@ export default function FilesTab({
             ) : null}
 
             {canEdit ? (
-                <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => !isUploading && inputRef.current?.click()}
-                    onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            inputRef.current?.click();
-                        }
+                <FileDropzone
+                    isUploading={isUploading}
+                    uploadProgress={uploadProgress}
+                    dropHint={td("Drop files here or click to upload")}
+                    uploadingLabel={td("Uploading")}
+                    sizeHint={td("PDF, images, ZIP — max 200 MB")}
+                    onFilesSelected={(fileList) => {
+                        void handleFilesSelected(fileList);
                     }}
-                    onDragOver={(event) => {
-                        event.preventDefault();
-                        setIsDragging(true);
-                    }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={handleDrop}
-                    className={`v2-dropzone mb-3.5 cursor-pointer${
-                        isDragging ? " is-dragging" : ""
-                    }`}
-                >
-                    <input
-                        ref={inputRef}
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={(event) => {
-                            void handleFilesSelected(event.target.files);
-                            event.target.value = "";
-                        }}
-                    />
-                    <Icon
-                        name="paperclip"
-                        size={22}
-                        className="mx-auto mb-1.5 opacity-60"
-                    />
-                    <p className="mb-1 text-[13px] font-medium text-[#1a1f2e]">
-                        {isUploading
-                            ? uploadProgress > 0
-                                ? `${td("Uploading")}… ${uploadProgress}%`
-                                : `${td("Uploading")}…`
-                            : td("Drop files here or click to upload")}
-                    </p>
-                    {isUploading ? (
-                        <div
-                            className="mx-auto mb-2 mt-2 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-[#e5e7eb]"
-                            role="progressbar"
-                            aria-valuenow={uploadProgress}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                        >
-                            <div
-                                className="h-full rounded-full bg-[#1a6bb5] transition-[width] duration-150 ease-out"
-                                style={{
-                                    width:
-                                        uploadProgress > 0
-                                            ? `${uploadProgress}%`
-                                            : "30%",
-                                    animation:
-                                        uploadProgress > 0
-                                            ? undefined
-                                            : "pulse 1s ease-in-out infinite",
-                                }}
-                            />
-                        </div>
-                    ) : null}
-                    <p className="text-[12px] text-[#9ca3af]">
-                        {td("You can select multiple files at once.")}
-                    </p>
-                </div>
+                />
             ) : null}
 
             {filesLoading ? (
@@ -223,59 +159,27 @@ export default function FilesTab({
                     {td("Loading files…")}
                 </p>
             ) : visibleFiles.length === 0 ? (
-                <EmptyState
-                    title={td("No other files")}
-                    description={
-                        slots.length > 0
-                            ? td(
-                                  "Loose uploads appear here. Document slots are listed above.",
-                              )
-                            : td(
-                                  "Upload files related to this lead. They stay on the lead, not on deals.",
-                              )
-                    }
-                />
+                <p className="px-1 text-[13px] italic text-[#9ca3af]">
+                    {td("No files uploaded")}
+                </p>
             ) : (
                 visibleFiles.map((file) => (
-                    <article
+                    <AttachmentFileCard
                         key={file.id}
-                        className="v2-file-card mb-2 flex items-center gap-3 last:mb-0"
-                    >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-[#f3f4f6]">
-                            <Icon name={file.iconName} size={17} />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] font-medium text-[#1a1f2e]">
-                                {file.name}
-                            </div>
-                            <div className="text-[12px] text-[#9ca3af]">
-                                {file.sizeLabel} · {td("Uploaded")}{" "}
-                                {file.uploadedLabel}
-                            </div>
-                        </div>
-                        <div className="flex shrink-0 gap-1.5">
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                    downloadLeadContactFile(file.file)
-                                }
-                                aria-label={td("Download")}
-                            >
-                                <Icon name="external-link" size={13} />
-                            </Button>
-                            {canEdit ? (
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setDeleteFile(file.file)}
-                                    aria-label={td("Delete")}
-                                >
-                                    <Icon name="x" size={13} />
-                                </Button>
-                            ) : null}
-                        </div>
-                    </article>
+                        name={file.name}
+                        sizeLabel={file.sizeLabel}
+                        uploadedLabel={file.uploadedLabel}
+                        uploadedPrefix={td("Uploaded")}
+                        iconName={file.iconName}
+                        downloadLabel={td("Download")}
+                        deleteLabel={td("Delete")}
+                        onDownload={() => downloadLeadContactFile(file.file)}
+                        onDelete={
+                            canEdit
+                                ? () => setDeleteFile(file.file)
+                                : undefined
+                        }
+                    />
                 ))
             )}
 

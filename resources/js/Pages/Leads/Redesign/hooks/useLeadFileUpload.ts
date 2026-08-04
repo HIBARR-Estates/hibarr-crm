@@ -36,13 +36,11 @@ export default function useLeadFileUpload(leadId: number) {
 
             const formData = new FormData();
             formData.append("lead_id", String(leadId));
-            if (rawFiles.length === 1) {
-                formData.append("file", rawFiles[0]);
-            } else {
-                rawFiles.forEach((file, index) => {
-                    formData.append(`file[${index}]`, file);
-                });
-            }
+            // Always send as file[] so Laravel gives an array — matches
+            // useApiMutate's FormData encoding and LeadContactFileController::store.
+            rawFiles.forEach((file) => {
+                formData.append("file[]", file);
+            });
 
             try {
                 const response = await axios.post(

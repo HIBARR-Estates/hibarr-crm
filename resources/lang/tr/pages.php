@@ -843,6 +843,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Dosyalar yüklendi',
                     'upload_failed' => 'Dosyalar yüklenemedi. Lütfen tekrar deneyin.',
+                    'deleted'       => 'Dosya silindi',
+                    'delete_failed' => 'Dosya silinemedi',
                 ],
             ],
             'offers' => [

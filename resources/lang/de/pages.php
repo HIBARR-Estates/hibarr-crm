@@ -839,6 +839,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Dateien hochgeladen',
                     'upload_failed' => 'Dateien konnten nicht hochgeladen werden. Bitte versuchen Sie es erneut.',
+                    'deleted'       => 'Datei gelöscht',
+                    'delete_failed' => 'Datei konnte nicht gelöscht werden',
                 ],
             ],
             'offers' => [

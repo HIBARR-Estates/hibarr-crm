@@ -847,6 +847,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Files uploaded',
                     'upload_failed' => 'Failed to upload files. Please try again.',
+                    'deleted'       => 'File deleted',
+                    'delete_failed' => 'Could not delete file',
                 ],
             ],
             'offers' => [
