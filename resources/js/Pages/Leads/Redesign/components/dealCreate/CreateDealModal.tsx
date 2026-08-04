@@ -140,6 +140,7 @@ export default function CreateDealModal({
     const { td } = useTd();
     const { props } = usePage();
     const authUserId = props.auth?.user?.id as number | undefined;
+    const authUserEmail = props.auth?.user?.email as string | undefined;
 
     const categories = dealMeta?.categories ?? [];
     const packages = dealMeta?.packages ?? [];
@@ -162,7 +163,7 @@ export default function CreateDealModal({
     const [manualValue, setManualValue] = useState("");
     const [addKickoffMeeting, setAddKickoffMeeting] = useState(false);
     const [meetingForm, setMeetingForm] = useState<MeetingFormState>(() =>
-        buildEmptyMeetingForm(null, authUserId),
+        buildEmptyMeetingForm(null, authUserId, authUserEmail),
     );
     const agentBtnRef = useRef<HTMLButtonElement>(null);
     const agentMenuRef = useRef<HTMLDivElement>(null);
@@ -230,14 +231,14 @@ export default function CreateDealModal({
         setManualValue("");
         setAddKickoffMeeting(false);
         setMeetingForm({
-            ...buildEmptyMeetingForm(null, authUserId),
+            ...buildEmptyMeetingForm(null, authUserId, authUserEmail),
             meetingTypeId: meetingTypes[0]?.id ?? null,
             startTime: "10:00",
             endTime: addMinutesToTime("10:00", 30),
             duration: 30,
             remark: "",
         });
-    }, [open, defaultAgentId, meetingTypes, authUserId]);
+    }, [open, defaultAgentId, meetingTypes, authUserId, authUserEmail]);
 
     // When pipeline changes: stage default, package filter/auto-select, clear property if packages linked.
     useEffect(() => {

@@ -799,6 +799,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 initialForm={buildEmptyMeetingForm(
                     null,
                     page.props.auth?.user?.id,
+                    page.props.auth?.user?.email,
                 )}
                 onSubmit={(form: MeetingFormState) =>
                     createMeeting(

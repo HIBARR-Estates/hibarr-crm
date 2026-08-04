@@ -23,9 +23,10 @@ export default function DealScheduleMeetingModal({
     const { t } = useTranslation();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
+    const currentUserEmail = props.auth?.user?.email;
     const initialForm = useMemo(
-        () => buildEmptyMeetingForm(deal, currentUserId),
-        [deal, currentUserId],
+        () => buildEmptyMeetingForm(deal, currentUserId, currentUserEmail),
+        [deal, currentUserId, currentUserEmail],
     );
     const { createMeeting, isCreating, errors, clearErrors } =
         useDealMeetingCreate(deal);

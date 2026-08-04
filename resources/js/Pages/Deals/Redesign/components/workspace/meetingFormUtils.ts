@@ -18,6 +18,8 @@ export {
     isVideoPlatform,
     isPhysicalPlatform,
     usesAutoMeetingLink,
+    canUseZohoMeeting,
+    defaultVideoProvider,
     requiresManualMeetingLink,
     requiresMeetingParticipants,
     requiresPhysicalLocationDetail,

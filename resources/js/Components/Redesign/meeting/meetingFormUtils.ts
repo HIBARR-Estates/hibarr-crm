@@ -125,6 +125,26 @@ export function requiresMeetingParticipants(
     return usesAutoMeetingLink(platform);
 }
 
+/** Zoho Meeting auto-link / calendar sync is limited to @hibarr.de accounts. */
+export const ZOHO_MEETING_EMAIL_DOMAIN = "hibarr.de";
+
+export function canUseZohoMeeting(email?: string | null): boolean {
+    if (!email) return false;
+    const domain = email.trim().toLowerCase().split("@")[1] ?? "";
+    return domain === ZOHO_MEETING_EMAIL_DOMAIN;
+}
+
+/** First available video provider — Zoho when allowed, otherwise Google Meet. */
+export function defaultVideoProvider(
+    emailOrCanUseZoho?: string | null | boolean,
+): VideoProvider {
+    const allowed =
+        typeof emailOrCanUseZoho === "boolean"
+            ? emailOrCanUseZoho
+            : canUseZohoMeeting(emailOrCanUseZoho);
+    return allowed ? "zoho" : "google_meet";
+}
+
 export function isPhysicalPlatform(
     platform: MeetingPlatform | string,
 ): boolean {
@@ -153,10 +173,13 @@ export function modeFromPlatform(
     return "video";
 }
 
-export function defaultPlatformForMode(mode: MeetingMode): MeetingPlatform {
+export function defaultPlatformForMode(
+    mode: MeetingMode,
+    emailOrCanUseZoho?: string | null | boolean,
+): MeetingPlatform {
     if (mode === "physical") return "office";
     if (mode === "phone") return "phone";
-    return "zoho";
+    return defaultVideoProvider(emailOrCanUseZoho);
 }
 
 export function videoProviderLabel(
@@ -279,6 +302,7 @@ export function getDefaultMeetingParticipants(
 export function buildEmptyMeetingForm(
     source: MeetingParticipantSource | null | undefined,
     currentUserId?: number,
+    userEmail?: string | null,
 ): MeetingFormState {
     return {
         meetingTypeId: null,
@@ -286,7 +310,7 @@ export function buildEmptyMeetingForm(
         startTime: "",
         endTime: "",
         duration: null,
-        platform: "zoho",
+        platform: defaultVideoProvider(userEmail),
         locationDetail: "",
         meetingLink: "",
         participants: getDefaultMeetingParticipants(source, currentUserId),

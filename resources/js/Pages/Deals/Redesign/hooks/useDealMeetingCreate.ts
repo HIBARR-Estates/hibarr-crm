@@ -14,6 +14,7 @@ import {
 import useTranslation from "@/Hooks/useTranslation";
 import type { MeetingPlatform } from "@/Components/Redesign/meeting/meetingFormUtils";
 import {
+    canUseZohoMeeting,
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
     isMeetingStartInFuture,
@@ -22,6 +23,7 @@ import {
     requiresManualMeetingLink,
     requiresMeetingParticipants,
     requiresPhysicalLocationDetail,
+    usesAutoMeetingLink,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
@@ -103,6 +105,15 @@ export default function useDealMeetingCreate(deal: Deal) {
 
             if (!input.platform) {
                 validationErrors.push("Please select a platform.");
+            }
+
+            if (
+                usesAutoMeetingLink(input.platform) &&
+                !canUseZohoMeeting(props.auth?.user?.email)
+            ) {
+                validationErrors.push(
+                    "Zoho Meeting is only available for @hibarr.de email accounts.",
+                );
             }
 
             if (

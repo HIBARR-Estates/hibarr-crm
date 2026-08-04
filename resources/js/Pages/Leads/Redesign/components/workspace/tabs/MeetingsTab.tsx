@@ -107,8 +107,13 @@ export default function MeetingsTab({
     const showSelectMode = canBulkEdit;
 
     const scheduleInitialForm = useMemo(
-        () => buildEmptyMeetingForm(null, props.auth?.user?.id),
-        [props.auth?.user?.id],
+        () =>
+            buildEmptyMeetingForm(
+                null,
+                props.auth?.user?.id,
+                props.auth?.user?.email,
+            ),
+        [props.auth?.user?.id, props.auth?.user?.email],
     );
 
     const toggleSelect = (id: number) =>

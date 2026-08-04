@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
@@ -19,7 +20,9 @@ import {
     PhysicalVenue,
     VideoProvider,
     addMinutesToTime,
+    canUseZohoMeeting,
     defaultPlatformForMode,
+    defaultVideoProvider,
     diffMinutesBetweenTimes,
     isPhysicalPlatform,
     isVideoPlatform,
@@ -58,6 +61,9 @@ export default function MeetingFormFields({
 }: MeetingFormFieldsProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { props } = usePage();
+    const userEmail = props.auth?.user?.email;
+    const zohoAllowed = canUseZohoMeeting(userEmail);
     const [showDuration, setShowDuration] = useState(Boolean(form.duration));
     const [showMore, setShowMore] = useState(form.reminders.length > 0);
     const [reminderTime, setReminderTime] = useState(1);
@@ -74,6 +80,17 @@ export default function MeetingFormFields({
     const updateForm = (patch: Partial<MeetingFormState>) => {
         onChange(patch);
     };
+
+    // Non-@hibarr.de users can't use Zoho — fall back to the next provider.
+    useEffect(() => {
+        if (!zohoAllowed && usesAutoMeetingLink(form.platform)) {
+            updateForm({
+                platform: defaultVideoProvider(false),
+                meetingLink: "",
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to Zoho eligibility / platform
+    }, [zohoAllowed, form.platform]);
 
     const handleDurationSelect = (duration: number) => {
         const nextDuration = form.duration === duration ? null : duration;
@@ -110,7 +127,7 @@ export default function MeetingFormFields({
 
     const handleModeChange = (nextMode: MeetingMode) => {
         if (nextMode === mode) return;
-        const nextPlatform = defaultPlatformForMode(nextMode);
+        const nextPlatform = defaultPlatformForMode(nextMode, zohoAllowed);
         updateForm({
             platform: nextPlatform,
             meetingLink: "",
@@ -119,6 +136,7 @@ export default function MeetingFormFields({
     };
 
     const handleProviderChange = (provider: VideoProvider) => {
+        if (provider === "zoho" && !zohoAllowed) return;
         updateForm({
             platform: provider,
             locationDetail: "",
@@ -322,16 +340,23 @@ export default function MeetingFormFields({
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {VIDEO_PROVIDER_OPTIONS.map((provider) => {
                             const selected = form.platform === provider.value;
-                            return (
+                            const zohoLocked =
+                                provider.value === "zoho" && !zohoAllowed;
+                            const optionDisabled = disabled || zohoLocked;
+                            const zohoTooltip = td(
+                                "Zoho Meeting is only available for @hibarr.de email accounts.",
+                            );
+
+                            const optionButton = (
                                 <button
-                                    key={provider.value}
                                     type="button"
-                                    disabled={disabled}
+                                    disabled={optionDisabled}
                                     aria-pressed={selected}
+                                    aria-disabled={optionDisabled}
                                     onClick={() =>
                                         handleProviderChange(provider.value)
                                     }
-                                    className="flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors"
+                                    className="flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors"
                                     style={{
                                         borderColor: selected
                                             ? T.BLUE_MID
@@ -339,9 +364,10 @@ export default function MeetingFormFields({
                                         background: selected
                                             ? T.BLUE_LIGHT
                                             : T.WHITE,
-                                        cursor: disabled
-                                            ? "default"
+                                        cursor: optionDisabled
+                                            ? "not-allowed"
                                             : "pointer",
+                                        opacity: zohoLocked ? 0.55 : 1,
                                     }}
                                 >
                                     <img
@@ -350,6 +376,11 @@ export default function MeetingFormFields({
                                         width={22}
                                         height={22}
                                         className="h-[22px] w-[22px] flex-shrink-0 object-contain"
+                                        style={{
+                                            filter: zohoLocked
+                                                ? "grayscale(1)"
+                                                : undefined,
+                                        }}
                                     />
                                     <span
                                         className="text-[13px] font-semibold"
@@ -362,6 +393,18 @@ export default function MeetingFormFields({
                                         {td(provider.label)}
                                     </span>
                                 </button>
+                            );
+
+                            return zohoLocked ? (
+                                <span
+                                    key={provider.value}
+                                    title={zohoTooltip}
+                                    className="block"
+                                >
+                                    {optionButton}
+                                </span>
+                            ) : (
+                                <div key={provider.value}>{optionButton}</div>
                             );
                         })}
                     </div>
@@ -476,7 +519,7 @@ export default function MeetingFormFields({
                         </div>
                     ) : (
                         <div
-                            className="flex items-center gap-2 rounded-lg px-3 py-2.5"
+                            className="flex items-start gap-2 rounded-lg px-3 py-2.5"
                             style={{
                                 background: T.SURFACE_2,
                                 border: `1px dashed ${T.BORDER}`,
@@ -488,16 +531,24 @@ export default function MeetingFormFields({
                                 color={T.TEXT_HINT}
                             />
                             <p
-                                className="text-[12px] italic"
+                                className="text-[12px] leading-relaxed"
                                 style={{ color: T.TEXT_MUTED }}
                             >
-                                {t("pages.deals.workspace.meetings.auto_generated_link_hint")}
+                                {td(
+                                    "A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.",
+                                )}
                             </p>
                         </div>
                     )}
-                    {form.meetingLink && showExistingMeetingLinkHint && (
+                    {form.meetingLink && (
                         <p className="mt-1.5 text-[12px]" style={{ color: T.TEXT_HINT }}>
-                            {t("pages.deals.workspace.meetings.existing_link_hint")}
+                            {showExistingMeetingLinkHint
+                                ? t(
+                                      "pages.deals.workspace.meetings.existing_link_hint",
+                                  )
+                                : td(
+                                      "This event will also be created and added to your Zoho Calendar.",
+                                  )}
                         </p>
                     )}
                 </ModalField>
