@@ -171,8 +171,10 @@ class Kernel extends ConsoleKernel
 
         $schedule->command('queue:flush')->weekly();
 
-        // Schedule the queue:work command to run without overlapping and with 3 tries every minute
-        $schedule->command('queue:work database --tries=3 --stop-when-empty')->withoutOverlapping();
+        // Drain named queues (incl. entity reminders) when supervisor is briefly down.
+        // Primary workers still come from supervisor (see scripts/fix_for_supervisor*).
+        $schedule->command('queue:work database --queue=default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send --tries=3 --stop-when-empty')
+            ->withoutOverlapping();
     }
 
     /**
