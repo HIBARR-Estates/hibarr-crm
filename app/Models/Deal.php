@@ -159,6 +159,8 @@ class Deal extends BaseModel
         'won_at' => 'datetime',
         'analysis_completed_at' => 'datetime',
         'analysis_completed_by' => 'integer',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
     ];
 
     public function leadFlightItineraries()

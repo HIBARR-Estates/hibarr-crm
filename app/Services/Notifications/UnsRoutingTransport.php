@@ -45,16 +45,22 @@ class UnsRoutingTransport implements TransportInterface
                     'user_id' => $payload['userId'] ?? null,
                 ]);
 
-                return null;
+                throw new \RuntimeException('UNS email routing failed: unable to dispatch notification.');
             }
 
             return new SentMessage($message, $envelope ?? Envelope::create($message));
+        } catch (\RuntimeException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             Log::error('UNS email routing failed with exception.', [
                 'error' => $exception->getMessage(),
             ]);
 
-            return null;
+            throw new \RuntimeException(
+                'UNS email routing failed: '.$exception->getMessage(),
+                0,
+                $exception
+            );
         }
     }
 

@@ -6,6 +6,7 @@ use App\Models\Deal;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
+use App\Services\Reminders\TaskReminderSync;
 use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
 
@@ -124,6 +125,8 @@ class DealTaskService
         if ($deal->leadAgent && $deal->leadAgent->user_id) {
             $task->users()->attach($deal->leadAgent->user_id);
         }
+
+        app(TaskReminderSync::class)->syncFromTask($task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser']));
 
         return $task;
     }

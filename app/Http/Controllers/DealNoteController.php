@@ -10,6 +10,7 @@ use App\Models\DealNote;
 use App\Models\Deal;
 use App\Models\User;
 use App\Services\PermissionService;
+use App\Services\Reminders\NoteReminderSync;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Http\Request;
 
@@ -138,6 +139,12 @@ class DealNoteController extends AccountBaseController
         $note->title = $request->title;
         $note->deal_id = $request->lead_id;
         $note->details = trim_editor($request->details);
+        if ($request->filled('remind_at')) {
+            $note->remind_at = $request->remind_at;
+        }
+        if ($request->exists('reminders')) {
+            $note->reminders = $request->input('reminders');
+        }
         $note->save();
 
         \Log::info('Deal Note Created: ', ['id' => $note->id, 'deal_id' => $note->deal_id,]);
@@ -153,6 +160,8 @@ class DealNoteController extends AccountBaseController
                 ],
             ]);
         }
+
+        app(NoteReminderSync::class)->syncFromDealNote($note->load('deal.leadAgent.user', 'addedBy'));
 
         return Reply::successWithData(__('messages.recordSaved'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes', 'data' => $note->load('addedBy')]);
     }
@@ -189,7 +198,15 @@ class DealNoteController extends AccountBaseController
         $note = DealNote::findOrFail($id);
         $note->title = $request->title;
         $note->details = trim_editor($request->details);
+        if ($request->exists('remind_at')) {
+            $note->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->exists('reminders')) {
+            $note->reminders = $request->input('reminders');
+        }
         $note->save();
+
+        app(NoteReminderSync::class)->syncFromDealNote($note->load('deal.leadAgent.user', 'addedBy'));
 
         return Reply::successWithData(__('messages.updateSuccess'), ['redirectUrl' => route('deals.show', $note->deal_id) . '?tab=notes', 'data' => $note->load('addedBy')]);
     }
@@ -204,6 +221,7 @@ class DealNoteController extends AccountBaseController
             || ($this->deletePermission == 'owned' && in_array('employee', user_roles()))
             || ($this->deletePermission == 'both' && ($this->note->added_by == user()->id ))
         );
+        app(NoteReminderSync::class)->cancelForDealNote($this->note);
         $this->note->delete();
 
         return Reply::successWithData(__('messages.deleteSuccess'), ['redirectUrl' => route('deals.show', $this->note->deal_id) . '?tab=notes']);

@@ -10,6 +10,8 @@ use Symfony\Component\Mime\RawMessage;
 
 class UnsEmailPayloadMapper
 {
+    public const IDEMPOTENCY_HEADER = 'X-Uns-Idempotency-Key';
+
     /**
      * @return array<string, mixed>
      */
@@ -25,6 +27,8 @@ class UnsEmailPayloadMapper
             $encoded = $this->extractHeader($message, 'X-Plunk-Template-Variables');
             $templateVars = $encoded !== null ? (json_decode(base64_decode($encoded), true) ?? []) : [];
         }
+
+        $customIdempotencyKey = $this->extractHeader($message, self::IDEMPOTENCY_HEADER);
 
         $recipient = $this->resolveRecipientAddress($message, $envelope);
         $sender = $this->resolveSenderAddress($message, $envelope);
@@ -58,7 +62,8 @@ class UnsEmailPayloadMapper
             'userId'         => $resolvedUserId,
             'channels'       => ['email'],
             'priority'       => 'DEFAULT',
-            'idempotencyKey' => $this->buildIdempotencyKey($recipient, $subject, $templateId ?? $body),
+            'idempotencyKey' => $customIdempotencyKey
+                ?? $this->buildIdempotencyKey($recipient, $subject, $templateId ?? $body),
             'data'           => $data,
         ];
     }

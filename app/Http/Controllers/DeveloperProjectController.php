@@ -694,6 +694,8 @@ class DeveloperProjectController extends AccountBaseController
             'payment_plan' => $request->payment_plan,
             'facilities' => $request->facilities,
             'distances' => $request->distances,
+            'remind_at' => $request->remind_at,
+            'reminders' => $request->reminders,
         ];
 
         if (
@@ -705,6 +707,8 @@ class DeveloperProjectController extends AccountBaseController
         }
 
         $project = DeveloperProject::create($createPayload);
+
+        app(\App\Services\Reminders\DeveloperProjectReminderSync::class)->syncFromProject($project->fresh());
 
         return Reply::successWithData('Construction project created successfully', [
             'data' => $project->load(['location', 'developer']),
@@ -801,7 +805,7 @@ class DeveloperProjectController extends AccountBaseController
             'number_of_units', 'total_units', 'total_units_sold', 'number_of_blocks', 'project_total_area_sqm',
             'construction_status', 'completion_date', 'number_of_phases',
             'furniture_package', 'rental_guarantee', 'payment_plan',
-            'facilities', 'distances',
+            'facilities', 'distances', 'remind_at', 'reminders',
         ];
 
         if (
@@ -826,6 +830,8 @@ class DeveloperProjectController extends AccountBaseController
 
         $project->update($updatePayload);
 
+        app(\App\Services\Reminders\DeveloperProjectReminderSync::class)->syncFromProject($project->fresh());
+
         return Reply::successWithData('Construction project updated successfully', [
             'data' => $project->fresh(['location', 'exposeConfig', 'developer']),
         ]);
@@ -844,6 +850,8 @@ class DeveloperProjectController extends AccountBaseController
 
         // Unassign all properties from this project before deletion
         $project->removeAllProperties();
+
+        app(\App\Services\Reminders\DeveloperProjectReminderSync::class)->cancelForProject($project);
 
         $project->delete();
 

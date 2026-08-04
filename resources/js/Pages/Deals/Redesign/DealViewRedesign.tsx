@@ -121,6 +121,8 @@ function DealViewRedesignInner(props: DealShowProps) {
     // the legacy DealInfoSection.tsx pattern (pipelineScopeUtils.ts helpers).
     const pipelineCategoryScopeMap = pageProps.pipelineCategoryScopeMap ?? {};
     const pipelineFieldScopeMap = pageProps.pipelineFieldScopeMap ?? {};
+    const hideAllCategoriesPipelineIds =
+        pageProps.hideAllCategoriesPipelineIds ?? [];
     const stages = pageProps.stages ?? [];
     const scopedCategoryIdsFromServer =
         pageProps.scopedCustomFieldCategoryIds ?? null;
@@ -138,6 +140,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                 deal.pipeline_stage_id,
                 stages,
                 scopedCategoryIdsFromServer,
+                hideAllCategoriesPipelineIds,
             ),
         [
             customFieldCategories,
@@ -146,6 +149,7 @@ function DealViewRedesignInner(props: DealShowProps) {
             deal.pipeline_stage_id,
             stages,
             scopedCategoryIdsFromServer,
+            hideAllCategoriesPipelineIds,
         ],
     );
 

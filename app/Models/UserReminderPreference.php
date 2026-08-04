@@ -62,7 +62,18 @@ class UserReminderPreference extends BaseModel
     /**
      * Valid entity types
      */
-    public const ENTITY_TYPES = ['meeting', 'task', 'all'];
+    public const ENTITY_TYPES = [
+        'meeting',
+        'task',
+        'note',
+        'deal',
+        'lead',
+        'property',
+        'project',
+        'unit',
+        'flight_itinerary',
+        'all',
+    ];
 
     /**
      * Cache TTL in seconds (5 minutes)
@@ -113,10 +124,11 @@ class UserReminderPreference extends BaseModel
         if ($this->entity_type !== 'all') {
             Cache::forget(self::getCacheKey($this->user_id, 'all'));
         }
-        // Clear meeting/task cache if 'all' preference changes
+        // Clear meeting/task/note cache if 'all' preference changes
         if ($this->entity_type === 'all') {
             Cache::forget(self::getCacheKey($this->user_id, 'meeting'));
             Cache::forget(self::getCacheKey($this->user_id, 'task'));
+            Cache::forget(self::getCacheKey($this->user_id, 'note'));
         }
     }
 

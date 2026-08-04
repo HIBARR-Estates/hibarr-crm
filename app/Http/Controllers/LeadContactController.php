@@ -574,7 +574,15 @@ class LeadContactController extends AccountBaseController
         $this->coreFieldsService->write($leadContact, $request->only([
             'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
+        if ($request->has('remind_at')) {
+            $leadContact->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->has('reminders')) {
+            $leadContact->reminders = $request->input('reminders');
+        }
         $leadContact->save();
+
+        app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
         if ($request->boolean('create_deal')) {
             $this->storeDeal($request, $leadContact);
@@ -745,7 +753,15 @@ class LeadContactController extends AccountBaseController
         $this->coreFieldsService->write($leadContact, $request->only([
             'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
+        if ($request->has('remind_at')) {
+            $leadContact->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->has('reminders')) {
+            $leadContact->reminders = $request->input('reminders');
+        }
         $leadContact->save();
+
+        app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
         $clientCreated = $request->create_client == "on" ? '1' : '0';
         Deal::where('lead_id', $leadContact->id)->update(['create_client' => $clientCreated]);

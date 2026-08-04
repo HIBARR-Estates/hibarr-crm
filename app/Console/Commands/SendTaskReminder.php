@@ -6,6 +6,7 @@ use App\Events\TaskReminderEvent;
 use App\Models\Company;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
+use App\Support\ReminderFeature;
 use Illuminate\Console\Command;
 
 class SendTaskReminder extends Command
@@ -32,6 +33,10 @@ class SendTaskReminder extends Command
     {
         Company::active()->select(['id', 'timezone', 'before_days', 'after_days', 'on_deadline'])->chunk(50, function ($companies) {
             foreach ($companies as $company) {
+                if (ReminderFeature::enabledForCompany($company)) {
+                    continue;
+                }
+
                 $now = now($company->timezone);
 
                 $completedTaskColumn = TaskboardColumn::where('company_id', $company->id)

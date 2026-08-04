@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Events\AutoFollowUpReminderEvent;
 use App\Models\Company;
 use App\Models\DealFollowUp;
+use App\Support\ReminderFeature;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 
@@ -47,17 +48,22 @@ class SendAutoFollowUpReminder extends Command
 
     public function sendFollowUpReminder($company)
     {
+        // If ReminderFeature is enabled for this company, do not send reminders via this legacy job.
+        if (class_exists(\App\Support\ReminderFeature::class) && \App\Support\ReminderFeature::enabledForCompany($company)) {
+            return;
+        }
+
         $now = now($company->timezone);
 
-        // Include both deal-linked and lead-only meetings that still need reminders.
+        // Include both deal-linked and lead-only follow-ups that still need reminders.
         $followups = DealFollowUp::with([
-            'deal',
-            'deal.leadAgent',
-            'deal.leadAgent.user',
-            'deal.contact',
-            'lead',
-            'lead.leadOwner',
-        ])
+                'deal',
+                'deal.leadAgent',
+                'deal.leadAgent.user',
+                'deal.contact',
+                'lead',
+                'lead.leadOwner',
+            ])
             ->where('next_follow_up_date', '>=', $now->copy()->subDay())
             ->where(function ($query) use ($company) {
                 $query->whereHas('deal', function ($q) use ($company) {
@@ -74,6 +80,8 @@ class SendAutoFollowUpReminder extends Command
                 $query->where('send_reminder', 'yes')
                     ->orWhereNull('send_reminder')
                     ->orWhere('send_reminder', '');
+            })
+            ->get();
             })
             ->get();
 

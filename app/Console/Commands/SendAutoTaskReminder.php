@@ -8,6 +8,7 @@ use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Services\TaskLifecycleNotificationService;
 use App\Support\FeatureFlags;
+use App\Support\ReminderFeature;
 use Illuminate\Console\Command;
 
 class SendAutoTaskReminder extends Command
@@ -39,6 +40,10 @@ class SendAutoTaskReminder extends Command
         Company::active()->select(['id', 'before_days', 'after_days', 'on_deadline', 'timezone'])->chunk(50, function ($companies) {
 
             foreach ($companies as $company) {
+
+                if (ReminderFeature::enabledForCompany($company)) {
+                    continue;
+                }
 
                 $now = now($company->timezone);
 
