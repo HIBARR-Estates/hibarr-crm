@@ -162,21 +162,30 @@ export default function useLeadInfoFieldUpdate(canEdit = true) {
     const buildPayload = useCallback((changes: LeadFieldChange[]) => {
         const payload: Record<string, unknown> = {};
         const customFields: Record<string, unknown> = {};
-        const hasDateOfBirthChange = changes.some(
-            (change) =>
-                !isCustomFieldName(change.fieldName, change.type) &&
-                change.fieldName === "date_of_birth",
-        );
+
+        // Only a *set* DOB should drive age/age_range. Age-only edits still
+        // include `date_of_birth: null` in the batch (LeadAgeFieldsGroup), and
+        // treating that as a DOB change was wiping the age the user just set.
+        const dobDrivesAge = changes.some((change) => {
+            if (
+                isCustomFieldName(change.fieldName, change.type) ||
+                change.fieldName !== "date_of_birth"
+            ) {
+                return false;
+            }
+            if (change.value == null || change.value === "") {
+                return false;
+            }
+            return String(change.value).trim() !== "";
+        });
 
         for (const { fieldName, value, type } of changes) {
             if (isCustomFieldName(fieldName, type)) {
                 customFields[fieldName] = value;
                 continue;
             }
-            // When DOB is in the batch, age/age_range come from DOB computation
-            // (or explicit null clear) — don't let a separate age pass overwrite.
             if (
-                hasDateOfBirthChange &&
+                dobDrivesAge &&
                 (fieldName === "age" || fieldName === "age_range")
             ) {
                 continue;

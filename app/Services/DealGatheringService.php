@@ -416,9 +416,13 @@ class DealGatheringService
 
             case DealUpdateType::HIBARR_FIELD:
                 // Handle Hibarr specific fields
-                // Process file uploads for reservation_agreement and sales_contract
+                // Process file uploads for document slots (external storage + legacy fallback).
                 $hibarrData = [];
-                $fileFields = ['reservation_agreement', 'sales_contract'];
+                $fileFields = [
+                    'deposit_confirmation',
+                    'reservation_agreement',
+                    'sales_contract',
+                ];
                 
                 foreach ($data as $key => $value) {
                     if (in_array($key, $fileFields) && $value instanceof \Illuminate\Http\UploadedFile) {

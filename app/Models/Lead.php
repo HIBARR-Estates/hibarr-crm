@@ -148,7 +148,7 @@ class Lead extends BaseModel
     protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted', 'lead_lifecycle_status'];
 
     protected $casts = [
-        'salutation' => Salutation::class,
+        'salutation' => \App\Casts\NullableEnumCast::class . ':' . Salutation::class,
         'type' => ContactType::class,
         'gender' => Gender::class,
         'date_of_birth' => 'date',

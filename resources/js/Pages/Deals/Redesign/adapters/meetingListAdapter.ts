@@ -46,19 +46,55 @@ function getPlatformMeta(location?: string | null): {
 } {
     switch (location) {
         case "zoho":
-            return { label: "Video", variant: "blue", locationType: "video" };
+        case "zoho_meet":
+            return {
+                label: "Zoho Meeting",
+                variant: "blue",
+                locationType: "video",
+            };
+        case "google_meet":
+        case "meet":
+            return {
+                label: "Google Meet",
+                variant: "blue",
+                locationType: "video",
+            };
+        case "zoom":
+            return { label: "Zoom", variant: "blue", locationType: "video" };
+        case "teams":
+            return {
+                label: "Microsoft Teams",
+                variant: "blue",
+                locationType: "video",
+            };
         case "physical":
             return {
-                label: "In person",
+                label: "Physical",
                 variant: "green",
                 locationType: "in_person",
             };
         case "phone":
             return { label: "Phone", variant: "gray", locationType: "phone" };
         case "office":
-            return { label: "Office", variant: "gray", locationType: "in_person" };
+            return {
+                label: "HIBARR HQ",
+                variant: "green",
+                locationType: "in_person",
+            };
         default:
-            return { label: "Meeting", variant: "gray", locationType: "in_person" };
+            // Free-text physical place (Other location).
+            if (location && location.trim()) {
+                return {
+                    label: "Physical",
+                    variant: "green",
+                    locationType: "in_person",
+                };
+            }
+            return {
+                label: "Meeting",
+                variant: "gray",
+                locationType: "in_person",
+            };
     }
 }
 
@@ -86,11 +122,21 @@ function getLocationDisplay(
 
     switch (meeting.location) {
         case "office":
-            return "HIBARR Office";
+            return "HIBARR HQ";
         case "phone":
             return "Phone meeting";
         case "physical":
-            return "In-person meeting";
+            return "Physical meeting";
+        case "zoho":
+        case "zoho_meet":
+            return "Zoho Meeting (link pending)";
+        case "google_meet":
+        case "meet":
+            return "Google Meet";
+        case "zoom":
+            return "Zoom";
+        case "teams":
+            return "Microsoft Teams";
         default:
             return meeting.location || "No location set";
     }

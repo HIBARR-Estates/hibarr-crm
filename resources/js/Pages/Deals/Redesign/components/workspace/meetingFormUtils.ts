@@ -1,6 +1,8 @@
 export {
     MEETING_DURATION_OPTIONS,
+    MEETING_MODE_OPTIONS,
     MEETING_PLATFORM_OPTIONS,
+    VIDEO_PROVIDER_OPTIONS,
     DEFAULT_MEETING_REMINDERS,
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
@@ -12,10 +14,29 @@ export {
     reminderLabel,
     buildMeetingFormFromFollowup,
     buildRescheduleFormFromFollowup,
+    PHYSICAL_VENUE_OPTIONS,
+    isVideoPlatform,
+    isPhysicalPlatform,
+    usesAutoMeetingLink,
+    canUseZohoMeeting,
+    defaultVideoProvider,
+    requiresManualMeetingLink,
+    requiresMeetingParticipants,
+    requiresPhysicalLocationDetail,
+    modeFromPlatform,
+    defaultPlatformForMode,
+    normalizePlatform,
+    locationDetailFromFollowup,
+    locationForPayload,
+    meetingLinkForPayload,
+    videoProviderLabel,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 
 export type {
+    MeetingMode,
     MeetingPlatform,
+    PhysicalVenue,
+    VideoProvider,
     MeetingFormState,
     MeetingParticipantSource,
 } from "@/Components/Redesign/meeting/meetingFormUtils";

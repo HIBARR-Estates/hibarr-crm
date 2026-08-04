@@ -14,6 +14,11 @@ import {
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
+    locationForPayload,
+    meetingLinkForPayload,
+    requiresManualMeetingLink,
+    requiresMeetingParticipants,
+    requiresPhysicalLocationDetail,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import type { LeadMeetingCreateInput } from "./useLeadMeetingCreate";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
@@ -60,6 +65,38 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 return;
             }
 
+            if (statusOverride !== "cancelled") {
+                const validationErrors: string[] = [];
+                if (
+                    requiresMeetingParticipants(input.platform) &&
+                    input.participants.length === 0
+                ) {
+                    validationErrors.push(
+                        "At least one participant is required for Zoho Meeting.",
+                    );
+                }
+                if (
+                    requiresManualMeetingLink(input.platform) &&
+                    !input.meetingLink.trim()
+                ) {
+                    validationErrors.push(
+                        "Please paste a meeting link from your video provider.",
+                    );
+                }
+                if (
+                    requiresPhysicalLocationDetail(input.platform) &&
+                    !input.locationDetail.trim()
+                ) {
+                    validationErrors.push(
+                        "Please enter the meeting location.",
+                    );
+                }
+                if (validationErrors.length > 0) {
+                    setErrors(validationErrors);
+                    return;
+                }
+            }
+
             persistUserTimezoneOnce(props.auth?.user?.timezone);
 
             const payload: FollowUpUpdatePayload = {
@@ -69,9 +106,14 @@ export default function useLeadMeetingUpdate(lead: Lead) {
                 next_follow_up_date: formatMeetingDateForApi(input.date),
                 start_time: formatMeetingTimeForApi(input.startTime),
                 meeting_type_id: input.meetingTypeId ?? undefined,
-                location: input.platform,
-                meeting_link:
-                    input.platform === "zoho" ? input.meetingLink.trim() : "",
+                location: locationForPayload(
+                    input.platform,
+                    input.locationDetail,
+                ),
+                meeting_link: meetingLinkForPayload(
+                    input.platform,
+                    input.meetingLink,
+                ),
                 duration: input.duration,
                 reminders: input.reminders,
                 remark: input.remark.trim(),

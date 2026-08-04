@@ -20,7 +20,8 @@ class StoreRequest extends CoreRequest
     {
         $rules = [
             'meeting_type_id' => 'nullable|exists:meeting_types,id',
-            'location' => 'required|in:office,zoom,zoho,zoho_meet,google_meet,teams,meet,phone,physical,skype,other',
+            // Known platforms plus free-text physical place names (Other location).
+            'location' => 'required|string|max:255',
             'meeting_link' => 'nullable|url',
             'start_time' => 'required|date_format:"H:i:s"',
             'reminders' => 'nullable|array',
@@ -36,10 +37,12 @@ class StoreRequest extends CoreRequest
             ],
         ];
 
-        if (in_array($this->location, ['zoho', 'office', 'phone', 'physical'])) {
-            $rules['meeting_link'] = 'nullable|url';
-        } else {
+        $videoPlatformsRequiringLink = ['zoom', 'zoho_meet', 'google_meet', 'teams', 'meet', 'skype', 'other'];
+
+        if (in_array($this->location, $videoPlatformsRequiringLink, true)) {
             $rules['meeting_link'] = 'required|url';
+        } else {
+            $rules['meeting_link'] = 'nullable|url';
         }
 
         if ($this->location === 'zoho') {

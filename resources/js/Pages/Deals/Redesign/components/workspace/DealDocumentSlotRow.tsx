@@ -263,14 +263,6 @@ export default function DealDocumentSlotRow({
                     {t("pages.deals.common.delete")}
                 </button>
             )}
-            {busy && (
-                <span
-                    className="shrink-0 font-semibold"
-                    style={{ fontSize: 13, color: T.TEXT_MUTED }}
-                >
-                    {uploading ? statusLabel : t("pages.deals.common.delete")}…
-                </span>
-            )}
             {confirmDialog}
         </div>
     );

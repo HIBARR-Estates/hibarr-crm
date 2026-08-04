@@ -60,7 +60,15 @@ function resolvePhoneValue(
     if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
         try {
             const parsed = JSON.parse(raw.trim());
-            if (typeof parsed?.phone === "string") return parsed.phone.trim();
+            if (typeof parsed?.phone === "string" && parsed.phone.trim()) {
+                return parsed.phone.trim();
+            }
+            if (
+                typeof parsed?.phoneNumber === "string" &&
+                parsed.phoneNumber.trim()
+            ) {
+                return parsed.phoneNumber.trim();
+            }
         } catch {
             /* fall through */
         }
@@ -464,15 +472,15 @@ export default function LeadInfoSectionPanel({
                 </DetailField>
                 <DetailField label={td("WhatsApp")}>
                     <DealEditableField
-                        value={lead.client_whatsapp || ""}
+                        value={resolvePhoneValue(lead.client_whatsapp)}
                         fieldName="client_whatsapp"
-                        fieldType="text"
+                        fieldType="phone"
                         onSave={(value) =>
                             onFieldUpdate("client_whatsapp", value)
                         }
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
-                        placeholder={td("WhatsApp number or username")}
+                        placeholder={td("WhatsApp number")}
                         loading={isFieldLoading("client_whatsapp")}
                         disabled={!canEdit}
                     />

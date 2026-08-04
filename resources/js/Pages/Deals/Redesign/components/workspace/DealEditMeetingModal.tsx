@@ -5,6 +5,11 @@ import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import EditMeetingModal from "@/Components/Redesign/modals/EditMeetingModal";
 import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
+import {
+    requiresManualMeetingLink,
+    requiresMeetingParticipants,
+    requiresPhysicalLocationDetail,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 import { buildMeetingFormFromFollowup } from "./meetingFormUtils";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
 import type { DealMeetingCreateInput } from "../../hooks/useDealMeetingCreate";
@@ -25,6 +30,7 @@ function toSubmitInput(form: MeetingFormState): DealMeetingCreateInput {
         endTime: form.endTime,
         duration: form.duration,
         platform: form.platform,
+        locationDetail: form.locationDetail,
         meetingLink: form.meetingLink,
         participants: form.participants,
         remark: form.remark,
@@ -69,10 +75,29 @@ export default function DealEditMeetingModal({
         if (!form.startTime) {
             validationErrors.push("Please select a start time.");
         }
-        if (form.platform === "zoho" && form.participants.length === 0) {
+        if (
+            requiresMeetingParticipants(form.platform) &&
+            form.participants.length === 0
+        ) {
             validationErrors.push(
-                "At least one participant is required for video meetings.",
+                "At least one participant is required for Zoho Meeting.",
             );
+        }
+
+        if (
+            requiresManualMeetingLink(form.platform) &&
+            !form.meetingLink.trim()
+        ) {
+            validationErrors.push(
+                "Please paste a meeting link from your video provider.",
+            );
+        }
+
+        if (
+            requiresPhysicalLocationDetail(form.platform) &&
+            !form.locationDetail.trim()
+        ) {
+            validationErrors.push("Please enter the meeting location.");
         }
 
         if (validationErrors.length > 0) {

@@ -48,8 +48,17 @@ class LeadContactFileController extends AccountBaseController
 
         $createdFiles = [];
 
-        if ($request->hasFile('file')) {
-            foreach ($request->file('file') as $fileData) {
+        $uploaded = $request->file('file');
+        if ($uploaded instanceof \Illuminate\Http\UploadedFile) {
+            $uploaded = [$uploaded];
+        }
+
+        if (is_array($uploaded)) {
+            foreach ($uploaded as $fileData) {
+                if (!$fileData instanceof \Illuminate\Http\UploadedFile) {
+                    continue;
+                }
+
                 $file = new LeadContactFile();
                 $file->lead_id = $lead->id;
                 $file->user_id = $this->user->id;
