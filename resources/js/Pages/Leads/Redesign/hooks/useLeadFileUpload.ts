@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import axios from "axios";
+import axios, { CancelTokenSource } from "axios";
 import { message } from "antd";
 import { usePage } from "@inertiajs/react";
 import type { LeadContactFile } from "@/Types/api/file";
@@ -20,15 +20,16 @@ export default function useLeadFileUpload(leadId: number) {
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const { setFiles } = useLeadWorkspace();
-    const abortRef = useRef<AbortController | null>(null);
+    // axios@0.21 only supports CancelToken (not AbortSignal).
+    const cancelRef = useRef<CancelTokenSource | null>(null);
 
     const uploadFiles = useCallback(
         async (rawFiles: File[]) => {
             if (rawFiles.length === 0) return;
 
-            abortRef.current?.abort();
-            const controller = new AbortController();
-            abortRef.current = controller;
+            cancelRef.current?.cancel("replaced");
+            const cancelSource = axios.CancelToken.source();
+            cancelRef.current = cancelSource;
 
             setIsUploading(true);
             setUploadProgress(0);
@@ -48,7 +49,7 @@ export default function useLeadFileUpload(leadId: number) {
                     route("lead-contact-files.store"),
                     formData,
                     {
-                        signal: controller.signal,
+                        cancelToken: cancelSource.token,
                         headers: {
                             Accept: "application/json",
                             "X-COMPANY-ID":
