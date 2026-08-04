@@ -131,6 +131,7 @@ class CrmWriteApiTest extends TestCase
     public function test_list_endpoints_accept_filter_query_params(): void
     {
         $this->insertApiToken('test-crm-write-token');
+        $this->ensureCrmWriteListTables();
 
         $headers = [
             'X-API-TOKEN' => 'test-crm-write-token',
@@ -147,8 +148,7 @@ class CrmWriteApiTest extends TestCase
 
         foreach (['/api/v2/tasks', '/api/v2/notes', '/api/v2/meetings'] as $endpoint) {
             $response = $this->getJson($endpoint.'?'.$query, $headers);
-            $this->assertNotEquals(422, $response->status(), $endpoint.' rejected valid list filters');
-            $this->assertContains($response->status(), [200, 500], $endpoint.' unexpected status '.$response->status());
+            $this->assertSame(200, $response->status(), $endpoint.' unexpected status '.$response->status());
         }
     }
 
@@ -200,6 +200,66 @@ class CrmWriteApiTest extends TestCase
             $table->boolean('revoked')->default(false);
             $table->timestamps();
         });
+    }
+
+    private function ensureCrmWriteListTables(): void
+    {
+        if (! Schema::hasTable('tasks')) {
+            Schema::create('tasks', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('company_id')->nullable();
+                $table->string('heading')->nullable();
+                $table->text('description')->nullable();
+                $table->timestamps();
+                $table->softDeletes();
+            });
+        }
+
+        if (! Schema::hasTable('deals')) {
+            Schema::create('deals', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('company_id')->nullable();
+            });
+        }
+
+        if (! Schema::hasTable('leads')) {
+            Schema::create('leads', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('company_id')->nullable();
+                $table->softDeletes();
+            });
+        }
+
+        if (! Schema::hasTable('deal_notes')) {
+            Schema::create('deal_notes', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('deal_id');
+                $table->string('title')->nullable();
+                $table->text('details')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('lead_notes')) {
+            Schema::create('lead_notes', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('lead_id');
+                $table->string('title')->nullable();
+                $table->text('details')->nullable();
+                $table->timestamps();
+            });
+        }
+
+        if (! Schema::hasTable('lead_follow_up')) {
+            Schema::create('lead_follow_up', function (Blueprint $table) {
+                $table->id();
+                $table->unsignedInteger('deal_id')->nullable();
+                $table->unsignedInteger('lead_id')->nullable();
+                $table->text('remark')->nullable();
+                $table->timestamp('next_follow_up_date')->nullable();
+                $table->timestamps();
+            });
+        }
     }
 
     private function insertApiToken(string $token, ?int $companyId = 1): void
