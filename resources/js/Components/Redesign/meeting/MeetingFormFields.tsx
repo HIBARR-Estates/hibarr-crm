@@ -503,11 +503,29 @@ export default function MeetingFormFields({
                                     variant="primary"
                                     size="sm"
                                     disabled={disabled || !canAddReminder}
+                                    title={
+                                        !canAddReminder
+                                            ? t(
+                                                  "pages.deals.workspace.meetings.reminder_already_added",
+                                              ) ||
+                                              "That reminder is already included (defaults cover 1h, 30m, 15m, and 5m)"
+                                            : undefined
+                                    }
                                     onClick={handleAddReminder}
                                 >
                                     {t("pages.deals.common.add")}
                                 </Button>
                             </div>
+                            {!canAddReminder && reminderTime >= 1 ? (
+                                <p
+                                    className="mt-1.5 text-[11px]"
+                                    style={{ color: T.TEXT_HINT }}
+                                >
+                                    {td(
+                                        "A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).",
+                                    )}
+                                </p>
+                            ) : null}
                         </div>
 
                         <p className="mt-2 text-[12px]" style={{ color: T.TEXT_HINT }}>

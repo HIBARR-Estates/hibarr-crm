@@ -40,7 +40,9 @@ export default function DealAnalysisModal({
     const { props } = usePage<any>();
     const { td } = useTd();
     const { save, failedKeys, retry, dismissError, flushAll, subscribeSaving } = useAnalysisFieldSave(deal.id);
-    const { canEdit } = useDealPermissions(deal);
+    const { canEdit: baseCanEdit, isWatcherOnly } = useDealPermissions(deal);
+    // Pure watchers are view-only on analysis (same as tasks/meetings/notes).
+    const canEdit = baseCanEdit && !isWatcherOnly;
     const panelRef = useRef<HTMLDivElement>(null);
     const scrollPanelRef = useRef<ScrollPanelHandle>(null);
     const titleId = "analysis-modal-title";

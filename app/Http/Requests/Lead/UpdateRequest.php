@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
 use App\Traits\CustomFieldsRequestTrait;
+use Illuminate\Validation\Rule;
 
 class UpdateRequest extends CoreRequest
 {
@@ -20,6 +22,13 @@ class UpdateRequest extends CoreRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('salutation') && $this->salutation === '') {
+            $this->merge(['salutation' => null]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      *
@@ -30,6 +39,7 @@ class UpdateRequest extends CoreRequest
         $rules = [
             'client_name' => 'required',
             'client_email' => 'nullable|email:rfc,strict|unique:leads,client_email,'.$this->route('lead_contact').',id,company_id,' . company()->id,
+            'salutation' => ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => 'nullable|in:male,female',
             'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
         ];

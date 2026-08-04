@@ -528,7 +528,7 @@ class LeadContactController extends AccountBaseController
 
         $leadContact = new Lead();
         $leadContact->company_id = company()->id;
-        $leadContact->salutation = $request->salutation;
+        $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
@@ -703,7 +703,7 @@ class LeadContactController extends AccountBaseController
             abort(403);
         }
 
-        $leadContact->salutation = $request->salutation;
+        $leadContact->salutation = $request->salutation ?: null;
         if ($request->has('gender')) {
             $leadContact->gender = $request->gender;
         }
@@ -796,7 +796,7 @@ class LeadContactController extends AccountBaseController
             
             // Handle basic contact information
             if ($request->has('salutation')) {
-                $leadContact->salutation = $request->salutation;
+                $leadContact->salutation = $request->salutation ?: null;
             }
             if ($request->has('gender')) {
                 $leadContact->gender = $request->gender;

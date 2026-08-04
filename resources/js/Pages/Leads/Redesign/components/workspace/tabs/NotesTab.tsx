@@ -318,6 +318,19 @@ export default function NotesTab({ permissions }: NotesTabProps) {
                                         >
                                             {note.timeLabel}
                                         </span>
+                                        {!selectMode && (
+                                            <DealButton
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setSelectedNoteId(note.id);
+                                                }}
+                                                aria-label={`${td("Edit")}: ${note.title || note.authorName}`}
+                                            >
+                                                <DealIcon name="edit" size={13} />
+                                            </DealButton>
+                                        )}
                                         {showDelete && (
                                             <DealButton
                                                 variant="ghost"

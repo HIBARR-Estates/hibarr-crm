@@ -133,7 +133,10 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                                             field.placeholder || "Not set"
                                         }
                                         tone={field.tone}
-                                        copyable={section.copyable !== false}
+                                        copyable={
+                                            field.copyable !== false &&
+                                            section.copyable !== false
+                                        }
                                     />
                                 </div>
                             );

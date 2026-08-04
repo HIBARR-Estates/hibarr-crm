@@ -196,9 +196,30 @@ export default function WorkspaceFilesTab({
                     />
                     <div className="mb-1 text-[13px] font-medium text-[#1a1f2e]">
                         {isUploading
-                            ? `${t("pages.deals.workspace.files.uploading")}... ${uploadProgress}%`
+                            ? uploadProgress > 0
+                                ? `${t("pages.deals.workspace.files.uploading")}… ${uploadProgress}%`
+                                : `${t("pages.deals.workspace.files.uploading")}…`
                             : t("pages.deals.workspace.files.drop_hint")}
                     </div>
+                    {isUploading ? (
+                        <div
+                            className="mx-auto mb-2 mt-1 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-[#e5e7eb]"
+                            role="progressbar"
+                            aria-valuenow={uploadProgress}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                        >
+                            <div
+                                className="h-full rounded-full bg-[#1a6bb5] transition-[width] duration-150 ease-out"
+                                style={{
+                                    width:
+                                        uploadProgress > 0
+                                            ? `${uploadProgress}%`
+                                            : "30%",
+                                }}
+                            />
+                        </div>
+                    ) : null}
                     <div className="text-[12px] text-[#9ca3af]">
                         {t("pages.deals.workspace.files.size_hint")}
                     </div>

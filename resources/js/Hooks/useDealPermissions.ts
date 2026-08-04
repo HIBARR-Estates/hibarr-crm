@@ -136,21 +136,21 @@ export function useDealPermissions(
 
         const hasAnyRole = roles.length > 0 && !roles.includes("none");
 
-        // Watcher with no write standing — see DealNoteController::store.
-        // Admins and users with edit_deals=all keep full write access even if
-        // they are also listed as watchers on the deal.
+        // Watchers stay view-only even when also granted edit_deals=all on the
+        // permission matrix (deal_watcher membership is an explicit read-only
+        // seat). Creators/agents/participants/admins remain editable.
         const isWatcherOnly =
             isWatcher &&
             !isAdmin &&
             !isCreator &&
             !isAgent &&
-            !isParticipant &&
-            !hasFullDealAccess;
+            !isParticipant;
 
         // Admins, creators, agents, and participants can edit — participants act with the
-        // same rights as the agent. Watchers stay view-only.
+        // same rights as the agent. Pure watchers stay view-only.
         const canEdit =
             !isLocked &&
+            !isWatcherOnly &&
             (isAdmin || hasFullDealAccess || isCreator || isAgent || isParticipant);
 
         // Mirrors PermissionService::checkAccess's 'delete_deals' scope handling in
@@ -262,18 +262,19 @@ export function getDealPermissions(
     }
 
     const hasAnyRole = roles.length > 0 && !roles.includes("none");
+    // Pure deal watchers are view-only (edit_deals=all does not upgrade a watcher seat).
     const isWatcherOnly =
         isWatcher &&
         !isAdmin &&
         !isCreator &&
         !isAgent &&
-        !isParticipant &&
-        !hasFullDealAccess;
+        !isParticipant;
 
     // Admins, creators, agents, and participants can edit — participants act with the
-    // same rights as the agent. Watchers stay view-only.
+    // same rights as the agent. Pure watchers stay view-only.
     const canEdit =
         !isLocked &&
+        !isWatcherOnly &&
         (isAdmin || hasFullDealAccess || isCreator || isAgent || isParticipant);
 
     // Mirrors PermissionService::checkAccess's 'delete_deals' scope handling in

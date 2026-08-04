@@ -751,7 +751,8 @@ class DealController extends AccountBaseController
             'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all(), 'taskMeta'),
             'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
             'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
-            'employees' => Inertia::defer(fn () => User::allEmployees(), 'formMeta'),
+            // Required by task/meeting assignee pickers — must not wait on formMeta.
+            'employees' => User::allEmployees(null, true),
             'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'formMeta'),
             'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
             'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
@@ -1239,9 +1240,11 @@ class DealController extends AccountBaseController
             );
         }
 
-        if (!is_null($request->product_id)) {
+        if (!is_null($request->product_id) && $request->product_id !== '') {
 
-            $products = $request->product_id;
+            $products = is_array($request->product_id)
+                ? $request->product_id
+                : [$request->product_id];
 
             foreach ($products as $product) {
                 $leadProduct = new LeadProduct();

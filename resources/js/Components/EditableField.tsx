@@ -618,6 +618,16 @@ export default function EditableField({
             return;
         }
 
+        if (
+            fieldType === "email" &&
+            typeof inputValue === "string" &&
+            inputValue.trim() &&
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputValue.trim())
+        ) {
+            message.error("Please enter a valid email address");
+            return;
+        }
+
         setSaving(true);
         try {
             await onSave(inputValue);

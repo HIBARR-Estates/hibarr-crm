@@ -283,7 +283,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         })[0];
     }, [openTasks]);
 
-    const primaryDeal = useMemo((): Deal | null => deals[0] ?? null, [deals]);
+    const primaryDeal = useMemo((): Deal | null => {
+        if (deals.length === 0) return null;
+        // Prefer highest id as latest when order is ambiguous.
+        return [...deals].sort((a, b) => b.id - a.id)[0] ?? null;
+    }, [deals]);
 
     const handleMissionAction = useCallback(
         (action: LeadMissionCtaAction) => {
@@ -298,9 +302,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     setCreateDealOpen(true);
                     break;
                 case "open_deal": {
-                    const first = deals[0];
-                    if (first?.id) {
-                        router.visit(route("deals.show", first.id));
+                    const latest = primaryDeal;
+                    if (latest?.id) {
+                        router.visit(route("deals.show", latest.id));
+                    } else if (deals.length > 0) {
+                        nav.setActiveTab("deals");
                     }
                     break;
                 }
@@ -314,17 +320,23 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     break;
             }
         },
-        [changeStatus, deals, nav],
+        [changeStatus, deals.length, nav, primaryDeal],
     );
 
     const handleBannerPrimary = useCallback(() => {
         handleMissionAction(lifecycle.banner.primaryCta.action);
     }, [handleMissionAction, lifecycle.banner.primaryCta.action]);
 
-    const handleBannerViewAnswers = useCallback(() => {
+    const handleBannerSecondary = useCallback(() => {
         const action = lifecycle.banner.secondaryCta?.action;
-        if (action) handleMissionAction(action);
+        if (action && action !== "view_answers") {
+            handleMissionAction(action);
+        }
     }, [handleMissionAction, lifecycle.banner.secondaryCta?.action]);
+
+    const handleBannerViewAnswers = useCallback(() => {
+        handleMissionAction("view_answers");
+    }, [handleMissionAction]);
 
     const handleMoreAction = useCallback(
         (id: MoreMenuActionId) => {
@@ -528,11 +540,18 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 : undefined
                         }
                         onBannerPrimary={handleBannerPrimary}
+                        onBannerSecondary={
+                            lifecycle.banner.secondaryCta?.action &&
+                            lifecycle.banner.secondaryCta.action !== "view_answers"
+                                ? handleBannerSecondary
+                                : undefined
+                        }
                         onBannerViewAnswers={
-                            lifecycle.banner.secondaryCta
+                            lifecycle.banner.secondaryCta?.action === "view_answers"
                                 ? handleBannerViewAnswers
                                 : undefined
                         }
+                        dealCount={deals.length}
                     />
 
                     <div className="v2-grid">
@@ -667,11 +686,21 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 }}
                 saving={dealCreate.isCreating}
                 errors={dealCreate.errors}
-                defaultAgentId={
-                    (lead as { agent_id?: number }).agent_id ??
-                    lead.lead_owner?.id ??
-                    null
-                }
+                defaultAgentId={(() => {
+                    const agents = props.leadAgents ?? [];
+                    const ownerUserId = lead.lead_owner?.id;
+                    if (!ownerUserId) return null;
+                    const match = agents.find(
+                        (agent: {
+                            id: number;
+                            user_id?: number;
+                            user?: { id?: number };
+                        }) =>
+                            agent.user_id === ownerUserId ||
+                            agent.user?.id === ownerUserId,
+                    );
+                    return match?.id ?? null;
+                })()}
                 meetingTypes={props.meetingTypes ?? []}
                 dealMeta={{
                     categories: props.categories,
@@ -684,9 +713,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 onSubmit={(input) =>
                     dealCreate.createDeal(input, () => {
                         setCreateDealOpen(false);
-                        if (input.addKickoffMeeting) {
-                            router.reload({ only: ["leadFollowUps"] });
-                        }
                     })
                 }
             />

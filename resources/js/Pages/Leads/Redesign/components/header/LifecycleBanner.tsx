@@ -13,7 +13,9 @@ interface LifecycleBannerProps {
     templateName?: string | null;
     answered?: number;
     total?: number;
+    dealCount?: number;
     onPrimary: () => void;
+    onSecondary?: () => void;
     onViewAnswers?: () => void;
 }
 
@@ -26,7 +28,9 @@ export default function LifecycleBanner({
     templateName,
     answered = 0,
     total = 0,
+    dealCount = 0,
     onPrimary,
+    onSecondary,
     onViewAnswers,
 }: LifecycleBannerProps) {
     const { td } = useTd();
@@ -152,7 +156,13 @@ export default function LifecycleBanner({
                             color: "#115e59",
                         }}
                     >
-                        {td(statusLabel)} — {td("deal linked from qualification")}
+                        {td(statusLabel)} —{" "}
+                        {dealCount > 1
+                            ? td("deals linked from qualification")
+                            : td("deal linked from qualification")}
+                        {dealCount > 0
+                            ? ` (${dealCount})`
+                            : ""}
                     </div>
                     {hint ? (
                         <div
@@ -166,13 +176,35 @@ export default function LifecycleBanner({
                         </div>
                     ) : null}
                 </div>
-                <button
-                    type="button"
-                    className="v2-btn v2-btn-primary"
-                    onClick={onPrimary}
+                <div
+                    style={{
+                        display: "flex",
+                        gap: 8,
+                        flexWrap: "wrap",
+                        alignItems: "center",
+                    }}
                 >
-                    {td(config.primaryCta.label)}
-                </button>
+                    {onSecondary && config.secondaryCta ? (
+                        <button
+                            type="button"
+                            className="v2-btn v2-btn-ghost"
+                            onClick={onSecondary}
+                        >
+                            {td(config.secondaryCta.label)}
+                        </button>
+                    ) : null}
+                    <button
+                        type="button"
+                        className="v2-btn v2-btn-primary"
+                        onClick={onPrimary}
+                    >
+                        {td(
+                            dealCount > 1
+                                ? "Open latest deal"
+                                : config.primaryCta.label,
+                        )}
+                    </button>
+                </div>
             </div>
         );
     }

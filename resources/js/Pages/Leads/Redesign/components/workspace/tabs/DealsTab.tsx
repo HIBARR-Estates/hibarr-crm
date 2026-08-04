@@ -40,7 +40,11 @@ export default function DealsTab({ dealMeta }: DealsTabProps) {
                         setModalOpen(true);
                     }}
                 >
-                    {td("Create deal")}
+                    {td(
+                        deals.length === 0
+                            ? "Create deal"
+                            : "Create another deal",
+                    )}
                 </Button>
             </div>
 
@@ -48,7 +52,7 @@ export default function DealsTab({ dealMeta }: DealsTabProps) {
                 <EmptyState
                     title={td("No deals yet")}
                     description={td(
-                        "Convert this lead by creating their first deal.",
+                        "Create a deal for this lead. You can add more deals later.",
                     )}
                 />
             ) : (
@@ -67,7 +71,16 @@ export default function DealsTab({ dealMeta }: DealsTabProps) {
                 saving={isCreating}
                 errors={errors}
                 dealMeta={dealMeta}
-                defaultAgentId={lead.lead_owner?.id ?? null}
+                defaultAgentId={(() => {
+                    const ownerUserId = lead.lead_owner?.id;
+                    if (!ownerUserId) return null;
+                    const match = (dealMeta?.leadAgents ?? []).find(
+                        (agent) =>
+                            agent.user_id === ownerUserId ||
+                            agent.user?.id === ownerUserId,
+                    );
+                    return match?.id ?? null;
+                })()}
                 onSubmit={(input) =>
                     createDeal(input, () => setModalOpen(false))
                 }

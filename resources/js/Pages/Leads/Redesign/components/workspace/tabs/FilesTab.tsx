@@ -184,9 +184,34 @@ export default function FilesTab({
                     />
                     <p className="mb-1 text-[13px] font-medium text-[#1a1f2e]">
                         {isUploading
-                            ? `${td("Uploading")}… ${uploadProgress}%`
+                            ? uploadProgress > 0
+                                ? `${td("Uploading")}… ${uploadProgress}%`
+                                : `${td("Uploading")}…`
                             : td("Drop files here or click to upload")}
                     </p>
+                    {isUploading ? (
+                        <div
+                            className="mx-auto mb-2 mt-2 h-1.5 w-full max-w-[220px] overflow-hidden rounded-full bg-[#e5e7eb]"
+                            role="progressbar"
+                            aria-valuenow={uploadProgress}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                        >
+                            <div
+                                className="h-full rounded-full bg-[#1a6bb5] transition-[width] duration-150 ease-out"
+                                style={{
+                                    width:
+                                        uploadProgress > 0
+                                            ? `${uploadProgress}%`
+                                            : "30%",
+                                    animation:
+                                        uploadProgress > 0
+                                            ? undefined
+                                            : "pulse 1s ease-in-out infinite",
+                                }}
+                            />
+                        </div>
+                    ) : null}
                     <p className="text-[12px] text-[#9ca3af]">
                         {td("You can select multiple files at once.")}
                     </p>

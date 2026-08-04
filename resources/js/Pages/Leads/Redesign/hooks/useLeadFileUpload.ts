@@ -1,80 +1,118 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import axios from "axios";
 import { message } from "antd";
-import { useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
+import { usePage } from "@inertiajs/react";
 import type { LeadContactFile } from "@/Types/api/file";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
-interface StorePayload {
-    lead_id: number;
-    file: File[];
+function extractUploadedFiles(response: unknown): LeadContactFile[] {
+    if (!response || typeof response !== "object") return [];
+    const body = response as Record<string, unknown>;
+    const data = body.data;
+    if (Array.isArray(data)) return data as LeadContactFile[];
+    return [];
 }
 
 export default function useLeadFileUpload(leadId: number) {
     const { td } = useTd();
+    const { props } = usePage();
     const [isUploading, setIsUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
     const { setFiles } = useLeadWorkspace();
-
-    const saveMutation = useApiMutate<
-        StorePayload,
-        LeadContactFile[],
-        ApiResponse<LeadContactFile[]>
-    >(route("lead-contact-files.store"), "POST", undefined, true);
+    const abortRef = useRef<AbortController | null>(null);
 
     const uploadFiles = useCallback(
         async (rawFiles: File[]) => {
             if (rawFiles.length === 0) return;
 
+            abortRef.current?.abort();
+            const controller = new AbortController();
+            abortRef.current = controller;
+
             setIsUploading(true);
             setUploadProgress(0);
 
-            try {
-                await new Promise<void>((resolve, reject) => {
-                    saveMutation.mutate(
-                        {
-                            lead_id: leadId,
-                            file: rawFiles,
-                        } as StorePayload,
-                        {
-                            onSuccess: (response) => {
-                                if (response?.status === "success") {
-                                    message.success(td("Files uploaded"));
-                                    if (response.data) {
-                                        setFiles((prev) => [
-                                            ...response.data!,
-                                            ...prev,
-                                        ]);
-                                    }
-                                    setUploadProgress(100);
-                                    resolve();
-                                    return;
-                                }
-
-                                reject(new Error("Failed to save uploaded files"));
-                            },
-                            onError: (error) => reject(error),
-                        },
-                    );
+            const formData = new FormData();
+            formData.append("lead_id", String(leadId));
+            if (rawFiles.length === 1) {
+                formData.append("file", rawFiles[0]);
+            } else {
+                rawFiles.forEach((file, index) => {
+                    formData.append(`file[${index}]`, file);
                 });
+            }
+
+            try {
+                const response = await axios.post(
+                    route("lead-contact-files.store"),
+                    formData,
+                    {
+                        signal: controller.signal,
+                        headers: {
+                            Accept: "application/json",
+                            "X-COMPANY-ID":
+                                props.auth?.user?.company_id != null
+                                    ? String(props.auth.user.company_id)
+                                    : "",
+                            "X-CSRF-TOKEN":
+                                (props as { csrf_token?: string }).csrf_token ??
+                                "",
+                        },
+                        onUploadProgress: (event) => {
+                            if (event.total && event.total > 0) {
+                                const pct = Math.min(
+                                    99,
+                                    Math.round(
+                                        (event.loaded / event.total) * 100,
+                                    ),
+                                );
+                                setUploadProgress(pct);
+                            } else if (event.loaded > 0) {
+                                // Total unknown (chunked) — show activity without a fake percent.
+                                setUploadProgress((prev) =>
+                                    prev < 15 ? 15 : Math.min(prev + 5, 90),
+                                );
+                            }
+                        },
+                    },
+                );
+
+                const body = response.data;
+                if (body?.status === "success") {
+                    const uploaded = extractUploadedFiles(body);
+                    if (uploaded.length > 0) {
+                        setFiles((prev) => [...uploaded, ...prev]);
+                    }
+                    setUploadProgress(100);
+                    message.success(td("Files uploaded"));
+                    return;
+                }
+
+                throw new Error(body?.message || "Failed to save uploaded files");
             } catch (error) {
+                if (axios.isCancel(error) || (error as { code?: string })?.code === "ERR_CANCELED") {
+                    return;
+                }
                 const backendMessage =
                     error instanceof Error
                         ? error.message
-                        : (error as { message?: string } | undefined)?.message;
+                        : (error as { message?: string; response?: { data?: { message?: string } } })
+                              ?.response?.data?.message ??
+                          (error as { message?: string } | undefined)?.message;
                 message.error(backendMessage ?? td("Upload failed"));
             } finally {
                 setIsUploading(false);
-                setUploadProgress(0);
+                // Keep 100 briefly visible, then clear.
+                window.setTimeout(() => setUploadProgress(0), 400);
             }
         },
-        [leadId, saveMutation, setFiles, td],
+        [leadId, props, setFiles, td],
     );
 
     return {
         uploadFiles,
-        isUploading: isUploading || saveMutation.isPending,
+        isUploading,
         uploadProgress,
     };
 }

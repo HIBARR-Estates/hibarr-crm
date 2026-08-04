@@ -55,6 +55,7 @@ export const LIFECYCLE_BANNER_CONFIG: Record<LeadBannerMode, LifecycleBannerConf
     converted: {
         mode: "converted",
         primaryCta: { label: "Open deal", action: "open_deal" },
+        secondaryCta: { label: "Create another deal", action: "create_deal" },
     },
     nurture: {
         mode: "nurture",

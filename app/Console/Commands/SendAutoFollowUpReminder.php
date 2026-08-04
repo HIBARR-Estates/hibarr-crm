@@ -5,12 +5,11 @@ namespace App\Console\Commands;
 use App\Events\AutoFollowUpReminderEvent;
 use App\Models\Company;
 use App\Models\DealFollowUp;
-use App\Models\UserReminderPreference;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Cache;
 
 class SendAutoFollowUpReminder extends Command
 {
-
     /**
      * The name and signature of the console command.
      *
@@ -25,13 +24,16 @@ class SendAutoFollowUpReminder extends Command
      */
     protected $description = 'Send notification of followup to employee or added by user';
 
+    /**
+     * Match window in minutes — catches reminders even if the cron slips by a few minutes.
+     */
+    private const MATCH_WINDOW_MINUTES = 5;
 
     /**
      * Execute the console command.
      *
      * @return mixed
      */
-
     public function handle()
     {
         Company::active()->chunk(50, function ($companies) {
@@ -45,115 +47,140 @@ class SendAutoFollowUpReminder extends Command
 
     public function sendFollowUpReminder($company)
     {
-        // Query using deal relationship (updated from lead to deal)
-        $followups = DealFollowUp::with('deal', 'deal.leadAgent', 'deal.leadAgent.user')
-            ->where('next_follow_up_date', '>=', now($company->timezone))
-            ->whereHas('deal', function ($query) use ($company) {
-                $query->where('company_id', $company->id);
+        $now = now($company->timezone);
+
+        // Include both deal-linked and lead-only meetings that still need reminders.
+        $followups = DealFollowUp::with([
+            'deal',
+            'deal.leadAgent',
+            'deal.leadAgent.user',
+            'deal.contact',
+            'lead',
+            'lead.leadOwner',
+        ])
+            ->where('next_follow_up_date', '>=', $now->copy()->subDay())
+            ->where(function ($query) use ($company) {
+                $query->whereHas('deal', function ($q) use ($company) {
+                    $q->where('company_id', $company->id);
+                })->orWhere(function ($q) use ($company) {
+                    $q->whereNull('deal_id')
+                        ->whereNotNull('lead_id')
+                        ->whereHas('lead', function ($leadQuery) use ($company) {
+                            $leadQuery->where('company_id', $company->id);
+                        });
+                });
             })
-            ->where('send_reminder', 'yes')
+            ->where(function ($query) {
+                $query->where('send_reminder', 'yes')
+                    ->orWhereNull('send_reminder')
+                    ->orWhere('send_reminder', '');
+            })
             ->get();
 
         foreach ($followups as $followup) {
-            // Collect all unique recipients: participants + deal agent
             $recipientIds = collect($followup->participants ?? []);
-            
-            // Add deal's lead agent if exists
+
             if ($followup->deal?->leadAgent?->user_id) {
                 $recipientIds->push($followup->deal->leadAgent->user_id);
             }
-            
-            // Deduplicate recipients
+
+            if ($followup->lead?->lead_owner) {
+                $recipientIds->push($followup->lead->lead_owner);
+            }
+
+            if ($followup->added_by) {
+                $recipientIds->push($followup->added_by);
+            }
+
             $uniqueRecipientIds = $recipientIds->unique()->filter()->values();
-            
-            // Track sent notifications to prevent duplicates within same run
-            // Key format: {followupId}:{userId}:{reminderKey}
+
             $sentNotifications = [];
-            
+
             foreach ($uniqueRecipientIds as $userId) {
-                // Get effective reminders for this user (per-meeting override or user preference)
-                $userReminders = $followup->getEffectiveReminders($userId);
-                
+                $userReminders = $followup->getEffectiveReminders((int) $userId);
+
                 foreach ($userReminders as $reminder) {
-                    $remindTime = $reminder['time'];
-                    $remindType = $reminder['type'];
-                    
-                    // Create unique key for deduplication
-                    $reminderKey = "{$followup->id}:{$userId}:{$remindTime}:{$remindType}";
-                    
-                    // Skip if already sent
-                    if (in_array($reminderKey, $sentNotifications)) {
-                        continue;
-                    }
-
-                    $followupDate = clone $followup->next_follow_up_date;
-                    
-                    if ($remindType == 'day') {
-                        $reminderDate = $followupDate->subDays($remindTime);
-                    }
-                    elseif ($remindType == 'hour') {
-                        $reminderDate = $followupDate->subHours($remindTime);
-                    }
-                    else {
-                        $reminderDate = $followupDate->subMinutes($remindTime);
-                    }
-
-                    // Check if it's time to send this specific reminder
-                    if ($reminderDate->format('Y-m-d H:i') == now($company->timezone)->format('Y-m-d H:i')) {
-                        // Fire event with specific target user
-                        event(new AutoFollowUpReminderEvent($followup, false, $reminder, $userId));
-                        
-                        // Mark as sent to prevent duplicates
-                        $sentNotifications[] = $reminderKey;
-                    }
+                    $this->maybeFireReminder(
+                        $followup,
+                        $reminder,
+                        $company,
+                        $now,
+                        (int) $userId,
+                        $sentNotifications
+                    );
                 }
             }
-            
-            // If no participants/agents, fall back to original behavior (admins)
+
             if ($uniqueRecipientIds->isEmpty()) {
-                $this->sendDefaultReminders($followup, $company, $sentNotifications);
+                $this->sendDefaultReminders($followup, $company, $now, $sentNotifications);
             }
         }
     }
-    
+
     /**
-     * Send reminders using default behavior when no specific recipients
-     * Uses system default reminders for legacy follow-ups without participants
+     * @param  array<int, string>  $sentNotifications
      */
-    private function sendDefaultReminders($followup, $company, array &$sentNotifications)
+    private function sendDefaultReminders($followup, $company, $now, array &$sentNotifications): void
     {
-        $allReminders = $followup->getAllReminders();
-        
-        foreach ($allReminders as $reminder) {
-            $remindTime = $reminder['time'];
-            $remindType = $reminder['type'];
-            
-            $reminderKey = "{$followup->id}:default:{$remindTime}:{$remindType}";
-            
-            if (in_array($reminderKey, $sentNotifications)) {
-                continue;
-            }
-
-            $followupDate = clone $followup->next_follow_up_date;
-            
-            if ($remindType == 'day') {
-                $reminderDate = $followupDate->subDays($remindTime);
-            }
-            elseif ($remindType == 'hour') {
-                $reminderDate = $followupDate->subHours($remindTime);
-            }
-            else {
-                $reminderDate = $followupDate->subMinutes($remindTime);
-            }
-
-            if ($reminderDate->format('Y-m-d H:i') == now($company->timezone)->format('Y-m-d H:i')) {
-                // No targetUserId - listener will fall back to deal agent or admins
-                event(new AutoFollowUpReminderEvent($followup, false, $reminder, null));
-                $sentNotifications[] = $reminderKey;
-            }
+        foreach ($followup->getAllReminders() as $reminder) {
+            $this->maybeFireReminder(
+                $followup,
+                $reminder,
+                $company,
+                $now,
+                null,
+                $sentNotifications
+            );
         }
     }
 
+    /**
+     * @param  array<string, mixed>  $reminder
+     * @param  array<int, string>  $sentNotifications
+     */
+    private function maybeFireReminder(
+        $followup,
+        array $reminder,
+        $company,
+        $now,
+        ?int $userId,
+        array &$sentNotifications
+    ): void {
+        $remindTime = (int) ($reminder['time'] ?? 0);
+        $remindType = $reminder['type'] ?? 'minute';
+        $userKey = $userId ?? 'default';
+        $reminderKey = "{$followup->id}:{$userKey}:{$remindTime}:{$remindType}";
+
+        if (in_array($reminderKey, $sentNotifications, true)) {
+            return;
+        }
+
+        // Cross-run de-dupe for the widened match window.
+        $cacheKey = "followup_reminder_sent:{$reminderKey}";
+        if (Cache::has($cacheKey)) {
+            return;
+        }
+
+        $followupDate = clone $followup->next_follow_up_date;
+
+        if ($remindType === 'day') {
+            $reminderDate = $followupDate->subDays($remindTime);
+        } elseif ($remindType === 'hour') {
+            $reminderDate = $followupDate->subHours($remindTime);
+        } else {
+            $reminderDate = $followupDate->subMinutes($remindTime);
+        }
+
+        $windowStart = $now->copy()->subMinutes(self::MATCH_WINDOW_MINUTES);
+        $windowEnd = $now->copy()->addMinute();
+
+        if ($reminderDate->lt($windowStart) || $reminderDate->gt($windowEnd)) {
+            return;
+        }
+
+        event(new AutoFollowUpReminderEvent($followup, false, $reminder, $userId));
+        $sentNotifications[] = $reminderKey;
+        // Keep longer than the match window so a late cron can't re-fire.
+        Cache::put($cacheKey, true, now()->addHours(12));
+    }
 }
-
-

@@ -21,6 +21,8 @@ export interface DossierFieldDef {
     mutedEmpty?: boolean;
     tone?: "green";
     placeholder?: string;
+    /** Override section-level copyable for this field. */
+    copyable?: boolean;
 }
 
 export interface DossierSectionDef {
@@ -45,8 +47,8 @@ export const DOSSIER_SECTIONS: DossierSectionDef[] = [
         fields: [
             { key: "mobile", label: "Phone" },
             { key: "email", label: "Email" },
-            { key: "source", label: "Source" },
-            { key: "category", label: "Category" },
+            { key: "source", label: "Source", copyable: false },
+            { key: "category", label: "Category", copyable: false },
         ],
     },
     {
