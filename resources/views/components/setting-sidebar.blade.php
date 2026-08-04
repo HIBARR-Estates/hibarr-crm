@@ -58,6 +58,11 @@
                                  :text="__('app.menu.notificationSettings')"/>
         @endif
 
+        @if (user()->permission('manage_company_setting') == 'all' && \App\Support\FeatureFlags::enabled('crm.entity-reminders'))
+            <x-setting-menu-item :active="$activeMenu" menu="reminder_defaults" :href="route('entity-reminder-defaults.index')"
+                                 :text="__('app.menu.reminderDefaults')"/>
+        @endif
+
         @if (user()->permission('manage_currency_setting') == 'all')
             <x-setting-menu-item :active="$activeMenu" menu="currency_settings" :href="route('currency-settings.index')"
                                  :text="__('app.menu.currencySettings')"/>

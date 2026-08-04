@@ -9,6 +9,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
+use App\Services\Reminders\MeetingReminderSync;
 use App\Scopes\ActiveScope;
 use App\Notifications\MeetingLinkGenerationFailed;
 use ReflectionClass;
@@ -2339,6 +2340,8 @@ class DealController extends AccountBaseController
 
         event(new AutoFollowUpReminderEvent($followUp, true));
 
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
         return Reply::successWithData(__('messages.recordSaved'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
@@ -2469,6 +2472,8 @@ class DealController extends AccountBaseController
             // Continue without throwing exception - follow-up is already updated
         }
 
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
         return Reply::successWithData(__('messages.updateSuccess'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
@@ -2477,6 +2482,8 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::findOrFail($id);
         $this->deletePermission = user()->permission('delete_lead_follow_up');
         abort_403(!($this->deletePermission == 'all' || ($this->deletePermission == 'added' && $followUp->added_by == user()->id)));
+
+        app(MeetingReminderSync::class)->cancelForFollowUp($followUp);
 
         DealFollowUp::destroy($id);
 
@@ -2540,6 +2547,11 @@ class DealController extends AccountBaseController
         } elseif ($this->deletePermission != 'all') {
             abort_403(__('messages.permissionDenied'));
         }
+
+        $sync = app(MeetingReminderSync::class);
+        DealFollowUp::whereIn('id', $followUpIds)->get()->each(function (DealFollowUp $followUp) use ($sync) {
+            $sync->cancelForFollowUp($followUp);
+        });
 
         DealFollowUp::whereIn('id', $followUpIds)->delete();
     }

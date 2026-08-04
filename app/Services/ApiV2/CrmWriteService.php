@@ -16,6 +16,7 @@ use App\Scopes\ActiveScope;
 use App\Scopes\CompanyScope;
 use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
+use App\Services\Reminders\MeetingReminderSync;
 use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -264,6 +265,8 @@ class CrmWriteService
         } catch (\Throwable $exception) {
             report($exception);
         }
+
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
 
         return $followUp->fresh(self::MEETING_SUMMARY_RELATIONS);
     }
@@ -572,12 +575,16 @@ class CrmWriteService
 
         $followUp->save();
 
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
         return $followUp->fresh(self::MEETING_SUMMARY_RELATIONS);
     }
 
     public function deleteMeeting(int $companyId, int $meetingId): void
     {
-        $this->findMeeting($companyId, $meetingId)->delete();
+        $followUp = $this->findMeeting($companyId, $meetingId);
+        app(MeetingReminderSync::class)->cancelForFollowUp($followUp);
+        $followUp->delete();
     }
 
     /**

@@ -111,7 +111,10 @@ return [
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Настройки напоминаний',
+            'entity_reminder_defaults' => 'Стандартные напоминания',
         ],
+        'reminderDefaults' => 'Стандартные напоминания',
+        'entityReminderDefaults' => 'Стандартные напоминания',
     ],
 
     // Breadcrumb
@@ -589,6 +592,8 @@ return [
 
     'settings' => [
         'reminder_preferences' => 'Настройки напоминаний',
+        'entity_reminder_defaults' => 'Стандартные напоминания',
+        'reminder_defaults' => 'Стандартные напоминания',
     ],
     // Layouts
     'layouts' => [

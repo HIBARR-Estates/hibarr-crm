@@ -212,7 +212,10 @@ return array(
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Reminder Preferences',
+            'entity_reminder_defaults' => 'Reminder Defaults',
         ],
+        'reminderDefaults' => 'Reminder Defaults',
+        'entityReminderDefaults' => 'Reminder Defaults',
         'customFieldCategories' => 'Custom Field Categories',
         'customFields' => 'Custom Fields',
         'events' => 'Events',
@@ -1661,5 +1664,7 @@ return array(
 
     'settings' => [
         'reminder_preferences' => 'Reminder Preferences',
+        'entity_reminder_defaults' => 'Reminder Defaults',
+        'reminder_defaults' => 'Reminder Defaults',
     ],
 );

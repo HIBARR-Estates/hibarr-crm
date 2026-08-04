@@ -188,7 +188,9 @@ export default function AnalysisQuestionRow({
                         fieldName={item.scriptItem.item_key}
                         fieldType={meta.fieldType as any}
                         disabled={!canEdit}
-                        onSave={(val: unknown) => onFieldUpdate(item.scriptItem.item_key, val, updateType)}
+                        onSave={async (val: unknown) => {
+                            onFieldUpdate(item.scriptItem.item_key, val, updateType);
+                        }}
                     />
                 )}
             </div>
