@@ -435,6 +435,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             case "deals":
                 return (
                     <DealsTab
+                        meetingTypes={props.meetingTypes ?? []}
                         dealMeta={{
                             categories: props.categories,
                             packages: props.packages,

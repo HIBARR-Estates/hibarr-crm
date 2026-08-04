@@ -361,7 +361,11 @@ class LeadContactController extends AccountBaseController
             })->get(), 'formMeta'),
             'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
             'products' => Inertia::defer(fn () => Product::all(), 'dealMeta'),
-            'packages' => Inertia::defer(fn () => \App\Models\Package::all(), 'dealMeta'),
+            // packagePipeline lets Create Deal filter packages by selected pipeline.
+            'packages' => Inertia::defer(
+                fn () => \App\Models\Package::with('packagePipeline')->get(),
+                'dealMeta',
+            ),
             'dealCustomFields' => Inertia::defer(function () {
                 $deal = new Deal();
                 $groups = $deal->getCustomFieldGroupsWithFields();
