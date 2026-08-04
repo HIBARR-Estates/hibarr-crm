@@ -27,6 +27,7 @@ class UpdateNoteV2Request extends CoreRequest
             'type' => 'required|in:lead,deal',
             'title' => 'sometimes|required|string|max:255',
             'details' => 'sometimes|required|string',
+            'remind_at' => 'nullable|date',
             'updated_by_user_id' => [
                 'nullable',
                 'integer',

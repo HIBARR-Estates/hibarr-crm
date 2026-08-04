@@ -9,6 +9,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
+use App\Services\Reminders\MeetingReminderSync;
 use App\Scopes\ActiveScope;
 use App\Notifications\MeetingLinkGenerationFailed;
 use ReflectionClass;
@@ -1192,7 +1193,15 @@ class DealController extends AccountBaseController
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
         // $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
+        if ($request->exists('reminders')) {
+            $deal->reminders = $request->input('reminders');
+        }
+        if ($request->exists('remind_at')) {
+            $deal->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
         $deal->save();
+
+        app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
 
         // Handle packages
         $packageRouter = app(PackagePipelineRouterService::class);
@@ -1485,7 +1494,16 @@ class DealController extends AccountBaseController
             $customFieldsUpdated = true;
         }
 
+        if ($request->exists('reminders')) {
+            $deal->reminders = $request->input('reminders');
+        }
+        if ($request->exists('remind_at')) {
+            $deal->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+
         $deal->save();
+
+        app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
 
         // Handle packages — only touch when the field is actually present in the
         // request, so partial updates (e.g. pipeline stage changes) don't wipe
@@ -1702,6 +1720,8 @@ class DealController extends AccountBaseController
                 'pipeline_stage_id' => 'pipeline_stage_id',
                 'lead_pipeline_id' => 'lead_pipeline_id',
                 'close_date' => 'close_date',
+                'remind_at' => 'remind_at',
+                'reminders' => 'reminders',
                 'probability' => 'probability',
                 'note' => 'note',
                 'agent_id' => 'agent_id', //can be null
@@ -1739,6 +1759,9 @@ class DealController extends AccountBaseController
                 $deal->update($dealUpdates);
                 if (!$deal->wasChanged() && $customFieldsUpdated) {
                      app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
+                }
+                if (array_key_exists('remind_at', $dealUpdates) || array_key_exists('reminders', $dealUpdates)) {
+                    app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
                 }
             } elseif ($customFieldsUpdated) {
                  app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
@@ -2339,6 +2362,8 @@ class DealController extends AccountBaseController
 
         event(new AutoFollowUpReminderEvent($followUp, true));
 
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
         return Reply::successWithData(__('messages.recordSaved'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
@@ -2469,6 +2494,8 @@ class DealController extends AccountBaseController
             // Continue without throwing exception - follow-up is already updated
         }
 
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
         return Reply::successWithData(__('messages.updateSuccess'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
@@ -2477,6 +2504,8 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::findOrFail($id);
         $this->deletePermission = user()->permission('delete_lead_follow_up');
         abort_403(!($this->deletePermission == 'all' || ($this->deletePermission == 'added' && $followUp->added_by == user()->id)));
+
+        app(MeetingReminderSync::class)->cancelForFollowUp($followUp);
 
         DealFollowUp::destroy($id);
 
@@ -2540,6 +2569,11 @@ class DealController extends AccountBaseController
         } elseif ($this->deletePermission != 'all') {
             abort_403(__('messages.permissionDenied'));
         }
+
+        $sync = app(MeetingReminderSync::class);
+        DealFollowUp::whereIn('id', $followUpIds)->get()->each(function (DealFollowUp $followUp) use ($sync) {
+            $sync->cancelForFollowUp($followUp);
+        });
 
         DealFollowUp::whereIn('id', $followUpIds)->delete();
     }

@@ -25,6 +25,7 @@ class CreateNoteV2Request extends CoreRequest
         return array_merge($this->crmWriteTargetRules(), [
             'title' => 'required|string|max:255',
             'details' => 'required|string',
+            'remind_at' => 'nullable|date',
         ]);
     }
 
