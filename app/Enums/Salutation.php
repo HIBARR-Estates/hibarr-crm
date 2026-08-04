@@ -12,13 +12,15 @@ enum Salutation: string
     case Dr = 'dr';
     case Sir = 'sir';
     case Madam = 'madam';
+    case Herr = 'herr';
+    case Frau = 'frau';
     // phpcs:enable
 
     // This method is used to display the enum value in the user interface.
     public function label(): string
     {
         return match ($this) {
-            self::Mr, self::Mrs, self::Miss, self::Dr, self::Sir, self::Madam => __('app.' . $this->value),
+            self::Mr, self::Mrs, self::Miss, self::Dr, self::Sir, self::Madam, self::Herr, self::Frau => __('app.' . $this->value),
             default => $this->value,
         };
     }

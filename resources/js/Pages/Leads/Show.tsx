@@ -9,8 +9,15 @@ import { Task } from "@/Types/api/tasks";
 import { usePage } from "@inertiajs/react";
 import type { PageProps } from "@/Components/DashboardLayout";
 import type { EntitySummaryPayload } from "@/Types/entity-summary";
+import type { LeadQualification } from "@/Types/qualification";
 import LegacyLeadShow from "./LegacyLeadShow";
 import LeadViewRedesign from "./Redesign/LeadViewRedesign";
+
+/** Matches LeadQualificationService::resolveWorkspaceForLead(). */
+export interface LeadQualificationWorkspacePayload {
+    current: LeadQualification | null;
+    history: LeadQualification[];
+}
 
 export interface LeadShowProps {
     lead: Lead;
@@ -19,6 +26,7 @@ export interface LeadShowProps {
     employees: User[];
     countries: Array<{ iso: string; nicename: string; iso3: string }>;
     salutations: Array<{ value: string; label: string }>;
+    ageRanges?: Array<{ value: string; label: string }>;
     customFieldCategories?: any[];
     fields?: any[];
     editLeadPermission: string;
@@ -34,6 +42,18 @@ export interface LeadShowProps {
     qualificationPermissions?: Record<string, string>;
     featureFlags?: Record<string, boolean>;
     leadAiSummary?: EntitySummaryPayload | null;
+    /**
+     * Synchronous seed for the qualification workspace — null when the
+     * `crm.lead-qualification-tab` flag is off. Lets the modal paint without
+     * waiting on `lead-qualifications.index`.
+     */
+    leadQualification?: LeadQualificationWorkspacePayload | null;
+    leadLifecycleStatuses?: Array<{
+        id: number;
+        key: string;
+        label: string;
+        label_color?: string | null;
+    }>;
     // C1 deferred — may be undefined until Inertia resolves them
     notes?: LeadNote[];
     tasks?: Task[];

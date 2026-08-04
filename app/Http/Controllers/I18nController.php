@@ -23,6 +23,9 @@ class I18nController extends Controller
             ->json($payload)
             // Dictionaries are locale-scoped (not user-specific); private keeps
             // shared proxies from caching an auth-gated response.
-            ->header('Cache-Control', 'private, max-age=3600');
+            // no-cache: always revalidate so newly added lang keys (e.g. product
+            // tours) show up after translations:clear without waiting an hour.
+            // The expensive flatten still lives in Cache::remember server-side.
+            ->header('Cache-Control', 'private, no-cache');
     }
 }

@@ -7,17 +7,21 @@ interface AvatarProps {
     type?: AvatarType;
     size?: number;
     className?: string;
+    /** When set, renders the photo instead of initials. */
+    src?: string | null;
 }
 
 /**
  * Solid navy/green/blue fills with white text; watcher is the outlined
  * light-gray variant. Inline-styled so it works outside page-scoped CSS.
+ * Optional `src` shows a photo (e.g. lead avatar on the deal dossier).
  */
 export default function Avatar({
     initials,
     type = "default",
     size = 28,
     className,
+    src,
 }: AvatarProps) {
     const colors: Record<
         AvatarType,
@@ -29,6 +33,7 @@ export default function Avatar({
         default: { bg: T.BLUE, color: T.WHITE },
     };
     const c = colors[type] ?? colors.default;
+    const photoUrl = src?.trim() || null;
 
     return (
         <div
@@ -46,9 +51,23 @@ export default function Avatar({
                 fontWeight: 700,
                 flexShrink: 0,
                 border: c.border ? `1px solid ${c.border}` : "none",
+                overflow: "hidden",
             }}
         >
-            {initials}
+            {photoUrl ? (
+                <img
+                    src={photoUrl}
+                    alt=""
+                    style={{
+                        width: "100%",
+                        height: "100%",
+                        objectFit: "cover",
+                        display: "block",
+                    }}
+                />
+            ) : (
+                initials
+            )}
         </div>
     );
 }
