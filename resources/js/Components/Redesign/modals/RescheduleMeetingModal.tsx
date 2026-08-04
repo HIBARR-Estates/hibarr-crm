@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
@@ -56,11 +56,20 @@ export default function RescheduleMeetingModal({
     const { td } = useTd();
     const [form, setForm] = useState<RescheduleFormState | null>(null);
     const [showDuration, setShowDuration] = useState(false);
+    const seededForOpenRef = useRef(false);
 
+    // Seed once per open session — not when parent re-renders with a fresh
+    // initialForm object (e.g. after validation sets errors).
     useEffect(() => {
-        if (open && initialForm) {
+        if (!open) {
+            seededForOpenRef.current = false;
+            setForm(null);
+            return;
+        }
+        if (initialForm && !seededForOpenRef.current) {
             setForm(initialForm);
             setShowDuration(Boolean(initialForm.duration));
+            seededForOpenRef.current = true;
         }
     }, [open, initialForm]);
 

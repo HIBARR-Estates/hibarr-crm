@@ -809,6 +809,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             endTime: form.endTime,
                             duration: form.duration,
                             platform: form.platform,
+                            locationDetail: form.locationDetail,
                             meetingLink: form.meetingLink,
                             participants: form.participants,
                             remark: form.remark,

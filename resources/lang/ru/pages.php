@@ -754,6 +754,7 @@ return [
                 'platform'             => 'Платформа',
                 'platform_video_call'  => 'Видеозвонок',
                 'platform_in_person'   => 'Очно',
+                'platform_physical'    => 'Очно',
                 'platform_phone'       => 'Телефон',
                 'reminder_unit_minutes' => 'минут',
                 'reminder_unit_hours'  => 'часов',

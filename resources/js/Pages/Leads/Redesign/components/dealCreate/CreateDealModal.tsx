@@ -20,6 +20,9 @@ import MeetingFormFields from "@/Components/Redesign/meeting/MeetingFormFields";
 import {
     addMinutesToTime,
     buildEmptyMeetingForm,
+    requiresManualMeetingLink,
+    requiresMeetingParticipants,
+    requiresPhysicalLocationDetail,
     type MeetingFormState,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
@@ -351,7 +354,13 @@ export default function CreateDealModal({
         !addKickoffMeeting ||
         (Boolean(meetingForm.date) &&
             Boolean(meetingForm.startTime) &&
-            meetingForm.meetingTypeId != null);
+            meetingForm.meetingTypeId != null &&
+            (!requiresManualMeetingLink(meetingForm.platform) ||
+                Boolean(meetingForm.meetingLink.trim())) &&
+            (!requiresMeetingParticipants(meetingForm.platform) ||
+                meetingForm.participants.length > 0) &&
+            (!requiresPhysicalLocationDetail(meetingForm.platform) ||
+                Boolean(meetingForm.locationDetail.trim())));
 
     const buildSubmitInput = (
         includeKickoff: boolean,
@@ -414,6 +423,7 @@ export default function CreateDealModal({
                           endTime,
                           duration: duration ?? 30,
                           platform: meetingForm.platform,
+                          locationDetail: meetingForm.locationDetail,
                           meetingLink: meetingForm.meetingLink,
                           participants: meetingForm.participants,
                           remark:

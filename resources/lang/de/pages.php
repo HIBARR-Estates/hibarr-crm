@@ -754,6 +754,7 @@ return [
                 'platform'             => 'Plattform',
                 'platform_video_call'  => 'Videoanruf',
                 'platform_in_person'   => 'Vor Ort',
+                'platform_physical'    => 'Vor Ort',
                 'platform_phone'       => 'Telefon',
                 'reminder_unit_minutes' => 'Minuten',
                 'reminder_unit_hours'  => 'Stunden',

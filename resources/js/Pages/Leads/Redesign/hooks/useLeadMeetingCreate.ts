@@ -16,6 +16,11 @@ import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
     isMeetingStartInFuture,
+    locationForPayload,
+    meetingLinkForPayload,
+    requiresManualMeetingLink,
+    requiresMeetingParticipants,
+    requiresPhysicalLocationDetail,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
@@ -26,6 +31,7 @@ export interface LeadMeetingCreateInput {
     endTime: string;
     duration: number | null;
     platform: MeetingPlatform;
+    locationDetail: string;
     meetingLink: string;
     participants: number[];
     remark: string;
@@ -93,9 +99,14 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 next_follow_up_date: formatMeetingDateForApi(input.date),
                 start_time: formatMeetingTimeForApi(input.startTime),
                 meeting_type_id: input.meetingTypeId ?? undefined,
-                location: input.platform,
-                meeting_link:
-                    input.platform === "zoho" ? input.meetingLink.trim() : "",
+                location: locationForPayload(
+                    input.platform,
+                    input.locationDetail,
+                ),
+                meeting_link: meetingLinkForPayload(
+                    input.platform,
+                    input.meetingLink,
+                ),
                 duration: input.duration,
                 reminders: input.reminders,
                 remark: input.remark.trim(),
@@ -171,10 +182,29 @@ export default function useLeadMeetingCreate(lead: Lead) {
                 validationErrors.push("Please select a platform.");
             }
 
-            if (input.platform === "zoho" && input.participants.length === 0) {
+            if (
+                requiresMeetingParticipants(input.platform) &&
+                input.participants.length === 0
+            ) {
                 validationErrors.push(
-                    "At least one participant is required for video meetings.",
+                    "At least one participant is required for Zoho Meeting.",
                 );
+            }
+
+            if (
+                requiresManualMeetingLink(input.platform) &&
+                !input.meetingLink.trim()
+            ) {
+                validationErrors.push(
+                    "Please paste a meeting link from your video provider.",
+                );
+            }
+
+            if (
+                requiresPhysicalLocationDetail(input.platform) &&
+                !input.locationDetail.trim()
+            ) {
+                validationErrors.push("Please enter the meeting location.");
             }
 
             if (validationErrors.length > 0) {
