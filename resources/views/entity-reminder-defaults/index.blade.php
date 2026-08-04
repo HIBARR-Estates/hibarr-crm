@@ -78,6 +78,40 @@
                             </p>
                         </div>
                     </div>
+
+                    <div class="col-lg-12 mt-4">
+                        <div class="bg-white rounded p-3 border" id="email-templates-card">
+                            <h5 class="f-14 font-weight-bold text-dark-grey mb-1">
+                                @lang('modules.settings.emailTemplates')
+                            </h5>
+                            <p class="f-12 text-lightest mb-3">
+                                @lang('modules.settings.emailTemplatesDescription')
+                            </p>
+
+                            <div class="row">
+                                @foreach ($emailTemplates as $mailType => $templateId)
+                                    <div class="col-md-6 mb-3">
+                                        <label class="f-13 text-dark-grey mb-1" for="plunk_{{ $mailType }}">
+                                            {{ $mailEntityTypeLabels[$mailType] ?? $mailType }}
+                                            <span class="text-lightest">— @lang('modules.settings.plunkTemplateId')</span>
+                                        </label>
+                                        <input type="text"
+                                               class="form-control height-35 plunk-template-input"
+                                               id="plunk_{{ $mailType }}"
+                                               data-mail-type="{{ $mailType }}"
+                                               value="{{ $templateId ?? '' }}"
+                                               placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                               maxlength="128"
+                                               autocomplete="off">
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <button type="button" class="btn btn-primary" id="save-email-templates">
+                                @lang('modules.settings.saveEmailTemplates')
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </x-setting-card>
@@ -105,6 +139,7 @@
         const ENTITY_LABELS = @json($entityTypeLabels);
         const UPDATE_URL = "{{ route('entity-reminder-defaults.update') }}";
         const DESTROY_URL = "{{ url('account/settings/entity-reminder-defaults') }}";
+        const EMAIL_TEMPLATES_URL = "{{ route('entity-reminder-defaults.email-templates') }}";
 
         if ($.fn.selectpicker) {
             $('#new_entity_type').selectpicker('refresh');
@@ -298,6 +333,35 @@
                     entity_type: entityType,
                     reminders: DEFAULT_REMINDERS,
                     is_active: 1
+                }
+            });
+        });
+
+        $('#save-email-templates').on('click', function () {
+            const templates = {};
+            $('.plunk-template-input').each(function () {
+                templates[$(this).data('mail-type')] = ($(this).val() || '').trim();
+            });
+
+            $.easyAjax({
+                url: EMAIL_TEMPLATES_URL,
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    templates: templates
+                },
+                success: function (response) {
+                    if (response.status === 'success' && response.templates) {
+                        Object.keys(response.templates).forEach(function (type) {
+                            $('#plunk_' + type).val(response.templates[type] || '');
+                        });
+                        Swal.fire({
+                            icon: 'success',
+                            text: response.message,
+                            timer: 1500,
+                            showConfirmButton: false
+                        });
+                    }
                 }
             });
         });

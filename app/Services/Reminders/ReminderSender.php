@@ -31,6 +31,14 @@ class ReminderSender
 
                     return;
                 }
+
+                $via = $notification->via($user);
+                if (! in_array('mail', $via, true)) {
+                    $reminder->markFailed('Mail channel disabled for recipient/company email settings');
+
+                    return;
+                }
+
                 // Send inline: SendReminderJob is already queued; avoid a second queue hop
                 // that can fail on unserialize and mark the reminder sent prematurely.
                 Notification::sendNow($user, $notification);

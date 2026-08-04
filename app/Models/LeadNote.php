@@ -47,6 +47,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class LeadNote extends BaseModel
 {
 
+    protected $casts = [
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
+    ];
+
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'lead_id');

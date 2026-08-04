@@ -154,6 +154,8 @@ class Lead extends BaseModel
         'age' => 'integer',
         'age_range' => AgeRange::class,
         'languages' => 'array',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
     ];
 
     public function leadFlightItineraries()

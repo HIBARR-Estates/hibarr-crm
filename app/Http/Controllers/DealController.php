@@ -1193,7 +1193,15 @@ class DealController extends AccountBaseController
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
         // $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
+        if ($request->exists('reminders')) {
+            $deal->reminders = $request->input('reminders');
+        }
+        if ($request->exists('remind_at')) {
+            $deal->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
         $deal->save();
+
+        app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
 
         // Handle packages
         $packageRouter = app(PackagePipelineRouterService::class);
@@ -1486,7 +1494,16 @@ class DealController extends AccountBaseController
             $customFieldsUpdated = true;
         }
 
+        if ($request->exists('reminders')) {
+            $deal->reminders = $request->input('reminders');
+        }
+        if ($request->exists('remind_at')) {
+            $deal->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+
         $deal->save();
+
+        app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
 
         // Handle packages — only touch when the field is actually present in the
         // request, so partial updates (e.g. pipeline stage changes) don't wipe
@@ -1703,6 +1720,8 @@ class DealController extends AccountBaseController
                 'pipeline_stage_id' => 'pipeline_stage_id',
                 'lead_pipeline_id' => 'lead_pipeline_id',
                 'close_date' => 'close_date',
+                'remind_at' => 'remind_at',
+                'reminders' => 'reminders',
                 'probability' => 'probability',
                 'note' => 'note',
                 'agent_id' => 'agent_id', //can be null
@@ -1740,6 +1759,9 @@ class DealController extends AccountBaseController
                 $deal->update($dealUpdates);
                 if (!$deal->wasChanged() && $customFieldsUpdated) {
                      app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
+                }
+                if (array_key_exists('remind_at', $dealUpdates) || array_key_exists('reminders', $dealUpdates)) {
+                    app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
                 }
             } elseif ($customFieldsUpdated) {
                  app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');

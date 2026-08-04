@@ -49,6 +49,10 @@ class DealNote extends BaseModel
 {
     protected $hidden = ["pivot"];
 
+    protected $casts = [
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
+    ];
 
     public function deal(): BelongsTo
     {

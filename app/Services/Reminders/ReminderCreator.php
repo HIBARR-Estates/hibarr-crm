@@ -14,6 +14,14 @@ use Illuminate\Support\Carbon;
 class ReminderCreator
 {
     /**
+     * Create reminder rows for an entity event.
+     *
+     * Cadence precedence (minutes before $eventAt):
+     * 1. Explicit $cadenceMinutes — per-event custom offsets (meetings' reminders JSON, etc.)
+     * 2. Recipient user preferences (UserReminderPreference)
+     * 3. Company EntityReminderDefault for the entity type / "all"
+     * 4. config('reminders.default')
+     *
      * @param  array<int, array{type: string, id?: int|null, email?: string|null}>  $recipients
      * @param  array<int, int>|null  $cadenceMinutes  minutes before eventAt
      * @param  array{message?: string|null, created_by?: int|null, added_by?: int|null}  $meta
@@ -66,14 +74,13 @@ class ReminderCreator
 
             foreach ($minutesList as $minutesBefore) {
                 $minutesBefore = (int) $minutesBefore;
-                // Only create offsets that can still fire (e.g. skip 60/30 when meeting is in 15m).
-                $secondsUntilEvent = Carbon::parse($eventAt)->getTimestamp() - $now->getTimestamp();
-                $minutesUntilEvent = (int) floor($secondsUntilEvent / 60);
-                if ($minutesBefore > $minutesUntilEvent) {
+                $remindAt = Carbon::parse($eventAt)->copy()->subMinutes($minutesBefore);
+
+                // Skip offsets that already passed (same idea as meetings: don't create
+                // a 60/30m reminder when the event is only 15m away).
+                if ($remindAt->lt($now)) {
                     continue;
                 }
-
-                $remindAt = Carbon::parse($eventAt)->copy()->subMinutes($minutesBefore);
 
                 $reminder = Reminder::query()->create([
                     'company_id' => $companyId,
@@ -156,14 +163,20 @@ class ReminderCreator
         ?int $recipientId
     ): array {
         if ($recipientType === Reminder::RECIPIENT_USER && $recipientId) {
-            $prefs = UserReminderPreference::getRemindersForUser($recipientId, 'meeting');
+            $prefs = UserReminderPreference::getRemindersForUser(
+                $recipientId,
+                $this->cadencePreferenceType($entityType)
+            );
             $fromPrefs = $this->offsetsToMinutes($prefs);
             if ($fromPrefs !== []) {
                 return $fromPrefs;
             }
         }
 
-        $fromEntity = EntityReminderDefault::forCompanyAndType($companyId, $entityType);
+        $fromEntity = EntityReminderDefault::forCompanyAndType(
+            $companyId,
+            $this->cadencePreferenceType($entityType)
+        );
         if ($fromEntity !== null && $fromEntity !== []) {
             return $fromEntity;
         }
@@ -186,6 +199,36 @@ class ReminderCreator
         }
 
         return array_values(array_unique($minutes));
+    }
+
+    /**
+     * Convert entity `reminders` JSON ({time,type}[]) into minutes-before list.
+     * Returns null when empty so createForEntity falls through to prefs / org defaults.
+     *
+     * @param  array<int, array{time?: int, type?: string}|int>|null  $offsets
+     * @return array<int, int>|null
+     */
+    public function cadenceFromCustomOffsets(?array $offsets): ?array
+    {
+        if ($offsets === null || $offsets === []) {
+            return null;
+        }
+
+        $minutes = $this->offsetsToMinutes($offsets);
+
+        return $minutes === [] ? null : $minutes;
+    }
+
+    /**
+     * Map storage entity types to cadence preference / EntityReminderDefault keys.
+     */
+    private function cadencePreferenceType(string $entityType): string
+    {
+        return match ($entityType) {
+            Reminder::ENTITY_DEAL_NOTE, Reminder::ENTITY_LEAD_NOTE => 'note',
+            Reminder::ENTITY_DEVELOPER_PROJECT => 'project',
+            default => $entityType,
+        };
     }
 
     private function resolveRecipientEmail(string $recipientType, int $recipientId): ?string

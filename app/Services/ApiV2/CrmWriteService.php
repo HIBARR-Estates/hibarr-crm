@@ -17,6 +17,8 @@ use App\Scopes\CompanyScope;
 use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
 use App\Services\Reminders\MeetingReminderSync;
+use App\Services\Reminders\NoteReminderSync;
+use App\Services\Reminders\TaskReminderSync;
 use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -70,6 +72,12 @@ class CrmWriteService
             $task->billable = 0;
             $task->due_date = !empty($data['due_date']) ? Carbon::parse($data['due_date']) : null;
             $task->start_date = !empty($data['start_date']) ? Carbon::parse($data['start_date']) : null;
+            if (array_key_exists('reminders', $data)) {
+                $task->reminders = $data['reminders'];
+            }
+            if (array_key_exists('remind_at', $data)) {
+                $task->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
+            }
 
             if ($createdByUserId !== null) {
                 $task->added_by = $createdByUserId;
@@ -127,7 +135,10 @@ class CrmWriteService
                 });
             }
 
-            return $task->fresh(self::TASK_SUMMARY_RELATIONS);
+            $fresh = $task->fresh(self::TASK_SUMMARY_RELATIONS);
+            app(TaskReminderSync::class)->syncFromTask($fresh);
+
+            return $fresh;
         });
     }
 
@@ -152,10 +163,18 @@ class CrmWriteService
                 $note->last_updated_by = $createdByUserId;
             }
 
+            if (array_key_exists('remind_at', $data)) {
+                $note->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
+            }
+            if (array_key_exists('reminders', $data)) {
+                $note->reminders = $data['reminders'];
+            }
+
             $note->save();
             $note->setRelation('deal', $deal);
 
             app(DealActivityEventService::class)->recordNoteAdded($deal, $note);
+            app(NoteReminderSync::class)->syncFromDealNote($note);
 
             return ['note' => $note, 'type' => 'deal'];
         }
@@ -177,6 +196,13 @@ class CrmWriteService
             $note->last_updated_by = $createdByUserId;
         }
 
+        if (array_key_exists('remind_at', $data)) {
+            $note->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
+        }
+        if (array_key_exists('reminders', $data)) {
+            $note->reminders = $data['reminders'];
+        }
+
         $note->save();
         $note->setRelation('lead', $lead);
 
@@ -188,6 +214,8 @@ class CrmWriteService
                 'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
             ],
         ]);
+
+        app(NoteReminderSync::class)->syncFromLeadNote($note);
 
         return ['note' => $note, 'type' => 'lead'];
     }
@@ -321,6 +349,14 @@ class CrmWriteService
             $task->start_date = !empty($data['start_date']) ? Carbon::parse($data['start_date']) : null;
         }
 
+        if (array_key_exists('reminders', $data)) {
+            $task->reminders = $data['reminders'];
+        }
+
+        if (array_key_exists('remind_at', $data)) {
+            $task->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
+        }
+
         if (!empty($data['updated_by_user_id'])) {
             $task->last_updated_by = (int) $data['updated_by_user_id'];
         }
@@ -332,18 +368,22 @@ class CrmWriteService
             $task->users()->sync($assigneeIds);
         }
 
-        return $task->fresh([
+        $fresh = $task->fresh([
                 'users',
                 'leads:id,client_name,client_email,mobile',
                 'deals:id,name,value,pipeline_stage_id,lead_pipeline_id',
                 'deals.leadStage:id,name',
                 'deals.pipeline:id,name',
             ]);
+        app(TaskReminderSync::class)->syncFromTask($fresh);
+
+        return $fresh;
     }
 
     public function deleteTask(int $companyId, int $taskId): void
     {
         $task = $this->getTask($companyId, $taskId);
+        app(TaskReminderSync::class)->cancelForTask($task);
         $task->delete();
     }
 
@@ -455,16 +495,35 @@ class CrmWriteService
             $note->last_updated_by = (int) $data['updated_by_user_id'];
         }
 
+        if (array_key_exists('remind_at', $data)) {
+            $note->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
+        }
+        if (array_key_exists('reminders', $data)) {
+            $note->reminders = $data['reminders'];
+        }
+
         $note->save();
 
         $relations = $result['type'] === 'deal' ? self::DEAL_NOTE_SUMMARY_RELATIONS : ['lead'];
+        $fresh = $note->fresh($relations);
 
-        return ['note' => $note->fresh($relations), 'type' => $result['type']];
+        if ($result['type'] === 'deal') {
+            app(NoteReminderSync::class)->syncFromDealNote($fresh);
+        } else {
+            app(NoteReminderSync::class)->syncFromLeadNote($fresh);
+        }
+
+        return ['note' => $fresh, 'type' => $result['type']];
     }
 
     public function deleteNote(int $companyId, int $noteId, string $type): void
     {
         $result = $this->findNote($companyId, $noteId, $type);
+        if ($result['type'] === 'deal') {
+            app(NoteReminderSync::class)->cancelForDealNote($result['note']);
+        } else {
+            app(NoteReminderSync::class)->cancelForLeadNote($result['note']);
+        }
         $result['note']->delete();
     }
 

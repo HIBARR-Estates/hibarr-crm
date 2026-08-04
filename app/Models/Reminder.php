@@ -19,6 +19,25 @@ class Reminder extends BaseModel
 
     public const ENTITY_MEETING = 'meeting';
 
+    public const ENTITY_TASK = 'task';
+
+    public const ENTITY_DEAL_NOTE = 'deal_note';
+
+    public const ENTITY_LEAD_NOTE = 'lead_note';
+
+    public const ENTITY_DEAL = 'deal';
+
+    public const ENTITY_LEAD = 'lead';
+
+    public const ENTITY_PROPERTY = 'property';
+
+    public const ENTITY_DEVELOPER_PROJECT = 'developer_project';
+
+    /** DeveloperProjectUnitType (inventory typology / “unit”). */
+    public const ENTITY_UNIT = 'unit';
+
+    public const ENTITY_FLIGHT_ITINERARY = 'flight_itinerary';
+
     public const CHANNEL_EMAIL = 'email';
 
     protected $fillable = [

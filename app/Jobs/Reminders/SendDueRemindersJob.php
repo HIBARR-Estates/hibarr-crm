@@ -4,7 +4,6 @@ namespace App\Jobs\Reminders;
 
 use App\Models\Reminder;
 use App\Services\Reminders\ReminderSender;
-use App\Support\FeatureFlags;
 use App\Support\ReminderFeature;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -23,7 +22,7 @@ class SendDueRemindersJob implements ShouldQueue
 
     public function handle(ReminderSender $sender): void
     {
-        if (!FeatureFlags::enabled('crm.entity-reminders')) {
+        if (!ReminderFeature::globallyEnabled()) {
             return;
         }
 

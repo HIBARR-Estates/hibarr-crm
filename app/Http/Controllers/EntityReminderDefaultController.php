@@ -4,7 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Helper\Reply;
 use App\Models\EntityReminderDefault;
-use App\Support\FeatureFlags;
+use App\Models\ReminderEmailTemplate;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 
@@ -18,7 +18,6 @@ class EntityReminderDefaultController extends AccountBaseController
 
         $this->middleware(function ($request, $next) {
             abort_403(user()->permission('manage_company_setting') !== 'all');
-            abort_403(!FeatureFlags::enabled('crm.entity-reminders'));
 
             return $next($request);
         });
@@ -59,6 +58,12 @@ class EntityReminderDefaultController extends AccountBaseController
         $this->fallbackOffsets = EntityReminderDefault::minutesListToOffsets(
             EntityReminderDefault::configDefaultsAsMinutes()
         );
+
+        ReminderEmailTemplate::seedDefaultsForCompany($companyId);
+        $this->emailTemplates = ReminderEmailTemplate::mapForCompany($companyId);
+        $this->mailEntityTypeLabels = collect(ReminderEmailTemplate::MAIL_ENTITY_TYPES)->mapWithKeys(fn ($type) => [
+            $type => __('modules.settings.mailEntityTypes.'.$type),
+        ])->all();
 
         return view('entity-reminder-defaults.index', $this->data);
     }
@@ -102,6 +107,34 @@ class EntityReminderDefaultController extends AccountBaseController
                 'reminders' => EntityReminderDefault::minutesListToOffsets($row->reminders ?? []),
                 'is_active' => (bool) $row->is_active,
             ],
+        ]);
+    }
+
+    public function updateEmailTemplates(Request $request)
+    {
+        $mailTypes = ReminderEmailTemplate::MAIL_ENTITY_TYPES;
+
+        $validated = $request->validate([
+            'templates' => 'required|array',
+            'templates.*' => ['nullable', 'string', 'max:128'],
+        ]);
+
+        $templates = [];
+        foreach ($mailTypes as $type) {
+            if (! array_key_exists($type, $validated['templates'])) {
+                continue;
+            }
+            $templates[$type] = $validated['templates'][$type];
+        }
+
+        if ($templates === []) {
+            return Reply::error(__('messages.noRecordFound'));
+        }
+
+        ReminderEmailTemplate::syncForCompany((int) company()->id, $templates);
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'templates' => ReminderEmailTemplate::mapForCompany((int) company()->id),
         ]);
     }
 

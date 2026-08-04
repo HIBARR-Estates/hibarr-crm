@@ -32,8 +32,13 @@ return [
         'all',
         'meeting',
         'task',
+        'note',
         'deal',
         'lead',
+        'property',
+        'project',
+        'unit',
+        'flight_itinerary',
     ],
 
     /*
@@ -52,5 +57,27 @@ return [
     |
     */
     'entity_reminders_company_allowlist' => trim((string) env('ENTITY_REMINDERS_COMPANY_ALLOWLIST', '')),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Bypass remote feature flag
+    |--------------------------------------------------------------------------
+    |
+    | When true, ReminderFeature ignores FeatureFlags::enabled('crm.entity-reminders')
+    | and still respects the company allowlist. Use locally when the flags API
+    | is unreachable, or as an ops override.
+    |
+    */
+    'force_enable' => filter_var(env('ENTITY_REMINDERS_FORCE_ENABLE', false), FILTER_VALIDATE_BOOLEAN),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Plunk template IDs live in reminder_email_templates (per company)
+    |--------------------------------------------------------------------------
+    |
+    | Edit via Account → Settings → Reminder Defaults. Empty ID = Blade HTML
+    | body via UNS; set a Plunk template UUID to use templateSlug mode.
+    |
+    */
 
 ];

@@ -49,6 +49,14 @@ class UnsClient
         }
 
         if (in_array($response->status(), [200, 202, 409], true)) {
+            Log::info('UNS email routing accepted.', [
+                'status' => $response->status(),
+                'idempotencyKey' => $payload['idempotencyKey'] ?? null,
+                'notificationId' => $response->json('notificationId'),
+                'unsStatus' => $response->json('status'),
+                'response' => $response->status() === 202 ? null : $response->body(),
+            ]);
+
             return true;
         }
 

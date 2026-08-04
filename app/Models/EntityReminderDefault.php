@@ -12,6 +12,7 @@ class EntityReminderDefault extends BaseModel
     public const ENTITY_ALL = 'all';
     public const ENTITY_MEETING = 'meeting';
     public const ENTITY_TASK = 'task';
+    public const ENTITY_NOTE = 'note';
     public const ENTITY_DEAL = 'deal';
     public const ENTITY_LEAD = 'lead';
 

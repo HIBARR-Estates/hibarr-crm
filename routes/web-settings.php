@@ -62,6 +62,7 @@ use App\Http\Controllers\TaxSettingController;
 use App\Http\Controllers\UnitTypeController;
 use App\Http\Controllers\UserReminderPreferenceController;
 use App\Http\Controllers\EntityReminderDefaultController;
+use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\UpdateAppController;
 use Illuminate\Support\Facades\Route;
@@ -88,7 +89,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     /* Company entity reminder defaults (feature-flagged) */
     Route::get('entity-reminder-defaults', [EntityReminderDefaultController::class, 'index'])->name('entity-reminder-defaults.index');
     Route::post('entity-reminder-defaults', [EntityReminderDefaultController::class, 'update'])->name('entity-reminder-defaults.update');
+    Route::post('entity-reminder-defaults/email-templates', [EntityReminderDefaultController::class, 'updateEmailTemplates'])->name('entity-reminder-defaults.email-templates');
     Route::delete('entity-reminder-defaults/{entityType}', [EntityReminderDefaultController::class, 'destroy'])->name('entity-reminder-defaults.destroy');
+
+    /* Reminder ledger (company send queue) */
+    Route::get('reminder-ledger', [ReminderLedgerController::class, 'index'])->name('reminder-ledger.index');
 
     /* 2FA */
     Route::get('2fa-codes-download', [TwoFASettingController::class, 'download'])->name('2fa_codes_download');
