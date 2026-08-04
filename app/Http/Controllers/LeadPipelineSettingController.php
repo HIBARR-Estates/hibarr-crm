@@ -86,9 +86,6 @@ class LeadPipelineSettingController extends AccountBaseController
         $pipeline = LeadPipeline::where('company_id', company()->id)
             ->where('id', $id)
             ->firstOrFail();
-        $pipeline->name = $request->name;
-        $pipeline->label_color = $request->label_color;
-        $pipeline->save();
 
         $validated = $request->validated();
         $categoryScopes = $validated['category_scopes'] ?? [];
@@ -99,10 +96,18 @@ class LeadPipelineSettingController extends AccountBaseController
             ];
         }
 
-        $this->scopeResolver->syncCategoryScopes($pipeline, $categoryScopes);
-
         $fieldScopes = $validated['field_scopes'] ?? $request->input('field_scopes', []);
-        $this->syncFieldScopes($pipeline, is_array($fieldScopes) ? $fieldScopes : []);
+        $fieldScopes = is_array($fieldScopes) ? $fieldScopes : [];
+
+        DB::transaction(function () use ($request, $pipeline, $categoryScopes, $fieldScopes) {
+            $pipeline->name = $request->name;
+            $pipeline->label_color = $request->label_color;
+            $pipeline->hide_all_categories = $request->boolean('hide_all_categories');
+            $pipeline->save();
+
+            $this->scopeResolver->syncCategoryScopes($pipeline, $categoryScopes);
+            $this->syncFieldScopes($pipeline, $fieldScopes);
+        });
 
         return Reply::success(__('messages.updateSuccess'));
     }

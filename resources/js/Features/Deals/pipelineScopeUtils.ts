@@ -69,6 +69,26 @@ function normalizePipelineId(id: number | string | undefined | null): number | n
     return Number.isFinite(normalized) ? normalized : null;
 }
 
+/**
+ * Pipeline-level "Show none" override — set in Pipeline Settings, it hides
+ * every custom field category for the pipeline regardless of any pipeline-wide
+ * or per-stage category_scopes rows. Must be checked before any scope-map
+ * resolution so it wins outright even when scopes are still configured.
+ */
+function pipelineHidesAllCategories(
+    hideAllCategoriesPipelineIds: Array<number | string> | undefined,
+    pipelineId: number | string | null | undefined,
+): boolean {
+    if (!hideAllCategoriesPipelineIds?.length || pipelineId == null) {
+        return false;
+    }
+
+    const normalized = normalizePipelineId(pipelineId);
+    return hideAllCategoriesPipelineIds.some(
+        (id) => normalizePipelineId(id) === normalized,
+    );
+}
+
 function normalizeStageId(id: number | string | undefined | null): number | null {
     return normalizePipelineId(id);
 }
@@ -473,7 +493,12 @@ export function filterCategoriesByScope<T extends { id: number }>(
     stageId?: number,
     stages?: PipelineStageLike[],
     fallbackIds?: number[] | null,
+    hideAllCategoriesPipelineIds?: Array<number | string>,
 ): T[] {
+    if (pipelineHidesAllCategories(hideAllCategoriesPipelineIds, pipelineId)) {
+        return [];
+    }
+
     const clientIds = resolveScopedCategoryIds(
         scopeMap,
         pipelineId,
@@ -515,7 +540,12 @@ export function filterCategoriesForAllFieldsView<T extends { id: number }>(
     scopeMap: Record<string, ScopeByStageMap>,
     pipelineId?: number,
     fallbackIds?: number[] | null,
+    hideAllCategoriesPipelineIds?: Array<number | string>,
 ): T[] {
+    if (pipelineHidesAllCategories(hideAllCategoriesPipelineIds, pipelineId)) {
+        return [];
+    }
+
     const clientIds = resolveAllPipelineCategoryIds(scopeMap, pipelineId);
 
     const pipelineScope =
