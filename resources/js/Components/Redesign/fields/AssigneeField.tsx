@@ -12,8 +12,9 @@ import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 
 interface EmployeeRecord {
     id: number;
-    name: string;
+    name?: string;
     designation_name?: string;
+    email?: string;
 }
 
 interface AssigneeFieldProps {
@@ -25,6 +26,38 @@ interface AssigneeFieldProps {
     doneLabel?: string;
 }
 
+function normalizeEmployees(
+    employees: EmployeeRecord[] | undefined,
+    currentUser?: { id?: number; name?: string } | null,
+): { people: PersonOption[]; loading: boolean } {
+    // Deferred Inertia props are `undefined` until resolved; empty array means loaded but none.
+    const loading = employees === undefined;
+    const list = Array.isArray(employees) ? employees : [];
+
+    const people: PersonOption[] = list
+        .filter((employee) => employee?.id != null)
+        .map((employee) => ({
+            id: employee.id,
+            name: (employee.name || employee.email || `User #${employee.id}`).trim(),
+            designation: employee.designation_name,
+        }));
+
+    // Always offer the current user when the directory is empty or still loading
+    // so assignees can still be set (e.g. deferred formMeta, restricted permissions).
+    if (
+        currentUser?.id &&
+        !people.some((person) => person.id === currentUser.id)
+    ) {
+        people.unshift({
+            id: currentUser.id,
+            name: (currentUser.name || "You").trim(),
+            designation: "You",
+        });
+    }
+
+    return { people, loading: loading && people.length === 0 };
+}
+
 /** Assignee chip field with inline people picker. */
 export default function AssigneeField({
     value,
@@ -34,18 +67,14 @@ export default function AssigneeField({
     addLabel = "+ Add",
     doneLabel = "Done",
 }: AssigneeFieldProps) {
-    const { props } = usePage<PageProps & { employees?: EmployeeRecord[] }>();
+    const { props } = usePage<
+        PageProps & { employees?: EmployeeRecord[] }
+    >();
     const [adding, setAdding] = useState(false);
 
-    const employees = props.employees ?? [];
-    const people: PersonOption[] = useMemo(
-        () =>
-            employees.map((employee) => ({
-                id: employee.id,
-                name: employee.name,
-                designation: employee.designation_name,
-            })),
-        [employees],
+    const { people, loading } = useMemo(
+        () => normalizeEmployees(props.employees, props.auth?.user),
+        [props.employees, props.auth?.user],
     );
     const byId = useMemo(
         () => new Map(people.map((person) => [person.id, person])),
@@ -119,6 +148,7 @@ export default function AssigneeField({
                 <PeoplePicker
                     people={people}
                     exclude={value}
+                    loading={loading}
                     onPick={(person) => onChange([...value, person.id])}
                 />
             )}

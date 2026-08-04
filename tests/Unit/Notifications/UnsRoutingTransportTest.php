@@ -11,17 +11,12 @@ use Symfony\Component\Mailer\Transport\TransportInterface;
 use Symfony\Component\Mime\Address;
 use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\RawMessage;
-use Tests\Concerns\SetsFeatureFlags;
 use Tests\TestCase;
 
 class UnsRoutingTransportTest extends TestCase
 {
-    use SetsFeatureFlags;
-
-    public function test_it_uses_fallback_transport_when_flag_is_off(): void
+    public function test_it_uses_fallback_transport_when_uns_header_missing(): void
     {
-        $this->setFeatureFlag('crm.notification-service-routing', false);
-
         $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
         $transport = new UnsRoutingTransport(
             new FakeUnsClient(true),
@@ -29,16 +24,14 @@ class UnsRoutingTransportTest extends TestCase
             $fallback
         );
 
-        $result = $transport->send($this->buildMessage());
+        $result = $transport->send($this->buildMessage(withUnsRoute: false));
 
         $this->assertInstanceOf(SentMessage::class, $result);
         $this->assertSame(1, $fallback->sendCount);
     }
 
-    public function test_it_routes_to_uns_when_flag_is_on(): void
+    public function test_it_routes_to_uns_when_header_is_set(): void
     {
-        $this->setFeatureFlag('crm.notification-service-routing', true);
-
         $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
         $client = new FakeUnsClient(true);
         $transport = new UnsRoutingTransport(
@@ -47,17 +40,15 @@ class UnsRoutingTransportTest extends TestCase
             $fallback
         );
 
-        $result = $transport->send($this->buildMessage());
+        $result = $transport->send($this->buildMessage(withUnsRoute: true));
 
         $this->assertInstanceOf(SentMessage::class, $result);
         $this->assertSame(0, $fallback->sendCount);
         $this->assertSame(1, $client->sendCount);
     }
 
-    public function test_it_does_not_throw_when_uns_dispatch_fails(): void
+    public function test_it_throws_when_uns_dispatch_fails(): void
     {
-        $this->setFeatureFlag('crm.notification-service-routing', true);
-
         $fallback = new FakeFallbackTransport(shouldReturnSentMessage: true);
         $transport = new UnsRoutingTransport(
             new FakeUnsClient(false),
@@ -65,19 +56,25 @@ class UnsRoutingTransportTest extends TestCase
             $fallback
         );
 
-        $result = $transport->send($this->buildMessage());
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('UNS email routing failed: unable to dispatch notification.');
 
-        $this->assertNull($result);
-        $this->assertSame(0, $fallback->sendCount);
+        $transport->send($this->buildMessage(withUnsRoute: true));
     }
 
-    private function buildMessage(): RawMessage
+    private function buildMessage(bool $withUnsRoute = false): RawMessage
     {
-        return (new Email())
+        $email = (new Email())
             ->from('sender@test.local')
             ->to('recipient@test.local')
             ->subject('Test')
             ->text('hello');
+
+        if ($withUnsRoute) {
+            $email->getHeaders()->addTextHeader('X-Uns-Route', 'true');
+        }
+
+        return $email;
     }
 }
 

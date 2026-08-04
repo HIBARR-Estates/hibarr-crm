@@ -9,14 +9,17 @@ import useLeadItineraryMutations from "../../hooks/useLeadItineraryMutations";
 interface LeadItineraryModalProps {
     open: boolean;
     onClose: () => void;
-    dealId: number;
+    leadId: number;
+    /** Optional deal to attach the flight to when the lead has deals. */
+    dealId?: number | null;
     leg?: ILeadFlightItinerary | null;
 }
 
 export default function LeadItineraryModal({
     open,
     onClose,
-    dealId,
+    leadId,
+    dealId = null,
     leg = null,
 }: LeadItineraryModalProps) {
     const { t } = useTranslation();
@@ -36,7 +39,11 @@ export default function LeadItineraryModal({
         if (isEdit && leg) {
             updateLeg(leg, payload, handleClose);
         } else {
-            createLeg(dealId, payload, handleClose);
+            createLeg(
+                { leadId, dealId: dealId ?? null },
+                payload,
+                handleClose,
+            );
         }
     };
 

@@ -76,6 +76,10 @@ trait DealFormDataTrait
             company()->id
         );
 
+        $hideAllCategoriesPipelineIds = $scopeResolver->getHideAllCategoriesPipelineIds(
+            company()->id
+        );
+
         $packageSettings = $packageRouter->getDealPackageSettings();
 
         return [
@@ -100,6 +104,7 @@ trait DealFormDataTrait
             'pipelineCustomFieldCategoryIdsByPipeline' => $pipelineCustomFieldCategoryIdsByPipeline,
             'pipelineCategoryScopeMap' => $pipelineCategoryScopeMap,
             'pipelineFieldScopeMap' => $pipelineFieldScopeMap,
+            'hideAllCategoriesPipelineIds' => $hideAllCategoriesPipelineIds,
             'packagePipelineRoutingEnabled' => $packageSettings['packagePipelineRoutingEnabled'],
             'dealPackageMode' => $packageSettings['dealPackageMode'],
         ];

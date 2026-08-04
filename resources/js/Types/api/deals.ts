@@ -129,6 +129,10 @@ export interface HibarrDealFields {
     deposit_confirmation?: string | null;
     reservation_agreement?: string | null;
     sales_contract?: string | null;
+    /** Appended by HibarrDealFields accessors — resolved download URLs. */
+    deposit_confirmation_url?: string | null;
+    reservation_agreement_url?: string | null;
+    sales_contract_url?: string | null;
     created_at?: string;
     updated_at?: string;
 }

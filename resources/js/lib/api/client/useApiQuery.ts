@@ -51,6 +51,8 @@ export const useApiQuery = <
         enabled?: boolean;
         refetchInterval?: number | false;
         staleTime?: number;
+        gcTime?: number;
+        refetchOnMount?: boolean | "always";
     };
 }) => {
     const { props } = usePage();

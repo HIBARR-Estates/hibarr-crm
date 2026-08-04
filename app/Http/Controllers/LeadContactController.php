@@ -361,7 +361,11 @@ class LeadContactController extends AccountBaseController
             })->get(), 'formMeta'),
             'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
             'products' => Inertia::defer(fn () => Product::all(), 'dealMeta'),
-            'packages' => Inertia::defer(fn () => \App\Models\Package::all(), 'dealMeta'),
+            // packagePipeline lets Create Deal filter packages by selected pipeline.
+            'packages' => Inertia::defer(
+                fn () => \App\Models\Package::with('packagePipeline')->get(),
+                'dealMeta',
+            ),
             'dealCustomFields' => Inertia::defer(function () {
                 $deal = new Deal();
                 $groups = $deal->getCustomFieldGroupsWithFields();
@@ -528,7 +532,7 @@ class LeadContactController extends AccountBaseController
 
         $leadContact = new Lead();
         $leadContact->company_id = company()->id;
-        $leadContact->salutation = $request->salutation;
+        $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
@@ -570,7 +574,15 @@ class LeadContactController extends AccountBaseController
         $this->coreFieldsService->write($leadContact, $request->only([
             'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
+        if ($request->has('remind_at')) {
+            $leadContact->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->has('reminders')) {
+            $leadContact->reminders = $request->input('reminders');
+        }
         $leadContact->save();
+
+        app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
         if ($request->boolean('create_deal')) {
             $this->storeDeal($request, $leadContact);
@@ -703,7 +715,7 @@ class LeadContactController extends AccountBaseController
             abort(403);
         }
 
-        $leadContact->salutation = $request->salutation;
+        $leadContact->salutation = $request->salutation ?: null;
         if ($request->has('gender')) {
             $leadContact->gender = $request->gender;
         }
@@ -741,7 +753,15 @@ class LeadContactController extends AccountBaseController
         $this->coreFieldsService->write($leadContact, $request->only([
             'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
+        if ($request->has('remind_at')) {
+            $leadContact->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->has('reminders')) {
+            $leadContact->reminders = $request->input('reminders');
+        }
         $leadContact->save();
+
+        app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
         $clientCreated = $request->create_client == "on" ? '1' : '0';
         Deal::where('lead_id', $leadContact->id)->update(['create_client' => $clientCreated]);
@@ -796,7 +816,7 @@ class LeadContactController extends AccountBaseController
             
             // Handle basic contact information
             if ($request->has('salutation')) {
-                $leadContact->salutation = $request->salutation;
+                $leadContact->salutation = $request->salutation ?: null;
             }
             if ($request->has('gender')) {
                 $leadContact->gender = $request->gender;

@@ -54,6 +54,7 @@ class LeadPipeline extends BaseModel
 
     protected $casts = [
         'hidden_from_nav' => 'boolean',
+        'hide_all_categories' => 'boolean',
     ];
 
     public function scopeVisibleInNav($query)

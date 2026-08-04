@@ -50,7 +50,8 @@ export default function EntityAiSummaryCard({
             return;
         }
 
-        if (loading && summary) {
+        // First generate / regenerate: open the card so the loader is visible.
+        if (loading) {
             setCollapsed(false);
         }
 
@@ -140,7 +141,9 @@ export default function EntityAiSummaryCard({
                 <>
                     {loading && (
                         <div className="entity-ai-summary-loading-banner">
-                            <AiThinkingIndicator />
+                            <AiThinkingIndicator
+                                variant={isRedesign ? "panel" : "inline"}
+                            />
                         </div>
                     )}
 
@@ -193,14 +196,8 @@ export default function EntityAiSummaryCard({
                     {/* Keep prior summary mounted while regenerating so loading
                         never blanks the card; swap in place when the new one
                         arrives with loading already cleared. */}
-                    {summary && (
-                        <div
-                            className={
-                                loading
-                                    ? "entity-ai-summary-result entity-ai-summary-result--pending"
-                                    : "entity-ai-summary-result"
-                            }
-                        >
+                    {summary && !loading && (
+                        <div className="entity-ai-summary-result">
                             <div className="entity-ai-summary-body">
                                 {!isRedesign && (
                                     <p
@@ -230,11 +227,9 @@ export default function EntityAiSummaryCard({
                                         disabled={loading}
                                         onClick={startRegenerate}
                                     >
-                                        {loading
-                                            ? "Regenerating…"
-                                            : isStale
-                                              ? "Refresh summary"
-                                              : "Regenerate summary"}
+                                        {isStale
+                                            ? "Refresh summary"
+                                            : "Regenerate summary"}
                                     </button>
                                 )}
                             </div>
@@ -249,6 +244,24 @@ export default function EntityAiSummaryCard({
                                     },
                                 )}
                             />
+                        </div>
+                    )}
+
+                    {/* Regenerating: show prior summary dimmed under the panel loader above. */}
+                    {summary && loading && (
+                        <div className="entity-ai-summary-result entity-ai-summary-result--pending">
+                            <div className="entity-ai-summary-body">
+                                <EntityAiSummaryChipGrid
+                                    chips={summary.chips}
+                                />
+                                {summary.bullets.length > 0 && (
+                                    <ul className="entity-ai-summary-bullets">
+                                        {summary.bullets.map((bullet) => (
+                                            <li key={bullet}>{bullet}</li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
                     )}
                 </>

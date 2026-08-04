@@ -45,7 +45,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Contacts',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'save_before_tab_switch'   => 'Please save or cancel your changes before switching tabs.',
         'tabs' => [
@@ -761,7 +761,8 @@ return [
                 'date_label'           => 'Date',
                 'platform'             => 'Platform',
                 'platform_video_call'  => 'Video call',
-                'platform_in_person'   => 'In person',
+                'platform_in_person'   => 'Physical',
+                'platform_physical'    => 'Physical',
                 'platform_phone'       => 'Phone',
                 'reminder_unit_minutes' => 'minutes',
                 'reminder_unit_hours'  => 'hours',
@@ -846,6 +847,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Files uploaded',
                     'upload_failed' => 'Failed to upload files. Please try again.',
+                    'deleted'       => 'File deleted',
+                    'delete_failed' => 'Could not delete file',
                 ],
             ],
             'offers' => [

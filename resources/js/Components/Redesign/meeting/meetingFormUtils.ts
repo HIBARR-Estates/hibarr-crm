@@ -15,18 +15,184 @@ export const MEETING_DURATION_OPTIONS = [
     { value: 240, label: "4 hrs" },
 ] as const;
 
-// "office" is a valid, distinct backend location value (FollowUp\StoreRequest)
-// but v2.2 doesn't ask the user to distinguish it from a generic in-person
-// meeting — merged into one "In person" choice. buildMeetingFormFromFollowup
-// below maps existing "office" meetings onto "physical" so they still show
-// correctly selected when reopened for editing.
+/** Top-level place/mode the user picks first. */
+export type MeetingMode = "video" | "physical" | "phone";
+
+/**
+ * Backend `location` values the redesign UI can create/edit.
+ * Video providers map 1:1 onto FollowUp StoreRequest locations.
+ * Physical: `office` = HIBARR HQ; `physical` = other (custom text sent as location).
+ */
+export type VideoProvider = "zoho" | "google_meet" | "zoom" | "teams";
+export type PhysicalVenue = "office" | "physical";
+export type MeetingPlatform = VideoProvider | PhysicalVenue | "phone";
+
+export const MEETING_MODE_OPTIONS = [
+    { value: "video" as const, label: "Video call" },
+    { value: "physical" as const, label: "Physical" },
+    { value: "phone" as const, label: "Phone" },
+];
+
+/** @deprecated Prefer MEETING_MODE_OPTIONS — kept for any legacy imports. */
 export const MEETING_PLATFORM_OPTIONS = [
-    { value: "zoho", label: "Video call" },
-    { value: "physical", label: "In person" },
-    { value: "phone", label: "Phone" },
+    { value: "zoho" as const, label: "Video call" },
+    { value: "office" as const, label: "Physical" },
+    { value: "phone" as const, label: "Phone" },
+];
+
+export const PHYSICAL_VENUE_OPTIONS: Array<{
+    value: PhysicalVenue;
+    label: string;
+}> = [
+    { value: "office", label: "HIBARR HQ" },
+    { value: "physical", label: "Other location" },
+];
+
+/** Known location enum values stored by the API (not free-text places). */
+export const KNOWN_MEETING_LOCATIONS = [
+    "office",
+    "zoom",
+    "zoho",
+    "zoho_meet",
+    "google_meet",
+    "teams",
+    "meet",
+    "phone",
+    "physical",
+    "skype",
+    "other",
 ] as const;
 
-export type MeetingPlatform = (typeof MEETING_PLATFORM_OPTIONS)[number]["value"];
+export const VIDEO_PROVIDER_OPTIONS: Array<{
+    value: VideoProvider;
+    label: string;
+    /** Icons8 CDN — same sources as legacy follow-up UI. */
+    logoUrl: string;
+}> = [
+    {
+        value: "zoho",
+        label: "Zoho Meeting",
+        // Icons8's zoho.png is 404; use Zoho's product logo.
+        logoUrl:
+            "https://www.zohowebstatic.com/sites/zweb/images/productlogos/meeting.svg",
+    },
+    {
+        value: "google_meet",
+        label: "Google Meet",
+        logoUrl: "https://img.icons8.com/color/48/000000/google-meet.png",
+    },
+    {
+        value: "zoom",
+        label: "Zoom",
+        logoUrl: "https://img.icons8.com/color/48/000000/zoom.png",
+    },
+    {
+        value: "teams",
+        label: "Microsoft Teams",
+        logoUrl: "https://img.icons8.com/color/48/000000/microsoft-teams.png",
+    },
+];
+
+export function isVideoPlatform(platform: MeetingPlatform | string): boolean {
+    return (
+        platform === "zoho" ||
+        platform === "zoho_meet" ||
+        platform === "google_meet" ||
+        platform === "meet" ||
+        platform === "zoom" ||
+        platform === "teams"
+    );
+}
+
+/** Zoho Meeting: link is generated server-side after schedule. */
+export function usesAutoMeetingLink(
+    platform: MeetingPlatform | string,
+): boolean {
+    return platform === "zoho" || platform === "zoho_meet";
+}
+
+/** Non-Zoho video: user must paste a link from their provider. */
+export function requiresManualMeetingLink(
+    platform: MeetingPlatform | string,
+): boolean {
+    return isVideoPlatform(platform) && !usesAutoMeetingLink(platform);
+}
+
+/** Backend requires participants when location === zoho. */
+export function requiresMeetingParticipants(
+    platform: MeetingPlatform | string,
+): boolean {
+    return usesAutoMeetingLink(platform);
+}
+
+/** Zoho Meeting auto-link / calendar sync is limited to @hibarr.de accounts. */
+export const ZOHO_MEETING_EMAIL_DOMAIN = "hibarr.de";
+
+export function canUseZohoMeeting(email?: string | null): boolean {
+    if (!email) return false;
+    const domain = email.trim().toLowerCase().split("@")[1] ?? "";
+    return domain === ZOHO_MEETING_EMAIL_DOMAIN;
+}
+
+/** First available video provider — Zoho when allowed, otherwise Google Meet. */
+export function defaultVideoProvider(
+    emailOrCanUseZoho?: string | null | boolean,
+): VideoProvider {
+    const allowed =
+        typeof emailOrCanUseZoho === "boolean"
+            ? emailOrCanUseZoho
+            : canUseZohoMeeting(emailOrCanUseZoho);
+    return allowed ? "zoho" : "google_meet";
+}
+
+export function isPhysicalPlatform(
+    platform: MeetingPlatform | string,
+): boolean {
+    return (
+        platform === "office" ||
+        platform === "physical" ||
+        (!isVideoPlatform(platform) &&
+            platform !== "phone" &&
+            Boolean(platform))
+    );
+}
+
+/** Other location requires a typed place name. */
+export function requiresPhysicalLocationDetail(
+    platform: MeetingPlatform | string,
+): boolean {
+    return platform === "physical";
+}
+
+export function modeFromPlatform(
+    platform: MeetingPlatform | string,
+): MeetingMode {
+    if (platform === "phone") return "phone";
+    if (isVideoPlatform(platform)) return "video";
+    if (isPhysicalPlatform(platform)) return "physical";
+    return "video";
+}
+
+export function defaultPlatformForMode(
+    mode: MeetingMode,
+    emailOrCanUseZoho?: string | null | boolean,
+): MeetingPlatform {
+    if (mode === "physical") return "office";
+    if (mode === "phone") return "phone";
+    return defaultVideoProvider(emailOrCanUseZoho);
+}
+
+export function videoProviderLabel(
+    platform: MeetingPlatform | string,
+): string {
+    const match = VIDEO_PROVIDER_OPTIONS.find(
+        (option) =>
+            option.value === platform ||
+            (platform === "zoho_meet" && option.value === "zoho") ||
+            (platform === "meet" && option.value === "google_meet"),
+    );
+    return match?.label ?? "Video call";
+}
 
 export interface MeetingFormState {
     meetingTypeId: number | null;
@@ -35,6 +201,8 @@ export interface MeetingFormState {
     endTime: string;
     duration: number | null;
     platform: MeetingPlatform;
+    /** Typed place when platform is Other location (`physical`). */
+    locationDetail: string;
     meetingLink: string;
     participants: number[];
     remark: string;
@@ -134,6 +302,7 @@ export function getDefaultMeetingParticipants(
 export function buildEmptyMeetingForm(
     source: MeetingParticipantSource | null | undefined,
     currentUserId?: number,
+    userEmail?: string | null,
 ): MeetingFormState {
     return {
         meetingTypeId: null,
@@ -141,7 +310,8 @@ export function buildEmptyMeetingForm(
         startTime: "",
         endTime: "",
         duration: null,
-        platform: "zoho",
+        platform: defaultVideoProvider(userEmail),
+        locationDetail: "",
         meetingLink: "",
         participants: getDefaultMeetingParticipants(source, currentUserId),
         remark: "",
@@ -154,11 +324,60 @@ export function reminderLabel(reminder: Reminder): string {
     return `${reminder.time} ${reminder.type}${reminder.time > 1 ? "s" : ""} before`;
 }
 
-/** Maps a stored `location` onto a value the (merged) platform selector
- * actually offers — legacy "office" meetings become "In person". */
-function normalizePlatform(location: string | undefined): MeetingPlatform {
-    if (location === "office") return "physical";
-    return (location || "zoho") as MeetingPlatform;
+/**
+ * Maps a stored `location` onto a redesign MeetingPlatform.
+ * Free-text physical places map to `physical` (detail kept separately).
+ */
+export function normalizePlatform(
+    location: string | undefined,
+): MeetingPlatform {
+    switch (location) {
+        case "office":
+            return "office";
+        case "physical":
+            return "physical";
+        case "phone":
+            return "phone";
+        case "zoho":
+        case "zoho_meet":
+            return "zoho";
+        case "google_meet":
+        case "meet":
+            return "google_meet";
+        case "zoom":
+            return "zoom";
+        case "teams":
+            return "teams";
+        case "skype":
+        case "other":
+            return "zoho";
+        default:
+            if (isVideoPlatform(location || "")) return "zoho";
+            // Custom physical place name stored in `location`.
+            return location?.trim() ? "physical" : "office";
+    }
+}
+
+export function locationDetailFromFollowup(
+    location: string | undefined,
+): string {
+    if (!location) return "";
+    if ((KNOWN_MEETING_LOCATIONS as readonly string[]).includes(location)) {
+        return "";
+    }
+    return location;
+}
+
+/** Value written to FollowUp `location`. */
+export function locationForPayload(
+    platform: MeetingPlatform,
+    locationDetail: string,
+): string {
+    if (platform === "physical") {
+        // Prefer typed place; fall back to enum for legacy rows / cancel flows.
+        return locationDetail.trim() || "physical";
+    }
+    return platform;
 }
 
 function toIsoDate(value: dayjs.Dayjs): string {
@@ -187,6 +406,7 @@ export function buildMeetingFormFromFollowup(
         endTime: addMinutesToTime(startTime, duration),
         duration,
         platform: normalizePlatform(followup.location),
+        locationDetail: locationDetailFromFollowup(followup.location),
         meetingLink: followup.meeting_link || "",
         participants:
             followup.participants?.length && followup.participants.length > 0
@@ -213,4 +433,13 @@ export function buildRescheduleFormFromFollowup(followup: DealFollowup): {
         endTime: addMinutesToTime(startTime, duration),
         duration,
     };
+}
+
+/** Payload helper: only video platforms send a meeting_link. */
+export function meetingLinkForPayload(
+    platform: MeetingPlatform,
+    meetingLink: string,
+): string {
+    if (!isVideoPlatform(platform)) return "";
+    return meetingLink.trim();
 }

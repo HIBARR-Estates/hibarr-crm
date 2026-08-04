@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Traits\ProjectProgress;
 use App\Traits\RecordsCrmEvents;
 use App\Services\DealNotificationService;
+use App\Services\Reminders\TaskReminderSync;
 use App\Services\TaskLifecycleNotificationService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -51,18 +52,26 @@ class TaskService
             $task->heading = $data['heading'];
             $task->description = isset($data['description']) ? trim_editor($data['description']) : '';
             
-            $dueDate = (isset($data['without_duedate']) && $data['without_duedate']) 
-                ? null 
+            $dueDate = (isset($data['without_duedate']) && $data['without_duedate'])
+                ? null
                 : (isset($data['due_date']) ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['due_date']) : null);
-                
-            $task->start_date = isset($data['start_date']) 
-                ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['start_date']) 
+
+            $task->start_date = isset($data['start_date'])
+                ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['start_date'])
                 : null;
                 
             $task->due_date = $dueDate;
             $task->project_id = $data['project_id'] ?? null;
             $task->task_category_id = $data['category_id'] ?? null;
             $task->priority = $data['priority'] ?? 'medium';
+            if (array_key_exists('reminders', $data)) {
+                $task->reminders = $data['reminders'];
+            }
+            if (array_key_exists('remind_at', $data)) {
+                $task->remind_at = ! empty($data['remind_at'])
+                    ? \Illuminate\Support\Carbon::parse($data['remind_at'])
+                    : null;
+            }
             
             // Default Status
             $taskBoardColumn = TaskboardColumn::where('slug', 'to_do')->first();
@@ -142,6 +151,7 @@ class TaskService
             DB::commit();
 
             app(TaskLifecycleNotificationService::class)->notifyCreated($task, $user?->id);
+            app(TaskReminderSync::class)->syncFromTask($task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser']));
 
             return $task;
 
@@ -171,18 +181,26 @@ class TaskService
             $task->heading = $data['heading'];
             $task->description = isset($data['description']) ? trim_editor($data['description']) : '';
             
-            $dueDate = (isset($data['without_duedate']) && $data['without_duedate']) 
-                ? null 
+            $dueDate = (isset($data['without_duedate']) && $data['without_duedate'])
+                ? null
                 : (isset($data['due_date']) ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['due_date']) : null);
-             
+
             // Handle Start Date null
-            $task->start_date = isset($data['start_date']) 
-                ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['start_date']) 
+            $task->start_date = isset($data['start_date'])
+                ? Carbon::createFromFormat(company()->date_format . ' ' . company()->time_format, $data['start_date'])
                 : null;
             
             $task->due_date = $dueDate;
             $task->priority = $data['priority'] ?? $task->priority;
             $task->task_category_id = $data['category_id'] ?? $task->task_category_id;
+            if (array_key_exists('reminders', $data)) {
+                $task->reminders = $data['reminders'];
+            }
+            if (array_key_exists('remind_at', $data)) {
+                $task->remind_at = ! empty($data['remind_at'])
+                    ? \Illuminate\Support\Carbon::parse($data['remind_at'])
+                    : null;
+            }
             
              // Project Change Logic
             if (isset($data['project_id']) && $data['project_id'] != $task->project_id) {
@@ -276,6 +294,8 @@ class TaskService
                 $lifecycle->notifyUpdated($task, $user?->id);
             }
 
+            app(TaskReminderSync::class)->syncFromTask($task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser']));
+
             return $task;
         } catch (\Exception $e) {
             DB::rollBack();
@@ -291,6 +311,8 @@ class TaskService
      */
     public function deleteTask(Task $task): bool
     {
+        app(TaskReminderSync::class)->cancelForTask($task);
+
         if ($task->repeat) {
              Task::where('repeat_task_id', $task->id)->delete();
         }
@@ -343,6 +365,8 @@ class TaskService
         if ($task->project_id != null && $task->project->calculate_task_progress == 'true') {
             $this->calculateProjectProgress($task->project_id, 'true');
         }
+
+        app(TaskReminderSync::class)->syncFromTask($task->fresh(['users', 'boardColumn', 'createBy', 'addedByUser']));
         
         return $task;
     }

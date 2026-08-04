@@ -592,7 +592,11 @@ export default function AnalysisLeadContextPanel({
                                         </div>
                                     </div>
                                     <a
-                                        href={file.file_url}
+                                        href={
+                                            file.external_url ||
+                                            file.file_url ||
+                                            route("deal-files.download", file.id)
+                                        }
                                         target="_blank"
                                         rel="noreferrer"
                                         className="text-slate-400 hover:text-slate-600 shrink-0"

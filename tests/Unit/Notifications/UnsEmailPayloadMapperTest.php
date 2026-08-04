@@ -92,6 +92,25 @@ class UnsEmailPayloadMapperTest extends TestCase
         $this->assertStringStartsWith('crm-email-', $first['idempotencyKey']);
     }
 
+    public function test_it_prefers_custom_idempotency_header(): void
+    {
+        $mapper = new StubUnsEmailPayloadMapper([], null);
+
+        $email = (new Email())
+            ->from('sender@test.local')
+            ->to('external@example.com')
+            ->subject('Subject')
+            ->html('<p>Body</p>');
+        $email->getHeaders()->addTextHeader(
+            UnsEmailPayloadMapper::IDEMPOTENCY_HEADER,
+            'crm-reminder-26-unique'
+        );
+
+        $payload = $mapper->map($email);
+
+        $this->assertSame('crm-reminder-26-unique', $payload['idempotencyKey']);
+    }
+
     private function makeUser(int $id, int $companyId): User
     {
         $user = new User();

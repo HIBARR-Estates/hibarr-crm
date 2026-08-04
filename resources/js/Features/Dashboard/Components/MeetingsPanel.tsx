@@ -91,17 +91,27 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
 
     const renderMeetingLink = (meeting: DealFollowup) => {
         const location = meeting.location ?? "zoho";
-        const isNonVideoLocation = ["office", "phone", "physical"].includes(location);
+        const knownVideoLocations = [
+            "zoho",
+            "zoho_meet",
+            "google_meet",
+            "meet",
+            "zoom",
+            "teams",
+            "skype",
+            "other",
+        ];
+        const isNonVideoLocation = !knownVideoLocations.includes(location);
 
         if (isNonVideoLocation || !meeting.meeting_link) {
             const platformLabels: Record<string, string> = {
-                office: t("pages.meetings.platforms.office"),
+                office: "HIBARR HQ",
                 phone: t("pages.meetings.platforms.phone"),
                 physical: t("pages.meetings.platforms.physical"),
             };
             return (
                 <span>
-                    {platformLabels[location] ?? t("pages.meetings.platforms.office")}
+                    {platformLabels[location] ?? location}
                 </span>
             );
         }

@@ -32,7 +32,8 @@ export default function PeoplePicker({
     emptyLabel,
     getEmptyLabel,
     pendingId,
-}: PeoplePickerProps) {
+    loading = false,
+}: PeoplePickerProps & { loading?: boolean }) {
     const [query, setQuery] = useState("");
     const q = query.trim().toLowerCase();
 
@@ -49,6 +50,13 @@ export default function PeoplePicker({
         [people, exclude, q],
     );
 
+    const defaultEmpty = () => {
+        if (loading) return "Loading employees…";
+        if (people.length === 0) return "No employees available to assign";
+        if (!q) return "No employees left to add";
+        return `No employees match "${query}"`;
+    };
+
     return (
         <div>
             <input
@@ -59,6 +67,7 @@ export default function PeoplePicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoFocus={autoFocus}
+                disabled={loading}
                 style={{ marginBottom: 6, fontSize: 12, padding: "8px 10px" }}
             />
             <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -67,9 +76,7 @@ export default function PeoplePicker({
                         className="px-1.5 py-2 text-xs italic"
                         style={{ color: T.TEXT_MUTED }}
                     >
-                        {getEmptyLabel?.(query) ??
-                            emptyLabel ??
-                            `No employees match "${query}"`}
+                        {getEmptyLabel?.(query) ?? emptyLabel ?? defaultEmpty()}
                     </div>
                 ) : (
                     results.map((person) => {

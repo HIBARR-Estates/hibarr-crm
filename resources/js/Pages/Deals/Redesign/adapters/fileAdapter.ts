@@ -59,9 +59,12 @@ export function downloadDealFile(file: DealFile): void {
         return;
     }
 
+    // Prefer authenticated download (works for images/PDF/DOC; avoids expired
+    // temporary S3 URLs and empty-hashname file_url paths).
     const link = document.createElement("a");
     link.href = route("deal-files.download", file.id);
-    link.download = file.filename;
+    link.target = "_blank";
+    link.rel = "noreferrer";
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

@@ -37,7 +37,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Контакты',
+        'contacts'                 => 'Лиды',
         'refresh_tooltip_disabled' => 'Сохраните или отмените изменения перед обновлением',
         'save_before_tab_switch'   => 'Пожалуйста, сохраните или отмените изменения перед переключением вкладки.',
         'tabs' => [
@@ -754,6 +754,7 @@ return [
                 'platform'             => 'Платформа',
                 'platform_video_call'  => 'Видеозвонок',
                 'platform_in_person'   => 'Очно',
+                'platform_physical'    => 'Очно',
                 'platform_phone'       => 'Телефон',
                 'reminder_unit_minutes' => 'минут',
                 'reminder_unit_hours'  => 'часов',
@@ -838,6 +839,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Файлы загружены',
                     'upload_failed' => 'Не удалось загрузить файлы. Попробуйте ещё раз.',
+                    'deleted'       => 'Файл удалён',
+                    'delete_failed' => 'Не удалось удалить файл',
                 ],
             ],
             'offers' => [

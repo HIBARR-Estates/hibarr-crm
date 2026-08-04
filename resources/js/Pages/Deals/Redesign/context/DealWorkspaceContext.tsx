@@ -112,7 +112,24 @@ export function DealWorkspaceProvider({
         tasks: false,
         dealFollowUps: false,
         files: false,
+        dealId: deal.id,
     });
+
+    // Re-seed when navigating to another deal without remounting the provider.
+    useEffect(() => {
+        if (seeded.current.dealId === deal.id) return;
+        seeded.current = {
+            notes: false,
+            tasks: false,
+            dealFollowUps: false,
+            files: false,
+            dealId: deal.id,
+        };
+        setNotes([]);
+        setTasks([]);
+        setDealFollowUps([]);
+        setFiles([]);
+    }, [deal.id]);
 
     useEffect(() => {
         if (!seeded.current.notes && notesQuery.data?.data) {
@@ -136,10 +153,19 @@ export function DealWorkspaceProvider({
     }, [dealFollowUpsQuery.data]);
 
     useEffect(() => {
-        if (!seeded.current.files && filesQuery.data?.data) {
-            setFiles(filesQuery.data.data);
-            seeded.current.files = true;
+        // Seed once per deal. Merge any files already patched in by an upload
+        // that raced ahead of this first fetch, so they don't disappear.
+        if (seeded.current.files || filesQuery.data?.data === undefined) {
+            return;
         }
+        const serverFiles = filesQuery.data.data;
+        setFiles((prev) => {
+            if (prev.length === 0) return serverFiles;
+            const serverIds = new Set(serverFiles.map((file) => file.id));
+            const localOnly = prev.filter((file) => !serverIds.has(file.id));
+            return [...localOnly, ...serverFiles];
+        });
+        seeded.current.files = true;
     }, [filesQuery.data]);
 
     const value = useMemo<DealWorkspaceValue>(

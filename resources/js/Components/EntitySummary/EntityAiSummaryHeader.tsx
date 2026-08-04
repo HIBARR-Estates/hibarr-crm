@@ -8,7 +8,6 @@ import type {
     EntitySummaryEntityType,
     EntitySummaryRiskLevel,
 } from "@/Types/entity-summary";
-import AiThinkingIndicator from "./AiThinkingIndicator";
 
 dayjs.extend(relativeTime);
 
@@ -93,7 +92,9 @@ export default function EntityAiSummaryHeader({
                             </span>
                         </span>
                         {loading ? (
-                            <AiThinkingIndicator size={14} />
+                            <span className="entity-ai-summary-header__status-line">
+                                Generating summary…
+                            </span>
                         ) : (
                             <span className="entity-ai-summary-header__status-line entity-ai-summary-header__status-line--muted">
                                 {`Generate an AI summary to see key facts, risk signals, and a suggested next step for this ${entityType}.`}
