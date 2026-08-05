@@ -21,9 +21,16 @@ function formatDate(value: string | undefined): {
     date: Date | null;
     label: string;
 } {
-    if (!value) return { date: null, label: "No date" };
+    if (!value) {
+        // Newly created notes can omit created_at in the store payload.
+        const now = new Date();
+        return { date: now, label: formatCompanyDate(now) };
+    }
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return { date: null, label: "No date" };
+    if (Number.isNaN(date.getTime())) {
+        const now = new Date();
+        return { date: now, label: formatCompanyDate(now) };
+    }
     return { date, label: formatCompanyDate(date) };
 }
 
@@ -58,6 +65,6 @@ export function toLeadNotePreview(note: LeadNote): LeadNotePreview {
         authorInitials: initialsFromName(authorName),
         createdAt: date,
         createdAtLabel: label,
-        timeLabel: note.created_at ? dayjs(note.created_at).fromNow() : label,
+        timeLabel: date ? dayjs(date).fromNow() : label,
     };
 }

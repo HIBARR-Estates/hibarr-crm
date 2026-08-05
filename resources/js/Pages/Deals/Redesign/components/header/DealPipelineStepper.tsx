@@ -7,6 +7,11 @@ import useTranslation from "@/Hooks/useTranslation";
 import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
 import useDealPipeline from "../../hooks/useDealPipeline";
 import useHScroll from "../../hooks/useHScroll";
+import type { DealInfoCoreSectionId, DealInfoSectionId } from "../../types";
+import {
+    DEAL_INFO_CATEGORY_SECTION_MAP,
+    toCategorySectionId,
+} from "../../config/dealInfoSections";
 import DealButton from "../primitives/DealButton";
 import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealIcon from "../primitives/DealIcon";
@@ -21,6 +26,11 @@ import {
 interface DealPipelineStepperProps {
     deal: Deal;
     permissions: Record<string, string>;
+    /** Jump to Deal info so the user can complete a required field. */
+    onGoToField?: (target: {
+        section: DealInfoSectionId;
+        fieldKey: string;
+    }) => void;
 }
 
 interface StageRequirementCondition {
@@ -28,6 +38,66 @@ interface StageRequirementCondition {
     label?: string;
     operator: string;
     value: unknown;
+}
+
+const HIBARR_FIELD_SECTION: Partial<Record<string, DealInfoCoreSectionId>> = {
+    purchase_timeline: "preftimeline",
+    motivation: "preftimeline",
+    strategy_meeting_booked: "preftimeline",
+    downpayment_paid: "preftimeline",
+    inspection_trip_date: "preftimeline",
+    interested_in: "preftimeline",
+    budget_range: "preftimeline",
+    deposit_confirmation: "funding",
+    reservation_agreement: "funding",
+    sales_contract: "funding",
+    message: "support",
+    value: "general",
+    name: "general",
+    close_date: "general",
+    category_id: "general",
+};
+
+function resolveSectionForField(
+    field: string,
+    customFields: Array<{
+        id: number;
+        custom_field_category_id?: number | string;
+    }>,
+): DealInfoSectionId | null {
+    const base = field.includes(".")
+        ? field.slice(field.lastIndexOf(".") + 1)
+        : field;
+
+    if (base.startsWith("custom_field_")) {
+        const id = Number(base.replace("custom_field_", ""));
+        const def = customFields.find((f) => Number(f.id) === id);
+        const categoryId =
+            def?.custom_field_category_id != null
+                ? Number(def.custom_field_category_id)
+                : null;
+        if (categoryId != null && categoryId > 0) {
+            // Mapped categories land under a core section; unmapped get category-N.
+            const mappedCore = DEAL_INFO_CATEGORY_SECTION_MAP[categoryId];
+            if (mappedCore) return mappedCore;
+            return toCategorySectionId(categoryId);
+        }
+        // Prefer later/general surfaces over a dead-end.
+        return "general";
+    }
+
+    return HIBARR_FIELD_SECTION[base] ?? null;
+}
+
+/** Normalize condition field keys so highlight selectors can match anchors. */
+function normalizeFieldKey(field: string): string {
+    const base = field.includes(".")
+        ? field.slice(field.lastIndexOf(".") + 1)
+        : field;
+    // Automation stores custom fields as custom_field_{id}; Deal info
+    // also anchors field_{id} — highlight tries both client-side, this is
+    // the primary key passed upstream.
+    return base;
 }
 
 function hasAllPermission(permissions: Record<string, string>, key: string) {
@@ -59,8 +129,12 @@ function formatConditionValue(value: unknown): string {
 
 function RequirementConditionRows({
     requirements,
+    onOpenField,
+    openFieldLabel = "Open",
 }: {
     requirements: StageRequirementCondition[];
+    onOpenField?: (field: string) => void;
+    openFieldLabel?: string;
 }) {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -75,10 +149,14 @@ function RequirementConditionRows({
                 const valueText = showValue
                     ? formatConditionValue(condition.value)
                     : "";
+                const canJump = Boolean(onOpenField);
 
                 return (
-                    <div
+                    <button
                         key={i}
+                        type="button"
+                        onClick={() => onOpenField?.(condition.field)}
+                        disabled={!canJump}
                         style={{
                             display: "flex",
                             flexDirection: "column",
@@ -87,6 +165,10 @@ function RequirementConditionRows({
                             background: T.SURFACE_2,
                             border: `1px solid ${T.BORDER_SOFT}`,
                             borderRadius: R.SM,
+                            textAlign: "left",
+                            cursor: canJump ? "pointer" : "default",
+                            fontFamily: "inherit",
+                            width: "100%",
                         }}
                     >
                         <span
@@ -96,9 +178,24 @@ function RequirementConditionRows({
                                 color: T.TEXT_MUTED,
                                 letterSpacing: "0.02em",
                                 lineHeight: 1.3,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 8,
                             }}
                         >
-                            {label}
+                            <span>{label}</span>
+                            {canJump && (
+                                <span
+                                    style={{
+                                        color: T.BLUE,
+                                        fontWeight: 700,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    {openFieldLabel} →
+                                </span>
+                            )}
                         </span>
                         <span
                             style={{
@@ -113,13 +210,18 @@ function RequirementConditionRows({
                             {showValue && valueText !== "" ? (
                                 <>
                                     {" "}
-                                    <span style={{ fontWeight: 700, color: T.NAVY }}>
+                                    <span
+                                        style={{
+                                            fontWeight: 700,
+                                            color: T.NAVY,
+                                        }}
+                                    >
                                         {valueText}
                                     </span>
                                 </>
                             ) : null}
                         </span>
-                    </div>
+                    </button>
                 );
             })}
         </div>
@@ -130,10 +232,14 @@ function StageRequirementsPopup({
     stageName,
     requirementsLabel,
     requirements,
+    onOpenField,
+    openFieldLabel,
 }: {
     stageName: string;
     requirementsLabel: string;
     requirements: StageRequirementCondition[];
+    onOpenField?: (field: string) => void;
+    openFieldLabel: string;
 }) {
     return (
         <div style={{ width: 280, maxWidth: "calc(100vw - 32px)" }}>
@@ -158,7 +264,11 @@ function StageRequirementsPopup({
             >
                 {requirementsLabel}
             </div>
-            <RequirementConditionRows requirements={requirements} />
+            <RequirementConditionRows
+                requirements={requirements}
+                onOpenField={onOpenField}
+                openFieldLabel={openFieldLabel}
+            />
         </div>
     );
 }
@@ -167,19 +277,28 @@ function StageRequirementsPopup({
 export default function DealPipelineStepper({
     deal,
     permissions,
+    onGoToField,
 }: DealPipelineStepperProps) {
     const { td } = useTd();
     const { t } = useTranslation();
     const canChangeStages = hasAllPermission(permissions, "change_deal_stages");
     const pipeline = useDealPipeline(deal, canChangeStages);
-    const stageRequirements = usePage<any>().props
-        .stageAutomationRequirements as
+    const page = usePage<any>().props;
+    const stageRequirements = page.stageAutomationRequirements as
         | Record<number, StageRequirementCondition[]>
         | undefined;
+    const customFields = (page.fields ?? []) as Array<{
+        id: number;
+        custom_field_category_id?: number | string;
+    }>;
     const scroll = useHScroll();
     const hasOverflow = scroll.overflow.left || scroll.overflow.right;
     const [pendingStageId, setPendingStageId] = useState<number | null>(null);
     const [progressionOpen, setProgressionOpen] = useState(false);
+    /** Controlled so "Open field" can dismiss the stage-requirements popover. */
+    const [openRequirementsStageId, setOpenRequirementsStageId] = useState<
+        number | null
+    >(null);
 
     const currentIdx = pipeline.stages.findIndex(
         (stage) => stage.id === pipeline.currentStageId,
@@ -188,6 +307,15 @@ export default function DealPipelineStepper({
     const hasAnyRequirements = Object.values(stageRequirements ?? {}).some(
         (conditions) => !!conditions?.length,
     );
+
+    const handleOpenField = (field: string) => {
+        const section = resolveSectionForField(field, customFields);
+        if (!section || !onGoToField) return;
+        // Close any open requirements surface (popover hover/click or full modal).
+        setOpenRequirementsStageId(null);
+        setProgressionOpen(false);
+        onGoToField({ section, fieldKey: normalizeFieldKey(field) });
+    };
 
     const handleClick = (
         stage: (typeof pipeline.stages)[number],
@@ -202,6 +330,13 @@ export default function DealPipelineStepper({
     const pendingStage = pipeline.stages.find(
         (stage) => stage.id === pendingStageId,
     );
+
+    const openFieldLabel =
+        t("pages.deals.header.pipeline.open_field") ===
+        "pages.deals.header.pipeline.open_field"
+            ? "Open"
+            : t("pages.deals.header.pipeline.open_field");
+
 
     return (
         <div
@@ -378,6 +513,15 @@ export default function DealPipelineStepper({
                                             arrow={false}
                                             mouseEnterDelay={0.2}
                                             mouseLeaveDelay={0.15}
+                                            open={
+                                                openRequirementsStageId ===
+                                                stage.id
+                                            }
+                                            onOpenChange={(open) =>
+                                                setOpenRequirementsStageId(
+                                                    open ? stage.id : null,
+                                                )
+                                            }
                                             styles={{
                                                 body: {
                                                     padding: 12,
@@ -394,6 +538,12 @@ export default function DealPipelineStepper({
                                                         "pages.deals.header.pipeline.requirements_label",
                                                     )}
                                                     requirements={requirements!}
+                                                    onOpenField={
+                                                        onGoToField
+                                                            ? handleOpenField
+                                                            : undefined
+                                                    }
+                                                    openFieldLabel={openFieldLabel}
                                                 />
                                             }
                                         >
@@ -588,6 +738,12 @@ export default function DealPipelineStepper({
                                         </div>
                                         <RequirementConditionRows
                                             requirements={requirements}
+                                            onOpenField={
+                                                onGoToField
+                                                    ? handleOpenField
+                                                    : undefined
+                                            }
+                                            openFieldLabel={openFieldLabel}
                                         />
                                     </>
                                 ) : (

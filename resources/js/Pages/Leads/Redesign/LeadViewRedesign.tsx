@@ -118,7 +118,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         notes,
         files,
         filesLoading,
-        addNote,
         addTask,
     } = useLeadWorkspace();
 
@@ -734,10 +733,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 saving={noteSaving}
                 errors={noteErrors}
                 onSubmit={(form: AddNoteFormState) =>
-                    createNote({ text: form.text || form.title }, (note) => {
-                        addNote(note);
-                        setAddNoteOpen(false);
-                    })
+                    createNote(
+                        { title: form.title, text: form.text },
+                        () => setAddNoteOpen(false),
+                    )
                 }
                 labels={{
                     title: td("Add note"),

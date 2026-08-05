@@ -22,6 +22,8 @@ const VALID_CORE_INFO_SECTIONS = [
     "income",
     "location",
     "preftimeline",
+    "funding",
+    "support",
     "gdpr",
 ] as const;
 

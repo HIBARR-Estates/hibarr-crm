@@ -7,6 +7,7 @@ import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
+import { formatCompanyDateTime } from "@/lib/companyDateTime";
 
 export interface NoteDetailModalLabels {
     viewTitle: string;
@@ -71,6 +72,20 @@ export default function NoteDetailModal({
 
     if (!note) return null;
 
+    const authorName =
+        note.added_by?.name ??
+        // Lead notes sometimes only hydrate `added_by_user` on create.
+        (note as Note & { added_by_user?: { name?: string } }).added_by_user
+            ?.name ??
+        labels.unknownAuthor;
+    const createdLabel = formatCompanyDateTime(
+        note.created_at || note.updated_at || new Date(),
+        { fallback: "" },
+    );
+    const isEdited =
+        Boolean(note.updated_at && note.created_at) &&
+        note.updated_at !== note.created_at;
+
     const handleSave = () => {
         if (!text.trim()) return;
         onUpdate(
@@ -106,8 +121,16 @@ export default function NoteDetailModal({
                         </Button>
                     </>
                 ) : (
-                    <>
-                        {canDelete && (
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 8,
+                            width: "100%",
+                        }}
+                    >
+                        {canDelete ? (
                             <Button
                                 variant="ghost"
                                 style={{ color: T.RED }}
@@ -115,8 +138,9 @@ export default function NoteDetailModal({
                             >
                                 {labels.delete}
                             </Button>
+                        ) : (
+                            <span />
                         )}
-                        <span style={{ flex: 1 }} />
                         {canEdit && (
                             <Button
                                 variant="primary"
@@ -125,7 +149,7 @@ export default function NoteDetailModal({
                                 {labels.edit}
                             </Button>
                         )}
-                    </>
+                    </div>
                 )
             }
         >
@@ -145,23 +169,53 @@ export default function NoteDetailModal({
                             rows={7}
                             value={text}
                             onChange={(e) => setText(e.target.value)}
-                            style={{ resize: "vertical" }}
+                            style={{
+                                resize: "vertical",
+                                maxWidth: "100%",
+                                wordBreak: "break-word",
+                            }}
                         />
                     </ModalField>
                 </>
             ) : (
                 <>
-                    <div className="mb-4 flex items-center gap-[9px]">
-                        <Avatar
-                            size={32}
-                            initials={initialsFromName(note.added_by?.name)}
-                        />
-                        <span className="min-w-0">
-                            {note.title?.trim() ? (
-                                <>
+                    <div className="mb-4 flex min-w-0 items-start justify-between gap-3">
+                        <div className="flex min-w-0 items-center gap-[9px]">
+                            <Avatar
+                                size={32}
+                                initials={initialsFromName(authorName)}
+                            />
+                            <span className="min-w-0">
+                                {note.title?.trim() ? (
+                                    <>
+                                        <span
+                                            className="block text-sm font-semibold"
+                                            style={{
+                                                overflowWrap: "anywhere",
+                                                wordBreak: "break-word",
+                                            }}
+                                        >
+                                            {td(note.title)}
+                                            {isEdited && (
+                                                <span
+                                                    className="ml-1 text-[12px] font-normal italic"
+                                                    style={{ color: T.TEXT_MUTED }}
+                                                >
+                                                    ({labels.editedTag})
+                                                </span>
+                                            )}
+                                        </span>
+                                        <span
+                                            className="block text-[13px]"
+                                            style={{ color: T.TEXT_MUTED }}
+                                        >
+                                            {authorName}
+                                        </span>
+                                    </>
+                                ) : (
                                     <span className="block text-sm font-semibold">
-                                        {td(note.title)}
-                                        {note.updated_at !== note.created_at && (
+                                        {authorName}
+                                        {isEdited && (
                                             <span
                                                 className="ml-1 text-[12px] font-normal italic"
                                                 style={{ color: T.TEXT_MUTED }}
@@ -170,33 +224,26 @@ export default function NoteDetailModal({
                                             </span>
                                         )}
                                     </span>
-                                    <span
-                                        className="block text-[13px]"
-                                        style={{ color: T.TEXT_MUTED }}
-                                    >
-                                        {note.added_by?.name ??
-                                            labels.unknownAuthor}
-                                    </span>
-                                </>
-                            ) : (
-                                <span className="block text-sm font-semibold">
-                                    {note.added_by?.name ??
-                                        labels.unknownAuthor}
-                                    {note.updated_at !== note.created_at && (
-                                        <span
-                                            className="ml-1 text-[12px] font-normal italic"
-                                            style={{ color: T.TEXT_MUTED }}
-                                        >
-                                            ({labels.editedTag})
-                                        </span>
-                                    )}
-                                </span>
-                            )}
-                        </span>
+                                )}
+                            </span>
+                        </div>
+                        {createdLabel ? (
+                            <span
+                                className="shrink-0 text-[12px]"
+                                style={{ color: T.TEXT_MUTED }}
+                            >
+                                {createdLabel}
+                            </span>
+                        ) : null}
                     </div>
                     <div
-                        className="text-[14px] leading-[1.7] break-words whitespace-pre-wrap"
-                        style={{ color: T.TEXT }}
+                        className="min-w-0 text-[14px] leading-[1.7] whitespace-pre-wrap"
+                        style={{
+                            color: T.TEXT,
+                            overflowWrap: "anywhere",
+                            wordBreak: "break-word",
+                            maxWidth: "100%",
+                        }}
                     >
                         {stripHtml(note.details || "")}
                     </div>
