@@ -149,7 +149,7 @@ class LeadContactDataTable extends BaseDataTable
      */
     public function query(Lead $model)
     {
-        $leadContact = $model->with(['category'])
+        $leadContact = $model->with(['category', 'categories'])
             ->select(
                 'leads.id',
                 'leads.added_by',
@@ -199,7 +199,13 @@ class LeadContactDataTable extends BaseDataTable
         }
 
         if ($this->request()->category_id != 'all' && $this->request()->category_id != '') {
-            $leadContact = $leadContact->where('category_id', $this->request()->category_id);
+            $categoryId = $this->request()->category_id;
+            $leadContact = $leadContact->where(function ($q) use ($categoryId) {
+                $q->where('leads.category_id', $categoryId)
+                    ->orWhereHas('categories', function ($cq) use ($categoryId) {
+                        $cq->where('lead_category.id', $categoryId);
+                    });
+            });
         }
 
         if ($this->request()->source_id != 'all' && $this->request()->source_id != '') {

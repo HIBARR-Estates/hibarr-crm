@@ -411,7 +411,10 @@ export default function EditableField({
     };
 
     const isMultiSelectField =
-        fieldType === "multiselect" || fieldType === "multiSelectCountry";
+        fieldType === "multiselect" ||
+        fieldType === "multiSelectCountry" ||
+        mode === "multiple" ||
+        mode === "tags";
 
     const [inputValue, setInputValue] = useState<any>(() => {
         if (isMultiSelectField || Array.isArray(value)) {

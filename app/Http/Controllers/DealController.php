@@ -553,6 +553,7 @@ class DealController extends AccountBaseController
             'contact.leadOwner',
             'contact.lifecycleStatus',
             'contact.category',
+            'contact.categories',
             'contact.marketing',
             'category',
             'pipeline.stages',

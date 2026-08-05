@@ -13,6 +13,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -287,6 +288,46 @@ class Lead extends BaseModel
     public function category(): BelongsTo
     {
         return $this->belongsTo(LeadCategory::class, 'category_id');
+    }
+
+    /**
+     * Taxonomy categories attached to this lead (many).
+     * `category_id` remains the primary/first category for legacy callers.
+     */
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            LeadCategory::class,
+            'lead_lead_category',
+            'lead_id',
+            'lead_category_id'
+        )->withTimestamps();
+    }
+
+    /**
+     * Replace the lead's categories and keep scalar category_id in sync
+     * (first selected id, or null when empty).
+     *
+     * @param  array<int|string|null>  $categoryIds
+     */
+    public function syncCategories(array $categoryIds): void
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map(static fn ($id) => $id === null || $id === '' ? null : (int) $id, $categoryIds),
+            static fn ($id) => $id !== null && $id > 0
+        )));
+
+        $this->categories()->sync($ids);
+
+        $primary = $ids[0] ?? null;
+        if ((int) ($this->category_id ?? 0) !== (int) ($primary ?? 0)) {
+            $this->category_id = $primary;
+            // Avoid observer cascades / double work when only the scalar mirror changed.
+            $this->saveQuietly();
+        }
+
+        $this->unsetRelation('categories');
+        $this->unsetRelation('category');
     }
 
     public function note(): BelongsTo

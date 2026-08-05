@@ -72,7 +72,7 @@ export const LEAD_INFO_CORE_SECTIONS: LeadInfoSectionDef[] = [
             { key: "occupation", label: "Occupation", leadField: "occupation" },
             { key: "companyName", label: "Company", leadField: "company_name" },
             { key: "source", label: "Source", leadField: "source_id" },
-            { key: "category", label: "Category", leadField: "category_id" },
+            { key: "category", label: "Category", leadField: "category_ids" },
             { key: "addedBy", label: "Added by", readOnly: true },
         ],
     },

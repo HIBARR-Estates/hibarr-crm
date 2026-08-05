@@ -145,6 +145,10 @@ class ImportLeadJob implements ShouldQueue
 
                 $lead->save();
 
+                if ($leadCategory) {
+                    $lead->syncCategories([(int) $leadCategory->id]);
+                }
+
                 $notesValue = $this->isColumnExists('notes') ? $this->getColumnValue('notes') : null;
                 if ($notesValue !== null && trim((string) $notesValue) !== '') {
                     $note = new LeadNote();

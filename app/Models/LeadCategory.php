@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\HasCompany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
@@ -39,6 +40,16 @@ class LeadCategory extends BaseModel
     public function enabledAgents(): HasMany
     {
         return $this->hasMany(LeadAgent::class, 'lead_category_id')->where('status', '=', 'enabled');
+    }
+
+    public function leads(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Lead::class,
+            'lead_lead_category',
+            'lead_category_id',
+            'lead_id'
+        )->withTimestamps();
     }
 
     /**
