@@ -52,7 +52,9 @@ class PropertyController extends AccountBaseController
         $this->middleware(function ($request, $next) {
             $this->addPropertyPermission = user()->permission('add_products');
             $this->viewPropertyPermission = user()->permission('view_products');
-            $this->editPropertyPermission = user()->permission('edit_products');
+            $this->editPropertyPermission = \App\Support\PermissionGates::canManageProperties(user())
+                ? 'all'
+                : false;
             $this->deletePropertyPermission = user()->permission('delete_products');
             
             return $next($request);

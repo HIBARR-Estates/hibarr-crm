@@ -24,7 +24,10 @@ export const modules = [
     "settings",
     "bankaccount",
     "developers",
-    "developer_projects"
+    "developer_projects",
+    "partner_network",
+    "offers",
+    "properties",
 ] as const;
 export const permissions = {
     "add_appreciation": "all",
@@ -188,6 +191,11 @@ export const permissions = {
     "edit_order": "all",
     "edit_payments": "all",
     "edit_product": "all",
+    "manage_offers": "all",
+    "manage_partner_network": "all",
+    "manage_properties": "all",
+    "manage_property_configuration": "all",
+    "manage_property_publish_requests": "all",
     "edit_project_discussions": "all",
     "edit_project_members": "all",
     "edit_project_milestones": "all",

@@ -112,8 +112,8 @@ export default function PropertyCategoryForm({
         | AppPermission
         | undefined;
     const isSalesManagerUser = !!(
-        userPermissions?.edit_product === "all" ||
-        userPermissions?.edit_product === 4
+        userPermissions?.manage_properties === "all" ||
+        userPermissions?.manage_properties === 4
     );
 
     // Section-level permission gating:

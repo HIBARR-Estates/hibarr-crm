@@ -26,6 +26,12 @@ class MlmAdminController extends AccountBaseController
         parent::__construct();
         $this->cycleService = $cycleService;
         $this->levelService = $levelService;
+
+        $this->middleware(function ($request, $next) {
+            abort_403(!\App\Support\PermissionGates::canManagePartnerNetwork(user()));
+
+            return $next($request);
+        });
     }
 
     /**
