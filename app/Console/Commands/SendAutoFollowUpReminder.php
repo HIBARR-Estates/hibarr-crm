@@ -82,8 +82,6 @@ class SendAutoFollowUpReminder extends Command
                     ->orWhere('send_reminder', '');
             })
             ->get();
-            })
-            ->get();
 
         foreach ($followups as $followup) {
             $recipientIds = collect($followup->participants ?? []);
