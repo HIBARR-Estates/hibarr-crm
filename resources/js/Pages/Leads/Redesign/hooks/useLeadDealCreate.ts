@@ -1,4 +1,5 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useState } from "react";
+import { App } from "antd";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
@@ -61,11 +62,16 @@ function extractCreatedDeal(response: unknown): Deal | null {
 }
 
 export default function useLeadDealCreate(lead: Lead) {
+    const { message } = App.useApp();
     const { setDeals, addLeadFollowUp } = useLeadWorkspace();
     const [errors, setErrors] = useState<string[]>([]);
-    const inFlightRef = useRef(false);
-    const { createMeeting, isCreating: isSchedulingMeeting } =
-        useLeadMeetingCreate(lead);
+    /** True across the full deal → optional kickoff meeting chain. */
+    const [chainInFlight, setChainInFlight] = useState(false);
+    const {
+        createMeeting,
+        isCreating: isSchedulingMeeting,
+        clearErrors: clearMeetingErrors,
+    } = useLeadMeetingCreate(lead);
 
     const { mutate, status } = useApiMutate<
         DealStorePayload,
@@ -78,7 +84,7 @@ export default function useLeadDealCreate(lead: Lead) {
             input: LeadDealCreateInput,
             onSuccess?: (deal: Deal) => void,
         ) => {
-            if (inFlightRef.current || isLoading({ status })) {
+            if (chainInFlight || isLoading({ status }) || isSchedulingMeeting) {
                 return;
             }
 
@@ -114,15 +120,22 @@ export default function useLeadDealCreate(lead: Lead) {
                 payload.value_source = "manual";
             }
 
+            const scheduleKickoff = Boolean(
+                input.addKickoffMeeting && input.kickoffMeeting,
+            );
+
             setErrors([]);
-            inFlightRef.current = true;
+            clearMeetingErrors();
+            setChainInFlight(true);
             mutate(payload, {
+                // Defer success toast until deal+meeting both finish when chaining.
+                suppressSuccessToast: scheduleKickoff,
                 onSuccess: (response) => {
-                    inFlightRef.current = false;
                     const deal = extractCreatedDeal(response);
                     if (!deal) {
                         // Treat a bare success response without a deal body as
                         // failure so we never close as "done" with nothing to show.
+                        setChainInFlight(false);
                         if (!isSuccessResponse(response)) {
                             setErrors(["Failed to create deal"]);
                             return;
@@ -136,24 +149,48 @@ export default function useLeadDealCreate(lead: Lead) {
                         ...prev.filter((d) => d.id !== deal.id),
                     ]);
 
-                    const scheduleKickoff =
-                        input.addKickoffMeeting && input.kickoffMeeting;
-
-                    if (scheduleKickoff) {
+                    if (scheduleKickoff && input.kickoffMeeting) {
+                        // Keep modal in saving state through the meeting request.
+                        // No intermediate toast; close only after both succeed.
                         createMeeting(
                             {
-                                ...input.kickoffMeeting!,
+                                ...input.kickoffMeeting,
                                 dealId: deal.id,
                             },
-                            () => onSuccess?.(deal),
+                            {
+                                suppressSuccessToast: true,
+                                // Avoid a confirm dialog after the deal already exists.
+                                skipDuplicateCheck: true,
+                                onSuccess: () => {
+                                    setChainInFlight(false);
+                                    message.success(
+                                        "Deal and meeting created successfully",
+                                    );
+                                    onSuccess?.(deal);
+                                },
+                                onFailure: (meetingErrors) => {
+                                    setChainInFlight(false);
+                                    setErrors(
+                                        meetingErrors.length > 0
+                                            ? [
+                                                  "Deal was created, but the meeting could not be scheduled.",
+                                                  ...meetingErrors,
+                                              ]
+                                            : [
+                                                  "Deal was created, but the meeting could not be scheduled.",
+                                              ],
+                                    );
+                                },
+                            },
                         );
                         return;
                     }
 
+                    setChainInFlight(false);
                     onSuccess?.(deal);
                 },
                 onError: (errorResponse) => {
-                    inFlightRef.current = false;
+                    setChainInFlight(false);
                     const formatted = errorFormatter(errorResponse);
                     const responseErrors = Object.values(
                         formatted.errors || {},
@@ -166,7 +203,17 @@ export default function useLeadDealCreate(lead: Lead) {
                 },
             });
         },
-        [createMeeting, lead.id, mutate, setDeals, status],
+        [
+            chainInFlight,
+            clearMeetingErrors,
+            createMeeting,
+            isSchedulingMeeting,
+            lead.id,
+            message,
+            mutate,
+            setDeals,
+            status,
+        ],
     );
 
     const patchFollowUp = useCallback(
@@ -176,12 +223,18 @@ export default function useLeadDealCreate(lead: Lead) {
         [addLeadFollowUp],
     );
 
-    const clearErrors = useCallback(() => setErrors([]), []);
+    const clearErrors = useCallback(() => {
+        setErrors([]);
+        clearMeetingErrors();
+    }, [clearMeetingErrors]);
 
     return {
         createDeal,
         patchFollowUp,
-        isCreating: isLoading({ status }) || inFlightRef.current,
+        isCreating:
+            chainInFlight ||
+            isLoading({ status }) ||
+            isSchedulingMeeting,
         isSchedulingMeeting,
         errors,
         clearErrors,

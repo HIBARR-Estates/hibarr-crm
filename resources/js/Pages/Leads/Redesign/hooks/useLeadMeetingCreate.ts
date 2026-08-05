@@ -81,6 +81,25 @@ function extractFollowUp(response: unknown): DealFollowup | null {
     return null;
 }
 
+export type LeadMeetingCreateOptions = {
+    onSuccess?: () => void;
+    /** Validation failure, API error, or cancelled duplicate confirm. */
+    onFailure?: (errors: string[]) => void;
+    /** Skip the automatic success toast (e.g. chained deal+meeting creates). */
+    suppressSuccessToast?: boolean;
+    /** Skip soft-duplicate confirmation (use after deal already exists in a chain). */
+    skipDuplicateCheck?: boolean;
+};
+
+function normalizeCreateOptions(
+    optionsOrSuccess?: LeadMeetingCreateOptions | (() => void),
+): LeadMeetingCreateOptions {
+    if (typeof optionsOrSuccess === "function") {
+        return { onSuccess: optionsOrSuccess };
+    }
+    return optionsOrSuccess ?? {};
+}
+
 export default function useLeadMeetingCreate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
@@ -93,7 +112,10 @@ export default function useLeadMeetingCreate(lead: Lead) {
     >(route("deals.follow_up_store"), "POST");
 
     const submitMeeting = useCallback(
-        (input: LeadMeetingCreateInput, onSuccess?: () => void) => {
+        (
+            input: LeadMeetingCreateInput,
+            options: LeadMeetingCreateOptions = {},
+        ) => {
             persistUserTimezoneOnce(props.auth?.user?.timezone);
 
             const payload: FollowUpStorePayload = {
@@ -122,6 +144,7 @@ export default function useLeadMeetingCreate(lead: Lead) {
 
             setErrors([]);
             mutate(payload, {
+                suppressSuccessToast: options.suppressSuccessToast,
                 onSuccess: (response) => {
                     setErrors([]);
                     const followUp = extractFollowUp(response);
@@ -129,22 +152,23 @@ export default function useLeadMeetingCreate(lead: Lead) {
                         // Patch local list immediately — don't wait on deferred reload.
                         addLeadFollowUp(followUp);
                     }
-                    // Success toast comes from useApiMutate (response.message).
-                    onSuccess?.();
+                    // Success toast comes from useApiMutate unless suppressed.
+                    options.onSuccess?.();
                 },
                 onError: (errorResponse) => {
                     const formatted = errorFormatter(errorResponse);
                     const responseErrors = Object.values(
                         formatted.errors || {},
                     ).flat();
-                    setErrors(
+                    const nextErrors =
                         responseErrors.length > 0
                             ? responseErrors
                             : [
                                   formatted.message ||
                                       "Failed to schedule meeting",
-                              ],
-                    );
+                              ];
+                    setErrors(nextErrors);
+                    options.onFailure?.(nextErrors);
                 },
             });
         },
@@ -152,7 +176,11 @@ export default function useLeadMeetingCreate(lead: Lead) {
     );
 
     const createMeeting = useCallback(
-        (input: LeadMeetingCreateInput, onSuccess?: () => void) => {
+        (
+            input: LeadMeetingCreateInput,
+            optionsOrSuccess?: LeadMeetingCreateOptions | (() => void),
+        ) => {
+            const options = normalizeCreateOptions(optionsOrSuccess);
             const validationErrors: string[] = [];
 
             if (!lead.lead_owner?.id && !input.dealId) {
@@ -220,10 +248,11 @@ export default function useLeadMeetingCreate(lead: Lead) {
 
             if (validationErrors.length > 0) {
                 setErrors(validationErrors);
+                options.onFailure?.(validationErrors);
                 return;
             }
 
-            if (!input.confirmDuplicate) {
+            if (!input.confirmDuplicate && !options.skipDuplicateCheck) {
                 const participantSet = new Set(input.participants);
                 const duplicate = (leadFollowUps ?? []).some((existing) => {
                     const existingParticipants = (existing.participants ??
@@ -250,16 +279,20 @@ export default function useLeadMeetingCreate(lead: Lead) {
                         onOk: () =>
                             submitMeeting(
                                 { ...input, confirmDuplicate: true },
-                                onSuccess,
+                                options,
                             ),
+                        onCancel: () =>
+                            options.onFailure?.([
+                                "Meeting creation cancelled.",
+                            ]),
                     });
                     return;
                 }
             }
 
-            submitMeeting(input, onSuccess);
+            submitMeeting(input, options);
         },
-        [lead.lead_owner?.id, leadFollowUps, submitMeeting],
+        [lead.lead_owner?.id, leadFollowUps, props.auth?.user?.email, submitMeeting],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);
