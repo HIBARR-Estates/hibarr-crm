@@ -5,6 +5,11 @@ import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { isDealEffectivelyLocked } from "@/lib/dealOutcome";
+import {
+    isStageRequirementMet,
+    type StageRequirementCondition,
+} from "../../adapters/stageRequirementEvaluator";
+import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealPipeline from "../../hooks/useDealPipeline";
 import useHScroll from "../../hooks/useHScroll";
 import type { DealInfoCoreSectionId, DealInfoSectionId } from "../../types";
@@ -31,13 +36,6 @@ interface DealPipelineStepperProps {
         section: DealInfoSectionId;
         fieldKey: string;
     }) => void;
-}
-
-interface StageRequirementCondition {
-    field: string;
-    label?: string;
-    operator: string;
-    value: unknown;
 }
 
 const HIBARR_FIELD_SECTION: Partial<Record<string, DealInfoCoreSectionId>> = {
@@ -128,13 +126,17 @@ function formatConditionValue(value: unknown): string {
 }
 
 function RequirementConditionRows({
+    deal,
     requirements,
     onOpenField,
     openFieldLabel = "Open",
+    doneLabel = "Done",
 }: {
+    deal: Deal;
     requirements: StageRequirementCondition[];
     onOpenField?: (field: string) => void;
     openFieldLabel?: string;
+    doneLabel?: string;
 }) {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -150,6 +152,7 @@ function RequirementConditionRows({
                     ? formatConditionValue(condition.value)
                     : "";
                 const canJump = Boolean(onOpenField);
+                const isMet = isStageRequirementMet(deal, condition);
 
                 return (
                     <button
@@ -157,13 +160,20 @@ function RequirementConditionRows({
                         type="button"
                         onClick={() => onOpenField?.(condition.field)}
                         disabled={!canJump}
+                        aria-label={
+                            isMet
+                                ? `${label}: ${doneLabel}`
+                                : undefined
+                        }
                         style={{
                             display: "flex",
                             flexDirection: "column",
                             gap: 3,
                             padding: "8px 10px",
-                            background: T.SURFACE_2,
-                            border: `1px solid ${T.BORDER_SOFT}`,
+                            background: isMet ? T.GREEN_LIGHT : T.SURFACE_2,
+                            border: `1px solid ${
+                                isMet ? T.GREEN_MID : T.BORDER_SOFT
+                            }`,
                             borderRadius: R.SM,
                             textAlign: "left",
                             cursor: canJump ? "pointer" : "default",
@@ -175,7 +185,7 @@ function RequirementConditionRows({
                             style={{
                                 fontSize: TYPE.CAPTION,
                                 fontWeight: 600,
-                                color: T.TEXT_MUTED,
+                                color: isMet ? T.GREEN : T.TEXT_MUTED,
                                 letterSpacing: "0.02em",
                                 lineHeight: 1.3,
                                 display: "flex",
@@ -184,8 +194,58 @@ function RequirementConditionRows({
                                 gap: 8,
                             }}
                         >
-                            <span>{label}</span>
-                            {canJump && (
+                            <span
+                                style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    minWidth: 0,
+                                }}
+                            >
+                                {isMet ? (
+                                    <span
+                                        aria-hidden="true"
+                                        style={{
+                                            width: 16,
+                                            height: 16,
+                                            borderRadius: "50%",
+                                            flexShrink: 0,
+                                            background: T.GREEN,
+                                            color: T.WHITE,
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                        }}
+                                    >
+                                        <DealIcon
+                                            name="check"
+                                            size={10}
+                                            color="currentColor"
+                                        />
+                                    </span>
+                                ) : null}
+                                <span
+                                    style={{
+                                        textDecoration: isMet
+                                            ? "line-through"
+                                            : undefined,
+                                        opacity: isMet ? 0.85 : 1,
+                                    }}
+                                >
+                                    {label}
+                                </span>
+                            </span>
+                            {isMet ? (
+                                <span
+                                    style={{
+                                        color: T.GREEN,
+                                        fontWeight: 700,
+                                        whiteSpace: "nowrap",
+                                    }}
+                                >
+                                    {doneLabel}
+                                </span>
+                            ) : canJump ? (
                                 <span
                                     style={{
                                         color: T.BLUE,
@@ -195,16 +255,22 @@ function RequirementConditionRows({
                                 >
                                     {openFieldLabel} →
                                 </span>
-                            )}
+                            ) : null}
                         </span>
                         <span
                             style={{
                                 fontSize: TYPE.BODY,
                                 lineHeight: 1.35,
-                                color: T.TEXT,
+                                color: isMet ? T.GREEN : T.TEXT,
+                                opacity: isMet ? 0.9 : 1,
                             }}
                         >
-                            <span style={{ color: T.TEXT_HINT, fontWeight: 500 }}>
+                            <span
+                                style={{
+                                    color: isMet ? T.GREEN : T.TEXT_HINT,
+                                    fontWeight: 500,
+                                }}
+                            >
                                 {opLabel}
                             </span>
                             {showValue && valueText !== "" ? (
@@ -213,7 +279,7 @@ function RequirementConditionRows({
                                     <span
                                         style={{
                                             fontWeight: 700,
-                                            color: T.NAVY,
+                                            color: isMet ? T.GREEN : T.NAVY,
                                         }}
                                     >
                                         {valueText}
@@ -229,18 +295,28 @@ function RequirementConditionRows({
 }
 
 function StageRequirementsPopup({
+    deal,
     stageName,
     requirementsLabel,
     requirements,
     onOpenField,
     openFieldLabel,
+    doneLabel,
 }: {
+    deal: Deal;
     stageName: string;
     requirementsLabel: string;
     requirements: StageRequirementCondition[];
     onOpenField?: (field: string) => void;
     openFieldLabel: string;
+    doneLabel: string;
 }) {
+    const metCount = requirements.filter((c) =>
+        isStageRequirementMet(deal, c),
+    ).length;
+    const allMet =
+        requirements.length > 0 && metCount === requirements.length;
+
     return (
         <div style={{ width: 280, maxWidth: "calc(100vw - 32px)" }}>
             <div
@@ -258,16 +334,27 @@ function StageRequirementsPopup({
                     marginTop: 4,
                     marginBottom: 10,
                     fontSize: TYPE.CAPTION,
-                    color: T.TEXT_MUTED,
+                    color: allMet ? T.GREEN : T.TEXT_MUTED,
                     lineHeight: 1.3,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 8,
                 }}
             >
-                {requirementsLabel}
+                <span>{requirementsLabel}</span>
+                {requirements.length > 0 ? (
+                    <span style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
+                        {metCount}/{requirements.length}
+                    </span>
+                ) : null}
             </div>
             <RequirementConditionRows
+                deal={deal}
                 requirements={requirements}
                 onOpenField={onOpenField}
                 openFieldLabel={openFieldLabel}
+                doneLabel={doneLabel}
             />
         </div>
     );
@@ -275,12 +362,15 @@ function StageRequirementsPopup({
 
 /** Ported from v2.2's Stepper card (deal-v2-2.jsx:1137-1189). */
 export default function DealPipelineStepper({
-    deal,
+    deal: dealProp,
     permissions,
     onGoToField,
 }: DealPipelineStepperProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    // Prefer workspace deal so requirement "done" state updates after inline edits.
+    const { deal: workspaceDeal } = useDealWorkspace();
+    const deal = workspaceDeal ?? dealProp;
     const canChangeStages = hasAllPermission(permissions, "change_deal_stages");
     const pipeline = useDealPipeline(deal, canChangeStages);
     const page = usePage<any>().props;
@@ -336,7 +426,11 @@ export default function DealPipelineStepper({
         "pages.deals.header.pipeline.open_field"
             ? "Open"
             : t("pages.deals.header.pipeline.open_field");
-
+    const doneLabel =
+        t("pages.deals.header.pipeline.requirement_done") ===
+        "pages.deals.header.pipeline.requirement_done"
+            ? "Done"
+            : t("pages.deals.header.pipeline.requirement_done");
 
     return (
         <div
@@ -354,7 +448,6 @@ export default function DealPipelineStepper({
             }}
         >
             <div
-                className="dr-label"
                 style={{
                     marginBottom: 10,
                     display: "flex",
@@ -362,7 +455,18 @@ export default function DealPipelineStepper({
                     gap: 6,
                 }}
             >
-                {deal.pipeline?.name ? td(deal.pipeline.name) : t("app.menu.pipeline")}
+                <span
+                    style={{
+                        fontSize: TYPE.HEADING,
+                        fontWeight: 700,
+                        color: "#000000",
+                        lineHeight: 1.25,
+                    }}
+                >
+                    {deal.pipeline?.name
+                        ? td(deal.pipeline.name)
+                        : t("app.menu.pipeline")}
+                </span>
                 {pipeline.isUpdating && (
                     <span
                         aria-hidden="true"
@@ -411,30 +515,33 @@ export default function DealPipelineStepper({
                         const accent = stage.label_color || T.BLUE;
                         const requirements = stageRequirements?.[stage.id];
                         const hasRequirements = !!requirements?.length;
+                        const requirementsMet =
+                            hasRequirements &&
+                            requirements!.every((c) =>
+                                isStageRequirementMet(deal, c),
+                            );
                         const isTourTarget =
                             hasRequirements &&
                             !pipeline.stages
                                 .slice(0, index)
                                 .some((s) => !!stageRequirements?.[s.id]?.length);
 
+                        // Past stages stay grey (not stage accent) so the
+                        // active step is the only colored pill.
                         const pillColor = isActive
                             ? "#ffffff"
                             : isDone
-                              ? accent
+                              ? T.TEXT_HINT
                               : T.TEXT_MUTED;
                         const pillBackground = isActive
                             ? accent
                             : isDone
-                              ? `${accent}22`
+                              ? T.GRAY
                               : T.BG;
                         const pillBorder = `1px solid ${
-                            isActive || isDone ? accent : T.BORDER
+                            isActive ? accent : T.BORDER
                         }`;
-                        const pillOpacity = pipeline.isUpdating
-                            ? 0.6
-                            : isDone
-                              ? 0.45
-                              : 1;
+                        const pillOpacity = pipeline.isUpdating ? 0.6 : 1;
 
                         return (
                             <div
@@ -500,7 +607,7 @@ export default function DealPipelineStepper({
                                                 background: isActive
                                                     ? "#ffffff"
                                                     : isDone
-                                                      ? accent
+                                                      ? T.TEXT_HINT
                                                       : T.BORDER,
                                             }}
                                         />
@@ -533,6 +640,7 @@ export default function DealPipelineStepper({
                                             }}
                                             content={
                                                 <StageRequirementsPopup
+                                                    deal={deal}
                                                     stageName={td(stage.name)}
                                                     requirementsLabel={t(
                                                         "pages.deals.header.pipeline.requirements_label",
@@ -544,6 +652,7 @@ export default function DealPipelineStepper({
                                                             : undefined
                                                     }
                                                     openFieldLabel={openFieldLabel}
+                                                    doneLabel={doneLabel}
                                                 />
                                             }
                                         >
@@ -572,19 +681,30 @@ export default function DealPipelineStepper({
                                                     lineHeight: 0,
                                                     // Keep the icon darker than the stage
                                                     // chrome so it reads as a separate control.
-                                                    background: isActive
+                                                    // Green when every requirement is met.
+                                                    background: requirementsMet
+                                                        ? T.GREEN
+                                                        : isActive
+                                                          ? T.WHITE
+                                                          : T.SURFACE,
+                                                    color: requirementsMet
                                                         ? T.WHITE
-                                                        : T.SURFACE,
-                                                    color: T.NAVY,
+                                                        : T.NAVY,
                                                     border: `1px solid ${
-                                                        isActive
-                                                            ? "rgba(255,255,255,0.7)"
-                                                            : T.BORDER
+                                                        requirementsMet
+                                                            ? T.GREEN
+                                                            : isActive
+                                                              ? "rgba(255,255,255,0.7)"
+                                                              : T.BORDER
                                                     }`,
                                                 }}
                                             >
                                                 <DealIcon
-                                                    name="info"
+                                                    name={
+                                                        requirementsMet
+                                                            ? "check"
+                                                            : "info"
+                                                    }
                                                     size={12}
                                                     color="currentColor"
                                                 />
@@ -737,6 +857,7 @@ export default function DealPipelineStepper({
                                             )}
                                         </div>
                                         <RequirementConditionRows
+                                            deal={deal}
                                             requirements={requirements}
                                             onOpenField={
                                                 onGoToField
@@ -744,6 +865,7 @@ export default function DealPipelineStepper({
                                                     : undefined
                                             }
                                             openFieldLabel={openFieldLabel}
+                                            doneLabel={doneLabel}
                                         />
                                     </>
                                 ) : (
