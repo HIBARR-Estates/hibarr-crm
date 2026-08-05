@@ -239,7 +239,25 @@ export default function AnalysisLeadContextPanel({
         { label: td("Status"), value: contact?.lifecycleStatus?.name ?? null },
     ];
     const conditionalReadOnlyRows: Array<{ label: string; value: string | null }> = [
-        { label: td("Category"), value: contact?.category?.name ?? null },
+        {
+            label: td("Category"),
+            value: (() => {
+                const multi = contact?.categories as
+                    | Array<{ category_name?: string; name?: string }>
+                    | undefined;
+                if (Array.isArray(multi) && multi.length) {
+                    return multi
+                        .map((c) => c.category_name || c.name || "")
+                        .filter(Boolean)
+                        .join(", ");
+                }
+                return (
+                    contact?.category?.category_name ??
+                    contact?.category?.name ??
+                    null
+                );
+            })(),
+        },
     ].filter((r) => r.value !== null && r.value !== "");
 
     // Optimistic local state for editable core contact fields

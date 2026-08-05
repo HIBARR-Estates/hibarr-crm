@@ -134,6 +134,7 @@ class LeadNoteController extends AccountBaseController
 
         return Reply::successWithData(__('messages.recordSaved'), [
             'data' => array_merge($note->toArray(), [
+                'added_by' => $note->addedBy,
                 'added_by_user' => $note->addedBy,
             ]),
         ]);

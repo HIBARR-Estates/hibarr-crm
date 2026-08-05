@@ -79,17 +79,19 @@ export default function useDealMeetingReschedule(followupId: number | null) {
 
                 if (json.success) {
                     message.success(t("pages.deals.workspace.meetings.messages.rescheduled"));
-                    const newDate = new Date(
-                        `${input.date}T${input.startTime}`,
-                    ).toISOString();
+                    // Prefer server date when present; otherwise compose from form input.
+                    const nextDate =
+                        (json as { data?: { next_follow_up_date?: string } })
+                            .data?.next_follow_up_date ||
+                        `${input.date}T${input.startTime}:00`;
                     setDealFollowUps((prev) =>
                         prev.map((f) =>
                             f.id === followupId
                                 ? {
                                       ...f,
-                                      next_follow_up_date: newDate,
-                                      duration: input.duration,
-                                      status: "scheduled",
+                                      next_follow_up_date: nextDate,
+                                      duration: input.duration ?? f.duration,
+                                      status: "pending",
                                   }
                                 : f,
                         ),

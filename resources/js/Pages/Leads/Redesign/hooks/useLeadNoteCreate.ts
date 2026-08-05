@@ -4,7 +4,9 @@ import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { errorFormatter } from "@/lib/api/utils/common";
 import { isLoading } from "@/lib/utils";
+import useTranslation from "@/Hooks/useTranslation";
 import type { LeadNote } from "@/Types/api/lead-note";
+import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
 export interface LeadNoteCreateInput {
     text: string;
@@ -12,13 +14,43 @@ export interface LeadNoteCreateInput {
 }
 
 interface SaveNotePayload {
-    title: string;
+    title?: string;
     details: string;
     lead_id: number;
 }
 
+/**
+ * Store responses sometimes omit timestamps or only populate
+ * `added_by_user`. Normalize so list/detail UIs always have a date + author.
+ */
+function normalizeCreatedNote(note: LeadNote): LeadNote {
+    const now = new Date().toISOString();
+    const authorSource = note.added_by ?? note.added_by_user;
+    const author = authorSource
+        ? ({
+              id: authorSource.id,
+              name: authorSource.name,
+              email: authorSource.email,
+              image_url:
+                  "image_url" in authorSource
+                      ? authorSource.image_url
+                      : undefined,
+          } as LeadNote["added_by"])
+        : undefined;
+
+    return {
+        ...note,
+        created_at: note.created_at || now,
+        updated_at: note.updated_at || note.created_at || now,
+        added_by: note.added_by ?? author,
+        added_by_user: note.added_by_user ?? authorSource,
+    };
+}
+
 export default function useLeadNoteCreate(leadId: number) {
+    const { t } = useTranslation();
     const [errors, setErrors] = useState<string[]>([]);
+    const { setNotes } = useLeadWorkspace();
 
     const { mutate, status } = useApiMutate<
         SaveNotePayload,
@@ -27,10 +59,7 @@ export default function useLeadNoteCreate(leadId: number) {
     >(route("lead-notes.store"), "POST");
 
     const createNote = useCallback(
-        (
-            input: LeadNoteCreateInput,
-            onSuccess?: (note: LeadNote) => void,
-        ) => {
+        (input: LeadNoteCreateInput, onSuccess?: () => void) => {
             const trimmed = input.text.trim();
             if (!trimmed) {
                 setErrors(["Please enter note details"]);
@@ -40,16 +69,26 @@ export default function useLeadNoteCreate(leadId: number) {
             setErrors([]);
             mutate(
                 {
-                    title: input.title?.trim() || trimmed.slice(0, 80),
+                    // Left blank when the user leaves the title field empty —
+                    // same as deal notes; list UI falls back to "Untitled note".
+                    title: input.title?.trim() || undefined,
                     details: `<p>${trimmed}</p>`,
                     lead_id: leadId,
                 },
                 {
                     onSuccess: (response) => {
-                        if (response?.status === "success" && response.data) {
+                        if (response?.status === "success") {
                             setErrors([]);
-                            message.success("Note saved");
-                            onSuccess?.(response.data);
+                            message.success(
+                                t("pages.deals.workspace.notes.messages.saved"),
+                            );
+                            if (response.data) {
+                                const note = normalizeCreatedNote(
+                                    response.data as LeadNote,
+                                );
+                                setNotes((prev) => [note, ...prev]);
+                            }
+                            onSuccess?.();
                             return;
                         }
 
@@ -69,7 +108,7 @@ export default function useLeadNoteCreate(leadId: number) {
                 },
             );
         },
-        [leadId, mutate],
+        [leadId, mutate, setNotes, t],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

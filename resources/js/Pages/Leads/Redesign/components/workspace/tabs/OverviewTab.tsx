@@ -223,8 +223,12 @@ export default function OverviewTab({
                                 </span>
                             </div>
                             <div
-                                className="dr-clamp-3 text-xs leading-relaxed"
-                                style={{ color: T.TEXT_MUTED }}
+                                className="dr-clamp-3 min-w-0 text-xs leading-relaxed"
+                                style={{
+                                    color: T.TEXT_MUTED,
+                                    overflowWrap: "anywhere",
+                                    wordBreak: "break-word",
+                                }}
                             >
                                 {note.body}
                             </div>

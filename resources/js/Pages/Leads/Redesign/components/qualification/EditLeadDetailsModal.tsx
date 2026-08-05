@@ -124,10 +124,16 @@ export default function EditLeadDetailsModal({
                     } else if (field.leadField === "currency_id") {
                         payload.currency_id = raw ? Number(raw) : null;
                     } else if (
-                        field.leadField === "source_id" ||
-                        field.leadField === "category_id"
+                        field.leadField === "source_id"
                     ) {
                         payload[field.leadField] = raw ? Number(raw) : null;
+                    } else if (field.leadField === "category_ids") {
+                        payload.category_ids = raw
+                            ? String(raw)
+                                  .split(",")
+                                  .map((s) => Number(s.trim()))
+                                  .filter((n) => Number.isFinite(n) && n > 0)
+                            : [];
                     } else if (field.leadField === "languages") {
                         payload.languages = raw
                             ? raw.split(",").map((s) => s.trim()).filter(Boolean)
@@ -318,15 +324,43 @@ export default function EditLeadDetailsModal({
                                     })),
                                 );
                             }
-                            if (field.leadField === "category_id") {
-                                return renderFieldInput(
-                                    "category_id",
-                                    field.label,
-                                    "select",
-                                    categories.map((c) => ({
-                                        value: String(c.id),
-                                        label: c.category_name,
-                                    })),
+                            if (field.leadField === "category_ids") {
+                                const selected = new Set(
+                                    String(form.category_ids ?? "")
+                                        .split(",")
+                                        .map((s) => s.trim())
+                                        .filter(Boolean),
+                                );
+                                return (
+                                    <ModalField
+                                        key="category_ids"
+                                        label={td(field.label)}
+                                    >
+                                        <select
+                                            className="v2-input"
+                                            multiple
+                                            value={[...selected]}
+                                            onChange={(e) => {
+                                                const values = Array.from(
+                                                    e.target.selectedOptions,
+                                                ).map((o) => o.value);
+                                                setField(
+                                                    "category_ids",
+                                                    values.join(","),
+                                                );
+                                            }}
+                                            style={{ minHeight: 96 }}
+                                        >
+                                            {categories.map((c) => (
+                                                <option
+                                                    key={c.id}
+                                                    value={String(c.id)}
+                                                >
+                                                    {c.category_name}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </ModalField>
                                 );
                             }
                             if (field.leadField === "gender") {

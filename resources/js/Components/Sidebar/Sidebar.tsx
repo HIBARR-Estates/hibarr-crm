@@ -30,8 +30,7 @@ import {
 import { PageProps } from "../DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import useDealPermissions from "@/Hooks/useDealPermissions";
-import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
+import { isPermissionAll } from "@/lib/permissionUtils";
 
 interface Pipeline {
     id: number;
@@ -62,9 +61,12 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const defaultPipeline = pipelines.find((p) => p.default === 1);
     const { t, isRtl } = useTranslation();
     const { td } = useTd();
-    const isSalesManger =
-        props.auth?.permissions?.edit_product === "all" ||
-        props.auth?.permissions?.edit_product === 4;
+    const canManageOffers = isPermissionAll(
+        props.auth?.permissions?.manage_offers,
+    );
+    const canManagePartnerNetwork = isPermissionAll(
+        props.auth?.permissions?.manage_partner_network,
+    );
     const canManageEntityReminders =
         props.auth?.permissions?.manage_company_setting === "all";
 
@@ -208,7 +210,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             label: t("app.menu.offers"),
             icon: <GiftOutlined />,
             href: "/account/offers",
-            hidden: !isSalesManger,
+            hidden: !canManageOffers,
         },
         {
             key: "meetings",
@@ -300,7 +302,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     href: "/account/mlm/level-history",
                 },
             ],
-            hidden: !isSalesManger,
+            hidden: !canManagePartnerNetwork,
         },
         {
             key: "my-mlm",

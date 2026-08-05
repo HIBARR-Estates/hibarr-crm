@@ -251,13 +251,26 @@ export function getDossierFieldValue(
                     (l.source as { name?: string })?.name ||
                     l.source_name,
             );
-        case "category":
+        case "category": {
+            const multi = l.categories as
+                | Array<{ category_name?: string; name?: string }>
+                | undefined;
+            if (Array.isArray(multi) && multi.length > 0) {
+                return multi
+                    .map(
+                        (c) =>
+                            c.category_name || c.name || "",
+                    )
+                    .filter(Boolean)
+                    .join(", ");
+            }
             return asString(
                 (l.category as { category_name?: string; name?: string })
                     ?.category_name ||
                     (l.category as { name?: string })?.name ||
                     l.category_name,
             );
+        }
         case "addedBy":
             return asString(
                 (l.added_by as { name?: string })?.name ||
@@ -302,7 +315,24 @@ export function getLeadNativeEditValue(
             : String(languages ?? "");
     }
     if (key === "source") return String(record.source_id ?? "");
-    if (key === "category") return String(record.category_id ?? "");
+    if (key === "category") {
+        const categories = record.categories;
+        if (Array.isArray(categories) && categories.length > 0) {
+            return categories
+                .map((c) =>
+                    typeof c === "object" && c && "id" in c
+                        ? String((c as { id: number }).id)
+                        : String(c),
+                )
+                .filter(Boolean)
+                .join(",");
+        }
+        const ids = record.category_ids;
+        if (Array.isArray(ids) && ids.length > 0) {
+            return ids.map(String).join(",");
+        }
+        return String(record.category_id ?? "");
+    }
     if (key === "currency") return String(record.currency_id ?? "");
     if (key === "leadValue") return String(record.value ?? "");
     if (key === "gender") {

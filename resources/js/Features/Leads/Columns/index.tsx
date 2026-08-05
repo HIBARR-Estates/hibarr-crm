@@ -11,7 +11,7 @@ import {
 } from "@/lib/companyDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
-import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
+import { formatMobileForDisplay } from "@/lib/utils";
 
 interface LeadLifecycleStatusOption {
     id: number;
@@ -190,22 +190,6 @@ export const LEAD_TABLE_COLUMNS = (
         },
 
         {
-            title: translate("pages.leads.contacts_table.columns.country"),
-            dataIndex: "country",
-            key: "country",
-            width: 120,
-            render: (_, record) => {
-                const str = formatCountryForDisplay(record.country);
-                return str ? (
-                    <span className="text-gray-900 truncate max-w-full block text-sm">
-                        {str}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">--</span>
-                );
-            },
-        },
-        {
             title: (
                 <span className="flex items-center">
                     {translate("pages.leads.contacts_table.columns.source")}
@@ -245,12 +229,23 @@ export const LEAD_TABLE_COLUMNS = (
             key: "category",
             width: 140,
             render: (_, record) => {
-                return record.category?.category_name ? (
-                    <span className="text-gray-900 truncate max-w-full block text-sm">
-                        {translateDynamic(record.category.category_name)}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">—</span>
+                const names =
+                    Array.isArray(record.categories) && record.categories.length
+                        ? record.categories.map((c) => c.category_name).filter(Boolean)
+                        : record.category?.category_name
+                          ? [record.category.category_name]
+                          : [];
+
+                if (!names.length) {
+                    return <span className="text-gray-400">—</span>;
+                }
+
+                return (
+                    <Tooltip title={names.map((n) => translateDynamic(n)).join(", ")}>
+                        <span className="text-gray-900 truncate max-w-full block text-sm">
+                            {names.map((n) => translateDynamic(n)).join(", ")}
+                        </span>
+                    </Tooltip>
                 );
             },
         },

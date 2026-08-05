@@ -69,4 +69,9 @@ return array(
     'view_proposal' => 'Vorschlag anzeigen',
     'edit_proposal' => 'Vorschlag bearbeiten',
     'delete_proposal' => 'Vorschlag löschen',
+    'manage_partner_network' => 'Partnernetzwerk verwalten',
+    'manage_offers' => 'Angebote verwalten',
+    'manage_properties' => 'Immobilien verwalten',
+    'manage_property_publish_requests' => 'Veröffentlichungsanfragen verwalten',
+    'manage_property_configuration' => 'Immobilien-Konfiguration verwalten',
 );

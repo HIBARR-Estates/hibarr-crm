@@ -29,6 +29,11 @@ export default function PanelHeader({
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 10,
+                // Sticky when modal-panel body scrolls so close stays top-right.
+                position: "sticky",
+                top: 0,
+                zIndex: 1,
+                background: T.WHITE,
             }}
         >
             <span
@@ -38,6 +43,10 @@ export default function PanelHeader({
                     fontWeight: 700,
                     color: T.TEXT,
                     whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    minWidth: 0,
+                    flex: 1,
                 }}
             >
                 {title}
@@ -48,6 +57,7 @@ export default function PanelHeader({
                     alignItems: "center",
                     gap: 10,
                     flexShrink: 0,
+                    marginLeft: "auto",
                 }}
             >
                 {rightSlot}

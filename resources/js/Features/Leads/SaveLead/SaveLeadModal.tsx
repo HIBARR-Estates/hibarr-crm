@@ -204,7 +204,14 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         postal_code: lead?.postal_code || "",
         note: lead?.note || "",
         source_id: lead?.source_id || undefined,
-        category_id: lead?.category_id || undefined,
+        category_ids:
+            Array.isArray(lead?.categories) && lead.categories.length
+                ? lead.categories.map((c) => c.id)
+                : Array.isArray(lead?.category_ids) && lead.category_ids.length
+                  ? lead.category_ids
+                  : lead?.category_id
+                    ? [lead.category_id]
+                    : [],
         lead_lifecycle_status_id: lead?.lead_lifecycle_status_id || undefined,
         lead_owner: lead?.lead_owner?.id || undefined,
         added_by: lead?.added_by?.id || undefined,

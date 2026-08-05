@@ -55,7 +55,11 @@ function relativeNoteLabel(date: Date, absoluteFallback: string): string {
 export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
     const { date, label } = parseNoteDate(note.created_at);
     const body = stripHtml(note.details?.trim() || "");
-    const authorName = note.added_by?.name ?? "Unknown";
+    const authorName =
+        note.added_by?.name ??
+        (note as Note & { added_by_user?: { name?: string } }).added_by_user
+            ?.name ??
+        "Unknown";
     return {
         id: note.id,
         // Left empty (not "Untitled note") when the note has no title —

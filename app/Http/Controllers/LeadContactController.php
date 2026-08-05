@@ -136,6 +136,7 @@ class LeadContactController extends AccountBaseController
             'addedBy',
             'leadSource:id,type',
             'category:id,category_name',
+            'categories:id,category_name',
             'client:id,name,email',
             'currency:id,currency_name,currency_symbol,currency_code',
             'marketing',
@@ -538,7 +539,6 @@ class LeadContactController extends AccountBaseController
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
-        $leadContact->category_id = $request->category_id;
         $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner ?: user()?->id;
@@ -581,6 +581,16 @@ class LeadContactController extends AccountBaseController
             $leadContact->reminders = $request->input('reminders');
         }
         $leadContact->save();
+
+        // When create_deal is on, scalar category_id is the *deal* category field
+        // (shared form name) and must not be written onto the lead.
+        $categoryIds = $this->normalizeCategoryIdsFromRequest(
+            $request,
+            ignoreScalarCategoryId: $request->boolean('create_deal')
+        );
+        if ($categoryIds !== null) {
+            $leadContact->syncCategories($categoryIds);
+        }
 
         app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
@@ -627,7 +637,7 @@ class LeadContactController extends AccountBaseController
      */
     public function edit($id, Request $request)
     {
-        $this->leadContact = Lead::with('leadSource', 'category')->findOrFail($id)->withCustomFields();
+        $this->leadContact = Lead::with('leadSource', 'category', 'categories')->findOrFail($id)->withCustomFields();
         $this->deal = Deal::where('lead_id', $id)->first();
 
         $leadRules = [
@@ -724,7 +734,6 @@ class LeadContactController extends AccountBaseController
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
         $leadContact->lead_owner = $request->lead_owner;
-        $leadContact->category_id = $request->category_id;
         if ($request->has('lead_lifecycle_status_id')) {
             $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
         }
@@ -760,6 +769,11 @@ class LeadContactController extends AccountBaseController
             $leadContact->reminders = $request->input('reminders');
         }
         $leadContact->save();
+
+        $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
+        if ($categoryIds !== null) {
+            $leadContact->syncCategories($categoryIds);
+        }
 
         app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
@@ -908,9 +922,12 @@ class LeadContactController extends AccountBaseController
                 $leadContact->added_by = $request->added_by;
             }
             
-            // Handle categorization
-            if ($request->has('category_id')) {
-                $leadContact->category_id = $request->category_id;
+            // Handle categorization (multi via category_ids; category_id still accepted)
+            $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
+            if ($categoryIds !== null) {
+                // Defer pivot sync until after save so the lead has an id and
+                // the scalar category_id is written in the same sync call.
+                $leadContact->category_id = $categoryIds[0] ?? null;
             }
             if ($request->has('source_id')) {
                 $leadContact->source_id = $request->source_id;
@@ -950,6 +967,10 @@ class LeadContactController extends AccountBaseController
 
             // Save the lead contact
             $leadContact->save();
+
+            if ($categoryIds !== null) {
+                $leadContact->syncCategories($categoryIds);
+            }
 
             // Handle products relationship
             if ($request->has('products')) {
@@ -1057,12 +1078,16 @@ class LeadContactController extends AccountBaseController
                     'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
                     'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
+                    'category_ids',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
                     'lead_lifecycle_status_id',
                 ];
                 
                 foreach ($allowedFields as $field) {
+                    if ($field === 'category_ids') {
+                        continue;
+                    }
                     if ($request->has($field)) {
                         if (in_array($field, ['languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation'], true)) {
                             $responseData[$field] = $this->coreFieldsService->read($leadContact)[$field] ?? null;
@@ -1074,9 +1099,12 @@ class LeadContactController extends AccountBaseController
                 
                 // Load and include relationship data when relationship IDs are updated
                 // This ensures the frontend can immediately display the updated relationship info
-                if ($request->has('category_id')) {
-                    $leadContact->load('category');
+                if ($categoryIds !== null || $request->has('category_id') || $request->has('category_ids')) {
+                    $leadContact->load(['category:id,category_name', 'categories:id,category_name']);
+                    $responseData['category_id'] = $leadContact->category_id;
                     $responseData['category'] = $leadContact->category;
+                    $responseData['categories'] = $leadContact->categories;
+                    $responseData['category_ids'] = $leadContact->categories->pluck('id')->values()->all();
                 }
                 
                 if ($request->has('source_id')) {
@@ -1262,17 +1290,23 @@ class LeadContactController extends AccountBaseController
 
         switch ($actionType) {
             case 'change_category':
-                $categoryId = $request->category_id;
-                
-                // Validate category exists if provided
-                if ($categoryId) {
-                    $category = LeadCategory::find($categoryId);
-                    if (!$category) {
+                $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
+                // Legacy bulk payloads send category_id (possibly null to clear).
+                if ($categoryIds === null) {
+                    return Reply::error(__('messages.categoryNotFound'));
+                }
+
+                if ($categoryIds !== []) {
+                    $found = LeadCategory::whereIn('id', $categoryIds)->count();
+                    if ($found !== count($categoryIds)) {
                         return Reply::error(__('messages.categoryNotFound'));
                     }
                 }
-                
-                Lead::whereIn('id', $rowIds)->update(['category_id' => $categoryId]);
+
+                $leads = Lead::whereIn('id', $rowIds)->get();
+                foreach ($leads as $lead) {
+                    $lead->syncCategories($categoryIds);
+                }
                 return Reply::success(__('messages.updateSuccess'));
 
             case 'change_source':
@@ -1595,6 +1629,38 @@ class LeadContactController extends AccountBaseController
             'status' => 'success',
             'custom_fields_data' => $lead->getCustomFieldsData(),
         ]);
+    }
+
+    /**
+     * Resolve category id list from a request.
+     * Prefers `category_ids[]`; falls back to single `category_id` unless
+     * $ignoreScalarCategoryId is true (create-deal forms reuse category_id
+     * for the *deal* category and must not stamp it on the lead).
+     * Returns null when neither applicable field is present.
+     *
+     * @return array<int>|null
+     */
+    private function normalizeCategoryIdsFromRequest(Request $request, bool $ignoreScalarCategoryId = false): ?array
+    {
+        if ($request->has('category_ids')) {
+            $raw = $request->input('category_ids', []);
+            if (! is_array($raw)) {
+                $raw = $raw === null || $raw === '' ? [] : [$raw];
+            }
+
+            return array_values(array_unique(array_filter(
+                array_map(static fn ($id) => $id === null || $id === '' ? null : (int) $id, $raw),
+                static fn ($id) => $id !== null && $id > 0
+            )));
+        }
+
+        if (! $ignoreScalarCategoryId && $request->has('category_id')) {
+            $id = $request->input('category_id');
+
+            return $id === null || $id === '' ? [] : [(int) $id];
+        }
+
+        return null;
     }
 
     /**

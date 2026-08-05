@@ -553,6 +553,7 @@ class DealController extends AccountBaseController
             'contact.leadOwner',
             'contact.lifecycleStatus',
             'contact.category',
+            'contact.categories',
             'contact.marketing',
             'category',
             'pipeline.stages',
@@ -811,7 +812,7 @@ class DealController extends AccountBaseController
      * Stage-transition automation conditions for the pipeline stepper tooltip,
      * with human-readable field labels and values (not raw custom_field_N / 1|0).
      *
-     * @return array<int|string, list<array{field: string, label: string, operator: string, value: mixed}>>
+     * @return array<int|string, list<array{field: string, label: string, operator: string, value: mixed, raw_value: mixed}>>
      */
     private function buildStageAutomationRequirements(): array
     {
@@ -890,6 +891,7 @@ class DealController extends AccountBaseController
                             'field' => $field,
                             'label' => $this->resolveAutomationConditionLabel($field, $fieldLabels, $customFields),
                             'operator' => $condition->operator,
+                            // Display-only (Yes/No, option labels, stage names).
                             'value' => $this->formatAutomationConditionValue(
                                 $field,
                                 $condition->value,
@@ -897,6 +899,8 @@ class DealController extends AccountBaseController
                                 $customFields,
                                 $stageNames
                             ),
+                            // Unformatted value for client-side "is this met?" checks.
+                            'raw_value' => $condition->value,
                         ];
                     })
                     ->values()

@@ -34,7 +34,6 @@ function processStandardField(
 
     if (
         fieldName === "currency_id" ||
-        fieldName === "category_id" ||
         fieldName === "source_id" ||
         fieldName === "lead_owner" ||
         fieldName === "status_id" ||
@@ -42,6 +41,19 @@ function processStandardField(
         fieldName === "lead_lifecycle_status_id"
     ) {
         return { [fieldName]: value ? Number(value) : null };
+    }
+
+    if (fieldName === "category_ids" || fieldName === "category_id") {
+        if (fieldName === "category_ids" || Array.isArray(value)) {
+            const ids = (Array.isArray(value) ? value : value != null && value !== "" ? [value] : [])
+                .map((id) => Number(id))
+                .filter((id) => Number.isFinite(id) && id > 0);
+            return { category_ids: ids };
+        }
+        return {
+            category_ids:
+                value != null && value !== "" ? [Number(value)] : [],
+        };
     }
 
     if (fieldName === "languages") {
@@ -105,7 +117,10 @@ export default function useLeadInfoFieldUpdate(canEdit = true) {
                 Object.entries(updated).forEach(([key, val]) => {
                     if (val === undefined) return;
                     next[key] =
-                        key === "languages" && !Array.isArray(val) ? [] : val;
+                        (key === "languages" || key === "categories" || key === "category_ids") &&
+                        !Array.isArray(val)
+                            ? []
+                            : val;
                 });
 
                 if (updated.mobile !== undefined) {

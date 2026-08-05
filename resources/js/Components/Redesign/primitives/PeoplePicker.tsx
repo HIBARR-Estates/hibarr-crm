@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Avatar from "./Avatar";
 import { REDESIGN_TOKENS as T } from "../tokens";
 import { initialsFromName } from "../adapters/initials";
@@ -20,9 +20,17 @@ interface PeoplePickerProps {
     getEmptyLabel?: (query: string) => string;
     /** Id of the person currently being assigned — shows a spinner on their row. */
     pendingId?: number | null;
+    loading?: boolean;
+    /**
+     * When true, client-side filtering is skipped — parent filters via API.
+     * Query is still reported through onQueryChange.
+     */
+    remoteFilter?: boolean;
+    /** Fired whenever the search box changes (for remote-directory fetches). */
+    onQueryChange?: (query: string) => void;
 }
 
-/** Local-list people picker with search. */
+/** Local-list or remote-backed people picker with search. */
 export default function PeoplePicker({
     people,
     exclude = [],
@@ -33,22 +41,27 @@ export default function PeoplePicker({
     getEmptyLabel,
     pendingId,
     loading = false,
-}: PeoplePickerProps & { loading?: boolean }) {
+    remoteFilter = false,
+    onQueryChange,
+}: PeoplePickerProps) {
     const [query, setQuery] = useState("");
     const q = query.trim().toLowerCase();
 
-    const results = useMemo(
-        () =>
-            people
-                .filter((person) => !exclude.includes(person.id))
-                .filter(
-                    (person) =>
-                        !q ||
-                        person.name.toLowerCase().includes(q) ||
-                        (person.designation || "").toLowerCase().includes(q),
-                ),
-        [people, exclude, q],
-    );
+    useEffect(() => {
+        onQueryChange?.(query);
+    }, [query, onQueryChange]);
+
+    const results = useMemo(() => {
+        const available = people.filter(
+            (person) => !exclude.includes(person.id),
+        );
+        if (remoteFilter || !q) return available;
+        return available.filter(
+            (person) =>
+                person.name.toLowerCase().includes(q) ||
+                (person.designation || "").toLowerCase().includes(q),
+        );
+    }, [people, exclude, q, remoteFilter]);
 
     const defaultEmpty = () => {
         if (loading) return "Loading employees…";
@@ -67,7 +80,7 @@ export default function PeoplePicker({
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoFocus={autoFocus}
-                disabled={loading}
+                disabled={loading && people.length === 0}
                 style={{ marginBottom: 6, fontSize: 12, padding: "8px 10px" }}
             />
             <div style={{ maxHeight: 200, overflowY: "auto" }}>
@@ -111,7 +124,9 @@ export default function PeoplePicker({
                                         textAlign: "left",
                                     }}
                                 >
-                                    <span style={{ display: "block", fontSize: 13 }}>
+                                    <span
+                                        style={{ display: "block", fontSize: 13 }}
+                                    >
                                         {person.name}
                                     </span>
                                     {person.designation && (

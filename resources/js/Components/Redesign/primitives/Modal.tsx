@@ -104,7 +104,9 @@ export function Modal({
                     onClose={onClose}
                     closeAriaLabel={closeAriaLabel}
                 />
-                <div style={{ padding: "20px 22px" }}>{children}</div>
+                <div style={{ padding: "20px 22px", minWidth: 0, overflowWrap: "anywhere" }}>
+                    {children}
+                </div>
                 {footer && (
                     <div
                         style={{

@@ -123,11 +123,11 @@ class PropertyPublishRequest extends BaseModel
     }
 
     /**
-     * Check if a user has admin/SM-level property permissions.
+     * Whether the user can review publish requests (approve/reject).
+     * Independent of manage_properties.
      */
     public static function isUserAdmin(User $user): bool
     {
-        $permission = $user->permission('edit_products');
-        return $permission === 'all' || $permission === 4;
+        return \App\Support\PermissionGates::canManagePropertyPublishRequests($user);
     }
 }

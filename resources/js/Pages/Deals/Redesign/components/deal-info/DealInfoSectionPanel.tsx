@@ -224,7 +224,7 @@ export default function DealInfoSectionPanel({
                 {t("pages.deals.info.sections.overview")}
             </DealInfoGroupTitle>
             <FieldGrid>
-                <DetailField label={t("pages.deals.info.fields.deal_name")}>
+                <DetailField dataDealField="name" label={t("pages.deals.info.fields.deal_name")}>
                     <DealEditableField
                         value={deal.name}
                         fieldName="name"
@@ -236,7 +236,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.close_date")}>
+                <DetailField dataDealField="close_date" label={t("pages.deals.info.fields.close_date")}>
                     <DealEditableField
                         value={deal.close_date}
                         fieldName="close_date"
@@ -251,7 +251,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.deal_category")}>
+                <DetailField dataDealField="category_id" label={t("pages.deals.info.fields.deal_category")}>
                     <DealEditableField
                         value={deal.category_id}
                         fieldName="category_id"
@@ -303,7 +303,7 @@ export default function DealInfoSectionPanel({
     const renderPrefTimeline = () => (
         <>
             <FieldGrid>
-                <DetailField label={t("pages.deals.info.fields.interested_in")}>
+                <DetailField dataDealField="interested_in" label={t("pages.deals.info.fields.interested_in")}>
                     <DealEditableField
                         value={hibarrFields.interested_in}
                         fieldName="interested_in"
@@ -319,7 +319,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.budget_range")}>
+                <DetailField dataDealField="budget_range" label={t("pages.deals.info.fields.budget_range")}>
                     <DealEditableField
                         value={hibarrFields.budget_range}
                         fieldName="budget_range"
@@ -335,7 +335,7 @@ export default function DealInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.purchase_timeline")}>
+                <DetailField dataDealField="purchase_timeline" label={t("pages.deals.info.fields.purchase_timeline")}>
                     <DealEditableField
                         value={hibarrFields.purchase_timeline}
                         fieldName="purchase_timeline"
@@ -356,6 +356,7 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField
+                    dataDealField="inspection_trip_date"
                     label={t("pages.deals.info.fields.inspection_trip_date")}
                 >
                     <DealEditableField
@@ -381,6 +382,7 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField
+                    dataDealField="strategy_meeting_booked"
                     label={t("pages.deals.info.fields.strategy_meeting_booked")}
                 >
                     <DealSwitch
@@ -404,7 +406,7 @@ export default function DealInfoSectionPanel({
                         loading={isFieldLoading("strategy_meeting_booked")}
                     />
                 </DetailField>
-                <DetailField label={t("pages.deals.info.fields.downpayment_paid")}>
+                <DetailField dataDealField="downpayment_paid" label={t("pages.deals.info.fields.downpayment_paid")}>
                     <DealSwitch
                         checked={!!hibarrFields.downpayment_paid}
                         onChange={() =>
@@ -427,6 +429,7 @@ export default function DealInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField
+                    dataDealField="motivation"
                     label={t("pages.deals.info.fields.motivation")}
                     span={2}
                     useContainerQuery

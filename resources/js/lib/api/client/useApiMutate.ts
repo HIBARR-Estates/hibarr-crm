@@ -1,7 +1,13 @@
+import { useRef } from "react";
 import axios, { AxiosRequestConfig, AxiosError } from "axios";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+    useMutation,
+    useQueryClient,
+    type MutateOptions,
+    type UseMutationResult,
+} from "@tanstack/react-query";
 import { AuthType } from "@/Types";
-import { router, usePage } from "@inertiajs/react";
+import { usePage } from "@inertiajs/react";
 import {
     ApiErrorResponse,
     ApiResponse,
@@ -15,6 +21,15 @@ import { App } from "antd";
 import { invalidateOnSuccess } from "../utils";
 
 type AllowedHttpMethod = "PATCH" | "DELETE" | "PUT" | "POST";
+
+/** Extra per-call options for useApiMutate (stripped before TanStack mutate). */
+export type ApiMutateCallOptions = {
+    /**
+     * Skip automatic success toasts for this call only.
+     * Error notifications still fire. Call-site can show a combined message later.
+     */
+    suppressSuccessToast?: boolean;
+};
 
 const createData = async <
     Payload,
@@ -90,6 +105,26 @@ const createData = async <
     }
 };
 
+export type UseApiMutateResult<
+    Payload,
+    T,
+    MutationResponse extends ApiResponse<T>
+> = Omit<
+    UseMutationResult<MutationResponse, unknown, Payload, unknown>,
+    "mutate" | "mutateAsync"
+> & {
+    mutate: (
+        variables: Payload,
+        options?: MutateOptions<MutationResponse, unknown, Payload, unknown> &
+            ApiMutateCallOptions
+    ) => void;
+    mutateAsync: (
+        variables: Payload,
+        options?: MutateOptions<MutationResponse, unknown, Payload, unknown> &
+            ApiMutateCallOptions
+    ) => Promise<MutationResponse>;
+};
+
 export const useApiMutate = <
     Payload,
     T,
@@ -100,14 +135,15 @@ export const useApiMutate = <
     method: AllowedHttpMethod,
     callbackFn?: (res?: MutationResponse) => void,
     isFormData?: boolean
-) => {
+): UseApiMutateResult<Payload, T, MutationResponse> => {
     const { props } = usePage();
     const { auth } = props;
 
     const queryClient = useQueryClient();
     const { notification, message } = App.useApp();
+    const suppressSuccessToastRef = useRef(false);
 
-    return useMutation({
+    const mutation = useMutation({
         mutationKey: [path, method],
         mutationFn: (payload: Payload) => {
             return createData<Payload, T, MutationResponse, Params>({
@@ -121,8 +157,8 @@ export const useApiMutate = <
         onSuccess: (response, _, _context) => {
             // Handle different response types using type guards
             if (isSuccessResponse(response)) {
-                // Show success message if provided
-                if (response.message) {
+                // Show success message if provided (unless this call opted out)
+                if (response.message && !suppressSuccessToastRef.current) {
                     message.success(response.message);
                 }
 
@@ -133,7 +169,7 @@ export const useApiMutate = <
                 callbackFn?.(response);
             } else if (isRedirectResponse(response)) {
                 // Handle redirect responses
-                if (response.message) {
+                if (response.message && !suppressSuccessToastRef.current) {
                     message.success(response.message);
                 }
 
@@ -189,4 +225,58 @@ export const useApiMutate = <
             }
         },
     });
+
+    const mutate: UseApiMutateResult<
+        Payload,
+        T,
+        MutationResponse
+    >["mutate"] = (variables, options) => {
+        const { suppressSuccessToast, ...mutateOptions } = options ?? {};
+        suppressSuccessToastRef.current = Boolean(suppressSuccessToast);
+        mutation.mutate(variables, {
+            ...mutateOptions,
+            onSettled: (data, error, vars, onMutateResult, context) => {
+                suppressSuccessToastRef.current = false;
+                mutateOptions.onSettled?.(
+                    data,
+                    error,
+                    vars,
+                    onMutateResult,
+                    context,
+                );
+            },
+        });
+    };
+
+    const mutateAsync: UseApiMutateResult<
+        Payload,
+        T,
+        MutationResponse
+    >["mutateAsync"] = (variables, options) => {
+        const { suppressSuccessToast, ...mutateOptions } = options ?? {};
+        suppressSuccessToastRef.current = Boolean(suppressSuccessToast);
+        return mutation
+            .mutateAsync(variables, {
+                ...mutateOptions,
+                onSettled: (data, error, vars, onMutateResult, context) => {
+                    suppressSuccessToastRef.current = false;
+                    mutateOptions.onSettled?.(
+                        data,
+                        error,
+                        vars,
+                        onMutateResult,
+                        context,
+                    );
+                },
+            })
+            .finally(() => {
+                suppressSuccessToastRef.current = false;
+            });
+    };
+
+    return {
+        ...mutation,
+        mutate,
+        mutateAsync,
+    };
 };
