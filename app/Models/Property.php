@@ -467,6 +467,8 @@ class Property extends BaseModel
         'open_to_swap' => 'boolean',
         'allow_101evler' => 'boolean',
         'allow_hangiev' => 'boolean',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
         'view_types' => 'array',
         'distances' => 'array',
         'exterior_features' => 'array',

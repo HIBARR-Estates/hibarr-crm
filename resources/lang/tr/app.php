@@ -111,7 +111,10 @@ return [
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Hatırlatıcı Tercihleri',
+            'entity_reminder_defaults' => 'Hatırlatıcı Varsayılanları',
         ],
+        'reminderDefaults' => 'Hatırlatıcı Varsayılanları',
+        'entityReminderDefaults' => 'Hatırlatıcı Varsayılanları',
     ],
 
     // Breadcrumb
@@ -589,6 +592,8 @@ return [
 
     'settings' => [
         'reminder_preferences' => 'Hatırlatıcı Tercihleri',
+        'entity_reminder_defaults' => 'Hatırlatıcı Varsayılanları',
+        'reminder_defaults' => 'Hatırlatıcı Varsayılanları',
     ],
     // Layouts
     'layouts' => [

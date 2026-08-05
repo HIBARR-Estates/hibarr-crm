@@ -29,6 +29,7 @@ use App\Http\Controllers\TimelogController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EstimateController;
+use App\Http\Controllers\LeadContactFileController;
 use App\Http\Controllers\LeadFileController;
 use App\Http\Controllers\LeadNoteController;
 use App\Http\Controllers\LeadFlightItineraryController;
@@ -511,11 +512,17 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('holidays/apply-quick-action', [HolidayController::class, 'applyQuickAction'])->name('holidays.apply_quick_action');
     Route::resource('holidays', HolidayController::class);
 
-    // Lead Files
+    // Deal Files (legacy permission names still use *_lead_files)
     Route::get('deal-files/download/{id}', [LeadFileController::class, 'download'])->name('deal-files.download');
     Route::get('deal-files/layout', [LeadFileController::class, 'layout'])->name('deal-files.layout');
     Route::post('deal-files/store-external', [LeadFileController::class, 'storeFromExternal'])->name('deal-files.store-external');
     Route::resource('deal-files', LeadFileController::class);
+
+    // Lead contact files (standalone multi-upload on the lead Files tab)
+    Route::get('lead-contact-files/download/{id}', [LeadContactFileController::class, 'download'])->name('lead-contact-files.download');
+    Route::post('lead-contact-files', [LeadContactFileController::class, 'store'])->name('lead-contact-files.store');
+    Route::delete('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'destroy'])->name('lead-contact-files.destroy');
+    Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
@@ -615,7 +622,10 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('lead-contact/{lead_contact}', [LeadContactController::class, 'show'])->name('lead-contact.show');
     Route::get('lead-contact/{lead_contact}/edit', [LeadContactController::class, 'edit'])->name('lead-contact.edit');
     Route::put('lead-contact/{lead_contact}', [LeadContactController::class, 'update'])->name('lead-contact.update');
-    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    // POST allowed so multipart file uploads can method-spoof PATCH (PHP does not
+    // populate $_FILES on raw PATCH bodies — same pattern as deals.gathering.inline_update).
+    Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    Route::post('lead-contact/{lead_contact}/image', [LeadContactController::class, 'uploadImage'])->name('lead-contact.upload-image');
     Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
 
     // Lead qualification routes
@@ -666,6 +676,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('gathering/custom-fields/{id}', [DealGatheringController::class, 'getDealCustomFields'])->name('gathering.get_custom_fields');
         // Accept both POST (for file uploads with method spoofing) and PATCH
         Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
+        Route::patch('gathering/analysis-complete/{id}', [DealGatheringController::class, 'completeAnalysis'])->name('gathering.analysis_complete');
     });
 
     // Explicit deal routes (no resource)

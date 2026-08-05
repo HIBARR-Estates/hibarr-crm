@@ -13,6 +13,7 @@ use App\Traits\HasCompany;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -33,6 +34,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string|null $salutation
  * @property string $client_name
  * @property string $client_email
+ * @property string|null $image
  * @property string|null $mobile
  * @property string|null $cell
  * @property string|null $office
@@ -147,13 +149,15 @@ class Lead extends BaseModel
     protected $appends = ['image_url', 'client_name_salutation', 'mobile_with_phonecode', 'office_phone_formatted', 'lead_lifecycle_status'];
 
     protected $casts = [
-        'salutation' => Salutation::class,
+        'salutation' => \App\Casts\NullableEnumCast::class . ':' . Salutation::class,
         'type' => ContactType::class,
         'gender' => Gender::class,
         'date_of_birth' => 'date',
         'age' => 'integer',
         'age_range' => AgeRange::class,
         'languages' => 'array',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
     ];
 
     public function leadFlightItineraries()
@@ -163,6 +167,10 @@ class Lead extends BaseModel
 
     public function getImageUrlAttribute()
     {
+        if (!empty($this->image)) {
+            return asset_url_local_s3('lead-avatar/' . $this->image);
+        }
+
         $gravatarHash = !is_null($this->client_email) ? md5(strtolower(trim($this->client_email))) : '';
 
         return 'https://www.gravatar.com/avatar/' . $gravatarHash . '.png?s=200&d=mp';
@@ -282,6 +290,46 @@ class Lead extends BaseModel
         return $this->belongsTo(LeadCategory::class, 'category_id');
     }
 
+    /**
+     * Taxonomy categories attached to this lead (many).
+     * `category_id` remains the primary/first category for legacy callers.
+     */
+    public function categories(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            LeadCategory::class,
+            'lead_lead_category',
+            'lead_id',
+            'lead_category_id'
+        )->withTimestamps();
+    }
+
+    /**
+     * Replace the lead's categories and keep scalar category_id in sync
+     * (first selected id, or null when empty).
+     *
+     * @param  array<int|string|null>  $categoryIds
+     */
+    public function syncCategories(array $categoryIds): void
+    {
+        $ids = array_values(array_unique(array_filter(
+            array_map(static fn ($id) => $id === null || $id === '' ? null : (int) $id, $categoryIds),
+            static fn ($id) => $id !== null && $id > 0
+        )));
+
+        $this->categories()->sync($ids);
+
+        $primary = $ids[0] ?? null;
+        if ((int) ($this->category_id ?? 0) !== (int) ($primary ?? 0)) {
+            $this->category_id = $primary;
+            // Avoid observer cascades / double work when only the scalar mirror changed.
+            $this->saveQuietly();
+        }
+
+        $this->unsetRelation('categories');
+        $this->unsetRelation('category');
+    }
+
     public function note(): BelongsTo
     {
         return $this->belongsTo(LeadNote::class, 'lead_id');
@@ -290,6 +338,11 @@ class Lead extends BaseModel
     public function client(): BelongsTo
     {
         return $this->belongsTo(User::class, 'client_id');
+    }
+
+    public function currency(): BelongsTo
+    {
+        return $this->belongsTo(Currency::class, 'currency_id');
     }
 
     public function addedBy(): BelongsTo
@@ -382,6 +435,11 @@ class Lead extends BaseModel
     public function deals(): HasMany
     {
         return $this->hasMany(Deal::class, 'lead_id');
+    }
+
+    public function files(): HasMany
+    {
+        return $this->hasMany(LeadContactFile::class, 'lead_id')->orderByDesc('created_at');
     }
 
     public function tasks()

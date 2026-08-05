@@ -129,9 +129,9 @@ class PropertyPublishRequestController extends AccountBaseController
 
         $user = user();
 
-        // Only sales managers can approve
+        // Only manage_property_publish_requests can approve
         if (!$this->isPrivilegedUser($user)) {
-            abort(403, 'Only Sales Managers can approve publish requests.');
+            abort(403, 'You do not have permission to approve publish requests.');
         }
 
         if (!$publishRequest->isPending()) {
@@ -174,9 +174,9 @@ class PropertyPublishRequestController extends AccountBaseController
 
         $user = user();
 
-        // Only sales managers can reject
+        // Only manage_property_publish_requests can reject
         if (!$this->isPrivilegedUser($user)) {
-            abort(403, 'Only Sales Managers can reject publish requests.');
+            abort(403, 'You do not have permission to reject publish requests.');
         }
 
         if (!$publishRequest->isPending()) {
@@ -213,28 +213,31 @@ class PropertyPublishRequestController extends AccountBaseController
     /**
      * Check if user has SM-level property permissions.
      */
+    /**
+     * Only users with manage_property_publish_requests may approve/reject.
+     * manage_properties does not include this.
+     */
     private function isPrivilegedUser(User $user): bool
     {
-        $permission = $user->permission('edit_products');
-        return $permission === 'all' || $permission === 4;
+        return \App\Support\PermissionGates::canManagePropertyPublishRequests($user);
     }
 
     /**
-     * Get all Sales Managers in the company.
+     * Users who can review property publish requests.
      */
     private function getSalesManagers(int $companyId)
     {
+        $permissionIds = \App\Models\Permission::where(
+            'name',
+            \App\Support\PermissionGates::MANAGE_PROPERTY_PUBLISH_REQUESTS
+        )->pluck('id');
+
         return User::where('company_id', $companyId)
-            ->where(function ($q) {
-                // Users with edit_products = 'all' are considered SMs
-                $q->whereHas('permissions', function ($pq) {
-                    $pq->where('permission_type_id', function ($sub) {
-                        $sub->select('id')
-                            ->from('permission_types')
-                            ->where('name', 'edit_products')
-                            ->limit(1);
-                    })->where('permission_id', 4); // 4 = 'all'
-                });
+            ->whereIn('id', function ($query) use ($permissionIds) {
+                $query->select('user_id')
+                    ->from('user_permissions')
+                    ->whereIn('permission_id', $permissionIds)
+                    ->where('permission_type_id', 4);
             })
             ->get();
     }

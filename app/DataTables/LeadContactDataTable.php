@@ -7,6 +7,7 @@ use App\Models\CustomField;
 use App\Models\CustomFieldGroup;
 use App\Models\Lead;
 use App\Helper\Common;
+use App\Support\LeadSearchQuery;
 use Yajra\DataTables\Html\Button;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
@@ -148,7 +149,7 @@ class LeadContactDataTable extends BaseDataTable
      */
     public function query(Lead $model)
     {
-        $leadContact = $model->with(['category'])
+        $leadContact = $model->with(['category', 'categories'])
             ->select(
                 'leads.id',
                 'leads.added_by',
@@ -198,7 +199,13 @@ class LeadContactDataTable extends BaseDataTable
         }
 
         if ($this->request()->category_id != 'all' && $this->request()->category_id != '') {
-            $leadContact = $leadContact->where('category_id', $this->request()->category_id);
+            $categoryId = $this->request()->category_id;
+            $leadContact = $leadContact->where(function ($q) use ($categoryId) {
+                $q->where('leads.category_id', $categoryId)
+                    ->orWhereHas('categories', function ($cq) use ($categoryId) {
+                        $cq->where('lead_category.id', $categoryId);
+                    });
+            });
         }
 
         if ($this->request()->source_id != 'all' && $this->request()->source_id != '') {
@@ -232,8 +239,8 @@ class LeadContactDataTable extends BaseDataTable
             $leadContact = $leadContact->where(function ($query) {
                 $safeTerm = Common::safeString(request('searchText'));
                 $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
-                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                    ->orwhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+                    ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%');
+                LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
             });
         }
 

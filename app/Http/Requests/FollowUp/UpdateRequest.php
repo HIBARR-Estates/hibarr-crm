@@ -29,7 +29,8 @@ class UpdateRequest extends CoreRequest
         $rules = [
             'next_follow_up_date' => 'required|date_format:"d-m-Y"',
             'start_time' => 'required|date_format:"H:i:s"',
-            'location' => 'required|in:office,zoom,zoho,zoho_meet,google_meet,teams,meet,phone,physical,skype,other',
+            // Known platforms plus free-text physical place names (Other location).
+            'location' => 'required|string|max:255',
             'meeting_link' => 'nullable|url',
             'reminders' => 'nullable|array',
             'reminders.*.time' => 'required_with:reminders|integer|min:1|max:1440',
@@ -45,12 +46,12 @@ class UpdateRequest extends CoreRequest
             Rule::in(DateTimeZone::listIdentifiers()),
         ];
 
-        // Zoho, office, phone, and physical meetings don't require meeting link
-        if (in_array($this->location, ['zoho', 'office', 'phone', 'physical'])) {
-            $rules['meeting_link'] = 'nullable|url';
-        } else {
-            // Video meeting platforms (zoom, google_meet, teams, etc.) require meeting link
+        $videoPlatformsRequiringLink = ['zoom', 'zoho_meet', 'google_meet', 'teams', 'meet', 'skype', 'other'];
+
+        if (in_array($this->location, $videoPlatformsRequiringLink, true)) {
             $rules['meeting_link'] = 'required|url';
+        } else {
+            $rules['meeting_link'] = 'nullable|url';
         }
 
         // Video meetings (zoho) require at least one participant

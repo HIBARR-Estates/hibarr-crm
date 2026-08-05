@@ -95,6 +95,11 @@ export interface Deal {
     // Outcome (read-only in the redesign; set by automation / stage movement)
     outcome_status?: "won" | "lost" | null;
 
+    // Analysis
+    analysis_status?: "pending" | "completed";
+    analysis_completed_at?: string | null;
+    analysis_completed_by?: number | null;
+
     // Offers
     offer_applications?: DealOfferApplication[];
     total_discount?: number;
@@ -124,6 +129,10 @@ export interface HibarrDealFields {
     deposit_confirmation?: string | null;
     reservation_agreement?: string | null;
     sales_contract?: string | null;
+    /** Appended by HibarrDealFields accessors — resolved download URLs. */
+    deposit_confirmation_url?: string | null;
+    reservation_agreement_url?: string | null;
+    sales_contract_url?: string | null;
     created_at?: string;
     updated_at?: string;
 }

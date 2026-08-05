@@ -1,64 +1,20 @@
-import { ReactNode } from "react";
+import { ComponentProps } from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import DealIcon from "./DealIcon";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
+import PanelHeader from "@/Components/Redesign/primitives/PanelHeader";
 
-interface DealPanelHeaderProps {
-    title: string;
-    /** Wired to the dialog's aria-labelledby when used as a modal header. */
-    titleId?: string;
-    rightSlot?: ReactNode;
-    onClose?: () => void;
-}
+type Props = Omit<ComponentProps<typeof PanelHeader>, "closeAriaLabel"> & {
+    closeAriaLabel?: string;
+};
 
-/** Ported from v2.2's Modal header (deal-v2-2.jsx:757-760). */
-export default function DealPanelHeader({
-    title,
-    titleId,
-    rightSlot,
-    onClose,
-}: DealPanelHeaderProps) {
+/** Deal-branded PanelHeader that defaults close aria to deal i18n. */
+export default function DealPanelHeader({ closeAriaLabel, ...props }: Props) {
     const { t } = useTranslation();
     return (
-        <div
-            style={{
-                padding: "16px 18px",
-                borderBottom: `1px solid ${T.BORDER}`,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 10,
-            }}
-        >
-            <span
-                id={titleId}
-                style={{
-                    fontSize: 16,
-                    fontWeight: 700,
-                    color: T.TEXT,
-                    whiteSpace: "nowrap",
-                }}
-            >
-                {title}
-            </span>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                {rightSlot}
-                {onClose && (
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        aria-label={t("pages.deals.common.close")}
-                        className="dr-btn dr-btn-sm"
-                        style={{
-                            background: T.WHITE,
-                            color: T.TEXT_MUTED,
-                            border: "none",
-                        }}
-                    >
-                        <DealIcon name="x" size={16} />
-                    </button>
-                )}
-            </div>
-        </div>
+        <PanelHeader
+            {...props}
+            closeAriaLabel={
+                closeAriaLabel ?? t("pages.deals.common.close")
+            }
+        />
     );
 }

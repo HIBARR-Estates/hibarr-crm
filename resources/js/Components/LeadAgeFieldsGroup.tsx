@@ -402,9 +402,12 @@ export default function LeadAgeFieldsGroup({
                         onChange={(value) =>
                             applyAgeRangeChange(value ?? null)
                         }
-                        getPopupContainer={(trigger) =>
-                            trigger.parentElement || document.body
-                        }
+                        // Portal to body — parent DetailField/DetailSection use
+                        // overflow-hidden and would clip the dropdown.
+                        getPopupContainer={() => document.body}
+                        listHeight={256}
+                        popupMatchSelectWidth={false}
+                        dropdownStyle={{ minWidth: 160, zIndex: 1100 }}
                         disabled={isLocked || ageAndRangeReadOnly}
                     />
                 </div>

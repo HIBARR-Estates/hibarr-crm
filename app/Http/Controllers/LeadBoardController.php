@@ -16,6 +16,7 @@ use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use App\Models\UserLeadboardSetting;
 use App\Helper\Common;
+use App\Support\LeadSearchQuery;
 use App\Traits\DealAutomationTrait;
 use App\Traits\DealFormDataTrait;
 use Inertia\Inertia;
@@ -146,8 +147,8 @@ class LeadBoardController extends AccountBaseController
                         $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                            ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                            ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+                            ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%');
+                        LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
                     });
                 }
 
@@ -258,8 +259,8 @@ class LeadBoardController extends AccountBaseController
                             $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                                 ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
                                 ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                                ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                                ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+                                ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%');
+                            LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
                         });
                     }
                 }])->where(function ($query) use ($request) {
@@ -343,8 +344,8 @@ class LeadBoardController extends AccountBaseController
                         $query->where('leads.client_name', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.client_name', 'like', '%' . $safeTerm . '%')
                             ->orWhere('leads.client_email', 'like', '%' . $safeTerm . '%')
-                            ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%')
-                            ->orWhere('leads.mobile', 'like', '%' . $safeTerm . '%');
+                            ->orWhere('leads.company_name', 'like', '%' . $safeTerm . '%');
+                        LeadSearchQuery::applyMobileMatch($query, $safeTerm, 'leads.mobile');
                     });
                 }
 

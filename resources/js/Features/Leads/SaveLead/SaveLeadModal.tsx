@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { router, usePage } from "@inertiajs/react";
 import { App, Modal } from "antd";
+import { useQueryClient } from "@tanstack/react-query";
 import { Lead, CreateLeadFormData } from "@/Types/api/leads";
 import { IModalProps } from "@/Types/common";
 import { useApiMutate, useApiQuery } from "@/lib/api/client";
@@ -34,14 +35,26 @@ interface SaveLeadModalProps extends Omit<IModalProps, "onClose"> {
     reloadKeys?: string[];
 }
 
+/**
+ * Form fields use `custom_fields_data.field_{id}` (see GeneralCustomFieldTab /
+ * CustomFieldRenderer). Backend + API also use `field_{id}` keys.
+ * Accept legacy `{name}_{id}` keys so older payloads still map correctly.
+ */
 const constructCustomFieldsData = (
     customFields: any[] = [],
     custom_fields_data: Record<string, any> = {},
 ) => {
     const data: Record<string, any> = {};
     customFields?.forEach((field) => {
-        data[`${field?.name}_${field?.id}`] =
-            custom_fields_data?.[`field_${field?.id}`];
+        if (!field?.id) return;
+        const fieldKey = `field_${field.id}`;
+        const legacyKey = `${field?.name}_${field.id}`;
+        const value =
+            custom_fields_data?.[fieldKey] ??
+            custom_fields_data?.[legacyKey];
+        if (value !== undefined) {
+            data[fieldKey] = value;
+        }
     });
     return data;
 };
@@ -62,6 +75,7 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     const getIsDirtyRef = useRef<(() => boolean) | null>(null);
     const { modal } = App.useApp();
     const { props } = usePage<any>();
+    const queryClient = useQueryClient();
 
     // M2/S2: fetch lead custom field definitions on open (Index no longer ships them)
     const formDataTypes = useMemo(
@@ -112,17 +126,29 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
     );
     const isEditing = !!lead;
 
-    // M4/S3: fetch values on edit open (Index rows no longer include custom_fields_data)
-    const { data: customFieldsPayload } = useApiQuery<{
+    const customFieldsPath =
+        lead?.id != null
+            ? route("lead-contact.custom-fields", { lead: lead.id })
+            : "";
+
+    // M4/S3: fetch values on edit open (Index rows no longer include custom_fields_data).
+    // gcTime 0: drop cache when the modal unmounts so reopen always refetches
+    // saved Personal/Partner values rather than replaying a stale snapshot.
+    const {
+        data: customFieldsPayload,
+        isPending: customFieldsPending,
+        isFetching: customFieldsFetching,
+        dataUpdatedAt: customFieldsUpdatedAt,
+    } = useApiQuery<{
         status: string;
         custom_fields_data: Record<string, any>;
     }>({
-        path: lead?.id
-            ? route("lead-contact.custom-fields", { lead: lead.id })
-            : "",
+        path: customFieldsPath,
         options: {
-            enabled: open && !!lead?.id,
-            staleTime: 1000 * 60 * 5,
+            enabled: open && !!lead?.id && !!customFieldsPath,
+            staleTime: 0,
+            gcTime: 0,
+            refetchOnMount: "always",
         },
     });
 
@@ -130,6 +156,14 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         customFieldsPayload?.custom_fields_data ??
         lead?.custom_fields_data ??
         EMPTY_CUSTOM_FIELDS_DATA;
+
+    // Re-open after save: drop any residual query entry tied to this lead.
+    useEffect(() => {
+        if (!open || !customFieldsPath) {
+            return;
+        }
+        void queryClient.invalidateQueries({ queryKey: [customFieldsPath] });
+    }, [open, customFieldsPath, lead?.id, queryClient]);
 
     const parseMobile = (mobile: any) => {
         if (!mobile) return "";
@@ -170,7 +204,14 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         postal_code: lead?.postal_code || "",
         note: lead?.note || "",
         source_id: lead?.source_id || undefined,
-        category_id: lead?.category_id || undefined,
+        category_ids:
+            Array.isArray(lead?.categories) && lead.categories.length
+                ? lead.categories.map((c) => c.id)
+                : Array.isArray(lead?.category_ids) && lead.category_ids.length
+                  ? lead.category_ids
+                  : lead?.category_id
+                    ? [lead.category_id]
+                    : [],
         lead_lifecycle_status_id: lead?.lead_lifecycle_status_id || undefined,
         lead_owner: lead?.lead_owner?.id || undefined,
         added_by: lead?.added_by?.id || undefined,
@@ -205,12 +246,32 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         getLoadingStatus({ status: createStatus }) ||
         getLoadingStatus({ status: updateStatus });
 
+    // Editing: wait for custom field values so Personal/Partner tabs are not
+    // seeded empty (or from a stale cache) before the refetch lands.
+    const customFieldValuesReady =
+        !isEditing ||
+        !!customFieldsPayload ||
+        (!customFieldsPending && !customFieldsFetching);
+
     useEffect(() => {
-        if (open) {
-            const initialData = getInitialData();
-            setFormData(initialData);
+        if (!open) {
+            setFormData(null);
+            return;
         }
-    }, [lead, open, customFields, customFieldsValues]);
+        if (!customFieldValuesReady) {
+            return;
+        }
+        setFormData(getInitialData());
+        // customFieldsUpdatedAt forces re-seed after a refetch (e.g. reopen).
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- getInitialData closes over latest lead/fields
+    }, [
+        lead,
+        open,
+        customFields,
+        customFieldsValues,
+        customFieldValuesReady,
+        customFieldsUpdatedAt,
+    ]);
 
     const handleCancel = useCallback(() => {
         setFormData(null);
@@ -249,6 +310,14 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
         mutation(data, {
             onSuccess: () => {
                 setErrors([]);
+                if (customFieldsPath) {
+                    void queryClient.invalidateQueries({
+                        queryKey: [customFieldsPath],
+                    });
+                    queryClient.removeQueries({
+                        queryKey: [customFieldsPath],
+                    });
+                }
                 handleCancel();
                 router.reload(reloadKeys ? { only: reloadKeys } : undefined);
             },

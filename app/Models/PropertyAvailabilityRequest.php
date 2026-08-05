@@ -163,8 +163,7 @@ class PropertyAvailabilityRequest extends BaseModel
      */
     public function isUserAdmin(User $user): bool
     {
-        $permission = $user->permission('edit_products');
-        return $permission === 'all' || $permission === 4;
+        return \App\Support\PermissionGates::canManageProperties($user);
     }
 
     /**

@@ -157,9 +157,7 @@ class PropertyPolicy
      */
     protected function isPropertyAdmin(User $user): bool
     {
-        // Check if user has 'all' scope for edit_properties permission
-        $permission = $this->getPermissionScope($user, 'edit_properties');
-        return $permission === 'all';
+        return \App\Support\PermissionGates::canManageProperties($user);
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Property;
 use App\Models\User;
+use App\Support\PermissionGates;
 
 class PropertyAuthorizationService
 {
@@ -234,9 +235,7 @@ class PropertyAuthorizationService
 
     public function isPropertyAdmin(User $user): bool
     {
-        $permission = $user->permission('edit_product');
-
-        return $permission === 'all' || $permission === 4;
+        return PermissionGates::canManageProperties($user);
     }
 
     protected function hasViewPermission(User $user): bool

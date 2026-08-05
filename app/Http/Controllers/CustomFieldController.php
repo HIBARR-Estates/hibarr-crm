@@ -76,11 +76,11 @@ class CustomFieldController extends AccountBaseController
     public function create()
         {
             $this->customFieldGroups = CustomFieldGroup::all();
-            $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'multiSelectCountry', 'currency', 'range', 'currency_range', 'phone', 'file', 'repeatable'];
-            // multiSelectCountry and range are excluded from nested repeatable schemas:
+            $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'multiselect', 'country', 'multiSelectCountry', 'currency', 'range', 'currency_range', 'phone', 'file', 'repeatable'];
+            // multiSelectCountry, multiselect, and range are excluded from nested repeatable schemas:
             // repeatable's per-row schema types are single-value inputs, with no matching
-            // nested UI for a multi-value (multiSelectCountry) or dual-value (range) field.
-            $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry', 'range', 'currency_range'], true)));
+            // nested UI for a multi-value (multiSelectCountry, multiselect) or dual-value (range) field.
+            $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry', 'multiselect', 'range', 'currency_range'], true)));
         return view('custom-fields.create-custom-field-modal', $this->data);
     }
 
@@ -146,8 +146,8 @@ class CustomFieldController extends AccountBaseController
         $decodedValues = json_decode($this->field->values, true);
         $this->field->values = is_array($decodedValues) ? $decodedValues : [];
         $this->customFieldGroups = CustomFieldGroup::all();
-        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'country', 'multiSelectCountry', 'currency', 'range', 'currency_range', 'phone', 'file', 'repeatable'];
-        $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry', 'range', 'currency_range'], true)));
+        $this->types = ['text', 'number', 'password', 'textarea', 'select', 'radio', 'date', 'checkbox', 'multiselect', 'country', 'multiSelectCountry', 'currency', 'range', 'currency_range', 'phone', 'file', 'repeatable'];
+        $this->schemaTypes = array_values(array_filter($this->types, fn ($t) => !in_array($t, ['repeatable', 'multiSelectCountry', 'multiselect', 'range', 'currency_range'], true)));
 
         // Get all fields in the same group for visibility rules (and linked-field dropdown for repeatable)
         // Ensure otherFields is always set, even if empty, to prevent undefined variable errors
@@ -177,7 +177,7 @@ class CustomFieldController extends AccountBaseController
         $field->name = $name;
         $field->type = $request->type;
         $field->custom_field_category_id = $request->category;
-        if (in_array($request->type, ['select', 'radio', 'checkbox', 'repeatable'])) {
+        if (in_array($request->type, ['select', 'radio', 'checkbox', 'multiselect', 'repeatable'])) {
             $field->values = is_array($request->value) ? json_encode($request->value) : ($request->value ?? $field->values);
         }
         $field->required = $request->required;

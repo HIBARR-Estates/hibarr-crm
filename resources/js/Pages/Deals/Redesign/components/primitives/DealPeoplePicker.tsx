@@ -1,141 +1,138 @@
-import { useMemo, useState } from "react";
+import { ComponentProps, useCallback, useMemo, useState } from "react";
 import useTranslation from "@/Hooks/useTranslation";
-import DealAvatar from "./DealAvatar";
-import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
-import { initialsFromName } from "../../adapters/initials";
+import { useDebounce } from "@/Hooks/useDebounce";
+import { useFormData } from "@/Hooks/useFormData";
+import PeoplePicker, {
+    type PersonOption,
+} from "@/Components/Redesign/primitives/PeoplePicker";
 
-export interface DealPersonOption {
+export type { PersonOption as DealPersonOption } from "@/Components/Redesign/primitives/PeoplePicker";
+
+type BaseProps = Omit<
+    ComponentProps<typeof PeoplePicker>,
+    "people" | "loading" | "remoteFilter" | "onQueryChange"
+>;
+
+interface EmployeeRecord {
     id: number;
-    name: string;
-    designation?: string;
+    name?: string;
+    email?: string;
+    designation_name?: string;
+    employee_detail?: {
+        designation?: { name?: string } | null;
+    } | null;
 }
 
-interface DealPeoplePickerProps {
-    people: DealPersonOption[];
-    exclude?: number[];
-    onPick: (person: DealPersonOption) => void;
-    autoFocus?: boolean;
-    placeholder?: string;
-    /** Id of the person currently being assigned — shows a spinner on their
-     * row (far right) instead of leaving the pick unacknowledged, and blocks
-     * further picks until it settles. */
-    pendingId?: number | null;
+interface DealPeoplePickerProps extends BaseProps {
+    /**
+     * Optional seed list (already on the page). Remote directory is still used
+     * for search so view_employees scope can't blank assignee/watcher lookup.
+     */
+    people?: PersonOption[];
+    /** Prefer remote directory (default true). */
+    useRemoteDirectory?: boolean;
 }
 
-/** Ported from v2.2's PeoplePicker (deal-v2-2.jsx:877-905) — search over employees. */
+function mapEmployee(employee: EmployeeRecord): PersonOption {
+    return {
+        id: employee.id,
+        name: (employee.name || employee.email || `User #${employee.id}`).trim(),
+        designation:
+            employee.designation_name ||
+            employee.employee_detail?.designation?.name ||
+            undefined,
+    };
+}
+
+/**
+ * People picker for deal/lead assignment UIs.
+ * Remote-fetches the company employee directory via form-data so permission-
+ * scoped page props can't leave assignees / participants / watchers empty.
+ */
 export default function DealPeoplePicker({
-    people,
+    people: peopleProp,
+    useRemoteDirectory = true,
     exclude = [],
-    onPick,
-    autoFocus,
-    placeholder,
-    pendingId,
+    ...props
 }: DealPeoplePickerProps) {
     const { t } = useTranslation();
     const [query, setQuery] = useState("");
-    const q = query.trim().toLowerCase();
+    const debouncedSearch = useDebounce(query, 300);
 
-    const results = useMemo(
-        () =>
-            people
-                .filter((person) => !exclude.includes(person.id))
-                .filter(
-                    (person) =>
-                        !q ||
-                        person.name.toLowerCase().includes(q) ||
-                        (person.designation || "").toLowerCase().includes(q),
-                ),
-        [people, exclude, q],
+    const { data, loading, error } = useFormData<EmployeeRecord>("employees", {
+        search: debouncedSearch,
+        per_page: 40,
+        paginate: false,
+        enabled: useRemoteDirectory,
+    });
+
+    const handleQueryChange = useCallback((next: string) => {
+        setQuery(next);
+    }, []);
+
+    const remotePeople = useMemo(
+        () => ((data as EmployeeRecord[] | undefined) ?? []).map(mapEmployee),
+        [data],
     );
 
+    // Prefer remote results when enabled; fall back to seed list while loading
+    // so an empty first paint doesn't flash "no employees".
+    const people =
+        useRemoteDirectory && (remotePeople.length > 0 || !loading)
+            ? remotePeople
+            : (peopleProp ?? []);
+
+    const isLoading = useRemoteDirectory && loading;
+    const blocked =
+        useRemoteDirectory &&
+        !isLoading &&
+        Boolean(error) &&
+        people.length === 0;
+    const noDirectory =
+        useRemoteDirectory &&
+        !isLoading &&
+        !error &&
+        people.length === 0 &&
+        !query.trim();
+
+    // Stable i18n fallbacks when lang keys not yet present.
+    const unavailableLabel =
+        t("pages.deals.header.team.employees_unavailable") ===
+        "pages.deals.header.team.employees_unavailable"
+            ? "Employee directory is unavailable. You may not have permission to view employees."
+            : t("pages.deals.header.team.employees_unavailable");
+    const noneAvailableLabel =
+        t("pages.deals.header.team.no_employees_available") ===
+        "pages.deals.header.team.no_employees_available"
+            ? "No employees available to assign"
+            : t("pages.deals.header.team.no_employees_available");
+    const noneLeftLabel =
+        t("pages.deals.header.team.no_employees_left") ===
+        "pages.deals.header.team.no_employees_left"
+            ? "No employees left to add"
+            : t("pages.deals.header.team.no_employees_left");
+
     return (
-        <div>
-            <input
-                className="dr-input"
-                type="search"
-                aria-label={
-                    placeholder || t("pages.deals.header.team.search_employees")
-                }
-                placeholder={
-                    placeholder || t("pages.deals.header.team.search_employees")
-                }
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                autoFocus={autoFocus}
-                style={{ marginBottom: 6, fontSize: 12, padding: "8px 10px" }}
-            />
-            <div style={{ maxHeight: 200, overflowY: "auto" }}>
-                {results.length === 0 ? (
-                    <div
-                        className="px-1.5 py-2 text-xs italic"
-                        style={{ color: T.TEXT_MUTED }}
-                    >
-                        {t("pages.deals.header.team.no_employees_match")} "{query}"
-                    </div>
-                ) : (
-                    results.map((person) => {
-                        const isPending = person.id === pendingId;
-                        return (
-                            <button
-                                key={person.id}
-                                type="button"
-                                className="dr-menu-item"
-                                disabled={pendingId != null}
-                                style={{
-                                    opacity:
-                                        pendingId != null && !isPending
-                                            ? 0.5
-                                            : 1,
-                                    cursor:
-                                        pendingId != null
-                                            ? "default"
-                                            : "pointer",
-                                }}
-                                onClick={() => onPick(person)}
-                            >
-                                <DealAvatar
-                                    type="agent"
-                                    size={24}
-                                    initials={initialsFromName(person.name)}
-                                />
-                                <span
-                                    style={{
-                                        flex: 1,
-                                        minWidth: 0,
-                                        textAlign: "left",
-                                    }}
-                                >
-                                    <span style={{ display: "block", fontSize: 13 }}>
-                                        {person.name}
-                                    </span>
-                                    {person.designation && (
-                                        <span
-                                            style={{
-                                                display: "block",
-                                                fontSize: 12,
-                                                color: T.TEXT_MUTED,
-                                            }}
-                                        >
-                                            {person.designation}
-                                        </span>
-                                    )}
-                                </span>
-                                {isPending && (
-                                    <span
-                                        aria-hidden="true"
-                                        className="flex h-3.5 w-3.5 shrink-0 items-center justify-center"
-                                    >
-                                        <span
-                                            className="h-3 w-3 animate-spin rounded-full border-2 border-solid border-current border-t-transparent"
-                                            style={{ color: T.TEXT_MUTED }}
-                                        />
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })
-                )}
-            </div>
-        </div>
+        <PeoplePicker
+            {...props}
+            people={people}
+            exclude={exclude}
+            loading={isLoading}
+            remoteFilter={useRemoteDirectory}
+            onQueryChange={handleQueryChange}
+            placeholder={
+                props.placeholder ??
+                t("pages.deals.header.team.search_employees")
+            }
+            getEmptyLabel={
+                props.getEmptyLabel ??
+                ((q) => {
+                    if (blocked) return unavailableLabel;
+                    if (noDirectory) return noneAvailableLabel;
+                    if (!q.trim()) return noneLeftLabel;
+                    return `${t("pages.deals.header.team.no_employees_match")} "${q}"`;
+                })
+            }
+        />
     );
 }

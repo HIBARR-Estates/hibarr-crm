@@ -118,8 +118,6 @@ class PropertyEditAccessRequest extends BaseModel
 
     public static function isUserAdmin(User $user): bool
     {
-        $permission = $user->permission('edit_product');
-
-        return $permission === 'all' || $permission === 4;
+        return \App\Support\PermissionGates::canManageProperties($user);
     }
 }

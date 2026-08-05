@@ -11,6 +11,7 @@ return [
         'crm.lead-ai-summary',
         'crm.lead-merge',
         'crm.notification-service-routing',
+        'crm.entity-reminders',
         'crm.task-lifecycle-notifications',
         'crm.projects-filters-modal',
         'crm.developer-project-visibility',
@@ -24,6 +25,8 @@ return [
         'crm.unit-sold-out-badge',
         'crm.unit-sold-out-grid-diagonal-ribbon',
         'crm.deals-product-tour',
+        'crm.leads-product-tour',
         'crm.deal-info-count-indicator',
+        'crm.deal-analysis',
     ],
 ];

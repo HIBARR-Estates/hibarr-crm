@@ -28,6 +28,14 @@ import WorkspaceContextRail from "./components/workspace/rail/WorkspaceContextRa
 import DealAddTaskModal from "./components/workspace/DealAddTaskModal";
 import DealAddNoteModal from "./components/workspace/DealAddNoteModal";
 import DealScheduleMeetingModal from "./components/workspace/DealScheduleMeetingModal";
+import DealAnalysisModal from "./components/analysis/DealAnalysisModal";
+import AnalysisStatusBanner from "./components/analysis/AnalysisStatusBanner";
+import {
+    buildScriptItems,
+    computeAnalysisProgress,
+} from "./components/analysis/analysisProgress";
+import useDealAnalysis from "./hooks/useDealAnalysis";
+
 import useDealViewNavigation from "./hooks/useDealViewNavigation";
 import useWorkspaceOverview from "./hooks/useWorkspaceOverview";
 import useDealPipeline from "./hooks/useDealPipeline";
@@ -37,6 +45,7 @@ import {
     resolveScopedFieldKeys,
 } from "@/Features/Deals/pipelineScopeUtils";
 import { DealShowProps, DealTab } from "./types";
+import "@/Components/Redesign/redesign.css";
 import "./deal-redesign.css";
 import useTranslation from "@/Hooks/useTranslation";
 import { setDealDateLocale } from "./adapters/dateFormat";
@@ -56,6 +65,7 @@ function DealViewRedesignInner(props: DealShowProps) {
     const [addTaskOpen, setAddTaskOpen] = useState(false);
     const [addMeetingOpen, setAddMeetingOpen] = useState(false);
     const [addNoteOpen, setAddNoteOpen] = useState(false);
+    const analysis = useDealAnalysis();
     // undefined = not yet known (tab not visited); the tab bar hides the
     // count pill until a real number is reported, instead of showing 0.
     const [offersCount, setOffersCount] = useState<number | undefined>(
@@ -71,6 +81,7 @@ function DealViewRedesignInner(props: DealShowProps) {
     const showProductTour = featureFlags?.["crm.deals-product-tour"] === true;
     const showCompletionDot =
         featureFlags?.["crm.deal-info-count-indicator"] === true;
+    const showAnalysis = featureFlags?.["crm.deal-analysis"] === true;
     const { refresh, isRefreshing } = usePageRefresh({
         canRefresh: () => !isDealEditMode,
     });
@@ -110,6 +121,8 @@ function DealViewRedesignInner(props: DealShowProps) {
     // the legacy DealInfoSection.tsx pattern (pipelineScopeUtils.ts helpers).
     const pipelineCategoryScopeMap = pageProps.pipelineCategoryScopeMap ?? {};
     const pipelineFieldScopeMap = pageProps.pipelineFieldScopeMap ?? {};
+    const hideAllCategoriesPipelineIds =
+        pageProps.hideAllCategoriesPipelineIds ?? [];
     const stages = pageProps.stages ?? [];
     const scopedCategoryIdsFromServer =
         pageProps.scopedCustomFieldCategoryIds ?? null;
@@ -127,6 +140,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                 deal.pipeline_stage_id,
                 stages,
                 scopedCategoryIdsFromServer,
+                hideAllCategoriesPipelineIds,
             ),
         [
             customFieldCategories,
@@ -135,7 +149,24 @@ function DealViewRedesignInner(props: DealShowProps) {
             deal.pipeline_stage_id,
             stages,
             scopedCategoryIdsFromServer,
+            hideAllCategoriesPipelineIds,
         ],
+    );
+
+    // Analysis progress off saved values, so the status card reports the same
+    // totals as the modal header. Recomputed when the deal reloads on modal close.
+    const analysisProgress = useMemo(
+        () =>
+            computeAnalysisProgress(
+                buildScriptItems(props.analysisScript, dealInfoCategories),
+                fields,
+                {
+                    ...(deal.custom_fields_data ?? {}),
+                    ...((pageProps.leadCustomFieldsData as Record<string, any>) ?? {}),
+                },
+                deal,
+            ),
+        [props.analysisScript, dealInfoCategories, fields, deal, pageProps.leadCustomFieldsData],
     );
 
     const dealInfoFieldKeys = useMemo(
@@ -265,6 +296,17 @@ function DealViewRedesignInner(props: DealShowProps) {
                 { name: td(pageTitle) },
             ]}
         >
+            {showAnalysis && (
+                <DealAnalysisModal
+                    analysis={analysis}
+                    dealInfoCategories={dealInfoCategories}
+                    fields={fields}
+                    visibleLeadFieldKeys={props.visibleLeadFieldKeys}
+                    analysisScript={props.analysisScript}
+                    onAddTask={() => setAddTaskOpen(true)}
+                    onScheduleMeeting={() => setAddMeetingOpen(true)}
+                />
+            )}
             <DealAddTaskModal
                 open={addTaskOpen}
                 onClose={() => setAddTaskOpen(false)}
@@ -308,6 +350,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                         onAddNote={() => setAddNoteOpen(true)}
                         onAddTask={() => setAddTaskOpen(true)}
                         onScheduleMeeting={() => setAddMeetingOpen(true)}
+                        onOpenAnalysis={showAnalysis ? analysis.open : undefined}
                         onReplayGuide={
                             showProductTour
                                 ? () => tourRef.current?.restart()
@@ -316,11 +359,86 @@ function DealViewRedesignInner(props: DealShowProps) {
                     />
 
                     <div className="">
-                        <div className="mb-[14px]" data-tour="deal-pipeline-stepper">
-                            <DealPipelineStepper
-                                deal={deal}
-                                permissions={permissions}
-                            />
+                        <div className="mb-[14px] flex items-stretch gap-4" data-tour="deal-pipeline-stepper">
+                            <div className="min-w-0 flex-1">
+                                <DealPipelineStepper
+                                    deal={deal}
+                                    permissions={permissions}
+                                    onGoToField={({ section, fieldKey }) => {
+                                        nav.goToDealInfo(section);
+                                        // Highlight after the info tab + section mount.
+                                        // Custom fields need a bit longer; retry a few times.
+                                        const selectors = [
+                                            `[data-deal-field="${CSS.escape(fieldKey)}"]`,
+                                            `[data-field-key="${CSS.escape(fieldKey)}"]`,
+                                        ];
+                                        // custom_field_12 ↔ field_12 aliasing
+                                        if (
+                                            fieldKey.startsWith("custom_field_")
+                                        ) {
+                                            const id = fieldKey.replace(
+                                                "custom_field_",
+                                                "",
+                                            );
+                                            selectors.push(
+                                                `[data-field-key="field_${CSS.escape(id)}"]`,
+                                                `[data-deal-field="field_${CSS.escape(id)}"]`,
+                                            );
+                                        } else if (
+                                            fieldKey.startsWith("field_")
+                                        ) {
+                                            const id = fieldKey.replace(
+                                                "field_",
+                                                "",
+                                            );
+                                            selectors.push(
+                                                `[data-deal-field="custom_field_${CSS.escape(id)}"]`,
+                                            );
+                                        }
+
+                                        let attempts = 0;
+                                        const tryHighlight = () => {
+                                            attempts += 1;
+                                            let el: Element | null = null;
+                                            for (const sel of selectors) {
+                                                el = document.querySelector(sel);
+                                                if (el) break;
+                                            }
+                                            if (el instanceof HTMLElement) {
+                                                el.scrollIntoView({
+                                                    behavior: "smooth",
+                                                    block: "center",
+                                                });
+                                                el.classList.add(
+                                                    "deal-field-flash",
+                                                );
+                                                window.setTimeout(
+                                                    () =>
+                                                        el?.classList.remove(
+                                                            "deal-field-flash",
+                                                        ),
+                                                    1800,
+                                                );
+                                                return;
+                                            }
+                                            if (attempts < 12) {
+                                                window.setTimeout(
+                                                    tryHighlight,
+                                                    80,
+                                                );
+                                            }
+                                        };
+                                        window.setTimeout(tryHighlight, 60);
+                                    }}
+                                />
+                            </div>
+                            {showAnalysis && (
+                                <AnalysisStatusBanner
+                                    analysis={analysis}
+                                    totalFilled={analysisProgress.totalFilled}
+                                    totalFields={analysisProgress.totalFields}
+                                />
+                            )}
                         </div>
                         <div className="dr-grid">
                             <div className="flex min-w-0 flex-col gap-[14px]">

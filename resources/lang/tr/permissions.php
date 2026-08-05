@@ -69,4 +69,9 @@ return array(
     'view_proposal' => 'Teklifi Görüntüle',
     'edit_proposal' => 'Teklifi Düzenle',
     'delete_proposal' => 'Teklifi Sil',
+    'manage_partner_network' => 'Ortak Ağını Yönet',
+    'manage_offers' => 'Teklifleri Yönet',
+    'manage_properties' => 'Mülkleri Yönet',
+    'manage_property_publish_requests' => 'Yayınlama Taleplerini Yönet',
+    'manage_property_configuration' => 'Mülk Yapılandırmasını Yönet',
 );

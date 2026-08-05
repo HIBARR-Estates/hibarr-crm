@@ -1,11 +1,18 @@
+#!/usr/bin/env bash
+# Ensure staging queue workers listen to all app queues (incl. entity reminders).
+set -euo pipefail
+
+LIVE_LINK="${LIVE_LINK:-/home/hibarr/hibarr-crm-staging}"
+QUEUES="default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport,reminders-prepare,reminders-send"
+
 # 1. Verify the symlink exists and where it points
-ls -la /home/hibarr/hibarr-crm-staging
+ls -la "$LIVE_LINK"
 
 # 2. Update supervisor config
-sudo tee /etc/supervisor/conf.d/hibarr_crm_staging.conf > /dev/null << 'EOF'
+sudo tee /etc/supervisor/conf.d/hibarr_crm_staging.conf > /dev/null << EOF
 [program:hibarr_crm_staging]
 process_name=%(program_name)s_%(process_num)02d
-command=/usr/bin/php /home/hibarr/hibarr-crm-staging/artisan queue:work database --queue=default,communication_activities,resolvers,PropertyImport,LeadImport,DealImport --sleep=3 --tries=3 --timeout=300
+command=/usr/bin/php ${LIVE_LINK}/artisan queue:work database --queue=${QUEUES} --sleep=3 --tries=3 --timeout=300
 autostart=true
 autorestart=true
 user=hibarr

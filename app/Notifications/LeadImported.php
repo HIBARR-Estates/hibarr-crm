@@ -7,16 +7,16 @@ use Illuminate\Support\Facades\Session;
 
 class LeadImported extends BaseNotification
 {
-/**
-     * Create a new notification instance.
-     *
-     * @return void
-     */
     private $emailSetting;
 
-    public function __construct()
+    /** @var array<string, mixed> */
+    private array $importStats;
+
+    public function __construct(array $importStats = [])
     {
+        $this->importStats = $importStats;
         $this->emailSetting = EmailNotificationSetting::where('company_id', company()->id)->where('slug', 'lead-notification')->first();
+        $this->initUnsRouting();
     }
 
     /**
@@ -93,6 +93,16 @@ class LeadImported extends BaseNotification
                     'notifiableName' => $notifiable->name
                 ]);
         }
+        $importUrl = getDomainSpecificUrl(route('lead-contact.index'), null);
+        $this->attachPlunkTemplate($build, 'c5b022f4-988b-49d1-8a28-bfcdf26cb0bd', [
+            'importedByName' => $this->importStats['importedByName'] ?? '',
+            'importCount'    => $this->importStats['importCount'] ?? 0,
+            'failedCount'    => $this->importStats['failedCount'] ?? 0,
+            'sourceName'     => $this->importStats['sourceName'] ?? 'CSV Import',
+            'importedAt'     => $this->importStats['importedAt'] ?? '',
+            'importUrl'      => $importUrl,
+        ]);
+
         parent::resetLocale();
 
         return $build;

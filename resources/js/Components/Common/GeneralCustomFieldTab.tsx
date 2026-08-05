@@ -542,6 +542,7 @@ const GeneralCustomFieldTab = <
             case "radio":
                 return renderRadioField(field);
             case "checkbox":
+            case "multiselect":
                 return renderCheckboxField(field);
             case "date":
                 return renderDateField(field);
@@ -602,6 +603,7 @@ const determineSpan = (type: string): number => {
         case "radio":
             return 24;
         case "checkbox":
+        case "multiselect":
             return 24;
         case "multiSelectCountry":
             return 24;

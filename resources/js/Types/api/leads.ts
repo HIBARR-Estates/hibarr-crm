@@ -37,9 +37,13 @@ export interface Lead {
     gender?: "male" | "female" | null;
     gender_value?: "male" | "female" | null;
     category_id?: number | null;
+    category_ids?: number[];
     source_id?: number | null;
     client_name?: string;
     client_email?: string;
+    client_whatsapp?: string | null;
+    client_telegram?: string | null;
+    client_instagram?: string | null;
     company_name?: string | null;
     website?: string | null;
     address?: string | null;
@@ -53,11 +57,21 @@ export interface Lead {
     note?: string | null;
     value?: number | null;
     currency_id?: number | null;
+    currency?: {
+        id?: number;
+        currency_code?: string;
+        currency_symbol?: string;
+        code?: string;
+    } | null;
+    currency_code?: string | null;
+    /** Stored custom avatar filename; when set, image_url points at the upload. */
+    image?: string | null;
     image_url?: string;
     client_name_salutation?: string;
     mobile_with_phonecode?: string;
     office_phone_formatted?: string;
     category?: LeadCategory | null;
+    categories?: LeadCategory[];
     lead_source?: LeadSource | null;
     leadSource?: LeadSource | null;
     client?: User | null;
@@ -135,6 +149,7 @@ export interface CreateLeadFormData {
     note?: string;
     source_id?: number;
     category_id?: number;
+    category_ids?: number[];
     lead_lifecycle_status_id?: number | null;
     lead_owner?: number;
     added_by?: number;

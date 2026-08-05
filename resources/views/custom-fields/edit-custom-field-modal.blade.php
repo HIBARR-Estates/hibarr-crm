@@ -90,9 +90,9 @@
                
             </div>
             @php
-                $valueOptions = in_array($field->type, ['select','radio','checkbox']) ? (is_array($field->values) ? $field->values : []) : [];
+                $valueOptions = in_array($field->type, ['select','radio','checkbox','multiselect']) ? (is_array($field->values) ? $field->values : []) : [];
             @endphp
-            <div class="form-group mt-repeater" @if ($field->type != 'radio' && $field->type != 'select' && $field->type != 'checkbox') style="display: none;" @endif>
+            <div class="form-group mt-repeater" @if ($field->type != 'radio' && $field->type != 'select' && $field->type != 'checkbox' && $field->type != 'multiselect') style="display: none;" @endif>
                 @foreach ($valueOptions as $item)
                     <div id="addMoreBox{{ $loop->iteration }}" class="row mt-2">
                         <div class="col-md-10">
@@ -311,7 +311,7 @@
         var v = this.value;
         $('.mt-repeater input, .mt-repeater select').prop('disabled', false);
         $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', false);
-        if (v === 'select' || v === 'radio' || v === 'checkbox') {
+        if (v === 'select' || v === 'radio' || v === 'checkbox' || v === 'multiselect') {
             $(".mt-repeater").show();
             $(".mt-repeater-repeatable").hide();
             $('.mt-repeater-repeatable input, .mt-repeater-repeatable select').prop('disabled', true);

@@ -71,10 +71,8 @@ class CrmEventController extends Controller
             'user_agent' => $request->userAgent(),
         ]);
 
-        // Normalize model_type — the Froiden XSS middleware double-escapes
-        // backslashes in FQCN strings (App\\Models\\Deal → App\\\\Models\\\\Deal)
         if (!empty($params['model_type'])) {
-            $params['model_type'] = stripslashes($params['model_type']);
+            $params['model_type'] = $this->normalizeModelType($params['model_type']);
         }
 
         // Resolve business rule slug to metadata if provided
@@ -197,10 +195,8 @@ class CrmEventController extends Controller
             'sort_order',
         ]), ['company_id' => $companyId]);
 
-        // Normalize model_type — the Froiden XSS middleware double-escapes
-        // backslashes in FQCN strings (App\\Models\\Deal → App\\\\Models\\\\Deal)
         if (!empty($filters['model_type'])) {
-            $filters['model_type'] = stripslashes($filters['model_type']);
+            $filters['model_type'] = $this->normalizeModelType($filters['model_type']);
         }
 
         $paginated = $this->eventService->query($filters);
@@ -466,6 +462,18 @@ class CrmEventController extends Controller
         }
 
         return (int) (Auth::user()?->company_id ?? 0);
+    }
+
+    /**
+     * Collapse escaped FQCN backslashes to the canonical Eloquent class name.
+     *
+     * Callers send either `App\Models\Lead` or `App\\Models\\Lead` (the latter
+     * was required when this used stripslashes(), which turns a single-backslash
+     * FQCN into `AppModelsLead`). Both forms normalize to `App\Models\Lead`.
+     */
+    protected function normalizeModelType(string $modelType): string
+    {
+        return preg_replace('/\\\\+/', '\\', $modelType) ?? $modelType;
     }
 
     /**
