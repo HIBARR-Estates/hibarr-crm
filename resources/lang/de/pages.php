@@ -37,7 +37,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Kontakte',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Bitte Änderungen speichern oder abbrechen, bevor Sie aktualisieren',
         'save_before_tab_switch'   => 'Bitte speichern oder brechen Sie Ihre Änderungen ab, bevor Sie den Tab wechseln.',
         'tabs' => [
@@ -197,6 +197,75 @@ return [
             'view_details'             => 'Details anzeigen',
             'edit_note'                => 'Notiz bearbeiten',
             'delete_note'              => 'Notiz löschen',
+        ],
+        'tour' => [
+            'next'              => 'Weiter',
+            'back'              => 'Zurück',
+            'done'              => 'Fertig',
+            'skip'              => 'Tour überspringen',
+            'replay_menu_item'  => 'Anleitung erneut anzeigen',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'So sehen Sie den Lead auf einen Blick',
+                    'body'  => 'Foto, Name, Lebenszyklus-Status und Verantwortlicher bleiben hier sichtbar. Klicken Sie auf das Foto, um ein Avatar hochzuladen. Den Verantwortlichen ändern Sie über die Karte rechts.',
+                ],
+                'status_dropdown' => [
+                    'title' => 'Lebenszyklus-Status aktualisieren',
+                    'body'  => 'Öffnen Sie dieses Dropdown, um den Lead durch Status wie Neu, Qualifizierung, Qualifiziert oder Verloren zu bewegen — die Farbe zeigt den aktuellen Stand.',
+                ],
+                'lifecycle_banner' => [
+                    'title' => 'Ihr nächster sinnvoller Schritt',
+                    'body'  => 'Dieses Banner ändert sich mit dem Status — Qualifizierung starten oder fortsetzen, Deal erstellen oder öffnen, oder einen geschlossenen Lead reaktivieren. Mit „Antworten anzeigen“ prüfen Sie die Qualifizierung, ohne die Seite zu verlassen.',
+                ],
+                'ai_summary' => [
+                    'title' => 'Lassen Sie sich von der KI auf den neuesten Stand bringen',
+                    'body'  => 'Diese Zusammenfassung liest die Aktivität des Leads und schlägt nächste Schritte vor — qualifizieren, Aufgabe erstellen oder Anruf planen — mit einem Klick.',
+                ],
+                'quick_stats' => [
+                    'title' => 'Sehen Sie, was als Nächstes ansteht',
+                    'body'  => 'Nächstes Meeting, offene Aufgaben und der primäre Deal stehen hier. Leere Slots haben Erstellen-Shortcuts; vorhandene Einträge öffnen die Details. „Alle Deals anzeigen“ springt zum Deals-Tab.',
+                ],
+                'tabs' => [
+                    'title' => 'Alles zu diesem Lead, einen Tab entfernt',
+                    'body'  => 'Übersicht, Notizen, Aufgaben, Meetings, Dateien, Deals, Flugplan und Marketing sind hier — Badges zeigen Anzahlen. Lead-Info und Timeline stehen nach dem Trenner rechts in der Tab-Leiste.',
+                ],
+                'overview' => [
+                    'title' => 'Die Übersicht bündelt das Wichtigste',
+                    'body'  => 'Aktuelle Notizen, offene Aufgaben und anstehende Meetings erscheinen hier zuerst — neue Einträge legen Sie in jeder Spalte an, ohne den Tab zu wechseln.',
+                ],
+                'lead_info' => [
+                    'title' => 'Lead-Info enthält den vollständigen Datensatz',
+                    'body'  => 'Profil, Adresse und benutzerdefinierte Feldkategorien stehen in der linken Liste — suchen Sie, um zu einem Abschnitt zu springen. Klicken Sie ein Feld zum Bearbeiten. Dateifeldern liegen im Tab Dateien.',
+                ],
+                'deals' => [
+                    'title' => 'Mit diesem Lead verknüpfte Deals',
+                    'body'  => 'Im Deals-Tab finden Sie jeden aus diesem Lead erstellten Deal mit Pipeline, Phase und Wert. Einen neuen Deal legen Sie auch über das ⋮-Menü, das Lebenszyklus-Banner oder Quick Stats an.',
+                ],
+                'files' => [
+                    'title' => 'Dokumente und Uploads liegen unter Dateien',
+                    'body'  => 'Dokument-Slots aus benutzerdefinierten Feldern und freie Uploads verwalten Sie hier — nicht unter Lead-Info.',
+                ],
+                'timeline' => [
+                    'title' => 'Die vollständige Historie',
+                    'body'  => 'Jede Änderung, Notiz und Statusaktualisierung zu diesem Lead, chronologisch.',
+                ],
+                'quick_actions' => [
+                    'title' => 'Handeln, ohne die Seite zu verlassen',
+                    'body'  => 'Aktion protokollieren, Notiz hinzufügen oder Meeting planen — diese Shortcuts bleiben sichtbar, egal welcher Workspace-Tab aktiv ist.',
+                ],
+                'dossier' => [
+                    'title' => 'Das Dossier hält Schlüsseldaten sichtbar',
+                    'body'  => 'Telefon, E-Mail, Quelle, Kategorie und Marketing-Engagement bleiben hier. Über „In Lead-Info bearbeiten“ springen Sie ins bearbeitbare Profil. Klicken Sie einen Wert zum Kopieren.',
+                ],
+                'actions_menu' => [
+                    'title' => 'Weitere Aktionen, einen Klick entfernt',
+                    'body'  => 'Über ⋮ neben dem Namen: Qualifizierungsantworten ansehen, Aufgabe oder Notiz hinzufügen, Deal erstellen, Duplikate finden oder Lead löschen. Diese Anleitung starten Sie jederzeit wieder aus demselben Menü.',
+                ],
+                'closing' => [
+                    'title' => 'Sie sind startklar',
+                    'body'  => 'Diese Anleitung starten Sie jederzeit erneut über das ⋮-Menü neben dem Lead-Namen.',
+                ],
+            ],
         ],
     ],
 
@@ -685,6 +754,7 @@ return [
                 'platform'             => 'Plattform',
                 'platform_video_call'  => 'Videoanruf',
                 'platform_in_person'   => 'Vor Ort',
+                'platform_physical'    => 'Vor Ort',
                 'platform_phone'       => 'Telefon',
                 'reminder_unit_minutes' => 'Minuten',
                 'reminder_unit_hours'  => 'Stunden',
@@ -769,6 +839,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Dateien hochgeladen',
                     'upload_failed' => 'Dateien konnten nicht hochgeladen werden. Bitte versuchen Sie es erneut.',
+                    'deleted'       => 'Datei gelöscht',
+                    'delete_failed' => 'Datei konnte nicht gelöscht werden',
                 ],
             ],
             'offers' => [

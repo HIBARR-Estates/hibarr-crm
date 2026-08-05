@@ -73,6 +73,10 @@ class PipelineScopeResolverService
 
         $companyId = $companyId ?? company()?->id;
 
+        if ($this->pipelineHidesAllCategories($pipelineId, $companyId)) {
+            return [];
+        }
+
         $scopesQuery = CustomFieldCategoryScope::query()
             ->where('pipeline_id', $pipelineId);
 
@@ -141,6 +145,10 @@ class PipelineScopeResolverService
         }
 
         $companyId = $companyId ?? company()?->id;
+
+        if ($this->pipelineHidesAllCategories($pipelineId, $companyId)) {
+            return [];
+        }
 
         $scopesQuery = CustomFieldCategoryScope::query()
             ->where('pipeline_id', $pipelineId);
@@ -226,6 +234,47 @@ class PipelineScopeResolverService
         }
 
         return $query->get();
+    }
+
+    /**
+     * Whether a pipeline is configured to hide all custom field categories,
+     * overriding any category_scopes rows (pipeline-wide or per-stage).
+     *
+     * When $companyId is given, the pipeline must belong to that company —
+     * a mismatched pipeline/company pair (stale or cross-tenant data) returns
+     * false so callers fall through to their existing "show all" behavior
+     * instead of hiding categories based on the wrong company's setting.
+     */
+    public function pipelineHidesAllCategories(?int $pipelineId, ?int $companyId = null): bool
+    {
+        if (!$pipelineId) {
+            return false;
+        }
+
+        return (bool) LeadPipeline::query()
+            ->where('id', $pipelineId)
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->value('hide_all_categories');
+    }
+
+    /**
+     * Pipeline IDs (for the company) configured to hide all custom field
+     * categories. Exposed to the frontend so client-resolved scope maps
+     * (SaveDealModal / legacy DealInfoSection) can honor the same override.
+     *
+     * @return array<int>
+     */
+    public function getHideAllCategoriesPipelineIds(?int $companyId = null): array
+    {
+        $companyId = $companyId ?? company()?->id;
+
+        return LeadPipeline::query()
+            ->where('hide_all_categories', true)
+            ->when($companyId, fn ($q) => $q->where('company_id', $companyId))
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->values()
+            ->all();
     }
 
     /**

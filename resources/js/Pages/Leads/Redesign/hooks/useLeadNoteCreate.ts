@@ -8,6 +8,7 @@ import type { LeadNote } from "@/Types/api/lead-note";
 
 export interface LeadNoteCreateInput {
     text: string;
+    title?: string;
 }
 
 interface SaveNotePayload {
@@ -39,7 +40,7 @@ export default function useLeadNoteCreate(leadId: number) {
             setErrors([]);
             mutate(
                 {
-                    title: trimmed.slice(0, 80),
+                    title: input.title?.trim() || trimmed.slice(0, 80),
                     details: `<p>${trimmed}</p>`,
                     lead_id: leadId,
                 },

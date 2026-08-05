@@ -82,6 +82,16 @@ class DealFile extends BaseModel
             return $this->external_url;
         }
 
+        // Incomplete local path (e.g. external upload left hashname empty) —
+        // fall back to the authenticated download route instead of a 404 asset.
+        if (empty($this->hashname) || empty($this->deal_id)) {
+            try {
+                return route('deal-files.download', $this->id);
+            } catch (\Throwable $e) {
+                return '';
+            }
+        }
+
         // Legacy local/S3 storage
         return asset_url_local_s3(DealFile::FILE_PATH . '/' . $this->deal_id . '/' . $this->hashname);
     }

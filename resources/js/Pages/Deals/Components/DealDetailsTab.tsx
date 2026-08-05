@@ -72,10 +72,10 @@ const DealDetailsTab: React.FC<Props> = ({
         show("strategy_meeting_booked"),
         show("downpayment_paid"),
         show("inspection_trip_date"),
-        show("deposit_confirmation"),
     ].some(Boolean);
 
     const documentationFields = [
+        show("deposit_confirmation"),
         show("reservation_agreement"),
         show("sales_contract"),
     ].some(Boolean);
@@ -239,22 +239,6 @@ const DealDetailsTab: React.FC<Props> = ({
                         </DetailField>
                     )}
 
-                    {show("deposit_confirmation") && (
-                        <DetailField label="Deposit Confirmation">
-                            <EditableField
-                                value={fields.deposit_confirmation}
-                                fieldName="deposit_confirmation"
-                                fieldType="text"
-                                onSave={(value) =>
-                                    handleSave("deposit_confirmation", value)
-                                }
-                                alwaysEditing={editable}
-                                onChange={onChange}
-                                loading={isFieldLoading("deposit_confirmation")}
-                                disabled={disabled}
-                            />
-                        </DetailField>
-                    )}
                 </DetailSection>
             )}
 
@@ -266,6 +250,23 @@ const DealDetailsTab: React.FC<Props> = ({
                     isOpen={openSections["deal-documentation"] ?? false}
                     onToggle={() => onToggleSection?.("deal-documentation")}
                 >
+                    {show("deposit_confirmation") && (
+                        <DetailField label="Deposit Confirmation">
+                            <EditableField
+                                value={fields.deposit_confirmation}
+                                fieldName="deposit_confirmation"
+                                fieldType="file"
+                                onSave={(value) =>
+                                    handleSave("deposit_confirmation", value)
+                                }
+                                alwaysEditing={editable}
+                                onChange={onChange}
+                                loading={isFieldLoading("deposit_confirmation")}
+                                disabled={disabled}
+                            />
+                        </DetailField>
+                    )}
+
                     {show("reservation_agreement") && (
                         <DetailField label="Reservation Agreement">
                             <EditableField

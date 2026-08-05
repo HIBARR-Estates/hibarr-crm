@@ -11,6 +11,7 @@ import {
     BugOutlined,
     BulbOutlined,
     BellOutlined,
+    ClockCircleOutlined,
     ApartmentOutlined,
     TeamOutlined,
     HistoryOutlined,
@@ -64,6 +65,8 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const isSalesManger =
         props.auth?.permissions?.edit_product === "all" ||
         props.auth?.permissions?.edit_product === 4;
+    const canManageEntityReminders =
+        props.auth?.permissions?.manage_company_setting === "all";
 
     const STORAGE_KEY = "sidebar_expanded_items";
 
@@ -359,6 +362,26 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             onClick: () =>
                 router.visit("/account/settings/reminder-preferences/manage"),
         },
+        ...(canManageEntityReminders
+            ? [
+                  {
+                      key: "entity-reminder-defaults",
+                      icon: <ClockCircleOutlined />,
+                      label: t("app.menu.settings_menu.entity_reminder_defaults"),
+                      onClick: () =>
+                          router.visit(
+                              "/account/settings/entity-reminder-defaults",
+                          ),
+                  },
+                  {
+                      key: "reminder-ledger",
+                      icon: <BellOutlined />,
+                      label: t("app.menu.settings_menu.reminder_ledger"),
+                      onClick: () =>
+                          router.visit("/account/settings/reminder-ledger"),
+                  },
+              ]
+            : []),
         {
             type: "divider",
         },

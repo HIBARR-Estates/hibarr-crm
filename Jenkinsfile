@@ -193,13 +193,18 @@ pipeline {
                                 echo 'Run once: sudo bash ${LIVE_LINK}/scripts/setup-grpc-staging.sh YOUR_GRPC_DOMAIN'
                             fi
 
-                            echo 'Step 8: Restart queue workers (required for atomic deploys)...'
-                            # queue:restart only signals graceful exit; supervisor ensures workers
-                            # pick up the new release path immediately.
+                            echo 'Step 8: Ensure reminder queues + Laravel scheduler, then restart workers...'
+                            # Re-apply supervisor queue list (incl. reminders-prepare/send) and
+                            # ensure cron runs schedule:run for reminders:prepare / reminders:send-due.
+                            # queue:restart alone is not enough — workers must listen to those queues.
                             if [ "$ENV_NAME" = "production" ]; then
-                                sudo supervisorctl restart hibarr_crm:* hibarr_crm_expose:* || true
+                                LIVE_LINK="$LIVE_LINK" bash "$LIVE_LINK/scripts/fix_for_supervisor_atom_deploy_prod.sh" || true
+                                bash "$LIVE_LINK/scripts/ensure_laravel_scheduler_cron.sh" "$LIVE_LINK/artisan" || true
+                                sudo supervisorctl restart hibarr_crm_expose:* || true
                             else
-                                sudo supervisorctl restart hibarr_crm_staging:* hibarr_crm_staging_expose:* || true
+                                LIVE_LINK="$LIVE_LINK" bash "$LIVE_LINK/scripts/fix_for_supervisoc_atom_deploy_staging.sh" || true
+                                bash "$LIVE_LINK/scripts/ensure_laravel_scheduler_cron.sh" "$LIVE_LINK/artisan" || true
+                                sudo supervisorctl restart hibarr_crm_staging_expose:* || true
                             fi
 
                             echo 'Step 9: Cleanup old deployments...'

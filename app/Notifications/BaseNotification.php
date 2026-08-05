@@ -4,6 +4,7 @@ namespace App\Notifications;
 
 use App\Models\GlobalSetting;
 use App\Models\SmtpSetting;
+use App\Support\FeatureFlags;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -12,6 +13,7 @@ use Illuminate\Notifications\Messages\SlackMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Config;
+use Symfony\Component\Mime\Email;
 
 class BaseNotification extends Notification implements ShouldQueue
 {
@@ -20,11 +22,29 @@ class BaseNotification extends Notification implements ShouldQueue
 
     protected $company = null;
     protected $slack = null;
-    /**
-     * When true, notification via() implementations should avoid the `mail` channel.
-     * This allows bulk actions to suppress per-record transactional emails while keeping database notifications.
-     */
     protected bool $suppressBulkTransactionalEmails = false;
+    // Resolved at HTTP dispatch time so queue workers don't call the flag service.
+    protected bool $unsRoutingEnabled = false;
+
+    protected function initUnsRouting(): void
+    {
+        $this->unsRoutingEnabled = FeatureFlags::enabled('crm.notification-service-routing');
+    }
+
+    /**
+     * Attach a Plunk template ID and variables to the mail message via custom
+     * Symfony headers so UnsEmailPayloadMapper can switch to templateSlug mode.
+     * The headers are harmless on the SMTP fallback path — they're just ignored.
+     *
+     * @param array<string, mixed> $variables
+     */
+    protected function attachPlunkTemplate(MailMessage $build, string $templateId, array $variables): void
+    {
+        $build->withSymfonyMessage(function (Email $message) use ($templateId, $variables): void {
+            $message->getHeaders()->addTextHeader('X-Plunk-Template-Id', $templateId);
+            $message->getHeaders()->addTextHeader('X-Plunk-Template-Variables', base64_encode((string) json_encode($variables)));
+        });
+    }
 
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
@@ -79,6 +99,12 @@ class BaseNotification extends Notification implements ShouldQueue
 
         // Initialize a mail message instance
         $build = (new MailMessage);
+
+        if ($this->unsRoutingEnabled) {
+            $build->withSymfonyMessage(static function (Email $message): void {
+                $message->getHeaders()->addTextHeader('X-Uns-Route', 'true');
+            });
+        }
 
         // Set default reply name and email to SMTP settings
         $replyName = $companyName = $smtpSetting->mail_from_name;

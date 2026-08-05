@@ -48,6 +48,8 @@ class DealActivityNotification extends BaseNotification
         $this->emailSetting = EmailNotificationSetting::where('company_id', $this->company->id)
             ->where('slug', 'deal-activity-notification')
             ->first();
+
+        $this->initUnsRouting();
     }
 
     /**

@@ -144,6 +144,8 @@ class DeveloperProject extends BaseModel
         'facilities',
         'distances',
         'is_hidden',
+        'remind_at',
+        'reminders',
     ];
 
     /**
@@ -174,6 +176,8 @@ class DeveloperProject extends BaseModel
         'facilities' => 'array',
         'distances' => 'array',
         'is_hidden' => 'boolean',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
     ];
 
     /**

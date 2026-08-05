@@ -665,7 +665,8 @@ type PhoneInputParts = {
 /**
  * Serialize antd-phone-input onChange value while respecting the original stored format.
  * - When PhoneInput provides a countryCode, always emit E.164 (+prefix).
- * - When the library drops countryCode but the original was international, keep the original.
+ * - When the library drops countryCode but the original was international, keep the original
+ *   only if the user hasn't entered a new national number yet (avoids wiping in-progress edits).
  * - Local numbers without a country code keep local formatting (no forced +).
  */
 export function serializePhoneInputValue(
@@ -702,8 +703,12 @@ export function serializePhoneInputValue(
         return `+${fullDigits}`;
     }
 
-    if (originalHasPlus && originalDigits) {
-        return normalizedOriginal;
+    // Library sometimes omits countryCode mid-edit; only fall back to the
+    // original international value when the user hasn't typed a new number yet.
+    if (originalHasPlus && originalDigits && !phoneNum && !areaCode) {
+        return normalizedOriginal.startsWith("+")
+            ? normalizedOriginal
+            : `+${originalDigits}`;
     }
 
     if (areaCode && withArea) {
@@ -715,6 +720,39 @@ export function serializePhoneInputValue(
     }
 
     return normalizedOriginal || originalRaw;
+}
+
+/**
+ * Normalize a pasted phone string to E.164 when it includes a country code,
+ * otherwise return digits only. Used to bypass antd-phone-input's country mask,
+ * which truncates pasted digits that don't fit the currently selected mask
+ * (commonly drops the last 1–2 digits when pasting an international number
+ * while another country is selected).
+ */
+export function normalizePastedPhoneNumber(pasted: string): string {
+    const trimmed = pasted.trim();
+    if (!trimmed) return "";
+
+    const digits = trimmed.replace(/\D/g, "");
+    if (!digits) return "";
+
+    // Explicit + / 00 international prefix → keep full digit string as E.164.
+    if (trimmed.startsWith("+") || trimmed.startsWith("00")) {
+        const intlDigits = trimmed.startsWith("00")
+            ? digits.replace(/^00/, "")
+            : digits;
+        return intlDigits ? `+${intlDigits}` : "";
+    }
+
+    // Long enough to be country-code + national number (e.g. 905338773001).
+    // Leading 0 = local trunk prefix (e.g. 0533…), not a country code — leave
+    // digit-only so the active country mask can apply without truncation from
+    // a bogus "+0…" parse.
+    if (digits.length >= 11 && !digits.startsWith("0")) {
+        return `+${digits}`;
+    }
+
+    return digits;
 }
 
 // --- Format Phone Number

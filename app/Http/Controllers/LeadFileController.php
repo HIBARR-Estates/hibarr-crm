@@ -59,8 +59,17 @@ class LeadFileController extends AccountBaseController
 
         $createdFiles = [];
 
-        if ($request->hasFile('file')) {
-            foreach ($request->file as $fileData) {
+        $uploaded = $request->file('file');
+        if ($uploaded instanceof \Illuminate\Http\UploadedFile) {
+            $uploaded = [$uploaded];
+        }
+
+        if (is_array($uploaded)) {
+            foreach ($uploaded as $fileData) {
+                if (!$fileData instanceof \Illuminate\Http\UploadedFile) {
+                    continue;
+                }
+
                 $file = new DealFile();
 
                 $file->deal_id = $request->lead_id;

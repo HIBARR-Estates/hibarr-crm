@@ -179,6 +179,7 @@ deploy-staging:
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \
+	php artisan reminders:seed-entity-defaults && \
 	$(MAKE) queue-restart
 
 deploy-production:
@@ -191,6 +192,7 @@ deploy-production:
 	$(MAKE) composer-install && \
 	$(MAKE) npm-build && \
 	$(MAKE) migrate && \
+	php artisan reminders:seed-entity-defaults && \
 	php artisan optimize:clear && \
 	$(MAKE) queue-restart
 
@@ -209,12 +211,29 @@ build-artifact:
 finalize-deploy:
 	$(MAKE) ensure-storage
 	php artisan migrate --force
+	# Idempotent: company EntityReminderDefault + ReminderEmailTemplate rows
+	php artisan reminders:seed-entity-defaults
 	php artisan queue:restart
 	php artisan translations:clear
 	# Clear old junk but do NOT cache yet (Jenkins does that after the symlink switch)
 	php artisan cache:clear
 	php artisan config:clear
 	php artisan route:clear
+
+# Ensure supervisor workers listen to reminder queues (staging)
+ensure-queue-workers-staging:
+	LIVE_LINK=$(PROJECT_DIR_STAGING) bash scripts/fix_for_supervisoc_atom_deploy_staging.sh
+
+# Ensure supervisor workers listen to reminder queues (production)
+ensure-queue-workers-production:
+	LIVE_LINK=$(PROJECT_DIR) bash scripts/fix_for_supervisor_atom_deploy_prod.sh
+
+# Install * * * * * schedule:run for the live symlink (reminders:prepare / send-due)
+ensure-scheduler-cron-staging:
+	bash scripts/ensure_laravel_scheduler_cron.sh $(PROJECT_DIR_STAGING)/artisan
+
+ensure-scheduler-cron-production:
+	bash scripts/ensure_laravel_scheduler_cron.sh $(PROJECT_DIR)/artisan
 
 # ------------------------------------
 # gRPC Server Setup (one-time on staging/prod)

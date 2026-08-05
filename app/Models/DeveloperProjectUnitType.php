@@ -194,6 +194,8 @@ class DeveloperProjectUnitType extends BaseModel
         'has_restrictions',
         'restriction_notes',
         'order',
+        'remind_at',
+        'reminders',
     ];
 
     // ================================================================
@@ -236,6 +238,8 @@ class DeveloperProjectUnitType extends BaseModel
         'is_sold_out' => 'boolean',
         'completion_date' => 'date',
         'order' => 'integer',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
     ];
 
     // ================================================================

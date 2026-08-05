@@ -17,6 +17,13 @@ class PatchRequest extends CoreRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('salutation') && $this->salutation === '') {
+            $this->merge(['salutation' => null]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      */
@@ -30,10 +37,13 @@ class PatchRequest extends CoreRequest
             // stays non-nullable — clearing it should surface a friendly
             // validation error rather than a DB constraint failure.
             'client_name' => 'sometimes|string|max:255',
-            'client_email' => 'nullable|email|max:255',
-            'mobile' => 'nullable|string|max:20',
-            'cell' => 'sometimes|nullable|string|max:20',
-            'office' => 'sometimes|nullable|string|max:20',
+            'client_email' => 'nullable|email:rfc,strict|max:255',
+            'mobile' => 'nullable|string|max:100',
+            'cell' => 'sometimes|nullable|string|max:100',
+            'office' => 'sometimes|nullable|string|max:100',
+            'client_whatsapp' => 'sometimes|nullable|string|max:100',
+            'client_telegram' => 'sometimes|nullable|string|max:100',
+            'client_instagram' => 'sometimes|nullable|string|max:100',
             'company_name' => 'sometimes|nullable|string|max:255',
             'website' => 'sometimes|nullable|url|max:255',
             'address' => 'sometimes|nullable|string|max:500',

@@ -93,6 +93,9 @@ export default function WorkspaceContextRail({
     const phone = formatPhoneNumber(contact?.mobile || contact?.cell || null);
     const leadUrl = contact?.id ? route("lead-contact.show", contact.id) : null;
     const leadSource = contact?.lead_source?.type || null;
+    // Match Lead header: only show a custom uploaded avatar (not Gravatar).
+    const leadPhotoUrl =
+        contact?.image && contact?.image_url ? contact.image_url : null;
 
     const copyEmail = async () => {
         if (!email) return;
@@ -131,7 +134,11 @@ export default function WorkspaceContextRail({
                             href={leadUrl ?? "#"}
                             className="mb-2.5 flex items-center gap-2.5 text-inherit no-underline"
                         >
-                            <DealAvatar size={34} initials={initialsFromName(leadName)} />
+                            <DealAvatar
+                                size={34}
+                                initials={initialsFromName(leadName)}
+                                src={leadPhotoUrl}
+                            />
                             <div>
                                 <div className="text-sm font-semibold text-[#1a1f2e]">
                                     {leadName}

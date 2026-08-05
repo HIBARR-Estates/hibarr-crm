@@ -62,9 +62,10 @@ export default function useDealItinerary(dealId: number) {
                 {
                     onSuccess: (response) => {
                         if (!isSuccessResponse(response) || !response.data) {
-                            // Fallback: pull the fresh deal (includes itineraries).
+                            // Fallback: refresh whichever page prop carries
+                            // itineraries (Deal show → deal, Lead show → deals).
                             router.reload({
-                                only: ["deal"],
+                                only: ["deal", "deals"],
                                 onSuccess: () => onSuccess?.(),
                             });
                             return;

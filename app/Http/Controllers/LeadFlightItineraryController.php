@@ -90,7 +90,9 @@ class LeadFlightItineraryController extends Controller
 
             'lead_id', 'deal_id', 'direction', 'airport_name', 
 
-            'flight_number', 'status', 'is_transfer_required', 'ticket_image_url'
+            'flight_number', 'status', 'is_transfer_required', 'ticket_image_url',
+
+            'remind_at', 'reminders',
 
         ]);
 
@@ -197,9 +199,14 @@ class LeadFlightItineraryController extends Controller
                     $returnLeg['flight_date'] = Carbon::parse($request->return_flight_date)->toDateTimeString();
                 }
 
-                LeadFlightItinerary::create($returnLeg);
+                $returnCreated = LeadFlightItinerary::create($returnLeg);
+                app(\App\Services\Reminders\FlightItineraryReminderSync::class)->syncFromItinerary($returnCreated->fresh(['lead', 'deal.leadAgent']));
             }
         });
+
+        if ($created) {
+            app(\App\Services\Reminders\FlightItineraryReminderSync::class)->syncFromItinerary($created->fresh(['lead', 'deal.leadAgent']));
+        }
 
         // Axios / redesign workspace expects the created leg so the list can
         // update without a full page reload (redirect alone leaves local state stale).
@@ -252,7 +259,9 @@ class LeadFlightItineraryController extends Controller
 
             'direction', 'airport_name', 'flight_number', 
 
-            'status', 'is_transfer_required', 'ticket_image_url'
+            'status', 'is_transfer_required', 'ticket_image_url',
+
+            'remind_at', 'reminders',
 
         ]);
 
@@ -284,6 +293,9 @@ class LeadFlightItineraryController extends Controller
 
         $leadFlightItinerary->update($data);
 
+        app(\App\Services\Reminders\FlightItineraryReminderSync::class)
+            ->syncFromItinerary($leadFlightItinerary->fresh(['lead', 'deal.leadAgent']));
+
     
 
         return redirect()->back()->with('success', __('pages.flight_itinerary.messages.updated'));
@@ -303,6 +315,9 @@ class LeadFlightItineraryController extends Controller
         }
 
 
+
+        app(\App\Services\Reminders\FlightItineraryReminderSync::class)
+            ->cancelForItinerary($leadFlightItinerary);
 
         $leadFlightItinerary->delete();
 

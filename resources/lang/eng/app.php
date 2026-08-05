@@ -121,6 +121,8 @@ return array(
     'dr' => 'Dr.',
     'sir' => 'Sir',
     'madam' => 'Madam',
+    'herr' => 'Herr',
+    'frau' => 'Frau',
     'invoiceGenerate' => 'Invoice Generated',
     'leave' => 'Leave',
     'holiday' => 'Holiday ( :name)',
@@ -212,7 +214,12 @@ return array(
         ],
         'settings_menu' => [
             'reminder_preferences' => 'Reminder Preferences',
+            'entity_reminder_defaults' => 'Reminder Defaults',
+            'reminder_ledger' => 'Reminders',
         ],
+        'reminderDefaults' => 'Reminder Defaults',
+        'entityReminderDefaults' => 'Reminder Defaults',
+        'reminderLedger' => 'Reminders',
         'customFieldCategories' => 'Custom Field Categories',
         'customFields' => 'Custom Fields',
         'events' => 'Events',
@@ -1661,5 +1668,8 @@ return array(
 
     'settings' => [
         'reminder_preferences' => 'Reminder Preferences',
+        'entity_reminder_defaults' => 'Reminder Defaults',
+        'reminder_defaults' => 'Reminder Defaults',
+        'reminder_ledger' => 'Reminders',
     ],
 );

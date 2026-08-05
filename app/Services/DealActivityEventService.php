@@ -450,6 +450,14 @@ class DealActivityEventService
         ]);
     }
 
+    public function recordAnalysisCompleted(Deal $deal, string $completionType, int $unfilledCount): void
+    {
+        $this->record('deal_analysis_completed', $deal, [
+            'completion_type' => $completionType,
+            'unfilled_fields' => $unfilledCount,
+        ]);
+    }
+
     // ─── Core recording logic ────────────────────────────────────
 
     /**

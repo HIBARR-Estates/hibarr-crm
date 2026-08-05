@@ -1,34 +1,69 @@
 import { useEffect, useState } from "react";
-import useTranslation from "@/Hooks/useTranslation";
-
-/** Number of phrases in `pages.entity_summary.thinking`. */
-const PHRASE_COUNT = 11;
 
 interface AiThinkingIndicatorProps {
     size?: number;
     className?: string;
+    /** denser “card body” loader with skeleton lines (redesign). */
+    variant?: "inline" | "panel";
 }
 
-/** Rotating-phrase + shimmer-text "AI is working" indicator — used wherever
- * an entity summary is being generated or regenerated, instead of a generic
- * content skeleton (which reads as "slow query", not "a model is thinking"). */
+const PHRASES = [
+    "Reading lead activity…",
+    "Checking recent notes…",
+    "Reviewing open tasks…",
+    "Weighing risk signals…",
+    "Drafting key facts…",
+    "Summarizing status…",
+    "Finding the next step…",
+    "Almost there…",
+];
+
+/**
+ * Loading state for entity AI summaries.
+ * Prefer concrete English phrases (always available) over lang-file indexes that
+ * often render as raw keys when translations aren't wired on the page.
+ */
 export default function AiThinkingIndicator({
     size = 18,
     className,
+    variant = "inline",
 }: AiThinkingIndicatorProps) {
-    const { t } = useTranslation();
-    // Random start so short generations don't always show the same first two
-    // phrases — otherwise most of the list is never seen.
     const [phraseIndex, setPhraseIndex] = useState(() =>
-        Math.floor(Math.random() * PHRASE_COUNT),
+        Math.floor(Math.random() * PHRASES.length),
     );
 
     useEffect(() => {
         const interval = window.setInterval(() => {
-            setPhraseIndex((current) => (current + 1) % PHRASE_COUNT);
-        }, 1800);
+            setPhraseIndex((current) => (current + 1) % PHRASES.length);
+        }, 2000);
         return () => window.clearInterval(interval);
     }, []);
+
+    if (variant === "panel") {
+        return (
+            <div
+                className={`entity-ai-summary-loading-panel${className ? ` ${className}` : ""}`}
+                role="status"
+                aria-live="polite"
+            >
+                <div className="entity-ai-summary-loading-panel__row">
+                    <span
+                        className="entity-ai-summary-loading-panel__spinner"
+                        aria-hidden="true"
+                    />
+                    <span className="entity-ai-summary-loading-panel__label">
+                        {PHRASES[phraseIndex]}
+                    </span>
+                </div>
+                <div className="entity-ai-summary-loading-panel__skeleton" aria-hidden="true">
+                    <span className="entity-ai-summary-loading-panel__line entity-ai-summary-loading-panel__line--lg" />
+                    <span className="entity-ai-summary-loading-panel__line" />
+                    <span className="entity-ai-summary-loading-panel__line entity-ai-summary-loading-panel__line--md" />
+                    <span className="entity-ai-summary-loading-panel__line entity-ai-summary-loading-panel__line--sm" />
+                </div>
+            </div>
+        );
+    }
 
     return (
         <span
@@ -50,17 +85,8 @@ export default function AiThinkingIndicator({
                     <path d="M12 3l1.9 4.8L19 9.5l-4.2 2.9L15 18l-3-3-3 3 .2-5.6L5 9.5l5.1-1.7z" />
                 </svg>
             </span>
-            <span className="entity-ai-summary-loading__text entity-ai-summary-loading__text--shimmer">
-                {t(`pages.entity_summary.thinking.${phraseIndex}`)}
-                <span className="entity-ai-summary-loading__dot" aria-hidden="true">
-                    .
-                </span>
-                <span className="entity-ai-summary-loading__dot" aria-hidden="true">
-                    .
-                </span>
-                <span className="entity-ai-summary-loading__dot" aria-hidden="true">
-                    .
-                </span>
+            <span className="entity-ai-summary-loading__text">
+                {PHRASES[phraseIndex]}
             </span>
         </span>
     );

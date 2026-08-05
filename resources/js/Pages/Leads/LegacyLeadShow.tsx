@@ -277,7 +277,7 @@ export default function LegacyLeadShow({
             title={leadName}
             breadcrumbs={[
                 {
-                    name: t("pages.leads.contacts"),
+                    name: t("app.menu.lead"),
                     url: route("lead-contact.index"),
                 },
                 { name: leadName },

@@ -271,9 +271,11 @@ export const useQualificationFlow = ({
         await persistNavigation(prev.key);
     }, [canGoBack, currentIndex, persistNavigation, visibleSegments]);
 
-    const goNext = useCallback(async () => {
+    const goNext = useCallback(async (options?: { skipValidation?: boolean }) => {
         if (!currentSegment) return;
-        if (validationError) {
+        // `skipValidation` backs the Skip control — the agent may move past a
+        // question the lead would not answer without inventing a value for it.
+        if (validationError && !options?.skipValidation) {
             message.warning("Please answer this question before continuing");
             return;
         }

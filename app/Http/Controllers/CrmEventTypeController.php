@@ -45,9 +45,14 @@ class CrmEventTypeController extends Controller
             $query->whereHas('category', fn ($q) => $q->where('slug', $request->input('category_slug')));
         }
 
-        // Filter by model type
+        // Filter by model type (accept single- or double-escaped FQCNs).
+        // Null model_type = custom types usable on any entity.
         if ($request->filled('model_type')) {
-            $query->where('model_type', $request->input('model_type'));
+            $modelType = preg_replace('/\\\\+/', '\\', (string) $request->input('model_type'))
+                ?? (string) $request->input('model_type');
+            $query->where(function ($q) use ($modelType) {
+                $q->where('model_type', $modelType)->orWhereNull('model_type');
+            });
         }
 
         $eventTypes = $query->orderBy('category_id')->orderBy('name')->get();

@@ -16,7 +16,9 @@ import type { DealMeetingCreateInput } from "./useDealMeetingCreate";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
-} from "../components/workspace/meetingFormUtils";
+    locationForPayload,
+    meetingLinkForPayload,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
 import { useDealWorkspace } from "../context/DealWorkspaceContext";
 
 interface FollowUpUpdatePayload {
@@ -62,9 +64,14 @@ export default function useDealMeetingUpdate(deal: Deal) {
                 next_follow_up_date: formatMeetingDateForApi(input.date),
                 start_time: formatMeetingTimeForApi(input.startTime),
                 meeting_type_id: input.meetingTypeId ?? undefined,
-                location: input.platform,
-                meeting_link:
-                    input.platform === "zoho" ? input.meetingLink.trim() : "",
+                location: locationForPayload(
+                    input.platform,
+                    input.locationDetail,
+                ),
+                meeting_link: meetingLinkForPayload(
+                    input.platform,
+                    input.meetingLink,
+                ),
                 duration: input.duration,
                 reminders: input.reminders,
                 remark: input.remark.trim(),

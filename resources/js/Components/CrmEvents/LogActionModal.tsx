@@ -13,6 +13,7 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import utc from "dayjs/plugin/utc";
+import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { isLoading as _isLoading } from "@/lib/utils";
@@ -51,11 +52,13 @@ export default function LogActionModal({
 }: Props) {
     const [form] = Form.useForm();
     const [selectedSlug, setSelectedSlug] = useState<string | null>(null);
+    const queryClient = useQueryClient();
 
     /* ---- Fetch event types ------------------------------------------------ */
     const { data: typesResponse, status: typesStatus } =
         useApiQuery<CrmEventTypesResponse>({
             path: "/api/v1/crm-event-types",
+            params: { model_type: modelType },
             options: { enabled: open },
         });
 
@@ -148,7 +151,16 @@ export default function LogActionModal({
             };
 
             mutation.mutate(payload, {
-                onSuccess: () => {
+                onSuccess: (response) => {
+                    // 201 success or 202 accepted (async queue) both count.
+                    const ok =
+                        response?.status === "success" ||
+                        response?.status === "accepted";
+                    if (!ok) return;
+
+                    void queryClient.invalidateQueries({
+                        queryKey: ["/api/v1/crm-events"],
+                    });
                     form.resetFields();
                     setSelectedSlug(null);
                     onSuccess();
@@ -157,7 +169,7 @@ export default function LogActionModal({
 
                 onError: (error) => {
                     console.error("Error logging event:", error);
-                    onClose();
+                    // Keep the modal open so the user can retry / see the toast.
                 },
             });
         } catch {

@@ -62,6 +62,8 @@ class DeveloperProjectUnitTypeController extends Controller
 
         $unitType->save();
 
+        app(\App\Services\Reminders\UnitReminderSync::class)->syncFromUnitType($unitType->fresh());
+
         return Reply::successWithData('Unit type created successfully', [
             'unit_type' => $unitType->load('assets'),
         ]);
@@ -103,6 +105,8 @@ class DeveloperProjectUnitTypeController extends Controller
 
         $unitType->update($incoming);
 
+        app(\App\Services\Reminders\UnitReminderSync::class)->syncFromUnitType($unitType->fresh());
+
         return Reply::successWithData('Unit type updated successfully', [
             'unit_type' => $unitType->fresh('assets'),
         ]);
@@ -117,6 +121,7 @@ class DeveloperProjectUnitTypeController extends Controller
             ->findOrFail($projectId);
 
         $unitType = $project->unitTypes()->findOrFail($unitTypeId);
+        app(\App\Services\Reminders\UnitReminderSync::class)->cancelForUnitType($unitType);
         $unitType->delete();
 
         return Reply::success('Unit type deleted successfully');
@@ -182,6 +187,8 @@ class DeveloperProjectUnitTypeController extends Controller
             'terrace_balcony_sqm' => 'nullable|numeric|min:0',
             'plot_size_sqm' => 'nullable|numeric|min:0',
             'completion_date' => 'nullable|date',
+            'remind_at' => 'nullable|date',
+            'reminders' => 'nullable|array',
             'outside_features' => 'nullable|array',
             'outside_features.*' => 'string|in:' . implode(',', array_keys(DeveloperProjectUnitType::OUTSIDE_FEATURES)),
             'inside_features' => 'nullable|array',
@@ -219,6 +226,8 @@ class DeveloperProjectUnitTypeController extends Controller
             'terrace_balcony_sqm',
             'plot_size_sqm',
             'completion_date',
+            'remind_at',
+            'reminders',
             'outside_features',
             'inside_features',
             'description',

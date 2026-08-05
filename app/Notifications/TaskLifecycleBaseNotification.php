@@ -19,6 +19,7 @@ abstract class TaskLifecycleBaseNotification extends BaseNotification
         $this->task = $task;
         $this->company = $task->company;
         $this->emailSetting = $this->resolveEmailSetting();
+        $this->initUnsRouting();
     }
 
     abstract protected function resolveEmailSetting(): ?EmailNotificationSetting;

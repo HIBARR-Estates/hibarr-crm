@@ -1,18 +1,18 @@
-import { useEffect, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
+import EditMeetingModal from "@/Components/Redesign/modals/EditMeetingModal";
+import type { MeetingFormState } from "@/Components/Redesign/meeting/meetingFormUtils";
+import {
+    requiresManualMeetingLink,
+    requiresMeetingParticipants,
+    requiresPhysicalLocationDetail,
+} from "@/Components/Redesign/meeting/meetingFormUtils";
+import { buildMeetingFormFromFollowup } from "./meetingFormUtils";
 import useDealMeetingUpdate from "../../hooks/useDealMeetingUpdate";
 import type { DealMeetingCreateInput } from "../../hooks/useDealMeetingCreate";
-import DealButton from "../primitives/DealButton";
-import { DealModal } from "../primitives/DealModal";
-import {
-    MeetingFormState,
-    buildMeetingFormFromFollowup,
-} from "./meetingFormUtils";
-import DealMeetingFormFields from "./meeting/DealMeetingFormFields";
 
 interface DealEditMeetingModalProps {
     open: boolean;
@@ -30,6 +30,7 @@ function toSubmitInput(form: MeetingFormState): DealMeetingCreateInput {
         endTime: form.endTime,
         duration: form.duration,
         platform: form.platform,
+        locationDetail: form.locationDetail,
         meetingLink: form.meetingLink,
         participants: form.participants,
         remark: form.remark,
@@ -44,30 +45,27 @@ export default function DealEditMeetingModal({
     followup,
     meetingTypes,
 }: DealEditMeetingModalProps) {
-    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
-    const [form, setForm] = useState<MeetingFormState | null>(null);
     const [localErrors, setLocalErrors] = useState<string[]>([]);
     const { updateMeeting, isUpdating, errors, clearErrors } =
         useDealMeetingUpdate(deal);
 
-    useEffect(() => {
-        if (open && followup) {
-            setForm(buildMeetingFormFromFollowup(followup, deal, currentUserId));
-            setLocalErrors([]);
-            clearErrors();
-        }
-    }, [clearErrors, currentUserId, deal, followup, open]);
+    const initialForm = useMemo(() => {
+        if (!open || !followup) return null;
+        return buildMeetingFormFromFollowup(followup, deal, currentUserId);
+    }, [open, followup, deal, currentUserId]);
 
     const handleClose = () => {
         if (isUpdating) return;
+        setLocalErrors([]);
+        clearErrors();
         onClose();
     };
 
-    const handleSubmit = () => {
-        if (!form || !followup) return;
+    const handleSubmit = (form: MeetingFormState) => {
+        if (!followup) return;
 
         const validationErrors: string[] = [];
         if (!form.meetingTypeId) {
@@ -77,10 +75,29 @@ export default function DealEditMeetingModal({
         if (!form.startTime) {
             validationErrors.push("Please select a start time.");
         }
-        if (form.platform === "zoho" && form.participants.length === 0) {
+        if (
+            requiresMeetingParticipants(form.platform) &&
+            form.participants.length === 0
+        ) {
             validationErrors.push(
-                "At least one participant is required for video meetings.",
+                "At least one participant is required for Zoho Meeting.",
             );
+        }
+
+        if (
+            requiresManualMeetingLink(form.platform) &&
+            !form.meetingLink.trim()
+        ) {
+            validationErrors.push(
+                "Please paste a meeting link from your video provider.",
+            );
+        }
+
+        if (
+            requiresPhysicalLocationDetail(form.platform) &&
+            !form.locationDetail.trim()
+        ) {
+            validationErrors.push("Please enter the meeting location.");
         }
 
         if (validationErrors.length > 0) {
@@ -92,56 +109,20 @@ export default function DealEditMeetingModal({
         updateMeeting(followup.id, toSubmitInput(form), handleClose);
     };
 
-    if (!form) return null;
-
-    const displayErrors = [...localErrors, ...errors];
-
     return (
-        <DealModal
+        <EditMeetingModal
             open={open}
-            title={t("pages.deals.workspace.meetings.edit_meeting")}
             onClose={handleClose}
-            footer={
-                <>
-                    <DealButton
-                        variant="ghost"
-                        onClick={handleClose}
-                        disabled={isUpdating}
-                    >
-                        {t("pages.deals.common.cancel")}
-                    </DealButton>
-                    <DealButton
-                        variant="primary"
-                        onClick={handleSubmit}
-                        loading={isUpdating}
-                        disabled={isUpdating}
-                    >
-                        {t("pages.deals.common.save_changes")}
-                    </DealButton>
-                </>
-            }
-        >
-            {displayErrors.length > 0 && (
-                <div className="mb-3 space-y-1">
-                    {displayErrors.map((error, index) => (
-                        <p key={index} className="text-xs text-red-600">
-                            {td(error)}
-                        </p>
-                    ))}
-                </div>
-            )}
-
-            <DealMeetingFormFields
-                form={form}
-                onChange={(patch) =>
-                    setForm((current) =>
-                        current ? { ...current, ...patch } : current,
-                    )
-                }
-                meetingTypes={meetingTypes}
-                disabled={isUpdating}
-                showExistingMeetingLinkHint={Boolean(form.meetingLink)}
-            />
-        </DealModal>
+            saving={isUpdating}
+            errors={[...localErrors, ...errors]}
+            meetingTypes={meetingTypes}
+            initialForm={initialForm}
+            onSubmit={handleSubmit}
+            labels={{
+                title: t("pages.deals.workspace.meetings.edit_meeting"),
+                cancel: t("pages.deals.common.cancel"),
+                submit: t("pages.deals.common.save_changes"),
+            }}
+        />
     );
 }

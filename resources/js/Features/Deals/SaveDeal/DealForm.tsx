@@ -79,6 +79,10 @@ const DealForm: React.FC<DealFormProps> = ({
         formReferenceData.pipelineFieldScopeMap ||
         props.pipelineFieldScopeMap ||
         {};
+    const hideAllCategoriesPipelineIds: Array<number | string> =
+        formReferenceData.hideAllCategoriesPipelineIds ||
+        props.hideAllCategoriesPipelineIds ||
+        [];
     const stages = formReferenceData.stages || props.stages || [];
     const { mode: fieldViewMode, setMode: setFieldViewMode, showAllFields } =
         useDealFieldViewMode();
@@ -107,6 +111,8 @@ const DealForm: React.FC<DealFormProps> = ({
                 allCustomFieldCategories,
                 pipelineCategoryScopeMap,
                 selectedPipelineId,
+                null,
+                hideAllCategoriesPipelineIds,
             );
         }
 
@@ -116,6 +122,8 @@ const DealForm: React.FC<DealFormProps> = ({
             selectedPipelineId,
             selectedStageId,
             stages,
+            null,
+            hideAllCategoriesPipelineIds,
         );
     }, [
         showAllFields,
@@ -124,6 +132,7 @@ const DealForm: React.FC<DealFormProps> = ({
         allCustomFieldCategories,
         pipelineCategoryScopeMap,
         stages,
+        hideAllCategoriesPipelineIds,
     ]);
 
     useEffect(() => {

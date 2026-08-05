@@ -243,9 +243,7 @@ export default function DealInfoSectionPanel({
                         fieldType="date"
                         onSave={(value) => onFieldUpdate("close_date", value)}
                         formatValue={(value) =>
-                            value
-                                ? formatCompanyDate(String(value))
-                                : t("pages.deals.common.not_set")
+                            value ? formatCompanyDate(String(value)) : "--"
                         }
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
@@ -265,7 +263,7 @@ export default function DealInfoSectionPanel({
                                 </span>
                             ) : (
                                 <span className="italic text-gray-400">
-                                    {t("pages.deals.common.not_set")}
+                                    --
                                 </span>
                             )
                         }
@@ -372,9 +370,7 @@ export default function DealInfoSectionPanel({
                             )
                         }
                         formatValue={(value) =>
-                            value
-                                ? formatCompanyDate(String(value))
-                                : t("pages.deals.common.not_set")
+                            value ? formatCompanyDate(String(value)) : "--"
                         }
                         alwaysEditing={editing}
                         onChange={(fieldName, value) =>
