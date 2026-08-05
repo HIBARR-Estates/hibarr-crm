@@ -27,9 +27,10 @@ export default function LeadItineraryModal({
 }: LeadItineraryModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
-    const { props } = usePage();
-    const showOcrScanner =
-        props.featureFlags?.[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
+    const page = usePage();
+    const featureFlags =
+        (page.props.featureFlags as Record<string, boolean> | undefined) ?? {};
+    const showOcrScanner = featureFlags[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const isEdit = Boolean(leg?.id);
     const { createLeg, isCreating, updateLeg, isUpdating } =
@@ -79,6 +80,10 @@ export default function LeadItineraryModal({
                 transferQuestion: ft("airport_transfer_required_question"),
                 yes: td("Yes"),
                 no: td("No"),
+                flightPlanImage: ft("flight_plan_image"),
+                uploadFlightPlan: ft("upload_flight_plan"),
+                removeFlightPlan: ft("remove_flight_plan"),
+                uploadingFlightPlan: ft("uploading_flight_plan"),
             }}
         />
     );

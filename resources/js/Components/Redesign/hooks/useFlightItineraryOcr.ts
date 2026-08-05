@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import axios from "axios";
-import { getFileUploadConfig } from "@/lib/config";
+import { getOlConfig } from "@/lib/config";
 import {
     GoogleVisionOcrRequestStatus,
     IFlightItineraryEntry,
@@ -33,8 +33,7 @@ function extractErrorMessage(error: unknown, fallback: string): string {
 
 /**
  * Uploads a flight ticket image to the OL flight-itinerary OCR endpoint
- * (same base URL / API key as the existing image upload flow — see
- * FileUploadService) and polls the job until it completes or fails.
+ * (MIX_OL_BASE_URL / MIX_OL_API_KEY) and polls until recognition completes.
  */
 export default function useFlightItineraryOcr() {
     const [scanState, setScanState] = useState<OcrScanState>("idle");
@@ -142,7 +141,8 @@ export default function useFlightItineraryOcr() {
             setFileUrl(null);
             setScanState("uploading");
 
-            const config = getFileUploadConfig();
+            // OCR lives on the OL API — not the generic file-upload service.
+            const config = getOlConfig();
             const formData = new FormData();
             formData.append("file", file);
 

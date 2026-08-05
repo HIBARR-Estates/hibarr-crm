@@ -1,12 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
-import { Select } from "antd";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Select, message } from "antd";
 import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import {
     FlightDirection,
     ILeadFlightItinerary,
 } from "@/Types/api/lead-flight-itinerary";
 import { FlightItineraryType, IFlightItineraryEntry } from "@/Types/api/ocr";
+import useFileUpload from "@/Hooks/useFileUpload";
 import Button from "@/Components/Redesign/primitives/Button";
+import FileDropzone from "@/Components/Redesign/primitives/FileDropzone";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import {
     REDESIGN_RADIUS as R,
@@ -156,6 +158,11 @@ export interface ItineraryModalLabels {
     transferQuestion: string;
     yes: string;
     no: string;
+    flightPlanImage: string;
+    uploadFlightPlan: string;
+    removeFlightPlan: string;
+    uploadingFlightPlan: string;
+    uploadFormatsHint?: string;
 }
 
 interface ItineraryModalProps {
@@ -180,6 +187,17 @@ export default function ItineraryModal({
 }: ItineraryModalProps) {
     const isEdit = Boolean(leg?.id);
     const [form, setForm] = useState(EMPTY_FORM);
+    const [isUploadingTicket, setIsUploadingTicket] = useState(false);
+
+    const {
+        uploadSingle,
+        aggregateProgress,
+        reset: resetUpload,
+    } = useFileUpload({
+        onError: (error) => {
+            message.error(error.message || "Failed to upload image");
+        },
+    });
 
     const { data: airportData, isLoading: airportsLoading } =
         useApiQuery<AirportsResponse>({
@@ -199,10 +217,32 @@ export default function ItineraryModal({
     useEffect(() => {
         if (!open) {
             setForm(EMPTY_FORM);
+            setIsUploadingTicket(false);
+            resetUpload();
             return;
         }
         setForm(leg ? formFromLeg(leg) : EMPTY_FORM);
-    }, [leg, open]);
+        setIsUploadingTicket(false);
+        resetUpload();
+    }, [leg, open, resetUpload]);
+
+    const handleTicketUpload = async (files: FileList | File[] | null) => {
+        const file = files?.[0];
+        if (!file || saving || isUploadingTicket) return;
+
+        setIsUploadingTicket(true);
+        try {
+            const result = await uploadSingle(file, "lead-flight-itineraries");
+            setForm((current) => ({
+                ...current,
+                ticket_image_url: result.downloadUrl ?? null,
+            }));
+        } catch {
+            // surfaced via useFileUpload onError
+        } finally {
+            setIsUploadingTicket(false);
+        }
+    };
 
     useEffect(() => {
         if (!open || isEdit || form.airport_name || airportOptions.length === 0) {
@@ -229,32 +269,32 @@ export default function ItineraryModal({
         ];
     }, [airportOptions, form.airport_name]);
 
-    const applyDetectedFlight = (
-        entry: IFlightItineraryEntry,
-        fileUrl: string | null,
-    ) => {
-        const detectedDirection = directionFromFlightType(entry.flightType);
-        const dateTime = splitFlightDateTime(entry.flightDateTime);
-        const airportText = ocrAirportText(entry);
-        const matchedAirport = airportText
-            ? matchAirportOption(airportText, selectOptions)
-            : "";
+    const applyDetectedFlight = useCallback(
+        (entry: IFlightItineraryEntry, fileUrl: string | null) => {
+            const detectedDirection = directionFromFlightType(entry.flightType);
+            const dateTime = splitFlightDateTime(entry.flightDateTime);
+            const airportText = ocrAirportText(entry);
+            const matchedAirport = airportText
+                ? matchAirportOption(airportText, selectOptions)
+                : "";
 
-        setForm((current) => ({
-            ...current,
-            direction: detectedDirection ?? current.direction,
-            flight_number: entry.flightNumber
-                ? entry.flightNumber.toUpperCase()
-                : current.flight_number,
-            airport_name: matchedAirport || current.airport_name,
-            date: dateTime?.date ?? current.date,
-            time: dateTime?.time ?? current.time,
-            ticket_image_url: fileUrl ?? current.ticket_image_url,
-        }));
-    };
+            setForm((current) => ({
+                ...current,
+                direction: detectedDirection ?? current.direction,
+                flight_number: entry.flightNumber
+                    ? entry.flightNumber.toUpperCase()
+                    : current.flight_number,
+                airport_name: matchedAirport || current.airport_name,
+                date: dateTime?.date ?? current.date,
+                time: dateTime?.time ?? current.time,
+                ticket_image_url: fileUrl ?? current.ticket_image_url,
+            }));
+        },
+        [selectOptions],
+    );
 
     const handleClose = () => {
-        if (saving) return;
+        if (saving || isUploadingTicket) return;
         onClose();
     };
 
@@ -279,6 +319,7 @@ export default function ItineraryModal({
 
     const canSubmit =
         !saving &&
+        !isUploadingTicket &&
         !!form.flight_number.trim() &&
         !!form.date &&
         !!form.airport_name;
@@ -293,7 +334,7 @@ export default function ItineraryModal({
                     <Button
                         variant="ghost"
                         onClick={handleClose}
-                        disabled={saving}
+                        disabled={saving || isUploadingTicket}
                     >
                         {labels.cancel}
                     </Button>
@@ -308,12 +349,65 @@ export default function ItineraryModal({
                 </>
             }
         >
-            {!isEdit && showOcrScanner && (
-                <ItineraryOcrScanner
-                    key={open ? "open" : "closed"}
-                    disabled={saving}
-                    onApply={applyDetectedFlight}
-                />
+            {/* Flag ON (create): OCR scanner → POST /ocr/flight-itineraries + poll.
+                Flag OFF / edit: plain storage upload of ticket_image_url only. */}
+            {!isEdit && showOcrScanner ? (
+                <>
+                    <ItineraryOcrScanner
+                        key={open ? "open" : "closed"}
+                        disabled={saving}
+                        onApply={applyDetectedFlight}
+                    />
+                    {form.ticket_image_url ? (
+                        <ModalField label={labels.flightPlanImage}>
+                            <TicketImagePreview
+                                url={form.ticket_image_url}
+                                alt={labels.flightPlanImage}
+                                removeLabel={labels.removeFlightPlan}
+                                disabled={saving || isUploadingTicket}
+                                onRemove={() =>
+                                    setForm((current) => ({
+                                        ...current,
+                                        ticket_image_url: null,
+                                    }))
+                                }
+                            />
+                        </ModalField>
+                    ) : null}
+                </>
+            ) : (
+                <ModalField label={labels.flightPlanImage}>
+                    {form.ticket_image_url ? (
+                        <TicketImagePreview
+                            url={form.ticket_image_url}
+                            alt={labels.flightPlanImage}
+                            removeLabel={labels.removeFlightPlan}
+                            disabled={saving || isUploadingTicket}
+                            onRemove={() =>
+                                setForm((current) => ({
+                                    ...current,
+                                    ticket_image_url: null,
+                                }))
+                            }
+                        />
+                    ) : (
+                        <FileDropzone
+                            multiple={false}
+                            accept="image/png,image/jpeg,image/webp"
+                            disabled={saving}
+                            isUploading={isUploadingTicket}
+                            uploadProgress={Math.round(
+                                aggregateProgress.overallProgress ?? 0,
+                            )}
+                            dropHint={labels.uploadFlightPlan}
+                            uploadingLabel={labels.uploadingFlightPlan}
+                            sizeHint={
+                                labels.uploadFormatsHint ?? "PNG, JPG, or WEBP"
+                            }
+                            onFilesSelected={handleTicketUpload}
+                        />
+                    )}
+                </ModalField>
             )}
 
             <ModalField label={labels.direction}>
@@ -464,5 +558,46 @@ export default function ItineraryModal({
                 </button>
             </div>
         </Modal>
+    );
+}
+
+function TicketImagePreview({
+    url,
+    alt,
+    removeLabel,
+    disabled,
+    onRemove,
+}: {
+    url: string;
+    alt: string;
+    removeLabel: string;
+    disabled?: boolean;
+    onRemove: () => void;
+}) {
+    return (
+        <div className="flex flex-col gap-2">
+            <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block"
+            >
+                <img
+                    src={url}
+                    alt={alt}
+                    className="max-h-40 rounded-md border border-solid object-contain"
+                    style={{ borderColor: T.BORDER }}
+                />
+            </a>
+            <Button
+                variant="ghost"
+                size="sm"
+                disabled={disabled}
+                onClick={onRemove}
+                className="self-start"
+            >
+                {removeLabel}
+            </Button>
+        </div>
     );
 }

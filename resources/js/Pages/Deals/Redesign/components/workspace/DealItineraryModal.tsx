@@ -24,9 +24,11 @@ export default function DealItineraryModal({
     leg = null,
 }: DealItineraryModalProps) {
     const { t } = useTranslation();
-    const { props } = usePage();
-    const showOcrScanner =
-        props.featureFlags?.[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
+    const page = usePage();
+    const featureFlags =
+        (page.props.featureFlags as Record<string, boolean> | undefined) ?? {};
+    // Remote flag must be true — otherwise the modal only does a plain ticket upload.
+    const showOcrScanner = featureFlags[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const isEdit = Boolean(leg?.id);
     const { createLeg, isCreating, updateLeg, isUpdating } =
@@ -74,6 +76,10 @@ export default function DealItineraryModal({
                 transferQuestion: ft("airport_transfer_required_question"),
                 yes: t("pages.deals.common.yes"),
                 no: t("pages.deals.common.no"),
+                flightPlanImage: ft("flight_plan_image"),
+                uploadFlightPlan: ft("upload_flight_plan"),
+                removeFlightPlan: ft("remove_flight_plan"),
+                uploadingFlightPlan: ft("uploading_flight_plan"),
             }}
         />
     );
