@@ -77,15 +77,50 @@ class ReminderNotification extends BaseNotification
             && push_setting()->beams_push_status === 'active'
             && isset($notifiable->id)
         ) {
+            [$pushTitle, $pushBody] = $this->resolvePushContent();
             $pushNotification = new \App\Http\Controllers\DashboardController;
             $pushNotification->sendPushNotifications(
                 [[$notifiable->id]],
-                $this->resolveSubjectHeading(),
-                $this->reminder->message ?? ''
+                $pushTitle,
+                $pushBody
             );
         }
 
         return $via;
+    }
+
+    /**
+     * Push title/body. Meeting pushes get the same countdown-aware wording as the
+     * participant email instead of the generic subject + raw remark.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function resolvePushContent(): array
+    {
+        if ($this->reminder->entity_type !== Reminder::ENTITY_MEETING) {
+            return [$this->resolveSubjectHeading(), $this->reminder->message ?? ''];
+        }
+
+        $followUp = $this->resolveFollowUp();
+        $timezone = $this->company->timezone ?? config('app.timezone');
+        $meetingAt = $followUp?->next_follow_up_date
+            ? $followUp->next_follow_up_date->copy()->timezone($timezone)
+            : null;
+        $lead = $followUp?->lead ?? $followUp?->deal?->contact;
+        $leadName = $followUp?->deal?->client_name ?? $lead?->client_name ?? '';
+        $countdown = $meetingAt ? $this->countdownUntil($meetingAt) : '';
+        $meetingRemark = $this->reminder->message ?? $followUp?->remark ?? '';
+
+        $title = $leadName !== ''
+            ? __('email.meetingReminder.pushTitleWithLead', ['lead' => $leadName])
+            : __('email.meetingReminder.pushTitle');
+
+        $body = $this->resolveMeetingMessage($meetingAt, $leadName, $countdown, $meetingRemark);
+        if ($meetingAt !== null && $meetingRemark !== '') {
+            $body .= ' '.Str::limit($meetingRemark, 80);
+        }
+
+        return [$title, $body];
     }
 
     public function toMail($notifiable): MailMessage
@@ -118,7 +153,6 @@ class ReminderNotification extends BaseNotification
     private function toMeetingMail($notifiable): MailMessage
     {
         $build = parent::build($notifiable);
-        $url = $this->resolveMeetingUrl();
         $name = $notifiable->name ?? $this->anonymousName;
 
         $followUp = $this->resolveFollowUp();
@@ -131,8 +165,13 @@ class ReminderNotification extends BaseNotification
             ? $followUp->next_follow_up_date->copy()->timezone($timezone)
             : null;
 
-        $lead = $followUp?->lead;
+        $lead = $followUp?->lead ?? $deal?->contact;
         $leadName = $deal?->client_name ?? $lead?->client_name ?? '';
+        $agentName = $followUp?->addedBy?->name
+            ?? $deal?->leadAgent?->user?->name
+            ?? $this->company->name
+            ?? config('app.name');
+
         $meetingDate = $meetingAt?->format($dateFormat) ?? '';
         $meetingTime = $meetingAt?->format($timeFormat) ?? '';
         $meetingRemark = $this->reminder->message ?? $followUp?->remark ?? '';
@@ -143,40 +182,62 @@ class ReminderNotification extends BaseNotification
                 .'<a href="'.e($meetingLink).'" style="color:#003160;text-decoration:underline">Join meeting &rarr;</a>'
                 .'</p>'
             : '';
-        $meetingMessage = $this->resolveMeetingMessage($meetingAt, $leadName, $meetingCountdown, $meetingRemark);
         $detailRemark = $meetingAt !== null ? $meetingRemark : '';
-        $actionText = __('email.followUpReminder.action');
-        $preheader = $meetingMessage !== ''
-            ? $meetingMessage
-            : 'Meeting reminder — review and take action.';
+
+        $isLeadRecipient = $this->reminder->recipient_type === Reminder::RECIPIENT_LEAD;
+
+        if ($isLeadRecipient) {
+            // Customer-facing: talk about who they're meeting *with*, never
+            // surface the internal CRM link, and skip the internal action-item tone.
+            $counterpartName = $agentName;
+            $meetingMessage = $this->resolveLeadMeetingMessage($meetingAt, $agentName, $meetingCountdown, $meetingRemark);
+            $subject = $this->resolveLeadMeetingSubject($meetingAt, $agentName);
+            $actionText = '';
+            $url = '';
+            $footerNote = __('email.meetingReminder.leadFooterNote');
+        } else {
+            $counterpartName = $leadName;
+            $meetingMessage = $this->resolveMeetingMessage($meetingAt, $leadName, $meetingCountdown, $meetingRemark);
+            $subject = $this->resolveParticipantMeetingSubject($meetingAt, $leadName);
+            $actionText = __('email.meetingReminder.action');
+            $url = $this->resolveMeetingUrl();
+            $footerNote = __('email.meetingReminder.footerNote');
+        }
+
+        $preheader = $meetingMessage !== '' ? $meetingMessage : $footerNote;
 
         $build
-            ->subject(__('email.followUpReminder.subject').' - '.config('app.name'))
+            ->subject($subject.' - '.config('app.name'))
             ->view('mail.deal-follow-up.deal-follow-up-reminder', [
                 'url' => $url,
                 'preheader' => $preheader,
                 'meetingMessage' => $meetingMessage,
-                'leadName' => $leadName,
+                'leadName' => $counterpartName,
                 'meetingDate' => $meetingDate,
                 'meetingTime' => $meetingTime,
                 'meetingRemark' => $detailRemark,
                 'meetingLink' => $meetingLink,
                 'joinMeetingHtml' => $joinMeetingHtml,
                 'actionText' => $actionText,
+                'footerNote' => $footerNote,
                 'notifiableName' => $name,
             ]);
 
         $this->attachPlunkTemplateIfConfigured($build, 'meeting', [
                 'meetingMessage' => $meetingMessage,
-                'leadName' => $leadName,
+                'leadName' => $counterpartName,
                 'meetingDate' => $meetingDate,
                 'meetingTime' => $meetingTime,
                 'meetingRemark' => $detailRemark,
                 'meetingLink' => $meetingLink,
                 'joinMeetingHtml' => $joinMeetingHtml,
                 'leadUrl' => $url,
+                'footerNote' => $footerNote,
             ]);
 
+        // No .ics attachment here: by the time a countdown reminder fires, the
+        // recipient already has the invite from the "meeting created" notice —
+        // resending it would just prompt them to needlessly re-accept it.
         $this->attachIdempotencyKey($build);
         parent::resetLocale();
 
@@ -203,12 +264,11 @@ class ReminderNotification extends BaseNotification
         $countdown = $dueAt ? $this->countdownUntil($dueAt) : '';
         $taskMessage = $this->resolveTaskMessage($heading, $dueAt, $countdown);
         $actionText = __('app.viewTask');
-        $preheader = $taskMessage !== ''
-            ? $taskMessage
-            : 'Task reminder — review and take action.';
+        $footerNote = __('email.taskReminder.footerNote');
+        $preheader = $taskMessage !== '' ? $taskMessage : $footerNote;
 
         $build
-            ->subject(__('email.taskReminder.subject').' - '.config('app.name'))
+            ->subject($this->titledSubject('email.taskReminder.subject', 'Task Reminder', $heading).' - '.config('app.name'))
             ->view('mail.task.task-reminder', [
                 'url' => $url,
                 'preheader' => $preheader,
@@ -218,6 +278,7 @@ class ReminderNotification extends BaseNotification
                 'dueDate' => $dueDate,
                 'dueTime' => $dueTime,
                 'actionText' => $actionText,
+                'footerNote' => $footerNote,
                 'notifiableName' => $name,
             ]);
 
@@ -228,6 +289,7 @@ class ReminderNotification extends BaseNotification
                 'dueDate' => $dueDate,
                 'dueTime' => $dueTime,
                 'taskUrl' => $url,
+                'footerNote' => $footerNote,
             ]);
 
         $this->attachIdempotencyKey($build);
@@ -256,12 +318,11 @@ class ReminderNotification extends BaseNotification
         $countdown = $remindAt ? $this->countdownUntil($remindAt) : '';
         $noteMessage = $this->resolveNoteMessage($title, $remindAt, $countdown);
         $actionText = 'View Note';
-        $preheader = $noteMessage !== ''
-            ? $noteMessage
-            : 'Note reminder — review and take action.';
+        $footerNote = __('email.noteReminder.footerNote');
+        $preheader = $noteMessage !== '' ? $noteMessage : $footerNote;
 
         $build
-            ->subject(__('email.noteReminder.subject').' - '.config('app.name'))
+            ->subject($this->titledSubject('email.noteReminder.subject', 'Note Reminder', $title).' - '.config('app.name'))
             ->view('mail.note.note-reminder', [
                 'url' => $url,
                 'preheader' => $preheader,
@@ -271,6 +332,7 @@ class ReminderNotification extends BaseNotification
                 'remindDate' => $remindDate,
                 'remindTime' => $remindTime,
                 'actionText' => $actionText,
+                'footerNote' => $footerNote,
                 'notifiableName' => $name,
             ]);
 
@@ -281,6 +343,7 @@ class ReminderNotification extends BaseNotification
                 'remindDate' => $remindDate,
                 'remindTime' => $remindTime,
                 'noteUrl' => $url,
+                'footerNote' => $footerNote,
             ]);
 
         $this->attachIdempotencyKey($build);
@@ -311,16 +374,15 @@ class ReminderNotification extends BaseNotification
         $countdown = $eventAt ? $this->countdownUntil($eventAt) : '';
         $message = $this->resolveGenericEntityMessage($title, $eventAt, $countdown);
         $actionText = 'View '.$meta['label'];
-        $preheader = $message !== ''
-            ? $message
-            : $meta['label'].' reminder — review and take action.';
+        $footerNote = __($meta['footerNoteKey']);
+        $preheader = $message !== '' ? $message : $footerNote;
 
         $messageKey = $meta['prefix'].'Message';
         $titleKey = $meta['prefix'].'Title';
         $urlKey = $meta['prefix'].'Url';
 
         $build
-            ->subject(__($meta['subjectKey']).' - '.config('app.name'))
+            ->subject($this->titledSubject($meta['subjectKey'], $meta['label'].' Reminder', $title).' - '.config('app.name'))
             ->view($meta['view'], [
                 'url' => $url,
                 'preheader' => $preheader,
@@ -329,6 +391,7 @@ class ReminderNotification extends BaseNotification
                 'eventDate' => $eventDate,
                 'eventTime' => $eventTime,
                 'actionText' => $actionText,
+                'footerNote' => $footerNote,
                 'notifiableName' => $name,
             ]);
 
@@ -338,6 +401,7 @@ class ReminderNotification extends BaseNotification
                 'eventDate' => $eventDate,
                 'eventTime' => $eventTime,
                 $urlKey => $url,
+                'footerNote' => $footerNote,
             ]);
 
         $this->attachIdempotencyKey($build);
@@ -347,7 +411,7 @@ class ReminderNotification extends BaseNotification
     }
 
     /**
-     * @return array{label: string, prefix: string, view: string, subjectKey: string}
+     * @return array{label: string, prefix: string, view: string, subjectKey: string, footerNoteKey: string}
      */
     private function typedEntityMailMeta(string $kind): array
     {
@@ -357,42 +421,49 @@ class ReminderNotification extends BaseNotification
                 'prefix' => 'deal',
                 'view' => 'mail.deal.deal-reminder',
                 'subjectKey' => 'email.dealReminder.subject',
+                'footerNoteKey' => 'email.dealReminder.footerNote',
             ],
             'lead' => [
                 'label' => 'Lead',
                 'prefix' => 'lead',
                 'view' => 'mail.lead.lead-reminder',
                 'subjectKey' => 'email.leadReminder.subject',
+                'footerNoteKey' => 'email.leadReminder.footerNote',
             ],
             'property' => [
                 'label' => 'Property',
                 'prefix' => 'property',
                 'view' => 'mail.property.property-reminder',
                 'subjectKey' => 'email.propertyReminder.subject',
+                'footerNoteKey' => 'email.propertyReminder.footerNote',
             ],
             'project' => [
                 'label' => 'Project',
                 'prefix' => 'project',
                 'view' => 'mail.developer-project.developer-project-reminder',
-                'subjectKey' => 'email.projectReminder.subject',
+                'subjectKey' => 'email.developerProjectReminder.subject',
+                'footerNoteKey' => 'email.developerProjectReminder.footerNote',
             ],
             'unit' => [
                 'label' => 'Unit',
                 'prefix' => 'unit',
                 'view' => 'mail.developer-project-unit-type.developer-project-unit-type-reminder',
                 'subjectKey' => 'email.unitReminder.subject',
+                'footerNoteKey' => 'email.unitReminder.footerNote',
             ],
             'flight' => [
                 'label' => 'Flight',
                 'prefix' => 'flight',
                 'view' => 'mail.lead-flight-itinerary.lead-flight-itinerary-reminder',
                 'subjectKey' => 'email.flightReminder.subject',
+                'footerNoteKey' => 'email.flightReminder.footerNote',
             ],
             default => [
                 'label' => 'Reminder',
                 'prefix' => 'deal',
                 'view' => 'mail.deal.deal-reminder',
                 'subjectKey' => 'email.dealReminder.subject',
+                'footerNoteKey' => 'email.dealReminder.footerNote',
             ],
         };
     }
@@ -429,20 +500,58 @@ class ReminderNotification extends BaseNotification
             ->first();
     }
 
+    /**
+     * Subject/heading used for the database notification and (for non-meeting
+     * entities) the push title. Always names the specific record — "Deal Reminder"
+     * alone doesn't tell anyone which deal, so every branch interpolates a title.
+     */
     private function resolveSubjectHeading(): string
     {
+        $fallbackTitle = trim((string) ($this->reminder->message ?? ''));
+
         return match ($this->reminder->entity_type) {
-            Reminder::ENTITY_TASK => __('email.taskReminder.subject'),
-            Reminder::ENTITY_DEAL_NOTE, Reminder::ENTITY_LEAD_NOTE => __('email.noteReminder.subject'),
-            Reminder::ENTITY_MEETING => __('email.followUpReminder.subject'),
-            Reminder::ENTITY_DEAL => __('email.dealReminder.subject'),
-            Reminder::ENTITY_LEAD => __('email.leadReminder.subject'),
-            Reminder::ENTITY_PROPERTY => __('email.propertyReminder.subject'),
-            Reminder::ENTITY_DEVELOPER_PROJECT => __('email.projectReminder.subject'),
-            Reminder::ENTITY_UNIT => __('email.unitReminder.subject'),
-            Reminder::ENTITY_FLIGHT_ITINERARY => __('email.flightReminder.subject'),
+            Reminder::ENTITY_TASK => $this->titledSubject(
+                'email.taskReminder.subject',
+                'Task Reminder',
+                $this->resolveTask()?->heading ?? $fallbackTitle
+            ),
+            Reminder::ENTITY_DEAL_NOTE, Reminder::ENTITY_LEAD_NOTE => $this->titledSubject(
+                'email.noteReminder.subject',
+                'Note Reminder',
+                $this->resolveNote()?->title ?? $fallbackTitle
+            ),
+            Reminder::ENTITY_MEETING => $this->titledSubject(
+                'email.followUpReminder.subject',
+                'Meeting Reminder',
+                $this->resolveFollowUp()?->deal?->client_name ?? $this->resolveFollowUp()?->lead?->client_name ?? ''
+            ),
+            Reminder::ENTITY_DEAL => $this->titledSubject('email.dealReminder.subject', 'Deal Reminder', $fallbackTitle),
+            Reminder::ENTITY_LEAD => $this->titledSubject('email.leadReminder.subject', 'Lead Reminder', $fallbackTitle),
+            Reminder::ENTITY_PROPERTY => $this->titledSubject('email.propertyReminder.subject', 'Property Reminder', $fallbackTitle),
+            Reminder::ENTITY_DEVELOPER_PROJECT => $this->titledSubject('email.developerProjectReminder.subject', 'Project Reminder', $fallbackTitle),
+            Reminder::ENTITY_UNIT => $this->titledSubject('email.unitReminder.subject', 'Unit Reminder', $fallbackTitle),
+            Reminder::ENTITY_FLIGHT_ITINERARY => $this->titledSubject('email.flightReminder.subject', 'Flight Reminder', $fallbackTitle),
             default => __('email.followUpReminder.subject'),
         };
+    }
+
+    /**
+     * Interpolates :title into a lang string; falls back to "{label}: {title}" if the
+     * lang key has no :title placeholder, or to the bare label if there's no title at all.
+     */
+    private function titledSubject(string $langKey, string $fallbackLabel, ?string $title): string
+    {
+        $title = trim((string) $title);
+        if ($title === '') {
+            return $fallbackLabel;
+        }
+
+        $template = __($langKey);
+        if (! str_contains($template, ':title')) {
+            return $fallbackLabel.': '.$title;
+        }
+
+        return str_replace(':title', $title, $template);
     }
 
     private function shouldSendMail($notifiable): bool
@@ -558,7 +667,7 @@ class ReminderNotification extends BaseNotification
             Reminder::ENTITY_DEAL => 'email.dealReminder',
             Reminder::ENTITY_LEAD => 'email.leadReminder',
             Reminder::ENTITY_PROPERTY => 'email.propertyReminder',
-            Reminder::ENTITY_DEVELOPER_PROJECT => 'email.projectReminder',
+            Reminder::ENTITY_DEVELOPER_PROJECT => 'email.developerProjectReminder',
             Reminder::ENTITY_UNIT => 'email.unitReminder',
             Reminder::ENTITY_FLIGHT_ITINERARY => 'email.flightReminder',
             default => 'email.dealReminder',
@@ -636,6 +745,97 @@ class ReminderNotification extends BaseNotification
         }
 
         $template = __('email.followUpReminder.meetingCountdown');
+        if (! str_contains($template, ':countdown')) {
+            $template = 'Your meeting is in :countdown.';
+        }
+
+        return str_replace(':countdown', $countdown, $template);
+    }
+
+    /**
+     * Subject line for participant (internal user) meeting reminders. Only the
+     * near-term offset reads as "starting soon" — a reminder an hour out isn't urgent.
+     */
+    private function resolveParticipantMeetingSubject(?CarbonInterface $meetingAt, string $leadName): string
+    {
+        if ($meetingAt === null) {
+            return $leadName !== ''
+                ? __('email.meetingReminder.subjectUpcoming', ['lead' => $leadName])
+                : __('email.meetingReminder.subjectUpcomingNoLead');
+        }
+
+        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
+        $isSoon = $secondsUntil <= 900; // 15 minutes or already due
+
+        if ($isSoon) {
+            return $leadName !== ''
+                ? __('email.meetingReminder.subjectSoon', ['lead' => $leadName])
+                : __('email.meetingReminder.subjectSoonNoLead');
+        }
+
+        return $leadName !== ''
+            ? __('email.meetingReminder.subjectUpcoming', ['lead' => $leadName])
+            : __('email.meetingReminder.subjectUpcomingNoLead');
+    }
+
+    private function resolveLeadMeetingSubject(?CarbonInterface $meetingAt, string $agentName): string
+    {
+        if ($meetingAt === null) {
+            return $agentName !== ''
+                ? __('email.meetingReminder.leadSubjectUpcoming', ['agent' => $agentName])
+                : __('email.meetingReminder.leadSubjectUpcomingNoAgent');
+        }
+
+        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
+        $isSoon = $secondsUntil <= 900;
+
+        if ($isSoon) {
+            return $agentName !== ''
+                ? __('email.meetingReminder.leadSubjectSoon', ['agent' => $agentName])
+                : __('email.meetingReminder.leadSubjectSoonNoAgent');
+        }
+
+        return $agentName !== ''
+            ? __('email.meetingReminder.leadSubjectUpcoming', ['agent' => $agentName])
+            : __('email.meetingReminder.leadSubjectUpcomingNoAgent');
+    }
+
+    /**
+     * Customer-facing body copy — mirrors resolveMeetingMessage() but talks about the
+     * agent/company the lead is meeting *with*, since the lead already knows who they are.
+     */
+    private function resolveLeadMeetingMessage(
+        ?CarbonInterface $meetingAt,
+        string $agentName,
+        string $meetingCountdown,
+        string $meetingRemark
+    ): string {
+        if ($meetingAt === null) {
+            return $meetingRemark !== ''
+                ? $meetingRemark
+                : __('email.meetingReminder.leadNoDate');
+        }
+
+        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
+
+        if ($secondsUntil <= 0) {
+            return $agentName !== ''
+                ? __('email.meetingReminder.leadStartingNow', ['agent' => $agentName])
+                : __('email.meetingReminder.leadStartingNowNoAgent');
+        }
+
+        $countdown = $meetingCountdown !== '' ? $meetingCountdown : 'less than a minute';
+
+        if ($agentName !== '') {
+            $template = __('email.meetingReminder.leadCountdown');
+            if (! str_contains($template, ':countdown')) {
+                $template = 'Your meeting with :agent is in :countdown.';
+            }
+
+            return str_replace([':agent', ':countdown'], [$agentName, $countdown], $template);
+        }
+
+        $template = __('email.meetingReminder.leadCountdownNoAgent');
         if (! str_contains($template, ':countdown')) {
             $template = 'Your meeting is in :countdown.';
         }
@@ -750,7 +950,8 @@ class ReminderNotification extends BaseNotification
         $this->followUpLoaded = true;
 
         if ($this->reminder->entity_type === Reminder::ENTITY_MEETING && $this->reminder->entity_id) {
-            $this->followUp = DealFollowUp::with(['deal.contact', 'lead'])->find($this->reminder->entity_id);
+            $this->followUp = DealFollowUp::with(['deal.contact', 'deal.leadAgent.user', 'lead', 'addedBy'])
+                ->find($this->reminder->entity_id);
         }
 
         return $this->followUp;

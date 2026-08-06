@@ -5,6 +5,7 @@ namespace App\Notifications;
 use App\Models\DealFollowUp;
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
+use App\Support\MeetingIcsBuilder;
 
 class AutoFollowUpReminder extends BaseNotification
 {
@@ -48,7 +49,9 @@ class AutoFollowUpReminder extends BaseNotification
         $mailSubject = ($this->subject)
             ? __('email.followUpReminder.newFollowUpSubject')
             : __('email.followUpReminder.subject');
-        $followUpLead = $this->displayName();
+        $pushBody = $this->subject
+            ? $this->resolveCreatedHeadline($this->displayName())
+            : $this->displayName();
 
         if (
             $this->emailSetting
@@ -57,7 +60,7 @@ class AutoFollowUpReminder extends BaseNotification
         ) {
             $pushNotification = new \App\Http\Controllers\DashboardController();
             $pushUsersIds = [[$notifiable->id]];
-            $pushNotification->sendPushNotifications($pushUsersIds, $mailSubject, $followUpLead);
+            $pushNotification->sendPushNotifications($pushUsersIds, $mailSubject, $pushBody);
         }
 
         return $via;
@@ -73,8 +76,18 @@ class AutoFollowUpReminder extends BaseNotification
         $followUpDate = $this->leadFollowup?->next_follow_up_date?->format($this->company->date_format);
         $followUpTime = $this->leadFollowup?->next_follow_up_date?->format($this->company->time_format);
 
-        $content = __('email.followUpReminder.followUpLeadText') . '<br><br>'
-            . __('email.followUpReminder.followUpLead') . ' :- ' . $followUpLead . '<br>'
+        $headline = $this->subject
+            ? $this->resolveCreatedHeadline($followUpLead)
+            : __('email.followUpReminder.followUpLeadText');
+
+        // The headline already names the lead when this is the "just created" notice;
+        // avoid repeating it on its own line right below.
+        $leadLine = ($this->subject && $followUpLead !== '')
+            ? ''
+            : __('email.followUpReminder.followUpLead') . ' :- ' . $followUpLead . '<br>';
+
+        $content = $headline . '<br><br>'
+            . $leadLine
             . __('email.followUpReminder.nextFollowUpDate') . ' :- ' . $followUpDate . '<br>'
             . __('email.followUpReminder.nextFollowUpTime') . ' :- ' . $followUpTime . '<br>'
             . $this->leadFollowup->remark;
@@ -111,9 +124,34 @@ class AutoFollowUpReminder extends BaseNotification
             'leadUrl' => $url,
         ]);
 
+        $this->attachMeetingIcs($build);
+
         parent::resetLocale();
 
         return $build;
+    }
+
+    /**
+     * Attach a calendar invite so the recipient can add the meeting to their
+     * calendar. Only on the "just created" notice ($subject === true) — the
+     * recipient already has it in their calendar by the time a periodic
+     * reminder fires, so resending the same invite would just prompt them
+     * to needlessly re-accept an event they've already got.
+     */
+    private function attachMeetingIcs($build): void
+    {
+        if (! $this->subject) {
+            return;
+        }
+
+        $ics = MeetingIcsBuilder::build($this->leadFollowup);
+        if ($ics === null) {
+            return;
+        }
+
+        $build->attachData($ics['content'], $ics['filename'], [
+            'mime' => 'text/calendar; method=REQUEST; charset=UTF-8',
+        ]);
     }
 
     // phpcs:ignore
@@ -135,10 +173,18 @@ class AutoFollowUpReminder extends BaseNotification
         $followUpDate = $this->leadFollowup?->next_follow_up_date?->format($this->company->date_format);
         $followUpTime = $this->leadFollowup?->next_follow_up_date?->format($this->company->time_format);
 
+        $headline = $this->subject
+            ? $this->resolveCreatedHeadline($followUpLead)
+            : __('email.followUpReminder.followUpLeadText');
+
+        $leadLine = ($this->subject && $followUpLead !== '')
+            ? ''
+            : __('email.followUpReminder.followUpLead') . ' :- ' . $followUpLead . '<br>';
+
         return $this->slackBuild($notifiable)
             ->content(
-                __('email.followUpReminder.followUpLeadText') . '<br><br>'
-                . __('email.followUpReminder.followUpLead') . ' :- ' . $followUpLead . '<br>'
+                $headline . '<br><br>'
+                . $leadLine
                 . __('email.followUpReminder.nextFollowUpDate') . ' :- ' . $followUpDate . '<br>'
                 . __('email.followUpReminder.nextFollowUpTime') . ' :- ' . $followUpTime . '<br>'
                 . $this->leadFollowup->remark
@@ -150,6 +196,32 @@ class AutoFollowUpReminder extends BaseNotification
         return $this->leadFollowup->deal?->client_name
             ?? $this->leadFollowup->lead?->client_name
             ?? '';
+    }
+
+    /**
+     * "New meeting created" headline — names both the meeting type and the
+     * client, e.g. "New Discovery Call meeting with Ada Lovelace created."
+     */
+    private function resolveCreatedHeadline(string $leadName): string
+    {
+        $meetingTypeName = $this->leadFollowup->meetingType?->name;
+
+        if ($meetingTypeName && $leadName !== '') {
+            return __('email.followUpReminder.newMeetingCreatedWithType', [
+                'type' => $meetingTypeName,
+                'lead' => $leadName,
+            ]);
+        }
+
+        if ($leadName !== '') {
+            return __('email.followUpReminder.newMeetingCreated', ['lead' => $leadName]);
+        }
+
+        if ($meetingTypeName) {
+            return __('email.followUpReminder.newMeetingCreatedTypeOnly', ['type' => $meetingTypeName]);
+        }
+
+        return __('email.followUpReminder.newFollowUpSubject');
     }
 
     private function entityUrl(): string

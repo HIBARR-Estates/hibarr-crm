@@ -72,6 +72,7 @@
 </p>
 @endif
 
+@if($actionText !== '' && $url !== '')
 <table role="presentation" cellspacing="0" cellpadding="0" border="0" style="margin:28px 0 24px">
 <tr>
 <td bgcolor="#003160">
@@ -79,8 +80,11 @@
 </td>
 </tr>
 </table>
+@endif
 
-<p>Review this meeting and take the appropriate next steps.</p>
+@if($footerNote !== '')
+<p style="margin-top:{{ ($actionText !== '' && $url !== '') ? '0' : '20px' }}">{{ $footerNote }}</p>
+@endif
 </td>
 </tr>
 <tr>

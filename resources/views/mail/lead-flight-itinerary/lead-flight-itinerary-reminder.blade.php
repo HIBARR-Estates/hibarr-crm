@@ -60,7 +60,7 @@
 </td>
 </tr>
 </table>
-<p>Review this flight and take the appropriate next steps.</p>
+<p>{{ $footerNote }}</p>
 </td>
 </tr>
 <tr>

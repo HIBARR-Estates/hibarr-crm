@@ -74,7 +74,7 @@
 </tr>
 </table>
 
-<p>Review this note and take the appropriate next steps.</p>
+<p>{{ $footerNote }}</p>
 </td>
 </tr>
 <tr>
