@@ -5,6 +5,7 @@ import {
     SegmentAnswerState,
     TemplateTree,
     QualificationOutcome,
+    LeadQualification,
 } from "@/Types/qualification";
 import SaySegment from "./segments/SaySegment";
 import QuestionSegment from "./segments/QuestionSegment";
@@ -22,19 +23,8 @@ interface SegmentCardProps {
         outcomes: QualificationOutcome[],
         metadata?: {
             comment?: string | null;
-            webinarSessionId?: string;
-            webinarSessionLabel?: string;
-            calendlyUrl?: string;
         },
-    ) => Promise<void>;
-    onOpenWebinarPicker?: (
-        webinarId: string,
-        pending: {
-            outcomes: QualificationOutcome[];
-            comment: string | null;
-            calendlyUrl?: string;
-        },
-    ) => void;
+    ) => Promise<LeadQualification | void | null>;
     saving?: boolean;
     completing?: boolean;
 }
@@ -47,7 +37,6 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
     templateTree,
     onAnswerChange,
     onCompleteOutcomes,
-    onOpenWebinarPicker,
     saving = false,
     completing = false,
 }) => (
@@ -83,7 +72,6 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
                 translateScript={translateScript}
                 templateTree={templateTree}
                 onComplete={onCompleteOutcomes}
-                onOpenWebinarPicker={onOpenWebinarPicker}
                 loading={completing}
             />
         )}

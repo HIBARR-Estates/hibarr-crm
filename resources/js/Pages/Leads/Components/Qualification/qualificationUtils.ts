@@ -3,6 +3,7 @@ import {
     DEFAULT_OUTCOME_LABELS,
     OUTCOME_PRIORITY,
     QUALIFICATION_TOKENS,
+    QualificationActionRef,
     QualificationOutcome,
     QualificationToken,
     ScriptOutcomeOption,
@@ -399,5 +400,44 @@ export const getScriptOutcomes = (tree: TemplateTree): ScriptOutcomeOption[] => 
     return OUTCOME_PRIORITY.filter((key) => byKey.has(key)).map(
         (key) => byKey.get(key)!,
     );
+};
+
+/**
+ * Deduped action refs for the selected outcome keys (from outcome segments
+ * in the published tree). Merges config preferring first non-empty values.
+ */
+export const getActionsForSelectedOutcomes = (
+    tree: TemplateTree,
+    selectedOutcomeKeys: QualificationOutcome[],
+): QualificationActionRef[] => {
+    const selected = new Set(selectedOutcomeKeys);
+    const byType = new Map<string, QualificationActionRef>();
+
+    sortSegments(tree.segments).forEach((segment) => {
+        if (segment.type !== "outcome") return;
+        const outcomeKey = segment.outcomeMetadata?.type;
+        if (!outcomeKey || !selected.has(outcomeKey)) return;
+
+        (segment.actions ?? []).forEach((action) => {
+            const existing = byType.get(action.type);
+            if (!existing) {
+                byType.set(action.type, {
+                    type: action.type,
+                    config: action.config ? { ...action.config } : undefined,
+                });
+                return;
+            }
+            if (!action.config) return;
+            const merged = { ...(existing.config ?? {}) };
+            Object.entries(action.config).forEach(([key, value]) => {
+                if (value && !merged[key]) {
+                    merged[key] = value;
+                }
+            });
+            existing.config = Object.keys(merged).length ? merged : undefined;
+        });
+    });
+
+    return Array.from(byType.values());
 };
 

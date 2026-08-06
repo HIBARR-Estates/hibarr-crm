@@ -661,7 +661,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     qualification.handleQualificationUpdated(
                                         updated,
                                     );
-                                    nav.setQualificationOpen(false);
+                                }}
+                                onActionsDone={(updated) => {
+                                    qualification.finishQualificationSession(
+                                        updated,
+                                    );
                                 }}
                             />
                         )}
