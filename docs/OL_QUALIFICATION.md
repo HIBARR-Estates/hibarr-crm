@@ -327,3 +327,40 @@ Response
   "success": true,
   "message": "Webinar session registration completed."
 }
+
+---
+
+# CRM qualification complete (local)
+
+OL does **not** receive selected outcomes. CRM owns session completion.
+
+`POST /account/lead-qualifications/{id}/complete`
+
+```json
+{
+  "outcomes": ["bookMeeting", "inviteWebinar"],
+  "outcome_comment": "Optional agent note",
+  "selected_branch_keys": ["join_the_cage"],
+  "webinar_session_label": "Weekly Webinar"
+}
+```
+
+Legacy shim: a single `outcome` string is still accepted and normalized to `outcomes: [outcome]`.
+
+Behavior:
+
+1. CRM UI gathers distinct `outcomeKey`s from all tree segments with `type === "outcome"` (options nested under outcomes are ignored).
+2. Agent multi-selects ≥1 outcome and may add `outcome_comment`.
+3. CRM runs registration side effects for each selected actionable outcome (`bookMeeting` → Calendly; `inviteWebinar` → webinar session), then calls complete once.
+4. CRM stores full `outcomes[]` + comment; scalar `outcome` is the **lifecycle winner** via priority:
+   `bookMeeting` > `inviteWebinar` > `callback` > `noFit`
+   (lifecycle: `qualified` > `nurturing` > `callback` > `not_fit`).
+
+## Smoke checklist (`crm.lead-qualification-tab` on)
+
+1. Published OL template with ≥2 outcome segments (distinct `outcomeKey`s).
+2. Start qualification → answer through to an outcome step.
+3. Multi-select two outcomes + optional comment → Complete.
+4. Confirm lead lifecycle matches the higher-priority selected outcome.
+5. Answers review / completed recap shows all selected outcomes + comment.
+
