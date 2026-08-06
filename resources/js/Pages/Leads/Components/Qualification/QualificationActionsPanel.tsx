@@ -3,7 +3,7 @@ import { Button, message } from "antd";
 import type { Lead } from "@/Types/api/leads";
 import type {
     LeadQualification,
-    LeadQualificationActionRun,
+    QualificationActionRun,
     QualificationActionType,
 } from "@/Types/qualification";
 import { LeadQualificationService } from "@/Services/LeadQualificationService";
@@ -63,7 +63,7 @@ export default function QualificationActionsPanel({
     const [busyId, setBusyId] = useState<number | null>(null);
     const [webinarPickerOpen, setWebinarPickerOpen] = useState(false);
     const [pendingWebinar, setPendingWebinar] = useState<{
-        run: LeadQualificationActionRun;
+        run: QualificationActionRun;
         webinarId: string;
     } | null>(null);
 
@@ -100,7 +100,7 @@ export default function QualificationActionsPanel({
     }, [agentLanguage, lead]);
 
     const markExecuted = async (
-        run: LeadQualificationActionRun,
+        run: QualificationActionRun,
         payload: Record<string, unknown> = {},
         error?: string,
     ) => {
@@ -112,7 +112,7 @@ export default function QualificationActionsPanel({
         onUpdated(result.qualification);
     };
 
-    const runBookConsultation = async (run: LeadQualificationActionRun) => {
+    const runBookConsultation = async (run: QualificationActionRun) => {
         setBusyId(run.id);
         try {
             await registrationService.bookConsultationCalendly({
@@ -140,7 +140,7 @@ export default function QualificationActionsPanel({
     };
 
     const runInviteWebinar = async (
-        run: LeadQualificationActionRun,
+        run: QualificationActionRun,
         sessionId: string,
         sessionLabel: string,
     ) => {
@@ -173,7 +173,7 @@ export default function QualificationActionsPanel({
         }
     };
 
-    const runNoOp = async (run: LeadQualificationActionRun) => {
+    const runNoOp = async (run: QualificationActionRun) => {
         setBusyId(run.id);
         try {
             await markExecuted(run, {});
@@ -189,7 +189,7 @@ export default function QualificationActionsPanel({
         }
     };
 
-    const handleClick = (run: LeadQualificationActionRun) => {
+    const handleClick = (run: QualificationActionRun) => {
         const type = run.action_type as QualificationActionType;
         if (run.status === "completed" || run.status === "unavailable") return;
         if (busyId != null) return;
@@ -218,7 +218,7 @@ export default function QualificationActionsPanel({
         message.warning(td("This action is not available yet."));
     };
 
-    const isDisabled = (run: LeadQualificationActionRun) => {
+    const isDisabled = (run: QualificationActionRun) => {
         if (run.status === "completed" || run.status === "unavailable") {
             return true;
         }
@@ -228,7 +228,7 @@ export default function QualificationActionsPanel({
         return true;
     };
 
-    const statusHint = (run: LeadQualificationActionRun) => {
+    const statusHint = (run: QualificationActionRun) => {
         if (run.status === "completed") return td("Done");
         if (run.status === "failed") return td("Failed — retry");
         if (run.status === "unavailable") {
