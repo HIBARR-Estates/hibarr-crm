@@ -56,4 +56,9 @@ class LeadQualification extends BaseModel
     {
         return $this->hasMany(LeadQualificationAnswer::class, 'lead_qualification_id');
     }
+
+    public function actionRuns(): HasMany
+    {
+        return $this->hasMany(LeadQualificationActionRun::class, 'lead_qualification_id');
+    }
 }

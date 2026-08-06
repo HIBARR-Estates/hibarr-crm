@@ -109,6 +109,9 @@ class LeadQualificationController extends AccountBaseController
             'selected_branch_keys.*' => ['string', 'max:255'],
             'outcome_triggered_at' => ['nullable', 'date'],
             'webinar_session_label' => ['nullable', 'string', 'max:255'],
+            'actions' => ['nullable', 'array'],
+            'actions.*.type' => ['required_with:actions', 'string', 'max:64'],
+            'actions.*.config' => ['nullable', 'array'],
         ]);
 
         if (empty($validated['outcomes'])) {
@@ -124,6 +127,36 @@ class LeadQualificationController extends AccountBaseController
 
         return Reply::successWithData(__('messages.recordSaved'), [
             'qualification' => $completed,
+        ]);
+    }
+
+    public function executeAction(
+        Request $request,
+        LeadQualification $qualification,
+        \App\Models\LeadQualificationActionRun $actionRun
+    ) {
+        $this->authorizeQualificationAccess($qualification);
+
+        if ((int) $actionRun->lead_qualification_id !== (int) $qualification->id) {
+            throw ValidationException::withMessages([
+                'action' => ['Action does not belong to this qualification.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'payload' => ['nullable', 'array'],
+            'error' => ['nullable', 'string'],
+        ]);
+
+        $updated = $this->qualificationService->markActionExecuted(
+            $actionRun,
+            $validated['payload'] ?? [],
+            $validated['error'] ?? null
+        );
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'action_run' => $updated,
+            'qualification' => $qualification->fresh()->load(['answers', 'agent:id,name,image', 'actionRuns']),
         ]);
     }
 
