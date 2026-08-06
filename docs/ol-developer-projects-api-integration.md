@@ -5,6 +5,7 @@ Audience: engineers on **hibarr-backend / OL** composing Digital Exposé payload
 Companion surfaces:
 - Property public API (same auth, envelope, and `fields=` conventions): `GET /api/v1/properties`, `GET /api/v1/properties/{identifier}`
 - **Expose presentation DTO** (enriched facilities, assets-by-tag, infra/airports): [ol-expose-presentation-api.md](./ol-expose-presentation-api.md)
+- **Expose snapshots** (frozen DTO + reference token for agent/lead audit): [ol-expose-snapshots-api.md](./ol-expose-snapshots-api.md)
 - Ops/token mint notes: [developer-projects-public-api-notes.md](./developer-projects-public-api-notes.md)
 
 This API is **read-only**, **company-scoped**, and authenticated with a narrowly scoped CRM API token (not session auth, not OL module:action permissions).

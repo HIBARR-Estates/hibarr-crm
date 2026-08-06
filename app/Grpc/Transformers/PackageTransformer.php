@@ -28,6 +28,7 @@ class PackageTransformer
             'created_at' => $this->formatDateTime($package->created_at),
             'updated_at' => $this->formatDateTime($package->updated_at),
             'deleted_at' => $this->formatDateTime($package->deleted_at),
+            'currency' => (string) ($package->currency ?? 'EUR'),
         ];
     }
 

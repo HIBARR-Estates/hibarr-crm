@@ -4,6 +4,7 @@ Audience: engineers on **hibarr-backend / OL** (or any `api.token` consumer) who
 
 Companion docs:
 - Catalog discovery (list/show): [ol-developer-projects-api-integration.md](./ol-developer-projects-api-integration.md)
+- Frozen snapshot references (agent + lead mint): [ol-expose-snapshots-api.md](./ol-expose-snapshots-api.md)
 - Token mint / ops notes: [developer-projects-public-api-notes.md](./developer-projects-public-api-notes.md)
 
 This API is **read-only**, **company-scoped**, and authenticated with a CRM API token (same middleware as Properties / Developer Projects). It does **not** replace list/show — use those to discover entities, then call `/expose` for the brochure payload.
