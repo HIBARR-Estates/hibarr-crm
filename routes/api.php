@@ -85,6 +85,11 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         ApiRoute::get('developer-projects/{identifier}/expose', ['as' => 'api.developer-projects.expose', 'uses' => 'Api\ExposeDataApiController@projectExpose']);
         ApiRoute::get('developer-projects/{identifier}', ['as' => 'api.developer-projects.show', 'uses' => 'Api\DeveloperProjectApiController@showByIdOrSlug']);
 
+        // Expose snapshot reference API (lookup key only — auth remains api.token)
+        ApiRoute::post('expose-snapshots', ['as' => 'api.expose-snapshots.create', 'uses' => 'Api\ExposeSnapshotApiController@store']);
+        ApiRoute::get('expose-snapshots', ['as' => 'api.expose-snapshots.index', 'uses' => 'Api\ExposeSnapshotApiController@index']);
+        ApiRoute::get('expose-snapshots/{token}', ['as' => 'api.expose-snapshots.show', 'uses' => 'Api\ExposeSnapshotApiController@show']);
+
         // Agent commission profile (internal)
         ApiRoute::get('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.show', 'uses' => 'Api\AgentCommissionProfileInternalController@show']);
         ApiRoute::patch('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.update', 'uses' => 'Api\AgentCommissionProfileInternalController@update']);
