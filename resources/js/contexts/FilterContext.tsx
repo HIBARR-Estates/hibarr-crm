@@ -305,7 +305,11 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                             value !== "" &&
                             !(Array.isArray(value) && value.length === 0)
                         ) {
-                            acc[k] = value;
+                            // Multiselect values are comma-joined on the wire so
+                            // setConfig's URL parser (which splits on ",") can read them back.
+                            acc[k] = Array.isArray(value)
+                                ? value.join(",")
+                                : value;
                         }
                         return acc;
                     },
@@ -382,7 +386,9 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                     value !== "" &&
                     !(Array.isArray(value) && value.length === 0)
                 ) {
-                    acc[key] = value;
+                    // Multiselect values are comma-joined on the wire so
+                    // setConfig's URL parser (which splits on ",") can read them back.
+                    acc[key] = Array.isArray(value) ? value.join(",") : value;
                 }
                 return acc;
             },

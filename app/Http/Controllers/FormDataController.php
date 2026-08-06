@@ -44,7 +44,9 @@ class FormDataController extends Controller
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages',
             'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',
             'lead-custom-fields', 'lead-custom-field-categories',
-            'developer-projects', 'developer_projects'
+            'developer-projects', 'developer_projects',
+            'lead-utm-sources', 'lead-utm-mediums', 'lead-utm-campaigns',
+            'lead-utm-contents', 'lead-utm-terms', 'lead-utm-audiences',
         ];
 
         if (!in_array($type, $allowedTypes)) {
@@ -89,11 +91,13 @@ class FormDataController extends Controller
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
+            'salutations', 'genders', 'age-ranges', 'temperatures', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages',
             'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',
-            'lead-custom-fields', 'lead-custom-field-categories'
+            'lead-custom-fields', 'lead-custom-field-categories',
+            'lead-utm-sources', 'lead-utm-mediums', 'lead-utm-campaigns',
+            'lead-utm-contents', 'lead-utm-terms', 'lead-utm-audiences',
         ];
 
         $types = $request->get('types');

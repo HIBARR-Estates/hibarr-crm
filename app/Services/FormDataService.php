@@ -82,6 +82,18 @@ class FormDataService
             case 'developer_projects':
             case 'developer-projects':
                 return $this->getDeveloperProjects($request);
+            case 'lead-utm-sources':
+                return $this->getDistinctMarketingValues('utm_source');
+            case 'lead-utm-mediums':
+                return $this->getDistinctMarketingValues('utm_medium');
+            case 'lead-utm-campaigns':
+                return $this->getDistinctMarketingValues('utm_campaign');
+            case 'lead-utm-contents':
+                return $this->getDistinctMarketingValues('utm_content');
+            case 'lead-utm-terms':
+                return $this->getDistinctMarketingValues('utm_term');
+            case 'lead-utm-audiences':
+                return $this->getDistinctMarketingValues('utm_audience');
             default:
                 return collect();
         }
@@ -130,6 +142,29 @@ class FormDataService
                     'label' => $temperature->label(),
                 ];
             });
+        });
+    }
+
+    /**
+     * Distinct, non-empty values already present in lead_marketing for a given
+     * UTM column, scoped to the current company — used to populate UTM filter
+     * dropdowns from real data instead of a fixed/free-text list.
+     */
+    private function getDistinctMarketingValues(string $column): Collection
+    {
+        $cacheKey = 'lead_marketing_distinct_' . $column . '_' . company()->id;
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($column) {
+            return \DB::table('lead_marketing')
+                ->join('leads', 'leads.id', '=', 'lead_marketing.lead_id')
+                ->where('leads.company_id', company()->id)
+                ->whereNotNull('lead_marketing.' . $column)
+                ->where('lead_marketing.' . $column, '!=', '')
+                ->distinct()
+                ->orderBy('lead_marketing.' . $column)
+                ->pluck('lead_marketing.' . $column)
+                ->map(fn ($value) => ['value' => $value, 'label' => $value])
+                ->values();
         });
     }
 

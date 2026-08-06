@@ -81,8 +81,16 @@ const Index = ({
             "categories",
             "employees",
             "countries",
-            "client-categories",
             "languages",
+            "genders",
+            "age-ranges",
+            "temperatures",
+            "lead-utm-sources",
+            "lead-utm-mediums",
+            "lead-utm-campaigns",
+            "lead-utm-contents",
+            "lead-utm-terms",
+            "lead-utm-audiences",
         ],
         [],
     );
@@ -99,8 +107,16 @@ const Index = ({
                 categories: formData.categories || [],
                 employees: formData.employees || [],
                 countries: formData.countries || [],
-                clientCategories: formData["client-categories"] || [],
                 languages: formData.languages || [],
+                genders: formData.genders || [],
+                ageRanges: formData["age-ranges"] || [],
+                temperatures: formData.temperatures || [],
+                utmSources: formData["lead-utm-sources"] || [],
+                utmMediums: formData["lead-utm-mediums"] || [],
+                utmCampaigns: formData["lead-utm-campaigns"] || [],
+                utmContents: formData["lead-utm-contents"] || [],
+                utmTerms: formData["lead-utm-terms"] || [],
+                utmAudiences: formData["lead-utm-audiences"] || [],
                 leadLifecycleStatuses:
                     leadLifecycleStatuses.length > 0
                         ? leadLifecycleStatuses
@@ -373,6 +389,7 @@ const Index = ({
                 <UniversalFilterDrawer
                     config={filterConfig}
                     loading={formDataLoading}
+                    width={960}
                 />
             }
         </>

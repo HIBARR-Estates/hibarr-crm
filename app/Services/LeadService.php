@@ -193,25 +193,25 @@ class LeadService
         }
 
         if ($request->filled('lead_source')) {
-            $query->where('source_id', $request->get('lead_source'));
+            $query->whereIn('source_id', $this->toValueArray($request->get('lead_source')));
         }
 
         if ($request->filled('category_id')) {
-            $categoryId = $request->get('category_id');
-            $query->where(function ($q) use ($categoryId) {
-                $q->where('category_id', $categoryId)
-                    ->orWhereHas('categories', function ($cq) use ($categoryId) {
-                        $cq->where('lead_category.id', $categoryId);
+            $categoryIds = $this->toValueArray($request->get('category_id'));
+            $query->where(function ($q) use ($categoryIds) {
+                $q->whereIn('category_id', $categoryIds)
+                    ->orWhereHas('categories', function ($cq) use ($categoryIds) {
+                        $cq->whereIn('lead_category.id', $categoryIds);
                     });
             });
         }
 
         if ($request->filled('lead_owner_id')) {
-            $query->where('lead_owner', $request->get('lead_owner_id'));
+            $query->whereIn('lead_owner', $this->toValueArray($request->get('lead_owner_id')));
         }
 
         if ($request->filled('added_by_id')) {
-            $query->where('added_by', $request->get('added_by_id'));
+            $query->whereIn('added_by', $this->toValueArray($request->get('added_by_id')));
         }
 
         if ($request->filled('start_date') && $request->filled('end_date')) {
@@ -222,19 +222,39 @@ class LeadService
         }
 
         if ($request->filled('lifecycle_status_id')) {
-            $query->where('lead_lifecycle_status_id', $request->get('lifecycle_status_id'));
+            $query->whereIn('lead_lifecycle_status_id', $this->toValueArray($request->get('lifecycle_status_id')));
         }
 
         if ($request->filled('temperature')) {
-            $query->where('temperature', $request->get('temperature'));
+            $query->whereIn('temperature', $this->toValueArray($request->get('temperature')));
+        }
+
+        if ($request->filled('gender')) {
+            $query->whereIn('gender', $this->toValueArray($request->get('gender')));
+        }
+
+        if ($request->filled('age_range')) {
+            $query->whereIn('age_range', $this->toValueArray($request->get('age_range')));
+        }
+
+        if ($request->filled('nationality')) {
+            $query->whereIn('nationality', $this->toValueArray($request->get('nationality')));
+        }
+
+        if ($request->filled('country')) {
+            $query->whereIn('country', $this->toValueArray($request->get('country')));
         }
 
         if ($this->coreFieldsService->useCoreFields() && $request->filled('language')) {
-            $languageCode = $request->get('language');
-            $query->where(function ($q) use ($languageCode) {
-                $q->whereJsonContains('languages', $languageCode);
+            $languageCodes = $this->toValueArray($request->get('language'));
+            $query->where(function ($q) use ($languageCodes) {
+                foreach ($languageCodes as $code) {
+                    $q->orWhereJsonContains('languages', $code);
+                }
             });
         }
+
+        $this->applyMarketingFilters($query, $request);
 
         if ($request->filled('qualification_segment_key')) {
             $segmentKey = $request->get('qualification_segment_key');
@@ -258,6 +278,97 @@ class LeadService
                 }
             });
         }
+    }
+
+    /**
+     * Normalize a filter param into an array of non-empty values.
+     * Multiselect filters arrive as a comma-joined string (see FilterContext.tsx);
+     * a native array param (e.g. `key[]=a&key[]=b`) is also accepted as-is.
+     *
+     * @return array<int, string>
+     */
+    private function toValueArray(mixed $value): array
+    {
+        if (is_array($value)) {
+            return array_values(array_filter($value, fn ($v) => $v !== null && $v !== ''));
+        }
+
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        return array_values(array_filter(
+            array_map('trim', explode(',', (string) $value)),
+            fn ($v) => $v !== ''
+        ));
+    }
+
+    /**
+     * Marketing engagement filters (lead_marketing relation): boolean flags,
+     * contact score range, and free-text UTM values.
+     */
+    private function applyMarketingFilters(Builder $query, Request $request): void
+    {
+        $booleanFields = [
+            'has_joined_the_facebook_group',
+            'has_registered_for_the_webinar',
+            'has_attended_the_webinar',
+            'has_joined_the_whatsapp_group',
+        ];
+
+        foreach ($booleanFields as $field) {
+            if (!$request->filled($field)) {
+                continue;
+            }
+
+            $this->applyMarketingBooleanFilter($query, $field, $request->boolean($field));
+        }
+
+        if ($request->filled('min_contact_score') || $request->filled('max_contact_score')) {
+            $query->whereHas('marketing', function ($q) use ($request) {
+                if ($request->filled('min_contact_score')) {
+                    $q->where('contact_score', '>=', (int) $request->get('min_contact_score'));
+                }
+                if ($request->filled('max_contact_score')) {
+                    $q->where('contact_score', '<=', (int) $request->get('max_contact_score'));
+                }
+            });
+        }
+
+        $utmFields = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'utm_term', 'utm_audience'];
+
+        foreach ($utmFields as $field) {
+            if (!$request->filled($field)) {
+                continue;
+            }
+
+            $values = $this->toValueArray($request->get($field));
+            $query->whereHas('marketing', function ($q) use ($field, $values) {
+                $q->whereIn($field, $values);
+            });
+        }
+    }
+
+    /**
+     * "Yes" requires an explicit true on the marketing row.
+     * "No" includes leads with no marketing row at all, not just an explicit false.
+     */
+    private function applyMarketingBooleanFilter(Builder $query, string $column, bool $wantsYes): void
+    {
+        if ($wantsYes) {
+            $query->whereHas('marketing', function ($q) use ($column) {
+                $q->where($column, true);
+            });
+
+            return;
+        }
+
+        $query->where(function ($q) use ($column) {
+            $q->whereDoesntHave('marketing')
+                ->orWhereHas('marketing', function ($mq) use ($column) {
+                    $mq->where($column, false);
+                });
+        });
     }
 
     /**

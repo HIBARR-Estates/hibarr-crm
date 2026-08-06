@@ -24,10 +24,13 @@ const { Option } = Select;
 
 interface UniversalFilterFormProps {
     config: FilterConfig;
+    /** Remote option data is still in flight — only the selects that need it show a spinner. */
+    optionsLoading?: boolean;
 }
 
 const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
     config,
+    optionsLoading = false,
 }) => {
     // Use draftFilters for form display (pending changes before Apply)
     const { draftFilters: filters, setFilter, setConfig } = useFilter();
@@ -78,9 +81,15 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
 
         if (type === "select") {
             const selectOptions = fieldOptions || propsOptions;
+            // Fields with hardcoded options (Yes/No, lead type) are never empty,
+            // so they never show a spinner.
+            const awaitingOptions =
+                optionsLoading && selectOptions.length === 0;
 
             return (
                 <Select
+                    loading={awaitingOptions}
+                    disabled={awaitingOptions}
                     value={value || undefined}
                     onChange={(val) => {
                         // Find the selected option to get its label
@@ -124,10 +133,14 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
 
         if (type === "multiselect") {
             const selectOptions = fieldOptions || propsOptions;
+            const awaitingOptions =
+                optionsLoading && selectOptions.length === 0;
 
             return (
                 <Select
                     mode="multiple"
+                    loading={awaitingOptions}
+                    disabled={awaitingOptions}
                     value={value || []}
                     onChange={(val) => {
                         // Find the selected options to create display value
