@@ -339,11 +339,42 @@ class DeveloperProject extends BaseModel
     }
 
     /**
-     * Get the first asset (thumbnail) for this project, ordered by the order column.
+     * Listing/card thumbnail: prefer cover-tagged images, then hero, then lowest order.
      */
     public function thumbnail(): HasOne
     {
-        return $this->hasOne(DeveloperProjectAsset::class)->orderBy('order');
+        $table = (new DeveloperProjectAsset)->getTable();
+
+        $relation = $this->hasOne(DeveloperProjectAsset::class)
+            ->where("{$table}.asset_type", DeveloperProjectAsset::TYPE_IMAGE);
+
+        $tagPrioritySql = match ($this->getConnection()->getDriverName()) {
+            'mysql' => "
+                CASE
+                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"cover\"') THEN 0
+                    WHEN JSON_CONTAINS(COALESCE({$table}.tags, '[]'), '\"hero\"') THEN 1
+                    ELSE 2
+                END
+            ",
+            'sqlite' => "
+                CASE
+                    WHEN EXISTS (
+                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
+                        WHERE json_each.value = 'cover'
+                    ) THEN 0
+                    WHEN EXISTS (
+                        SELECT 1 FROM json_each(COALESCE({$table}.tags, '[]'))
+                        WHERE json_each.value = 'hero'
+                    ) THEN 1
+                    ELSE 2
+                END
+            ",
+            default => '2',
+        };
+
+        return $relation
+            ->orderByRaw($tagPrioritySql)
+            ->orderBy("{$table}.order");
     }
 
     /**
