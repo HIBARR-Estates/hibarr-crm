@@ -104,7 +104,7 @@ export default function DealTimelineEventEditModal({
         >
             {event && (
                 <div className="mb-3 text-[13px] font-semibold" style={{ color: "#1a1f2e" }}>
-                    {td(event.title)}
+                    {td(event.title, { source: "en" })}
                 </div>
             )}
 

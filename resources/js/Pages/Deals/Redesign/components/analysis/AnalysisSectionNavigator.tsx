@@ -52,7 +52,7 @@ export default function AnalysisSectionNavigator({
                     className="text-[10px] font-semibold uppercase tracking-widest"
                     style={{ color: T.TEXT_HINT }}
                 >
-                    {td("Sections")}
+                    {td("Sections", { source: "en" })}
                 </p>
             </div>
 
@@ -100,7 +100,7 @@ export default function AnalysisSectionNavigator({
                         className="w-full py-2 rounded-xl text-xs font-semibold text-white transition-opacity hover:opacity-90"
                         style={{ backgroundColor: T.NAVY }}
                     >
-                        + {td("Create Task")}
+                        + {td("Create Task", { source: "en" })}
                     </button>
                     <button
                         type="button"
@@ -112,7 +112,7 @@ export default function AnalysisSectionNavigator({
                             backgroundColor: "transparent",
                         }}
                     >
-                        📅 {td("Schedule Meeting")}
+                        📅 {td("Schedule Meeting", { source: "en" })}
                     </button>
                 </div>
 
@@ -129,10 +129,10 @@ export default function AnalysisSectionNavigator({
                     }
                 >
                     {isCompleting
-                        ? td("Completing…")
+                        ? td("Completing…", { source: "en" })
                         : allFilled
-                            ? td("Complete Analysis ✓")
-                            : `${td("Complete")} (${totalFields - totalFilled} ${td("missing")})`
+                            ? td("Complete Analysis ✓", { source: "en" })
+                            : `${td("Complete", { source: "en" })} (${totalFields - totalFilled} ${td("missing", { source: "en" })})`
                     }
                 </button>
             </div>

@@ -477,13 +477,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             default:
                 return (
                     <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
-                        {td("This tab is coming soon.")}
+                        {td("This tab is coming soon.", { source: "en" })}
                     </p>
                 );
         }
     };
 
-    const pageTitle = lead.client_name ?? td("Lead");
+    const pageTitle = lead.client_name ?? td("Lead", { source: "en" });
 
     return (
         <PageLayout
@@ -641,7 +641,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 <>
                     <TemplatePickerModal
                         open={templatePickerOpen}
-                        leadName={lead.client_name ?? td("Lead")}
+                        leadName={lead.client_name ?? td("Lead", { source: "en" })}
                         templates={qualification.templates}
                         loading={qualification.templatesLoading}
                         onClose={() => setTemplatePickerOpen(false)}
@@ -668,7 +668,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
                     <AnswersReviewModal
                         open={nav.answersOpen}
-                        leadName={lead.client_name ?? td("Lead")}
+                        leadName={lead.client_name ?? td("Lead", { source: "en" })}
                         history={qualification.history}
                         current={qualification.current}
                         onClose={() => nav.setAnswersOpen(false)}
@@ -739,13 +739,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     )
                 }
                 labels={{
-                    title: td("Add note"),
-                    cancel: td("Cancel"),
-                    submit: td("Save note"),
-                    titleField: td("Title"),
-                    titlePlaceholder: td("Optional title"),
-                    detailsField: td("Details"),
-                    bodyPlaceholder: td("Write your note…"),
+                    title: td("Add note", { source: "en" }),
+                    cancel: td("Cancel", { source: "en" }),
+                    submit: td("Save note", { source: "en" }),
+                    titleField: td("Title", { source: "en" }),
+                    titlePlaceholder: td("Optional title", { source: "en" }),
+                    detailsField: td("Details", { source: "en" }),
+                    bodyPlaceholder: td("Write your note…", { source: "en" }),
                 }}
             />
 
@@ -765,24 +765,22 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     })
                 }
                 labels={{
-                    title: td("Create task"),
-                    cancel: td("Cancel"),
-                    submit: td("Create task"),
-                    titleField: td("Title"),
-                    titlePlaceholder: td("What needs to be done?"),
-                    description: td("Description"),
-                    descriptionPlaceholder: td("Optional details"),
-                    startDate: td("Start date"),
-                    dueDate: td("Due date"),
-                    dueTime: td("Due time"),
-                    priority: td("Priority"),
-                    priorityHigh: td("High"),
-                    priorityMedium: td("Medium"),
-                    priorityLow: td("Low"),
-                    assignees: td("Assignees"),
-                    dateRangeError: td(
-                        "Due date must be on or after start date",
-                    ),
+                    title: td("Create task", { source: "en" }),
+                    cancel: td("Cancel", { source: "en" }),
+                    submit: td("Create task", { source: "en" }),
+                    titleField: td("Title", { source: "en" }),
+                    titlePlaceholder: td("What needs to be done?", { source: "en" }),
+                    description: td("Description", { source: "en" }),
+                    descriptionPlaceholder: td("Optional details", { source: "en" }),
+                    startDate: td("Start date", { source: "en" }),
+                    dueDate: td("Due date", { source: "en" }),
+                    dueTime: td("Due time", { source: "en" }),
+                    priority: td("Priority", { source: "en" }),
+                    priorityHigh: td("High", { source: "en" }),
+                    priorityMedium: td("Medium", { source: "en" }),
+                    priorityLow: td("Low", { source: "en" }),
+                    assignees: td("Assignees", { source: "en" }),
+                    dateRangeError: td("Due date must be on or after start date", { source: "en" }),
                 }}
             />
 
@@ -819,9 +817,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     )
                 }
                 labels={{
-                    title: td("Schedule meeting"),
-                    cancel: td("Cancel"),
-                    submit: td("Schedule"),
+                    title: td("Schedule meeting", { source: "en" }),
+                    cancel: td("Cancel", { source: "en" }),
+                    submit: td("Schedule", { source: "en" }),
                 }}
             />
 

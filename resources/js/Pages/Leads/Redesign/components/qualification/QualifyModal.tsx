@@ -59,14 +59,14 @@ export default function QualifyModal({
     const showNav = segment?.type !== "outcome";
     const segments = flow.visibleSegments;
     const stepIndex = Math.max(flow.currentIndex, 0);
-    const leadName = lead.client_name || td("Lead");
+    const leadName = lead.client_name || td("Lead", { source: "en" });
 
     const stepKindLabel = (() => {
         if (!segment) return "";
-        if (segment.type === "say") return td("Script");
-        if (segment.type === "instruction") return td("Instruction");
-        if (segment.type === "outcome") return td("Outcome");
-        return td("Question");
+        if (segment.type === "say") return td("Script", { source: "en" });
+        if (segment.type === "instruction") return td("Instruction", { source: "en" });
+        if (segment.type === "outcome") return td("Outcome", { source: "en" });
+        return td("Question", { source: "en" });
     })();
 
     return (
@@ -75,10 +75,10 @@ export default function QualifyModal({
                 open={open}
                 onClose={onClose}
                 labelledBy={titleId}
-                ariaLabel={`${td("Qualify")} ${leadName}`}
+                ariaLabel={`${td("Qualify", { source: "en" })} ${leadName}`}
             >
                 <LeadV2ModalHeader
-                    title={`${td("Qualify")} ${leadName}`}
+                    title={`${td("Qualify", { source: "en" })} ${leadName}`}
                     titleId={titleId}
                     rightSlot={
                         <span className="v2-pill v2-pill-gray">
@@ -114,8 +114,8 @@ export default function QualifyModal({
                                 color: "var(--lr-text-dim)",
                             }}
                         >
-                            {td("Step")} {Math.min(stepIndex + 1, segments.length || 1)}{" "}
-                            {td("of")} {Math.max(segments.length, 1)}
+                            {td("Step", { source: "en" })} {Math.min(stepIndex + 1, segments.length || 1)}{" "}
+                            {td("of", { source: "en" })} {Math.max(segments.length, 1)}
                             {stepKindLabel ? ` · ${stepKindLabel}` : ""}
                         </div>
                         <select
@@ -128,7 +128,7 @@ export default function QualifyModal({
                                 padding: "6px 10px",
                                 fontSize: 12,
                             }}
-                            aria-label={td("Script language")}
+                            aria-label={td("Script language", { source: "en" })}
                         >
                             {LANGUAGE_OPTIONS.map((option) => (
                                 <option key={option.value} value={option.value}>
@@ -158,7 +158,7 @@ export default function QualifyModal({
                                 fontSize: 13,
                             }}
                         >
-                            {td("No steps available for this template.")}
+                            {td("No steps available for this template.", { source: "en" })}
                         </p>
                     )}
                 </div>

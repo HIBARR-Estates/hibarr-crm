@@ -71,7 +71,7 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                 }}
             >
                 <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0 }}>
-                    {td("Dossier")}
+                    {td("Dossier", { source: "en" })}
                 </h2>
                 {onOpenLeadInfo && (
                     <button
@@ -87,7 +87,7 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                             fontFamily: "inherit",
                         }}
                     >
-                        {td("Edit in Lead info")}
+                        {td("Edit in Lead info", { source: "en" })}
                     </button>
                 )}
             </div>
@@ -125,7 +125,7 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                                     }}
                                 >
                                     <span style={{ color: "var(--lr-text-dim)" }}>
-                                        {td(field.label)}
+                                        {td(field.label, { source: "en" })}
                                     </span>
                                     <DossierField
                                         value={displayValue}
@@ -149,12 +149,12 @@ export default function LeadDossier({ lead, onOpenLeadInfo }: LeadDossierProps) 
                 <footer className="v2-dossier-footnote">
                     {createdLabel ? (
                         <div>
-                            {td("Created")} {createdLabel}
+                            {td("Created", { source: "en" })} {createdLabel}
                         </div>
                     ) : null}
                     {updatedLabel ? (
                         <div>
-                            {td("Updated")} {updatedLabel}
+                            {td("Updated", { source: "en" })} {updatedLabel}
                         </div>
                     ) : null}
                 </footer>

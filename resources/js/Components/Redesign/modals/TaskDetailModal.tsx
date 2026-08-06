@@ -257,7 +257,7 @@ export default function TaskDetailModal({
                 <div className="mb-3 space-y-1">
                     {errors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {td(error)}
+                            {td(error, { source: "en" })}
                         </p>
                     ))}
                 </div>

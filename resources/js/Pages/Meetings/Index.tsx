@@ -351,7 +351,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                     </span>
                     <span className="font-medium text-gray-800 text-sm truncate">
                         {meeting.meeting_type?.name
-                            ? td(meeting.meeting_type.name)
+                            ? td(meeting.meeting_type.name, { source: "en" })
                             : getLocationLabel(meeting.location, t)}
                     </span>
                     {live && (
@@ -394,7 +394,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             router.visit(`/account/deals/${meeting.deal!.id}`);
                         }}
                     >
-                        {td(meeting.deal.name)}
+                        {td(meeting.deal.name, { source: "en" })}
                     </p>
                 ) : meeting.lead ? (
                     <p
@@ -406,10 +406,8 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             );
                         }}
                     >
-                        {td(
-                            meeting.lead.client_name_salutation ||
-                                meeting.lead.client_name,
-                        )}
+                        {td(meeting.lead.client_name_salutation ||
+                                meeting.lead.client_name, { source: "en" })}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">
@@ -640,7 +638,7 @@ function MeetingsIndex() {
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {td("Refresh")}
+                            {td("Refresh", { source: "en" })}
                         </Button>
                         {canAdd && (
                             <Button

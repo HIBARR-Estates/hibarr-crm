@@ -73,7 +73,7 @@ export default function OutcomeMultiSelect({
                     <Space direction="vertical" className="w-full">
                         {options.map((option) => (
                             <Checkbox key={option.key} value={option.key}>
-                                {td(option.label)}
+                                {td(option.label, { source: "en" })}
                             </Checkbox>
                         ))}
                     </Space>
@@ -83,7 +83,7 @@ export default function OutcomeMultiSelect({
                     onChange={(e) => setComment(e.target.value)}
                     disabled={completing}
                     rows={2}
-                    placeholder={td("Add context for this outcome...")}
+                    placeholder={td("Add context for this outcome...", { source: "en" })}
                 />
                 <Button
                     type="primary"
@@ -92,7 +92,7 @@ export default function OutcomeMultiSelect({
                     disabled={selected.length === 0}
                     onClick={handleConfirm}
                 >
-                    {td("Complete qualification")}
+                    {td("Complete qualification", { source: "en" })}
                 </Button>
             </div>
         );
@@ -118,7 +118,7 @@ export default function OutcomeMultiSelect({
                             disabled={completing}
                             onClick={() => toggle(option.key)}
                         >
-                            <span>{td(option.label)}</span>
+                            <span>{td(option.label, { source: "en" })}</span>
                             {isSelected ? <Icon name="check" size={16} /> : null}
                         </button>
                     );
@@ -129,7 +129,7 @@ export default function OutcomeMultiSelect({
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
                 disabled={completing}
-                placeholder={td("Add context for this outcome...")}
+                placeholder={td("Add context for this outcome...", { source: "en" })}
                 style={{ marginBottom: 14 }}
             />
             <button
@@ -140,7 +140,7 @@ export default function OutcomeMultiSelect({
                 style={{ width: "100%" }}
             >
                 <Icon name="check" size={14} />
-                {td("Complete qualification")}
+                {td("Complete qualification", { source: "en" })}
             </button>
         </div>
     );

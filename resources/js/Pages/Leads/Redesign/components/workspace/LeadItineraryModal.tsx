@@ -57,21 +57,21 @@ export default function LeadItineraryModal({
             labels={{
                 addTitle: ft("add_flight"),
                 editTitle: ft("edit_flight"),
-                cancel: td("Cancel"),
-                save: td("Save changes"),
+                cancel: td("Cancel", { source: "en" }),
+                save: td("Save changes", { source: "en" }),
                 addSubmit: ft("add_flight"),
                 arrival: ft("arrival"),
                 departure: ft("departure"),
                 direction: ft("direction"),
                 flightNumber: ft("flight_number"),
-                flightNumberPlaceholder: td("e.g. EK123"),
+                flightNumberPlaceholder: td("e.g. EK123", { source: "en" }),
                 airportName: ft("airport_name"),
-                selectAirport: `${td("Select")} ${ft("airport")}`,
+                selectAirport: `${td("Select", { source: "en" })} ${ft("airport")}`,
                 date: t("app.date"),
                 time: t("app.time"),
                 transferQuestion: ft("airport_transfer_required_question"),
-                yes: td("Yes"),
-                no: td("No"),
+                yes: td("Yes", { source: "en" }),
+                no: td("No", { source: "en" }),
             }}
         />
     );

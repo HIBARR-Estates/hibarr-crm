@@ -50,7 +50,7 @@ export default function MeetingPopover({ open, onClose, onScheduleMeeting }: Pro
                         </svg>
                     </div>
                     <span className="text-sm font-semibold" style={{ color: T.TEXT }}>
-                        {td("Schedule Meeting")}
+                        {td("Schedule Meeting", { source: "en" })}
                     </span>
                 </div>
                 <button
@@ -66,7 +66,7 @@ export default function MeetingPopover({ open, onClose, onScheduleMeeting }: Pro
             </div>
 
             <p className="text-xs leading-relaxed" style={{ color: T.TEXT_MUTED }}>
-                {td("Open the full meeting scheduler to configure date, time, type, and participants.")}
+                {td("Open the full meeting scheduler to configure date, time, type, and participants.", { source: "en" })}
             </p>
 
             <div className="flex gap-2 pt-1">
@@ -76,7 +76,7 @@ export default function MeetingPopover({ open, onClose, onScheduleMeeting }: Pro
                     className="flex-1 py-2 rounded-xl border text-xs font-medium transition-colors"
                     style={{ borderColor: T.BORDER, color: T.TEXT_MUTED }}
                 >
-                    {td("Cancel")}
+                    {td("Cancel", { source: "en" })}
                 </button>
                 <button
                     type="button"
@@ -84,7 +84,7 @@ export default function MeetingPopover({ open, onClose, onScheduleMeeting }: Pro
                     className="flex-1 py-2 rounded-xl text-xs font-semibold transition-opacity hover:opacity-90"
                     style={{ border: `1.5px solid ${T.NAVY}`, color: T.NAVY }}
                 >
-                    {td("Open Scheduler")}
+                    {td("Open Scheduler", { source: "en" })}
                 </button>
             </div>
         </div>

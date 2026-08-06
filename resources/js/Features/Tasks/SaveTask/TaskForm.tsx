@@ -295,7 +295,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         return `${lead.client_name ?? ""} ${company}`.trim();
     };
 
-    const getDealLabel = (deal: Deal) => td(deal.name);
+    const getDealLabel = (deal: Deal) => td(deal.name, { source: "en" });
 
     const filterLeadOption = (input: string, option?: { value?: number }) => {
         const lead = leads.find((l) => l.id === option?.value);
@@ -392,24 +392,24 @@ const TaskForm: React.FC<TaskFormProps> = ({
             {/* ── Title ── */}
             <Form.Item
                 name="heading"
-                label={td("Task Title")}
+                label={td("Task Title", { source: "en" })}
                 rules={[
-                    { required: true, message: td("Please enter task title") },
-                    { min: 3, message: td("Title must be at least 3 characters") },
+                    { required: true, message: td("Please enter task title", { source: "en" }) },
+                    { min: 3, message: td("Title must be at least 3 characters", { source: "en" }) },
                 ]}
             >
-                <Input placeholder={td("Enter task title...")} size="large" />
+                <Input placeholder={td("Enter task title...", { source: "en" })} size="large" />
             </Form.Item>
 
             {/* ── Description ── */}
             <Form.Item
                 name="description"
-                label={td("Description")}
-                extra={td("Provide a detailed description of the task")}
+                label={td("Description", { source: "en" })}
+                extra={td("Provide a detailed description of the task", { source: "en" })}
             >
                 <TextArea
                     rows={3}
-                    placeholder={td("Enter task description...")}
+                    placeholder={td("Enter task description...", { source: "en" })}
                     showCount
                     maxLength={1000}
                 />
@@ -420,7 +420,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
             <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                    <Form.Item name="start_date" label={td("Start Date")}>
+                    <Form.Item name="start_date" label={td("Start Date", { source: "en" })}>
                         <DatePicker
                             style={{ width: "100%" }}
                             format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
@@ -432,14 +432,14 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 <Col xs={24} sm={12}>
                     <Form.Item
                         name="due_date"
-                        label={td("Due Date")}
-                        extra={td("Leave empty if no due date")}
+                        label={td("Due Date", { source: "en" })}
+                        extra={td("Leave empty if no due date", { source: "en" })}
                     >
                         <DatePicker
                             style={{ width: "100%" }}
                             format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
                             showTime={{ format: companyTimeDayjsFormat() }}
-                            placeholder={td("Select due date")}
+                            placeholder={td("Select due date", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
@@ -450,12 +450,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
 
             <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                    <Form.Item name="priority" label={td("Priority")}>
+                    <Form.Item name="priority" label={td("Priority", { source: "en" })}>
                         <PriorityChips disabled={loading} />
                     </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
-                    <Form.Item name="board_column_id" label={td("Initial Status")} extra={td("Starting status for this task")}>
+                    <Form.Item name="board_column_id" label={td("Initial Status", { source: "en" })} extra={td("Starting status for this task", { source: "en" })}>
                         <StatusChips columns={columns} disabled={loading} />
                     </Form.Item>
                 </Col>
@@ -467,12 +467,12 @@ const TaskForm: React.FC<TaskFormProps> = ({
             {isAdmin && (
                 <Form.Item
                     name="user_ids"
-                    label={td("Assignees")}
-                    extra={td("Select team members to assign this task")}
+                    label={td("Assignees", { source: "en" })}
+                    extra={td("Select team members to assign this task", { source: "en" })}
                 >
                     <Select
                         mode="multiple"
-                        placeholder={td("Select assignees")}
+                        placeholder={td("Select assignees", { source: "en" })}
                         showSearch
                         filterOption={(input, option) => {
                             const user = users.find((u) => u.id === option?.value);
@@ -490,7 +490,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                     {user.name}
                                     {user.designation_name && (
                                         <Text type="secondary" style={{ fontSize: 12 }}>
-                                            ({td(user.designation_name)})
+                                            ({td(user.designation_name, { source: "en" })})
                                         </Text>
                                     )}
                                 </Space>
@@ -504,16 +504,16 @@ const TaskForm: React.FC<TaskFormProps> = ({
             {hasRelatedFields && <SectionDivider label="Related to" />}
 
             {relatedEntity?.type !== "deal" && deals.length > 0 && (
-                <Form.Item name="deal_id" label={td("Related Deal")}>
+                <Form.Item name="deal_id" label={td("Related Deal", { source: "en" })}>
                     <Select
-                        placeholder={td("Select a deal")}
+                        placeholder={td("Select a deal", { source: "en" })}
                         showSearch
                         allowClear
                         filterOption={filterDealOption}
                     >
                         {deals.map((deal) => (
                             <Select.Option key={deal.id} value={deal.id}>
-                                {td(deal.name)}
+                                {td(deal.name, { source: "en" })}
                             </Select.Option>
                         ))}
                     </Select>
@@ -523,9 +523,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <Row gutter={16}>
                 {relatedEntity?.type !== "lead" && leads.length > 0 && (
                     <Col xs={24} sm={12}>
-                        <Form.Item name="lead_id" label={td("Related Lead")}>
+                        <Form.Item name="lead_id" label={td("Related Lead", { source: "en" })}>
                             <Select
-                                placeholder={td("Select a lead")}
+                                placeholder={td("Select a lead", { source: "en" })}
                                 showSearch
                                 allowClear
                                 filterOption={filterLeadOption}
@@ -542,7 +542,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 )}
                 {relatedEntity?.type !== "property" && properties.length > 0 && (
                     <Col xs={24} sm={12}>
-                        <Form.Item name="property_id" label={td("Related Property")}>
+                        <Form.Item name="property_id" label={td("Related Property", { source: "en" })}>
                             <Select
                                 placeholder="Select a property"
                                 showSearch

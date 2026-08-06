@@ -27,15 +27,15 @@ export default function TemplatePickerModal({
             open={open}
             onClose={onClose}
             labelledBy={titleId}
-            ariaLabel={td("Choose qualification template")}
+            ariaLabel={td("Choose qualification template", { source: "en" })}
         >
             <LeadV2ModalHeader
-                title={td("Choose qualification template")}
+                title={td("Choose qualification template", { source: "en" })}
                 titleId={titleId}
                 subtitle={
                     <>
-                        {td("For")} {leadName} —{" "}
-                        {td("pick the script that matches this conversation")}
+                        {td("For", { source: "en" })} {leadName} —{" "}
+                        {td("pick the script that matches this conversation", { source: "en" })}
                     </>
                 }
                 onClose={onClose}
@@ -50,7 +50,7 @@ export default function TemplatePickerModal({
                             color: "var(--lr-text-dim)",
                         }}
                     >
-                        {td("Loading templates…")}
+                        {td("Loading templates…", { source: "en" })}
                     </p>
                 ) : templates.length === 0 ? (
                     <p
@@ -60,7 +60,7 @@ export default function TemplatePickerModal({
                             color: "var(--lr-text-dim)",
                         }}
                     >
-                        {td("No published templates available.")}
+                        {td("No published templates available.", { source: "en" })}
                     </p>
                 ) : (
                     <div

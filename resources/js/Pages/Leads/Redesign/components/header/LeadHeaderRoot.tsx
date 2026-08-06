@@ -78,8 +78,8 @@ export default function LeadHeaderRoot({
 
     const submetaParts = [
         `#${lead.id}`,
-        createdAgo ? `${td("created")} ${createdAgo}` : null,
-        sourceLabel ? `${td("via")} ${sourceLabel}` : null,
+        createdAgo ? `${td("created", { source: "en" })} ${createdAgo}` : null,
+        sourceLabel ? `${td("via", { source: "en" })} ${sourceLabel}` : null,
     ].filter(Boolean);
 
     return (
@@ -130,7 +130,7 @@ export default function LeadHeaderRoot({
                                 style={{ padding: "5px 10px", fontSize: 12 }}
                                 onClick={onOpenAnswers}
                             >
-                                {td("Qualification answers")}
+                                {td("Qualification answers", { source: "en" })}
                                 <span
                                     className="v2-pill v2-pill-gray"
                                     style={{ marginLeft: 2 }}

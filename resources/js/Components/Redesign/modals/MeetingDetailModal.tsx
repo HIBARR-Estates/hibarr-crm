@@ -95,7 +95,7 @@ export default function MeetingDetailModal({
             <Modal
                 open={!!meeting}
                 onClose={onClose}
-                title={td(item.title)}
+                title={td(item.title, { source: "en" })}
                 footer={
                     <>
                         {canDelete && (
@@ -137,12 +137,12 @@ export default function MeetingDetailModal({
                     <span
                         className={`dr-pill ${PLATFORM_PILL[item.locationType] ?? "dr-pill-gray"}`}
                     >
-                        {td(item.platformLabel)}
+                        {td(item.platformLabel, { source: "en" })}
                     </span>
                     <span
                         className={`dr-pill ${getMeetingStatusTone(item.statusLabel)}`}
                     >
-                        {td(item.statusLabel)}
+                        {td(item.statusLabel, { source: "en" })}
                     </span>
                     {showSummaryBadge &&
                         (summaryReady ? (
@@ -321,7 +321,7 @@ export default function MeetingDetailModal({
                             style={{ fontSize: 14, color: T.TEXT_MUTED }}
                         >
                             <Icon name="map-pin" size={14} />
-                            {td(item.locationDisplay)}
+                            {td(item.locationDisplay, { source: "en" })}
                         </div>
                     )}
                 </div>
@@ -387,7 +387,7 @@ export default function MeetingDetailModal({
                                     key={index}
                                     className="dr-pill dr-pill-gray"
                                 >
-                                    {td(reminderLabel(reminder))}
+                                    {td(reminderLabel(reminder), { source: "en" })}
                                 </span>
                             ))}
                         </div>

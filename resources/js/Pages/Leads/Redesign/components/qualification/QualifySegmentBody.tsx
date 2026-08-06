@@ -29,7 +29,7 @@ interface ScriptPromptProps {
 }
 
 function ScriptPrompt({ text, kind, translateScript }: ScriptPromptProps) {
-    const localized = useDynamicTranslation(text);
+    const localized = useDynamicTranslation(text, { source: "en" });
     const translated = translateScript(localized);
     const quoted = kind === "say" || kind === "question";
 
@@ -148,7 +148,7 @@ export default function QualifySegmentBody({
                             translateScript={flow.translateScript}
                         />
                         <p className="v2-qualify-guidance">
-                            {td(GUIDANCE_BY_KIND[kind] ?? GUIDANCE_BY_KIND.question)}
+                            {td(GUIDANCE_BY_KIND[kind] ?? GUIDANCE_BY_KIND.question, { source: "en" })}
                         </p>
                     </>
                 )}
@@ -166,7 +166,7 @@ export default function QualifySegmentBody({
                         }
                         disabled={flow.saving}
                         rows={4}
-                        placeholder={td("Type the answer...")}
+                        placeholder={td("Type the answer...", { source: "en" })}
                         style={{ marginBottom: 14 }}
                     />
                 )}
@@ -199,7 +199,7 @@ export default function QualifySegmentBody({
                                     }
                                 >
                                     <span>
-                                        {value === "yes" ? td("Yes") : td("No")}
+                                        {value === "yes" ? td("Yes", { source: "en" }) : td("No", { source: "en" })}
                                     </span>
                                     {selected ? (
                                         <Icon name="check" size={16} />
@@ -279,7 +279,7 @@ export default function QualifySegmentBody({
                             )
                         }
                         disabled={flow.saving}
-                        placeholder={td("Add context for this answer...")}
+                        placeholder={td("Add context for this answer...", { source: "en" })}
                     />
                 ) : null}
             </div>

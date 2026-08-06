@@ -82,7 +82,7 @@ export default function DealStickyHeader({
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="text-[20px] font-bold tracking-[-0.01em] text-[#1a1f2e]">
-                                {td(header.title)}
+                                {td(header.title, { source: "en" })}
                             </h1>
                             {outcome && (
                                 <span
@@ -135,8 +135,8 @@ export default function DealStickyHeader({
                                     onClick={onOpenAnalysis}
                                 >
                                     {deal.analysis_status === "completed"
-                                        ? td("View Analysis")
-                                        : td("Open Analysis")}
+                                        ? td("View Analysis", { source: "en" })
+                                        : td("Open Analysis", { source: "en" })}
                                 </DealButton>
                             )}
                             <DealButton

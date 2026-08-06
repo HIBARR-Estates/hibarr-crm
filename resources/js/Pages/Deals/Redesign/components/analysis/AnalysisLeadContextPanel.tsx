@@ -116,7 +116,7 @@ function ProfileCard({ leadName, email, phones, whatsapp, imageUrl }: {
                 )}
                 <div className="min-w-0 flex-1">
                     <div className="text-sm font-semibold text-slate-900 truncate">
-                        {leadName || td("No name")}
+                        {leadName || td("No name", { source: "en" })}
                     </div>
                     {email && (
                         <div className="text-xs text-slate-500 truncate">{email}</div>
@@ -139,7 +139,7 @@ function ProfileCard({ leadName, email, phones, whatsapp, imageUrl }: {
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
                         </svg>
-                        {td("Call")}
+                        {td("Call", { source: "en" })}
                     </a>
                 )}
                 {email && (
@@ -151,7 +151,7 @@ function ProfileCard({ leadName, email, phones, whatsapp, imageUrl }: {
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
-                        {td("Email")}
+                        {td("Email", { source: "en" })}
                     </a>
                 )}
                 {whatsapp && (
@@ -225,22 +225,22 @@ export default function AnalysisLeadContextPanel({
     const whatsappDisplay = (() => {
         const num = contact?.client_whatsapp;
         const groupSuffix = whatsappGroupJoined !== null
-            ? whatsappGroupJoined ? ` · ✓ ${td("Group")}` : ` · ✗ ${td("Group")}`
+            ? whatsappGroupJoined ? ` · ✓ ${td("Group", { source: "en" })}` : ` · ✗ ${td("Group", { source: "en" })}`
             : "";
         if (num) return `${num}${groupSuffix}`;
-        if (whatsappGroupJoined !== null) return whatsappGroupJoined ? `✓ ${td("In group")}` : `✗ ${td("Not in group")}`;
+        if (whatsappGroupJoined !== null) return whatsappGroupJoined ? `✓ ${td("In group", { source: "en" })}` : `✗ ${td("Not in group", { source: "en" })}`;
         return null;
     })();
 
     // Read-only relation rows — always-visible + conditional
     const alwaysReadOnlyRows: Array<{ label: string; value: string | null }> = [
-        { label: td("Source"), value: contact?.leadSource?.name ?? null },
-        { label: td("Lead Owner"), value: contact?.leadOwner?.name ?? null },
-        { label: td("Status"), value: contact?.lifecycleStatus?.name ?? null },
+        { label: td("Source", { source: "en" }), value: contact?.leadSource?.name ?? null },
+        { label: td("Lead Owner", { source: "en" }), value: contact?.leadOwner?.name ?? null },
+        { label: td("Status", { source: "en" }), value: contact?.lifecycleStatus?.name ?? null },
     ];
     const conditionalReadOnlyRows: Array<{ label: string; value: string | null }> = [
         {
-            label: td("Category"),
+            label: td("Category", { source: "en" }),
             value: (() => {
                 const multi = contact?.categories as
                     | Array<{ category_name?: string; name?: string }>
@@ -278,9 +278,9 @@ export default function AnalysisLeadContextPanel({
     })();
 
     const GENDER_OPTIONS = useMemo(() => [
-        { value: "male", label: td("Male") },
-        { value: "female", label: td("Female") },
-        { value: "other", label: td("Other") },
+        { value: "male", label: td("Male", { source: "en" }) },
+        { value: "female", label: td("Female", { source: "en" }) },
+        { value: "other", label: td("Other", { source: "en" }) },
     ], [td]);
 
     // ── Custom field grouping ─────────────────────────────────────────────
@@ -352,10 +352,10 @@ export default function AnalysisLeadContextPanel({
     // ── Tab bar ───────────────────────────────────────────────────────────
 
     const tabs: Array<{ id: Tab; label: string; count?: number }> = [
-        { id: "lead", label: td("Lead Info") },
-        { id: "files", label: td("Files"), count: (files?.length ?? 0) + fileCustomFields.length },
-        { id: "notes", label: td("Notes") },
-        ...(hasFlights ? [{ id: "flights" as Tab, label: td("Flights") }] : []),
+        { id: "lead", label: td("Lead Info", { source: "en" }) },
+        { id: "files", label: td("Files", { source: "en" }), count: (files?.length ?? 0) + fileCustomFields.length },
+        { id: "notes", label: td("Notes", { source: "en" }) },
+        ...(hasFlights ? [{ id: "flights" as Tab, label: td("Flights", { source: "en" }) }] : []),
     ];
 
     // ── File upload ───────────────────────────────────────────────────────
@@ -382,7 +382,7 @@ export default function AnalysisLeadContextPanel({
             {/* Tab bar — revamp §C.2 style */}
             <div
                 role="tablist"
-                aria-label={td("Lead context")}
+                aria-label={td("Lead context", { source: "en" })}
                 className="flex shrink-0 border-b border-slate-200 px-4"
             >
                 {tabs.map((tab) => (
@@ -430,41 +430,41 @@ export default function AnalysisLeadContextPanel({
                         <CoreFieldRow key={label} label={label} value={value ?? ""} />
                     ))}
                     {/* Personal Info — mix of read-only and editable core contact fields */}
-                    <FieldGroup label={td("Personal Info")}>
+                    <FieldGroup label={td("Personal Info", { source: "en" })}>
                         {/* Editable: gender, date_of_birth, age, nationality, occupation */}
                         <AnalysisCustomFieldRow
-                            field={{ id: 0, label: td("Gender"), type: "select", values: GENDER_OPTIONS }}
+                            field={{ id: 0, label: td("Gender", { source: "en" }), type: "select", values: GENDER_OPTIONS }}
                             value={editableContactVals.gender}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, gender: v }))}
                             onSave={(v) => onContactFieldSave("gender", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 1, label: td("Date of Birth"), type: "date", values: null }}
+                            field={{ id: 1, label: td("Date of Birth", { source: "en" }), type: "date", values: null }}
                             value={editableContactVals.date_of_birth}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, date_of_birth: v }))}
                             onSave={(v) => onContactFieldSave("date_of_birth", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 2, label: td("Age"), type: "number", values: null }}
+                            field={{ id: 2, label: td("Age", { source: "en" }), type: "number", values: null }}
                             value={editableContactVals.age}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, age: v }))}
                             onSave={(v) => onContactFieldSave("age", v)}
                         />
                         {ageRange && (
-                            <CoreFieldRow label={td("Age Range")} value={ageRange} />
+                            <CoreFieldRow label={td("Age Range", { source: "en" })} value={ageRange} />
                         )}
                         <AnalysisCustomFieldRow
-                            field={{ id: 3, label: td("Nationality"), type: "country", values: null }}
+                            field={{ id: 3, label: td("Nationality", { source: "en" }), type: "country", values: null }}
                             value={editableContactVals.nationality}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, nationality: v }))}
                             onSave={(v) => onContactFieldSave("nationality", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 4, label: td("Occupation"), type: "text", values: null }}
+                            field={{ id: 4, label: td("Occupation", { source: "en" }), type: "text", values: null }}
                             value={editableContactVals.occupation}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, occupation: v }))}
@@ -474,35 +474,35 @@ export default function AnalysisLeadContextPanel({
                         {/* ponytail: languages read-only, add language options prop when needed */}
 
                         <AnalysisCustomFieldRow
-                            field={{ id: 6, label: td("Company"), type: "text", values: null }}
+                            field={{ id: 6, label: td("Company", { source: "en" }), type: "text", values: null }}
                             value={editableContactVals.company}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, company: v }))}
                             onSave={(v) => onContactFieldSave("company", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 7, label: td("Address"), type: "text", values: null }}
+                            field={{ id: 7, label: td("Address", { source: "en" }), type: "text", values: null }}
                             value={editableContactVals.address}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, address: v }))}
                             onSave={(v) => onContactFieldSave("address", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 8, label: td("City"), type: "text", values: null }}
+                            field={{ id: 8, label: td("City", { source: "en" }), type: "text", values: null }}
                             value={editableContactVals.address}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, city: v }))}
                             onSave={(v) => onContactFieldSave("city", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 9, label: td("State"), type: "text", values: null }}
+                            field={{ id: 9, label: td("State", { source: "en" }), type: "text", values: null }}
                             value={editableContactVals.state}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, state: v }))}
                             onSave={(v) => onContactFieldSave("state", v)}
                         />
                         <AnalysisCustomFieldRow
-                            field={{ id: 10, label: td("Country"), type: "country", values: null }}
+                            field={{ id: 10, label: td("Country", { source: "en" }), type: "country", values: null }}
                             value={editableContactVals.country}
                             canEdit={canEdit}
                             onChange={(v) => setEditableContactVals((p) => ({ ...p, country: v }))}
@@ -518,23 +518,23 @@ export default function AnalysisLeadContextPanel({
                     {contact?.marketing && (() => {
                         const m = contact.marketing;
                         const boolField = (val: boolean | null | undefined, td: (s: string) => string) =>
-                            val == null ? "" : val ? td("Yes") : td("No");
+                            val == null ? "" : val ? td("Yes", { source: "en" }) : td("No", { source: "en" });
                         const rows = [
-                            { label: td("UTM Source"), value: m.utm_source ?? "" },
-                            { label: td("UTM Medium"), value: m.utm_medium ?? "" },
-                            { label: td("UTM Campaign"), value: m.utm_campaign ?? "" },
-                            { label: td("UTM Content"), value: m.utm_content ?? "" },
-                            { label: td("UTM Term"), value: m.utm_term ?? "" },
-                            { label: td("UTM Audience"), value: m.utm_audience ?? "" },
-                            { label: td("Ebook"), value: boolField(m.has_downloaded_the_ebook, td) },
-                            { label: td("Facebook Group"), value: boolField(m.has_joined_the_facebook_group, td) },
-                            { label: td("WhatsApp Group"), value: boolField(m.has_joined_the_whatsapp_group, td) },
-                            { label: td("Webinar Registration"), value: boolField(m.has_registered_for_the_webinar, td) },
-                            { label: td("Webinar Attendance"), value: boolField(m.has_attended_the_webinar, td) },
+                            { label: td("UTM Source", { source: "en" }), value: m.utm_source ?? "" },
+                            { label: td("UTM Medium", { source: "en" }), value: m.utm_medium ?? "" },
+                            { label: td("UTM Campaign", { source: "en" }), value: m.utm_campaign ?? "" },
+                            { label: td("UTM Content", { source: "en" }), value: m.utm_content ?? "" },
+                            { label: td("UTM Term", { source: "en" }), value: m.utm_term ?? "" },
+                            { label: td("UTM Audience", { source: "en" }), value: m.utm_audience ?? "" },
+                            { label: td("Ebook", { source: "en" }), value: boolField(m.has_downloaded_the_ebook, td) },
+                            { label: td("Facebook Group", { source: "en" }), value: boolField(m.has_joined_the_facebook_group, td) },
+                            { label: td("WhatsApp Group", { source: "en" }), value: boolField(m.has_joined_the_whatsapp_group, td) },
+                            { label: td("Webinar Registration", { source: "en" }), value: boolField(m.has_registered_for_the_webinar, td) },
+                            { label: td("Webinar Attendance", { source: "en" }), value: boolField(m.has_attended_the_webinar, td) },
                         ].filter((r) => r.value !== "");
                         if (!rows.length) return null;
                         return (
-                            <FieldGroup label={td("Marketing")}>
+                            <FieldGroup label={td("Marketing", { source: "en" })}>
                                 {rows.map(({ label, value }) => (
                                     <CoreFieldRow key={label} label={label} value={value} />
                                 ))}
@@ -559,7 +559,7 @@ export default function AnalysisLeadContextPanel({
 
                     {/* "More" — uncategorized custom fields */}
                     {uncategorized.length > 0 && (
-                        <FieldGroup label={td("More")}>
+                        <FieldGroup label={td("More", { source: "en" })}>
                             {uncategorized.map((field: any) => (
                                 <AnalysisCustomFieldRow
                                     key={field.id}
@@ -584,7 +584,7 @@ export default function AnalysisLeadContextPanel({
                 >
                     {/* Deal files */}
                     {filesLoading ? (
-                        <div className="text-xs text-slate-400">{td("Loading…")}</div>
+                        <div className="text-xs text-slate-400">{td("Loading…", { source: "en" })}</div>
                     ) : (
                         <>
                             {files?.map((file: any) => (
@@ -618,7 +618,7 @@ export default function AnalysisLeadContextPanel({
                                         target="_blank"
                                         rel="noreferrer"
                                         className="text-slate-400 hover:text-slate-600 shrink-0"
-                                        aria-label={td("Download")}
+                                        aria-label={td("Download", { source: "en" })}
                                     >
                                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -628,14 +628,14 @@ export default function AnalysisLeadContextPanel({
                             ))}
 
                             {files?.length === 0 && fileCustomFields.length === 0 && (
-                                <p className="text-sm italic text-slate-400">{td("No files attached yet.")}</p>
+                                <p className="text-sm italic text-slate-400">{td("No files attached yet.", { source: "en" })}</p>
                             )}
 
                             {/* File custom fields */}
                             {fileCustomFields.length > 0 && (
                                 <div className="pt-2">
                                     <div className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-2">
-                                        {td("Document fields")}
+                                        {td("Document fields", { source: "en" })}
                                     </div>
                                     {fileCustomFields.map((field: any) => {
                                         const val = leadCustomFieldsData[`field_${field.id}`];
@@ -687,7 +687,7 @@ export default function AnalysisLeadContextPanel({
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
                         </svg>
-                        {isUploading ? td("Uploading…") : td("Upload File")}
+                        {isUploading ? td("Uploading…", { source: "en" }) : td("Upload File", { source: "en" })}
                     </button>
                     <input ref={fileInputRef} type="file" multiple className="sr-only" onChange={handleFileChange} />
                 </div>
@@ -703,7 +703,7 @@ export default function AnalysisLeadContextPanel({
                     <AnalysisQuickNote />
                     {notes.length === 0 && (
                         <p className="text-xs italic text-slate-400">
-                            {td("Notes from this call appear here.")}
+                            {td("Notes from this call appear here.", { source: "en" })}
                         </p>
                     )}
                     {notes.map((note: any) => (
@@ -750,11 +750,11 @@ export default function AnalysisLeadContextPanel({
                                         className={`dr-pill dr-pill-${leg.direction === "arrival" ? "green" : "blue"}`}
                                         style={{ fontSize: 10 }}
                                     >
-                                        {leg.direction === "arrival" ? td("Arrival") : td("Departure")}
+                                        {leg.direction === "arrival" ? td("Arrival", { source: "en" }) : td("Departure", { source: "en" })}
                                     </span>
                                     {leg.isTransferRequired && (
                                         <span className="dr-pill dr-pill-amber" style={{ fontSize: 10 }}>
-                                            {td("Transfer")}
+                                            {td("Transfer", { source: "en" })}
                                         </span>
                                     )}
                                 </div>

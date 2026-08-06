@@ -189,7 +189,7 @@ const Index = ({
                           label: (
                               <span>
                                   <MergeCellsOutlined className="mr-2" />
-                                  {td("Find Duplicates")}
+                                  {td("Find Duplicates", { source: "en" })}
                               </span>
                           ),
                           onClick: () => {
@@ -275,7 +275,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {td("Refresh")}
+                                {td("Refresh", { source: "en" })}
                             </Button>
                             {/* Advanced Filters Button */}
                             <Button

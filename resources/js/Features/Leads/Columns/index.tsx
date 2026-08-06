@@ -12,6 +12,7 @@ import {
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay } from "@/lib/utils";
+import type { TdFn } from "@/lib/dynamicTranslation";
 
 interface LeadLifecycleStatusOption {
     id: number;
@@ -80,13 +81,13 @@ function LeadLifecycleStatusCell({ record }: { record: Lead }) {
 interface LeadColumnOptions {
     actionItems?: (item: Lead) => MenuProps["items"];
     t?: (key: string) => string;
-    td?: (text: string | null | undefined) => string;
+    td?: TdFn;
 }
 
 export const LEAD_TABLE_COLUMNS = (
     options: LeadColumnOptions | ((item: Lead) => MenuProps["items"]) = {},
     t: (key: string) => string = (key) => key,
-    td: (text: string | null | undefined) => string = (key) => key ?? "",
+    td: TdFn = (key) => key ?? "",
 ): ColumnsType<Lead> => {
     const resolved =
         typeof options === "function"

@@ -18,7 +18,7 @@ export default function AnalysisQuickNote() {
     return (
         <div className="flex flex-col gap-2">
             <textarea
-                aria-label={td("Add a note")}
+                aria-label={td("Add a note", { source: "en" })}
                 className="w-full resize-none rounded-lg border px-3 py-2 text-[13px] outline-none transition-shadow"
                 style={{
                     borderColor: T.BORDER,
@@ -27,7 +27,7 @@ export default function AnalysisQuickNote() {
                     fontFamily: "inherit",
                     background: T.SURFACE_2,
                 }}
-                placeholder={td("Add a note about this call...")}
+                placeholder={td("Add a note about this call...", { source: "en" })}
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={(e) => {
@@ -47,7 +47,7 @@ export default function AnalysisQuickNote() {
             {text.trim() && (
                 <div className="flex items-center justify-between">
                     <span className="text-[11px]" style={{ color: T.TEXT_HINT }}>
-                        {td("⌘↵ to save")}
+                        {td("⌘↵ to save", { source: "en" })}
                     </span>
                     <button
                         type="button"
@@ -55,7 +55,7 @@ export default function AnalysisQuickNote() {
                         disabled={isSaving}
                         onClick={save}
                     >
-                        {isSaving ? td("Saving...") : td("Save note")}
+                        {isSaving ? td("Saving...", { source: "en" }) : td("Save note", { source: "en" })}
                     </button>
                 </div>
             )}

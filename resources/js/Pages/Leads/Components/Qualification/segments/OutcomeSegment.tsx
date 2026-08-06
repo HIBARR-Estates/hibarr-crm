@@ -45,7 +45,7 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
     onOpenWebinarPicker,
     loading = false,
 }) => {
-    const translated = translateScript(useDynamicTranslation(label));
+    const translated = translateScript(useDynamicTranslation(label, { source: "en" }));
     const { td } = useTd();
     const [error, setError] = useState<string | null>(null);
     const scriptOutcomes = useMemo(
@@ -101,7 +101,7 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
                 <TokenHighlight text={translated} tokenMap={tokenMap} />
             </p>
             <p className="text-sm text-gray-500">
-                {td("Select one or more outcomes for this lead.")}
+                {td("Select one or more outcomes for this lead.", { source: "en" })}
             </p>
             {error && (
                 <Alert type="error" message={error} showIcon className="mb-2" />

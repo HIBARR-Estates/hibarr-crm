@@ -99,10 +99,10 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
             {/* Header */}
             <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
                 <h2 className="text-xl font-semibold text-gray-900 leading-tight">
-                    {td("Add New Note")}
+                    {td("Add New Note", { source: "en" })}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500">
-                    {td("Click to start writing")}
+                    {td("Click to start writing", { source: "en" })}
                 </p>
             </div>
 
@@ -111,12 +111,12 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                 {errors.length > 0 && (
                     <Alert
                         type="error"
-                        message={td("Please fix the following errors:")}
+                        message={td("Please fix the following errors:", { source: "en" })}
                         description={
                             <ul className="mt-2">
                                 {errors.map((error, index) => (
                                     <li key={index} className="text-red-600">
-                                        {td(error)}
+                                        {td(error, { source: "en" })}
                                     </li>
                                 ))}
                             </ul>
@@ -135,19 +135,17 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                 >
                     <Form.Item
                         name="title"
-                        label={td("Note Title")}
+                        label={td("Note Title", { source: "en" })}
                         rules={[
                             {
                                 required: true,
-                                message: td("Please enter a note title"),
+                                message: td("Please enter a note title", { source: "en" }),
                             },
                         ]}
                         className="mb-6"
                     >
                         <Input
-                            placeholder={td(
-                                "Enter a descriptive title for your note...",
-                            )}
+                            placeholder={td("Enter a descriptive title for your note...", { source: "en" })}
                             disabled={loading}
                             className="text-lg py-3"
                             autoFocus
@@ -156,7 +154,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
 
                     <Form.Item
                         name="details"
-                        label={td("Note Content")}
+                        label={td("Note Content", { source: "en" })}
                         rules={[
                             {
                                 required: true,
@@ -165,7 +163,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                         ]}
                     >
                         <HtmlEditor
-                            placeholder={td("Write your note content here...")}
+                            placeholder={td("Write your note content here...", { source: "en" })}
                             disabled={loading}
                             height={300}
                         />
@@ -180,7 +178,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                     disabled={loading}
                     className="px-4 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
                 >
-                    {td("Cancel")}
+                    {td("Cancel", { source: "en" })}
                 </button>
                 <button
                     form={FORM_ID}
@@ -193,7 +191,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                     }`}
                 >
                     <SaveOutlined />
-                    {td("Save Note")}
+                    {td("Save Note", { source: "en" })}
                 </button>
             </div>
         </Modal>

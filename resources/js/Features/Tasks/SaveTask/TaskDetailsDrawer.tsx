@@ -548,7 +548,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                 {/* Category */}
                                 {task.category && (
                                     <PropRow label="Category">
-                                        <Tag>{td(task.category.category_name)}</Tag>
+                                        <Tag>{td(task.category.category_name, { source: "en" })}</Tag>
                                     </PropRow>
                                 )}
 
@@ -565,14 +565,14 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                         color: "#fff",
                                                     }}
                                                 >
-                                                    {td(label.label_name)}
+                                                    {td(label.label_name, { source: "en" })}
                                                 </Tag>
                                             ))}
                                             {task.labels.length > 4 && (
                                                 <Tooltip
                                                     title={task.labels
                                                         .slice(4)
-                                                        .map((l: any) => td(l.label_name))
+                                                        .map((l: any) => td(l.label_name, { source: "en" }))
                                                         .join(", ")}
                                                 >
                                                     <Tag>+{task.labels.length - 4}</Tag>
@@ -597,7 +597,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                         key={deal.id}
                                                         type="deal"
                                                         id={deal.id}
-                                                        name={td(deal.name)}
+                                                        name={td(deal.name, { source: "en" })}
                                                         className="!text-[13px]"
                                                     />
                                                 ))}
@@ -636,7 +636,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                         className="text-blue-600 hover:underline inline-flex items-center gap-1 text-[13px]"
                                                     >
                                                         <LinkOutlined style={{ fontSize: 11 }} />
-                                                        {td(property.name)}
+                                                        {td(property.name, { source: "en" })}
                                                     </Link>
                                                 ))}
                                             </div>
@@ -654,7 +654,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                     <div className="grid grid-cols-2 divide-x divide-slate-100">
                                         <div className="px-4 py-3">
                                             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                                                {td("Estimated")}
+                                                {td("Estimated", { source: "en" })}
                                             </p>
                                             <p className="text-[13px] font-semibold text-slate-800 mb-0">
                                                 {estimatedMinutes > 0 ? (
@@ -668,7 +668,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                         </div>
                                         <div className="px-4 py-3">
                                             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
-                                                {td("Time Spent")}
+                                                {td("Time Spent", { source: "en" })}
                                             </p>
                                             <p className="text-[13px] font-semibold text-slate-800 mb-0">
                                                 {spentMinutes > 0 ? (
@@ -684,7 +684,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                     {estimatedMinutes > 0 && (
                                         <div className="px-4 py-3">
                                             <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                                                {td("Progress")}
+                                                {td("Progress", { source: "en" })}
                                             </p>
                                             <Progress
                                                 percent={Math.round(progressPercent)}
@@ -707,11 +707,11 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                             <div className="rounded-xl border border-slate-100 px-4 py-3 min-h-[72px]">
                                 {task.description ? (
                                     <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap mb-0">
-                                        {td(task.description)}
+                                        {td(task.description, { source: "en" })}
                                     </p>
                                 ) : (
                                     <p className="text-[13px] text-slate-300 italic mb-0">
-                                        {td("No description added")}
+                                        {td("No description added", { source: "en" })}
                                     </p>
                                 )}
                             </div>

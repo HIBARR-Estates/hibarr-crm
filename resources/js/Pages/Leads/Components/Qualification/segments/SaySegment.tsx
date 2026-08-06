@@ -16,7 +16,7 @@ const SaySegment: React.FC<SaySegmentProps> = ({
     tokenMap,
     translateScript,
 }) => {
-    const translated = translateScript(useDynamicTranslation(label));
+    const translated = translateScript(useDynamicTranslation(label, { source: "en" }));
 
     return (
         <div className="space-y-4">

@@ -90,7 +90,7 @@ export default function TaskPopover({ open, onClose }: Props) {
                         </svg>
                     </div>
                     <span className="text-sm font-semibold" style={{ color: T.TEXT }}>
-                        {td("New Task")}
+                        {td("New Task", { source: "en" })}
                     </span>
                 </div>
                 <button
@@ -112,7 +112,7 @@ export default function TaskPopover({ open, onClose }: Props) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && title.trim() && handleCreate()}
-                placeholder={td("Task title")}
+                placeholder={td("Task title", { source: "en" })}
                 className={inputClass}
                 style={{ color: T.TEXT, borderColor: T.BORDER }}
             />
@@ -121,7 +121,7 @@ export default function TaskPopover({ open, onClose }: Props) {
             <div className="grid grid-cols-2 gap-2">
                 <div>
                     <label className="block text-[11px] font-medium mb-1" style={{ color: T.TEXT_MUTED }}>
-                        {td("Due")}
+                        {td("Due", { source: "en" })}
                     </label>
                     <select
                         value={dueIdx}
@@ -130,13 +130,13 @@ export default function TaskPopover({ open, onClose }: Props) {
                         style={{ color: T.TEXT, borderColor: T.BORDER }}
                     >
                         {DUE_OPTIONS.map((o, i) => (
-                            <option key={o.label} value={i}>{td(o.label)}</option>
+                            <option key={o.label} value={i}>{td(o.label, { source: "en" })}</option>
                         ))}
                     </select>
                 </div>
                 <div>
                     <label className="block text-[11px] font-medium mb-1" style={{ color: T.TEXT_MUTED }}>
-                        {td("Priority")}
+                        {td("Priority", { source: "en" })}
                     </label>
                     <select
                         value={priority}
@@ -145,7 +145,7 @@ export default function TaskPopover({ open, onClose }: Props) {
                         style={{ color: T.TEXT, borderColor: T.BORDER }}
                     >
                         {PRIORITY_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>{td(o.label)}</option>
+                            <option key={o.value} value={o.value}>{td(o.label, { source: "en" })}</option>
                         ))}
                     </select>
                 </div>
@@ -164,7 +164,7 @@ export default function TaskPopover({ open, onClose }: Props) {
                     className="flex-1 py-2 rounded-xl border text-xs font-medium transition-colors"
                     style={{ borderColor: T.BORDER, color: T.TEXT_MUTED }}
                 >
-                    {td("Cancel")}
+                    {td("Cancel", { source: "en" })}
                 </button>
                 <button
                     type="button"
@@ -173,7 +173,7 @@ export default function TaskPopover({ open, onClose }: Props) {
                     className="flex-1 py-2 rounded-xl text-white text-xs font-semibold transition-opacity hover:opacity-90 disabled:opacity-50"
                     style={{ backgroundColor: T.NAVY }}
                 >
-                    {isCreating ? td("Creating…") : td("Create Task")}
+                    {isCreating ? td("Creating…", { source: "en" }) : td("Create Task", { source: "en" })}
                 </button>
             </div>
         </div>

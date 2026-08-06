@@ -52,15 +52,13 @@ const DeleteTask: React.FC<Props> = ({
                 fn: handleDeleteDeal,
                 loading: deleteMutation.isPending,
             }}
-            title={td("Delete Task")}
-            description={td(
-                task?.heading
+            title={td("Delete Task", { source: "en" })}
+            description={td(task?.heading
                     ? `Are you sure you want to delete "${task?.heading}"? This action cannot be undone.`
-                    : "Are you sure you want to delete this task? This action cannot be undone.",
-            )}
+                    : "Are you sure you want to delete this task? This action cannot be undone.", { source: "en" })}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText={td("Yes, Delete")}
-            cancelText={td("Cancel")}
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

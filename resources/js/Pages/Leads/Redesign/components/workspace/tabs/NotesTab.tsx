@@ -132,7 +132,7 @@ export default function NotesTab({ permissions }: NotesTabProps) {
                         <div className="mb-2 space-y-1">
                             {errors.map((error, index) => (
                                 <p key={index} className="text-xs text-red-600">
-                                    {td(error)}
+                                    {td(error, { source: "en" })}
                                 </p>
                             ))}
                         </div>
@@ -325,7 +325,7 @@ export default function NotesTab({ permissions }: NotesTabProps) {
                                                     event.stopPropagation();
                                                     setSelectedNoteId(note.id);
                                                 }}
-                                                aria-label={`${td("Edit")}: ${note.title || note.authorName}`}
+                                                aria-label={`${td("Edit", { source: "en" })}: ${note.title || note.authorName}`}
                                             >
                                                 <DealIcon name="edit" size={13} />
                                             </DealButton>

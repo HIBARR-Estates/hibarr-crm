@@ -61,11 +61,11 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
             <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
                 <div className="flex items-start justify-between gap-3">
                     <h2 className="text-xl font-semibold text-gray-900 leading-tight break-words">
-                        {td(note.title)}
+                        {td(note.title, { source: "en" })}
                     </h2>
                     {note.updated_at !== note.created_at && (
                         <Tag color="orange" className="shrink-0 mt-1">
-                            {td("Updated")}{" "}
+                            {td("Updated", { source: "en" })}{" "}
                             {formatCompanyDate(note.updated_at)}
                         </Tag>
                     )}
@@ -73,7 +73,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                 <div className="mt-2 flex flex-wrap items-center gap-4 text-sm text-gray-500">
                     <span className="inline-flex items-center gap-1.5">
                         <ClockCircleOutlined />
-                        {td("Created")}{" "}
+                        {td("Created", { source: "en" })}{" "}
                         {formatCompanyDateTime(note.created_at, {
                             separator: " at ",
                         })}
@@ -98,7 +98,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                     />
                 ) : (
                     <Text type="secondary" italic className="text-base">
-                        {td("No content provided for this note.")}
+                        {td("No content provided for this note.", { source: "en" })}
                     </Text>
                 )}
             </div>
@@ -112,7 +112,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                             className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors"
                         >
                             <DeleteOutlined />
-                            {td("Delete")}
+                            {td("Delete", { source: "en" })}
                         </button>
                     )}
                     {canEdit && (
@@ -121,7 +121,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
                             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-200 active:scale-[0.98] transition-all"
                         >
                             <EditOutlined />
-                            {td("Edit")}
+                            {td("Edit", { source: "en" })}
                         </button>
                     )}
                 </div>

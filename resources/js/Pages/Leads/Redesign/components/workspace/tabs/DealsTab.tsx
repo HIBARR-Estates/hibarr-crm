@@ -46,20 +46,16 @@ export default function DealsTab({
                         setModalOpen(true);
                     }}
                 >
-                    {td(
-                        deals.length === 0
+                    {td(deals.length === 0
                             ? "Create deal"
-                            : "Create another deal",
-                    )}
+                            : "Create another deal", { source: "en" })}
                 </Button>
             </div>
 
             {deals.length === 0 ? (
                 <EmptyState
-                    title={td("No deals yet")}
-                    description={td(
-                        "Create a deal for this lead. You can add more deals later.",
-                    )}
+                    title={td("No deals yet", { source: "en" })}
+                    description={td("Create a deal for this lead. You can add more deals later.", { source: "en" })}
                 />
             ) : (
                 deals.map((deal) => (

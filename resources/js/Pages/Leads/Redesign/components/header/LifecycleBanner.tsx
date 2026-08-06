@@ -74,8 +74,8 @@ export default function LifecycleBanner({
                             color: "#065f46",
                         }}
                     >
-                        {td(statusLabel)} — {templateName || td("buyer script")} ·{" "}
-                        {td("next: create a deal")}
+                        {td(statusLabel, { source: "en" })} — {templateName || td("buyer script", { source: "en" })} ·{" "}
+                        {td("next: create a deal", { source: "en" })}
                     </div>
                     {onViewAnswers && (
                         <div
@@ -103,7 +103,7 @@ export default function LifecycleBanner({
                                     textDecoration: "underline",
                                 }}
                             >
-                                {td("view answers")}
+                                {td("view answers", { source: "en" })}
                             </button>
                         </div>
                     )}
@@ -113,7 +113,7 @@ export default function LifecycleBanner({
                     className="v2-btn v2-btn-primary"
                     onClick={onPrimary}
                 >
-                    {td(config.primaryCta.label)}
+                    {td(config.primaryCta.label, { source: "en" })}
                 </button>
             </div>
         );
@@ -156,10 +156,10 @@ export default function LifecycleBanner({
                             color: "#115e59",
                         }}
                     >
-                        {td(statusLabel)} —{" "}
+                        {td(statusLabel, { source: "en" })} —{" "}
                         {dealCount > 1
-                            ? td("deals linked from qualification")
-                            : td("deal linked from qualification")}
+                            ? td("deals linked from qualification", { source: "en" })
+                            : td("deal linked from qualification", { source: "en" })}
                         {dealCount > 0
                             ? ` (${dealCount})`
                             : ""}
@@ -172,7 +172,7 @@ export default function LifecycleBanner({
                                 marginTop: 2,
                             }}
                         >
-                            {td(hint)}
+                            {td(hint, { source: "en" })}
                         </div>
                     ) : null}
                 </div>
@@ -190,7 +190,7 @@ export default function LifecycleBanner({
                             className="v2-btn v2-btn-ghost"
                             onClick={onSecondary}
                         >
-                            {td(config.secondaryCta.label)}
+                            {td(config.secondaryCta.label, { source: "en" })}
                         </button>
                     ) : null}
                     <button
@@ -198,11 +198,9 @@ export default function LifecycleBanner({
                         className="v2-btn v2-btn-primary"
                         onClick={onPrimary}
                     >
-                        {td(
-                            dealCount > 1
+                        {td(dealCount > 1
                                 ? "Open latest deal"
-                                : config.primaryCta.label,
-                        )}
+                                : config.primaryCta.label, { source: "en" })}
                     </button>
                 </div>
             </div>
@@ -247,7 +245,7 @@ export default function LifecycleBanner({
                             color: "var(--lr-text-muted)",
                         }}
                     >
-                        {td(statusLabel)} — {td(hint || "no further sales push")}
+                        {td(statusLabel, { source: "en" })} — {td(hint || "no further sales push", { source: "en" })}
                     </div>
                     {onViewAnswers && (
                         <div
@@ -271,7 +269,7 @@ export default function LifecycleBanner({
                                     textDecoration: "underline",
                                 }}
                             >
-                                {td("view answers")}
+                                {td("view answers", { source: "en" })}
                             </button>
                         </div>
                     )}
@@ -281,7 +279,7 @@ export default function LifecycleBanner({
                     className="v2-btn v2-btn-ghost"
                     onClick={onPrimary}
                 >
-                    {td(config.primaryCta.label)}
+                    {td(config.primaryCta.label, { source: "en" })}
                 </button>
             </div>
         );
@@ -311,8 +309,8 @@ export default function LifecycleBanner({
                 />
                 <div style={{ flex: 1, minWidth: 200 }}>
                     <div style={{ fontWeight: 650, fontSize: 14 }}>
-                        {td(statusLabel)} — {answered} {td("of")} {total}{" "}
-                        {td("answered")}
+                        {td(statusLabel, { source: "en" })} — {answered} {td("of", { source: "en" })} {total}{" "}
+                        {td("answered", { source: "en" })}
                     </div>
                     {templateName ? (
                         <div
@@ -331,7 +329,7 @@ export default function LifecycleBanner({
                     className="v2-btn v2-btn-solid"
                     onClick={onPrimary}
                 >
-                    {td(config.primaryCta.label)}
+                    {td(config.primaryCta.label, { source: "en" })}
                 </button>
             </div>
         );
@@ -359,7 +357,7 @@ export default function LifecycleBanner({
                             color: "var(--lr-purple)",
                         }}
                     >
-                        {td(statusLabel)} — {firstName}
+                        {td(statusLabel, { source: "en" })} — {firstName}
                     </div>
                     {hint ? (
                         <div
@@ -369,7 +367,7 @@ export default function LifecycleBanner({
                                 marginTop: 2,
                             }}
                         >
-                            {td(hint)}
+                            {td(hint, { source: "en" })}
                         </div>
                     ) : null}
                 </div>
@@ -378,7 +376,7 @@ export default function LifecycleBanner({
                     className="v2-btn v2-btn-ghost"
                     onClick={onPrimary}
                 >
-                    {td(config.primaryCta.label)}
+                    {td(config.primaryCta.label, { source: "en" })}
                 </button>
             </div>
         );
@@ -409,7 +407,7 @@ export default function LifecycleBanner({
                         color: isFresh ? "var(--lr-navy)" : "var(--lr-white)",
                     }}
                 >
-                    {td("Qualify")} {firstName}
+                    {td("Qualify", { source: "en" })} {firstName}
                 </div>
                 <div
                     style={{
@@ -420,7 +418,7 @@ export default function LifecycleBanner({
                         marginTop: 2,
                     }}
                 >
-                    {td(statusLabel)} · {td(hint || "choose a qualification template")}
+                    {td(statusLabel, { source: "en" })} · {td(hint || "choose a qualification template", { source: "en" })}
                 </div>
             </div>
             <button
@@ -433,7 +431,7 @@ export default function LifecycleBanner({
                 }
                 onClick={onPrimary}
             >
-                {td(config.primaryCta.label)}
+                {td(config.primaryCta.label, { source: "en" })}
             </button>
         </div>
     );

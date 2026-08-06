@@ -179,9 +179,9 @@ export default function LeadMeetingDetailModal({
                                 );
                             }}
                             labels={{
-                                title: td("Edit meeting"),
-                                cancel: td("Cancel"),
-                                submit: td("Save"),
+                                title: td("Edit meeting", { source: "en" }),
+                                cancel: td("Cancel", { source: "en" }),
+                                submit: td("Save", { source: "en" }),
                             }}
                         />
                         <RescheduleMeetingModal
@@ -199,15 +199,15 @@ export default function LeadMeetingDetailModal({
                                 );
                             }}
                             labels={{
-                                title: td("Reschedule meeting"),
-                                cancel: td("Cancel"),
-                                submit: td("Reschedule"),
-                                newDate: td("New date"),
-                                newStartTime: td("Start time"),
-                                duration: td("Duration"),
-                                hideDuration: td("Hide duration"),
-                                addDuration: td("Add duration"),
-                                endTime: td("End time"),
+                                title: td("Reschedule meeting", { source: "en" }),
+                                cancel: td("Cancel", { source: "en" }),
+                                submit: td("Reschedule", { source: "en" }),
+                                newDate: td("New date", { source: "en" }),
+                                newStartTime: td("Start time", { source: "en" }),
+                                duration: td("Duration", { source: "en" }),
+                                hideDuration: td("Hide duration", { source: "en" }),
+                                addDuration: td("Add duration", { source: "en" }),
+                                endTime: td("End time", { source: "en" }),
                             }}
                         />
                         <DeleteFollowup

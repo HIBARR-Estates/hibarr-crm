@@ -151,11 +151,11 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
                 </svg>
-                {td("Previous")}
+                {td("Previous", { source: "en" })}
             </button>
 
             <span className="text-xs font-medium tabular-nums text-slate-500">
-                {td("Section")} {Math.min(currentStep + 1, stepCount)} {td("of")} {stepCount}
+                {td("Section", { source: "en" })} {Math.min(currentStep + 1, stepCount)} {td("of", { source: "en" })} {stepCount}
             </span>
 
             <button
@@ -165,7 +165,7 @@ const AnalysisScrollPanel = forwardRef<ScrollPanelHandle, Props>((props, ref) =>
                 className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold text-white cursor-pointer transition-opacity hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{ backgroundColor: "#0A2E5D" }}
             >
-                {td("Next")}
+                {td("Next", { source: "en" })}
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>

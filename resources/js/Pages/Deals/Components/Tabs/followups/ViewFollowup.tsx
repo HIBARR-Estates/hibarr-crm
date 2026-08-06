@@ -346,9 +346,7 @@ const ViewFollowup: React.FC<Props> = ({
         followup?.location,
     );
 
-    const meetingTitle = td(
-        followup?.meeting_type?.name || "Follow-up Meeting",
-    );
+    const meetingTitle = td(followup?.meeting_type?.name || "Follow-up Meeting", { source: "en" });
 
     const handleEdit = () => {
         onClose();
@@ -374,7 +372,7 @@ const ViewFollowup: React.FC<Props> = ({
                     <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
                         {followup?.meeting_type && (
                             <span className="text-[11px] font-medium rounded-full px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100">
-                                {td(followup.meeting_type.name)}
+                                {td(followup.meeting_type.name, { source: "en" })}
                             </span>
                         )}
                         {live && (
@@ -502,7 +500,7 @@ const ViewFollowup: React.FC<Props> = ({
                                 <div className="grid grid-cols-2 flex-1 gap-x-4 gap-y-1">
                                     <div>
                                         <p className="text-[10px] text-slate-400 mb-0.5">Name</p>
-                                        <p className="text-[13px] font-medium text-slate-800 mb-0">{td(lead.client_name_salutation || lead.client_name || "--")}</p>
+                                        <p className="text-[13px] font-medium text-slate-800 mb-0">{td(lead.client_name_salutation || lead.client_name || "--", { source: "en" })}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-slate-400 mb-0.5">Email</p>
@@ -525,7 +523,7 @@ const ViewFollowup: React.FC<Props> = ({
                                                 className="text-[13px] font-medium text-blue-600 hover:underline mb-0 block"
                                                 onClick={(e) => { e.preventDefault(); router.visit(`/account/deals/${deal.id}`); }}
                                             >
-                                                {td(deal.name)}
+                                                {td(deal.name, { source: "en" })}
                                             </a>
                                         ) : (
                                             <p className="text-[13px] text-slate-400 mb-0">--</p>
@@ -536,7 +534,7 @@ const ViewFollowup: React.FC<Props> = ({
                                         {deal?.lead_stage ? (
                                             <span className="inline-flex items-center gap-1.5 text-[13px]">
                                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: deal.lead_stage.label_color || "#3b82f6" }} />
-                                                {td(deal.lead_stage.name)}
+                                                {td(deal.lead_stage.name, { source: "en" })}
                                             </span>
                                         ) : (
                                             <p className="text-[13px] text-slate-400 mb-0">--</p>
@@ -583,7 +581,7 @@ const ViewFollowup: React.FC<Props> = ({
                                         <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">
                                             {key.replace(/[_-]/g, " ")}
                                         </span>
-                                        <p className="text-[13px] text-slate-700 leading-relaxed mb-0">{td(String(value))}</p>
+                                        <p className="text-[13px] text-slate-700 leading-relaxed mb-0">{td(String(value), { source: "en" })}</p>
                                     </div>
                                 ))}
                                 <p className="text-[11px] text-slate-300 mt-2 mb-0">
@@ -599,7 +597,7 @@ const ViewFollowup: React.FC<Props> = ({
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">Agenda & Remarks</p>
                             <div className="rounded-xl border border-slate-100 px-4 py-3">
                                 <ContentRenderer
-                                    content={td(followup.remark)}
+                                    content={td(followup.remark, { source: "en" })}
                                     showFullContent={true}
                                     className="prose prose-sm max-w-none text-[13px] text-slate-700"
                                 />

@@ -20,13 +20,14 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import AgentSelector from "../AgentSelector";
+import type { TdFn } from "@/lib/dynamicTranslation";
 
 const { Text } = Typography;
 
 interface DealCardProps {
     deal: Deal;
     draggable?: boolean;
-    td?: (text: string | null | undefined) => string;
+    td?: TdFn;
     onEdit?: (deal: Deal) => void;
     onScheduleMeeting?: (deal: Deal) => void;
     onAgentChange?: (deal: Deal, agentId: number | null) => void;
@@ -153,13 +154,13 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Text
                                 strong
                                 className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
-                                ellipsis={{ tooltip: td(deal.name) }}
+                                ellipsis={{ tooltip: td(deal.name, { source: "en" }) }}
                             >
                                 {isLocked && (
                                     <LockOutlined className="text-amber-500 mr-1 text-[12px]" />
                                 )}
                                 <span className="font-medium">
-                                    {td(deal.name)}
+                                    {td(deal.name, { source: "en" })}
                                 </span>
                                 {deal.contact?.client_id && (
                                     <i
@@ -197,7 +198,7 @@ const DealCard: React.FC<DealCardProps> = ({
                         <Text
                             className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{
-                                tooltip: `Contact: ${deal.contact.salutation ? (deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)) + " " : ""}${td(deal.contact.client_name)}`,
+                                tooltip: `Contact: ${deal.contact.salutation ? (deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)) + " " : ""}${td(deal.contact.client_name, { source: "en" })}`,
                             }}
                         >
                             {deal.contact.salutation &&

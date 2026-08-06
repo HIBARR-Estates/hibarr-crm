@@ -103,7 +103,7 @@ export default function WorkspaceRecommendationsTab({
                     {t("pages.deals.workspace.recommendations.incomplete_hint")}
                 </p>
                 {apiError && (
-                    <p className="mb-2 text-xs text-[#b45309]">{td(apiError)}</p>
+                    <p className="mb-2 text-xs text-[#b45309]">{td(apiError, { source: "en" })}</p>
                 )}
                 <DealButton variant="ghost" size="sm" onClick={() => refetch()}>
                     {t("pages.deals.workspace.recommendations.try_again")}
@@ -207,7 +207,7 @@ export default function WorkspaceRecommendationsTab({
                                             <DealBadge
                                                 variant={item.statusBadgeVariant}
                                             >
-                                                {td(item.statusLabel)}
+                                                {td(item.statusLabel, { source: "en" })}
                                             </DealBadge>
                                         )}
                                     </div>

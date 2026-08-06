@@ -16,7 +16,7 @@ const InstructionSegment: React.FC<InstructionSegmentProps> = ({
     tokenMap,
     translateScript,
 }) => {
-    const translated = translateScript(useDynamicTranslation(label));
+    const translated = translateScript(useDynamicTranslation(label, { source: "en" }));
 
     return (
         <div className="space-y-4 border-2 border-dashed border-gray-300 rounded-lg p-5 bg-gray-50/50">

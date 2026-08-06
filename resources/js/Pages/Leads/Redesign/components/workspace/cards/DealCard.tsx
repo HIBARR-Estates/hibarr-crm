@@ -59,9 +59,9 @@ export default function DealCard({ deal, onClick }: DealCardProps) {
     const contextParts = [pipelineName, categoryName].filter(Boolean);
     const outcome =
         deal.outcome_status === "won"
-            ? td("Won")
+            ? td("Won", { source: "en" })
             : deal.outcome_status === "lost"
-              ? td("Lost")
+              ? td("Lost", { source: "en" })
               : null;
 
     return (
@@ -90,7 +90,7 @@ export default function DealCard({ deal, onClick }: DealCardProps) {
                     <StagePill name={stageName} color={stageColor} />
                 ) : (
                     <span className="text-[11px] text-[#9ca3af]">
-                        {td("No stage")}
+                        {td("No stage", { source: "en" })}
                     </span>
                 )}
                 {outcome ? (

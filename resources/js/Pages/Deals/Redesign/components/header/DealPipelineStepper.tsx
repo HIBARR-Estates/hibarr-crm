@@ -464,7 +464,7 @@ export default function DealPipelineStepper({
                     }}
                 >
                     {deal.pipeline?.name
-                        ? td(deal.pipeline.name)
+                        ? td(deal.pipeline.name, { source: "en" })
                         : t("app.menu.pipeline")}
                 </span>
                 {pipeline.isUpdating && (
@@ -569,7 +569,7 @@ export default function DealPipelineStepper({
                                         type="button"
                                         onClick={() => handleClick(stage, index)}
                                         aria-current={isActive ? "step" : undefined}
-                                        title={td(stage.name)}
+                                        title={td(stage.name, { source: "en" })}
                                         disabled={
                                             !canChangeStages ||
                                             dealLocked ||
@@ -611,7 +611,7 @@ export default function DealPipelineStepper({
                                                       : T.BORDER,
                                             }}
                                         />
-                                        {td(stage.name)}
+                                        {td(stage.name, { source: "en" })}
                                     </button>
                                     {hasRequirements ? (
                                         <Popover
@@ -641,7 +641,7 @@ export default function DealPipelineStepper({
                                             content={
                                                 <StageRequirementsPopup
                                                     deal={deal}
-                                                    stageName={td(stage.name)}
+                                                    stageName={td(stage.name, { source: "en" })}
                                                     requirementsLabel={t(
                                                         "pages.deals.header.pipeline.requirements_label",
                                                     )}
@@ -741,7 +741,7 @@ export default function DealPipelineStepper({
                 open={pendingStage != null}
                 title={t("pages.deals.stage_jump_confirm_title")}
                 message={t("pages.deals.stage_jump_confirm_message", {
-                    stage: pendingStage ? td(pendingStage.name) : "",
+                    stage: pendingStage ? td(pendingStage.name, { source: "en" }) : "",
                 })}
                 confirmLabel={t("pages.deals.stage_jump_confirm_action")}
                 onCancel={() => setPendingStageId(null)}
@@ -813,7 +813,7 @@ export default function DealPipelineStepper({
                                             lineHeight: 1.3,
                                         }}
                                     >
-                                        {td(stage.name)}
+                                        {td(stage.name, { source: "en" })}
                                     </span>
                                     {isActive ? (
                                         <span

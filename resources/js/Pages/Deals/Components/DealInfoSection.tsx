@@ -1739,7 +1739,7 @@ export default function DealInfoSection({
                         fields={fields}
                         customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
-                        title={td(category.name)}
+                        title={td(category.name, { source: "en" })}
                         column={2}
                         visibleFieldKeys={resolvedDealFieldKeys}
                         onUpdate={(field, value) =>
@@ -1774,7 +1774,7 @@ export default function DealInfoSection({
             : []),
         ...(visibleCustomFieldCategories || []).map((cat) => ({
             key: `category-${cat.id}`,
-            label: td(cat.name),
+            label: td(cat.name, { source: "en" }),
         })),
     ];
 

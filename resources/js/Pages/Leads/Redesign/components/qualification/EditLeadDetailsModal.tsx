@@ -175,14 +175,14 @@ export default function EditLeadDetailsModal({
             }
 
             setLead((prev) => ({ ...prev, ...updated }) as Lead);
-            message.success(td("Lead details saved"));
+            message.success(td("Lead details saved", { source: "en" }));
             onClose();
         } catch (error: unknown) {
             const detail =
                 (error as { response?: { data?: { message?: string } } })
                     ?.response?.data?.message ||
                 (error as Error)?.message ||
-                td("Failed to save lead details");
+                td("Failed to save lead details", { source: "en" });
             message.error(detail);
         } finally {
             setSaving(false);
@@ -195,14 +195,14 @@ export default function EditLeadDetailsModal({
         type: "text" | "select" = "text",
         options?: Array<{ value: string; label: string }>,
     ) => (
-        <ModalField key={fieldKey} label={td(label)}>
+        <ModalField key={fieldKey} label={td(label, { source: "en" })}>
             {type === "select" ? (
                 <select
                     className="v2-input"
                     value={form[fieldKey] ?? ""}
                     onChange={(e) => setField(fieldKey, e.target.value)}
                 >
-                    <option value="">{td("Select…")}</option>
+                    <option value="">{td("Select…", { source: "en" })}</option>
                     {(options ?? []).map((option) => (
                         <option key={option.value} value={option.value}>
                             {option.label}
@@ -223,7 +223,7 @@ export default function EditLeadDetailsModal({
     return (
         <Modal
             open={open}
-            title={td("Edit lead details")}
+            title={td("Edit lead details", { source: "en" })}
             onClose={onClose}
             dirty={JSON.stringify(form) !== JSON.stringify(initial)}
             footer={
@@ -234,7 +234,7 @@ export default function EditLeadDetailsModal({
                         onClick={onClose}
                         disabled={saving}
                     >
-                        {td("Cancel")}
+                        {td("Cancel", { source: "en" })}
                     </button>
                     <button
                         type="button"
@@ -242,7 +242,7 @@ export default function EditLeadDetailsModal({
                         onClick={() => void handleSave()}
                         disabled={saving}
                     >
-                        {saving ? td("Saving…") : td("Save changes")}
+                        {saving ? td("Saving…", { source: "en" }) : td("Save changes", { source: "en" })}
                     </button>
                 </>
             }
@@ -258,7 +258,7 @@ export default function EditLeadDetailsModal({
                         className={`v2-tab${tab === item.id ? " active" : ""}`}
                         onClick={() => setTab(item.id)}
                     >
-                        {td(item.label)}
+                        {td(item.label, { source: "en" })}
                     </button>
                 ))}
             </div>
@@ -292,7 +292,7 @@ export default function EditLeadDetailsModal({
                             key={section.id}
                             style={{ margin: 0, fontSize: 13, color: "#9ca3af" }}
                         >
-                            {td("No editable fields in this section.")}
+                            {td("No editable fields in this section.", { source: "en" })}
                         </p>
                     );
                 }
@@ -334,7 +334,7 @@ export default function EditLeadDetailsModal({
                                 return (
                                     <ModalField
                                         key="category_ids"
-                                        label={td(field.label)}
+                                        label={td(field.label, { source: "en" })}
                                     >
                                         <select
                                             className="v2-input"
@@ -369,10 +369,10 @@ export default function EditLeadDetailsModal({
                                     field.label,
                                     "select",
                                     [
-                                        { value: "male", label: td("Male") },
+                                        { value: "male", label: td("Male", { source: "en" }) },
                                         {
                                             value: "female",
-                                            label: td("Female"),
+                                            label: td("Female", { source: "en" }),
                                         },
                                     ],
                                 );
@@ -389,7 +389,7 @@ export default function EditLeadDetailsModal({
                                             gap: 10,
                                         }}
                                     >
-                                        <ModalField label={td("Date of birth")}>
+                                        <ModalField label={td("Date of birth", { source: "en" })}>
                                             <input
                                                 className="v2-input"
                                                 type="date"
@@ -428,7 +428,7 @@ export default function EditLeadDetailsModal({
                                                 }}
                                             />
                                         </ModalField>
-                                        <ModalField label={td("Age")}>
+                                        <ModalField label={td("Age", { source: "en" })}>
                                             <input
                                                 className="v2-input"
                                                 type="number"
@@ -453,7 +453,7 @@ export default function EditLeadDetailsModal({
                                                 }}
                                             />
                                         </ModalField>
-                                        <ModalField label={td("Age range")}>
+                                        <ModalField label={td("Age range", { source: "en" })}>
                                             <select
                                                 className="v2-input"
                                                 value={form.age_range ?? ""}
@@ -466,7 +466,7 @@ export default function EditLeadDetailsModal({
                                                 }
                                             >
                                                 <option value="">
-                                                    {td("Select…")}
+                                                    {td("Select…", { source: "en" })}
                                                 </option>
                                                 {ageRanges.map((option) => (
                                                     <option

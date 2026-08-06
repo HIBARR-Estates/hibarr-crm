@@ -78,10 +78,10 @@ export const NotesList: React.FC<NotesListProps> = ({
                         level={5}
                         className="text-gray-700 group-hover:text-blue-700 transition-colors mb-2"
                     >
-                        {td("Add New Note")}
+                        {td("Add New Note", { source: "en" })}
                     </Title>
                     <Text className="text-gray-500">
-                        {td("Click to start writing")}
+                        {td("Click to start writing", { source: "en" })}
                     </Text>
                 </div>
             </Card>
@@ -92,11 +92,9 @@ export const NotesList: React.FC<NotesListProps> = ({
         return (
             <div className="col-span-full">
                 <Empty
-                    description={td(
-                        searchTerm
+                    description={td(searchTerm
                             ? `No notes found for "${searchTerm}"`
-                            : "No notes yet",
-                    )}
+                            : "No notes yet", { source: "en" })}
                 />
             </div>
         );

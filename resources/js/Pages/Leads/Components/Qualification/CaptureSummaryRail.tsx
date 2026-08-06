@@ -50,7 +50,7 @@ const AnswerChip: React.FC<{
     answer?: SegmentAnswerState;
     isActive: boolean;
 }> = ({ segment, answer, isActive }) => {
-    const labelTranslated = useDynamicTranslation(segment.label);
+    const labelTranslated = useDynamicTranslation(segment.label, { source: "en" });
     const display = formatAnswerDisplay(segment, answer) || null;
 
     return (

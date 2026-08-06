@@ -65,7 +65,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
             label: (
                 <span>
                     <EyeOutlined className="mr-2" />
-                    {td("View Details")}
+                    {td("View Details", { source: "en" })}
                 </span>
             ),
             onClick: () => onView(note),
@@ -77,7 +77,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                       label: (
                           <span>
                               <EditOutlined className="mr-2" />
-                              {td("Edit Note")}
+                              {td("Edit Note", { source: "en" })}
                           </span>
                       ),
                       onClick: () => onEdit(note),
@@ -95,7 +95,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                       label: (
                           <span>
                               <DeleteOutlined className="mr-2" />
-                              {td("Delete Note")}
+                              {td("Delete Note", { source: "en" })}
                           </span>
                       ),
                       danger: true,
@@ -123,7 +123,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                                 rows: 1,
                             }}
                         >
-                            {td(note.title)}
+                            {td(note.title, { source: "en" })}
                         </Title>
                     </div>
                 </div>
@@ -163,7 +163,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
 
                 {note.updated_at !== note.created_at && (
                     <Tag color="orange" className="text-xs">
-                        {td("Updated")}
+                        {td("Updated", { source: "en" })}
                     </Tag>
                 )}
             </div>

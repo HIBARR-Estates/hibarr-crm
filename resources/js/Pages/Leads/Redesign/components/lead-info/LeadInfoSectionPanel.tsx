@@ -228,7 +228,7 @@ export default function LeadInfoSectionPanel({
     const renderPersonal = () => (
         <>
             <FieldGrid>
-                <DetailField label={td("Salutation")}>
+                <DetailField label={td("Salutation", { source: "en" })}>
                     <DealEditableField
                         value={lead.salutation || ""}
                         fieldName="salutation"
@@ -247,7 +247,7 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("Full name")}>
+                <DetailField label={td("Full name", { source: "en" })}>
                     <DealEditableField
                         value={lead.client_name || ""}
                         fieldName="client_name"
@@ -260,7 +260,7 @@ export default function LeadInfoSectionPanel({
                     />
                 </DetailField>
                 <DetailField
-                    label={td("Date of Birth & Age")}
+                    label={td("Date of Birth & Age", { source: "en" })}
                     span={2}
                 >
                     <LeadAgeFieldsGroup
@@ -301,7 +301,7 @@ export default function LeadInfoSectionPanel({
                         onChange={handleFieldChange}
                     />
                 </DetailField>
-                <DetailField label={td("Nationality")}>
+                <DetailField label={td("Nationality", { source: "en" })}>
                     <DealEditableField
                         value={(lead as any).nationality || ""}
                         fieldName="nationality"
@@ -344,7 +344,7 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("Languages")}>
+                <DetailField label={td("Languages", { source: "en" })}>
                     <DealEditableField
                         value={(lead as any).languages || []}
                         fieldName="languages"
@@ -369,7 +369,7 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("Occupation")}>
+                <DetailField label={td("Occupation", { source: "en" })}>
                     <DealEditableField
                         value={(lead as any).occupation || ""}
                         fieldName="occupation"
@@ -400,7 +400,7 @@ export default function LeadInfoSectionPanel({
                 </DetailField>
             </FieldGrid>
 
-            <DealInfoGroupTitle>{td("Contact")}</DealInfoGroupTitle>
+            <DealInfoGroupTitle>{td("Contact", { source: "en" })}</DealInfoGroupTitle>
             <FieldGrid>
                 <DetailField
                     label={t("pages.leads.info.fields.email")}
@@ -470,7 +470,7 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("WhatsApp")}>
+                <DetailField label={td("WhatsApp", { source: "en" })}>
                     <DealEditableField
                         value={resolvePhoneValue(lead.client_whatsapp)}
                         fieldName="client_whatsapp"
@@ -480,12 +480,12 @@ export default function LeadInfoSectionPanel({
                         }
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
-                        placeholder={td("WhatsApp number")}
+                        placeholder={td("WhatsApp number", { source: "en" })}
                         loading={isFieldLoading("client_whatsapp")}
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("Telegram")}>
+                <DetailField label={td("Telegram", { source: "en" })}>
                     <DealEditableField
                         value={lead.client_telegram || ""}
                         fieldName="client_telegram"
@@ -495,12 +495,12 @@ export default function LeadInfoSectionPanel({
                         }
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
-                        placeholder={td("Telegram username")}
+                        placeholder={td("Telegram username", { source: "en" })}
                         loading={isFieldLoading("client_telegram")}
                         disabled={!canEdit}
                     />
                 </DetailField>
-                <DetailField label={td("Instagram")}>
+                <DetailField label={td("Instagram", { source: "en" })}>
                     <DealEditableField
                         value={lead.client_instagram || ""}
                         fieldName="client_instagram"
@@ -510,14 +510,14 @@ export default function LeadInfoSectionPanel({
                         }
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
-                        placeholder={td("Instagram username")}
+                        placeholder={td("Instagram username", { source: "en" })}
                         loading={isFieldLoading("client_instagram")}
                         disabled={!canEdit}
                     />
                 </DetailField>
             </FieldGrid>
 
-            <DealInfoGroupTitle>{td("Attribution")}</DealInfoGroupTitle>
+            <DealInfoGroupTitle>{td("Attribution", { source: "en" })}</DealInfoGroupTitle>
             <FieldGrid>
                 <DetailField label={t("pages.leads.info.fields.lead_source")}>
                     <DealEditableField
@@ -590,7 +590,7 @@ export default function LeadInfoSectionPanel({
     const renderAddress = () => (
         <FieldGrid>
             <DetailField
-                label={td("Street address")}
+                label={td("Street address", { source: "en" })}
                 span={2}
                 useContainerQuery
             >
@@ -601,7 +601,7 @@ export default function LeadInfoSectionPanel({
                     onSave={(value) => onFieldUpdate("address", value)}
                     alwaysEditing={editing}
                     onChange={handleFieldChange}
-                    placeholder={td("Street, building, unit…")}
+                    placeholder={td("Street, building, unit…", { source: "en" })}
                     loading={isFieldLoading("address")}
                     disabled={!canEdit}
                 />
@@ -706,10 +706,10 @@ export default function LeadInfoSectionPanel({
             <div className="mb-3.5 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
-                        {td(sectionTitle)}
+                        {td(sectionTitle, { source: "en" })}
                     </h3>
                     <p className="text-xs text-[#5b6472]">
-                        {td(sectionSubtitle)}
+                        {td(sectionSubtitle, { source: "en" })}
                     </p>
                 </div>
                 {canEdit &&

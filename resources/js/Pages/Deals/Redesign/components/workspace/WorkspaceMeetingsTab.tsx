@@ -344,18 +344,14 @@ export default function WorkspaceMeetingsTab({
                                                             ] ?? "dr-pill-gray"
                                                         }`}
                                                     >
-                                                        {td(
-                                                            meeting.platformLabel,
-                                                        )}
+                                                        {td(meeting.platformLabel, { source: "en" })}
                                                     </span>
                                                     <span
                                                         className={`dr-pill ${getMeetingStatusTone(
                                                             meeting.statusLabel,
                                                         )}`}
                                                     >
-                                                        {td(
-                                                            meeting.statusLabel,
-                                                        )}
+                                                        {td(meeting.statusLabel, { source: "en" })}
                                                     </span>
                                                     {meeting.isConcluded &&
                                                         meeting.summaryStatus !==
@@ -409,7 +405,7 @@ export default function WorkspaceMeetingsTab({
                                                     {meeting.timeRangeLabel} ·{" "}
                                                     {meeting.durationMinutes}{" "}
                                                     {t("pages.deals.workspace.meetings.min_label")} ·{" "}
-                                                    {td(meeting.locationDisplay)}
+                                                    {td(meeting.locationDisplay, { source: "en" })}
                                                 </span>
                                                 {meeting.attendeesLabel && (
                                                     <span

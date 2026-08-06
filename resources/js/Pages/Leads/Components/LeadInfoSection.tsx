@@ -833,10 +833,10 @@ const ageRangeOptions = useMemo(
             ? [
                   {
                       key: "find_duplicates",
-                      tooltip: td("Find Duplicates"),
+                      tooltip: td("Find Duplicates", { source: "en" }),
                       type: "text" as const,
                       icon: <MergeCellsOutlined />,
-                      label: <span>{td("Find Duplicates")}</span>,
+                      label: <span>{td("Find Duplicates", { source: "en" })}</span>,
                       onClick: () => setIsFindDuplicatesOpen(true),
                   },
               ]

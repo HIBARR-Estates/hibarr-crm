@@ -17,13 +17,14 @@ import PageDataSorter from "@/Components/PageDataSorter";
 import UserIndicator from "@/Components/UserIndicator";
 import AgentSelector from "@/Components/AgentSelector";
 import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
+import type { TdFn } from "@/lib/dynamicTranslation";
 
 interface DealColumnOptions {
     actionItems?: (item: Deal) => MenuProps["items"];
     onAgentChange?: (deal: Deal, agentId: number | null) => void;
     canEdit?: (deal: Deal) => boolean;
     t?: (key: string) => string;
-    td?: (text: string | null | undefined) => string;
+    td?: TdFn;
 }
 
 export const DEAL_TABLE_COLUMNS = (
@@ -91,7 +92,7 @@ export const DEAL_TABLE_COLUMNS = (
                 return (
                     <div className="flex flex-col space-y-1 py-1">
                         {/* 1. Deal Name (Bold Headline) */}
-                        <Tooltip title={td(record.name)}>
+                        <Tooltip title={td(record.name, { source: "en" })}>
                             <Link
                                 href={route("deals.show", record.id)}
                                 className="block text-base font-semibold text-gray-950 hover:text-blue-600 hover:underline transition-colors duration-200 truncate max-w-full"
@@ -99,7 +100,7 @@ export const DEAL_TABLE_COLUMNS = (
                                 {record.is_locked && (
                                     <LockOutlined className="text-amber-500 mr-1.5 text-sm" />
                                 )}
-                                {td(record.name)}
+                                {td(record.name, { source: "en" })}
                             </Link>
                         </Tooltip>
 
@@ -184,7 +185,7 @@ export const DEAL_TABLE_COLUMNS = (
 
                 return (
                     <div className="font-medium text-gray-900">
-                        {td(record.contact.lead_source.type)}
+                        {td(record.contact.lead_source.type, { source: "en" })}
                     </div>
                 );
             },
@@ -210,7 +211,7 @@ export const DEAL_TABLE_COLUMNS = (
                         ></div>
                         <Tooltip title={record.lead_stage.name}>
                             <span className="text-sm text-gray-900 truncate max-w-full">
-                                {td(record.lead_stage.name)}
+                                {td(record.lead_stage.name, { source: "en" })}
                             </span>
                         </Tooltip>
                     </div>
