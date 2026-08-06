@@ -22,6 +22,8 @@ class LeadQualification extends BaseModel
         'status',
         'selected_branch_keys',
         'outcome',
+        'outcomes',
+        'outcome_comment',
         'outcome_triggered_at',
         'agent_language',
         'current_segment_key',
@@ -32,6 +34,7 @@ class LeadQualification extends BaseModel
     protected $casts = [
         'status' => QualificationStatus::class,
         'outcome' => QualificationOutcome::class,
+        'outcomes' => 'array',
         'selected_branch_keys' => 'array',
         'template_version' => 'integer',
         'started_at' => 'datetime',

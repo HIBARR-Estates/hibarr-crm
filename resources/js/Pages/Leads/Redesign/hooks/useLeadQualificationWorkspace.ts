@@ -34,6 +34,14 @@ export default function useLeadQualificationWorkspace(
         loader.enabled && loader.current?.status === "completed"
             ? loader.current.outcome ?? null
             : null;
+    const outcomes =
+        loader.enabled && loader.current?.status === "completed"
+            ? loader.current.outcomes?.length
+                ? loader.current.outcomes
+                : loader.current.outcome
+                  ? [loader.current.outcome]
+                  : []
+            : [];
 
     useEffect(() => {
         if (!enabled) {
@@ -128,6 +136,7 @@ export default function useLeadQualificationWorkspace(
         ...loader,
         flowActive,
         outcome,
+        outcomes,
         isStartingFlow,
         templates,
         templatesLoading,
