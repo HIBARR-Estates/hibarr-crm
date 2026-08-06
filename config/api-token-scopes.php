@@ -91,6 +91,14 @@ return [
                 'api.developer-projects.unit-types.expose' => 'Read unit type expose presentation data',
             ],
         ],
+        'expose_snapshots' => [
+            'label' => 'Expose Snapshots',
+            'scopes' => [
+                'api.expose-snapshots.create' => 'Mint expose snapshot reference',
+                'api.expose-snapshots.show' => 'Read expose snapshot by reference token',
+                'api.expose-snapshots.index' => 'List expose snapshots',
+            ],
+        ],
         'external_events' => [
             'label' => 'External Events',
             'scopes' => [
