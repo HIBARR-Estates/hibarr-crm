@@ -76,6 +76,7 @@ return [
             'scopes' => [
                 'api.properties.index' => 'List properties',
                 'api.properties.show' => 'Read property',
+                'api.properties.expose' => 'Read property expose presentation data',
                 'api.properties.filters.property_types' => 'Property type filters',
                 'api.properties.filters.features' => 'Property feature filters',
                 'api.properties.filters.location' => 'Property location filters',
@@ -86,6 +87,8 @@ return [
             'scopes' => [
                 'api.developer-projects.index' => 'List developer projects',
                 'api.developer-projects.show' => 'Read developer project',
+                'api.developer-projects.expose' => 'Read developer project expose presentation data',
+                'api.developer-projects.unit-types.expose' => 'Read unit type expose presentation data',
             ],
         ],
         'external_events' => [

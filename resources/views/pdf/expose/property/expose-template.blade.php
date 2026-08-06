@@ -1084,81 +1084,22 @@
 
   @php
     $pageNumber = 1;
-    $heroImages = array_values($data['assets']['hero'] ?? []);
-    $coverImages = array_values($data['assets']['cover'] ?? []);
-    $exteriorImages = array_values($data['assets']['exterior'] ?? []);
-    // $galleryImages = array_values($data['assets']['gallery'] ?? []);
-    $galleryImages = array_values($data['assets']['interior'] ?? []);
-
-    $globalExposeConfig = $data['expose_global_config'] ?? [];
-    $outroConfig = $globalExposeConfig['outro'] ?? [];
-    $qrConfig = $globalExposeConfig['qr'] ?? [];
-
-    $backgroundImageFallback = $heroImages[0]
-      ?? $exteriorImages[0]
-      ?? $galleryImages[0]
-      ?? 'property/images/test.png';
-
-    $outroTitle = $outroConfig['title'] ?? 'ROOTED IN BEAUTY, GROWING IN VALUE';
-    $outroDescription = $outroConfig['description'] ?? (!empty($data['description']) ? $data['description'] : '');
-    $outroPrimaryImage = $outroConfig['primary_image_url'] ?? $backgroundImageFallback;
-    $outroSecondaryImage = $outroConfig['secondary_image_url'] ?? ($exteriorImages[4] ?? $outroPrimaryImage);
-
-    $locationPayload = $data['location_payload'] ?? [];
-    $locationTitle = !empty($locationPayload['name'])
-      ? str_replace('_', ' ', (string) $locationPayload['name'])
-      : null;
-    $locationDescription = $locationPayload['description'] ?? null;
-    $locationImage = $locationPayload['image_url'] ?? null;
-    $locationInfrastructure = array_values($data['location_infrastructure'] ?? []);
-    $locationAirports = array_values($data['location_airports'] ?? []);
-    $locationAttractions = array_values($data['location_attractions'] ?? []);
-
-    $facilitySlugs = $data['facilities'] ?? [];
-    $facilityLabels = $data['facility_labels'] ?? [];
-    $facilityImagesBySlug = $data['facility_images_by_slug'] ?? [];
-    $facilityDefaultImagesBySlug = $data['facility_default_images_by_slug'] ?? [];
-    $genericFacilityImages = array_values($data['assets']['facilities'] ?? []);
-
-    $facilityItems = [];
-    $genericFacilityIndex = 0;
-
-    foreach ($facilitySlugs as $index => $slug) {
-      $slugImages = array_values($facilityImagesBySlug[$slug] ?? []);
-      $facilityItems[] = [
-        'label' => $facilityLabels[$index] ?? ucfirst(str_replace('_', ' ', (string) $slug)),
-        'image' => $slugImages[0] ?? ($facilityDefaultImagesBySlug[$slug] ?? ($genericFacilityImages[$genericFacilityIndex++] ?? null)),
-      ];
-    }
-
-    if (empty($facilityItems)) {
-      foreach ($facilityLabels as $index => $label) {
-        $facilityItems[] = [
-          'label' => $label,
-          'image' => $genericFacilityImages[$index] ?? null,
-        ];
-      }
-    }
-
-    if (empty($facilityItems)) {
-      $fallbackNames = $data['exterior_features'] ?? [];
-      foreach ($fallbackNames as $index => $label) {
-        $facilityItems[] = [
-          'label' => $label,
-          'image' => $genericFacilityImages[$index] ?? null,
-        ];
-      }
-    }
-
-    $unitStyleList = array_values($data['unit_style_list'] ?? []);
-    if (empty($unitStyleList) && !empty($data['unit_style'])) {
-      if (is_array($data['unit_style'])) {
-        $unitStyleList = array_values($data['unit_style']);
-      } else {
-        $unitStyleList = array_filter(array_map('trim', explode('/', (string) $data['unit_style'])));
-      }
-    }
-
+    $heroImages = array_values($data['heroImages'] ?? []);
+    $coverImages = array_values($data['coverImages'] ?? []);
+    $exteriorImages = array_values($data['exteriorImages'] ?? []);
+    $galleryImages = array_values($data['galleryImages'] ?? []);
+    $backgroundImageFallback = $data['backgroundImageFallback'] ?? ($data['background_image_url'] ?? 'property/images/test.png');
+    $outroTitle = $data['outroTitle'] ?? ($data['outro_title'] ?? 'ROOTED IN BEAUTY, GROWING IN VALUE');
+    $outroDescription = $data['outroDescription'] ?? ($data['outro_description'] ?? '');
+    $outroPrimaryImage = $data['outroPrimaryImage'] ?? ($data['outro_primary_image'] ?? $backgroundImageFallback);
+    $outroSecondaryImage = $data['outroSecondaryImage'] ?? ($data['outro_secondary_image'] ?? $outroPrimaryImage);
+    $locationTitle = $data['locationTitle'] ?? ($data['location_title'] ?? null);
+    $locationDescription = $data['locationDescription'] ?? ($data['location_description'] ?? null);
+    $locationImage = $data['locationImage'] ?? ($data['location_image'] ?? null);
+    $locationAttractions = array_values($data['locationAttractions'] ?? ($data['location_attractions'] ?? []));
+    $facilityItems = array_values($data['facilityItems'] ?? ($data['facility_items'] ?? []));
+    $unitStyleList = array_values($data['unitStyleList'] ?? ($data['unit_style_list'] ?? []));
+    $completionDisplay = $data['completion']['display'] ?? 'N/A';
     $galleryCursor = 0;
   @endphp
 
@@ -1239,21 +1180,6 @@
           <div class="item">
             <h3 class="item-header">Completion Date</h3>
             <div class="item-value">
-              @php
-                $completionRaw = $data['completion_date'] ?? null;
-                if (!empty($completionRaw)) {
-                  try {
-                    $completionDt = \Carbon\Carbon::parse($completionRaw);
-                    $completionDisplay = $completionDt->isPast()
-                      ? 'Ready to move in'
-                      : $completionDt->format('d, M, Y');
-                  } catch (\Exception $e) {
-                    $completionDisplay = $completionRaw;
-                  }
-                } else {
-                  $completionDisplay = 'N/A';
-                }
-              @endphp
               {{ $completionDisplay }}
             </div>
           </div>
@@ -1836,43 +1762,10 @@
 @endforeach
 
 <!-- PAGE 10: INFRASTRUCTURE / DISTANCES -->
-@if(!empty($data['distances']) || !empty($locationInfrastructure) || !empty($locationAirports))
+@if(!empty($data['distances']) || !empty($data['infraItems'] ?? $data['infrastructure_items'] ?? []) || !empty($data['airportItems'] ?? $data['airport_items'] ?? []))
 @php
-  $distanceList = array_values($data['distances'] ?? []);
-
-  // Prefer explicitly linked ProjectLocation arrays; fall back to legacy distance rows.
-  $legacyInfraItems = array_values(array_filter($distanceList, fn ($item) => ($item['type'] ?? null) === 'infrastructure'));
-  $legacyAirportItems = array_values(array_filter($distanceList, fn ($item) => ($item['type'] ?? null) === 'airport'));
-
-  $infraItems = !empty($locationInfrastructure)
-    ? array_slice($locationInfrastructure, 0, 4)
-    : array_slice($legacyInfraItems, 0, 4);
-
-  $fallbackAirportNames = [
-    'Ercan International',
-    'Larnaca International',
-    'Paphos International',
-  ];
-
-  $fallbackAirportImages = [
-    $data['assets']['exterior'][0] ?? ($data['assets']['interior'][0] ?? 'property/images/test.png'),
-    $data['assets']['exterior'][1] ?? ($data['assets']['interior'][1] ?? 'property/images/test.png'),
-    $data['assets']['exterior'][2] ?? ($data['assets']['interior'][2] ?? 'property/images/test.png'),
-  ];
-
-  $airportItems = !empty($locationAirports)
-    ? array_slice($locationAirports, 0, 3)
-    : array_slice($legacyAirportItems, 0, 3);
-
-  $airportItems = array_pad($airportItems, 3, []);
-
-  foreach ($airportItems as $index => $airportItem) {
-    $airportItems[$index] = [
-      'name' => $fallbackAirportNames[$index] ?? ($airportItem['name'] ?? ''),
-      'travelTimeInMin' => $airportItem['travelTimeInMin'] ?? $airportItem['time'] ?? $airportItem['distance'] ?? '',
-      'image' => $airportItem['image'] ?? $fallbackAirportImages[$index] ?? 'property/images/test.png',
-    ];
-  }
+  $infraItems = array_values($data['infraItems'] ?? []);
+  $airportItems = array_values($data['airportItems'] ?? []);
 @endphp
 <div class="page">
   <img src="{{ $data['branding']['panther_watermark'] }}" class="panther-dual-left" alt="" />
