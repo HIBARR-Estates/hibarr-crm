@@ -3,6 +3,7 @@ import type {
     LeadQualification,
     TemplateTree,
 } from "@/Types/qualification";
+import { COMPLETED_OUTCOME_LABELS } from "@/Types/qualification";
 import { getQualificationTemplateService } from "@/Services/QualificationTemplateService";
 import {
     computeVisibleSegments,
@@ -16,13 +17,6 @@ import LeadV2Modal, {
     LeadV2ModalFooter,
     LeadV2ModalHeader,
 } from "./LeadV2Modal";
-
-const OUTCOME_LABELS: Record<string, string> = {
-    bookMeeting: "Consultation booked",
-    inviteWebinar: "Webinar invited",
-    callback: "Callback requested",
-    noFit: "Not a fit",
-};
 
 interface AnswersReviewModalProps {
     open: boolean;
@@ -105,17 +99,22 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
               : [];
     const outcomeLabel = selectedOutcomes.length
         ? selectedOutcomes
-              .map((key) => OUTCOME_LABELS[key] ?? key)
+              .map((key) =>
+                  td(COMPLETED_OUTCOME_LABELS[key] ?? key),
+              )
               .join(" · ")
         : qualification.status === "inProgress"
-          ? "In progress"
+          ? td("In progress")
           : qualification.status === "completed"
-            ? "Completed"
+            ? td("Completed")
             : qualification.status === "abandoned"
-              ? "Abandoned"
-              : "In progress";
+              ? td("Abandoned")
+              : td("In progress");
     const winnerLabel = qualification.outcome
-        ? (OUTCOME_LABELS[qualification.outcome] ?? qualification.outcome)
+        ? td(
+              COMPLETED_OUTCOME_LABELS[qualification.outcome] ??
+                  qualification.outcome,
+          )
         : null;
 
     return (
@@ -127,7 +126,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
             >
                 <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 650 }}>
-                        {td(outcomeLabel)}
+                        {outcomeLabel}
                     </div>
                     {winnerLabel && selectedOutcomes.length > 1 ? (
                         <div
@@ -137,7 +136,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                 marginTop: 2,
                             }}
                         >
-                            {td("Lifecycle")}: {td(winnerLabel)}
+                            {td("Lifecycle")}: {winnerLabel}
                         </div>
                     ) : null}
                     {qualification.outcome_comment?.trim() ? (

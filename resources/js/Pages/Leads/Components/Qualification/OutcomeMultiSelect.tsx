@@ -48,11 +48,15 @@ export default function OutcomeMultiSelect({
     };
 
     const handleConfirm = () => {
-        void onConfirm(
-            selected,
-            comment.trim() ? comment.trim() : null,
-            selectedMeta,
-        );
+        void Promise.resolve(
+            onConfirm(
+                selected,
+                comment.trim() ? comment.trim() : null,
+                selectedMeta,
+            ),
+        ).catch(() => {
+            // Caller surfaces errors (toast); avoid unhandled rejection.
+        });
     };
 
     if (variant === "legacy") {

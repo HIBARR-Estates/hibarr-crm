@@ -401,6 +401,3 @@ export const getScriptOutcomes = (tree: TemplateTree): ScriptOutcomeOption[] => 
     );
 };
 
-export const isOutcomePhaseSegment = (segment?: Segment | null): boolean =>
-    segment?.type === "outcome";
-

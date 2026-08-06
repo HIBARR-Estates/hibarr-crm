@@ -6,7 +6,7 @@ import {
     QualificationToken,
     TemplateTree,
 } from "@/Types/qualification";
-import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
+import { useDynamicTranslation, useTd } from "@/Hooks/useDynamicTranslation";
 import TokenHighlight from "../TokenHighlight";
 import OutcomeMultiSelect from "../OutcomeMultiSelect";
 import { getScriptOutcomes } from "../qualificationUtils";
@@ -46,6 +46,7 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
     loading = false,
 }) => {
     const translated = translateScript(useDynamicTranslation(label));
+    const { td } = useTd();
     const [error, setError] = useState<string | null>(null);
     const scriptOutcomes = useMemo(
         () => getScriptOutcomes(templateTree),
@@ -100,7 +101,7 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
                 <TokenHighlight text={translated} tokenMap={tokenMap} />
             </p>
             <p className="text-sm text-gray-500">
-                Select one or more outcomes for this lead.
+                {td("Select one or more outcomes for this lead.")}
             </p>
             {error && (
                 <Alert type="error" message={error} showIcon className="mb-2" />

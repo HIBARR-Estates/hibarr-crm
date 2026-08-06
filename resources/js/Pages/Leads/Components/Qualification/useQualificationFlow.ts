@@ -347,6 +347,13 @@ export const useQualificationFlow = ({
                         : undefined,
                 };
 
+                if (
+                    outcomes.includes("inviteWebinar") &&
+                    !metadata?.webinarSessionId
+                ) {
+                    throw new Error("Webinar session required");
+                }
+
                 if (outcomes.includes("bookMeeting")) {
                     await registrationService.bookConsultationCalendly({
                         ...registrationPayload,
@@ -355,11 +362,12 @@ export const useQualificationFlow = ({
                 }
 
                 if (outcomes.includes("inviteWebinar")) {
-                    if (!metadata?.webinarSessionId) {
+                    const webinarSessionId = metadata?.webinarSessionId;
+                    if (!webinarSessionId) {
                         throw new Error("Webinar session required");
                     }
                     await registrationService.registerWebinarSession(
-                        metadata.webinarSessionId,
+                        webinarSessionId,
                         registrationPayload,
                     );
                 }

@@ -85,14 +85,17 @@ export default function QualifySegmentBody({
     ) => {
         if (!pendingComplete) return;
         setWebinarPickerOpen(false);
-        await flow.completeWithOutcomes(pendingComplete.outcomes, {
-            comment: pendingComplete.comment,
-            webinarSessionId: sessionId,
-            webinarSessionLabel: sessionLabel,
-            calendlyUrl: pendingComplete.calendlyUrl,
-        });
-        setPendingComplete(null);
-        setPendingWebinarId(null);
+        try {
+            await flow.completeWithOutcomes(pendingComplete.outcomes, {
+                comment: pendingComplete.comment,
+                webinarSessionId: sessionId,
+                webinarSessionLabel: sessionLabel,
+                calendlyUrl: pendingComplete.calendlyUrl,
+            });
+        } finally {
+            setPendingComplete(null);
+            setPendingWebinarId(null);
+        }
     };
 
     const handleOutcomeConfirm = async (

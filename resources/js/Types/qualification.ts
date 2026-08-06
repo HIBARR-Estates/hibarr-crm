@@ -267,6 +267,14 @@ export const DEFAULT_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
     noFit: "Not a fit",
 };
 
+/** Past-tense labels for completed qualification review surfaces. */
+export const COMPLETED_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
+    bookMeeting: "Consultation booked",
+    inviteWebinar: "Webinar invited",
+    callback: "Callback requested",
+    noFit: "Not a fit",
+};
+
 /** Display / priority order for multi-select (matches CRM lifecycle policy). */
 export const OUTCOME_PRIORITY: QualificationOutcome[] = [
     "bookMeeting",
