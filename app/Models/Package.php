@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property int $id
  * @property string $name
  * @property float $value
+ * @property string $currency
  * @property string|null $description
  * @property int|null $company_id
  * @property string|null $customer_type_name
@@ -33,6 +34,7 @@ class Package extends BaseModel
     protected $fillable = [
         'name',
         'value',
+        'currency',
         'description',
         'company_id',
         'customer_type_name',

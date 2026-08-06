@@ -17,6 +17,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Basic',
                 'value' => 0,
+                'currency' => 'EUR',
                 'company_id' => 1,
                 'description' => 'Basic package with essential features',
                 'customer_type_name' => 'Standard Customer',
@@ -25,6 +26,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Bank',
                 'value' => 1400,
+                'currency' => 'EUR',
                 'company_id' => 1,
                 'description' => 'Banking and financial services package',
                 'customer_type_name' => 'Banking Customer',
@@ -33,6 +35,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Inspection',
                 'value' => 5000,
+                'currency' => 'EUR',
                 'company_id' => 1,
                 'description' => 'Property inspection and assessment package',
                 'customer_type_name' => 'Inspection Customer',
@@ -41,6 +44,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Asset Protection',
                 'value' => 6500,
+                'currency' => 'EUR',
                 'company_id' => 1,
                 'description' => 'Comprehensive asset protection package',
                 'customer_type_name' => 'Asset Protection Customer',
@@ -49,6 +53,7 @@ class PackageSeeder extends Seeder
             [
                 'name' => 'Legal Service',
                 'value' => 2700,
+                'currency' => 'EUR',
                 'company_id' => 1,
                 'description' => 'Legal services and consultation package',
                 'customer_type_name' => 'Legal Service Customer',
