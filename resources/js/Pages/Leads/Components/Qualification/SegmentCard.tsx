@@ -1,23 +1,40 @@
 import React from "react";
-import { Segment, QualificationToken } from "@/Types/qualification";
-import { SegmentAnswerState } from "@/Types/qualification";
+import {
+    Segment,
+    QualificationToken,
+    SegmentAnswerState,
+    TemplateTree,
+    QualificationOutcome,
+} from "@/Types/qualification";
 import SaySegment from "./segments/SaySegment";
 import QuestionSegment from "./segments/QuestionSegment";
 import InstructionSegment from "./segments/InstructionSegment";
 import OutcomeSegment from "./segments/OutcomeSegment";
-import { QualificationOutcome } from "@/Types/qualification";
 
 interface SegmentCardProps {
     segment: Segment;
     answer?: SegmentAnswerState;
     tokenMap: Record<QualificationToken, string>;
     translateScript: (text: string) => string;
+    templateTree: TemplateTree;
     onAnswerChange: (values: string[], text?: string | null) => void;
-    onOutcome: (
-        outcome: QualificationOutcome,
-        metadata?: { webinarSessionId?: string; calendlyUrl?: string },
+    onCompleteOutcomes: (
+        outcomes: QualificationOutcome[],
+        metadata?: {
+            comment?: string | null;
+            webinarSessionId?: string;
+            webinarSessionLabel?: string;
+            calendlyUrl?: string;
+        },
     ) => Promise<void>;
-    onOpenWebinarPicker?: (webinarId: string) => void;
+    onOpenWebinarPicker?: (
+        webinarId: string,
+        pending: {
+            outcomes: QualificationOutcome[];
+            comment: string | null;
+            calendlyUrl?: string;
+        },
+    ) => void;
     saving?: boolean;
     completing?: boolean;
 }
@@ -27,8 +44,9 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
     answer,
     tokenMap,
     translateScript,
+    templateTree,
     onAnswerChange,
-    onOutcome,
+    onCompleteOutcomes,
     onOpenWebinarPicker,
     saving = false,
     completing = false,
@@ -61,10 +79,10 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
         {segment.type === "outcome" && (
             <OutcomeSegment
                 label={segment.label}
-                outcomeMetadata={segment.outcomeMetadata}
                 tokenMap={tokenMap}
                 translateScript={translateScript}
-                onOutcome={onOutcome}
+                templateTree={templateTree}
+                onComplete={onCompleteOutcomes}
                 onOpenWebinarPicker={onOpenWebinarPicker}
                 loading={completing}
             />

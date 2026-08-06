@@ -62,11 +62,50 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
 
         $this->assertSame(QualificationStatus::Completed, $completed->status);
         $this->assertSame(QualificationOutcome::BookMeeting, $completed->outcome);
+        $this->assertSame([QualificationOutcome::BookMeeting->value], $completed->outcomes);
 
         $statusKey = \Illuminate\Support\Facades\DB::table('lead_lifecycle_statuses')
             ->where('id', \Illuminate\Support\Facades\DB::table('leads')->where('id', $this->leadId)->value('lead_lifecycle_status_id'))
             ->value('key');
         $this->assertSame('qualified', $statusKey);
+    }
+
+    public function test_complete_with_multiple_outcomes_uses_priority_winner(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        $qualification = $this->service->start($lead, [
+            'template_id' => '3',
+            'template_version' => 1,
+            'agent_language' => 'en',
+            'agent_id' => $this->userId,
+        ]);
+
+        $completed = $this->service->complete($qualification, [
+            'outcomes' => [
+                QualificationOutcome::NoFit->value,
+                QualificationOutcome::InviteWebinar->value,
+                QualificationOutcome::Callback->value,
+            ],
+            'outcome_comment' => 'Wants spouse on the call',
+            'selected_branch_keys' => ['join_the_cage'],
+        ]);
+
+        $this->assertSame(QualificationStatus::Completed, $completed->status);
+        $this->assertSame(QualificationOutcome::InviteWebinar, $completed->outcome);
+        $this->assertSame(
+            [
+                QualificationOutcome::NoFit->value,
+                QualificationOutcome::InviteWebinar->value,
+                QualificationOutcome::Callback->value,
+            ],
+            $completed->outcomes
+        );
+        $this->assertSame('Wants spouse on the call', $completed->outcome_comment);
+
+        $statusKey = \Illuminate\Support\Facades\DB::table('lead_lifecycle_statuses')
+            ->where('id', \Illuminate\Support\Facades\DB::table('leads')->where('id', $this->leadId)->value('lead_lifecycle_status_id'))
+            ->value('key');
+        $this->assertSame('nurturing', $statusKey);
     }
 
     public function test_upsert_answer_persists_value_codes(): void

@@ -5,7 +5,11 @@ import {
     formatCompanyDate,
     formatCompanyDateTime,
 } from "@/lib/companyDateTime";
-import { LeadQualification, TemplateTree } from "@/Types/qualification";
+import {
+    COMPLETED_OUTCOME_LABELS,
+    LeadQualification,
+    TemplateTree,
+} from "@/Types/qualification";
 import { QualificationTemplateService } from "@/Services/QualificationTemplateService";
 import { formatAnswerDisplay } from "./qualificationUtils";
 
@@ -15,13 +19,6 @@ interface CompletedRecapProps {
     templateService: QualificationTemplateService;
     onStartNew: () => void;
 }
-
-const OUTCOME_LABELS: Record<string, string> = {
-    bookMeeting: "Consultation booked",
-    inviteWebinar: "Webinar invited",
-    callback: "Callback requested",
-    noFit: "Not a fit",
-};
 
 const CompletedRecap: React.FC<CompletedRecapProps> = ({
     qualification,
@@ -61,7 +58,21 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
             label: (
                 <span className="flex items-center gap-2">
                     {item.template_name ?? item.template_id}
-                    <Tag>{item.outcome ?? item.status}</Tag>
+                    <Tag>
+                        {(item.outcomes?.length
+                            ? item.outcomes
+                            : item.outcome
+                              ? [item.outcome]
+                              : [item.status]
+                        )
+                            .map(
+                                (key) =>
+                                    COMPLETED_OUTCOME_LABELS[
+                                        key as keyof typeof COMPLETED_OUTCOME_LABELS
+                                    ] ?? key,
+                            )
+                            .join(", ")}
+                    </Tag>
                     <span className="text-gray-400 text-xs">
                         {item.completed_at
                             ? formatCompanyDate(item.completed_at)
@@ -74,11 +85,24 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                     <Descriptions.Item label="Agent">
                         {item.agent?.name ?? "—"}
                     </Descriptions.Item>
-                    <Descriptions.Item label="Outcome">
-                        {item.outcome
-                            ? (OUTCOME_LABELS[item.outcome] ?? item.outcome)
-                            : "—"}
+                    <Descriptions.Item label="Outcomes">
+                        {(item.outcomes?.length
+                            ? item.outcomes
+                            : item.outcome
+                              ? [item.outcome]
+                              : []
+                        )
+                            .map(
+                                (key) =>
+                                    COMPLETED_OUTCOME_LABELS[key] ?? key,
+                            )
+                            .join(", ") || "—"}
                     </Descriptions.Item>
+                    {item.outcome_comment?.trim() ? (
+                        <Descriptions.Item label="Comment">
+                            {item.outcome_comment.trim()}
+                        </Descriptions.Item>
+                    ) : null}
                     <Descriptions.Item label="Answers">
                         {(item.answers ?? []).length} captured
                     </Descriptions.Item>
@@ -113,12 +137,32 @@ const CompletedRecap: React.FC<CompletedRecapProps> = ({
                             Agent: {qualification.agent.name}
                         </p>
                     )}
-                    {qualification.outcome && (
+                    {qualification.outcomes?.length ? (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            {qualification.outcomes.map((key) => (
+                                <Tag
+                                    key={key}
+                                    color={
+                                        key === qualification.outcome
+                                            ? "green"
+                                            : "default"
+                                    }
+                                >
+                                    {COMPLETED_OUTCOME_LABELS[key] ?? key}
+                                </Tag>
+                            ))}
+                        </div>
+                    ) : qualification.outcome ? (
                         <Tag color="green" className="mt-2">
-                            {OUTCOME_LABELS[qualification.outcome] ??
+                            {COMPLETED_OUTCOME_LABELS[qualification.outcome] ??
                                 qualification.outcome}
                         </Tag>
-                    )}
+                    ) : null}
+                    {qualification.outcome_comment?.trim() ? (
+                        <p className="text-sm text-gray-500 mt-2 italic">
+                            “{qualification.outcome_comment.trim()}”
+                        </p>
+                    ) : null}
                 </div>
                 <Button
                     type="primary"

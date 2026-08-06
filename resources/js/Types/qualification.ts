@@ -203,6 +203,8 @@ export interface LeadQualification {
     agent_id: number;
     status: QualificationStatus;
     outcome?: QualificationOutcome | null;
+    outcomes?: QualificationOutcome[];
+    outcome_comment?: string | null;
     template_id: string;
     template_version: number;
     template_name?: string;
@@ -243,10 +245,43 @@ export interface UpdateNavigationPayload {
 }
 
 export interface CompleteQualificationPayload {
-    outcome: QualificationOutcome;
+    outcomes: QualificationOutcome[];
+    outcome_comment?: string | null;
+    /** @deprecated Prefer outcomes[]; kept for transitional callers */
+    outcome?: QualificationOutcome;
     selected_branch_keys?: string[];
     webinar_session_label?: string;
 }
+
+export interface ScriptOutcomeOption {
+    key: QualificationOutcome;
+    label: string;
+    webinarId?: string;
+    calendlyUrl?: string;
+}
+
+export const DEFAULT_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
+    bookMeeting: "Book consultation",
+    inviteWebinar: "Invite to webinar",
+    callback: "Schedule callback",
+    noFit: "Not a fit",
+};
+
+/** Past-tense labels for completed qualification review surfaces. */
+export const COMPLETED_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
+    bookMeeting: "Consultation booked",
+    inviteWebinar: "Webinar invited",
+    callback: "Callback requested",
+    noFit: "Not a fit",
+};
+
+/** Display / priority order for multi-select (matches CRM lifecycle policy). */
+export const OUTCOME_PRIORITY: QualificationOutcome[] = [
+    "bookMeeting",
+    "inviteWebinar",
+    "callback",
+    "noFit",
+];
 
 export interface LeadLifecycleStatus {
     id: number;
