@@ -1656,6 +1656,16 @@ if (!app()->environment('production')) {
             ],
         ];
 
+        $config = new \App\Services\PdfExpose\Configuration\ExposeConfiguration(
+            entityType: 'property',
+            entityId: 0,
+            layout: 'expose-template',
+            sections: [],
+            data: $data,
+        );
+
+        $data = \App\Services\PdfExpose\ExposePresentationBuilder::from($config)->toPdfProps();
+
         return view('pdf.expose.property.expose-template', compact('data'));
     })->name('debug.expose_template');
 }

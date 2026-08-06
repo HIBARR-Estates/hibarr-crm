@@ -73,6 +73,7 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         // Property API Routes
         ApiRoute::get('properties', ['as' => 'api.properties.index', 'uses' => 'Api\PropertyApiController@index']);
+        ApiRoute::get('properties/{identifier}/expose', ['as' => 'api.properties.expose', 'uses' => 'Api\ExposeDataApiController@propertyExpose']);
         ApiRoute::get('properties/{identifier}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@showByIdOrSlug']);
         ApiRoute::get('properties/filters/propertyTypes', ['as' => 'api.properties.filters.property_types', 'uses' => 'Api\PropertyApiController@getPropertyTypes']);
         ApiRoute::get('properties/filters/features', ['as' => 'api.properties.filters.features', 'uses' => 'Api\PropertyApiController@getFeatures']);
@@ -80,6 +81,8 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         // Developer Project API Routes
         ApiRoute::get('developer-projects', ['as' => 'api.developer-projects.index', 'uses' => 'Api\DeveloperProjectApiController@index']);
+        ApiRoute::get('developer-projects/{identifier}/unit-types/{unitTypeId}/expose', ['as' => 'api.developer-projects.unit-types.expose', 'uses' => 'Api\ExposeDataApiController@unitTypeExpose']);
+        ApiRoute::get('developer-projects/{identifier}/expose', ['as' => 'api.developer-projects.expose', 'uses' => 'Api\ExposeDataApiController@projectExpose']);
         ApiRoute::get('developer-projects/{identifier}', ['as' => 'api.developer-projects.show', 'uses' => 'Api\DeveloperProjectApiController@showByIdOrSlug']);
 
         // Agent commission profile (internal)
