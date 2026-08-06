@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Alert, Tag } from "antd";
 import { FlagOutlined } from "@ant-design/icons";
 import {
+    LeadQualification,
     QualificationOutcome,
     QualificationToken,
     TemplateTree,
@@ -20,19 +21,8 @@ interface OutcomeSegmentProps {
         outcomes: QualificationOutcome[],
         metadata?: {
             comment?: string | null;
-            webinarSessionId?: string;
-            webinarSessionLabel?: string;
-            calendlyUrl?: string;
         },
-    ) => Promise<void>;
-    onOpenWebinarPicker?: (
-        webinarId: string,
-        pending: {
-            outcomes: QualificationOutcome[];
-            comment: string | null;
-            calendlyUrl?: string;
-        },
-    ) => void;
+    ) => Promise<LeadQualification | void | null>;
     loading?: boolean;
 }
 
@@ -42,7 +32,6 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
     translateScript,
     templateTree,
     onComplete,
-    onOpenWebinarPicker,
     loading = false,
 }) => {
     const translated = translateScript(useDynamicTranslation(label));
@@ -56,29 +45,10 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
     const handleConfirm = async (
         outcomes: QualificationOutcome[],
         comment: string | null,
-        meta: { calendlyUrl?: string; webinarId?: string },
     ) => {
         setError(null);
         try {
-            if (outcomes.includes("inviteWebinar")) {
-                const webinarId =
-                    meta.webinarId ||
-                    scriptOutcomes.find((o) => o.key === "inviteWebinar")
-                        ?.webinarId;
-                if (webinarId && onOpenWebinarPicker) {
-                    onOpenWebinarPicker(webinarId, {
-                        outcomes,
-                        comment,
-                        calendlyUrl: meta.calendlyUrl,
-                    });
-                    return;
-                }
-            }
-
-            await onComplete(outcomes, {
-                comment,
-                calendlyUrl: meta.calendlyUrl,
-            });
+            await onComplete(outcomes, { comment });
         } catch (outcomeError) {
             setError(
                 outcomeError instanceof Error
@@ -110,7 +80,9 @@ const OutcomeSegment: React.FC<OutcomeSegmentProps> = ({
                 options={scriptOutcomes}
                 variant="legacy"
                 completing={loading}
-                onConfirm={handleConfirm}
+                onConfirm={(outcomes, comment) =>
+                    handleConfirm(outcomes, comment)
+                }
             />
         </div>
     );

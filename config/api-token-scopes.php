@@ -50,6 +50,7 @@ return [
                 'api.leads.index' => 'List leads',
                 'api.deals.create' => 'Create deal',
                 'api.contacts.createOrUpdate' => 'Create or update contact',
+                'api.qualification-actions.index' => 'List qualification action catalog',
             ],
         ],
         'communication' => [
