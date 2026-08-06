@@ -19,6 +19,7 @@ message Package {
   string created_at = 8;
   string updated_at = 9;
   string deleted_at = 10;
+  string currency = 11;
 }
 
 // Request to list packages with pagination and filters
