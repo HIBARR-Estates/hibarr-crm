@@ -41,6 +41,7 @@ class UpdateRequest extends CoreRequest
             'client_email' => 'nullable|email:rfc,strict|unique:leads,client_email,'.$this->route('lead_contact').',id,company_id,' . company()->id,
             'salutation' => ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => 'nullable|in:male,female',
+            'temperature' => 'nullable|in:cold,warm,hot',
             'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
         ];
 

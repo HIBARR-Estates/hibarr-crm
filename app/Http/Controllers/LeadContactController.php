@@ -109,6 +109,7 @@ class LeadContactController extends AccountBaseController
                 'qualification_segment_key',
                 'qualification_answer_values',
                 'language',
+                'temperature',
             ]),
             'leads' => [
                 'data' => $leads->items(),
@@ -535,6 +536,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->company_id = company()->id;
         $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
+        $leadContact->temperature = $request->temperature;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -729,6 +731,9 @@ class LeadContactController extends AccountBaseController
         if ($request->has('gender')) {
             $leadContact->gender = $request->gender;
         }
+        if ($request->has('temperature')) {
+            $leadContact->temperature = $request->temperature;
+        }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -834,6 +839,9 @@ class LeadContactController extends AccountBaseController
             }
             if ($request->has('gender')) {
                 $leadContact->gender = $request->gender;
+            }
+            if ($request->has('temperature')) {
+                $leadContact->temperature = $request->temperature;
             }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
@@ -1077,7 +1085,7 @@ class LeadContactController extends AccountBaseController
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
                     'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
-                    'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
+                    'postal_code', 'gender', 'temperature', 'note', 'lead_owner', 'category_id',
                     'category_ids',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\Salutation;
 use App\Enums\AgeRange;
+use App\Enums\LeadTemperature;
 use App\Models\ClientCategory;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
@@ -40,6 +41,8 @@ class FormDataService
                 return $this->getGenders();
             case 'age-ranges':
                 return $this->getAgeRanges();
+            case 'temperatures':
+                return $this->getTemperatures();
             case 'categories':
                 return $this->getCategories($request);
             case 'sources':
@@ -113,6 +116,18 @@ class FormDataService
                 return [
                     'value' => $ageRange->value,
                     'label' => $ageRange->label(),
+                ];
+            });
+        });
+    }
+
+    private function getTemperatures(): Collection
+    {
+        return Cache::remember('lead_temperatures', self::CACHE_TTL, function () {
+            return collect(LeadTemperature::cases())->map(function (LeadTemperature $temperature) {
+                return [
+                    'value' => $temperature->value,
+                    'label' => $temperature->label(),
                 ];
             });
         });

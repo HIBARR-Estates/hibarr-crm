@@ -6,6 +6,7 @@ export type DossierFieldKey =
     | "email"
     | "source"
     | "category"
+    | "temperature"
     | "leadValue"
     | "contactScore"
     | "hasAttendedWebinar"
@@ -49,6 +50,7 @@ export const DOSSIER_SECTIONS: DossierSectionDef[] = [
             { key: "email", label: "Email" },
             { key: "source", label: "Source", copyable: false },
             { key: "category", label: "Category", copyable: false },
+            { key: "temperature", label: "Temperature", copyable: false },
         ],
     },
     {

@@ -377,6 +377,18 @@ export default function EditLeadDetailsModal({
                                     ],
                                 );
                             }
+                            if (field.leadField === "temperature") {
+                                return renderFieldInput(
+                                    "temperature",
+                                    field.label,
+                                    "select",
+                                    [
+                                        { value: "cold", label: td("Cold", { source: "en" }) },
+                                        { value: "warm", label: td("Warm", { source: "en" }) },
+                                        { value: "hot", label: td("Hot", { source: "en" }) },
+                                    ],
+                                );
+                            }
                             if (field.leadField === "date_of_birth") {
                                 const hasDob = Boolean(form.date_of_birth);
                                 return (

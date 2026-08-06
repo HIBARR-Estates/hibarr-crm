@@ -109,6 +109,18 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 ) || [],
         },
         {
+            key: "temperature",
+            label: "Temperature",
+            type: "select",
+            placeholder: "Select temperature",
+            span: 12,
+            options: [
+                { value: "cold", label: "Cold" },
+                { value: "warm", label: "Warm" },
+                { value: "hot", label: "Hot" },
+            ],
+        },
+        {
             key: "qualification_segment_key",
             label: "Qualification Segment",
             type: "text",

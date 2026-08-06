@@ -36,6 +36,7 @@ export interface Lead {
     salutation_value?: string | null;
     gender?: "male" | "female" | null;
     gender_value?: "male" | "female" | null;
+    temperature?: "cold" | "warm" | "hot" | null;
     category_id?: number | null;
     category_ids?: number[];
     source_id?: number | null;
@@ -134,6 +135,7 @@ export interface LeadSource {
 export interface CreateLeadFormData {
     salutation?: string;
     gender?: "male" | "female" | null;
+    temperature?: "cold" | "warm" | "hot" | null;
     client_name: string;
     client_email: string;
     mobile?: string;

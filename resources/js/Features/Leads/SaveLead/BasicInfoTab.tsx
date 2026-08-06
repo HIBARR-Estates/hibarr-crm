@@ -320,6 +320,15 @@ const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
                                 </Form.Item>
                             </Col>
                         )}
+                        
+                        <Col xs={24} md={8}>
+                            <Form.Item label="Temperature" name="temperature">
+                                <FormDataSelector
+                                    type="temperatures"
+                                    placeholder="—"
+                                />
+                            </Form.Item>
+                        </Col>
 
                         <Col xs={24} md={8}>
                             <Form.Item

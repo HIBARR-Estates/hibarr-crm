@@ -222,6 +222,8 @@ const SaveLeadModal: React.FC<SaveLeadModalProps> = ({
             (lead?.gender as any)?.value ??
             lead?.gender ??
             "",
+        temperature:
+            (lead?.temperature as any)?.value ?? lead?.temperature ?? "",
         languages: lead?.languages || [],
         date_of_birth: lead?.date_of_birth || null,
         nationality: lead?.nationality || "",

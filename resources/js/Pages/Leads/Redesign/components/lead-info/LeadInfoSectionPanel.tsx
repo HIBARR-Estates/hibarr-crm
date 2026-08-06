@@ -21,6 +21,10 @@ import {
     getLeadInfoSection,
     isLeadInfoCoreSection,
 } from "../../config/leadInfoSections";
+import {
+    formatLeadTemperature,
+    LEAD_TEMPERATURE_TONE,
+} from "../../config/leadTemperature";
 import type { LeadFieldChange } from "../../hooks/useLeadInfoFieldUpdate";
 import type { LeadInfoSectionId } from "../../types";
 
@@ -573,6 +577,54 @@ export default function LeadInfoSectionPanel({
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
                         loading={isFieldLoading("category_ids")}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
+                <DetailField
+                    label={t("pages.leads.info.fields.temperature", {
+                        defaultValue: "Temperature",
+                    })}
+                >
+                    <DealEditableField
+                        value={lead.temperature || ""}
+                        fieldName="temperature"
+                        fieldType="select"
+                        options={[
+                            {
+                                label: t(
+                                    "pages.leads.info.fields.temperature_cold",
+                                    { defaultValue: "Cold" },
+                                ),
+                                value: "cold",
+                            },
+                            {
+                                label: t(
+                                    "pages.leads.info.fields.temperature_warm",
+                                    { defaultValue: "Warm" },
+                                ),
+                                value: "warm",
+                            },
+                            {
+                                label: t(
+                                    "pages.leads.info.fields.temperature_hot",
+                                    { defaultValue: "Hot" },
+                                ),
+                                value: "hot",
+                            },
+                        ]}
+                        displayValue={
+                            lead.temperature ? (
+                                <span
+                                    className={`v2-pill v2-pill-${LEAD_TEMPERATURE_TONE[lead.temperature]}`}
+                                >
+                                    {formatLeadTemperature(lead.temperature)}
+                                </span>
+                            ) : undefined
+                        }
+                        onSave={(value) => onFieldUpdate("temperature", value)}
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        loading={isFieldLoading("temperature")}
                         disabled={!canEdit}
                     />
                 </DetailField>

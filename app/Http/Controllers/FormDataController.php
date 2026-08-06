@@ -39,7 +39,7 @@ class FormDataController extends Controller
         ]);
 
         $allowedTypes = [
-            'salutations', 'genders', 'age-ranges', 'categories', 'sources', 'employees',
+            'salutations', 'genders', 'age-ranges', 'temperatures', 'categories', 'sources', 'employees',
             'lead-pipelines', 'lead-stages', 'products', 'countries', 'currencies',
             'lead-agents', 'client-categories', 'languages', 'leads', 'packages',
             'deal-custom-fields', 'deal-custom-field-categories', 'deal-pipeline-custom-field-category-map',

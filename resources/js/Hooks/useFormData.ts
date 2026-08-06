@@ -35,6 +35,7 @@ export type FormDataType =
     | "lead-statuses"
     | "genders"
     | "age-ranges"
+    | "temperatures"
     | "packages"
     | "deal-custom-fields"
     | "deal-custom-field-categories"

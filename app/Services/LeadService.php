@@ -47,7 +47,7 @@ class LeadService
                 'leads.company_name', 'leads.mobile', 'leads.created_at', 'leads.updated_at',
                 'leads.lead_owner', 'leads.added_by', 'leads.source_id', 'leads.category_id', 'leads.client_id',
                 'leads.lead_lifecycle_status_id',
-                'leads.salutation', 'leads.gender', 'leads.address', 'leads.city', 'leads.state', 
+                'leads.salutation', 'leads.gender', 'leads.temperature', 'leads.address', 'leads.city', 'leads.state',
                 'leads.country', 'leads.postal_code', 'leads.website', 'leads.cell', 'leads.office',
                 'leads.languages', 'leads.date_of_birth', 'leads.age', 'leads.age_range', 'leads.nationality', 'leads.occupation',
             ]);
@@ -223,6 +223,10 @@ class LeadService
 
         if ($request->filled('lifecycle_status_id')) {
             $query->where('lead_lifecycle_status_id', $request->get('lifecycle_status_id'));
+        }
+
+        if ($request->filled('temperature')) {
+            $query->where('temperature', $request->get('temperature'));
         }
 
         if ($this->coreFieldsService->useCoreFields() && $request->filled('language')) {
