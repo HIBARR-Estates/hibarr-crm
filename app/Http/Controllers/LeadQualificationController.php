@@ -19,7 +19,7 @@ class LeadQualificationController extends AccountBaseController
         parent::__construct();
 
         $this->middleware(function ($request, $next) {
-            if (!in_array('leads', user_modules())) {
+            if (! in_array('leads', user_modules())) {
                 if ($request->ajax() || $request->header('X-Inertia')) {
                     return redirect()->back()->with('error', __('messages.permissionDenied'));
                 }
@@ -98,13 +98,27 @@ class LeadQualificationController extends AccountBaseController
     {
         $this->authorizeQualificationAccess($qualification);
 
+        $outcomeValues = ['bookMeeting', 'inviteWebinar', 'callback', 'noFit'];
+
         $validated = $request->validate([
-            'outcome' => ['required', Rule::in(['bookMeeting', 'inviteWebinar', 'callback', 'noFit'])],
+            'outcomes' => ['nullable', 'array', 'min:1'],
+            'outcomes.*' => ['string', Rule::in($outcomeValues)],
+            'outcome' => ['nullable', 'string', Rule::in($outcomeValues)],
+            'outcome_comment' => ['nullable', 'string'],
             'selected_branch_keys' => ['nullable', 'array'],
             'selected_branch_keys.*' => ['string', 'max:255'],
             'outcome_triggered_at' => ['nullable', 'date'],
             'webinar_session_label' => ['nullable', 'string', 'max:255'],
         ]);
+
+        if (empty($validated['outcomes'])) {
+            if (empty($validated['outcome'])) {
+                throw ValidationException::withMessages([
+                    'outcomes' => ['At least one outcome is required.'],
+                ]);
+            }
+            $validated['outcomes'] = [$validated['outcome']];
+        }
 
         $completed = $this->qualificationService->complete($qualification, $validated);
 
@@ -151,7 +165,7 @@ class LeadQualificationController extends AccountBaseController
             'owned' => 'lead_owner',
         ]);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             throw ValidationException::withMessages([
                 'permission' => [__('messages.permissionDenied')],
             ]);
