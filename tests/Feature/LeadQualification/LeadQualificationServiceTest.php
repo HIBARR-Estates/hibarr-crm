@@ -7,6 +7,7 @@ use App\Enums\QualificationStatus;
 use App\Models\Lead;
 use App\Models\LeadQualification;
 use App\Services\LeadQualificationService;
+use Illuminate\Validation\ValidationException;
 use Tests\LeadQualificationTestCase;
 
 class LeadQualificationServiceTest extends LeadQualificationTestCase
@@ -106,6 +107,74 @@ class LeadQualificationServiceTest extends LeadQualificationTestCase
             ->where('id', \Illuminate\Support\Facades\DB::table('leads')->where('id', $this->leadId)->value('lead_lifecycle_status_id'))
             ->value('key');
         $this->assertSame('nurturing', $statusKey);
+    }
+
+    public function test_complete_seeds_action_runs_from_payload(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        $qualification = $this->service->start($lead, [
+            'template_id' => '3',
+            'template_version' => 1,
+            'agent_language' => 'en',
+            'agent_id' => $this->userId,
+        ]);
+
+        $completed = $this->service->complete($qualification, [
+            'outcomes' => [QualificationOutcome::BookMeeting->value],
+            'actions' => [
+                ['type' => 'book_consultation', 'config' => ['calendlyUrl' => 'https://example.com']],
+                ['type' => 'create_task'],
+                ['type' => 'book_consultation'],
+            ],
+        ]);
+
+        $runs = $completed->actionRuns;
+        $this->assertCount(2, $runs);
+        $this->assertSame('book_consultation', $runs[0]->action_type);
+        $this->assertSame(\App\Enums\QualificationActionRunStatus::Pending, $runs[0]->status);
+        $this->assertSame('create_task', $runs[1]->action_type);
+        $this->assertSame(\App\Enums\QualificationActionRunStatus::Unavailable, $runs[1]->status);
+    }
+
+    public function test_mark_action_executed_completes_noop(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        $qualification = $this->service->start($lead, [
+            'template_id' => '3',
+            'template_version' => 1,
+            'agent_language' => 'en',
+            'agent_id' => $this->userId,
+        ]);
+        $completed = $this->service->complete($qualification, [
+            'outcomes' => [QualificationOutcome::Callback->value],
+            'actions' => [['type' => 'schedule_callback']],
+        ]);
+        $run = $completed->actionRuns->first();
+        $this->assertNotNull($run);
+
+        $updated = $this->service->markActionExecuted($run, []);
+        $this->assertSame(\App\Enums\QualificationActionRunStatus::Completed, $updated->status);
+    }
+
+    public function test_mark_action_executed_rejects_coming_soon(): void
+    {
+        $lead = Lead::withoutGlobalScopes()->find($this->leadId);
+        $qualification = $this->service->start($lead, [
+            'template_id' => '3',
+            'template_version' => 1,
+            'agent_language' => 'en',
+            'agent_id' => $this->userId,
+        ]);
+        $completed = $this->service->complete($qualification, [
+            'outcomes' => [QualificationOutcome::Callback->value],
+            'actions' => [['type' => 'create_task']],
+        ]);
+        $run = $completed->actionRuns->first();
+        $this->assertNotNull($run);
+        $this->assertSame(\App\Enums\QualificationActionRunStatus::Unavailable, $run->status);
+
+        $this->expectException(ValidationException::class);
+        $this->service->markActionExecuted($run, []);
     }
 
     public function test_upsert_answer_persists_value_codes(): void
