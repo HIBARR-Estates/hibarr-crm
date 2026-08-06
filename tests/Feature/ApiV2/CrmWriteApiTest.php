@@ -80,6 +80,15 @@ class CrmWriteApiTest extends TestCase
             'location' => 'office',
             'lead_id' => 1,
         ], $headers)->assertStatus(404);
+
+        $this->postJson('/api/v2/payments', [
+            'deal_id' => 1,
+            'external_reference' => 'ol-1',
+            'amount' => 10,
+            'currency' => 'USD',
+            'status' => 'pending',
+            'gateway' => 'manual-bank-transfer',
+        ], $headers)->assertStatus(404);
     }
 
     public function test_get_note_requires_type_query_parameter(): void
