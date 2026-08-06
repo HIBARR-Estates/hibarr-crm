@@ -167,6 +167,7 @@ Response
 "body": null,
 "prompt": "I need to know your age {{lead.firstName}}",
 "answerType": "single_select",
+"category": "main",
 "required": true,
 "outcomeKey": null,
 "ctaLabel": null,
@@ -214,6 +215,8 @@ Response
 ]
 }
 }
+
+`category` is question-only (`"main"` today, or `null` when unset). It is **not** the same as segment `type` (`say` | `question` | `instruction` | `outcome`). CRM uses `category: "main"` (with `isEntryQuestion` / `entryQuestionKey` fallbacks) to identify the branching entry question. Non-question segments must not set `category` (OL returns 400).
 
 ---
 
