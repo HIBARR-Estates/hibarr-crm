@@ -360,7 +360,8 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
     // ---- Render ----
 
     const errorMessage =
-        createMutation.error?.message || updateMutation.error?.message;
+        (createMutation.error as { message?: string } | null)?.message ||
+        (updateMutation.error as { message?: string } | null)?.message;
 
     // Derive modal title
     const modalTitle = isDuplicating
