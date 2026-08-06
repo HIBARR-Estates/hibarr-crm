@@ -32,6 +32,7 @@ import {
 import dayjs from "dayjs";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import type { ApiSuccessResponse } from "@/lib/api/types";
+import { getErrorMessage } from "@/lib/api/utils/common";
 import type { DeveloperProjectUnitType } from "@/Types/developerProject";
 import {
     PRIMARY_CATEGORY_OPTIONS,
@@ -359,9 +360,11 @@ const UnitTypeFormModal: React.FC<UnitTypeFormModalProps> = ({
 
     // ---- Render ----
 
-    const errorMessage =
-        (createMutation.error as { message?: string } | null)?.message ||
-        (updateMutation.error as { message?: string } | null)?.message;
+    const errorMessage = createMutation.isError
+        ? getErrorMessage(createMutation.error)
+        : updateMutation.isError
+          ? getErrorMessage(updateMutation.error)
+          : null;
 
     // Derive modal title
     const modalTitle = isDuplicating

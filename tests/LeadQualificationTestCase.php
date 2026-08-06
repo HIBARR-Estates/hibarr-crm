@@ -113,6 +113,8 @@ abstract class LeadQualificationTestCase extends TestCase
             $table->enum('status', ['inProgress', 'completed', 'abandoned'])->default('inProgress');
             $table->json('selected_branch_keys')->nullable();
             $table->enum('outcome', ['bookMeeting', 'inviteWebinar', 'callback', 'noFit'])->nullable();
+            $table->json('outcomes')->nullable();
+            $table->text('outcome_comment')->nullable();
             $table->timestamp('outcome_triggered_at')->nullable();
             $table->string('agent_language', 10)->nullable();
             $table->string('current_segment_key')->nullable();
