@@ -3,6 +3,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import DealInfoSidebar from "@/Pages/Deals/Redesign/components/deal-info/DealInfoSidebar";
 import type { DealInfoSectionId } from "@/Pages/Deals/Redesign/types";
 import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
+import { selectFieldsForCompletionCount } from "@/lib/customFieldCompletion";
 import { countFilledFields } from "../../../adapters/dossierAdapter";
 import { LEAD_INFO_CORE_SECTIONS } from "../../../config/leadInfoSections";
 import LeadInfoSectionPanel from "../../lead-info/LeadInfoSectionPanel";
@@ -32,21 +33,22 @@ function countCategoryCompletion(
     fields: any[],
     customFieldsData: Record<string, unknown> | undefined,
 ): { filled: number; total: number } {
-    const categoryFields = fields.filter(
+    const visibleFields = fields.filter(
         (field) =>
             Number(field.custom_field_category_id) === categoryId &&
             field.type !== "file",
     );
+    const fieldsToCount = selectFieldsForCompletionCount(visibleFields);
     let filled = 0;
 
-    for (const field of categoryFields) {
+    for (const field of fieldsToCount) {
         const value =
             customFieldsData?.[`field_${field.id}`] ??
             customFieldsData?.[field.id];
         if (isFilledValue(value)) filled += 1;
     }
 
-    return { filled, total: categoryFields.length };
+    return { filled, total: fieldsToCount.length };
 }
 
 /** Categories that only contain file fields live on the Files tab — hide here. */

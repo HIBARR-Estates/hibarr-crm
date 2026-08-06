@@ -2,6 +2,10 @@ import { useMemo } from "react";
 import type { Deal } from "@/Types/api/deals";
 import type { CustomField } from "@/Types";
 import { isFieldVisible } from "@/Features/Deals/pipelineScopeUtils";
+import {
+    isCustomFieldRequired,
+    selectFieldsForCompletionCount,
+} from "@/lib/customFieldCompletion";
 import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import { parseMultiSelectStoredValue } from "@/lib/parseMultiSelectStoredValue";
 import {
@@ -188,6 +192,17 @@ function countSectionCompletion(
         general: ["name", "close_date", "category_id"],
     };
 
+    const visibleCustomFields = categoryFields.filter((field) =>
+        isCustomFieldCurrentlyVisible(field, visibleFieldKeys, visibilityMap),
+    );
+    // Required custom fields narrow the badge to those alone (and drop
+    // native/hibarr rows). With none required, keep the legacy count of
+    // every visible field including native keys.
+    const countOnlyRequired = visibleCustomFields.some(isCustomFieldRequired);
+    const customFieldsToCount = selectFieldsForCompletionCount(
+        visibleCustomFields,
+    );
+
     let filled = 0;
     let total = 0;
 
@@ -201,31 +216,31 @@ function countSectionCompletion(
         track(value);
     };
 
-    for (const key of dealKeysBySection[sectionId] ?? []) {
-        trackScopedKey(key, (deal as unknown as Record<string, unknown>)[key]);
-    }
-
-    for (const key of hibarrKeysBySection[sectionId] ?? []) {
-        trackScopedKey(key, getHibarrValue(deal, key));
-    }
-
-    if (sectionId === "support") {
-        // Team rows are always rendered in the redesign support section.
-        track(deal.lead_agent?.user_id ?? deal.agent_id);
-        track(deal.deal_participants?.length ? deal.deal_participants : null);
-        track(deal.deal_watchers?.length ? deal.deal_watchers : null);
-    }
-
-    for (const field of categoryFields) {
-        if (
-            !isCustomFieldCurrentlyVisible(
-                field,
-                visibleFieldKeys,
-                visibilityMap,
-            )
-        ) {
-            continue;
+    if (!countOnlyRequired) {
+        for (const key of dealKeysBySection[sectionId] ?? []) {
+            trackScopedKey(
+                key,
+                (deal as unknown as Record<string, unknown>)[key],
+            );
         }
+
+        for (const key of hibarrKeysBySection[sectionId] ?? []) {
+            trackScopedKey(key, getHibarrValue(deal, key));
+        }
+
+        if (sectionId === "support") {
+            // Team rows are always rendered in the redesign support section.
+            track(deal.lead_agent?.user_id ?? deal.agent_id);
+            track(
+                deal.deal_participants?.length
+                    ? deal.deal_participants
+                    : null,
+            );
+            track(deal.deal_watchers?.length ? deal.deal_watchers : null);
+        }
+    }
+
+    for (const field of customFieldsToCount) {
         track(getCustomFieldValue(deal, field.id));
     }
 
@@ -239,29 +254,25 @@ function countCategoryCompletion(
     visibleFieldKeys: string[] | null | undefined,
     visibilityMap: Record<number, boolean>,
 ): { filled: number; total: number } {
-    const categoryFields = fields.filter(
-        (field) => Number(field.custom_field_category_id) === categoryId,
-    );
-    let filled = 0;
-    let total = 0;
-
-    for (const field of categoryFields) {
-        if (
-            !isCustomFieldCurrentlyVisible(
+    const visibleFields = fields.filter(
+        (field) =>
+            Number(field.custom_field_category_id) === categoryId &&
+            isCustomFieldCurrentlyVisible(
                 field,
                 visibleFieldKeys,
                 visibilityMap,
-            )
-        ) {
-            continue;
-        }
-        total += 1;
+            ),
+    );
+    const fieldsToCount = selectFieldsForCompletionCount(visibleFields);
+
+    let filled = 0;
+    for (const field of fieldsToCount) {
         if (isFilledValue(getCustomFieldValue(deal, field.id))) {
             filled += 1;
         }
     }
 
-    return { filled, total };
+    return { filled, total: fieldsToCount.length };
 }
 
 export default function useDealInfoNavigation(
