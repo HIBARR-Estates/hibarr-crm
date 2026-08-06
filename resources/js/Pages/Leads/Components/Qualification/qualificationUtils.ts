@@ -26,6 +26,9 @@ export const findEntrySegment = (
     return (
         tree.segments.find((s) => s.isEntryQuestion) ??
         tree.segments.find(
+            (s) => s.type === "question" && s.category === "main",
+        ) ??
+        tree.segments.find(
             (s) => s.type === "question" && !s.parentOptionId,
         )
     );

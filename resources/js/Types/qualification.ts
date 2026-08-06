@@ -12,6 +12,12 @@ export type SegmentType = "say" | "question" | "instruction" | "outcome";
 
 export type AnswerType = "singleSelect" | "multiSelect" | "text" | "boolean";
 
+/**
+ * Optional role for question segments only (not the same as SegmentType).
+ * Extensible; OL currently only accepts "main".
+ */
+export type QualificationQuestionCategory = "main";
+
 export type QualificationOutcome =
     | "bookMeeting"
     | "inviteWebinar"
@@ -109,6 +115,11 @@ export interface Segment {
     options?: SegmentOption[];
     outcomeMetadata?: OutcomeMetadata;
     actions?: QualificationActionRef[];
+    /**
+     * Question-only role from OL. null/omit = no category.
+     * Do not confuse with `type` (segment kind).
+     */
+    category?: QualificationQuestionCategory | null;
     isEntryQuestion?: boolean;
 }
 

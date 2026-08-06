@@ -8,6 +8,7 @@ import type {
     QualificationActionRef,
     QualificationActionType,
     QualificationOutcome,
+    QualificationQuestionCategory,
     Segment,
     SegmentOption,
     TemplateTree,
@@ -104,6 +105,8 @@ export interface OlSegment {
         type?: string;
         config?: Record<string, string | number | null> | null;
     } | string>;
+    /** Question-only. null/omit = no category. Not the same as `type`. */
+    category?: string | null;
     isEntryQuestion?: boolean;
 }
 
@@ -131,6 +134,22 @@ const normalizeAnswerType = (
     }
 
     return ANSWER_TYPE_MAP[answerType];
+};
+
+const normalizeQuestionCategory = (
+    category?: string | null,
+    segmentType?: Segment["type"],
+): QualificationQuestionCategory | null => {
+    if (segmentType != null && segmentType !== "question") {
+        return null;
+    }
+    if (category == null || category === "") {
+        return null;
+    }
+    if (category === "main") {
+        return "main";
+    }
+    return null;
 };
 
 const normalizeOutcomeType = (
@@ -221,6 +240,7 @@ const segmentLabel = (segment: OlSegment): string =>
 
 export const normalizeOlSegment = (segment: OlSegment): Segment => {
     const outcomeType = normalizeOutcomeType(segment.outcomeKey);
+    const category = normalizeQuestionCategory(segment.category, segment.type);
 
     return {
         key: segment.key,
@@ -249,16 +269,26 @@ export const normalizeOlSegment = (segment: OlSegment): Segment => {
             segment.type === "outcome"
                 ? normalizeActions(segment, outcomeType)
                 : undefined,
-        isEntryQuestion: segment.isEntryQuestion ?? false,
+        category,
+        isEntryQuestion:
+            segment.isEntryQuestion === true || category === "main",
     };
 };
 
 const markEntryQuestion = (segments: Segment[]): Segment[] => {
-    const entryIndex = segments.findIndex(
-        (segment) =>
-            segment.isEntryQuestion ||
-            (segment.type === "question" && !segment.parentOptionId),
-    );
+    let entryIndex = segments.findIndex((segment) => segment.isEntryQuestion);
+    if (entryIndex === -1) {
+        entryIndex = segments.findIndex(
+            (segment) =>
+                segment.type === "question" && segment.category === "main",
+        );
+    }
+    if (entryIndex === -1) {
+        entryIndex = segments.findIndex(
+            (segment) =>
+                segment.type === "question" && !segment.parentOptionId,
+        );
+    }
 
     if (entryIndex === -1) {
         return segments;
