@@ -395,7 +395,7 @@ export default function MeetingsTab({
                                                     {meeting.timeRangeLabel} ·{" "}
                                                     {meeting.durationMinutes}{" "}
                                                     {t("pages.deals.workspace.meetings.min_label")} ·{" "}
-                                                    {td(meeting.locationDisplay, { source: "en" })}
+                                                    {td(meeting.locationDisplay)}
                                                 </span>
                                                 {meeting.attendeesLabel && (
                                                     <span

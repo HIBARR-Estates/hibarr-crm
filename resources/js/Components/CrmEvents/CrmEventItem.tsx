@@ -268,7 +268,7 @@ export default function CrmEventItem({ event, compact = false }: Props) {
             {message && expanded && (
                 <div className="">
                     <div className="border-l-4 border-gray-300 bg-gray-50 px-3 py-3 text-sm text-gray-600 whitespace-pre-wrap break-words rounded-r-md">
-                        {td(message, { source: "en" })}
+                        {td(message)}
                     </div>
                 </div>
             )}

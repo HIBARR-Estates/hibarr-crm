@@ -116,7 +116,7 @@ export const AddNoteForm: React.FC<AddNoteFormProps> = ({ deal, onCancel }) => {
                             <ul className="mt-2">
                                 {errors.map((error, index) => (
                                     <li key={index} className="text-red-600">
-                                        {td(error, { source: "en" })}
+                                        {td(error)}
                                     </li>
                                 ))}
                             </ul>

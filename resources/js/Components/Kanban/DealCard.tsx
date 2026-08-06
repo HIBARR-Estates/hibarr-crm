@@ -154,13 +154,13 @@ const DealCard: React.FC<DealCardProps> = ({
                             <Text
                                 strong
                                 className="text-[15px] text-gray-800 leading-tight block hover:text-blue-600 transition-colors"
-                                ellipsis={{ tooltip: td(deal.name, { source: "en" }) }}
+                                ellipsis={{ tooltip: td(deal.name) }}
                             >
                                 {isLocked && (
                                     <LockOutlined className="text-amber-500 mr-1 text-[12px]" />
                                 )}
                                 <span className="font-medium">
-                                    {td(deal.name, { source: "en" })}
+                                    {td(deal.name)}
                                 </span>
                                 {deal.contact?.client_id && (
                                     <i
@@ -198,7 +198,7 @@ const DealCard: React.FC<DealCardProps> = ({
                         <Text
                             className="text-[13px] text-gray-500 leading-tight"
                             ellipsis={{
-                                tooltip: `Contact: ${deal.contact.salutation ? (deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)) + " " : ""}${td(deal.contact.client_name, { source: "en" })}`,
+                                tooltip: `Contact: ${deal.contact.salutation ? (deal.contact.salutation.charAt(0).toUpperCase() + deal.contact.salutation.slice(1)) + " " : ""}${td(deal.contact.client_name)}`,
                             }}
                         >
                             {deal.contact.salutation &&

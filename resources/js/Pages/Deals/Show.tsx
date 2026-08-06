@@ -173,7 +173,7 @@ export const LegacyDealShow = ({
                 breadcrumbs={[
                     { name: t("app.menu.dashboard"), url: route("dashboard") },
                     { name: td("Deals", { source: "en" }), url: route("deals.index") },
-                    { name: td(pageTitle, { source: "en" }) },
+                    { name: td(pageTitle) },
                 ]}
             >
                 <div className="min-h-screen mx-12">
@@ -199,7 +199,7 @@ export const LegacyDealShow = ({
                                         {deal.is_locked && (
                                             <LockOutlined className="text-amber-500 mr-2" />
                                         )}
-                                        {td(deal.name, { source: "en" })}
+                                        {td(deal.name)}
                                     </Title>
                                     <div className="flex flex-col gap-3">
                                         <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">

@@ -111,7 +111,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                     {td("Edit", { source: "en" })}
                 </h2>
                 <p className="mt-1 text-sm text-gray-500 truncate">
-                    {td(note.title, { source: "en" })}
+                    {td(note.title)}
                 </p>
             </div>
 
@@ -125,7 +125,7 @@ export const EditNoteForm: React.FC<EditNoteFormProps> = ({
                             <ul className="mt-2">
                                 {errors.map((error, index) => (
                                     <li key={index} className="text-red-600">
-                                        {td(error, { source: "en" })}
+                                        {td(error)}
                                     </li>
                                 ))}
                             </ul>

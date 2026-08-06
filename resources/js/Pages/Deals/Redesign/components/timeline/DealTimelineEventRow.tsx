@@ -105,7 +105,7 @@ export default function DealTimelineEventRow({
                     }}
                 >
                     <span style={{ fontSize: 13, fontWeight: 500 }}>
-                        {td(event.title, { source: "en" })}
+                        {td(event.title)}
                     </span>
                     <span
                         className="dr-pill dr-pill-gray"

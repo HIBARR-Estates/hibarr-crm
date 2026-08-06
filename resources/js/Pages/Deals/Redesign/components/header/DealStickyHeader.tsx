@@ -82,7 +82,7 @@ export default function DealStickyHeader({
                     <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                             <h1 className="text-[20px] font-bold tracking-[-0.01em] text-[#1a1f2e]">
-                                {td(header.title, { source: "en" })}
+                                {td(header.title)}
                             </h1>
                             {outcome && (
                                 <span

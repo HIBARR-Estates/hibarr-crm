@@ -92,7 +92,7 @@ export const DEAL_TABLE_COLUMNS = (
                 return (
                     <div className="flex flex-col space-y-1 py-1">
                         {/* 1. Deal Name (Bold Headline) */}
-                        <Tooltip title={td(record.name, { source: "en" })}>
+                        <Tooltip title={td(record.name)}>
                             <Link
                                 href={route("deals.show", record.id)}
                                 className="block text-base font-semibold text-gray-950 hover:text-blue-600 hover:underline transition-colors duration-200 truncate max-w-full"
@@ -100,7 +100,7 @@ export const DEAL_TABLE_COLUMNS = (
                                 {record.is_locked && (
                                     <LockOutlined className="text-amber-500 mr-1.5 text-sm" />
                                 )}
-                                {td(record.name, { source: "en" })}
+                                {td(record.name)}
                             </Link>
                         </Tooltip>
 

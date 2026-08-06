@@ -42,7 +42,7 @@ import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import { TdFn, useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(utc);
 
@@ -161,7 +161,7 @@ interface MeetingCardProps {
     meeting: DealFollowup;
     permissions: Record<string, string>;
     userId?: number;
-    td: (text: string | null | undefined) => string;
+    td: TdFn;
     onView: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -351,7 +351,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                     </span>
                     <span className="font-medium text-gray-800 text-sm truncate">
                         {meeting.meeting_type?.name
-                            ? td(meeting.meeting_type.name, { source: "en" })
+                            ? td(meeting.meeting_type.name)
                             : getLocationLabel(meeting.location, t)}
                     </span>
                     {live && (
@@ -394,7 +394,7 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             router.visit(`/account/deals/${meeting.deal!.id}`);
                         }}
                     >
-                        {td(meeting.deal.name, { source: "en" })}
+                        {td(meeting.deal.name)}
                     </p>
                 ) : meeting.lead ? (
                     <p
@@ -406,8 +406,8 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             );
                         }}
                     >
-                        {td(meeting.lead.client_name_salutation ||
-                                meeting.lead.client_name, { source: "en" })}
+                        {meeting.lead.client_name_salutation ||
+                                meeting.lead.client_name}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">

@@ -35,6 +35,7 @@ import TaskStatusDropdownPill, {
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import { reloadTaskLists } from "@/Features/Tasks/reloadTaskLists";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import "./task-view-modal.css";
 
 export interface Task {
@@ -101,7 +102,7 @@ interface TaskDetailsModalProps {
     onClose: () => void;
     columns?: TaskboardColumn[];
     onMarkDone?: () => void;
-    td?: (key: string) => string;
+    td?: TdFn;
     /** Skip Inertia reload after status changes (parent updates local state). */
     skipReload?: boolean;
     /** When false, hide Mark Done and disable the status dropdown. Defaults to true. */
@@ -597,7 +598,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                         key={deal.id}
                                                         type="deal"
                                                         id={deal.id}
-                                                        name={td(deal.name, { source: "en" })}
+                                                        name={deal.name}
                                                         className="!text-[13px]"
                                                     />
                                                 ))}
@@ -636,7 +637,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                                                         className="text-blue-600 hover:underline inline-flex items-center gap-1 text-[13px]"
                                                     >
                                                         <LinkOutlined style={{ fontSize: 11 }} />
-                                                        {td(property.name, { source: "en" })}
+                                                        {property.name}
                                                     </Link>
                                                 ))}
                                             </div>
@@ -707,7 +708,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
                             <div className="rounded-xl border border-slate-100 px-4 py-3 min-h-[72px]">
                                 {task.description ? (
                                     <p className="text-[13px] text-slate-600 leading-relaxed whitespace-pre-wrap mb-0">
-                                        {td(task.description, { source: "en" })}
+                                        {task.description}
                                     </p>
                                 ) : (
                                     <p className="text-[13px] text-slate-300 italic mb-0">

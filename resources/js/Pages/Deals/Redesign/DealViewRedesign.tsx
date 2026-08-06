@@ -293,7 +293,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                     name: t("pages.deals.header.breadcrumb_deals"),
                     url: route("deals.index"),
                 },
-                { name: td(pageTitle, { source: "en" }) },
+                { name: td(pageTitle) },
             ]}
         >
             {showAnalysis && (

@@ -132,7 +132,7 @@ export default function NotesTab({ permissions }: NotesTabProps) {
                         <div className="mb-2 space-y-1">
                             {errors.map((error, index) => (
                                 <p key={index} className="text-xs text-red-600">
-                                    {td(error, { source: "en" })}
+                                    {td(error)}
                                 </p>
                             ))}
                         </div>

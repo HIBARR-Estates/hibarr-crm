@@ -123,7 +123,7 @@ export const NoteCard: React.FC<NoteCardProps> = ({
                                 rows: 1,
                             }}
                         >
-                            {td(note.title, { source: "en" })}
+                            {td(note.title)}
                         </Title>
                     </div>
                 </div>

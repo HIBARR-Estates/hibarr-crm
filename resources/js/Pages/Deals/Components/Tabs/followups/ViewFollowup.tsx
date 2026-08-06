@@ -382,15 +382,14 @@ const ViewFollowup: React.FC<Props> = ({
                             </span>
                         )}
                         <span
-                            className={`text-[11px] font-medium rounded-full px-2.5 py-1 capitalize border ${
-                                live
+                            className={`text-[11px] font-medium rounded-full px-2.5 py-1 capitalize border ${live
                                     ? "bg-red-100 text-red-700 border-red-200"
                                     : followup?.status === "scheduled"
-                                      ? "bg-amber-50 text-amber-700 border-amber-100"
-                                      : followup?.status === "completed"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                        : "bg-gray-100 text-gray-600 border-gray-200"
-                            }`}
+                                        ? "bg-amber-50 text-amber-700 border-amber-100"
+                                        : followup?.status === "completed"
+                                            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                            : "bg-gray-100 text-gray-600 border-gray-200"
+                                }`}
                         >
                             {live ? "In Progress" : followup?.status}
                         </span>
@@ -500,7 +499,7 @@ const ViewFollowup: React.FC<Props> = ({
                                 <div className="grid grid-cols-2 flex-1 gap-x-4 gap-y-1">
                                     <div>
                                         <p className="text-[10px] text-slate-400 mb-0.5">Name</p>
-                                        <p className="text-[13px] font-medium text-slate-800 mb-0">{td(lead.client_name_salutation || lead.client_name || "--", { source: "en" })}</p>
+                                        <p className="text-[13px] font-medium text-slate-800 mb-0">{lead.client_name_salutation || lead.client_name || "--"}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-slate-400 mb-0.5">Email</p>
@@ -523,7 +522,7 @@ const ViewFollowup: React.FC<Props> = ({
                                                 className="text-[13px] font-medium text-blue-600 hover:underline mb-0 block"
                                                 onClick={(e) => { e.preventDefault(); router.visit(`/account/deals/${deal.id}`); }}
                                             >
-                                                {td(deal.name, { source: "en" })}
+                                                {td(deal.name)}
                                             </a>
                                         ) : (
                                             <p className="text-[13px] text-slate-400 mb-0">--</p>
@@ -597,7 +596,7 @@ const ViewFollowup: React.FC<Props> = ({
                             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">Agenda & Remarks</p>
                             <div className="rounded-xl border border-slate-100 px-4 py-3">
                                 <ContentRenderer
-                                    content={td(followup.remark, { source: "en" })}
+                                    content={td(followup.remark)}
                                     showFullContent={true}
                                     className="prose prose-sm max-w-none text-[13px] text-slate-700"
                                 />

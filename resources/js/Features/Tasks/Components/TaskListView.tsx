@@ -20,6 +20,7 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { clsx } from "clsx";
 import { usePermission } from "@/lib/permissionUtils";
 import { PermissionKey } from "@/Types/permission";
+import type { TdFn } from "@/lib/dynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -41,7 +42,7 @@ interface TaskListViewProps {
     onDelete: (task: Task) => void;
     onDuplicate: (task: Task) => void;
     onStatusChange: (task: Task, newStatus: string, newColumnId: number) => void;
-    td?: (key: string) => string;
+    td?: TdFn;
 }
 
 const PRIORITY_COLORS: Record<string, string> = {
@@ -218,7 +219,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
                                 className="truncate text-sm font-semibold leading-tight text-slate-800 cursor-pointer hover:underline"
                                 onClick={() => onView(task)}
                             >
-                                {td(task.heading, { source: "en" })}
+                                {task.heading}
                             </p>
                             {task.labels && task.labels.length > 0 && (
                                 <div className="mt-0.5 flex gap-1">

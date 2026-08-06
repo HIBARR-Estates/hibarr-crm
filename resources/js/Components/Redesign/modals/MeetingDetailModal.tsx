@@ -95,7 +95,7 @@ export default function MeetingDetailModal({
             <Modal
                 open={!!meeting}
                 onClose={onClose}
-                title={td(item.title, { source: "en" })}
+                title={td(item.title)}
                 footer={
                     <>
                         {canDelete && (
@@ -321,7 +321,7 @@ export default function MeetingDetailModal({
                             style={{ fontSize: 14, color: T.TEXT_MUTED }}
                         >
                             <Icon name="map-pin" size={14} />
-                            {td(item.locationDisplay, { source: "en" })}
+                            {td(item.locationDisplay)}
                         </div>
                     )}
                 </div>

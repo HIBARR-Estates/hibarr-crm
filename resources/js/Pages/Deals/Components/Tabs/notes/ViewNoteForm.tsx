@@ -61,7 +61,7 @@ export const ViewNoteForm: React.FC<ViewNoteFormProps> = ({
             <div className="px-6 pt-6 pb-5 pr-14 border-b border-gray-100 shrink-0">
                 <div className="flex items-start justify-between gap-3">
                     <h2 className="text-xl font-semibold text-gray-900 leading-tight break-words">
-                        {td(note.title, { source: "en" })}
+                        {td(note.title)}
                     </h2>
                     {note.updated_at !== note.created_at && (
                         <Tag color="orange" className="shrink-0 mt-1">

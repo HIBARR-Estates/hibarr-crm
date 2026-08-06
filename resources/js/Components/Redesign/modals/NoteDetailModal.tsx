@@ -195,7 +195,7 @@ export default function NoteDetailModal({
                                                 wordBreak: "break-word",
                                             }}
                                         >
-                                            {td(note.title, { source: "en" })}
+                                            {td(note.title)}
                                             {isEdited && (
                                                 <span
                                                     className="ml-1 text-[12px] font-normal italic"

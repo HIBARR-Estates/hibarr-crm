@@ -85,7 +85,7 @@ export default function AddNoteModal({
                 <div className="mb-3 space-y-1">
                     {errors.map((error, index) => (
                         <p key={index} className="text-xs text-red-600">
-                            {td(error, { source: "en" })}
+                            {td(error)}
                         </p>
                     ))}
                 </div>

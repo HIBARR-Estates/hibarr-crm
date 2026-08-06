@@ -204,7 +204,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
 
                     {project.description ? (
                         <p className="text-sm leading-7 text-gray-600">
-                            {td(project.description, { source: "en" })}
+                            {td(project.description)}
                         </p>
                     ) : null}
 

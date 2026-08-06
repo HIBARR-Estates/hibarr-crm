@@ -103,7 +103,7 @@ export default function WorkspaceRecommendationsTab({
                     {t("pages.deals.workspace.recommendations.incomplete_hint")}
                 </p>
                 {apiError && (
-                    <p className="mb-2 text-xs text-[#b45309]">{td(apiError, { source: "en" })}</p>
+                    <p className="mb-2 text-xs text-[#b45309]">{td(apiError)}</p>
                 )}
                 <DealButton variant="ghost" size="sm" onClick={() => refetch()}>
                     {t("pages.deals.workspace.recommendations.try_again")}
