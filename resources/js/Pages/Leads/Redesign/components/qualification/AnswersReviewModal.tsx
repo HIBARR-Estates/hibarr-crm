@@ -97,8 +97,16 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
     );
     const answerCount = (qualification.answers ?? []).length;
     const when = qualification.completed_at ?? qualification.created_at;
-    const outcomeLabel = qualification.outcome
-        ? (OUTCOME_LABELS[qualification.outcome] ?? qualification.outcome)
+    const selectedOutcomes =
+        qualification.outcomes?.length
+            ? qualification.outcomes
+            : qualification.outcome
+              ? [qualification.outcome]
+              : [];
+    const outcomeLabel = selectedOutcomes.length
+        ? selectedOutcomes
+              .map((key) => OUTCOME_LABELS[key] ?? key)
+              .join(" · ")
         : qualification.status === "inProgress"
           ? "In progress"
           : qualification.status === "completed"
@@ -106,6 +114,9 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
             : qualification.status === "abandoned"
               ? "Abandoned"
               : "In progress";
+    const winnerLabel = qualification.outcome
+        ? (OUTCOME_LABELS[qualification.outcome] ?? qualification.outcome)
+        : null;
 
     return (
         <div className="v2-answers-run">
@@ -118,6 +129,29 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                     <div style={{ fontSize: 13, fontWeight: 650 }}>
                         {td(outcomeLabel)}
                     </div>
+                    {winnerLabel && selectedOutcomes.length > 1 ? (
+                        <div
+                            style={{
+                                fontSize: 11,
+                                color: "var(--lr-text-muted)",
+                                marginTop: 2,
+                            }}
+                        >
+                            {td("Lifecycle")}: {td(winnerLabel)}
+                        </div>
+                    ) : null}
+                    {qualification.outcome_comment?.trim() ? (
+                        <div
+                            style={{
+                                fontSize: 11,
+                                color: "var(--lr-text-muted)",
+                                marginTop: 2,
+                                fontStyle: "italic",
+                            }}
+                        >
+                            “{qualification.outcome_comment.trim()}”
+                        </div>
+                    ) : null}
                     <div
                         style={{
                             fontSize: 11,

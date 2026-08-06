@@ -56,6 +56,11 @@ const InProgressView: React.FC<InProgressViewProps> = ({
     const [pendingWebinarId, setPendingWebinarId] = useState<string | null>(
         null,
     );
+    const [pendingComplete, setPendingComplete] = useState<{
+        outcomes: QualificationOutcome[];
+        comment: string | null;
+        calendlyUrl?: string;
+    } | null>(null);
 
     const flow = useQualificationFlow({
         lead,
@@ -75,19 +80,32 @@ const InProgressView: React.FC<InProgressViewProps> = ({
               )?.label
             : undefined;
 
-    const handleWebinarSelect = async (sessionId: string, sessionLabel: string) => {
+    const handleWebinarSelect = async (
+        sessionId: string,
+        sessionLabel: string,
+    ) => {
+        if (!pendingComplete) return;
         setWebinarPickerOpen(false);
-        await flow.completeWithOutcome("inviteWebinar", {
+        await flow.completeWithOutcomes(pendingComplete.outcomes, {
+            comment: pendingComplete.comment,
             webinarSessionId: sessionId,
             webinarSessionLabel: sessionLabel,
+            calendlyUrl: pendingComplete.calendlyUrl,
         });
+        setPendingComplete(null);
+        setPendingWebinarId(null);
     };
 
-    const handleOutcome = async (
-        outcome: QualificationOutcome,
-        metadata?: { webinarSessionId?: string; calendlyUrl?: string },
+    const handleCompleteOutcomes = async (
+        outcomes: QualificationOutcome[],
+        metadata?: {
+            comment?: string | null;
+            webinarSessionId?: string;
+            webinarSessionLabel?: string;
+            calendlyUrl?: string;
+        },
     ) => {
-        await flow.completeWithOutcome(outcome, metadata);
+        await flow.completeWithOutcomes(outcomes, metadata);
     };
 
     const handleAbandon = async () => {
@@ -95,8 +113,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
         onAbandoned();
     };
 
-    const showNav =
-        flow.currentSegment?.type !== "outcome";
+    const showNav = flow.currentSegment?.type !== "outcome";
 
     return (
         <DynamicTranslationProvider locale={agentLanguage}>
@@ -138,6 +155,7 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                                 answer={flow.answers[flow.currentSegment.key]}
                                 tokenMap={flow.tokenMap}
                                 translateScript={flow.translateScript}
+                                templateTree={templateTree}
                                 onAnswerChange={(values, text) =>
                                     flow.applyAnswerChange(
                                         flow.currentSegment!,
@@ -145,8 +163,9 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                                         text,
                                     )
                                 }
-                                onOutcome={handleOutcome}
-                                onOpenWebinarPicker={(webinarId) => {
+                                onCompleteOutcomes={handleCompleteOutcomes}
+                                onOpenWebinarPicker={(webinarId, pending) => {
+                                    setPendingComplete(pending);
                                     setPendingWebinarId(webinarId);
                                     setWebinarPickerOpen(true);
                                 }}
@@ -202,7 +221,11 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                     open={webinarPickerOpen}
                     webinarId={pendingWebinarId}
                     registrationService={registrationService}
-                    onClose={() => setWebinarPickerOpen(false)}
+                    onClose={() => {
+                        setWebinarPickerOpen(false);
+                        setPendingComplete(null);
+                        setPendingWebinarId(null);
+                    }}
                     onSelect={handleWebinarSelect}
                 />
             )}

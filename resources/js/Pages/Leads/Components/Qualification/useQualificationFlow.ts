@@ -305,15 +305,21 @@ export const useQualificationFlow = ({
         );
     }, [answers, entrySegment, templateTree]);
 
-    const completeWithOutcome = useCallback(
+    const completeWithOutcomes = useCallback(
         async (
-            outcome: QualificationOutcome,
+            outcomes: QualificationOutcome[],
             metadata?: {
+                comment?: string | null;
                 webinarSessionId?: string;
                 webinarSessionLabel?: string;
                 calendlyUrl?: string;
             },
         ) => {
+            if (!outcomes.length) {
+                message.warning("Select at least one outcome");
+                return;
+            }
+
             setCompleting(true);
             try {
                 const { firstName, lastName } = splitLeadName(lead.client_name);
@@ -341,12 +347,14 @@ export const useQualificationFlow = ({
                         : undefined,
                 };
 
-                if (outcome === "bookMeeting") {
+                if (outcomes.includes("bookMeeting")) {
                     await registrationService.bookConsultationCalendly({
                         ...registrationPayload,
                         calendlyUrl: metadata?.calendlyUrl,
                     });
-                } else if (outcome === "inviteWebinar") {
+                }
+
+                if (outcomes.includes("inviteWebinar")) {
                     if (!metadata?.webinarSessionId) {
                         throw new Error("Webinar session required");
                     }
@@ -359,7 +367,8 @@ export const useQualificationFlow = ({
                 const updated = await service.completeQualification(
                     qualification.id,
                     {
-                        outcome,
+                        outcomes,
+                        outcome_comment: metadata?.comment ?? null,
                         selected_branch_keys: selectedBranchKeys,
                         webinar_session_label: metadata?.webinarSessionLabel,
                     },
@@ -386,6 +395,21 @@ export const useQualificationFlow = ({
             selectedBranchKeys,
             service,
         ],
+    );
+
+    const completeWithOutcome = useCallback(
+        async (
+            outcome: QualificationOutcome,
+            metadata?: {
+                webinarSessionId?: string;
+                webinarSessionLabel?: string;
+                calendlyUrl?: string;
+                comment?: string | null;
+            },
+        ) => {
+            await completeWithOutcomes([outcome], metadata);
+        },
+        [completeWithOutcomes],
     );
 
     const abandon = useCallback(async () => {
@@ -418,8 +442,10 @@ export const useQualificationFlow = ({
         tokenMap,
         validationError,
         visibleSegments,
+        templateTree,
         applyAnswerChange,
         completeWithOutcome,
+        completeWithOutcomes,
         abandon,
     };
 };
