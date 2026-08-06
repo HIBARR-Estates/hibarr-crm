@@ -14,7 +14,7 @@ import {
     ExecuteQualificationActionPayload,
     LeadQualificationsResponse,
     LeadQualification,
-    LeadQualificationActionRun,
+    QualificationActionRun,
     StartQualificationPayload,
     UpdateNavigationPayload,
     UpsertAnswerPayload,
@@ -139,11 +139,11 @@ export class LeadQualificationService {
         actionRunId: number,
         payload: ExecuteQualificationActionPayload = {},
     ): Promise<{
-        action_run: LeadQualificationActionRun;
+        action_run: QualificationActionRun;
         qualification: LeadQualification;
     }> {
         const response = await crmRequest<{
-            action_run?: LeadQualificationActionRun;
+            action_run?: QualificationActionRun;
             qualification?: LeadQualification;
         }>(
             {
