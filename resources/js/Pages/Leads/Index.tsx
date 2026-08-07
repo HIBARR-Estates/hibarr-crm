@@ -34,10 +34,13 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
-import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
+import LeadFilterModal from "@/Features/Leads/Filters/LeadFilterModal";
+import ActiveFilterSentence from "@/Features/Leads/Filters/ActiveFilterSentence";
+import { describeFilters } from "@/Features/Leads/Filters/filterSummary";
 import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
@@ -66,6 +69,9 @@ const Index = ({
     const { props: pageProps } = usePage<PageProps>();
     const useLeadCoreFields =
         pageProps.featureFlags?.["crm.lead-language-core-field"] === true;
+    // Redesigned two-pane filter workbench + saved views (mockups 1a/2a/2b/3c).
+    const useFilterV2 =
+        pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
 
     const {
         handleAction,
@@ -81,8 +87,16 @@ const Index = ({
             "categories",
             "employees",
             "countries",
-            "client-categories",
             "languages",
+            "genders",
+            "age-ranges",
+            "temperatures",
+            "lead-utm-sources",
+            "lead-utm-mediums",
+            "lead-utm-campaigns",
+            "lead-utm-contents",
+            "lead-utm-terms",
+            "lead-utm-audiences",
         ],
         [],
     );
@@ -99,16 +113,25 @@ const Index = ({
                 categories: formData.categories || [],
                 employees: formData.employees || [],
                 countries: formData.countries || [],
-                clientCategories: formData["client-categories"] || [],
                 languages: formData.languages || [],
+                genders: formData.genders || [],
+                ageRanges: formData["age-ranges"] || [],
+                temperatures: formData.temperatures || [],
+                utmSources: formData["lead-utm-sources"] || [],
+                utmMediums: formData["lead-utm-mediums"] || [],
+                utmCampaigns: formData["lead-utm-campaigns"] || [],
+                utmContents: formData["lead-utm-contents"] || [],
+                utmTerms: formData["lead-utm-terms"] || [],
+                utmAudiences: formData["lead-utm-audiences"] || [],
                 leadLifecycleStatuses:
                     leadLifecycleStatuses.length > 0
                         ? leadLifecycleStatuses
                         : formData["lead-lifecycle-statuses"] || [],
                 useLeadCoreFields,
+                filterV2: useFilterV2,
                 excludeFields: ["search"],
             }),
-        [formData, leadLifecycleStatuses, useLeadCoreFields],
+        [formData, leadLifecycleStatuses, useLeadCoreFields, useFilterV2],
     );
 
     // Setup search and filter contexts
@@ -118,6 +141,12 @@ const Index = ({
 
     // Extract commonly used values
     const { openDrawer } = filter;
+    // Count clauses, not raw keys, so the badge matches the filter sentence
+    // (a date range is two keys but reads as one filter).
+    const activeFilterCount = useMemo(
+        () => describeFilters(filter.config, filter.filters).length,
+        [filter.config, filter.filters],
+    );
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -247,7 +276,9 @@ const Index = ({
                         className="w-full"
                     />
                 }
-                filterSection={<ContextualActiveFilters />}
+                filterSection={
+                    useFilterV2 ? undefined : <ContextualActiveFilters />
+                }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -283,6 +314,11 @@ const Index = ({
                                 onClick={openDrawer}
                             >
                                 {t("app.filter")}
+                                {useFilterV2 && activeFilterCount > 0 && (
+                                    <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-[#1a6bb5] text-white text-[11px] font-semibold">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}
@@ -296,6 +332,15 @@ const Index = ({
                             )}
                         </div>
                     </div>
+
+                    {/* 3c — quiet active-filter sentence */}
+                    {useFilterV2 && (
+                        <ActiveFilterSentence
+                            count={leads.total}
+                            onOpenFilters={openDrawer}
+                        />
+                    )}
+
                     {/* Properties Table */}
                     <DataTable<Lead>
                         columns={columns}
@@ -368,13 +413,20 @@ const Index = ({
                 />
             )}
 
-            {/* Universal Filter Drawer */}
-            {
+            {/* Filter UI — v2 two-pane workbench behind crm.leads-filter-v2,
+                otherwise the shared universal filter modal. */}
+            {useFilterV2 ? (
+                <LeadFilterModal
+                    config={filterConfig}
+                    optionsLoading={formDataLoading}
+                />
+            ) : (
                 <UniversalFilterDrawer
                     config={filterConfig}
                     loading={formDataLoading}
+                    width={960}
                 />
-            }
+            )}
         </>
     );
 };

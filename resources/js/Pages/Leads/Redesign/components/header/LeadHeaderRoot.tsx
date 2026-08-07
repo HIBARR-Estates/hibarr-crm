@@ -4,6 +4,10 @@ import type { Lead } from "@/Types/api/leads";
 import { initialsFromName } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ResolvedLifecycle } from "../../adapters/lifecycleAdapter";
+import {
+    formatLeadTemperature,
+    LEAD_TEMPERATURE_TONE,
+} from "../../config/leadTemperature";
 import type { MoreMenuActionId } from "../../config/moreMenuItems";
 import LeadAvatarButton from "./LeadAvatarButton";
 import LeadOwnerCard from "./LeadOwnerCard";
@@ -121,6 +125,13 @@ export default function LeadHeaderRoot({
                             onSelect={onStatusChange}
                             saving={statusSaving}
                         />
+                        {lead.temperature && (
+                            <span
+                                className={`v2-pill v2-pill-${LEAD_TEMPERATURE_TONE[lead.temperature]}`}
+                            >
+                                {formatLeadTemperature(lead.temperature)}
+                            </span>
+                        )}
                         {showQualification &&
                             answerCount > 0 &&
                             onOpenAnswers && (

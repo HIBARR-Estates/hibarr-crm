@@ -47,6 +47,7 @@ class StoreRequest extends CoreRequest
         $rules['client_email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,' . company()->id;
         $rules['salutation'] = ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))];
         $rules['gender'] = 'nullable|in:male,female';
+        $rules['temperature'] = 'nullable|in:cold,warm,hot';
         $rules['lead_lifecycle_status_id'] = 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id';
 
         if (request()->boolean('create_deal')) {

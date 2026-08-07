@@ -29,5 +29,6 @@ return [
         'crm.deal-info-count-indicator',
         'crm.flight-itinerary-extraction',
         'crm.deal-analysis',
+        'crm.leads-filter-v2',
     ],
 ];

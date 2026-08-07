@@ -1,0 +1,78 @@
+/* Mockup 3c — quiet active-filter sentence bar above the leads table.
+   Colours are REDESIGN_TOKENS values (Components/Redesign/tokens.ts), not the
+   mockup's cream palette. */
+.lfs {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+    background: #f8f9fb;
+    border: 1px solid #eef0f3;
+    border-radius: 10px;
+    flex-wrap: wrap;
+}
+.lfs__dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: #1a6bb5;
+    flex: none;
+}
+.lfs__text {
+    font-size: 13px;
+    color: #5b6472;
+    line-height: 1.5;
+    min-width: 0;
+}
+.lfs__clause {
+    border: none;
+    background: none;
+    padding: 0;
+    font: inherit;
+    color: #1a1f2e;
+    font-weight: 650;
+    border-bottom: 1px dashed #9ca3af;
+    cursor: pointer;
+}
+.lfs__clause:hover {
+    color: #1a6bb5;
+    border-bottom-color: #1a6bb5;
+}
+.lfs__sep {
+    font-size: 13px;
+    color: #9ca3af;
+}
+.lfs__count {
+    font-size: 13px;
+    color: #374151;
+    white-space: nowrap;
+}
+.lfs__count b {
+    color: #1a1f2e;
+    font-weight: 650;
+}
+.lfs__spacer {
+    flex: 1;
+    min-width: 12px;
+}
+.lfs__action {
+    border: none;
+    background: none;
+    color: #5b6472;
+    font-size: 12.5px;
+    font-family: inherit;
+    cursor: pointer;
+    padding: 0;
+    white-space: nowrap;
+}
+.lfs__action:hover {
+    color: #1a6bb5;
+}
+.lfs__action--danger:hover {
+    color: #b91c1c;
+}
+.lfs__divider {
+    width: 1px;
+    height: 16px;
+    background: #e2e5ea;
+}

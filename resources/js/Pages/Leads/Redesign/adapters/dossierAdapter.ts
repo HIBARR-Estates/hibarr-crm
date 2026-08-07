@@ -208,6 +208,10 @@ export function getDossierFieldValue(
             );
         case "gender":
             return asString(l.gender_value ?? l.gender);
+        case "temperature": {
+            const value = asString(l.temperature);
+            return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+        }
         case "languages":
             return asString(l.languages);
         case "occupation":

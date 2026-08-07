@@ -34,6 +34,28 @@ export interface FilterFieldConfig {
     placeholder?: string;
     section?: string;
     span?: number;
+    /**
+     * Presentation hint for the redesigned Leads filter modal. The generic
+     * UniversalFilterForm ignores this and renders by `type` as before.
+     */
+    control?:
+        | "pills"
+        | "temperature"
+        | "segmented"
+        | "checklist"
+        | "tokens"
+        | "datePresets"
+        | "scoreRange"
+        | "utm";
+    /** Key into the `filterFacets` page prop for per-option result counts. */
+    facetKey?: string;
+    /**
+     * Tracked in URL/draft state but never rendered as its own control — used by
+     * paired keys like end_date, which the date-range control writes alongside start_date.
+     */
+    hidden?: boolean;
+    /** Short noun used when describing this filter in a sentence ("status is one of 4"). */
+    sentence?: string;
     options?: FilterOption[] | (() => FilterOption[]);
     dependsOn?: string; // Key of another filter this depends on
     filterOptions?: (dependentValue: any) => FilterOption[];
@@ -305,7 +327,11 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                             value !== "" &&
                             !(Array.isArray(value) && value.length === 0)
                         ) {
-                            acc[k] = value;
+                            // Multiselect values are comma-joined on the wire so
+                            // setConfig's URL parser (which splits on ",") can read them back.
+                            acc[k] = Array.isArray(value)
+                                ? value.join(",")
+                                : value;
                         }
                         return acc;
                     },
@@ -382,7 +408,9 @@ export const FilterProvider: React.FC<FilterProviderProps> = ({ children }) => {
                     value !== "" &&
                     !(Array.isArray(value) && value.length === 0)
                 ) {
-                    acc[key] = value;
+                    // Multiselect values are comma-joined on the wire so
+                    // setConfig's URL parser (which splits on ",") can read them back.
+                    acc[key] = Array.isArray(value) ? value.join(",") : value;
                 }
                 return acc;
             },

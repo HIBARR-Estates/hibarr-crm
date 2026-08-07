@@ -14,6 +14,16 @@ import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay } from "@/lib/utils";
 import type { TdFn } from "@/lib/dynamicTranslation";
 
+// Hex values (not antd preset names) so the tag renders as a solid fill,
+// matching the lifecycle status column's `<Tag color={label_color}>` look.
+// Values are REDESIGN_TOKENS BLUE / AMBER / RED — same palette the filter
+// modal and the lead header pill use, so temperature reads identically.
+const LEAD_TEMPERATURE_COLORS: Record<string, string> = {
+    cold: "#1a6bb5",
+    warm: "#92400e",
+    hot: "#b91c1c",
+};
+
 interface LeadLifecycleStatusOption {
     id: number;
     label: string;
@@ -258,6 +268,22 @@ export const LEAD_TABLE_COLUMNS = (
             key: "lead_lifecycle_status",
             width: 150,
             render: (_, record) => <LeadLifecycleStatusCell record={record} />,
+        },
+        {
+            title: translate("pages.leads.contacts_table.columns.temperature"),
+            dataIndex: "temperature",
+            key: "temperature",
+            width: 100,
+            render: (_, record) => {
+                const temperature = record.temperature as string | undefined;
+                if (!temperature) return <span className="text-gray-400">—</span>;
+
+                return (
+                    <Tag color={LEAD_TEMPERATURE_COLORS[temperature]}>
+                        {temperature.charAt(0).toUpperCase() + temperature.slice(1)}
+                    </Tag>
+                );
+            },
         },
         {
             title: (
