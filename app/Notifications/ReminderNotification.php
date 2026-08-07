@@ -10,6 +10,7 @@ use App\Models\Reminder;
 use App\Models\ReminderEmailTemplate;
 use App\Models\Task;
 use App\Services\Notifications\UnsEmailPayloadMapper;
+use App\Support\MeetingEmailPresenter;
 use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -102,21 +103,24 @@ class ReminderNotification extends BaseNotification
         }
 
         $followUp = $this->resolveFollowUp();
-        $timezone = $this->company->timezone ?? config('app.timezone');
-        $meetingAt = $followUp?->next_follow_up_date
-            ? $followUp->next_follow_up_date->copy()->timezone($timezone)
-            : null;
-        $lead = $followUp?->lead ?? $followUp?->deal?->contact;
-        $leadName = $followUp?->deal?->client_name ?? $lead?->client_name ?? '';
-        $countdown = $meetingAt ? $this->countdownUntil($meetingAt) : '';
-        $meetingRemark = $this->reminder->message ?? $followUp?->remark ?? '';
+        if ($followUp === null) {
+            return [$this->resolveSubjectHeading(), $this->reminder->message ?? ''];
+        }
+
+        $presenter = new MeetingEmailPresenter(
+            $followUp,
+            $this->company,
+            $this->reminder->message
+        );
+        $leadName = $presenter->leadName();
 
         $title = $leadName !== ''
             ? __('email.meetingReminder.pushTitleWithLead', ['lead' => $leadName])
             : __('email.meetingReminder.pushTitle');
 
-        $body = $this->resolveMeetingMessage($meetingAt, $leadName, $countdown, $meetingRemark);
-        if ($meetingAt !== null && $meetingRemark !== '') {
+        $body = $presenter->message(false, false);
+        $meetingRemark = $presenter->meetingRemark();
+        if ($presenter->meetingAt() !== null && $meetingRemark !== '') {
             $body .= ' '.Str::limit($meetingRemark, 80);
         }
 
@@ -153,87 +157,37 @@ class ReminderNotification extends BaseNotification
     private function toMeetingMail($notifiable): MailMessage
     {
         $build = parent::build($notifiable);
-        $name = $notifiable->name ?? $this->anonymousName;
-
         $followUp = $this->resolveFollowUp();
-        $deal = $followUp?->deal;
-        $timezone = $this->company->timezone ?? config('app.timezone');
-        $dateFormat = $this->company->date_format ?? config('app.date_format', 'Y-m-d');
-        $timeFormat = $this->company->time_format ?? config('app.time_format', 'H:i');
 
-        $meetingAt = $followUp?->next_follow_up_date
-            ? $followUp->next_follow_up_date->copy()->timezone($timezone)
-            : null;
+        if ($followUp === null) {
+            $build
+                ->subject($this->resolveSubjectHeading().' - '.config('app.name'))
+                ->markdown('mail.email', [
+                    'url' => '#',
+                    'content' => $this->reminder->message ?? '',
+                    'themeColor' => $this->company->header_color,
+                    'actionText' => __('email.meetingReminder.action'),
+                    'notifiableName' => $notifiable->name ?? $this->anonymousName,
+                ]);
+            $this->attachIdempotencyKey($build);
+            parent::resetLocale();
 
-        $lead = $followUp?->lead ?? $deal?->contact;
-        $leadName = $deal?->client_name ?? $lead?->client_name ?? '';
-        $agentName = $followUp?->addedBy?->name
-            ?? $deal?->leadAgent?->user?->name
-            ?? $this->company->name
-            ?? config('app.name');
-
-        $meetingDate = $meetingAt?->format($dateFormat) ?? '';
-        $meetingTime = $meetingAt?->format($timeFormat) ?? '';
-        $meetingRemark = $this->reminder->message ?? $followUp?->remark ?? '';
-        $meetingCountdown = $meetingAt ? $this->countdownUntil($meetingAt) : '';
-        $meetingLink = $this->resolveMeetingLink($followUp);
-        $joinMeetingHtml = $meetingLink !== ''
-            ? '<p style="margin:20px 0 0;font-family:\'DM Mono\',Consolas,monospace;font-size:12px;line-height:1.7">'
-                .'<a href="'.e($meetingLink).'" style="color:#003160;text-decoration:underline">Join meeting &rarr;</a>'
-                .'</p>'
-            : '';
-        $detailRemark = $meetingAt !== null ? $meetingRemark : '';
-
-        $isLeadRecipient = $this->reminder->recipient_type === Reminder::RECIPIENT_LEAD;
-
-        if ($isLeadRecipient) {
-            // Customer-facing: talk about who they're meeting *with*, never
-            // surface the internal CRM link, and skip the internal action-item tone.
-            $counterpartName = $agentName;
-            $meetingMessage = $this->resolveLeadMeetingMessage($meetingAt, $agentName, $meetingCountdown, $meetingRemark);
-            $subject = $this->resolveLeadMeetingSubject($meetingAt, $agentName);
-            $actionText = '';
-            $url = '';
-            $footerNote = __('email.meetingReminder.leadFooterNote');
-        } else {
-            $counterpartName = $leadName;
-            $meetingMessage = $this->resolveMeetingMessage($meetingAt, $leadName, $meetingCountdown, $meetingRemark);
-            $subject = $this->resolveParticipantMeetingSubject($meetingAt, $leadName);
-            $actionText = __('email.meetingReminder.action');
-            $url = $this->resolveMeetingUrl();
-            $footerNote = __('email.meetingReminder.footerNote');
+            return $build;
         }
 
-        $preheader = $meetingMessage !== '' ? $meetingMessage : $footerNote;
+        $isLeadRecipient = $this->reminder->recipient_type === Reminder::RECIPIENT_LEAD;
+        $presenter = new MeetingEmailPresenter(
+            $followUp,
+            $this->company,
+            $this->reminder->message
+        );
+        $variables = $presenter->templateVariables($notifiable, $isLeadRecipient, false);
 
         $build
-            ->subject($subject.' - '.config('app.name'))
-            ->view('mail.deal-follow-up.deal-follow-up-reminder', [
-                'url' => $url,
-                'preheader' => $preheader,
-                'meetingMessage' => $meetingMessage,
-                'leadName' => $counterpartName,
-                'meetingDate' => $meetingDate,
-                'meetingTime' => $meetingTime,
-                'meetingRemark' => $detailRemark,
-                'meetingLink' => $meetingLink,
-                'joinMeetingHtml' => $joinMeetingHtml,
-                'actionText' => $actionText,
-                'footerNote' => $footerNote,
-                'notifiableName' => $name,
-            ]);
+            ->subject($variables['mailSubject'].' - '.$variables['appName'])
+            ->view('mail.deal-follow-up.deal-follow-up-reminder', $variables);
 
-        $this->attachPlunkTemplateIfConfigured($build, 'meeting', [
-                'meetingMessage' => $meetingMessage,
-                'leadName' => $counterpartName,
-                'meetingDate' => $meetingDate,
-                'meetingTime' => $meetingTime,
-                'meetingRemark' => $detailRemark,
-                'meetingLink' => $meetingLink,
-                'joinMeetingHtml' => $joinMeetingHtml,
-                'leadUrl' => $url,
-                'footerNote' => $footerNote,
-            ]);
+        $this->attachPlunkTemplateIfConfigured($build, 'meeting', MeetingEmailPresenter::plunkVariables($variables));
 
         // No .ics attachment here: by the time a countdown reminder fires, the
         // recipient already has the invite from the "meeting created" notice —
@@ -568,25 +522,6 @@ class ReminderNotification extends BaseNotification
             && ! empty($notifiable->email);
     }
 
-    private function resolveMeetingUrl(): string
-    {
-        $followUp = $this->resolveFollowUp();
-
-        if ($followUp?->deal_id) {
-            $url = route('deals.show', $followUp->deal_id).'?tab=meetings';
-
-            return $this->company ? getDomainSpecificUrl($url, $this->company) : $url;
-        }
-
-        if ($followUp?->lead_id) {
-            $url = route('lead-contact.show', $followUp->lead_id).'?drawer=meetings';
-
-            return $this->company ? getDomainSpecificUrl($url, $this->company) : $url;
-        }
-
-        return url('/');
-    }
-
     private function resolveTaskUrl(?Task $task): string
     {
         if (! $task) {
@@ -694,153 +629,6 @@ class ReminderNotification extends BaseNotification
             [$title, $countdownText],
             $template
         );
-    }
-
-    private function resolveMeetingLink(?DealFollowUp $followUp): string
-    {
-        $link = trim((string) ($followUp?->meeting_link ?? ''));
-
-        if ($link === '' || ! filter_var($link, FILTER_VALIDATE_URL)) {
-            return '';
-        }
-
-        return $link;
-    }
-
-    private function resolveMeetingMessage(
-        ?CarbonInterface $meetingAt,
-        string $leadName,
-        string $meetingCountdown,
-        string $meetingRemark
-    ): string {
-        if ($meetingAt === null) {
-            return $meetingRemark !== ''
-                ? $meetingRemark
-                : __('email.followUpReminder.followUpLeadText');
-        }
-
-        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
-
-        if ($secondsUntil <= 0) {
-            return $leadName !== ''
-                ? __('email.followUpReminder.meetingStartingNow', ['lead' => $leadName])
-                : __('email.followUpReminder.meetingStartingNowNoLead');
-        }
-
-        $countdown = $meetingCountdown !== ''
-            ? $meetingCountdown
-            : 'less than a minute';
-
-        if ($leadName !== '') {
-            $template = __('email.followUpReminder.meetingCountdownWithLead');
-            if (! str_contains($template, ':countdown')) {
-                $template = 'Your meeting with :lead is in :countdown.';
-            }
-
-            return str_replace(
-                [':lead', ':countdown'],
-                [$leadName, $countdown],
-                $template
-            );
-        }
-
-        $template = __('email.followUpReminder.meetingCountdown');
-        if (! str_contains($template, ':countdown')) {
-            $template = 'Your meeting is in :countdown.';
-        }
-
-        return str_replace(':countdown', $countdown, $template);
-    }
-
-    /**
-     * Subject line for participant (internal user) meeting reminders. Only the
-     * near-term offset reads as "starting soon" — a reminder an hour out isn't urgent.
-     */
-    private function resolveParticipantMeetingSubject(?CarbonInterface $meetingAt, string $leadName): string
-    {
-        if ($meetingAt === null) {
-            return $leadName !== ''
-                ? __('email.meetingReminder.subjectUpcoming', ['lead' => $leadName])
-                : __('email.meetingReminder.subjectUpcomingNoLead');
-        }
-
-        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
-        $isSoon = $secondsUntil <= 900; // 15 minutes or already due
-
-        if ($isSoon) {
-            return $leadName !== ''
-                ? __('email.meetingReminder.subjectSoon', ['lead' => $leadName])
-                : __('email.meetingReminder.subjectSoonNoLead');
-        }
-
-        return $leadName !== ''
-            ? __('email.meetingReminder.subjectUpcoming', ['lead' => $leadName])
-            : __('email.meetingReminder.subjectUpcomingNoLead');
-    }
-
-    private function resolveLeadMeetingSubject(?CarbonInterface $meetingAt, string $agentName): string
-    {
-        if ($meetingAt === null) {
-            return $agentName !== ''
-                ? __('email.meetingReminder.leadSubjectUpcoming', ['agent' => $agentName])
-                : __('email.meetingReminder.leadSubjectUpcomingNoAgent');
-        }
-
-        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
-        $isSoon = $secondsUntil <= 900;
-
-        if ($isSoon) {
-            return $agentName !== ''
-                ? __('email.meetingReminder.leadSubjectSoon', ['agent' => $agentName])
-                : __('email.meetingReminder.leadSubjectSoonNoAgent');
-        }
-
-        return $agentName !== ''
-            ? __('email.meetingReminder.leadSubjectUpcoming', ['agent' => $agentName])
-            : __('email.meetingReminder.leadSubjectUpcomingNoAgent');
-    }
-
-    /**
-     * Customer-facing body copy — mirrors resolveMeetingMessage() but talks about the
-     * agent/company the lead is meeting *with*, since the lead already knows who they are.
-     */
-    private function resolveLeadMeetingMessage(
-        ?CarbonInterface $meetingAt,
-        string $agentName,
-        string $meetingCountdown,
-        string $meetingRemark
-    ): string {
-        if ($meetingAt === null) {
-            return $meetingRemark !== ''
-                ? $meetingRemark
-                : __('email.meetingReminder.leadNoDate');
-        }
-
-        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
-
-        if ($secondsUntil <= 0) {
-            return $agentName !== ''
-                ? __('email.meetingReminder.leadStartingNow', ['agent' => $agentName])
-                : __('email.meetingReminder.leadStartingNowNoAgent');
-        }
-
-        $countdown = $meetingCountdown !== '' ? $meetingCountdown : 'less than a minute';
-
-        if ($agentName !== '') {
-            $template = __('email.meetingReminder.leadCountdown');
-            if (! str_contains($template, ':countdown')) {
-                $template = 'Your meeting with :agent is in :countdown.';
-            }
-
-            return str_replace([':agent', ':countdown'], [$agentName, $countdown], $template);
-        }
-
-        $template = __('email.meetingReminder.leadCountdownNoAgent');
-        if (! str_contains($template, ':countdown')) {
-            $template = 'Your meeting is in :countdown.';
-        }
-
-        return str_replace(':countdown', $countdown, $template);
     }
 
     private function resolveTaskMessage(string $heading, ?CarbonInterface $dueAt, string $countdown): string

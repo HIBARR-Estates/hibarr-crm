@@ -3,7 +3,8 @@
 namespace App\Services;
 
 use App\Models\DealFollowUp;
-use App\Models\User;
+use App\Support\MeetingAttendeeResolver;
+use App\Scopes\CompanyScope;
 use Carbon\Carbon;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
@@ -16,6 +17,13 @@ class CalendarSyncService
     public function enqueueEvent(DealFollowUp $followUp, string $platform = self::PLATFORM_ZOHO): ?string
     {
         $payload = $this->buildPayload($followUp);
+
+        Log::info('CalendarSyncService: enqueueing OL calendar event', [
+            'follow_up_id' => $followUp->id,
+            'platform' => $platform,
+            'crm_meeting_url' => $payload['crmMeetingUrl'] ?? null,
+            'attendee_emails' => $payload['attendeeEmails'] ?? [],
+        ]);
 
         $response = $this->olRequest('POST', "/crm/events/{$platform}", $payload);
         if (!$response) {
@@ -183,25 +191,25 @@ class CalendarSyncService
     {
         $followUp->loadMissing([
             'meetingType',
-            'deal',
+            'lead' => fn ($query) => $query->withoutGlobalScope(CompanyScope::class),
+            'deal' => fn ($query) => $query
+                ->withoutGlobalScope(CompanyScope::class)
+                ->with([
+                    'contact' => fn ($contactQuery) => $contactQuery->withoutGlobalScope(CompanyScope::class),
+                    'leadAgent.user' => fn ($userQuery) => $userQuery->withoutGlobalScope(\App\Scopes\ActiveScope::class),
+                ]),
         ]);
 
-        $creatorUserId = $followUp->added_by;
-        $participants = is_array($followUp->participants) ? $followUp->participants : [];
+        $attendeeEmails = MeetingAttendeeResolver::resolveAttendeeEmails($followUp);
 
-        $attendeeEmails = [];
-        if ($participants !== []) {
-            $attendeeEmails = User::whereIn('id', $participants)
-                ->pluck('email')
-                ->filter()
-                ->values()
-                ->all();
-        }
+        // Use main_app_url (.env APP_URL) — not config('app.url'), which middleware
+        // may override per-request and is unrelated to which OL worker runs the job.
+        $appBaseUrl = rtrim((string) config('app.main_app_url', config('app.url')), '/');
 
         // best-effort deep-link: deal page is a stable route in this CRM
         $crmMeetingUrl = $followUp->deal_id
-            ? url("/account/deals/{$followUp->deal_id}")
-            : ($followUp->lead_id ? url("/account/lead-contact/{$followUp->lead_id}") : null);
+            ? "{$appBaseUrl}/account/deals/{$followUp->deal_id}"
+            : ($followUp->lead_id ? "{$appBaseUrl}/account/lead-contact/{$followUp->lead_id}" : null);
 
         // scheduledAt should be ISO-8601 UTC. next_follow_up_date is cast to datetime on the model.
         $scheduledAt = $followUp->next_follow_up_date instanceof Carbon
@@ -210,7 +218,7 @@ class CalendarSyncService
 
         return [
             'meetingId' => (string) $followUp->id,
-            'creatorUserId' => $creatorUserId,
+            'creatorUserId' => $followUp->added_by,
             'title' => $followUp->meetingType?->name ?? 'Meeting',
             'scheduledAt' => $scheduledAt,
             'duration' => (int) ($followUp->duration ?? $followUp->getEffectiveDuration()),

@@ -5,6 +5,7 @@ namespace App\Traits;
 use App\Models\Deal;
 use App\Models\Lead;
 use App\Models\DealFollowUp;
+use App\Services\CalendarSyncDispatcher;
 use GuzzleHttp\Client;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Http\Request;
@@ -446,6 +447,8 @@ trait DealAutomationTrait
             if ($followUp) {
                 $followUp->meeting_link = $meetingLink;
                 $followUp->save();
+
+                app(CalendarSyncDispatcher::class)->scheduleSync($followUp->fresh());
             }
         } catch (\Exception $e) {
             Log::error("Failed to update meeting link from webhook response", [

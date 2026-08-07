@@ -289,7 +289,7 @@ class CrmWriteService
         $followUp->save();
 
         try {
-            event(new AutoFollowUpReminderEvent($followUp, true));
+            event(new AutoFollowUpReminderEvent($followUp->fresh(), true));
         } catch (\Throwable $exception) {
             report($exception);
         }

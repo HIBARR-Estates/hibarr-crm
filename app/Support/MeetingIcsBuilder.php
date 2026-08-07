@@ -3,7 +3,7 @@
 namespace App\Support;
 
 use App\Models\DealFollowUp;
-use App\Models\User;
+use App\Support\MeetingAttendeeResolver;
 use Eluceo\iCal\Component\Calendar;
 use Eluceo\iCal\Component\Event as VEvent;
 use Eluceo\iCal\Property\Event\Organizer;
@@ -72,7 +72,7 @@ class MeetingIcsBuilder
             ));
         }
 
-        foreach (self::resolveAttendees($followUp) as $attendee) {
+        foreach (MeetingAttendeeResolver::resolveAttendees($followUp) as $attendee) {
             $vEvent->addAttendee('mailto:'.$attendee['email'], [
                 'CN' => $attendee['name'],
                 'ROLE' => 'REQ-PARTICIPANT',
@@ -87,39 +87,6 @@ class MeetingIcsBuilder
             'content' => $vCalendar->render(),
             'filename' => 'meeting.ics',
         ];
-    }
-
-    /**
-     * @return array<int, array{email: string, name: string}>
-     */
-    private static function resolveAttendees(DealFollowUp $followUp): array
-    {
-        $userIds = collect($followUp->participants ?? [])
-            ->map(fn ($id) => (int) $id)
-            ->filter()
-            ->unique()
-            ->values();
-
-        $attendees = [];
-
-        if ($userIds->isNotEmpty()) {
-            $users = User::query()->whereIn('id', $userIds)->get(['id', 'name', 'email']);
-            foreach ($users as $user) {
-                if (! empty($user->email)) {
-                    $attendees[] = ['email' => $user->email, 'name' => $user->name ?: $user->email];
-                }
-            }
-        }
-
-        $lead = $followUp->lead ?? $followUp->deal?->contact;
-        if ($lead) {
-            $leadEmail = $lead->client_email ?? $lead->email ?? null;
-            if (is_string($leadEmail) && $leadEmail !== '') {
-                $attendees[] = ['email' => $leadEmail, 'name' => $lead->client_name ?: $leadEmail];
-            }
-        }
-
-        return $attendees;
     }
 
     private static function buildDescription(DealFollowUp $followUp, string $leadName): string
