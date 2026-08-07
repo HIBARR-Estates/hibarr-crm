@@ -25,19 +25,39 @@ class ExposeConfiguration implements Arrayable
 
     public static function fromProperty($property, string $layout, array $clientData = [], array $sections = [], ?User $generatedBy = null, ?int $companyId = null): self
     {
-        $property->loadMissing(['projectLocation', 'developerProject.location']);
+        $property->loadMissing(['projectLocation', 'developerProject.location', 'developerProject.assets', 'assets']);
 
         $agent = self::resolveGeneratingUser($generatedBy);
         $company = self::resolveGeneratingCompany($agent, $companyId ?? $property->company_id);
-        $projectLocation = $property->projectLocation ?? $property->developerProject?->location;
+        $project = $property->developerProject;
+        $projectLocation = $property->projectLocation ?? $project?->location;
         $locationInfrastructure = $projectLocation?->getExpandedInfrastructure() ?? [];
         $locationAirports = $projectLocation?->getExpandedAirports() ?? [];
         $locationAttractions = $projectLocation?->getFormattedAttractionsForExpose() ?? [];
         $globalExposeConfig = self::resolveGlobalExposeConfiguration($property->company_id ?? $company?->id);
         
         $availableTags = ['hero', 'cover', 'area', 'exterior', 'interior', 'floor-plan', 'facilities', 'footer', 'gallery'];
-        $property->loadMissing('assets');
         $assetsByTag = self::groupImageAssetsByTags($property->assets, $availableTags);
+
+        $facilityPayload = self::resolveFacilityPayload(
+            $project?->facilities ?? [],
+            $project?->company_id ?? $property->company_id,
+            $project
+        );
+
+        if (!empty($facilityPayload['facility_gallery_images'])) {
+            $assetsByTag['facilities'] = $facilityPayload['facility_gallery_images'];
+        }
+
+        $unitStyleList = [];
+        if (is_array($property->unit_style)) {
+            $unitStyleList = array_values(array_map(
+                fn ($style) => is_string($style) ? ucfirst(str_replace('_', ' ', $style)) : (string) $style,
+                $property->unit_style
+            ));
+        } elseif (!empty($property->unit_style)) {
+            $unitStyleList = array_values(array_filter(array_map('trim', explode('/', (string) $property->unit_style))));
+        }
 
         return new self(
             entityType: 'property',
@@ -47,6 +67,7 @@ class ExposeConfiguration implements Arrayable
             data: [
                 // Basic property info
                 'title' => $property->title ?? $property->display_title ?? $property->reference_code,
+                'display_label' => $property->display_title ?? $property->title ?? null,
                 'reference_code' => $property->reference_code,
                 'price' => number_format($property->price ?? 0, 2) . ' €',
                 'raw_price' => $property->price,
@@ -76,6 +97,7 @@ class ExposeConfiguration implements Arrayable
                 'property_type' => $property->property_type,
                 'primary_category' => $property->primary_category,
                 'unit_style' => is_array($property->unit_style) ? implode(' / ', array_map('ucfirst', $property->unit_style)) : ($property->unit_style ?? null),
+                'unit_style_list' => $unitStyleList,
                 'sale_type' => $property->sale_type,
                 'status' => $property->status,
                 'block_name' => $property->block_name,
@@ -101,12 +123,20 @@ class ExposeConfiguration implements Arrayable
                 ),
                 
                 // Feature arrays (separate)
-                'exterior_features' => $property->exterior_features ?? [],
+                'exterior_features' => !empty($facilityPayload['facility_labels'])
+                    ? $facilityPayload['facility_labels']
+                    : ($property->exterior_features ?? []),
                 'interior_features' => $property->interior_features ?? [],
                 'location_features' => $property->location_features ?? [],
                 'outside_features' => $property->outside_features ?? [],
                 'inside_features' => $property->inside_features ?? [],
                 'view_types' => $property->view_types ?? [],
+
+                // Project facilities (parity with unit-type / project expose)
+                'facilities' => $facilityPayload['facility_slugs'],
+                'facility_labels' => $facilityPayload['facility_labels'],
+                'facility_images_by_slug' => $facilityPayload['facility_images_by_slug'],
+                'facility_default_images_by_slug' => $facilityPayload['facility_default_images_by_slug'],
                 
                 // Distances (for infrastructure page)
                 'distances' => $property->distances ?? [],
@@ -1010,6 +1040,121 @@ class ExposeConfiguration implements Arrayable
     public function has(string $key): bool
     {
         return data_get($this->data, $key) !== null;
+    }
+
+    /**
+     * Resolve facility labels, per-slug images, and gallery fallbacks for expose payloads.
+     *
+     * @param  list<string>  $facilitySlugs
+     * @return array{
+     *     facility_slugs: list<string>,
+     *     facility_labels: list<string>,
+     *     facility_images_by_slug: array<string, list<string>>,
+     *     facility_default_images_by_slug: array<string, string|null>,
+     *     facility_gallery_images: list<string>
+     * }
+     */
+    private static function resolveFacilityPayload(array $facilitySlugs, ?int $companyId, ?DeveloperProject $project = null): array
+    {
+        $facilitySlugs = array_values(array_filter($facilitySlugs, fn ($slug) => is_string($slug) && $slug !== ''));
+
+        $facilityMetaByName = collect();
+        if ($companyId && $facilitySlugs !== []) {
+            $facilityMetaByName = ProjectFacility::where('company_id', $companyId)
+                ->whereIn('name', $facilitySlugs)
+                ->get(['name', 'label', 'image_url'])
+                ->keyBy('name');
+        }
+
+        $facilityLabels = [];
+        $facilityDefaultImagesBySlug = [];
+        foreach ($facilitySlugs as $facilityKey) {
+            $facilityMeta = $facilityMetaByName->get($facilityKey);
+            $facilityLabels[] = $facilityMeta?->label ?? ucfirst(str_replace('_', ' ', $facilityKey));
+            $facilityDefaultImagesBySlug[$facilityKey] = $facilityMeta?->image_url;
+        }
+
+        $facilityImagesBySlug = [];
+        foreach ($facilitySlugs as $facilityKey) {
+            $facilityImagesBySlug[$facilityKey] = [];
+        }
+
+        $genericFacilityImages = [];
+        if ($project) {
+            $projectImageAssets = $project->relationLoaded('assets')
+                ? $project->assets->where('asset_type', 'image')->sortBy([
+                    ['order', 'asc'],
+                    ['created_at', 'desc'],
+                ])->values()
+                : $project->assets()
+                    ->where('asset_type', 'image')
+                    ->orderBy('order')
+                    ->orderBy('created_at', 'desc')
+                    ->get();
+
+            foreach ($projectImageAssets as $asset) {
+                $url = $asset->url;
+                if (empty($url)) {
+                    continue;
+                }
+
+                $tags = $asset->tags ?? [];
+                if (in_array('facilities', $tags, true)) {
+                    $genericFacilityImages[] = $url;
+                }
+
+                foreach ($tags as $tag) {
+                    if (!is_string($tag) || !str_starts_with($tag, 'facilities:')) {
+                        continue;
+                    }
+
+                    $slug = substr($tag, strlen('facilities:'));
+                    if ($slug === '' || !array_key_exists($slug, $facilityImagesBySlug)) {
+                        continue;
+                    }
+
+                    $facilityImagesBySlug[$slug][] = $url;
+                }
+            }
+        }
+
+        $facilityGalleryImages = [];
+        $remainingGenericFacilityImages = $genericFacilityImages;
+
+        foreach ($facilitySlugs as $facilityKey) {
+            if (!empty($facilityImagesBySlug[$facilityKey])) {
+                $facilityGalleryImages[] = $facilityImagesBySlug[$facilityKey][0];
+                continue;
+            }
+
+            $defaultImage = $facilityDefaultImagesBySlug[$facilityKey] ?? null;
+            if (!empty($defaultImage)) {
+                $facilityGalleryImages[] = $defaultImage;
+                continue;
+            }
+
+            while (!empty($remainingGenericFacilityImages)) {
+                $genericImage = array_shift($remainingGenericFacilityImages);
+                if (!in_array($genericImage, $facilityGalleryImages, true)) {
+                    $facilityGalleryImages[] = $genericImage;
+                    break;
+                }
+            }
+        }
+
+        foreach ($remainingGenericFacilityImages as $url) {
+            if (!in_array($url, $facilityGalleryImages, true)) {
+                $facilityGalleryImages[] = $url;
+            }
+        }
+
+        return [
+            'facility_slugs' => $facilitySlugs,
+            'facility_labels' => $facilityLabels,
+            'facility_images_by_slug' => $facilityImagesBySlug,
+            'facility_default_images_by_slug' => $facilityDefaultImagesBySlug,
+            'facility_gallery_images' => $facilityGalleryImages,
+        ];
     }
 
     /**

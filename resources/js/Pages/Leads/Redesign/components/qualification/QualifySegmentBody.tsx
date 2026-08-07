@@ -1,49 +1,24 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import type {
+    LeadQualification,
     QualificationOutcome,
     Segment,
 } from "@/Types/qualification";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
 import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
-import WebinarSessionPickerModal from "@/Pages/Leads/Components/Qualification/WebinarSessionPickerModal";
-import { RegistrationService } from "@/Services/RegistrationService";
+import OutcomeMultiSelect from "@/Pages/Leads/Components/Qualification/OutcomeMultiSelect";
+import { getScriptOutcomes } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Icon from "@/Components/Redesign/primitives/Icon";
 
 type QualificationFlow = ReturnType<typeof useQualificationFlow>;
 
-const OUTCOME_UI: Record<
-    QualificationOutcome,
-    { label: string; icon: string; className: string }
-> = {
-    bookMeeting: {
-        label: "Book consultation",
-        icon: "calendar",
-        className: "v2-btn-primary",
-    },
-    inviteWebinar: {
-        label: "Invite to webinar",
-        icon: "video",
-        className: "v2-btn-ghost",
-    },
-    callback: {
-        label: "Schedule callback",
-        icon: "refresh",
-        className: "v2-btn-ghost",
-    },
-    noFit: {
-        label: "Not a fit",
-        icon: "x",
-        className: "v2-btn-ghost",
-    },
-};
-
 const GUIDANCE_BY_KIND: Record<string, string> = {
     say: "Read this aloud to the lead.",
     instruction: "Agent note — do not read aloud.",
     question: "Capture the lead's answer below.",
-    outcome: "Choose the next action for this lead.",
+    outcome: "Select one or more outcomes for this lead.",
 };
 
 interface ScriptPromptProps {
@@ -67,21 +42,17 @@ function ScriptPrompt({ text, kind, translateScript }: ScriptPromptProps) {
 interface QualifySegmentBodyProps {
     flow: QualificationFlow;
     currentSegment: Segment;
-    registrationService: RegistrationService;
     agentLanguage: string;
+    onCompletedWithActions?: (qualification: LeadQualification) => void;
 }
 
 export default function QualifySegmentBody({
     flow,
     currentSegment,
-    registrationService,
     agentLanguage,
+    onCompletedWithActions,
 }: QualifySegmentBodyProps) {
     const { td } = useTd();
-    const [webinarPickerOpen, setWebinarPickerOpen] = useState(false);
-    const [pendingWebinarId, setPendingWebinarId] = useState<string | null>(
-        null,
-    );
 
     const answer = flow.answers[currentSegment.key];
     const selectedValues = answer?.answer_values ?? [];
@@ -93,28 +64,19 @@ export default function QualifySegmentBody({
     const showContextField =
         !isOutcome && currentSegment.answerType !== "text";
 
-    const outcomeButtons = useMemo((): QualificationOutcome[] => {
-        const outcomeType = currentSegment.outcomeMetadata?.type;
-        if (outcomeType) return [outcomeType];
-        return ["bookMeeting", "inviteWebinar", "callback", "noFit"];
-    }, [currentSegment.outcomeMetadata?.type]);
+    const scriptOutcomes = useMemo(
+        () => getScriptOutcomes(flow.templateTree),
+        [flow.templateTree],
+    );
 
-    const handleWebinarSelect = async (
-        sessionId: string,
-        sessionLabel: string,
+    const handleOutcomeConfirm = async (
+        outcomes: QualificationOutcome[],
+        comment: string | null,
     ) => {
-        setWebinarPickerOpen(false);
-        await flow.completeWithOutcome("inviteWebinar", {
-            webinarSessionId: sessionId,
-            webinarSessionLabel: sessionLabel,
-        });
-    };
-
-    const handleOutcome = async (
-        outcome: QualificationOutcome,
-        metadata?: { calendlyUrl?: string },
-    ) => {
-        await flow.completeWithOutcome(outcome, metadata);
+        const updated = await flow.completeWithOutcomes(outcomes, { comment });
+        if (updated) {
+            onCompletedWithActions?.(updated);
+        }
     };
 
     const toggleMulti = (optionId: string) => {
@@ -249,47 +211,16 @@ export default function QualifySegmentBody({
                         </div>
                     )}
 
-                {isOutcome && (
-                    <div
-                        style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 8,
-                            marginBottom: 14,
-                        }}
-                    >
-                        {outcomeButtons.map((outcome) => {
-                            const ui = OUTCOME_UI[outcome];
-                            const meta = currentSegment.outcomeMetadata;
-                            return (
-                                <button
-                                    key={outcome}
-                                    type="button"
-                                    className={`v2-btn ${ui.className}`}
-                                    disabled={flow.completing}
-                                    onClick={() => {
-                                        if (outcome === "inviteWebinar") {
-                                            const webinarId = meta?.webinarId;
-                                            if (!webinarId) {
-                                                void handleOutcome(outcome);
-                                                return;
-                                            }
-                                            setPendingWebinarId(webinarId);
-                                            setWebinarPickerOpen(true);
-                                            return;
-                                        }
-                                        void handleOutcome(outcome, {
-                                            calendlyUrl: meta?.calendlyUrl,
-                                        });
-                                    }}
-                                >
-                                    <Icon name={ui.icon} size={14} />
-                                    {meta?.label || td(ui.label)}
-                                </button>
-                            );
-                        })}
-                    </div>
-                )}
+                {isOutcome ? (
+                    <OutcomeMultiSelect
+                        options={scriptOutcomes}
+                        variant="redesign"
+                        completing={flow.completing}
+                        onConfirm={(outcomes, comment) =>
+                            handleOutcomeConfirm(outcomes, comment)
+                        }
+                    />
+                ) : null}
 
                 {showContextField ? (
                     <input
@@ -307,16 +238,6 @@ export default function QualifySegmentBody({
                     />
                 ) : null}
             </div>
-
-            {pendingWebinarId ? (
-                <WebinarSessionPickerModal
-                    open={webinarPickerOpen}
-                    webinarId={pendingWebinarId}
-                    registrationService={registrationService}
-                    onClose={() => setWebinarPickerOpen(false)}
-                    onSelect={handleWebinarSelect}
-                />
-            ) : null}
         </DynamicTranslationProvider>
     );
 }

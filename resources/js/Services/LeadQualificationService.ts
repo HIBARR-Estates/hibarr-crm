@@ -11,8 +11,10 @@ import { AuthType } from "@/Types";
 import type { PageProps } from "@/Components/DashboardLayout";
 import {
     CompleteQualificationPayload,
+    ExecuteQualificationActionPayload,
     LeadQualificationsResponse,
     LeadQualification,
+    QualificationActionRun,
     StartQualificationPayload,
     UpdateNavigationPayload,
     UpsertAnswerPayload,
@@ -130,6 +132,36 @@ export class LeadQualificationService {
         }
 
         return response.qualification;
+    }
+
+    async executeAction(
+        qualificationId: number,
+        actionRunId: number,
+        payload: ExecuteQualificationActionPayload = {},
+    ): Promise<{
+        action_run: QualificationActionRun;
+        qualification: LeadQualification;
+    }> {
+        const response = await crmRequest<{
+            action_run?: QualificationActionRun;
+            qualification?: LeadQualification;
+        }>(
+            {
+                method: "POST",
+                url: `/account/lead-qualifications/${qualificationId}/actions/${actionRunId}/execute`,
+                data: payload,
+            },
+            this.auth,
+        );
+
+        if (!response.action_run || !isLeadQualification(response.qualification)) {
+            throw new Error("Action execution response was incomplete");
+        }
+
+        return {
+            action_run: response.action_run,
+            qualification: response.qualification,
+        };
     }
 
     async abandonQualification(qualificationId: number): Promise<void> {

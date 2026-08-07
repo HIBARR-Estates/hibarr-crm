@@ -25,6 +25,7 @@ const LeadQualificationTab: React.FC<LeadQualificationTabProps> = ({
         loadQualifications,
         handleStarted,
         handleQualificationUpdated,
+        finishQualificationSession,
         handleStartNew,
     } = useLeadQualificationLoader(lead.id);
 
@@ -56,6 +57,7 @@ const LeadQualificationTab: React.FC<LeadQualificationTabProps> = ({
                 qualificationService={qualificationService}
                 registrationService={registrationService}
                 onQualificationUpdated={handleQualificationUpdated}
+                onActionsDone={finishQualificationSession}
                 onAbandoned={loadQualifications}
             />
         );

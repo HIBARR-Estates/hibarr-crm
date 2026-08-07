@@ -4,6 +4,8 @@ Audience: engineers on **hibarr-backend / OL** composing Digital Exposé payload
 
 Companion surfaces:
 - Property public API (same auth, envelope, and `fields=` conventions): `GET /api/v1/properties`, `GET /api/v1/properties/{identifier}`
+- **Expose presentation DTO** (enriched facilities, assets-by-tag, infra/airports): [ol-expose-presentation-api.md](./ol-expose-presentation-api.md)
+- **Expose snapshots** (frozen DTO + reference token for agent/lead audit): [ol-expose-snapshots-api.md](./ol-expose-snapshots-api.md)
 - Ops/token mint notes: [developer-projects-public-api-notes.md](./developer-projects-public-api-notes.md)
 
 This API is **read-only**, **company-scoped**, and authenticated with a narrowly scoped CRM API token (not session auth, not OL module:action permissions).
@@ -47,11 +49,14 @@ The exposé consumer token must include **only**:
 ```text
 api.properties.index
 api.properties.show
+api.properties.expose
 api.properties.filters.property_types
 api.properties.filters.features
 api.properties.filters.location
 api.developer-projects.index
 api.developer-projects.show
+api.developer-projects.expose
+api.developer-projects.unit-types.expose
 ```
 
 Store the plaintext token in **Infisical**. CRM never returns the raw token from list/update token APIs after creation.
@@ -561,26 +566,67 @@ sequenceDiagram
 Practical tips:
 
 1. Prefer **`slug`** in public/composition URLs; keep `id` for internal joins.
-2. Use list + `fields=` for discovery/index; use show for full exposé input.
+2. Use list + `fields=` for discovery/index; use show for raw domain detail; use `/expose` for presentation-ready DTOs.
 3. Filter `is_hidden === true` in OL if exposés should not surface hidden CRM projects.
-4. Build galleries from `assets[].tags` (and unit-type assets). CRM does **not** yet return pre-grouped `imagesByTag` / facility image maps.
-5. Treat `facilities` as **slugs**; enrich labels/icons in OL if needed (CRM web view does enrichment server-side today; this API does not).
-6. Pair with Property API when the exposé needs per-unit inventory.
+4. Prefer `GET …/expose` for galleries (`assets` by tag) and `facility_items`. Catalog show still returns flat `assets[].tags` for non-exposé use.
+5. Treat catalog `facilities` as **slugs**; `/expose` returns enriched `facility_items`.
+6. Pair with Property API when the exposé needs per-unit inventory; use property `/expose` for a unit-level brochure DTO.
+7. Discover unit type ids from project show `unit_type_details`, then call unit-type `/expose`.
 
 ---
 
-## 10. Known gaps (non-blocking for this ticket)
+## 10. Known gaps / expose presentation endpoints
 
-| Need | Status on this API |
-|---|---|
-| `payment_plan`, `distances`, raw `facilities` | Present |
-| `location` (ProjectLocation) | Present |
-| Gallery assets | Present as flat `assets` (+ unit-type assets on show) |
-| `unit_type_details` | Present on show |
-| `is_hidden` | Present; hidden rows included |
-| Enriched facilities (label/icon + property feature merge) | **Not** included — follow-up |
-| Pre-grouped `imagesByTag` / `facilityImagesBySlug` | **Not** included — follow-up |
-| Web “statistics” / price-list aggregates | **Not** included — follow-up |
+Catalog list/show remain the discovery surface. For a **presentation-ready expose DTO** (enriched facilities, assets by tag, normalized infra/airports, agent/client/company presence), use the dedicated endpoints below (same `api.token` + `X-COMPANY-ID` auth).
+
+| Method | Path | Scope key |
+|---|---|---|
+| `GET` | `/api/v1/properties/{identifier}/expose` | `api.properties.expose` |
+| `GET` | `/api/v1/developer-projects/{identifier}/expose` | `api.developer-projects.expose` |
+| `GET` | `/api/v1/developer-projects/{identifier}/unit-types/{unitTypeId}/expose` | `api.developer-projects.unit-types.expose` |
+
+Optional query: `client_name`, `client_email`, `layout`, `agent_id`.
+
+Success envelope:
+
+```json
+{
+  "status": "success",
+  "data": {
+    "schema_version": 1,
+    "entity_type": "property",
+    "entity_id": 1,
+    "layout": "expose-template",
+    "facility_items": [{ "slug": "pool", "label": "Pool", "image_url": "https://…" }],
+    "infrastructure_items": [],
+    "airport_items": [],
+    "assets": { "hero": [], "cover": [], "exterior": [], "interior": [], "floor-plan": [], "facilities": [] },
+    "background_image_url": null,
+    "unit_style_list": [],
+    "completion": { "raw": null, "display": "N/A", "is_ready": false },
+    "location": { "title": null, "description": null, "image_url": null },
+    "attractions": [],
+    "outro": { "title": "…", "description": "", "primary_image_url": null, "secondary_image_url": null },
+    "agent": { "name": null, "email": null, "phone": null, "position": null, "image": null },
+    "client": { "name": null, "email": null },
+    "company": { "name": null, "company_name": null, "logo": null, "address": null, "phone": null, "email": null, "website": null },
+    "presence": { "agent": false, "client": false, "facilities": false, "infrastructure": false, "airports": false, "cover": false, "floor_plan": false }
+  },
+  "warnings": []
+}
+```
+
+| Need | Status on catalog show | Status on `/expose` |
+|---|---|---|
+| `payment_plan`, `distances`, raw `facilities` | Present | Via presentation fields |
+| `location` (ProjectLocation) | Present | Normalized `location` + `infrastructure_items` / `airport_items` / `attractions` |
+| Gallery assets | Flat `assets` | Pre-grouped `assets` by tag |
+| `unit_type_details` | Present on project show | Use unit-type `/expose` for DTO |
+| Enriched facilities (label + image) | **Not** on catalog | `facility_items` |
+| Pre-grouped images / facility maps | **Not** on catalog | `assets` + `facility_items` |
+| Web “statistics” / price-list aggregates | **Not** included | **Not** included |
+
+Restricted tokens must include the new scope keys above (in addition to list/show scopes used for discovery).
 
 ---
 
