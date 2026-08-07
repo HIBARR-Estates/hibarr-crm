@@ -293,6 +293,13 @@ export default function ItineraryModal({
         [selectOptions],
     );
 
+    const handleOcrFileUrlChange = useCallback((url: string | null) => {
+        setForm((current) => ({
+            ...current,
+            ticket_image_url: url,
+        }));
+    }, []);
+
     const handleClose = () => {
         if (saving || isUploadingTicket) return;
         onClose();
@@ -357,6 +364,7 @@ export default function ItineraryModal({
                         key={open ? "open" : "closed"}
                         disabled={saving}
                         onApply={applyDetectedFlight}
+                        onFileUrlChange={handleOcrFileUrlChange}
                     />
                     {form.ticket_image_url ? (
                         <ModalField label={labels.flightPlanImage}>

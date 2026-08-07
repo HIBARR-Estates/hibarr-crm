@@ -15,6 +15,8 @@ interface ItineraryOcrScannerProps {
     disabled?: boolean;
     /** Called with the flight the user picked (or the sole detected flight). */
     onApply: (entry: IFlightItineraryEntry, fileUrl: string | null) => void;
+    /** Keeps the parent form's ticket image in sync with the scanner file URL. */
+    onFileUrlChange?: (fileUrl: string | null) => void;
 }
 
 function flightSummaryLabel(
@@ -36,6 +38,7 @@ function flightSummaryLabel(
 export default function ItineraryOcrScanner({
     disabled = false,
     onApply,
+    onFileUrlChange,
 }: ItineraryOcrScannerProps) {
     const { td } = useTd();
     const inputRef = useRef<HTMLInputElement>(null);
@@ -45,6 +48,12 @@ export default function ItineraryOcrScanner({
         useFlightItineraryOcr();
 
     const busy = scanState === "uploading" || scanState === "processing";
+
+    // Sync uploaded ticket URL to the parent form independently of onApply
+    // (covers scans that return zero flights).
+    useEffect(() => {
+        onFileUrlChange?.(fileUrl);
+    }, [fileUrl, onFileUrlChange]);
 
     // Single detected flight — apply it automatically instead of making the
     // user click a chip for the one option available.
@@ -69,6 +78,7 @@ export default function ItineraryOcrScanner({
     const handleReset = () => {
         setAppliedIndex(null);
         reset();
+        onFileUrlChange?.(null);
     };
 
     if (scanState === "idle") {
