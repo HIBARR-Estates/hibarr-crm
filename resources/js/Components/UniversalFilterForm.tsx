@@ -295,6 +295,9 @@ const UniversalFilterForm: React.FC<UniversalFilterFormProps> = ({
         if (config.excludeFields && config.excludeFields.includes(field.key)) {
             return false;
         }
+        if (field.hidden) {
+            return false;
+        }
         return true;
     });
 

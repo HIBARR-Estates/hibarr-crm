@@ -158,12 +158,21 @@ class FormDataService
             return \DB::table('lead_marketing')
                 ->join('leads', 'leads.id', '=', 'lead_marketing.lead_id')
                 ->where('leads.company_id', company()->id)
+                ->whereNull('leads.deleted_at')
                 ->whereNotNull('lead_marketing.' . $column)
                 ->where('lead_marketing.' . $column, '!=', '')
-                ->distinct()
-                ->orderBy('lead_marketing.' . $column)
-                ->pluck('lead_marketing.' . $column)
-                ->map(fn ($value) => ['value' => $value, 'label' => $value])
+                ->groupBy('lead_marketing.' . $column)
+                ->orderByRaw('count(*) desc')
+                ->select(
+                    'lead_marketing.' . $column . ' as value',
+                    \DB::raw('count(distinct leads.id) as count')
+                )
+                ->get()
+                ->map(fn ($row) => [
+                    'value' => $row->value,
+                    'label' => $row->value,
+                    'count' => (int) $row->count,
+                ])
                 ->values();
         });
     }

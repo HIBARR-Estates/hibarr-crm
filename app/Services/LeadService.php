@@ -16,6 +16,43 @@ use Illuminate\Support\Facades\DB;
 
 class LeadService
 {
+    /**
+     * Every query param applyFilters() understands. Single source of truth for the
+     * Leads index whitelist and for sanitising saved-view filter payloads.
+     */
+    public const FILTER_KEYS = [
+        'search',
+        'lead_type',
+        'start_date',
+        'end_date',
+        'lead_source',
+        'category_id',
+        'lead_owner_id',
+        'added_by_id',
+        'lifecycle_status_id',
+        'qualification_segment_key',
+        'qualification_answer_values',
+        'language',
+        'language_id',
+        'temperature',
+        'gender',
+        'age_range',
+        'nationality',
+        'country',
+        'has_joined_the_facebook_group',
+        'has_registered_for_the_webinar',
+        'has_attended_the_webinar',
+        'has_joined_the_whatsapp_group',
+        'min_contact_score',
+        'max_contact_score',
+        'utm_source',
+        'utm_medium',
+        'utm_campaign',
+        'utm_content',
+        'utm_term',
+        'utm_audience',
+    ];
+
     public function __construct(
         private readonly LeadCoreFieldsService $coreFieldsService,
     ) {
@@ -146,6 +183,18 @@ class LeadService
                 ->all(),
             'customFieldCategories' => $customFieldCategories,
         ];
+    }
+
+    /**
+     * A Lead query already narrowed to what the current user may view.
+     * Facet counts must use this so totals never leak leads the user can't see.
+     */
+    public function scopedQuery(): Builder
+    {
+        $query = Lead::query();
+        $this->applyPermissionScope($query, user()->permission('view_lead'));
+
+        return $query;
     }
 
     /**

@@ -16,10 +16,12 @@ import type { TdFn } from "@/lib/dynamicTranslation";
 
 // Hex values (not antd preset names) so the tag renders as a solid fill,
 // matching the lifecycle status column's `<Tag color={label_color}>` look.
+// Values are REDESIGN_TOKENS BLUE / AMBER / RED — same palette the filter
+// modal and the lead header pill use, so temperature reads identically.
 const LEAD_TEMPERATURE_COLORS: Record<string, string> = {
     cold: "#1a6bb5",
-    warm: "#b45309",
-    hot: "#dc2626",
+    warm: "#92400e",
+    hot: "#b91c1c",
 };
 
 interface LeadLifecycleStatusOption {

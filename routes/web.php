@@ -132,6 +132,7 @@ use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\LeadMergeController;
+use App\Http\Controllers\LeadSavedViewController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
@@ -627,6 +628,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
     Route::post('lead-contact/{lead_contact}/image', [LeadContactController::class, 'uploadImage'])->name('lead-contact.upload-image');
     Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
+
+    // Saved filter views for the leads list
+    Route::post('lead-saved-views', [LeadSavedViewController::class, 'store'])->name('lead-saved-views.store');
+    Route::patch('lead-saved-views/{id}', [LeadSavedViewController::class, 'update'])->name('lead-saved-views.update');
+    Route::delete('lead-saved-views/{id}', [LeadSavedViewController::class, 'destroy'])->name('lead-saved-views.destroy');
 
     // Lead qualification routes
     Route::get('lead-contact/{lead}/qualifications', [LeadQualificationController::class, 'index'])->name('lead-qualifications.index');

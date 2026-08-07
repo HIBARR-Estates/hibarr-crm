@@ -34,10 +34,11 @@ import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { User, Country, ClientCategory, Language } from "@/Types";
 import UniversalSearchBox from "@/Components/UniversalSearchBox";
-import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import usePageSearchAndFilter from "@/Hooks/usePageSearchAndFilter";
 import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
-import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import LeadFilterModal from "@/Features/Leads/Filters/LeadFilterModal";
+import ActiveFilterSentence from "@/Features/Leads/Filters/ActiveFilterSentence";
+import { describeFilters } from "@/Features/Leads/Filters/filterSummary";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
@@ -134,6 +135,12 @@ const Index = ({
 
     // Extract commonly used values
     const { openDrawer } = filter;
+    // Count clauses, not raw keys, so the badge matches the filter sentence
+    // (a date range is two keys but reads as one filter).
+    const activeFilterCount = useMemo(
+        () => describeFilters(filter.config, filter.filters).length,
+        [filter.config, filter.filters],
+    );
 
     // Table row selection
     const { selectedEntities, rowSelection, clearSelected } =
@@ -263,7 +270,6 @@ const Index = ({
                         className="w-full"
                     />
                 }
-                filterSection={<ContextualActiveFilters />}
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -299,6 +305,11 @@ const Index = ({
                                 onClick={openDrawer}
                             >
                                 {t("app.filter")}
+                                {activeFilterCount > 0 && (
+                                    <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-[#1a6bb5] text-white text-[11px] font-semibold">
+                                        {activeFilterCount}
+                                    </span>
+                                )}
                             </Button>
 
                             {/* Bulk Actions - Only show when items are selected */}
@@ -312,6 +323,13 @@ const Index = ({
                             )}
                         </div>
                     </div>
+
+                    {/* 3c — quiet active-filter sentence */}
+                    <ActiveFilterSentence
+                        count={leads.total}
+                        onOpenFilters={openDrawer}
+                    />
+
                     {/* Properties Table */}
                     <DataTable<Lead>
                         columns={columns}
@@ -384,14 +402,11 @@ const Index = ({
                 />
             )}
 
-            {/* Universal Filter Drawer */}
-            {
-                <UniversalFilterDrawer
-                    config={filterConfig}
-                    loading={formDataLoading}
-                    width={960}
-                />
-            }
+            {/* Redesigned two-pane filter workbench (mockups 1a / 2a / 2b) */}
+            <LeadFilterModal
+                config={filterConfig}
+                optionsLoading={formDataLoading}
+            />
         </>
     );
 };

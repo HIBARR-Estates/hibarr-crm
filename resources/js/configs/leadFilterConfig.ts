@@ -5,6 +5,10 @@ const YES_NO_OPTIONS = [
     { value: "0", label: "No" },
 ];
 
+/**
+ * Schema for the Leads filter modal. `type` drives URL/draft state in
+ * FilterContext; `control` picks the visual treatment in LeadFilterModal.
+ */
 export const createLeadFilterConfig = (props: any): FilterConfig => ({
     routeName: "lead-contact.index",
     title: "Lead Filters",
@@ -19,24 +23,23 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
 
         // ── General ──────────────────────────────────────────────
         {
-            key: "lead_type",
-            label: "Lead Type",
-            type: "select",
+            key: "temperature",
+            label: "Temperature",
+            type: "multiselect",
+            control: "temperature",
+            facetKey: "temperature",
+            sentence: "temperature",
             section: "General",
-            placeholder: "Select lead type",
-            span: 8,
-            options: [
-                { value: "lead", label: "Lead" },
-                { value: "client", label: "Client" },
-            ],
+            options: props.temperatures || [],
         },
         {
             key: "lifecycle_status_id",
             label: "Status",
             type: "multiselect",
+            control: "pills",
+            facetKey: "lifecycle_status_id",
+            sentence: "status",
             section: "General",
-            placeholder: "Select statuses",
-            span: 8,
             options:
                 props.leadLifecycleStatuses?.map(
                     (status: { id: number; label: string }) => ({
@@ -46,42 +49,38 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                 ) || [],
         },
         {
-            key: "temperature",
-            label: "Temperature",
-            type: "multiselect",
+            key: "lead_type",
+            label: "Lead type",
+            type: "select",
+            control: "segmented",
+            sentence: "lead type",
             section: "General",
-            placeholder: "Select temperatures",
-            span: 8,
-            options:
-                props.temperatures?.map(
-                    (temperature: { value: string; label: string }) => ({
-                        value: temperature.value,
-                        label: temperature.label,
-                    }),
-                ) || [],
+            options: [
+                { value: "lead", label: "Lead" },
+                { value: "client", label: "Client" },
+            ],
         },
         {
             key: "start_date",
-            label: "Created Date Range",
-            type: "daterange",
+            label: "Created",
+            type: "date",
+            control: "datePresets",
+            sentence: "created",
             section: "General",
-            span: 24,
-            formatDisplayValue: (value: any) => {
-                if (Array.isArray(value)) {
-                    return value.join(" to ");
-                }
-                return value;
-            },
         },
+        // Written by the date-range control; tracked so FilterContext syncs it
+        // to the URL under the key the backend actually reads.
+        { key: "end_date", label: "Created to", type: "date", hidden: true },
 
         // ── Assignment & source ──────────────────────────────────
         {
             key: "lead_source",
             label: "Source",
             type: "multiselect",
+            control: "pills",
+            facetKey: "lead_source",
+            sentence: "source",
             section: "Assignment & Source",
-            placeholder: "Select sources",
-            span: 12,
             options:
                 props.sources?.map((source: any) => ({
                     value: source.id,
@@ -92,9 +91,10 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             key: "category_id",
             label: "Categories",
             type: "multiselect",
+            control: "pills",
+            facetKey: "category_id",
+            sentence: "category",
             section: "Assignment & Source",
-            placeholder: "Select categories",
-            span: 12,
             options:
                 props.categories?.map((category: any) => ({
                     value: category.id,
@@ -103,11 +103,13 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "lead_owner_id",
-            label: "Lead Owner",
+            label: "Lead owner",
             type: "multiselect",
+            control: "checklist",
+            facetKey: "lead_owner_id",
+            sentence: "owner",
             section: "Assignment & Source",
-            placeholder: "Select lead owners",
-            span: 12,
+            placeholder: "Search agents…",
             options:
                 props.employees?.map((employee: any) => ({
                     value: employee.id,
@@ -116,11 +118,13 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "added_by_id",
-            label: "Added By",
+            label: "Added by",
             type: "multiselect",
+            control: "checklist",
+            facetKey: "added_by_id",
+            sentence: "added by",
             section: "Assignment & Source",
-            placeholder: "Select who added",
-            span: 12,
+            placeholder: "Search people…",
             options:
                 props.employees?.map((employee: any) => ({
                     value: employee.id,
@@ -133,39 +137,30 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             key: "gender",
             label: "Gender",
             type: "multiselect",
+            control: "pills",
+            facetKey: "gender",
+            sentence: "gender",
             section: "Profile",
-            placeholder: "Select genders",
-            span: 12,
-            options:
-                props.genders?.map(
-                    (gender: { value: string; label: string }) => ({
-                        value: gender.value,
-                        label: gender.label,
-                    }),
-                ) || [],
+            options: props.genders || [],
         },
         {
             key: "age_range",
-            label: "Age Range",
+            label: "Age range",
             type: "multiselect",
+            control: "pills",
+            facetKey: "age_range",
+            sentence: "age range",
             section: "Profile",
-            placeholder: "Select age ranges",
-            span: 12,
-            options:
-                props.ageRanges?.map(
-                    (ageRange: { value: string; label: string }) => ({
-                        value: ageRange.value,
-                        label: ageRange.label,
-                    }),
-                ) || [],
+            options: props.ageRanges || [],
         },
         {
             key: "nationality",
             label: "Nationality",
             type: "multiselect",
+            control: "tokens",
+            sentence: "nationality",
             section: "Profile",
-            placeholder: "Select nationalities",
-            span: 12,
+            placeholder: "Type to add nationalities…",
             options:
                 props.countries?.map((country: any) => ({
                     value: country.nicename,
@@ -176,9 +171,10 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             key: "country",
             label: "Country",
             type: "multiselect",
+            control: "tokens",
+            sentence: "country",
             section: "Profile",
-            placeholder: "Select countries",
-            span: 12,
+            placeholder: "Type to add countries…",
             options:
                 props.countries?.map((country: any) => ({
                     value: country.nicename,
@@ -191,9 +187,9 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                       key: "language",
                       label: "Languages",
                       type: "multiselect" as const,
+                      control: "pills" as const,
+                      sentence: "language",
                       section: "Profile",
-                      placeholder: "Select languages",
-                      span: 24,
                       options:
                           props.languages?.map((language: any) => ({
                               value: language.language_code,
@@ -206,9 +202,9 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                       key: "language_id",
                       label: "Languages",
                       type: "multiselect" as const,
+                      control: "pills" as const,
+                      sentence: "language",
                       section: "Profile",
-                      placeholder: "Select languages",
-                      span: 24,
                       options:
                           props.languages?.map((language: any) => ({
                               value: language.id,
@@ -217,131 +213,125 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
                   },
               ]),
 
-        // ── Marketing engagement ─────────────────────────────────
+        // ── Engagement ───────────────────────────────────────────
         {
             key: "has_joined_the_facebook_group",
-            label: "Joined FB Group",
+            label: "Joined FB group",
             type: "select",
-            section: "Marketing Engagement",
-            placeholder: "Yes / No",
-            span: 8,
-            options: YES_NO_OPTIONS,
-        },
-        {
-            key: "has_registered_for_the_webinar",
-            label: "Registered for Webinar",
-            type: "select",
-            section: "Marketing Engagement",
-            placeholder: "Yes / No",
-            span: 8,
-            options: YES_NO_OPTIONS,
-        },
-        {
-            key: "has_attended_the_webinar",
-            label: "Attended Webinar",
-            type: "select",
-            section: "Marketing Engagement",
-            placeholder: "Yes / No",
-            span: 8,
+            control: "segmented",
+            sentence: "joined FB group",
+            section: "Engagement",
             options: YES_NO_OPTIONS,
         },
         {
             key: "has_joined_the_whatsapp_group",
-            label: "Joined WhatsApp Group",
+            label: "Joined WhatsApp group",
             type: "select",
-            section: "Marketing Engagement",
-            placeholder: "Yes / No",
-            span: 8,
+            control: "segmented",
+            sentence: "joined WhatsApp group",
+            section: "Engagement",
+            options: YES_NO_OPTIONS,
+        },
+        {
+            key: "has_registered_for_the_webinar",
+            label: "Registered for webinar",
+            type: "select",
+            control: "segmented",
+            sentence: "registered for webinar",
+            section: "Engagement",
+            options: YES_NO_OPTIONS,
+        },
+        {
+            key: "has_attended_the_webinar",
+            label: "Attended webinar",
+            type: "select",
+            control: "segmented",
+            sentence: "attended webinar",
+            section: "Engagement",
             options: YES_NO_OPTIONS,
         },
         {
             key: "contact_score",
-            label: "Contact Score",
+            label: "Contact score",
             type: "numberrange",
-            section: "Marketing Engagement",
-            span: 16,
+            control: "scoreRange",
+            sentence: "contact score",
+            section: "Engagement",
         },
 
         // ── Campaign attribution (UTM) ───────────────────────────
-        // Options are the distinct UTM values already present in the database
-        // (see FormDataService::getDistinctMarketingValues), not free text.
+        // Values come from what is actually recorded in lead_marketing.
         {
             key: "utm_source",
             label: "UTM Source",
             type: "multiselect",
-            section: "Campaign Attribution (UTM)",
-            placeholder: "Select UTM sources",
-            span: 8,
+            control: "utm",
+            sentence: "utm_source",
+            section: "Campaign (UTM)",
             options: props.utmSources || [],
         },
         {
             key: "utm_medium",
             label: "UTM Medium",
             type: "multiselect",
-            section: "Campaign Attribution (UTM)",
-            placeholder: "Select UTM mediums",
-            span: 8,
+            control: "utm",
+            sentence: "utm_medium",
+            section: "Campaign (UTM)",
             options: props.utmMediums || [],
         },
         {
             key: "utm_campaign",
             label: "UTM Campaign",
             type: "multiselect",
-            section: "Campaign Attribution (UTM)",
-            placeholder: "Select UTM campaigns",
-            span: 8,
+            control: "utm",
+            sentence: "utm_campaign",
+            section: "Campaign (UTM)",
             options: props.utmCampaigns || [],
         },
         {
             key: "utm_content",
             label: "UTM Content",
             type: "multiselect",
-            section: "Campaign Attribution (UTM)",
-            placeholder: "Select UTM content",
-            span: 8,
+            control: "utm",
+            sentence: "utm_content",
+            section: "Campaign (UTM)",
             options: props.utmContents || [],
         },
         {
             key: "utm_term",
             label: "UTM Term",
             type: "multiselect",
-            section: "Campaign Attribution (UTM)",
-            placeholder: "Select UTM terms",
-            span: 8,
+            control: "utm",
+            sentence: "utm_term",
+            section: "Campaign (UTM)",
             options: props.utmTerms || [],
         },
         {
             key: "utm_audience",
             label: "UTM Audience",
             type: "multiselect",
-            section: "Campaign Attribution (UTM)",
-            placeholder: "Select UTM audiences",
-            span: 8,
+            control: "utm",
+            sentence: "utm_audience",
+            section: "Campaign (UTM)",
             options: props.utmAudiences || [],
         },
 
         // ── Qualification ─────────────────────────────────────────
         {
             key: "qualification_segment_key",
-            label: "Qualification Segment",
+            label: "Qualification segment",
             type: "text",
+            sentence: "qualification segment",
             section: "Qualification",
             placeholder: "Segment key (e.g. budget_question)",
-            span: 12,
         },
         {
             key: "qualification_answer_values",
-            label: "Qualification Answers",
+            label: "Qualification answers",
             type: "text",
+            sentence: "qualification answer",
             section: "Qualification",
             placeholder: "Comma-separated answer values",
-            span: 12,
-            formatDisplayValue: (value: any) => {
-                if (Array.isArray(value)) {
-                    return value.join(", ");
-                }
-                return value;
-            },
         },
     ],
     excludeFields: props.excludeFields,

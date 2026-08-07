@@ -23,6 +23,7 @@ use App\Models\LeadCategory;
 use Illuminate\Support\Facades\DB;
 use App\Models\Lead;
 use App\Models\LeadLifecycleStatus;
+use App\Models\LeadSavedView;
 use App\Models\LeadCustomForm;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
@@ -43,6 +44,7 @@ use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadFilterFacetsService;
 use App\Services\LeadQualificationService;
 use App\Services\PermissionService;
 use App\Services\DealAgentAssignmentService;
@@ -97,38 +99,7 @@ class LeadContactController extends AccountBaseController
         // Keep leadLifecycleStatuses for the inline status cell.
         return Inertia::render('Leads/Index', [
             'pageTitle' => 'Lead Contacts',
-            'filters' => $request->only([
-                'search',
-                'lead_type',
-                'start_date',
-                'end_date',
-                'lead_source',
-                'category_id',
-                'lead_owner_id',
-                'added_by_id',
-                'lifecycle_status_id',
-                'qualification_segment_key',
-                'qualification_answer_values',
-                'language',
-                'language_id',
-                'temperature',
-                'gender',
-                'age_range',
-                'nationality',
-                'country',
-                'has_joined_the_facebook_group',
-                'has_registered_for_the_webinar',
-                'has_attended_the_webinar',
-                'has_joined_the_whatsapp_group',
-                'min_contact_score',
-                'max_contact_score',
-                'utm_source',
-                'utm_medium',
-                'utm_campaign',
-                'utm_content',
-                'utm_term',
-                'utm_audience',
-            ]),
+            'filters' => $request->only(LeadService::FILTER_KEYS),
             'leads' => [
                 'data' => $leads->items(),
                 'current_page' => $leads->currentPage(),
@@ -141,9 +112,40 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
+            // Filter modal chrome: option counts and the user's saved views.
+            'filterFacets' => Inertia::defer(
+                fn () => app(LeadFilterFacetsService::class)->facets()
+            ),
+            'savedViews' => Inertia::defer(fn () => $this->savedViewsForUser()),
         ]);
     }
 
+    /**
+     * Saved filter views the current user may open: their own plus team-shared.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function savedViewsForUser(): array
+    {
+        $userId = (int) user()->id;
+
+        return LeadSavedView::query()
+            ->visibleTo($userId)
+            ->with('owner:id,name')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (LeadSavedView $view) => [
+                'id' => $view->id,
+                'name' => $view->name,
+                'filters' => $view->filters,
+                'visibility' => $view->visibility,
+                'pinned' => $view->pinned,
+                'is_owner' => (int) $view->user_id === $userId,
+                'owner_name' => $view->owner?->name,
+                'updated_at' => $view->updated_at?->toIso8601String(),
+            ])
+            ->all();
+    }
 
     public function show($id, Request $request)
     {
