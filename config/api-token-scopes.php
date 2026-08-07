@@ -30,6 +30,9 @@ return [
                 'api.v2.meetings.show' => 'Read meeting',
                 'api.v2.meetings.update' => 'Update meeting',
                 'api.v2.meetings.destroy' => 'Delete meeting',
+                'api.v2.payments.index' => 'List payments',
+                'api.v2.payments.upsert' => 'Create or update payments',
+                'api.v2.payments.show' => 'Read payment',
             ],
         ],
         'employees' => [
@@ -50,6 +53,7 @@ return [
                 'api.leads.index' => 'List leads',
                 'api.deals.create' => 'Create deal',
                 'api.contacts.createOrUpdate' => 'Create or update contact',
+                'api.qualification-actions.index' => 'List qualification action catalog',
             ],
         ],
         'communication' => [

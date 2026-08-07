@@ -39,6 +39,7 @@ abstract class LeadQualificationTestCase extends TestCase
     protected function resetSchema(): void
     {
         Schema::dropIfExists('crm_events');
+        Schema::dropIfExists('lead_qualification_action_runs');
         Schema::dropIfExists('lead_qualification_answers');
         Schema::dropIfExists('lead_qualifications');
         Schema::dropIfExists('leads');
@@ -129,6 +130,18 @@ abstract class LeadQualificationTestCase extends TestCase
             $table->string('segment_key');
             $table->json('answer_values');
             $table->text('answer_text')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('lead_qualification_action_runs', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('lead_qualification_id');
+            $table->string('action_type', 64);
+            $table->string('status', 32)->default('pending');
+            $table->json('config')->nullable();
+            $table->json('payload')->nullable();
+            $table->text('error')->nullable();
+            $table->timestamp('completed_at')->nullable();
             $table->timestamps();
         });
 

@@ -167,6 +167,7 @@ Response
 "body": null,
 "prompt": "I need to know your age {{lead.firstName}}",
 "answerType": "single_select",
+"category": "main",
 "required": true,
 "outcomeKey": null,
 "ctaLabel": null,
@@ -214,6 +215,8 @@ Response
 ]
 }
 }
+
+`category` is question-only (`"main"` today, or `null` when unset). It is **not** the same as segment `type` (`say` | `question` | `instruction` | `outcome`). CRM uses `category: "main"` (with `isEntryQuestion` / `entryQuestionKey` fallbacks) to identify the branching entry question. Non-question segments must not set `category` (OL returns 400).
 
 ---
 
@@ -341,7 +344,10 @@ OL does **not** receive selected outcomes. CRM owns session completion.
   "outcomes": ["bookMeeting", "inviteWebinar"],
   "outcome_comment": "Optional agent note",
   "selected_branch_keys": ["join_the_cage"],
-  "webinar_session_label": "Weekly Webinar"
+  "actions": [
+    { "type": "book_consultation", "config": { "calendlyUrl": "https://calendly.com/..." } },
+    { "type": "invite_webinar", "config": { "webinarId": "123" } }
+  ]
 }
 ```
 
@@ -349,18 +355,69 @@ Legacy shim: a single `outcome` string is still accepted and normalized to `outc
 
 Behavior:
 
-1. CRM UI gathers distinct `outcomeKey`s from all tree segments with `type === "outcome"` (options nested under outcomes are ignored).
+1. CRM UI gathers distinct `outcomeKey`s from outcome segments (and their `actions[]`, with legacy key→action fallback).
 2. Agent multi-selects ≥1 outcome and may add `outcome_comment`.
-3. CRM runs registration side effects for each selected actionable outcome (`bookMeeting` → Calendly; `inviteWebinar` → webinar session), then calls complete once.
-4. CRM stores full `outcomes[]` + comment; scalar `outcome` is the **lifecycle winner** via priority:
-   `bookMeeting` > `inviteWebinar` > `callback` > `noFit`
-   (lifecycle: `qualified` > `nurturing` > `callback` > `not_fit`).
+3. Complete persists outcomes + lifecycle winner **without** running registrations.
+4. CRM seeds `lead_qualification_action_runs` from the `actions` payload (deduped by type).
+5. Agent then runs actions from the post-complete panel (click each; modals for payloads).
+
+Lifecycle winner priority remains:
+`bookMeeting` > `inviteWebinar` > `callback` > `noFit`.
+
+---
+
+# CRM qualification action catalog (for OL authoring)
+
+`GET /api/qualification-actions` (API token auth, scope `api.qualification-actions.index`)
+
+Also available to the CRM session as `GET /account/qualification-actions`.
+
+```json
+{
+  "version": 1,
+  "actions": [
+    {
+      "type": "book_consultation",
+      "label": "Book consultation",
+      "status": "available",
+      "requiresRuntimePayload": false,
+      "optionalConfigKeys": ["calendlyUrl"]
+    },
+    {
+      "type": "invite_webinar",
+      "label": "Invite to webinar",
+      "status": "available",
+      "requiresRuntimePayload": true,
+      "optionalConfigKeys": ["webinarId"]
+    },
+    {
+      "type": "create_task",
+      "label": "Create task",
+      "status": "coming_soon",
+      "requiresRuntimePayload": true,
+      "optionalConfigKeys": []
+    }
+  ]
+}
+```
+
+OL stores chosen `type` (+ optional config) on outcome segments as `actions[]`. CRM executes available types after complete.
+
+`POST /account/lead-qualifications/{id}/actions/{actionRunId}/execute`
+
+```json
+{
+  "payload": { "webinarSessionId": "…", "webinarSessionLabel": "…" },
+  "error": null
+}
+```
+
+In this CRM pass, client performs Calendly/webinar registration then patches the run status.
 
 ## Smoke checklist (`crm.lead-qualification-tab` on)
 
-1. Published OL template with ≥2 outcome segments (distinct `outcomeKey`s).
-2. Start qualification → answer through to an outcome step.
-3. Multi-select two outcomes + optional comment → Complete.
-4. Confirm lead lifecycle matches the higher-priority selected outcome.
-5. Answers review / completed recap shows all selected outcomes + comment.
+1. Published OL template with ≥2 outcome segments (and/or `actions[]`).
+2. Start qualification → answer through to outcome step → multi-select → Complete.
+3. Actions panel appears; run `book_consultation` / `invite_webinar`; other types disabled or no-op.
+4. Confirm lead lifecycle matches outcome winner; action runs persist on the qualification.
 

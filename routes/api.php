@@ -68,6 +68,9 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         // Lead API Routes (paginated: first_name, last_name, email)
         ApiRoute::get('leads', ['as' => 'api.leads.index', 'uses' => 'Api\LeadApiController@index']);
 
+        // Qualification action catalog (OL authoring)
+        ApiRoute::get('qualification-actions', ['as' => 'api.qualification-actions.index', 'uses' => 'Api\QualificationActionCatalogController@index']);
+
         // Task API Routes (paginated: tasks for the current day app-wide)
         ApiRoute::get('tasks/today', ['as' => 'api.tasks.today', 'uses' => 'Api\TaskApiController@tasksForToday']);
 
@@ -131,6 +134,11 @@ Route::middleware(['api.token'])->prefix('v2')->group(function () {
             ->whereNumber('meetingId');
         Route::delete('meetings/{meetingId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@deleteMeeting', 'as' => 'api.v2.meetings.destroy'])
             ->whereNumber('meetingId');
+
+        Route::get('payments', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@listPayments', 'as' => 'api.v2.payments.index']);
+        Route::post('payments', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@upsertPayment', 'as' => 'api.v2.payments.upsert']);
+        Route::get('payments/{paymentId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getPayment', 'as' => 'api.v2.payments.show'])
+            ->whereNumber('paymentId');
     });
 
     Route::post('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@createEmployee', 'as' => 'api.v2.employees.create.compat']);

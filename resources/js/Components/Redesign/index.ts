@@ -56,3 +56,9 @@ export { default as TaskDetailModal } from "./modals/TaskDetailModal";
 export { default as NoteDetailModal } from "./modals/NoteDetailModal";
 export { default as MeetingDetailModal } from "./modals/MeetingDetailModal";
 export { default as ItineraryModal } from "./modals/ItineraryModal";
+export type {
+    ItineraryFormInput,
+    ItineraryModalLabels,
+} from "./modals/ItineraryModal";
+export { default as ItineraryOcrScanner } from "./modals/ItineraryOcrScanner";
+export { default as useFlightItineraryOcr } from "./hooks/useFlightItineraryOcr";

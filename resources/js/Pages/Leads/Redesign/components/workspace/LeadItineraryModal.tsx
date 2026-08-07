@@ -1,3 +1,4 @@
+import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ILeadFlightItinerary } from "@/Types/api/lead-flight-itinerary";
@@ -5,6 +6,8 @@ import ItineraryModal, {
     type ItineraryFormInput,
 } from "@/Components/Redesign/modals/ItineraryModal";
 import useLeadItineraryMutations from "../../hooks/useLeadItineraryMutations";
+
+const FLIGHT_ITINERARY_EXTRACTION_FLAG = "crm.flight-itinerary-extraction";
 
 interface LeadItineraryModalProps {
     open: boolean;
@@ -24,6 +27,10 @@ export default function LeadItineraryModal({
 }: LeadItineraryModalProps) {
     const { t } = useTranslation();
     const { td } = useTd();
+    const page = usePage();
+    const featureFlags =
+        (page.props.featureFlags as Record<string, boolean> | undefined) ?? {};
+    const showOcrScanner = featureFlags[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const isEdit = Boolean(leg?.id);
     const { createLeg, isCreating, updateLeg, isUpdating } =
@@ -54,6 +61,7 @@ export default function LeadItineraryModal({
             leg={leg}
             saving={saving}
             onSubmit={handleSubmit}
+            showOcrScanner={showOcrScanner}
             labels={{
                 addTitle: ft("add_flight"),
                 editTitle: ft("edit_flight"),
@@ -72,6 +80,10 @@ export default function LeadItineraryModal({
                 transferQuestion: ft("airport_transfer_required_question"),
                 yes: td("Yes", { source: "en" }),
                 no: td("No", { source: "en" }),
+                flightPlanImage: ft("flight_plan_image"),
+                uploadFlightPlan: ft("upload_flight_plan"),
+                removeFlightPlan: ft("remove_flight_plan"),
+                uploadingFlightPlan: ft("uploading_flight_plan"),
             }}
         />
     );

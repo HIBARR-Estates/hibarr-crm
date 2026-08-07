@@ -1,17 +1,16 @@
-import { useMemo, useState } from "react";
-import type { Segment } from "@/Types/qualification";
+import { useMemo } from "react";
+import type {
+    LeadQualification,
+    QualificationOutcome,
+    Segment,
+} from "@/Types/qualification";
 import { DynamicTranslationProvider } from "@/contexts/DynamicTranslationContext";
 import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
 import useQualificationFlow from "@/Pages/Leads/Components/Qualification/useQualificationFlow";
-import WebinarSessionPickerModal from "@/Pages/Leads/Components/Qualification/WebinarSessionPickerModal";
 import OutcomeMultiSelect from "@/Pages/Leads/Components/Qualification/OutcomeMultiSelect";
-import {
-    getScriptOutcomes,
-} from "@/Pages/Leads/Components/Qualification/qualificationUtils";
-import { RegistrationService } from "@/Services/RegistrationService";
+import { getScriptOutcomes } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Icon from "@/Components/Redesign/primitives/Icon";
-import type { QualificationOutcome } from "@/Types/qualification";
 
 type QualificationFlow = ReturnType<typeof useQualificationFlow>;
 
@@ -43,26 +42,17 @@ function ScriptPrompt({ text, kind, translateScript }: ScriptPromptProps) {
 interface QualifySegmentBodyProps {
     flow: QualificationFlow;
     currentSegment: Segment;
-    registrationService: RegistrationService;
     agentLanguage: string;
+    onCompletedWithActions?: (qualification: LeadQualification) => void;
 }
 
 export default function QualifySegmentBody({
     flow,
     currentSegment,
-    registrationService,
     agentLanguage,
+    onCompletedWithActions,
 }: QualifySegmentBodyProps) {
     const { td } = useTd();
-    const [webinarPickerOpen, setWebinarPickerOpen] = useState(false);
-    const [pendingWebinarId, setPendingWebinarId] = useState<string | null>(
-        null,
-    );
-    const [pendingComplete, setPendingComplete] = useState<{
-        outcomes: QualificationOutcome[];
-        comment: string | null;
-        calendlyUrl?: string;
-    } | null>(null);
 
     const answer = flow.answers[currentSegment.key];
     const selectedValues = answer?.answer_values ?? [];
@@ -79,51 +69,14 @@ export default function QualifySegmentBody({
         [flow.templateTree],
     );
 
-    const handleWebinarSelect = async (
-        sessionId: string,
-        sessionLabel: string,
-    ) => {
-        if (!pendingComplete) return;
-        setWebinarPickerOpen(false);
-        try {
-            await flow.completeWithOutcomes(pendingComplete.outcomes, {
-                comment: pendingComplete.comment,
-                webinarSessionId: sessionId,
-                webinarSessionLabel: sessionLabel,
-                calendlyUrl: pendingComplete.calendlyUrl,
-            });
-        } finally {
-            setPendingComplete(null);
-            setPendingWebinarId(null);
-        }
-    };
-
     const handleOutcomeConfirm = async (
         outcomes: QualificationOutcome[],
         comment: string | null,
-        meta: { calendlyUrl?: string; webinarId?: string },
     ) => {
-        if (outcomes.includes("inviteWebinar")) {
-            const webinarId =
-                meta.webinarId ||
-                scriptOutcomes.find((o) => o.key === "inviteWebinar")
-                    ?.webinarId;
-            if (webinarId) {
-                setPendingComplete({
-                    outcomes,
-                    comment,
-                    calendlyUrl: meta.calendlyUrl,
-                });
-                setPendingWebinarId(webinarId);
-                setWebinarPickerOpen(true);
-                return;
-            }
+        const updated = await flow.completeWithOutcomes(outcomes, { comment });
+        if (updated) {
+            onCompletedWithActions?.(updated);
         }
-
-        await flow.completeWithOutcomes(outcomes, {
-            comment,
-            calendlyUrl: meta.calendlyUrl,
-        });
     };
 
     const toggleMulti = (optionId: string) => {
@@ -263,7 +216,9 @@ export default function QualifySegmentBody({
                         options={scriptOutcomes}
                         variant="redesign"
                         completing={flow.completing}
-                        onConfirm={handleOutcomeConfirm}
+                        onConfirm={(outcomes, comment) =>
+                            handleOutcomeConfirm(outcomes, comment)
+                        }
                     />
                 ) : null}
 
@@ -283,20 +238,6 @@ export default function QualifySegmentBody({
                     />
                 ) : null}
             </div>
-
-            {pendingWebinarId ? (
-                <WebinarSessionPickerModal
-                    open={webinarPickerOpen}
-                    webinarId={pendingWebinarId}
-                    registrationService={registrationService}
-                    onClose={() => {
-                        setWebinarPickerOpen(false);
-                        setPendingComplete(null);
-                        setPendingWebinarId(null);
-                    }}
-                    onSelect={handleWebinarSelect}
-                />
-            ) : null}
         </DynamicTranslationProvider>
     );
 }

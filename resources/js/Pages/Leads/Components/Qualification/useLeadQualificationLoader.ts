@@ -185,6 +185,35 @@ export default function useLeadQualificationLoader(
                 const without = prev.filter((item) => item.id !== qualification.id);
                 return [qualification, ...without];
             });
+
+            if (qualification.status !== "completed") {
+                return;
+            }
+
+            // Keep the active script UI (and template tree) mounted while
+            // post-complete action runs are present so the actions panel can render.
+            if ((qualification.action_runs?.length ?? 0) > 0) {
+                return;
+            }
+
+            setTemplateTree(null);
+            setPhase("completed");
+        },
+        [],
+    );
+
+    /** Dismiss the in-progress script UI after the actions panel (or modal) is closed. */
+    const finishQualificationSession = useCallback(
+        (qualification?: LeadQualification | null) => {
+            if (qualification) {
+                setCurrent(qualification);
+                setHistory((prev) => {
+                    const without = prev.filter(
+                        (item) => item.id !== qualification.id,
+                    );
+                    return [qualification, ...without];
+                });
+            }
             setTemplateTree(null);
             setPhase("completed");
         },
@@ -209,6 +238,7 @@ export default function useLeadQualificationLoader(
         loadQualifications,
         handleStarted,
         handleQualificationUpdated,
+        finishQualificationSession,
         handleStartNew,
         setCurrent,
         setHistory,

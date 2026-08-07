@@ -1,9 +1,12 @@
+import { usePage } from "@inertiajs/react";
 import useTranslation from "@/Hooks/useTranslation";
 import type { ILeadFlightItinerary } from "@/Types/api/lead-flight-itinerary";
 import ItineraryModal, {
     type ItineraryFormInput,
 } from "@/Components/Redesign/modals/ItineraryModal";
 import useDealItinerary from "../../hooks/useDealItinerary";
+
+const FLIGHT_ITINERARY_EXTRACTION_FLAG = "crm.flight-itinerary-extraction";
 
 interface DealItineraryModalProps {
     open: boolean;
@@ -13,6 +16,7 @@ interface DealItineraryModalProps {
     leg?: ILeadFlightItinerary | null;
 }
 
+/** Create / edit flight itinerary modal for the deal workspace. */
 export default function DealItineraryModal({
     open,
     onClose,
@@ -20,6 +24,11 @@ export default function DealItineraryModal({
     leg = null,
 }: DealItineraryModalProps) {
     const { t } = useTranslation();
+    const page = usePage();
+    const featureFlags =
+        (page.props.featureFlags as Record<string, boolean> | undefined) ?? {};
+    // Remote flag must be true — otherwise the modal only does a plain ticket upload.
+    const showOcrScanner = featureFlags[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
     const isEdit = Boolean(leg?.id);
     const { createLeg, isCreating, updateLeg, isUpdating } =
@@ -46,6 +55,7 @@ export default function DealItineraryModal({
             leg={leg}
             saving={saving}
             onSubmit={handleSubmit}
+            showOcrScanner={showOcrScanner}
             labels={{
                 addTitle: ft("add_flight"),
                 editTitle: ft("edit_flight"),
@@ -66,6 +76,10 @@ export default function DealItineraryModal({
                 transferQuestion: ft("airport_transfer_required_question"),
                 yes: t("pages.deals.common.yes"),
                 no: t("pages.deals.common.no"),
+                flightPlanImage: ft("flight_plan_image"),
+                uploadFlightPlan: ft("upload_flight_plan"),
+                removeFlightPlan: ft("remove_flight_plan"),
+                uploadingFlightPlan: ft("uploading_flight_plan"),
             }}
         />
     );

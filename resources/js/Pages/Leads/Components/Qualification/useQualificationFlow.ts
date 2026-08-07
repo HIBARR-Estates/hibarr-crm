@@ -17,6 +17,7 @@ import {
     buildTokenMap,
     computeVisibleSegments,
     findEntrySegment,
+    getActionsForSelectedOutcomes,
     getBranchOptionKeys,
     getBranchSegmentKeysToClear,
     mapOptionIdsToStoredValues,
@@ -29,6 +30,7 @@ export interface UseQualificationFlowOptions {
     qualification: LeadQualification;
     templateTree: TemplateTree;
     service: LeadQualificationService;
+    /** Kept for callers that also run post-complete action registrations. */
     registrationService: RegistrationService;
     agentLanguage: string;
     onQualificationUpdated: (qualification: LeadQualification) => void;
@@ -40,20 +42,12 @@ export interface BranchChangePending {
     newText?: string | null;
 }
 
-const splitLeadName = (name?: string | null) => {
-    const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-    return {
-        firstName: parts[0] ?? "",
-        lastName: parts.slice(1).join(" "),
-    };
-};
-
 export const useQualificationFlow = ({
     lead,
     qualification,
     templateTree,
     service,
-    registrationService,
+    registrationService: _registrationService,
     agentLanguage,
     onQualificationUpdated,
 }: UseQualificationFlowOptions) => {
@@ -310,79 +304,31 @@ export const useQualificationFlow = ({
             outcomes: QualificationOutcome[],
             metadata?: {
                 comment?: string | null;
-                webinarSessionId?: string;
-                webinarSessionLabel?: string;
-                calendlyUrl?: string;
             },
-        ) => {
+        ): Promise<LeadQualification | null> => {
             if (!outcomes.length) {
                 message.warning("Select at least one outcome");
-                return;
+                return null;
             }
 
             setCompleting(true);
             try {
-                const { firstName, lastName } = splitLeadName(lead.client_name);
-                const marketing = lead.marketing;
-                const registrationPayload = {
-                    email: lead.client_email ?? "",
-                    firstName,
-                    lastName,
-                    phone: lead.mobile ?? lead.cell ?? undefined,
-                    leadId: lead.id,
-                    language: agentLanguage,
-                    country: lead.country ?? undefined,
-                    city: lead.city ?? undefined,
-                    state: lead.state ?? undefined,
-                    zipCode: lead.postal_code ?? undefined,
-                    gender: lead.gender ?? undefined,
-                    utmInfo: marketing?.utm_source
-                        ? {
-                              utmSource: marketing.utm_source,
-                              utmMedium: marketing.utm_medium ?? undefined,
-                              utmCampaign: marketing.utm_campaign ?? undefined,
-                              utmTerm: marketing.utm_term ?? undefined,
-                              utmContent: marketing.utm_content ?? undefined,
-                          }
-                        : undefined,
-                };
-
-                if (
-                    outcomes.includes("inviteWebinar") &&
-                    !metadata?.webinarSessionId
-                ) {
-                    throw new Error("Webinar session required");
-                }
-
-                if (outcomes.includes("bookMeeting")) {
-                    await registrationService.bookConsultationCalendly({
-                        ...registrationPayload,
-                        calendlyUrl: metadata?.calendlyUrl,
-                    });
-                }
-
-                if (outcomes.includes("inviteWebinar")) {
-                    const webinarSessionId = metadata?.webinarSessionId;
-                    if (!webinarSessionId) {
-                        throw new Error("Webinar session required");
-                    }
-                    await registrationService.registerWebinarSession(
-                        webinarSessionId,
-                        registrationPayload,
-                    );
-                }
-
+                const actions = getActionsForSelectedOutcomes(
+                    templateTree,
+                    outcomes,
+                );
                 const updated = await service.completeQualification(
                     qualification.id,
                     {
                         outcomes,
                         outcome_comment: metadata?.comment ?? null,
                         selected_branch_keys: selectedBranchKeys,
-                        webinar_session_label: metadata?.webinarSessionLabel,
+                        actions,
                     },
                 );
                 onQualificationUpdated(updated);
                 message.success("Qualification completed");
+                return updated;
             } catch (error) {
                 message.error(
                     error instanceof Error
@@ -395,13 +341,11 @@ export const useQualificationFlow = ({
             }
         },
         [
-            agentLanguage,
-            lead,
             onQualificationUpdated,
             qualification.id,
-            registrationService,
             selectedBranchKeys,
             service,
+            templateTree,
         ],
     );
 
@@ -409,9 +353,6 @@ export const useQualificationFlow = ({
         async (
             outcome: QualificationOutcome,
             metadata?: {
-                webinarSessionId?: string;
-                webinarSessionLabel?: string;
-                calendlyUrl?: string;
                 comment?: string | null;
             },
         ) => {
