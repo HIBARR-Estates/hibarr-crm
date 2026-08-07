@@ -22,7 +22,7 @@ import {
     CaretDownOutlined,
     CaretUpOutlined,
 } from "@ant-design/icons";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import dayjs from "dayjs";
 import useTranslation from "@/Hooks/useTranslation";
 import {
@@ -40,6 +40,7 @@ import ItineraryModal, {
 import "@/Components/Redesign/redesign.css";
 
 const FT = "pages.flight_itinerary";
+const FLIGHT_ITINERARY_EXTRACTION_FLAG = "crm.flight-itinerary-extraction";
 
 type FilterKey = "all" | "arrival" | "departure" | "transfer";
 
@@ -193,6 +194,10 @@ export default function LeadFlightItineraryTab({
 }: LeadFlightItineraryTabProps) {
     const { canAdd, canEdit, canDelete } = permissions;
     const { t, locale } = useTranslation();
+    const page = usePage();
+    const featureFlags =
+        (page.props.featureFlags as Record<string, boolean> | undefined) ?? {};
+    const showOcrScanner = featureFlags[FLIGHT_ITINERARY_EXTRACTION_FLAG] === true;
     const ft = (key: string, options?: Record<string, unknown>) =>
         t(`${FT}.${key}`, options);
     const [isModalVisible, setIsModalVisible] = useState(false);
@@ -648,6 +653,7 @@ export default function LeadFlightItineraryTab({
                 leg={editingLeg}
                 saving={isSavingItinerary}
                 onSubmit={handleItinerarySubmit}
+                showOcrScanner={showOcrScanner}
                 labels={{
                     addTitle: ft("add_flight"),
                     editTitle: ft("edit_flight"),
@@ -666,6 +672,10 @@ export default function LeadFlightItineraryTab({
                     transferQuestion: ft("airport_transfer_required_question"),
                     yes: t("app.yes"),
                     no: t("app.no"),
+                    flightPlanImage: ft("flight_plan_image"),
+                    uploadFlightPlan: ft("upload_flight_plan"),
+                    removeFlightPlan: ft("remove_flight_plan"),
+                    uploadingFlightPlan: ft("uploading_flight_plan"),
                 }}
             />
 

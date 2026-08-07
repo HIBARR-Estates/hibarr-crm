@@ -13,6 +13,7 @@ interface FileDropzoneProps {
     sizeHint: string;
     disabled?: boolean;
     multiple?: boolean;
+    accept?: string;
     onFilesSelected: (files: FileList | File[] | null) => void;
 }
 
@@ -25,6 +26,7 @@ export default function FileDropzone({
     sizeHint,
     disabled = false,
     multiple = true,
+    accept,
     onFilesSelected,
 }: FileDropzoneProps) {
     const inputRef = useRef<HTMLInputElement>(null);
@@ -64,17 +66,18 @@ export default function FileDropzone({
                 opacity: disabled ? 0.6 : 1,
             }}
         >
-            <input
-                ref={inputRef}
-                type="file"
-                multiple={multiple}
-                className="hidden"
-                disabled={disabled || isUploading}
-                onChange={(event) => {
-                    onFilesSelected(event.target.files);
-                    event.target.value = "";
-                }}
-            />
+                <input
+                    ref={inputRef}
+                    type="file"
+                    multiple={multiple}
+                    accept={accept}
+                    className="hidden"
+                    disabled={disabled || isUploading}
+                    onChange={(event) => {
+                        onFilesSelected(event.target.files);
+                        event.target.value = "";
+                    }}
+                />
             <Icon
                 name="paperclip"
                 size={22}

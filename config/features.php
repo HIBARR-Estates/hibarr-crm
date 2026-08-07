@@ -27,6 +27,7 @@ return [
         'crm.deals-product-tour',
         'crm.leads-product-tour',
         'crm.deal-info-count-indicator',
+        'crm.flight-itinerary-extraction',
         'crm.deal-analysis',
     ],
 ];
