@@ -21,6 +21,7 @@ use App\Services\Reminders\NoteReminderSync;
 use App\Services\Reminders\TaskReminderSync;
 use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -61,7 +62,7 @@ class CrmWriteService
         $boardColumn = $this->resolveDefaultTaskBoardColumn($companyId);
 
         return DB::transaction(function () use ($companyId, $data, $lead, $deal, $createdByUserId, $boardColumn) {
-            $task = new Task();
+            $task = new Task;
             $task->company_id = $companyId;
             $task->heading = $data['heading'];
             $task->description = isset($data['description']) ? trim_editor($data['description']) : '';
@@ -93,7 +94,7 @@ class CrmWriteService
                         'action' => 'task_added',
                         'task_id' => $task->id,
                         'task_heading' => $task->heading,
-                        'comment' => 'Task added: ' . $task->heading,
+                        'comment' => 'Task added: '.$task->heading,
                     ],
                 ]);
             }
@@ -118,7 +119,7 @@ class CrmWriteService
                 }
 
                 $notifyDeal = $deal;
-            } elseif (!empty($data['assignee_user_ids'])) {
+            } elseif (! empty($data['assignee_user_ids'])) {
                 $task->users()->syncWithoutDetaching(
                     array_values(array_unique(array_map('intval', $data['assignee_user_ids'])))
                 );
@@ -153,7 +154,7 @@ class CrmWriteService
         $createdByUserId = $this->resolveCreatedByUserId($data, $deal, $lead);
 
         if ($deal !== null) {
-            $note = new DealNote();
+            $note = new DealNote;
             $note->deal_id = $deal->id;
             $note->title = $data['title'];
             $note->details = trim_editor($data['details']);
@@ -185,7 +186,7 @@ class CrmWriteService
             ]);
         }
 
-        $note = new LeadNote();
+        $note = new LeadNote;
         $note->lead_id = $lead->id;
         $note->title = $data['title'];
         $note->details = trim_editor($data['details']);
@@ -211,7 +212,7 @@ class CrmWriteService
                 'action' => 'note_added',
                 'note_id' => $note->id,
                 'note_title' => $note->title,
-                'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
+                'comment' => 'Note added: '.($note->title ?? 'Untitled'),
             ],
         ]);
 
@@ -260,7 +261,7 @@ class CrmWriteService
         $customReminders = $data['reminders'] ?? [];
         $firstCustomReminder = count($customReminders) > 0 ? $customReminders[0] : $defaultReminders[0];
 
-        $followUp = new DealFollowUp();
+        $followUp = new DealFollowUp;
         $followUp->lead_id = $lead?->id;
         $followUp->deal_id = $deal?->id;
         $followUp->meeting_type_id = $data['meeting_type_id'] ?? null;
@@ -310,6 +311,7 @@ class CrmWriteService
             ->with(self::TASK_SUMMARY_RELATIONS);
 
         $this->applyTaskTargetFilters($query, $filters);
+        $this->applyTaskListFilters($query, $filters);
 
         return $this->paginateQuery($query->orderByDesc('id'), $filters, fn (Task $task) => $this->serializeTask($task));
     }
@@ -342,11 +344,11 @@ class CrmWriteService
         }
 
         if (array_key_exists('due_date', $data)) {
-            $task->due_date = !empty($data['due_date']) ? Carbon::parse($data['due_date']) : null;
+            $task->due_date = ! empty($data['due_date']) ? Carbon::parse($data['due_date']) : null;
         }
 
         if (array_key_exists('start_date', $data)) {
-            $task->start_date = !empty($data['start_date']) ? Carbon::parse($data['start_date']) : null;
+            $task->start_date = ! empty($data['start_date']) ? Carbon::parse($data['start_date']) : null;
         }
 
         if (array_key_exists('reminders', $data)) {
@@ -396,14 +398,16 @@ class CrmWriteService
         $queryDeal = $this->shouldQueryDealNotes($filters);
         $queryLead = $this->shouldQueryLeadNotes($filters);
 
-        if ($queryDeal && !$queryLead) {
+        if ($queryDeal && ! $queryLead) {
             $dealNotesQuery = DealNote::query()
                 ->with(self::DEAL_NOTE_SUMMARY_RELATIONS)
                 ->whereIn('deal_id', $this->companyDealIdsQuery($companyId));
 
-            if (!empty($filters['deal_id'])) {
+            if (! empty($filters['deal_id'])) {
                 $dealNotesQuery->where('deal_id', (int) $filters['deal_id']);
             }
+
+            $this->applyNoteListFilters($dealNotesQuery, $filters);
 
             return $this->paginateQuery(
                 $dealNotesQuery->orderByDesc('id'),
@@ -412,14 +416,16 @@ class CrmWriteService
             );
         }
 
-        if ($queryLead && !$queryDeal) {
+        if ($queryLead && ! $queryDeal) {
             $leadNotesQuery = LeadNote::query()
                 ->with('lead')
                 ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId));
 
-            if (!empty($filters['lead_id'])) {
+            if (! empty($filters['lead_id'])) {
                 $leadNotesQuery->where('lead_id', (int) $filters['lead_id']);
             }
+
+            $this->applyNoteListFilters($leadNotesQuery, $filters);
 
             return $this->paginateQuery(
                 $leadNotesQuery->orderByDesc('id'),
@@ -438,9 +444,11 @@ class CrmWriteService
                 ->with(self::DEAL_NOTE_SUMMARY_RELATIONS)
                 ->whereIn('deal_id', $this->companyDealIdsQuery($companyId));
 
-            if (!empty($filters['deal_id'])) {
+            if (! empty($filters['deal_id'])) {
                 $dealNotesQuery->where('deal_id', (int) $filters['deal_id']);
             }
+
+            $this->applyNoteListFilters($dealNotesQuery, $filters);
 
             foreach ($dealNotesQuery->orderByDesc('id')->limit($fetchLimit)->get() as $note) {
                 $notes->push($this->serializeNote($note, 'deal'));
@@ -452,9 +460,11 @@ class CrmWriteService
                 ->with('lead')
                 ->whereIn('lead_id', $this->companyLeadIdsQuery($companyId));
 
-            if (!empty($filters['lead_id'])) {
+            if (! empty($filters['lead_id'])) {
                 $leadNotesQuery->where('lead_id', (int) $filters['lead_id']);
             }
+
+            $this->applyNoteListFilters($leadNotesQuery, $filters);
 
             foreach ($leadNotesQuery->orderByDesc('id')->limit($fetchLimit)->get() as $note) {
                 $notes->push($this->serializeNote($note, 'lead'));
@@ -491,7 +501,7 @@ class CrmWriteService
             $note->details = trim_editor($data['details']);
         }
 
-        if (!empty($data['updated_by_user_id'])) {
+        if (! empty($data['updated_by_user_id'])) {
             $note->last_updated_by = (int) $data['updated_by_user_id'];
         }
 
@@ -543,13 +553,15 @@ class CrmWriteService
                     ->orWhereIn('lead_id', $leadIds);
             });
 
-        if (!empty($filters['deal_id'])) {
+        if (! empty($filters['deal_id'])) {
             $query->where('deal_id', (int) $filters['deal_id']);
         }
 
-        if (!empty($filters['lead_id'])) {
+        if (! empty($filters['lead_id'])) {
             $query->where('lead_id', (int) $filters['lead_id']);
         }
+
+        $this->applyMeetingListFilters($query, $filters);
 
         $page = max(1, (int) ($filters['page'] ?? 1));
         $perPage = min(100, max(1, (int) ($filters['per_page'] ?? 20)));
@@ -617,7 +629,7 @@ class CrmWriteService
 
         if (array_key_exists('participants', $data)) {
             $participants = is_array($data['participants']) ? $data['participants'] : [];
-            $creatorId = !empty($data['updated_by_user_id'])
+            $creatorId = ! empty($data['updated_by_user_id'])
                 ? (int) $data['updated_by_user_id']
                 : (int) ($followUp->added_by ?? 0);
 
@@ -628,7 +640,7 @@ class CrmWriteService
             $followUp->participants = $participants;
         }
 
-        if (!empty($data['updated_by_user_id'])) {
+        if (! empty($data['updated_by_user_id'])) {
             $followUp->last_updated_by = (int) $data['updated_by_user_id'];
         }
 
@@ -675,7 +687,7 @@ class CrmWriteService
             }
         }
 
-        throw (new ModelNotFoundException())->setModel($type === 'deal' ? DealNote::class : LeadNote::class, [$noteId]);
+        throw (new ModelNotFoundException)->setModel($type === 'deal' ? DealNote::class : LeadNote::class, [$noteId]);
     }
 
     private function findMeeting(int $companyId, int $meetingId): DealFollowUp
@@ -733,17 +745,152 @@ class CrmWriteService
     }
 
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<Task>  $query
+     * @param  Builder<Task>  $query
      * @param  array<string, mixed>  $filters
      */
     private function applyTaskTargetFilters($query, array $filters): void
     {
-        if (!empty($filters['lead_id'])) {
+        if (! empty($filters['lead_id'])) {
             $query->whereHas('leads', fn ($q) => $q->where('leads.id', (int) $filters['lead_id']));
         }
 
-        if (!empty($filters['deal_id'])) {
+        if (! empty($filters['deal_id'])) {
             $query->whereHas('deals', fn ($q) => $q->where('deals.id', (int) $filters['deal_id']));
+        }
+    }
+
+    /**
+     * @param  Builder<Task>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyTaskListFilters(Builder $query, array $filters): void
+    {
+        $this->applySearchFilter($query, $filters, ['heading', 'description']);
+        $this->applyCreatedByFilter($query, $filters, ['added_by', 'created_by']);
+        $this->applyOwnedByFilter($query, $filters, function (Builder $q, int $userId) {
+            $q->whereHas('users', fn (Builder $users) => $users->where('users.id', $userId));
+        });
+        $this->applyTimeRangeFilter($query, $filters, 'created_at');
+    }
+
+    /**
+     * @param  Builder<DealNote>|Builder<LeadNote>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyNoteListFilters(Builder $query, array $filters): void
+    {
+        $this->applySearchFilter($query, $filters, ['title', 'details']);
+        $this->applyCreatedByFilter($query, $filters, ['added_by']);
+        // Notes have no separate assignee — owned_by also matches the author.
+        $this->applyOwnedByFilter($query, $filters, function (Builder $q, int $userId) {
+            $q->where('added_by', $userId);
+        });
+        $this->applyTimeRangeFilter($query, $filters, 'created_at');
+    }
+
+    /**
+     * @param  Builder<DealFollowUp>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyMeetingListFilters(Builder $query, array $filters): void
+    {
+        $this->applySearchFilter($query, $filters, ['remark']);
+        $this->applyCreatedByFilter($query, $filters, ['added_by']);
+        $this->applyOwnedByFilter($query, $filters, function (Builder $q, int $userId) {
+            $q->where(function (Builder $owned) use ($userId) {
+                $owned->whereJsonContains('participants', $userId)
+                    ->orWhereJsonContains('participants', (string) $userId);
+            });
+        });
+        // Meeting "time" is the scheduled slot, not created_at.
+        $this->applyTimeRangeFilter($query, $filters, 'next_follow_up_date');
+    }
+
+    /**
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<string, mixed>  $filters
+     * @param  list<string>  $columns
+     */
+    private function applySearchFilter(Builder $query, array $filters, array $columns): void
+    {
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search === '' || $columns === []) {
+            return;
+        }
+
+        $like = '%'.addcslashes($search, '%_\\').'%';
+
+        $query->where(function (Builder $q) use ($columns, $like) {
+            foreach ($columns as $index => $column) {
+                $method = $index === 0 ? 'where' : 'orWhere';
+                $q->{$method}($column, 'like', $like);
+            }
+        });
+    }
+
+    /**
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<string, mixed>  $filters
+     * @param  list<string>  $columns
+     */
+    private function applyCreatedByFilter(Builder $query, array $filters, array $columns): void
+    {
+        if (! array_key_exists('created_by', $filters) || $filters['created_by'] === null || $filters['created_by'] === '') {
+            return;
+        }
+
+        $userId = (int) $filters['created_by'];
+        if ($userId <= 0) {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $query->where(function (Builder $q) use ($columns, $userId) {
+            foreach ($columns as $index => $column) {
+                $method = $index === 0 ? 'where' : 'orWhere';
+                $q->{$method}($column, $userId);
+            }
+        });
+    }
+
+    /**
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<string, mixed>  $filters
+     * @param  callable(Builder<\Illuminate\Database\Eloquent\Model>, int): void  $applier
+     */
+    private function applyOwnedByFilter(Builder $query, array $filters, callable $applier): void
+    {
+        if (! array_key_exists('owned_by', $filters) || $filters['owned_by'] === null || $filters['owned_by'] === '') {
+            return;
+        }
+
+        $userId = (int) $filters['owned_by'];
+        if ($userId <= 0) {
+            $query->whereRaw('0 = 1');
+
+            return;
+        }
+
+        $applier($query, $userId);
+    }
+
+    /**
+     * @param  Builder<\Illuminate\Database\Eloquent\Model>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyTimeRangeFilter(Builder $query, array $filters, string $column): void
+    {
+        if (! empty($filters['from'])) {
+            $query->where($column, '>=', Carbon::parse($filters['from'])->utc());
+        }
+
+        if (! empty($filters['to'])) {
+            $to = Carbon::parse($filters['to']);
+            if (is_string($filters['to']) && preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($filters['to'])) === 1) {
+                $to = $to->endOfDay();
+            }
+            $query->where($column, '<=', $to->utc());
         }
     }
 
@@ -756,11 +903,11 @@ class CrmWriteService
             return false;
         }
 
-        if (!empty($filters['deal_id'])) {
+        if (! empty($filters['deal_id'])) {
             return true;
         }
 
-        if (!empty($filters['lead_id'])) {
+        if (! empty($filters['lead_id'])) {
             return false;
         }
 
@@ -776,7 +923,7 @@ class CrmWriteService
             return false;
         }
 
-        if (!empty($filters['deal_id'])) {
+        if (! empty($filters['deal_id'])) {
             return false;
         }
 
@@ -843,7 +990,7 @@ class CrmWriteService
      */
     private function resolveCreatedByUserId(array $data, ?Deal $deal, ?Lead $lead): ?int
     {
-        if (!empty($data['created_by_user_id'])) {
+        if (! empty($data['created_by_user_id'])) {
             return (int) $data['created_by_user_id'];
         }
 
@@ -870,7 +1017,7 @@ class CrmWriteService
      */
     private function normalizeAssigneeIds(array $data, Deal $deal): array
     {
-        if (!empty($data['assignee_user_ids'])) {
+        if (! empty($data['assignee_user_ids'])) {
             return array_values(array_unique(array_map('intval', $data['assignee_user_ids'])));
         }
 
@@ -911,7 +1058,7 @@ class CrmWriteService
     {
         $normalized = array_values(array_unique(array_map('intval', array_filter($participants, 'is_numeric'))));
 
-        if (!in_array($creatorId, $normalized, true)) {
+        if (! in_array($creatorId, $normalized, true)) {
             array_unshift($normalized, $creatorId);
         }
 
@@ -960,7 +1107,7 @@ class CrmWriteService
 
     /**
      * @param  Collection<int, User>|null  $participantUserMap  Pre-fetched users keyed by id, to avoid
-     *                                                            a per-meeting query when serializing a page of results.
+     *                                                          a per-meeting query when serializing a page of results.
      */
     public function serializeMeeting(DealFollowUp $meeting, ?Collection $participantUserMap = null): array
     {
@@ -1010,7 +1157,7 @@ class CrmWriteService
     /**
      * @param  array<int|string>  $participantIds
      * @param  Collection<int, User>|null  $userMap  Pre-fetched users keyed by id; falls back to a single
-     *                                                query for this call's participants when not supplied.
+     *                                               query for this call's participants when not supplied.
      * @return list<array{id: int, name: string, email: string}>
      */
     private function serializeParticipants(array $participantIds, ?Collection $userMap = null): array
