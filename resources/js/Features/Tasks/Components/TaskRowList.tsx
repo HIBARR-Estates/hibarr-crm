@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskEntityLink from "./TaskEntityLink";
 import { clsx } from "clsx";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -62,7 +63,7 @@ interface TaskRowListProps {
      * description, instead).
      */
     suppressEntityType?: "deal" | "lead" | "property";
-    td?: (key: string) => string;
+    td?: TdFn;
 }
 
 import { getPriorityConfig } from "@/lib/priority";
@@ -85,7 +86,7 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
     showHeader = true,
     renderSubtitle,
     suppressEntityType,
-    td = (k) => k,
+    td = identityTd,
 }) => {
     const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
 

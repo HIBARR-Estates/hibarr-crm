@@ -10,18 +10,25 @@ interface LeadNoteDetailModalProps {
     onClose: () => void;
 }
 
+// Permission scopes are "all" | "added" | "owned" | "both" | "none" — "added"/"owned" both
+// mean "only your own notes", "both" behaves as "all".
+function hasNoteScopeAccess(scope: string | undefined, isOwner: boolean): boolean {
+    return (
+        scope === "all" ||
+        scope === "both" ||
+        ((scope === "added" || scope === "owned") && isOwner)
+    );
+}
+
 function canEditNote(
     note: LeadNote,
     permissions: Record<string, string> | undefined,
     userId: number | undefined,
 ): boolean {
     if (!permissions) return true;
-    return (
-        permissions.edit_lead_note === "all" ||
-        (permissions.edit_lead_note === "added" &&
-            (note.added_by?.id === userId ||
-                note.added_by_user?.id === userId))
-    );
+    const isOwner =
+        note.added_by?.id === userId || note.added_by_user?.id === userId;
+    return hasNoteScopeAccess(permissions.edit_lead_note, isOwner);
 }
 
 function canDeleteNote(
@@ -30,12 +37,9 @@ function canDeleteNote(
     userId: number | undefined,
 ): boolean {
     if (!permissions) return true;
-    return (
-        permissions.delete_lead_note === "all" ||
-        (permissions.delete_lead_note === "added" &&
-            (note.added_by?.id === userId ||
-                note.added_by_user?.id === userId))
-    );
+    const isOwner =
+        note.added_by?.id === userId || note.added_by_user?.id === userId;
+    return hasNoteScopeAccess(permissions.delete_lead_note, isOwner);
 }
 
 export default function LeadNoteDetailModal({

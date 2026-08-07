@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import { parseCurrencyValue } from "./AnalysisCustomFieldForm";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
@@ -168,7 +169,7 @@ const INPUT_CLS = "w-full bg-white border border-sky-400 ring-2 ring-sky-100 rou
 
 const LABEL_CLS = "w-[130px] shrink-0 text-[11px] font-semibold uppercase tracking-wide text-slate-900 truncate";
 
-function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: () => void; td: (s: string) => string }) {
+function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: () => void; td: TdFn }) {
     return (
         <div className="flex items-center gap-2 mt-1.5">
             <button

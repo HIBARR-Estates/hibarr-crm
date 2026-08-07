@@ -20,7 +20,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import AgentSelector from "../AgentSelector";
-import type { TdFn } from "@/lib/dynamicTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 const { Text } = Typography;
 
@@ -36,7 +36,7 @@ interface DealCardProps {
 const DealCard: React.FC<DealCardProps> = ({
     deal,
     draggable = true,
-    td = (text) => text ?? "",
+    td = identityTd,
     onEdit,
     onScheduleMeeting,
     onAgentChange,

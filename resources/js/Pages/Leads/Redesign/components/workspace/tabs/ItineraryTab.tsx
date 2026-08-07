@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@inertiajs/react";
 import { EmptyState } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     FlightDirection,
@@ -91,7 +92,7 @@ function ItineraryCard({
     onDelete: (leg: ILeadFlightItinerary) => void;
     ft: (key: string) => string;
     t: (key: string) => string;
-    td: (text: string) => string;
+    td: TdFn;
 }) {
     const isArrival = leg.direction === FlightDirection.ARRIVAL;
 

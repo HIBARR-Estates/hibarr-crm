@@ -17,6 +17,9 @@ export type TdFn = (
     options?: DynamicTranslationOptions,
 ) => string;
 
+/** No-op `td` for components that accept an optional translator prop. */
+export const identityTd: TdFn = (text) => text ?? "";
+
 type Listener = (value: DynamicTranslationValue) => void;
 
 type PendingLocaleMap = Map<string, string>;

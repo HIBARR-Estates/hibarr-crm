@@ -8,6 +8,8 @@ import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import { initialsFromName } from "@/Components/Redesign/adapters/initials";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
+import HtmlEditor from "@/Components/HtmlEditor";
+import { HtmlRenderer } from "@/Components/ContentRenderer";
 
 export interface NoteDetailModalLabels {
     viewTitle: string;
@@ -40,8 +42,8 @@ interface NoteDetailModalProps {
     labels: NoteDetailModalLabels;
 }
 
-function stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+function hasText(html: string): boolean {
+    return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
 }
 
 export default function NoteDetailModal({
@@ -65,7 +67,7 @@ export default function NoteDetailModal({
         if (note) {
             setEditing(false);
             setTitle(note.title);
-            setText(stripHtml(note.details || ""));
+            setText(note.details || "");
             setConfirmDelete(false);
         }
     }, [note]);
@@ -87,11 +89,11 @@ export default function NoteDetailModal({
         note.updated_at !== note.created_at;
 
     const handleSave = () => {
-        if (!text.trim()) return;
+        if (!hasText(text)) return;
         onUpdate(
             {
                 title: title.trim(),
-                details: `<p>${text.trim()}</p>`,
+                details: text,
             },
             () => setEditing(false),
         );
@@ -102,6 +104,7 @@ export default function NoteDetailModal({
             open={!!note}
             onClose={onClose}
             title={editing ? labels.editTitle : labels.viewTitle}
+            maxWidth={760}
             footer={
                 editing ? (
                     <>
@@ -113,7 +116,7 @@ export default function NoteDetailModal({
                         </Button>
                         <Button
                             variant="primary"
-                            disabled={!text.trim() || isUpdating}
+                            disabled={!hasText(text) || isUpdating}
                             loading={isUpdating}
                             onClick={handleSave}
                         >
@@ -164,16 +167,10 @@ export default function NoteDetailModal({
                         />
                     </ModalField>
                     <ModalField label={labels.detailsField}>
-                        <textarea
-                            className="dr-input"
-                            rows={7}
+                        <HtmlEditor
                             value={text}
-                            onChange={(e) => setText(e.target.value)}
-                            style={{
-                                resize: "vertical",
-                                maxWidth: "100%",
-                                wordBreak: "break-word",
-                            }}
+                            onChange={setText}
+                            height={380}
                         />
                     </ModalField>
                 </>
@@ -237,7 +234,7 @@ export default function NoteDetailModal({
                         ) : null}
                     </div>
                     <div
-                        className="min-w-0 text-[14px] leading-[1.7] whitespace-pre-wrap"
+                        className="min-w-0 text-[14px] leading-[1.7]"
                         style={{
                             color: T.TEXT,
                             overflowWrap: "anywhere",
@@ -245,7 +242,7 @@ export default function NoteDetailModal({
                             maxWidth: "100%",
                         }}
                     >
-                        {stripHtml(note.details || "")}
+                        <HtmlRenderer content={note.details || ""} />
                     </div>
                 </>
             )}

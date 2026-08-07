@@ -17,7 +17,7 @@ import PageDataSorter from "@/Components/PageDataSorter";
 import UserIndicator from "@/Components/UserIndicator";
 import AgentSelector from "@/Components/AgentSelector";
 import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
-import type { TdFn } from "@/lib/dynamicTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface DealColumnOptions {
     actionItems?: (item: Deal) => MenuProps["items"];
@@ -35,7 +35,7 @@ export const DEAL_TABLE_COLUMNS = (
         onAgentChange,
         canEdit,
         t = (key) => key,
-        td = (key) => key,
+        td = identityTd,
     } = options;
 
     return [

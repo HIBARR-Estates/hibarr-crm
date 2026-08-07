@@ -21,7 +21,7 @@ import {
     companyTimeDayjsFormat,
     companyDateDayjsFormat,
 } from "@/lib/taskDateTime";
-import type { TdFn } from "@/lib/dynamicTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 const { TextArea } = Input;
 const { Text } = Typography;
@@ -109,8 +109,6 @@ const PRIORITY_CONFIG = {
     medium: { color: "#f59e0b", bg: "#fffbeb", border: "#f59e0b40", label: "Medium Priority" },
     low:    { color: "#94a3b8", bg: "#f8fafc", border: "#94a3b840", label: "Low Priority"    },
 } as const;
-
-const identityTd: TdFn = (text) => text ?? "";
 
 function PriorityChips({
     value,

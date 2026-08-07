@@ -1,5 +1,6 @@
 import React from 'react';
 import DOMPurify from 'dompurify';
+import './ContentRenderer.css';
 
 interface HtmlRendererProps {
   content: string;

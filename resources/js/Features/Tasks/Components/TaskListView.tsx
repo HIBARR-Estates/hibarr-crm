@@ -20,7 +20,7 @@ import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import { clsx } from "clsx";
 import { usePermission } from "@/lib/permissionUtils";
 import { PermissionKey } from "@/Types/permission";
-import type { TdFn } from "@/lib/dynamicTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -61,7 +61,7 @@ const TaskListView: React.FC<TaskListViewProps> = ({
     onDelete,
     onDuplicate,
     onStatusChange,
-    td = (key) => key,
+    td = identityTd,
 }) => {
     const { user, permissions } = usePermission();
 
