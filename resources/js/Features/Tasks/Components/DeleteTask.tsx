@@ -5,10 +5,11 @@ import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface Props extends IModalProps {
     task?: { id: number; heading: string };
-    td?: (key: string) => string;
+    td?: TdFn;
     onDeleted?: (taskId: number) => void;
     /** When true, skip Inertia reload after delete (parent updates local state). */
     skipReload?: boolean;
@@ -18,7 +19,7 @@ const DeleteTask: React.FC<Props> = ({
     task,
     onClose,
     open,
-    td = (key) => key,
+    td = identityTd,
     onDeleted,
     skipReload = false,
 }) => {

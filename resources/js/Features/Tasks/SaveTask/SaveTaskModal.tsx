@@ -11,6 +11,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface Task {
     id: number;
@@ -134,7 +135,7 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
         type: "deal" | "lead" | "property";
         id?: number;
     };
-    td?: (key: string) => string;
+    td?: TdFn;
     /** Called after a successful create/update with the API task payload when available. */
     onSuccess?: (task?: Task) => void;
     /**
@@ -159,7 +160,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     leads = [],
     properties = [],
     relatedEntity,
-    td = (key) => key,
+    td = identityTd,
     onSuccess,
     reloadKeys,
 }) => {

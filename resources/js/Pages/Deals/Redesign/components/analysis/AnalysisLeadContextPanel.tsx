@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
 import useDealFileUpload from "../../hooks/useDealFileUpload";
 import { initialsFromName } from "../../adapters/initials";
@@ -517,7 +518,7 @@ export default function AnalysisLeadContextPanel({
                     {/* Marketing — non-editable, only when data exists */}
                     {contact?.marketing && (() => {
                         const m = contact.marketing;
-                        const boolField = (val: boolean | null | undefined, td: (s: string) => string) =>
+                        const boolField = (val: boolean | null | undefined, td: TdFn) =>
                             val == null ? "" : val ? td("Yes", { source: "en" }) : td("No", { source: "en" });
                         const rows = [
                             { label: td("UTM Source", { source: "en" }), value: m.utm_source ?? "" },

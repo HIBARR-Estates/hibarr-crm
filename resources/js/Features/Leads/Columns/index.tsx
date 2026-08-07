@@ -12,7 +12,7 @@ import {
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
 import { formatMobileForDisplay } from "@/lib/utils";
-import type { TdFn } from "@/lib/dynamicTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 // Hex values (not antd preset names) so the tag renders as a solid fill,
 // matching the lifecycle status column's `<Tag color={label_color}>` look.
@@ -97,7 +97,7 @@ interface LeadColumnOptions {
 export const LEAD_TABLE_COLUMNS = (
     options: LeadColumnOptions | ((item: Lead) => MenuProps["items"]) = {},
     t: (key: string) => string = (key) => key,
-    td: TdFn = (key) => key ?? "",
+    td: TdFn = identityTd,
 ): ColumnsType<Lead> => {
     const resolved =
         typeof options === "function"

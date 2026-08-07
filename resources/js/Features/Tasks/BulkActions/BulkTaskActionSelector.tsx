@@ -3,6 +3,7 @@ import BulkChangeTaskStatus from "./BulkChangeTaskStatus";
 import BulkDeleteTasks from "./BulkDeleteTasks";
 import React from "react";
 import { reloadTaskLists } from "@/Features/Tasks/reloadTaskLists";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface TaskboardColumn {
     id: number;
@@ -22,7 +23,7 @@ interface Props {
     }[];
     clearSelected: () => void;
     columns: TaskboardColumn[];
-    td?: (key: string) => string;
+    td?: TdFn;
 }
 
 const DEFAULT_TASK_BULK_ACTIONS: Props["actions"] = [
@@ -35,7 +36,7 @@ const BulkTaskActionSelector: React.FC<Props> = ({
     actions = DEFAULT_TASK_BULK_ACTIONS,
     clearSelected,
     columns,
-    td = (key) => key,
+    td = identityTd,
 }) => {
     const [action, setAction] = React.useState<TTaskBulkAction>();
     const [open, setOpen] = React.useState(false);

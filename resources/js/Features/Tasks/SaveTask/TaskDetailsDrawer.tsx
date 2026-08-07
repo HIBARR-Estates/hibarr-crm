@@ -35,7 +35,7 @@ import TaskStatusDropdownPill, {
 } from "@/Features/Dashboard/Components/TaskStatusDropdownPill";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
 import { reloadTaskLists } from "@/Features/Tasks/reloadTaskLists";
-import type { TdFn } from "@/lib/dynamicTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 import "./task-view-modal.css";
 
 export interface Task {
@@ -165,7 +165,7 @@ const TaskDetailsModal: React.FC<TaskDetailsModalProps> = ({
     onClose,
     columns = [],
     onMarkDone,
-    td = (key) => key,
+    td = identityTd,
     skipReload = false,
     canChangeStatus = true,
     onStatusChange,

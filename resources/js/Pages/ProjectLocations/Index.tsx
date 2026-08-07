@@ -3,6 +3,7 @@ import { router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 import {
     Button,
     App,
@@ -316,7 +317,7 @@ interface LocationFormDrawerProps {
     onClose: () => void;
     location?: ProjectLocation | null;
     onSuccess: () => void;
-    td?: (key: string) => string;
+    td?: TdFn;
 }
 
 const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
@@ -324,7 +325,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     onClose,
     location,
     onSuccess,
-    td = (key) => key,
+    td = identityTd,
 }) => {
     const [form] = Form.useForm<LocationFormValues>();
     const { modal } = App.useApp();

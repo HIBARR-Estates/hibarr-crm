@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
+import HtmlEditor from "@/Components/HtmlEditor";
+
+function hasText(html: string): boolean {
+    return html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim().length > 0;
+}
 
 export interface AddNoteFormState {
     title: string;
@@ -60,7 +65,8 @@ export default function AddNoteModal({
             open={open}
             title={labels.title}
             onClose={handleClose}
-            dirty={Boolean(form.title.trim() || form.text.trim())}
+            maxWidth={760}
+            dirty={Boolean(form.title.trim() || hasText(form.text))}
             footer={
                 <>
                     <Button
@@ -73,7 +79,7 @@ export default function AddNoteModal({
                     <Button
                         variant="primary"
                         onClick={handleSubmit}
-                        disabled={!form.text.trim() || saving}
+                        disabled={!hasText(form.text) || saving}
                         loading={saving}
                     >
                         {labels.submit}
@@ -107,18 +113,14 @@ export default function AddNoteModal({
             </ModalField>
 
             <ModalField label={labels.detailsField}>
-                <textarea
+                <HtmlEditor
                     value={form.text}
                     disabled={saving}
-                    onChange={(event) =>
-                        setForm((current) => ({
-                            ...current,
-                            text: event.target.value,
-                        }))
+                    onChange={(text) =>
+                        setForm((current) => ({ ...current, text }))
                     }
                     placeholder={labels.bodyPlaceholder}
-                    rows={6}
-                    style={{ resize: "vertical" }}
+                    height={380}
                 />
             </ModalField>
         </Modal>

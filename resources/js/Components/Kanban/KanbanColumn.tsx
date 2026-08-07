@@ -19,7 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useApiInfiniteQuery } from "@/lib/api/client/useApiQuery";
 import { useIntersectionObserver } from "@/lib/hooks/useIntersectionObserver";
-import type { TdFn } from "@/lib/dynamicTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -53,7 +53,7 @@ interface KanbanColumnProps {
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
     column,
-    td = (text) => text ?? "",
+    td = identityTd,
     onCollapse,
     onEditColumn,
     onDeleteColumn,
