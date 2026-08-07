@@ -22,6 +22,7 @@ use App\Models\Deal;
  * @property float $amount
  * @property string|null $gateway
  * @property string|null $transaction_id
+ * @property string|null $external_reference
  * @property string $exchange_rate
  * @property float $price
  * @property float $default_currency_price
