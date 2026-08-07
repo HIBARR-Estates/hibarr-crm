@@ -10,6 +10,7 @@ use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\HasCompany;
+use App\Support\LeadLocaleResolver;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -181,6 +182,14 @@ class Lead extends BaseModel
         return Attribute::make(
             get: fn($value) => ($this->salutation ? $this->salutation->label() . ' ' : '') . $this->client_name
         );
+    }
+
+    /**
+     * Preferred email/UI locale from the lead's languages list (falls back to company locale).
+     */
+    public function getLocaleAttribute(): string
+    {
+        return LeadLocaleResolver::resolve($this, $this->company);
     }
 
     public function getMobileWithPhoneCodeAttribute()

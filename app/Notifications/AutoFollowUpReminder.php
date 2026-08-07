@@ -6,6 +6,7 @@ use App\Models\DealFollowUp;
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
 use App\Models\ReminderEmailTemplate;
+use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
 use App\Support\MeetingIcsBuilder;
 
@@ -70,8 +71,12 @@ class AutoFollowUpReminder extends BaseNotification
 
     public function toMail($notifiable)
     {
-        $build = parent::build($notifiable);
         $isLeadRecipient = $notifiable instanceof Lead;
+        if ($isLeadRecipient) {
+            LeadLocaleResolver::apply($notifiable, $this->company);
+        }
+
+        $build = parent::build($notifiable);
         $isCreatedNotice = (bool) $this->subject;
         $presenter = $this->presenter();
         $variables = $presenter->templateVariables($notifiable, $isLeadRecipient, $isCreatedNotice);

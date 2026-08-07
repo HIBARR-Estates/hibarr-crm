@@ -208,7 +208,7 @@ class MeetingEmailPresenter
             .'</td></tr></table>';
     }
 
-    public static function buildMeetingDetailHtml(string $scheduleLine, string $counterpartName, string $detailRemark): string
+    public static function buildMeetingDetailHtml(string $scheduleLine, string $detailRemark, string $agendaLabel = ''): string
     {
         $parts = [];
 
@@ -218,15 +218,15 @@ class MeetingEmailPresenter
                 .'</div>';
         }
 
-        if ($counterpartName !== '') {
-            $parts[] = '<div style="font-family:\'DM Mono\',Consolas,monospace;font-size:14px;color:#4a5272;line-height:1.6;margin-bottom:4px">'
-                .e($counterpartName)
-                .'</div>';
-        }
-
         if ($detailRemark !== '') {
-            $parts[] = '<div style="font-family:Syne,Georgia,serif;font-size:14px;line-height:22px;color:#0a0e1a;margin-top:14px">'
+            $label = $agendaLabel !== '' ? $agendaLabel : __('email.meetingCreated.agenda');
+            $parts[] = '<div style="margin-top:14px">'
+                .'<div style="font-family:\'DM Mono\',Consolas,monospace;font-size:11px;line-height:16px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#4a5272;margin-bottom:6px">'
+                .e($label)
+                .'</div>'
+                .'<div style="font-family:Syne,Georgia,serif;font-size:14px;line-height:22px;color:#0a0e1a">'
                 .nl2br(e($detailRemark))
+                .'</div>'
                 .'</div>';
         }
 
@@ -268,7 +268,6 @@ class MeetingEmailPresenter
         $actionText = $this->actionText($isLeadRecipient);
         $detailRemark = $meetingAt !== null ? $this->meetingRemark() : '';
         $scheduleLine = $this->scheduleLine();
-        $counterpartName = $this->counterpartName($isLeadRecipient);
         $mailSubject = $this->subject($isLeadRecipient, $isCreatedNotice);
 
         return [
@@ -279,8 +278,7 @@ class MeetingEmailPresenter
             'badgeLabel' => $this->badgeLabel($isCreatedNotice),
             'meetingMessage' => $meetingMessage,
             'scheduleLine' => $scheduleLine,
-            'meetingDetailHtml' => self::buildMeetingDetailHtml($scheduleLine, $counterpartName, $detailRemark),
-            'leadName' => $counterpartName,
+            'meetingDetailHtml' => self::buildMeetingDetailHtml($scheduleLine, $detailRemark),
             'meetingDate' => $this->meetingDate(),
             'meetingTime' => $this->meetingTime(),
             'meetingRemark' => $detailRemark,

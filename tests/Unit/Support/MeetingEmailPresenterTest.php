@@ -56,12 +56,13 @@ class MeetingEmailPresenterTest extends TestCase
     {
         $detailHtml = MeetingEmailPresenter::buildMeetingDetailHtml(
             'Jan 15, 2026 &ensp;&middot;&ensp; 10:15',
-            'Client Person',
-            "Line one\nLine two"
+            "Line one\nLine two",
+            'Agenda'
         );
 
         $this->assertStringContainsString('Jan 15, 2026', $detailHtml);
-        $this->assertStringContainsString('Client Person', $detailHtml);
+        $this->assertStringContainsString('Agenda', $detailHtml);
+        $this->assertStringNotContainsString('Client Person', $detailHtml);
         $this->assertStringContainsString('Line one<br />', $detailHtml);
 
         $buttonHtml = MeetingEmailPresenter::buildCrmButtonHtml(

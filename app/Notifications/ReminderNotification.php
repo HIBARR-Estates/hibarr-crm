@@ -10,6 +10,9 @@ use App\Models\Reminder;
 use App\Models\ReminderEmailTemplate;
 use App\Models\Task;
 use App\Services\Notifications\UnsEmailPayloadMapper;
+use App\Models\Lead;
+use App\Support\LeadLocaleResolver;
+use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
 use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
@@ -156,10 +159,10 @@ class ReminderNotification extends BaseNotification
 
     private function toMeetingMail($notifiable): MailMessage
     {
-        $build = parent::build($notifiable);
         $followUp = $this->resolveFollowUp();
 
         if ($followUp === null) {
+            $build = parent::build($notifiable);
             $build
                 ->subject($this->resolveSubjectHeading().' - '.config('app.name'))
                 ->markdown('mail.email', [
@@ -176,6 +179,14 @@ class ReminderNotification extends BaseNotification
         }
 
         $isLeadRecipient = $this->reminder->recipient_type === Reminder::RECIPIENT_LEAD;
+        if ($isLeadRecipient) {
+            $lead = $this->resolveLeadForMeetingMail($followUp);
+            if ($lead !== null) {
+                LeadLocaleResolver::apply($lead, $this->company);
+            }
+        }
+
+        $build = parent::build($notifiable);
         $presenter = new MeetingEmailPresenter(
             $followUp,
             $this->company,
@@ -727,6 +738,15 @@ class ReminderNotification extends BaseNotification
                 $idempotencyKey
             );
         });
+    }
+
+    private function resolveLeadForMeetingMail(DealFollowUp $followUp): ?Lead
+    {
+        if ($this->reminder->recipient_id) {
+            return Lead::query()->find($this->reminder->recipient_id);
+        }
+
+        return $followUp->lead ?? $followUp->deal?->contact;
     }
 
     private function resolveFollowUp(): ?DealFollowUp

@@ -547,6 +547,7 @@ return [
     ],
     'meetingCreated' => [
         'badge' => 'Meeting Scheduled',
+        'agenda' => 'Agenda',
         'scheduleAt' => ':date at :time',
         'joinMeeting' => 'Join meeting',
         'viewDeal' => 'View deal',
