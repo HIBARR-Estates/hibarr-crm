@@ -84,7 +84,7 @@ export default function AnalysisQuestionRow({
 
     if (item.kind === "instruction") {
         return (
-            <InstructionCard text={item.scriptItem.guide_text || td("No instruction text provided.")} />
+            <InstructionCard text={item.scriptItem.guide_text || td("No instruction text provided.", { source: "en" })} />
         );
     }
 
@@ -94,12 +94,12 @@ export default function AnalysisQuestionRow({
                 <NumberBadge number={number} answered={saved} />
                 <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium mb-2 leading-snug" style={{ color: T.TEXT }}>
-                        {item.scriptItem.guide_text || td("No question text provided.")}
+                        {item.scriptItem.guide_text || td("No question text provided.", { source: "en" })}
                     </p>
                     <textarea
                         value={answer}
                         onChange={(e) => setAnswer(e.target.value)}
-                        placeholder={td("Type the lead's answer here…")}
+                        placeholder={td("Type the lead's answer here…", { source: "en" })}
                         rows={3}
                         className="w-full resize-y rounded-xl px-3 py-2 text-sm placeholder-slate-400 focus:outline-none transition-colors"
                         style={{
@@ -127,7 +127,7 @@ export default function AnalysisQuestionRow({
                                 disabled={isSaving}
                                 onClick={saveAnswer}
                             >
-                                {isSaving ? td("Saving…") : td("Save as note")}
+                                {isSaving ? td("Saving…", { source: "en" }) : td("Save as note", { source: "en" })}
                             </button>
                         </div>
                     )}
@@ -143,9 +143,9 @@ export default function AnalysisQuestionRow({
                 <NumberBadge number={number} answered={false} />
                 <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: T.TEXT_MUTED }}>
-                        {td(label)}
+                        {td(label, { source: "en" })}
                     </p>
-                    <p className="text-xs italic" style={{ color: T.TEXT_HINT }}>{td("Field not configured.")}</p>
+                    <p className="text-xs italic" style={{ color: T.TEXT_HINT }}>{td("Field not configured.", { source: "en" })}</p>
                 </div>
             </div>
         );
@@ -171,12 +171,12 @@ export default function AnalysisQuestionRow({
             <NumberBadge number={number} answered={filled} />
             <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wider mb-1.5" style={{ color: T.TEXT_MUTED }}>
-                    {td(label)}
+                    {td(label, { source: "en" })}
                 </p>
                 {item.kind === "hibarr_field" && meta.fieldType === "boolean" ? (
                     <DealSwitch
                         checked={!!currentValue}
-                        label={td(label)}
+                        label={td(label, { source: "en" })}
                         disabled={!canEdit}
                         onChange={() =>
                             onFieldUpdate(item.scriptItem.item_key, !currentValue, updateType)

@@ -177,7 +177,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {td("Refresh")}
+                                {td("Refresh", { source: "en" })}
                             </Button>
                             <Select
                                 placeholder={t("app.agents.filters.status")}

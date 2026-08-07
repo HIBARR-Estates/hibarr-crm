@@ -130,7 +130,7 @@ export default function LeadOwnerCard({
                         color: "var(--lr-text-dim)",
                     }}
                 >
-                    {td("Lead owner")}
+                    {td("Lead owner", { source: "en" })}
                 </span>
                 <span
                     style={{
@@ -143,7 +143,7 @@ export default function LeadOwnerCard({
                         whiteSpace: "nowrap",
                     }}
                 >
-                    {ownerName ?? td("Assign owner")}
+                    {ownerName ?? td("Assign owner", { source: "en" })}
                 </span>
             </span>
         </>
@@ -169,15 +169,15 @@ export default function LeadOwnerCard({
 
     const confirmTitle =
         pending?.kind === "unassign"
-            ? td("Unassign lead owner?")
-            : td("Change lead owner?");
+            ? td("Unassign lead owner?", { source: "en" })
+            : td("Change lead owner?", { source: "en" });
     const confirmMessage =
         pending?.kind === "unassign"
-            ? `${td("Remove")} ${ownerName ?? td("this owner")} ${td("as the lead owner?")}`
+            ? `${td("Remove", { source: "en" })} ${ownerName ?? td("this owner", { source: "en" })} ${td("as the lead owner?", { source: "en" })}`
             : pending?.agent
               ? ownerName
-                  ? `${td("Reassign from")} ${ownerName} ${td("to")} ${pending.agent.name}?`
-                  : `${td("Assign")} ${pending.agent.name} ${td("as the lead owner?")}`
+                  ? `${td("Reassign from", { source: "en" })} ${ownerName} ${td("to", { source: "en" })} ${pending.agent.name}?`
+                  : `${td("Assign", { source: "en" })} ${pending.agent.name} ${td("as the lead owner?", { source: "en" })}`
               : "";
 
     return (
@@ -189,8 +189,8 @@ export default function LeadOwnerCard({
                 aria-expanded={open}
                 aria-label={
                     ownerName
-                        ? `${td("Lead owner")}: ${ownerName}`
-                        : td("Assign owner")
+                        ? `${td("Lead owner", { source: "en" })}: ${ownerName}`
+                        : td("Assign owner", { source: "en" })
                 }
                 onClick={() => setOpen((value) => !value)}
                 disabled={saving}
@@ -240,19 +240,19 @@ export default function LeadOwnerCard({
                         ref={menuRef}
                         className="dr-menu"
                         role="dialog"
-                        aria-label={td("Assign lead owner")}
+                        aria-label={td("Assign lead owner", { source: "en" })}
                         style={{ ...floatStyle, minWidth: 270, padding: 10 }}
                     >
                         <div className="dr-label" style={{ marginBottom: 6 }}>
-                            {td("Assign lead owner")}
+                            {td("Assign lead owner", { source: "en" })}
                         </div>
                         <AgentPicker
                             onPick={(picked) => requestChange(picked)}
                             pendingId={pendingAgentId}
                             autoFocus
-                            searchPlaceholder={td("Search agents…")}
-                            loadingLabel={td("Loading…")}
-                            emptyLabel={td("No agents match")}
+                            searchPlaceholder={td("Search agents…", { source: "en" })}
+                            loadingLabel={td("Loading…", { source: "en" })}
+                            emptyLabel={td("No agents match", { source: "en" })}
                         />
                         {owner ? (
                             <>
@@ -266,7 +266,7 @@ export default function LeadOwnerCard({
                                     className="dr-menu-item danger"
                                     onClick={() => requestChange(null)}
                                 >
-                                    {td("Unassign")} {ownerName}
+                                    {td("Unassign", { source: "en" })} {ownerName}
                                 </button>
                             </>
                         ) : null}
@@ -280,8 +280,8 @@ export default function LeadOwnerCard({
                 message={confirmMessage}
                 confirmLabel={
                     pending?.kind === "unassign"
-                        ? td("Unassign")
-                        : td("Change owner")
+                        ? td("Unassign", { source: "en" })
+                        : td("Change owner", { source: "en" })
                 }
                 confirmLoading={saving}
                 onConfirm={confirmChange}

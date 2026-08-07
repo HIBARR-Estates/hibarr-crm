@@ -61,7 +61,7 @@ export default function StatusDropdown({
                 aria-busy={saving}
                 disabled={saving}
             >
-                {td(statusLabel)}{" "}
+                {td(statusLabel, { source: "en" })}{" "}
                 {saving ? (
                     <span
                         className="v2-pill-status-spinner"
@@ -77,7 +77,7 @@ export default function StatusDropdown({
                     role="listbox"
                     style={{ minWidth: 220, maxHeight: 360, overflow: "auto" }}
                 >
-                    <div className="v2-menu-label capitalize">{td("Set status")}</div>
+                    <div className="v2-menu-label capitalize">{td("Set status", { source: "en" })}</div>
                     {statuses.map((option) => {
                         const active = statusKey === option.key;
                         return (
@@ -98,7 +98,7 @@ export default function StatusDropdown({
                                     }`}
                                     style={{ pointerEvents: "none" }}
                                 >
-                                    {td(option.label)}
+                                    {td(option.label, { source: "en" })}
                                 </span>
                                 <span style={{ flex: 1 }} />
                                 {active && <Icon name="check" size={14} />}

@@ -15,7 +15,7 @@ export default function useLeadImageUpload() {
     const uploadImage = useCallback(
         async (file: File): Promise<string | null> => {
             if (!file.type.startsWith("image/")) {
-                message.error(td("Please choose an image file"));
+                message.error(td("Please choose an image file", { source: "en" }));
                 return null;
             }
 
@@ -53,14 +53,14 @@ export default function useLeadImageUpload() {
                     image_url: updated.image_url,
                 }));
 
-                message.success(td("Lead photo updated"));
+                message.success(td("Lead photo updated", { source: "en" }));
                 return updated.image_url;
             } catch (error: unknown) {
                 const detail =
                     (error as { response?: { data?: { message?: string } } })
                         ?.response?.data?.message ||
                     (error as Error)?.message ||
-                    td("Failed to update lead photo");
+                    td("Failed to update lead photo", { source: "en" });
                 message.error(detail);
                 return null;
             } finally {

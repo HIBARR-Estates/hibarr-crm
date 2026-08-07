@@ -201,7 +201,7 @@ export default function TasksTab({
     return (
         <>
             <div className="flex items-center justify-between gap-4 border-b border-slate-100 bg-white px-4 py-3">
-                <span className="font-semibold text-slate-800">{td("Tasks")}</span>
+                <span className="font-semibold text-slate-800">{td("Tasks", { source: "en" })}</span>
                 <div className="flex items-center gap-3">
                     {!tasksLoading && (
                         <>
@@ -268,7 +268,7 @@ export default function TasksTab({
                             icon={<PlusOutlined />}
                             onClick={() => handleAction("add")}
                         >
-                            {td("Add Task")}
+                            {td("Add Task", { source: "en" })}
                         </Button>
                     )}
                 </div>
@@ -280,7 +280,7 @@ export default function TasksTab({
                 </div>
             ) : localTasks.length === 0 ? (
                 <div className="p-8">
-                    <Empty description={td("No tasks yet")} />
+                    <Empty description={td("No tasks yet", { source: "en" })} />
                 </div>
             ) : (
                 <TaskRowList

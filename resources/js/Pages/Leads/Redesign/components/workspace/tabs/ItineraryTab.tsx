@@ -194,7 +194,7 @@ function ItineraryCard({
                         </Link>
                     ) : (
                         <span className="dr-pill dr-pill-gray">
-                            {td("No deal")}
+                            {td("No deal", { source: "en" })}
                         </span>
                     )}
                 </div>
@@ -380,10 +380,8 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
             <div className="space-y-4">
                 <div className="flex justify-end">{addFlightButton}</div>
                 <EmptyState
-                    title={td("No flights yet")}
-                    description={td(
-                        "Add flights and airport transfers for this lead’s inspection trip.",
-                    )}
+                    title={td("No flights yet", { source: "en" })}
+                    description={td("Add flights and airport transfers for this lead’s inspection trip.", { source: "en" })}
                 />
                 {modalOpen && (
                     <LeadItineraryModal
@@ -448,9 +446,7 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
                         {ft("empty")}
                     </div>
                     <div style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}>
-                        {td(
-                            "Track the client's inspection-trip flights and airport transfers here.",
-                        )}
+                        {td("Track the client's inspection-trip flights and airport transfers here.", { source: "en" })}
                     </div>
                 </div>
             ) : (

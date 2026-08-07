@@ -23,6 +23,7 @@ use App\Models\LeadCategory;
 use Illuminate\Support\Facades\DB;
 use App\Models\Lead;
 use App\Models\LeadLifecycleStatus;
+use App\Models\LeadSavedView;
 use App\Models\LeadCustomForm;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
@@ -43,6 +44,8 @@ use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadFilterFacetsService;
+use App\Support\FeatureFlags;
 use App\Services\LeadQualificationService;
 use App\Services\PermissionService;
 use App\Services\DealAgentAssignmentService;
@@ -95,21 +98,9 @@ class LeadContactController extends AccountBaseController
         // S2: Index no longer ships leadContacts / stages / custom field definitions.
         // SaveLeadModal (M2) and ChangeToClient fetch defs via form-data API.
         // Keep leadLifecycleStatuses for the inline status cell.
-        return Inertia::render('Leads/Index', [
+        $props = [
             'pageTitle' => 'Lead Contacts',
-            'filters' => $request->only([
-                'search',
-                'lead_type',
-                'start_date',
-                'end_date',
-                'lead_source',
-                'lead_owner_id',
-                'added_by_id',
-                'lifecycle_status_id',
-                'qualification_segment_key',
-                'qualification_answer_values',
-                'language',
-            ]),
+            'filters' => $request->only(LeadService::FILTER_KEYS),
             'leads' => [
                 'data' => $leads->items(),
                 'current_page' => $leads->currentPage(),
@@ -122,9 +113,46 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
-        ]);
+        ];
+
+        // Filter modal chrome — only the v2 filter UI consumes these, and the
+        // facet counts are several GROUP BY queries, so skip them when it is off.
+        if (FeatureFlags::enabled('crm.leads-filter-v2')) {
+            $props['filterFacets'] = Inertia::defer(
+                fn () => app(LeadFilterFacetsService::class)->facets()
+            );
+            $props['savedViews'] = Inertia::defer(fn () => $this->savedViewsForUser());
+        }
+
+        return Inertia::render('Leads/Index', $props);
     }
 
+    /**
+     * Saved filter views the current user may open: their own plus team-shared.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function savedViewsForUser(): array
+    {
+        $userId = (int) user()->id;
+
+        return LeadSavedView::query()
+            ->visibleTo($userId)
+            ->with('owner:id,name')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (LeadSavedView $view) => [
+                'id' => $view->id,
+                'name' => $view->name,
+                'filters' => $view->filters,
+                'visibility' => $view->visibility,
+                'pinned' => $view->pinned,
+                'is_owner' => (int) $view->user_id === $userId,
+                'owner_name' => $view->owner?->name,
+                'updated_at' => $view->updated_at?->toIso8601String(),
+            ])
+            ->all();
+    }
 
     public function show($id, Request $request)
     {
@@ -535,6 +563,7 @@ class LeadContactController extends AccountBaseController
         $leadContact->company_id = company()->id;
         $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
+        $leadContact->temperature = $request->temperature;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -729,6 +758,9 @@ class LeadContactController extends AccountBaseController
         if ($request->has('gender')) {
             $leadContact->gender = $request->gender;
         }
+        if ($request->has('temperature')) {
+            $leadContact->temperature = $request->temperature;
+        }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
@@ -834,6 +866,9 @@ class LeadContactController extends AccountBaseController
             }
             if ($request->has('gender')) {
                 $leadContact->gender = $request->gender;
+            }
+            if ($request->has('temperature')) {
+                $leadContact->temperature = $request->temperature;
             }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
@@ -1077,7 +1112,7 @@ class LeadContactController extends AccountBaseController
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
                     'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
-                    'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
+                    'postal_code', 'gender', 'temperature', 'note', 'lead_owner', 'category_id',
                     'category_ids',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',

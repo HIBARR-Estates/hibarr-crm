@@ -51,8 +51,8 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
     const currentColumn =
         sortedColumns.find((col) => col.slug === status) ?? sortedColumns[0];
     const currentLabel = currentColumn
-        ? td(currentColumn.column_name).toLowerCase()
-        : td(status.split("_").join(" ")).toLowerCase();
+        ? td(currentColumn.column_name, { source: "en" }).toLowerCase()
+        : td(status.split("_").join(" "), { source: "en" }).toLowerCase();
 
     const menuItems: MenuProps["items"] = sortedColumns.map((column) => ({
         key: column.slug,
@@ -69,7 +69,7 @@ const TaskStatusDropdownPill: React.FC<TaskStatusDropdownPillProps> = ({
                         backgroundColor: column.label_color,
                     }}
                 />
-                <span>{td(column.column_name)}</span>
+                <span>{td(column.column_name, { source: "en" })}</span>
             </div>
         ),
         onClick: () => {

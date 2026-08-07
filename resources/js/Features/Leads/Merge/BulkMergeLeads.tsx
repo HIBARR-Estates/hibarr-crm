@@ -21,12 +21,12 @@ export default function BulkMergeLeads({ ids, open, onClose }: Props) {
                 open={open}
                 onCancel={() => onClose()}
                 footer={null}
-                title={td("Merge leads")}
+                title={td("Merge leads", { source: "en" })}
             >
                 <Alert
                     type="info"
                     showIcon
-                    message={td("Select exactly two leads to merge.")}
+                    message={td("Select exactly two leads to merge.", { source: "en" })}
                 />
             </Modal>
         );

@@ -145,7 +145,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
-                    placeholder={td("Fill in…")}
+                    placeholder={td("Fill in…", { source: "en" })}
                     style={inputStyle}
                 />
             )}
@@ -176,7 +176,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     onChange={(e) => { setLocalVal(e.target.value); notifyChange(e.target.value || null); }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
-                    placeholder={td("Fill in…")}
+                    placeholder={td("Fill in…", { source: "en" })}
                     style={{ ...inputStyle, resize: "none", cursor: canEdit ? "auto" : "not-allowed" }}
                 />
             )}
@@ -278,7 +278,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                 <SelectInput
                     value={localVal as string}
                     options={options}
-                    placeholder={td("Select…")}
+                    placeholder={td("Select…", { source: "en" })}
                     onChange={(val) => { setLocalVal(val); notifyChange(val); commit(val); }}
                 />
             )}
@@ -352,7 +352,7 @@ function FormField({ field, value: rawValue, fieldNumber, canEdit, onChange, onS
                     onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
                     onFocus={() => setFocused(true)}
                     onBlur={(e) => { setFocused(false); commit(e.target.value); }}
-                    placeholder={td("Fill in…")}
+                    placeholder={td("Fill in…", { source: "en" })}
                     style={inputStyle}
                 />
             )}
@@ -411,7 +411,7 @@ export default function AnalysisCustomFieldForm({
     if (visibleFields.length === 0) {
         return (
             <p style={{ fontSize: 13, color: A.TEXT_HINT, fontStyle: "italic", margin: 0 }}>
-                {td("No fields in this section.")}
+                {td("No fields in this section.", { source: "en" })}
             </p>
         );
     }

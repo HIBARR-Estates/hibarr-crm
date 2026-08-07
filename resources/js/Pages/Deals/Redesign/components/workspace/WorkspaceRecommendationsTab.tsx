@@ -207,7 +207,7 @@ export default function WorkspaceRecommendationsTab({
                                             <DealBadge
                                                 variant={item.statusBadgeVariant}
                                             >
-                                                {td(item.statusLabel)}
+                                                {td(item.statusLabel, { source: "en" })}
                                             </DealBadge>
                                         )}
                                     </div>

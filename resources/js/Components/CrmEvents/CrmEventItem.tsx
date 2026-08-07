@@ -197,13 +197,13 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                             strong
                             className="text-[14px] text-gray-900 tracking-tight truncate leading-none"
                         >
-                            {td(event.event_type?.name ?? "Unknown Event")}
+                            {td(event.event_type?.name ?? "Unknown Event", { source: "en" })}
                         </Text>
                         <span
                             className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${gen.className}`}
                         >
                             {gen.icon}
-                            {td(gen.label)}
+                            {td(gen.label, { source: "en" })}
                         </span>
                     </div>
                 </div>
@@ -237,19 +237,19 @@ export default function CrmEventItem({ event, compact = false }: Props) {
                     <span className="flex items-center scale-90">
                         {statusCfg.icon}
                     </span>
-                    {td(statusCfg.label)}
+                    {td(statusCfg.label, { source: "en" })}
                 </div>
                 {directionCfg && (
                     <div
                         className={`flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-tight ${directionCfg.className}`}
                     >
-                        {td(directionCfg.label)}
+                        {td(directionCfg.label, { source: "en" })}
                     </div>
                 )}
                 {event.source && !compact && (
                     <div className="flex items-center gap-1 text-[11px] text-gray-400">
                         <GlobalOutlined className="text-[10px]" />
-                        <span>{td(event.source)}</span>
+                        <span>{td(event.source, { source: "en" })}</span>
                     </div>
                 )}
                 {event.user && (

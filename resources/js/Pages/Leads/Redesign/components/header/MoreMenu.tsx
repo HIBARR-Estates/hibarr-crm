@@ -77,7 +77,7 @@ export default function MoreMenu({
                 type="button"
                 aria-haspopup="menu"
                 aria-expanded={open}
-                aria-label={td("More actions")}
+                aria-label={td("More actions", { source: "en" })}
                 onClick={() => setOpen((value) => !value)}
                 className="v2-btn v2-btn-ghost"
                 style={{ padding: "5px 8px" }}
@@ -95,7 +95,7 @@ export default function MoreMenu({
                         style={{ ...floatStyle, minWidth: 220 }}
                     >
                         <div className="dr-label" style={{ padding: "4px 8px" }}>
-                            {td("Lead actions")}
+                            {td("Lead actions", { source: "en" })}
                         </div>
                         {items.map((item, index) =>
                             item.id === "sep" ? (
@@ -112,7 +112,7 @@ export default function MoreMenu({
                                     className={`dr-menu-item${item.danger ? " danger" : ""}`}
                                     onClick={() => run(item.id)}
                                 >
-                                    {td(item.label)}
+                                    {td(item.label, { source: "en" })}
                                 </button>
                             ),
                         )}

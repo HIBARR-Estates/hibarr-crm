@@ -255,7 +255,7 @@ export default function QuickStats({
         <div className="v2-quick-stats" data-tour="lead-quick-stats">
             {/* ── Next meeting ─────────────────────────────────────────── */}
             <div className="v2-quick-stat">
-                <StatHeader label={td("Next meeting")} />
+                <StatHeader label={td("Next meeting", { source: "en" })} />
                 {meetingLoading ? (
                     <StatBodySkeleton />
                 ) : meetingPreview && nextMeeting ? (
@@ -275,13 +275,13 @@ export default function QuickStats({
                         </div>
                         <div className="v2-quick-stat-actions">
                             <StatAction
-                                label={td("View meeting")}
+                                label={td("View meeting", { source: "en" })}
                                 icon="chevron-right"
                                 variant="primary"
                                 onClick={() => onOpenMeeting?.(nextMeeting)}
                             />
                             <StatAction
-                                label={td("Schedule")}
+                                label={td("Schedule", { source: "en" })}
                                 icon="plus"
                                 variant="secondary"
                                 onClick={onSchedule}
@@ -290,10 +290,10 @@ export default function QuickStats({
                     </>
                 ) : (
                     <>
-                        <span className="v2-quick-stat-muted">{td("None")}</span>
+                        <span className="v2-quick-stat-muted">{td("None", { source: "en" })}</span>
                         <div className="v2-quick-stat-actions">
                             <StatAction
-                                label={td("Schedule meeting")}
+                                label={td("Schedule meeting", { source: "en" })}
                                 icon="plus"
                                 variant="primary"
                                 onClick={onSchedule}
@@ -305,7 +305,7 @@ export default function QuickStats({
 
             {/* ── Open tasks ───────────────────────────────────────────── */}
             <div className="v2-quick-stat">
-                <StatHeader label={td("Open tasks")} />
+                <StatHeader label={td("Open tasks", { source: "en" })} />
                 {tasksLoading ? (
                     <StatBodySkeleton withChips />
                 ) : openTasksCount > 0 && nextTask && taskPreview ? (
@@ -319,7 +319,7 @@ export default function QuickStats({
                             <span className="v2-quick-stat-chips">
                                 {taskStatus ? (
                                     <TaskStatusPill
-                                        label={td(taskStatus.label)}
+                                        label={td(taskStatus.label, { source: "en" })}
                                         color={taskStatus.color}
                                     />
                                 ) : null}
@@ -328,20 +328,20 @@ export default function QuickStats({
                                 />
                                 <span className="v2-quick-stat-meta-inline">
                                     {taskPreview.dueDateLabel
-                                        ? `${td("Due")} ${taskPreview.dueDateLabel}`
-                                        : td("No due date")}
+                                        ? `${td("Due", { source: "en" })} ${taskPreview.dueDateLabel}`
+                                        : td("No due date", { source: "en" })}
                                 </span>
                             </span>
                         </div>
                         <div className="v2-quick-stat-actions">
                             <StatAction
-                                label={td("View task")}
+                                label={td("View task", { source: "en" })}
                                 icon="chevron-right"
                                 variant="primary"
                                 onClick={() => onOpenTask?.(nextTask)}
                             />
                             <StatAction
-                                label={td("Create")}
+                                label={td("Create", { source: "en" })}
                                 icon="plus"
                                 variant="secondary"
                                 onClick={onCreateTask}
@@ -350,10 +350,10 @@ export default function QuickStats({
                     </>
                 ) : (
                     <>
-                        <span className="v2-quick-stat-muted">{td("None")}</span>
+                        <span className="v2-quick-stat-muted">{td("None", { source: "en" })}</span>
                         <div className="v2-quick-stat-actions">
                             <StatAction
-                                label={td("Create task")}
+                                label={td("Create task", { source: "en" })}
                                 icon="plus"
                                 variant="primary"
                                 onClick={onCreateTask}
@@ -365,7 +365,7 @@ export default function QuickStats({
 
             {/* ── Deals ────────────────────────────────────────────────── */}
             <div className="v2-quick-stat">
-                <StatHeader label={td("Deals")} />
+                <StatHeader label={td("Deals", { source: "en" })} />
                 {dealsLoading ? (
                     <StatBodySkeleton lines={2} withChips />
                 ) : primaryDeal && dealsCount > 0 ? (
@@ -393,21 +393,21 @@ export default function QuickStats({
                         </div>
                         <div className="v2-quick-stat-actions">
                             <StatAction
-                                label={td("Open deal")}
+                                label={td("Open deal", { source: "en" })}
                                 icon="external-link"
                                 variant="primary"
                                 onClick={() => onOpenDeal?.(primaryDeal)}
                             />
                             {dealsCount > 1 ? (
                                 <StatAction
-                                    label={td("View all")}
+                                    label={td("View all", { source: "en" })}
                                     icon="chevron-right"
                                     variant="secondary"
                                     onClick={onViewAllDeals}
                                 />
                             ) : (
                                 <StatAction
-                                    label={td("Create")}
+                                    label={td("Create", { source: "en" })}
                                     icon="plus"
                                     variant="secondary"
                                     onClick={onCreateDeal}
@@ -418,11 +418,11 @@ export default function QuickStats({
                 ) : (
                     <>
                         <span className="v2-quick-stat-muted">
-                            {td("None yet")}
+                            {td("None yet", { source: "en" })}
                         </span>
                         <div className="v2-quick-stat-actions">
                             <StatAction
-                                label={td("Create deal")}
+                                label={td("Create deal", { source: "en" })}
                                 icon="plus"
                                 variant="primary"
                                 onClick={onCreateDeal}

@@ -22,6 +22,28 @@ class DynamicTranslationController extends Controller
         $locale = $validated['locale'];
         $items = $validated['items'];
 
+        $translations = [];
+        $queuedCount = 0;
+
+        // English is always identity — never rewrite casing from stored rows
+        // and never queue translation jobs for the source locale.
+        if ($locale === 'en') {
+            foreach ($items as $item) {
+                $hash = strtolower($item['hash']);
+                $text = isset($item['text']) && is_string($item['text']) ? $item['text'] : '';
+                $translations[$hash] = $text !== '' ? $text : null;
+            }
+
+            return response()->json([
+                'success' => true,
+                'data' => [
+                    'locale' => $locale,
+                    'translations' => $translations,
+                    'queued' => 0,
+                ],
+            ]);
+        }
+
         $hashes = array_values(array_unique(array_map(
             static fn (array $item): string => strtolower($item['hash']),
             $items
@@ -32,9 +54,6 @@ class DynamicTranslationController extends Controller
             ->whereIn('hash_key', $hashes)
             ->get()
             ->keyBy('hash_key');
-
-        $translations = [];
-        $queuedCount = 0;
 
         foreach ($items as $item) {
             $hash = strtolower($item['hash']);

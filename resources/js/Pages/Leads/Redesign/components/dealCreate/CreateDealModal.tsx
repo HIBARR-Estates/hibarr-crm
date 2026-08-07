@@ -454,7 +454,7 @@ export default function CreateDealModal({
     return (
         <Modal
             open={open}
-            title={td("Create deal")}
+            title={td("Create deal", { source: "en" })}
             onClose={() => {
                 if (!saving) onClose();
             }}
@@ -467,7 +467,7 @@ export default function CreateDealModal({
                             onClick={() => setStep(1)}
                             disabled={saving}
                         >
-                            {td("Back")}
+                            {td("Back", { source: "en" })}
                         </Button>
                     ) : (
                         <Button
@@ -475,7 +475,7 @@ export default function CreateDealModal({
                             onClick={onClose}
                             disabled={saving}
                         >
-                            {td("Cancel")}
+                            {td("Cancel", { source: "en" })}
                         </Button>
                     )}
 
@@ -485,7 +485,7 @@ export default function CreateDealModal({
                             onClick={() => setStep(2)}
                             disabled={saving || metaMissing || !step1Valid}
                         >
-                            {td("Next")}
+                            {td("Next", { source: "en" })}
                         </Button>
                     ) : (
                         <div className="flex flex-wrap items-center gap-2">
@@ -494,7 +494,7 @@ export default function CreateDealModal({
                                 onClick={() => handleCreate(false)}
                                 disabled={saving || metaMissing || !step1Valid}
                             >
-                                {td("Skip meeting")}
+                                {td("Skip meeting", { source: "en" })}
                             </Button>
                             <Button
                                 variant="primary"
@@ -508,8 +508,8 @@ export default function CreateDealModal({
                                 }
                             >
                                 {addKickoffMeeting
-                                    ? td("Create deal + meeting")
-                                    : td("Create deal")}
+                                    ? td("Create deal + meeting", { source: "en" })
+                                    : td("Create deal", { source: "en" })}
                             </Button>
                         </div>
                     )}
@@ -535,19 +535,17 @@ export default function CreateDealModal({
                     ))}
                 </div>
                 <div className="mt-2 text-[12px] text-[#6b7280]">
-                    {td("Step")} {step} {td("of")} 2
+                    {td("Step", { source: "en" })} {step} {td("of", { source: "en" })} 2
                     {" · "}
                     {step === 1
-                        ? td("Deal details")
-                        : td("Kickoff meeting (optional)")}
+                        ? td("Deal details", { source: "en" })
+                        : td("Kickoff meeting (optional)", { source: "en" })}
                 </div>
             </div>
 
             {metaMissing && (
                 <p className="mb-3 text-xs text-[#b45309]">
-                    {td(
-                        "Deal options are still loading — try again in a moment.",
-                    )}
+                    {td("Deal options are still loading — try again in a moment.", { source: "en" })}
                 </p>
             )}
 
@@ -563,17 +561,17 @@ export default function CreateDealModal({
 
             {step === 1 && (
                 <>
-                    <ModalField label={td("Pipeline")}>
+                    <ModalField label={td("Pipeline", { source: "en" })}>
                         <MenuSelect
                             fullWidth
                             value={pipelineId ?? ""}
-                            placeholder={td("Select pipeline")}
+                            placeholder={td("Select pipeline", { source: "en" })}
                             options={toMenuOptions(
                                 pipelines.map((pipeline) => ({
                                     id: pipeline.id,
                                     label: pipeline.name,
                                 })),
-                                td("Select pipeline"),
+                                td("Select pipeline", { source: "en" }),
                             )}
                             onChange={(value) =>
                                 setPipelineId(parseMenuId(value))
@@ -582,14 +580,14 @@ export default function CreateDealModal({
                         />
                     </ModalField>
 
-                    <ModalField label={td("Stage")}>
+                    <ModalField label={td("Stage", { source: "en" })}>
                         <MenuSelect
                             fullWidth
                             value={stageId ?? ""}
                             placeholder={
                                 pipelineId
-                                    ? td("Select stage")
-                                    : td("Select a pipeline first")
+                                    ? td("Select stage", { source: "en" })
+                                    : td("Select a pipeline first", { source: "en" })
                             }
                             options={toMenuOptions(
                                 pipelineStages.map((stage) => ({
@@ -597,8 +595,8 @@ export default function CreateDealModal({
                                     label: stage.name,
                                 })),
                                 pipelineId
-                                    ? td("Select stage")
-                                    : td("Select a pipeline first"),
+                                    ? td("Select stage", { source: "en" })
+                                    : td("Select a pipeline first", { source: "en" }),
                             )}
                             onChange={(value) => setStageId(parseMenuId(value))}
                             disabled={saving || pipelineId == null}
@@ -606,17 +604,17 @@ export default function CreateDealModal({
                     </ModalField>
 
                     {pipelineHasLinkedPackages && !solePackage && (
-                        <ModalField label={td("Package")}>
+                        <ModalField label={td("Package", { source: "en" })}>
                             <MenuSelect
                                 fullWidth
                                 value={packageId ?? ""}
-                                placeholder={td("Select package")}
+                                placeholder={td("Select package", { source: "en" })}
                                 options={toMenuOptions(
                                     pipelinePackages.map((pkg) => ({
                                         id: pkg.id,
                                         label: pkg.name,
                                     })),
-                                    td("Select package"),
+                                    td("Select package", { source: "en" }),
                                 )}
                                 onChange={(value) =>
                                     setPackageId(parseMenuId(value))
@@ -638,7 +636,7 @@ export default function CreateDealModal({
                                 className="text-[11px] font-semibold uppercase tracking-wide"
                                 style={{ color: T.TEXT_MUTED }}
                             >
-                                {td("Package")}
+                                {td("Package", { source: "en" })}
                             </div>
                             <div
                                 className="mt-0.5 text-[14px] font-semibold"
@@ -651,11 +649,11 @@ export default function CreateDealModal({
 
                     {!pipelineHasLinkedPackages && (
                         <>
-                            <ModalField label={td("Package")}>
+                            <ModalField label={td("Package", { source: "en" })}>
                                 <MenuSelect
                                     fullWidth
                                     value={packageId ?? ""}
-                                    placeholder={td("None")}
+                                    placeholder={td("None", { source: "en" })}
                                     options={toMenuOptions(
                                         packages
                                             .filter(
@@ -667,7 +665,7 @@ export default function CreateDealModal({
                                                 id: pkg.id,
                                                 label: pkg.name,
                                             })),
-                                        td("None"),
+                                        td("None", { source: "en" }),
                                     )}
                                     onChange={(value) =>
                                         setPackageId(parseMenuId(value))
@@ -676,17 +674,17 @@ export default function CreateDealModal({
                                 />
                             </ModalField>
 
-                            <ModalField label={td("Property / product")}>
+                            <ModalField label={td("Property / product", { source: "en" })}>
                                 <MenuSelect
                                     fullWidth
                                     value={productId ?? ""}
-                                    placeholder={td("None")}
+                                    placeholder={td("None", { source: "en" })}
                                     options={toMenuOptions(
                                         products.map((product) => ({
                                             id: product.id,
                                             label: product.name,
                                         })),
-                                        td("None"),
+                                        td("None", { source: "en" }),
                                     )}
                                     onChange={(value) =>
                                         setProductId(parseMenuId(value))
@@ -697,7 +695,7 @@ export default function CreateDealModal({
                         </>
                     )}
 
-                    <ModalField label={td("Value")}>
+                    <ModalField label={td("Value", { source: "en" })}>
                         {valueLocked ? (
                             <div
                                 className="rounded-lg px-3 py-2.5"
@@ -725,7 +723,7 @@ export default function CreateDealModal({
                                         className="text-[11px]"
                                         style={{ color: T.TEXT_MUTED }}
                                     >
-                                        {td(`Derived from ${derived.label}`)}
+                                        {td(`Derived from ${derived.label}`, { source: "en" })}
                                     </div>
                                 )}
                             </div>
@@ -743,7 +741,7 @@ export default function CreateDealModal({
                         )}
                     </ModalField>
 
-                    <ModalField label={td("Agent")}>
+                    <ModalField label={td("Agent", { source: "en" })}>
                         <button
                             ref={agentBtnRef}
                             type="button"
@@ -790,7 +788,7 @@ export default function CreateDealModal({
                                     </>
                                 ) : (
                                     <span style={{ color: T.TEXT_HINT }}>
-                                        {td("Select agent")}
+                                        {td("Select agent", { source: "en" })}
                                     </span>
                                 )}
                             </span>
@@ -812,7 +810,7 @@ export default function CreateDealModal({
                                     ref={agentMenuRef}
                                     className="dr-menu p-2"
                                     role="dialog"
-                                    aria-label={td("Select agent")}
+                                    aria-label={td("Select agent", { source: "en" })}
                                     style={{
                                         ...agentFloatStyle,
                                         minWidth: Math.max(
@@ -828,11 +826,9 @@ export default function CreateDealModal({
                                     <AgentPicker
                                         onPick={handleAgentPick}
                                         autoFocus
-                                        searchPlaceholder={td(
-                                            "Search agents…",
-                                        )}
-                                        loadingLabel={td("Loading…")}
-                                        emptyLabel={td("No agents match")}
+                                        searchPlaceholder={td("Search agents…", { source: "en" })}
+                                        loadingLabel={td("Loading…", { source: "en" })}
+                                        emptyLabel={td("No agents match", { source: "en" })}
                                     />
                                     {agentId != null && (
                                         <>
@@ -849,7 +845,7 @@ export default function CreateDealModal({
                                                     setAgentPickerOpen(false);
                                                 }}
                                             >
-                                                {td("Unassign")}
+                                                {td("Unassign", { source: "en" })}
                                             </button>
                                         </>
                                     )}
@@ -858,17 +854,17 @@ export default function CreateDealModal({
                             )}
                     </ModalField>
 
-                    <ModalField label={td("Category")}>
+                    <ModalField label={td("Category", { source: "en" })}>
                         <MenuSelect
                             fullWidth
                             value={categoryId ?? ""}
-                            placeholder={td("Select category")}
+                            placeholder={td("Select category", { source: "en" })}
                             options={toMenuOptions(
                                 categories.map((cat) => ({
                                     id: cat.id,
                                     label: cat.category_name ?? cat.name ?? "",
                                 })),
-                                td("Select category"),
+                                td("Select category", { source: "en" }),
                             )}
                             onChange={(value) =>
                                 setCategoryId(parseMenuId(value))
@@ -877,13 +873,11 @@ export default function CreateDealModal({
                         />
                     </ModalField>
 
-                    <ModalField label={td("Deal name")}>
+                    <ModalField label={td("Deal name", { source: "en" })}>
                         <input
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder={td(
-                                "Optional — defaults from property/package",
-                            )}
+                            placeholder={td("Optional — defaults from property/package", { source: "en" })}
                         />
                     </ModalField>
                 </>
@@ -898,9 +892,7 @@ export default function CreateDealModal({
                                 setAddKickoffMeeting((current) => !current)
                             }
                             disabled={saving}
-                            label={td(
-                                "Schedule a kickoff / consultation meeting",
-                            )}
+                            label={td("Schedule a kickoff / consultation meeting", { source: "en" })}
                         />
                     </div>
 
@@ -916,9 +908,7 @@ export default function CreateDealModal({
                             className="mb-2 text-[13px]"
                             style={{ color: T.TEXT_MUTED }}
                         >
-                            {td(
-                                "You can create the deal now and schedule a meeting later.",
-                            )}
+                            {td("You can create the deal now and schedule a meeting later.", { source: "en" })}
                         </p>
                     )}
                 </>

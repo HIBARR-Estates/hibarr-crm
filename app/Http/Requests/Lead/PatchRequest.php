@@ -53,6 +53,7 @@ class PatchRequest extends CoreRequest
             'postal_code' => 'sometimes|nullable|string|max:20',
             'salutation' => ['sometimes', 'nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))],
             'gender' => ['sometimes', 'nullable', 'string', Rule::in(['male', 'female'])],
+            'temperature' => ['sometimes', 'nullable', 'string', Rule::in(\App\Enums\LeadTemperature::values())],
 
             // Lead Information (all optional for patch)
             'value' => 'sometimes|numeric|min:0',

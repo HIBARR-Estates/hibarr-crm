@@ -497,8 +497,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                             visible={open}
                             onCancel={handleCancel}
                             onSubmit={handleSubmit}
-                            submitText={td(submitText)}
-                            cancelText={td("Cancel")}
+                            submitText={td(submitText, { source: "en" })}
+                            cancelText={td("Cancel", { source: "en" })}
                             errors={errors}
                             setErrors={(newErrors) => {
                                 if (Array.isArray(newErrors)) {
@@ -531,7 +531,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                     disabled={isLoading}
                     className="px-4 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
                 >
-                    {td("Cancel")}
+                    {td("Cancel", { source: "en" })}
                 </button>
                 <div className="flex items-center gap-3">
                     {errors.length > 0 && (
@@ -550,7 +550,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                         }`}
                     >
                         <SaveOutlined />
-                        {isLoading ? "Saving…" : td(submitText)}
+                        {isLoading ? "Saving…" : td(submitText, { source: "en" })}
                     </button>
                 </div>
             </div>

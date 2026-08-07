@@ -176,7 +176,7 @@ function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: ()
                 onMouseDown={(e) => { e.preventDefault(); onSave(); }}
                 className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 transition-colors"
             >
-                {td("Save")} ↵
+                {td("Save", { source: "en" })} ↵
             </button>
             <span className="text-slate-300">·</span>
             <button
@@ -184,7 +184,7 @@ function SaveCancel({ onSave, onCancel, td }: { onSave: () => void; onCancel: ()
                 onMouseDown={(e) => { e.preventDefault(); onCancel(); }}
                 className="text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
             >
-                {td("Cancel")}
+                {td("Cancel", { source: "en" })}
             </button>
         </div>
     );

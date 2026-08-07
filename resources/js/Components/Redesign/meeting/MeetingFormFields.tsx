@@ -336,16 +336,14 @@ export default function MeetingFormFields({
             </ModalField>
 
             {isVideoMeeting && (
-                <ModalField label={td("Meeting provider")}>
+                <ModalField label={td("Meeting provider", { source: "en" })}>
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                         {VIDEO_PROVIDER_OPTIONS.map((provider) => {
                             const selected = form.platform === provider.value;
                             const zohoLocked =
                                 provider.value === "zoho" && !zohoAllowed;
                             const optionDisabled = disabled || zohoLocked;
-                            const zohoTooltip = td(
-                                "Zoho Meeting is only available for @hibarr.de email accounts.",
-                            );
+                            const zohoTooltip = td("Zoho Meeting is only available for @hibarr.de email accounts.", { source: "en" });
 
                             const optionButton = (
                                 <button
@@ -390,7 +388,7 @@ export default function MeetingFormFields({
                                                 : T.TEXT,
                                         }}
                                     >
-                                        {td(provider.label)}
+                                        {td(provider.label, { source: "en" })}
                                     </span>
                                 </button>
                             );
@@ -412,7 +410,7 @@ export default function MeetingFormFields({
             )}
 
             {isPhysicalMeeting && (
-                <ModalField label={td("Location")}>
+                <ModalField label={td("Location", { source: "en" })}>
                     <div className="flex flex-wrap gap-2">
                         {PHYSICAL_VENUE_OPTIONS.map((option) => {
                             const selected = physicalVenue === option.value;
@@ -439,7 +437,7 @@ export default function MeetingFormFields({
                                             : "pointer",
                                     }}
                                 >
-                                    {td(option.label)}
+                                    {td(option.label, { source: "en" })}
                                 </button>
                             );
                         })}
@@ -450,7 +448,7 @@ export default function MeetingFormFields({
                                 type="text"
                                 value={form.locationDetail}
                                 disabled={disabled}
-                                placeholder={td("Enter meeting location")}
+                                placeholder={td("Enter meeting location", { source: "en" })}
                                 onChange={(event) =>
                                     updateForm({
                                         locationDetail: event.target.value,
@@ -488,7 +486,7 @@ export default function MeetingFormFields({
                                     className="text-[12px] font-semibold uppercase tracking-wide"
                                     style={{ color: T.BLUE }}
                                 >
-                                    {td("Zoho Meeting")}
+                                    {td("Zoho Meeting", { source: "en" })}
                                 </div>
                                 <a
                                     href={form.meetingLink}
@@ -534,9 +532,7 @@ export default function MeetingFormFields({
                                 className="text-[12px] leading-relaxed"
                                 style={{ color: T.TEXT_MUTED }}
                             >
-                                {td(
-                                    "A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.",
-                                )}
+                                {td("A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.", { source: "en" })}
                             </p>
                         </div>
                     )}
@@ -546,9 +542,7 @@ export default function MeetingFormFields({
                                 ? t(
                                       "pages.deals.workspace.meetings.existing_link_hint",
                                   )
-                                : td(
-                                      "This event will also be created and added to your Zoho Calendar.",
-                                  )}
+                                : td("This event will also be created and added to your Zoho Calendar.", { source: "en" })}
                         </p>
                     )}
                 </ModalField>
@@ -559,7 +553,7 @@ export default function MeetingFormFields({
                     <input
                         type="url"
                         inputMode="url"
-                        placeholder={td("Paste your meeting link")}
+                        placeholder={td("Paste your meeting link", { source: "en" })}
                         value={form.meetingLink}
                         disabled={disabled}
                         onChange={(event) =>
@@ -567,9 +561,7 @@ export default function MeetingFormFields({
                         }
                     />
                     <p className="mt-1.5 text-[12px]" style={{ color: T.TEXT_HINT }}>
-                        {td(
-                            "Copy the join link from your video provider and paste it here.",
-                        )}
+                        {td("Copy the join link from your video provider and paste it here.", { source: "en" })}
                     </p>
                 </ModalField>
             )}
@@ -610,7 +602,7 @@ export default function MeetingFormFields({
                                     key={reminderLabel(reminder)}
                                     className="dr-pill dr-pill-gray"
                                 >
-                                    {td(reminderLabel(reminder))}
+                                    {td(reminderLabel(reminder), { source: "en" })}
                                 </span>
                             ))}
                             {form.reminders.map((reminder, index) => (
@@ -623,7 +615,7 @@ export default function MeetingFormFields({
                                         gap: 6,
                                     }}
                                 >
-                                    {td(reminderLabel(reminder))}
+                                    {td(reminderLabel(reminder), { source: "en" })}
                                     <button
                                         type="button"
                                         disabled={disabled}
@@ -749,9 +741,7 @@ export default function MeetingFormFields({
                                     className="mt-1.5 text-[11px]"
                                     style={{ color: T.TEXT_HINT }}
                                 >
-                                    {td(
-                                        "A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).",
-                                    )}
+                                    {td("A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).", { source: "en" })}
                                 </p>
                             ) : null}
                         </div>

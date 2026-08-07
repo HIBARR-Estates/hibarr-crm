@@ -55,7 +55,7 @@ export default function AnalysisHeaderBar({
 
                 <div className="flex items-center gap-2 min-w-0">
                     <span className="text-sm font-semibold text-white shrink-0">
-                        {td("Deal Analysis")}
+                        {td("Deal Analysis", { source: "en" })}
                     </span>
                     {leadName && (
                         <>
@@ -82,7 +82,7 @@ export default function AnalysisHeaderBar({
                         color: isCompleted ? "#6ee7b7" : "rgba(255,255,255,0.75)",
                     }}
                 >
-                    {isCompleted ? td("Completed") : td("In Progress")}
+                    {isCompleted ? td("Completed", { source: "en" }) : td("In Progress", { source: "en" })}
                 </span>
             </div>
 
@@ -125,13 +125,13 @@ export default function AnalysisHeaderBar({
                             <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.25" />
                             <path fill="currentColor" fillOpacity="0.75" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                         </svg>
-                        <span className="text-xs whitespace-nowrap">{td("Saving")}&hellip;</span>
+                        <span className="text-xs whitespace-nowrap">{td("Saving", { source: "en" })}&hellip;</span>
                     </div>
                 )}
 
                 <button
                     type="button"
-                    aria-label={td("Minimize analysis")}
+                    aria-label={td("Minimize analysis", { source: "en" })}
                     onClick={onMinimize}
                     className="w-8 h-8 rounded-md flex items-center justify-center transition-colors"
                     style={{ color: "rgba(255,255,255,0.5)" }}
