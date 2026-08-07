@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { router } from "@inertiajs/react";
+import { router, usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { Button, EmptyState, Icon } from "@/Components/Redesign";
 import type { Deal } from "@/Types/api/deals";
@@ -12,12 +12,18 @@ import DealCard from "../cards/DealCard";
 
 interface DealsTabProps {
     dealMeta?: LeadDealMeta;
+    meetingTypes?: Array<{ id: number; name: string; color?: string }>;
 }
 
-export default function DealsTab({ dealMeta }: DealsTabProps) {
+export default function DealsTab({
+    dealMeta,
+    meetingTypes: meetingTypesProp,
+}: DealsTabProps) {
     const { td } = useTd();
+    const { props } = usePage<any>();
     const { lead, deals } = useLeadWorkspace();
     const [modalOpen, setModalOpen] = useState(false);
+    const meetingTypes = meetingTypesProp ?? props.meetingTypes ?? [];
 
     const { createDeal, isCreating, errors, clearErrors } =
         useLeadDealCreate(lead);
@@ -40,7 +46,11 @@ export default function DealsTab({ dealMeta }: DealsTabProps) {
                         setModalOpen(true);
                     }}
                 >
-                    {td("Create deal")}
+                    {td(
+                        deals.length === 0
+                            ? "Create deal"
+                            : "Create another deal",
+                    )}
                 </Button>
             </div>
 
@@ -48,7 +58,7 @@ export default function DealsTab({ dealMeta }: DealsTabProps) {
                 <EmptyState
                     title={td("No deals yet")}
                     description={td(
-                        "Convert this lead by creating their first deal.",
+                        "Create a deal for this lead. You can add more deals later.",
                     )}
                 />
             ) : (
@@ -67,7 +77,17 @@ export default function DealsTab({ dealMeta }: DealsTabProps) {
                 saving={isCreating}
                 errors={errors}
                 dealMeta={dealMeta}
-                defaultAgentId={lead.lead_owner?.id ?? null}
+                meetingTypes={meetingTypes}
+                defaultAgentId={(() => {
+                    const ownerUserId = lead.lead_owner?.id;
+                    if (!ownerUserId) return null;
+                    const match = (dealMeta?.leadAgents ?? []).find(
+                        (agent) =>
+                            agent.user_id === ownerUserId ||
+                            agent.user?.id === ownerUserId,
+                    );
+                    return match?.id ?? null;
+                })()}
                 onSubmit={(input) =>
                     createDeal(input, () => setModalOpen(false))
                 }

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal, ModalField } from "@/Components/Redesign/primitives/Modal";
@@ -56,11 +56,20 @@ export default function RescheduleMeetingModal({
     const { td } = useTd();
     const [form, setForm] = useState<RescheduleFormState | null>(null);
     const [showDuration, setShowDuration] = useState(false);
+    const seededForOpenRef = useRef(false);
 
+    // Seed once per open session — not when parent re-renders with a fresh
+    // initialForm object (e.g. after validation sets errors).
     useEffect(() => {
-        if (open && initialForm) {
+        if (!open) {
+            seededForOpenRef.current = false;
+            setForm(null);
+            return;
+        }
+        if (initialForm && !seededForOpenRef.current) {
             setForm(initialForm);
             setShowDuration(Boolean(initialForm.duration));
+            seededForOpenRef.current = true;
         }
     }, [open, initialForm]);
 
@@ -165,14 +174,14 @@ export default function RescheduleMeetingModal({
                 <button
                     type="button"
                     onClick={() => setShowDuration((current) => !current)}
-                    className="mb-2 border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
+                    className="border-none bg-transparent p-0 text-[12px] font-semibold text-[#1a6bb5] hover:text-[#145890]"
                 >
                     {showDuration
                         ? labels.hideDuration
                         : `+ ${labels.addDuration}`}
                 </button>
                 {showDuration && (
-                    <div className="flex flex-wrap gap-1.5">
+                    <div className="mt-2 flex flex-wrap gap-2">
                         {MEETING_DURATION_OPTIONS.map((option) => {
                             const active = form.duration === option.value;
 
@@ -184,7 +193,7 @@ export default function RescheduleMeetingModal({
                                     onClick={() =>
                                         handleDurationSelect(option.value)
                                     }
-                                    className="rounded-md border px-2.5 py-1 text-[12px] font-medium transition-colors"
+                                    className="rounded-lg border px-4 py-2 text-[13px] font-semibold transition-colors"
                                     style={{
                                         borderColor: active
                                             ? T.NAVY

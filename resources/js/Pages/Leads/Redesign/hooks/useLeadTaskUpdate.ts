@@ -51,6 +51,11 @@ export default function useLeadTaskUpdate(task: Task) {
                 return;
             }
 
+            if (!input.assignees?.length) {
+                setErrors(["At least one assignee is required"]);
+                return;
+            }
+
             const company = props.company;
             const dateFormat = `${company?.date_format || "d-m-Y"} ${company?.time_format || "H:i"}`;
 
@@ -81,11 +86,32 @@ export default function useLeadTaskUpdate(task: Task) {
                 onSuccess: (response) => {
                     setErrors([]);
                     if (response?.data) {
-                        const updated = response.data;
+                        const updated = response.data as Task;
                         setTasks((prev) =>
-                            prev.map((item) =>
-                                item.id === updated.id ? updated : item,
-                            ),
+                            prev.map((item) => {
+                                if (item.id !== updated.id) return item;
+                                // Merge so board_column / status aren't wiped when
+                                // the update response omits relation loads.
+                                return {
+                                    ...item,
+                                    ...updated,
+                                    board_column:
+                                        (updated as Task & {
+                                            board_column?: unknown;
+                                        }).board_column ??
+                                        (item as Task & {
+                                            board_column?: unknown;
+                                        }).board_column,
+                                    boardColumn:
+                                        (updated as Task & {
+                                            boardColumn?: unknown;
+                                        }).boardColumn ??
+                                        (item as Task & {
+                                            boardColumn?: unknown;
+                                        }).boardColumn,
+                                    status: updated.status ?? item.status,
+                                };
+                            }),
                         );
                     }
                     onSuccess?.();

@@ -58,6 +58,7 @@ class FeatureFlagService
 
         if ($fetched !== null) {
             Cache::put($cacheKey, $fetched, $cacheTtl);
+            Cache::put($this->lastGoodCacheKey($sessionId), $fetched, now()->addDay());
 
             return $this->resolved = $fetched;
         }
@@ -65,6 +66,11 @@ class FeatureFlagService
         Log::warning('FeatureFlagService: Failed to fetch feature flags, using fallback', [
             'session_id' => $sessionId,
         ]);
+
+        $stale = $this->staleCacheOrNull($sessionId);
+        if ($stale !== null) {
+            return $this->resolved = $stale;
+        }
 
         return $this->resolved = $this->allFalseKnownFlags();
     }
@@ -174,8 +180,13 @@ class FeatureFlagService
     private function staleCacheOrNull(string $sessionId): ?array
     {
         $cached = Cache::get($this->cacheKey($sessionId));
+        if (is_array($cached)) {
+            return $this->normalizeFlags($cached);
+        }
 
-        return is_array($cached) ? $this->normalizeFlags($cached) : null;
+        $lastGood = Cache::get($this->lastGoodCacheKey($sessionId));
+
+        return is_array($lastGood) ? $this->normalizeFlags($lastGood) : null;
     }
 
     /**
@@ -224,5 +235,10 @@ class FeatureFlagService
         $appName = (string) config('features.app_name', 'crm');
 
         return "feature_flags:{$appName}:{$sessionId}";
+    }
+
+    private function lastGoodCacheKey(string $sessionId): string
+    {
+        return $this->cacheKey($sessionId) . ':last_good';
     }
 }

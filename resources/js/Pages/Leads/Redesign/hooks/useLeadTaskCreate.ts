@@ -72,9 +72,11 @@ export default function useLeadTaskCreate(leadId: number) {
                 : userId
                   ? [userId]
                   : undefined;
-            if (assignees) {
-                payload.user_id = assignees;
+            if (!assignees?.length) {
+                setErrors(["At least one assignee is required"]);
+                return;
             }
+            payload.user_id = assignees;
 
             payload.start_date = formatDueDateTimeForApi(
                 input.startDate?.trim() || todayIsoDate(),

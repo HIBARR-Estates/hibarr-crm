@@ -4,6 +4,11 @@ interface FloatingMenuOptions {
     align?: "left" | "right";
     gap?: number;
     maxHeight?: number;
+    /**
+     * Must sit above portaled redesign modals (deal-redesign overlay is 1300).
+     * Default 1500 so MenuSelect / pickers remain visible inside modals.
+     */
+    zIndex?: number;
 }
 
 interface FloatingMenuStyle {
@@ -25,7 +30,12 @@ interface FloatingMenuStyle {
 export default function useFloatingMenuPosition(
     open: boolean,
     triggerRef: RefObject<HTMLElement | null>,
-    { align = "left", gap = 6, maxHeight = 260 }: FloatingMenuOptions = {},
+    {
+        align = "left",
+        gap = 6,
+        maxHeight = 260,
+        zIndex = 1500,
+    }: FloatingMenuOptions = {},
 ): FloatingMenuStyle | null {
     const [style, setStyle] = useState<FloatingMenuStyle | null>(null);
 
@@ -48,7 +58,7 @@ export default function useFloatingMenuPosition(
 
             const next: FloatingMenuStyle = {
                 position: "fixed",
-                zIndex: 1200,
+                zIndex,
                 maxHeight: Math.max(120, openUp ? spaceAbove : spaceBelow),
                 top: "auto",
                 bottom: "auto",
@@ -69,7 +79,7 @@ export default function useFloatingMenuPosition(
             window.removeEventListener("scroll", update, true);
             window.removeEventListener("resize", update);
         };
-    }, [open, triggerRef, align, gap, maxHeight]);
+    }, [open, triggerRef, align, gap, maxHeight, zIndex]);
 
     return style;
 }

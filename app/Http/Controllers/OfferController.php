@@ -19,6 +19,12 @@ class OfferController extends AccountBaseController
         private DealOfferService $dealOfferService,
     ) {
         parent::__construct();
+
+        $this->middleware(function ($request, $next) {
+            abort_403(!\App\Support\PermissionGates::canManageOffers(user()));
+
+            return $next($request);
+        })->except(['dealOffers', 'removeFromDeal']);
     }
 
     /**

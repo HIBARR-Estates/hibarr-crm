@@ -5,6 +5,7 @@ import { Icon, initialsFromName } from "@/Components/Redesign";
 import AgentPicker from "@/Components/Redesign/primitives/AgentPicker";
 import useFloatingMenuPosition from "@/Components/Redesign/hooks/useFloatingMenuPosition";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import DealConfirmDialog from "@/Pages/Deals/Redesign/components/primitives/DealConfirmDialog";
 import useLeadOwnerReassign from "../../hooks/useLeadOwnerReassign";
 
 interface LeadOwnerCardProps {
@@ -22,6 +23,10 @@ export default function LeadOwnerCard({
 }: LeadOwnerCardProps) {
     const { td } = useTd();
     const [open, setOpen] = useState(false);
+    const [pending, setPending] = useState<{
+        kind: "assign" | "unassign";
+        agent: { id: number; name: string } | null;
+    } | null>(null);
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
     const floatStyle = useFloatingMenuPosition(open, btnRef, {
@@ -53,13 +58,24 @@ export default function LeadOwnerCard({
         };
     }, [open]);
 
-    const pick = (agent: { id: number; name: string } | null) => {
+    const requestChange = (agent: { id: number; name: string } | null) => {
         if (agent === null) {
-            void reassign(null).then(() => setOpen(false));
+            setPending({ kind: "unassign", agent: null });
+            setOpen(false);
             return;
         }
-        void reassign(agent)
-            .then(() => setOpen(false))
+        if (owner?.id === agent.id) {
+            setOpen(false);
+            return;
+        }
+        setPending({ kind: "assign", agent });
+        setOpen(false);
+    };
+
+    const confirmChange = () => {
+        if (!pending) return;
+        void reassign(pending.agent)
+            .then(() => setPending(null))
             .catch(() => {
                 /* toast already shown by updateField */
             });
@@ -151,6 +167,19 @@ export default function LeadOwnerCard({
         );
     }
 
+    const confirmTitle =
+        pending?.kind === "unassign"
+            ? td("Unassign lead owner?")
+            : td("Change lead owner?");
+    const confirmMessage =
+        pending?.kind === "unassign"
+            ? `${td("Remove")} ${ownerName ?? td("this owner")} ${td("as the lead owner?")}`
+            : pending?.agent
+              ? ownerName
+                  ? `${td("Reassign from")} ${ownerName} ${td("to")} ${pending.agent.name}?`
+                  : `${td("Assign")} ${pending.agent.name} ${td("as the lead owner?")}`
+              : "";
+
     return (
         <div style={{ display: "inline-flex" }}>
             <button
@@ -218,7 +247,7 @@ export default function LeadOwnerCard({
                             {td("Assign lead owner")}
                         </div>
                         <AgentPicker
-                            onPick={(picked) => pick(picked)}
+                            onPick={(picked) => requestChange(picked)}
                             pendingId={pendingAgentId}
                             autoFocus
                             searchPlaceholder={td("Search agents…")}
@@ -235,7 +264,7 @@ export default function LeadOwnerCard({
                                 <button
                                     type="button"
                                     className="dr-menu-item danger"
-                                    onClick={() => pick(null)}
+                                    onClick={() => requestChange(null)}
                                 >
                                     {td("Unassign")} {ownerName}
                                 </button>
@@ -244,6 +273,20 @@ export default function LeadOwnerCard({
                     </div>,
                     document.body,
                 )}
+
+            <DealConfirmDialog
+                open={pending != null}
+                title={confirmTitle}
+                message={confirmMessage}
+                confirmLabel={
+                    pending?.kind === "unassign"
+                        ? td("Unassign")
+                        : td("Change owner")
+                }
+                confirmLoading={saving}
+                onConfirm={confirmChange}
+                onCancel={() => setPending(null)}
+            />
         </div>
     );
 }

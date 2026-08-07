@@ -38,7 +38,10 @@ export default function useLeadFieldUpdate() {
                     Object.entries(updated).forEach(([key, val]) => {
                         if (val === undefined) return;
                         next[key] =
-                            key === "languages" && !Array.isArray(val)
+                            (key === "languages" ||
+                                key === "categories" ||
+                                key === "category_ids") &&
+                            !Array.isArray(val)
                                 ? []
                                 : val;
                     });

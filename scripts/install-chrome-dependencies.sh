@@ -47,4 +47,4 @@ apt-get update && apt-get install -y \
 echo "System dependencies installed."
 echo ""
 echo "Now install Chrome for Puppeteer as the web user:"
-echo "  sudo -u hibarr npx puppeteer browsers install chrome-headless-shell"
+echo "  sudo -u <your-web-user-used-to-run-app-on-your-vps> npx puppeteer browsers install chrome-headless-shell"

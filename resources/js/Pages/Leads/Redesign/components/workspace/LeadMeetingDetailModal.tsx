@@ -52,7 +52,7 @@ function canDeleteMeeting(
 }
 
 export default function LeadMeetingDetailModal({
-    meeting,
+    meeting: meetingProp,
     meetingTypes,
     permissions,
     onClose,
@@ -60,7 +60,13 @@ export default function LeadMeetingDetailModal({
     const { td } = useTd();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
-    const { lead, deals, setLeadFollowUps } = useLeadWorkspace();
+    const { lead, deals, setLeadFollowUps, leadFollowUps } = useLeadWorkspace();
+    // Keep the open meeting in sync with workspace patches (e.g. reschedule).
+    const meeting =
+        meetingProp == null
+            ? null
+            : (leadFollowUps.find((item) => item.id === meetingProp.id) ??
+              meetingProp);
     const {
         updateMeeting,
         isUpdating,
@@ -98,6 +104,7 @@ export default function LeadMeetingDetailModal({
                 endTime: form.endTime,
                 duration: form.duration,
                 platform: form.platform,
+                locationDetail: form.locationDetail,
                 meetingLink: form.meetingLink,
                 participants: form.participants,
                 remark: form.remark,
@@ -161,6 +168,7 @@ export default function LeadMeetingDetailModal({
                                         endTime: form.endTime,
                                         duration: form.duration,
                                         platform: form.platform,
+                                        locationDetail: form.locationDetail,
                                         meetingLink: form.meetingLink,
                                         participants: form.participants,
                                         remark: form.remark,

@@ -36,7 +36,9 @@ interface LeadHeaderRootProps {
     onOpenAnswers?: () => void;
     onMoreAction: (id: MoreMenuActionId) => void;
     onBannerPrimary: () => void;
+    onBannerSecondary?: () => void;
     onBannerViewAnswers?: () => void;
+    dealCount?: number;
 }
 
 export default function LeadHeaderRoot({
@@ -59,7 +61,9 @@ export default function LeadHeaderRoot({
     onOpenAnswers,
     onMoreAction,
     onBannerPrimary,
+    onBannerSecondary,
     onBannerViewAnswers,
+    dealCount = 0,
 }: LeadHeaderRootProps) {
     const { td } = useTd();
 
@@ -171,7 +175,9 @@ export default function LeadHeaderRoot({
                         templateName={templateName}
                         answered={qualificationAnswered}
                         total={qualificationTotal}
+                        dealCount={dealCount}
                         onPrimary={onBannerPrimary}
+                        onSecondary={onBannerSecondary}
                         onViewAnswers={onBannerViewAnswers}
                     />
                 </div>

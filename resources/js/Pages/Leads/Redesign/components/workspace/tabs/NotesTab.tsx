@@ -50,7 +50,7 @@ export default function NotesTab({ permissions }: NotesTabProps) {
     const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
-    const { lead, notes, addNote, setNotes } = useLeadWorkspace();
+    const { lead, notes, setNotes } = useLeadWorkspace();
     const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
     const [title, setTitle] = useState("");
     const [text, setText] = useState("");
@@ -79,8 +79,7 @@ export default function NotesTab({ permissions }: NotesTabProps) {
         !permissions || permissions.delete_lead_note === "all";
 
     const saveNote = () => {
-        createNote({ title, text }, (note) => {
-            addNote(note);
+        createNote({ title, text }, () => {
             setTitle("");
             setText("");
         });
@@ -318,6 +317,19 @@ export default function NotesTab({ permissions }: NotesTabProps) {
                                         >
                                             {note.timeLabel}
                                         </span>
+                                        {!selectMode && (
+                                            <DealButton
+                                                variant="ghost"
+                                                size="sm"
+                                                onClick={(event) => {
+                                                    event.stopPropagation();
+                                                    setSelectedNoteId(note.id);
+                                                }}
+                                                aria-label={`${td("Edit")}: ${note.title || note.authorName}`}
+                                            >
+                                                <DealIcon name="edit" size={13} />
+                                            </DealButton>
+                                        )}
                                         {showDelete && (
                                             <DealButton
                                                 variant="ghost"
@@ -334,11 +346,13 @@ export default function NotesTab({ permissions }: NotesTabProps) {
                                     </div>
                                 </div>
                                 <div
-                                    className="dr-clamp-3 rounded-md px-2.5 py-2 text-[13px]"
+                                    className="dr-clamp-3 min-w-0 rounded-md px-2.5 py-2 text-[13px]"
                                     style={{
                                         color: T.TEXT_MUTED,
                                         lineHeight: 1.6,
                                         background: T.SURFACE_2,
+                                        overflowWrap: "anywhere",
+                                        wordBreak: "break-word",
                                     }}
                                 >
                                     {note.body}

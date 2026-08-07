@@ -1,15 +1,16 @@
 import { useCallback, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
 import { message } from "antd";
 import { errorFormatter } from "@/lib/api/utils/common";
 import {
     getBrowserTimezone,
     persistUserTimezoneOnce,
 } from "@/lib/userTimezone";
+import { usePage } from "@inertiajs/react";
 import {
     formatMeetingDateForApi,
     formatMeetingTimeForApi,
 } from "@/Components/Redesign/meeting/meetingFormUtils";
+import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
 export interface LeadMeetingRescheduleInput {
     date: string;
@@ -20,12 +21,18 @@ export interface LeadMeetingRescheduleInput {
 interface RescheduleResponse {
     success?: boolean;
     message?: string;
+    data?: {
+        next_follow_up_date?: string;
+        duration?: number | null;
+        status?: string;
+    };
 }
 
 export default function useLeadMeetingReschedule(followupId: number | null) {
     const [errors, setErrors] = useState<string[]>([]);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { props } = usePage();
+    const { setLeadFollowUps } = useLeadWorkspace();
 
     const rescheduleMeeting = useCallback(
         async (input: LeadMeetingRescheduleInput, onSuccess?: () => void) => {
@@ -77,8 +84,27 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
 
                 if (json.success) {
                     message.success("Meeting rescheduled");
+                    // Instant local patch — avoid waiting on a full deferred reload.
+                    const nextDate =
+                        json.data?.next_follow_up_date ||
+                        `${input.date}T${input.startTime}:00`;
+                    setLeadFollowUps((prev) =>
+                        prev.map((followup) =>
+                            followup.id === followupId
+                                ? {
+                                      ...followup,
+                                      next_follow_up_date: nextDate,
+                                      duration:
+                                          input.duration ?? followup.duration,
+                                      status:
+                                          json.data?.status ??
+                                          followup.status ??
+                                          "pending",
+                                  }
+                                : followup,
+                        ),
+                    );
                     onSuccess?.();
-                    router.reload({ only: ["leadFollowUps"] });
                     return;
                 }
 
@@ -92,7 +118,7 @@ export default function useLeadMeetingReschedule(followupId: number | null) {
                 setIsSubmitting(false);
             }
         },
-        [followupId, props.auth?.user?.timezone],
+        [followupId, props.auth?.user?.timezone, setLeadFollowUps],
     );
 
     const clearErrors = useCallback(() => setErrors([]), []);

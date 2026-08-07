@@ -37,7 +37,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Kişiler',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Yenilemeden önce değişiklikleri kaydedin veya iptal edin',
         'save_before_tab_switch'   => 'Sekme değiştirmeden önce lütfen değişikliklerinizi kaydedin veya iptal edin.',
         'tabs' => [
@@ -757,7 +757,8 @@ return [
                 'date_label'           => 'Tarih',
                 'platform'             => 'Platform',
                 'platform_video_call'  => 'Görüntülü arama',
-                'platform_in_person'   => 'Yüz yüze',
+                'platform_in_person'   => 'Fiziksel',
+                'platform_physical'    => 'Fiziksel',
                 'platform_phone'       => 'Telefon',
                 'reminder_unit_minutes' => 'dakika',
                 'reminder_unit_hours'  => 'saat',
@@ -842,6 +843,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Dosyalar yüklendi',
                     'upload_failed' => 'Dosyalar yüklenemedi. Lütfen tekrar deneyin.',
+                    'deleted'       => 'Dosya silindi',
+                    'delete_failed' => 'Dosya silinemedi',
                 ],
             ],
             'offers' => [

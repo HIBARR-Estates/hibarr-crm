@@ -37,7 +37,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Kontakte',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Bitte Änderungen speichern oder abbrechen, bevor Sie aktualisieren',
         'save_before_tab_switch'   => 'Bitte speichern oder brechen Sie Ihre Änderungen ab, bevor Sie den Tab wechseln.',
         'tabs' => [
@@ -754,6 +754,7 @@ return [
                 'platform'             => 'Plattform',
                 'platform_video_call'  => 'Videoanruf',
                 'platform_in_person'   => 'Vor Ort',
+                'platform_physical'    => 'Vor Ort',
                 'platform_phone'       => 'Telefon',
                 'reminder_unit_minutes' => 'Minuten',
                 'reminder_unit_hours'  => 'Stunden',
@@ -838,6 +839,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Dateien hochgeladen',
                     'upload_failed' => 'Dateien konnten nicht hochgeladen werden. Bitte versuchen Sie es erneut.',
+                    'deleted'       => 'Datei gelöscht',
+                    'delete_failed' => 'Datei konnte nicht gelöscht werden',
                 ],
             ],
             'offers' => [

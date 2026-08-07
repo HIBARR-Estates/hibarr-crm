@@ -203,7 +203,9 @@ class DealsDataTable extends BaseDataTable
             $client_name = $row->client_name;
 
             if ($row->salutation instanceof Salutation || is_string($row->salutation)) {
-                $salutationLabel = ($row->salutation instanceof Salutation) ? $row->salutation->label() : Salutation::from($row->salutation)->label();
+                $salutationLabel = ($row->salutation instanceof Salutation)
+                    ? $row->salutation->label()
+                    : (Salutation::tryFrom((string) $row->salutation)?->label() ?? '');
                 $client_name = $salutationLabel . ' ' . $client_name;
             }
 

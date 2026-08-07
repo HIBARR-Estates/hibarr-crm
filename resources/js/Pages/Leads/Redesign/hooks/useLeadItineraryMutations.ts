@@ -12,9 +12,15 @@ import {
 import type { DealItineraryFormInput } from "@/Pages/Deals/Redesign/hooks/useDealItinerary";
 import { useLeadWorkspace } from "../context/LeadWorkspaceContext";
 
+export interface CreateLeadItineraryContext {
+    leadId: number;
+    /** Optional — flights can belong to the lead alone. */
+    dealId?: number | null;
+}
+
 /**
  * Create / update / delete flight legs from the lead page, patching
- * LeadWorkspaceContext.deals (and lead.lead_flight_itineraries when present).
+ * LeadWorkspaceContext.deals (and lead.lead_flight_itineraries).
  */
 export default function useLeadItineraryMutations() {
     const { t } = useTranslation();
@@ -22,7 +28,7 @@ export default function useLeadItineraryMutations() {
     const [deletingId, setDeletingId] = useState<number | null>(null);
     const [isUpdating, setIsUpdating] = useState(false);
 
-    const patchDealLegs = useCallback(
+    const patchLegs = useCallback(
         (
             dealId: number | null | undefined,
             updater: (legs: ILeadFlightItinerary[]) => ILeadFlightItinerary[],
@@ -42,34 +48,40 @@ export default function useLeadItineraryMutations() {
                 );
             }
 
-            setLead((prev) => {
-                const existing = prev.lead_flight_itineraries;
-                if (!existing) return prev;
-                return {
-                    ...prev,
-                    lead_flight_itineraries: updater(existing),
-                };
-            });
+            // Always keep lead-level legs in sync (source of truth on this page).
+            setLead((prev) => ({
+                ...prev,
+                lead_flight_itineraries: updater(
+                    prev.lead_flight_itineraries ?? [],
+                ),
+            }));
         },
         [setDeals, setLead],
     );
 
     const { mutate: createMutate, status: createStatus } = useApiMutate<
-        DealItineraryFormInput & { deal_id: number; status: string },
+        DealItineraryFormInput & {
+            lead_id: number;
+            deal_id?: number | null;
+            status: string;
+        },
         ILeadFlightItinerary,
         ApiResponse<ILeadFlightItinerary>
     >(route("lead-flight-itineraries.store"), "POST");
 
     const createLeg = useCallback(
         (
-            dealId: number,
+            context: CreateLeadItineraryContext,
             input: DealItineraryFormInput,
             onSuccess?: () => void,
         ) => {
+            const dealId = context.dealId ?? null;
+
             createMutate(
                 {
                     ...input,
-                    deal_id: dealId,
+                    lead_id: context.leadId,
+                    ...(dealId != null ? { deal_id: dealId } : {}),
                     status:
                         input.direction === FlightDirection.ARRIVAL
                             ? "not arrived"
@@ -87,9 +99,12 @@ export default function useLeadItineraryMutations() {
 
                         const created = {
                             ...response.data,
-                            deal_id: response.data.deal_id ?? dealId,
+                            lead_id: response.data.lead_id ?? context.leadId,
+                            deal_id: response.data.deal_id ?? dealId ?? undefined,
                         };
-                        patchDealLegs(dealId, (legs) => {
+                        const targetDealId = created.deal_id ?? dealId;
+
+                        patchLegs(targetDealId, (legs) => {
                             if (
                                 created.id &&
                                 legs.some((leg) => leg.id === created.id)
@@ -103,7 +118,7 @@ export default function useLeadItineraryMutations() {
                 },
             );
         },
-        [createMutate, patchDealLegs],
+        [createMutate, patchLegs],
     );
 
     const updateLeg = useCallback(
@@ -133,7 +148,7 @@ export default function useLeadItineraryMutations() {
                                 "pages.deals.workspace.itinerary.messages.updated",
                             ),
                         );
-                        patchDealLegs(leg.deal_id, (legs) =>
+                        patchLegs(leg.deal_id, (legs) =>
                             legs.map((item) =>
                                 item.id === legId
                                     ? { ...item, ...input, status }
@@ -153,7 +168,7 @@ export default function useLeadItineraryMutations() {
                 },
             );
         },
-        [patchDealLegs, t],
+        [patchLegs, t],
     );
 
     const deleteLeg = useCallback(
@@ -177,7 +192,10 @@ export default function useLeadItineraryMutations() {
                 }),
             );
             setLead((prev) => {
-                if (!prev.lead_flight_itineraries) return prev;
+                if (!prev.lead_flight_itineraries) {
+                    snapshotOnLead = null;
+                    return prev;
+                }
                 snapshotOnLead = prev.lead_flight_itineraries;
                 return {
                     ...prev,
@@ -208,7 +226,8 @@ export default function useLeadItineraryMutations() {
                                 deal.id === leg.deal_id
                                     ? {
                                           ...deal,
-                                          lead_flight_itineraries: snapshotByDeal!,
+                                          lead_flight_itineraries:
+                                              snapshotByDeal!,
                                       }
                                     : deal,
                             ),

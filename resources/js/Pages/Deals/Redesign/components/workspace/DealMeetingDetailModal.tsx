@@ -20,14 +20,19 @@ interface DealMeetingDetailModalProps {
 }
 
 export default function DealMeetingDetailModal({
-    meeting,
+    meeting: meetingProp,
     deal,
     meetingTypes,
     canEdit,
     canDelete,
     onClose,
 }: DealMeetingDetailModalProps) {
-    const { setDealFollowUps } = useDealWorkspace();
+    const { setDealFollowUps, dealFollowUps } = useDealWorkspace();
+    const meeting =
+        meetingProp == null
+            ? null
+            : (dealFollowUps.find((item) => item.id === meetingProp.id) ??
+              meetingProp);
     const { props } = usePage();
     const currentUserId = props.auth?.user?.id;
     const { updateMeeting, isUpdating } = useDealMeetingUpdate(deal);

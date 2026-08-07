@@ -23,10 +23,17 @@ function parseNoteDate(value: string | undefined): {
     date: Date | null;
     label: string;
 } {
-    if (!value) return { date: null, label: "No date" };
+    if (!value) {
+        // Newly created notes without a serialized created_at still exist "now".
+        const now = new Date();
+        return { date: now, label: formatDate(now, "Just now") };
+    }
     const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return { date: null, label: "No date" };
-    return { date, label: formatDate(date, "No date") };
+    if (Number.isNaN(date.getTime())) {
+        const now = new Date();
+        return { date: now, label: formatDate(now, "Just now") };
+    }
+    return { date, label: formatDate(date, "Just now") };
 }
 
 function stripHtml(html: string): string {
@@ -48,7 +55,11 @@ function relativeNoteLabel(date: Date, absoluteFallback: string): string {
 export function toWorkspaceNotePreview(note: Note): WorkspaceNotePreview {
     const { date, label } = parseNoteDate(note.created_at);
     const body = stripHtml(note.details?.trim() || "");
-    const authorName = note.added_by?.name ?? "Unknown";
+    const authorName =
+        note.added_by?.name ??
+        (note as Note & { added_by_user?: { name?: string } }).added_by_user
+            ?.name ??
+        "Unknown";
     return {
         id: note.id,
         // Left empty (not "Untitled note") when the note has no title —

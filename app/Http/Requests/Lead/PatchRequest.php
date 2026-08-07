@@ -17,6 +17,13 @@ class PatchRequest extends CoreRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if ($this->has('salutation') && $this->salutation === '') {
+            $this->merge(['salutation' => null]);
+        }
+    }
+
     /**
      * Get the validation rules that apply to the request.
      */
@@ -30,10 +37,10 @@ class PatchRequest extends CoreRequest
             // stays non-nullable — clearing it should surface a friendly
             // validation error rather than a DB constraint failure.
             'client_name' => 'sometimes|string|max:255',
-            'client_email' => 'nullable|email|max:255',
-            'mobile' => 'nullable|string|max:20',
-            'cell' => 'sometimes|nullable|string|max:20',
-            'office' => 'sometimes|nullable|string|max:20',
+            'client_email' => 'nullable|email:rfc,strict|max:255',
+            'mobile' => 'nullable|string|max:100',
+            'cell' => 'sometimes|nullable|string|max:100',
+            'office' => 'sometimes|nullable|string|max:100',
             'client_whatsapp' => 'sometimes|nullable|string|max:100',
             'client_telegram' => 'sometimes|nullable|string|max:100',
             'client_instagram' => 'sometimes|nullable|string|max:100',
@@ -58,8 +65,10 @@ class PatchRequest extends CoreRequest
             'lead_owner' => 'sometimes|nullable|integer|exists:users,id',
             'added_by' => 'sometimes|nullable|integer|exists:users,id',
             
-            // Categorization (all optional for patch)
+            // Categorization — multi via category_ids; scalar category_id still accepted
             'category_id' => 'sometimes|nullable|integer|exists:lead_category,id',
+            'category_ids' => 'sometimes|nullable|array',
+            'category_ids.*' => 'integer|exists:lead_category,id',
             'source_id' => 'sometimes|nullable|integer|exists:lead_sources,id',
             'status_id' => 'sometimes|nullable|integer|exists:lead_statuses,id',
             'lead_lifecycle_status_id' => 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id',
@@ -110,6 +119,8 @@ class PatchRequest extends CoreRequest
             'lead_owner.exists' => 'Selected lead owner is invalid.',
             'added_by.exists' => 'Selected user is invalid.',
             'category_id.exists' => 'Selected category is invalid.',
+            'category_ids.array' => 'Categories must be provided as an array.',
+            'category_ids.*.exists' => 'One or more selected categories do not exist.',
             'source_id.exists' => 'Selected source is invalid.',
             'status_id.exists' => 'Selected status is invalid.',
             'client_id.exists' => 'Selected client is invalid.',
@@ -136,6 +147,7 @@ class PatchRequest extends CoreRequest
             'lead_owner' => 'lead owner',
             'added_by' => 'added by',
             'category_id' => 'category',
+            'category_ids' => 'categories',
             'source_id' => 'lead source',
             'status_id' => 'status',
             'currency_id' => 'currency',

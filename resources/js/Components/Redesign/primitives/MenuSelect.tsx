@@ -18,6 +18,8 @@ interface MenuSelectProps {
     disabled?: boolean;
     align?: "left" | "right";
     width?: number;
+    /** Stretch trigger to fill the parent (e.g. ModalField). */
+    fullWidth?: boolean;
     triggerStyle?: CSSProperties;
     triggerClassName?: string;
 }
@@ -35,6 +37,7 @@ export default function MenuSelect({
     disabled,
     align = "left",
     width,
+    fullWidth = false,
     triggerStyle,
     triggerClassName,
 }: MenuSelectProps) {
@@ -71,7 +74,11 @@ export default function MenuSelect({
 
     return (
         <div
-            style={{ display: "inline-flex", maxWidth: "100%" }}
+            style={{
+                display: fullWidth ? "flex" : "inline-flex",
+                width: fullWidth ? "100%" : undefined,
+                maxWidth: "100%",
+            }}
             onClick={(e) => e.stopPropagation()}
         >
             <button
@@ -82,16 +89,35 @@ export default function MenuSelect({
                 disabled={isDisabled}
                 onClick={() => setOpen((v) => !v)}
                 className={
-                    triggerClassName ?? `dr-btn dr-btn-ghost${sm ? " dr-btn-sm" : ""}`
+                    triggerClassName ??
+                    (fullWidth
+                        ? undefined
+                        : `dr-btn dr-btn-ghost${sm ? " dr-btn-sm" : ""}`)
                 }
                 style={{
-                    maxWidth: width || (sm ? 150 : 190),
+                    width: fullWidth ? "100%" : undefined,
+                    maxWidth: fullWidth
+                        ? "100%"
+                        : width || (sm ? 150 : 190),
+                    justifyContent: "space-between",
                     display: "inline-flex",
                     alignItems: "center",
-                    gap: 5,
+                    gap: fullWidth ? 8 : 5,
                     background: T.WHITE,
-                    color: T.TEXT_MUTED,
+                    // Match `.redesign-modal-overlay .modal-field input` when
+                    // fullWidth (modal forms); keep compact btn sizing elsewhere.
+                    color: current ? T.TEXT : T.TEXT_MUTED,
                     border: `1px solid ${T.BORDER}`,
+                    borderRadius: 8,
+                    fontFamily: "inherit",
+                    fontSize: fullWidth ? 14 : undefined,
+                    fontWeight: fullWidth ? 400 : undefined,
+                    padding: fullWidth ? "11px 12px" : undefined,
+                    minHeight: fullWidth ? 44 : undefined,
+                    lineHeight: fullWidth ? 1.25 : undefined,
+                    cursor: isDisabled ? "not-allowed" : "pointer",
+                    opacity: isDisabled ? 0.45 : 1,
+                    boxSizing: "border-box",
                     ...triggerStyle,
                 }}
             >
@@ -100,12 +126,19 @@ export default function MenuSelect({
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
+                        textAlign: "left",
+                        flex: 1,
+                        minWidth: 0,
                     }}
                 >
                     {current ? current.label : placeholder}
                 </span>
                 {!isDisabled && (
-                    <Icon name={open ? "chevron-up" : "chevron-down"} size={10} />
+                    <Icon
+                        name={open ? "chevron-up" : "chevron-down"}
+                        size={fullWidth ? 12 : 10}
+                        color={T.TEXT_MUTED}
+                    />
                 )}
             </button>
             {open &&
@@ -118,8 +151,10 @@ export default function MenuSelect({
                         role="menu"
                         style={{
                             ...floatStyle,
-                            minWidth: 170,
-                            maxWidth: 320,
+                            minWidth: fullWidth
+                                ? btnRef.current?.offsetWidth || 170
+                                : 170,
+                            maxWidth: fullWidth ? 480 : 320,
                             overflowY: "auto",
                         }}
                         onClick={(e) => e.stopPropagation()}

@@ -40,6 +40,7 @@ class LeadService
                 'addedBy:id,name,email',
                 'leadSource:id,type',
                 'category:id,category_name',
+                'categories:id,category_name',
             ])
             ->select([
                 'leads.id', 'leads.company_id', 'leads.client_name', 'leads.client_email', 
@@ -196,7 +197,13 @@ class LeadService
         }
 
         if ($request->filled('category_id')) {
-            $query->where('category_id', $request->get('category_id'));
+            $categoryId = $request->get('category_id');
+            $query->where(function ($q) use ($categoryId) {
+                $q->where('category_id', $categoryId)
+                    ->orWhereHas('categories', function ($cq) use ($categoryId) {
+                        $cq->where('lead_category.id', $categoryId);
+                    });
+            });
         }
 
         if ($request->filled('lead_owner_id')) {

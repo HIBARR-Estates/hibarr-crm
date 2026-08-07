@@ -153,6 +153,7 @@ class PackageGrpcService implements PackageServiceInterface
         $msg->setCreatedAt($this->dateToString($package->created_at));
         $msg->setUpdatedAt($this->dateToString($package->updated_at));
         $msg->setDeletedAt($this->dateToString($package->deleted_at));
+        $msg->setCurrency($package->currency ?? 'EUR');
 
         return $msg;
     }

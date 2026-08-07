@@ -105,8 +105,8 @@ export function usePropertyPermissions(
         const roles: PropertyRole[] = [];
 
         const isAdmin =
-            permissions?.edit_product === "all" ||
-            permissions?.edit_product === 4;
+            permissions?.manage_properties === "all" ||
+            permissions?.manage_properties === 4;
         if (isAdmin) roles.push("admin");
 
         const isCreator =
@@ -216,7 +216,7 @@ export function usePropertyPermissions(
     }, [
         property,
         currentUser?.id,
-        permissions?.edit_product,
+        permissions?.manage_properties,
         permissions?.view_product,
         hasPendingEditAccessRequest,
     ]);
@@ -225,7 +225,7 @@ export function usePropertyPermissions(
 export function getPropertyPermissions(
     property: Property | null | undefined,
     userId: number | null | undefined,
-    editProductsPermission?: PermissionScope,
+    managePropertiesPermission?: PermissionScope,
     viewProductsPermission?: PermissionScope,
     options?: { hasPendingEditAccessRequest?: boolean },
 ): PropertyPermissions {
@@ -263,7 +263,8 @@ export function getPropertyPermissions(
     const roles: PropertyRole[] = [];
 
     const isAdmin =
-        editProductsPermission === "all" || editProductsPermission === 4;
+        managePropertiesPermission === "all" ||
+        managePropertiesPermission === 4;
     if (isAdmin) roles.push("admin");
 
     const isCreator = (property as any).added_by === userId;

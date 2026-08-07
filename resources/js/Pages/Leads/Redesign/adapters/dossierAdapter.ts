@@ -6,18 +6,48 @@ import {
     formatLeadAgeDisplay,
     resolveLeadAgeFields,
 } from "@/lib/leadAge";
+import { formatMobileForDisplay } from "@/lib/utils";
 import {
     resolveCurrencyDisplay,
     type CurrencyDisplay,
 } from "./currencyAdapter";
 
+/** Values that should render as empty (no copy, not "filled"). */
+const EMPTY_VALUE_MARKERS = new Set([
+    "",
+    "-",
+    "—",
+    "–",
+    "--",
+    "...",
+    "n/a",
+    "na",
+    "none",
+    "null",
+    "undefined",
+    "not set",
+    "[object object]",
+]);
+
+/** Whether a dossier display string is real content (not placeholder / junk). */
+export function isMeaningfulDossierValue(
+    value: string | null | undefined,
+): boolean {
+    if (value == null) return false;
+    const trimmed = String(value).trim();
+    if (!trimmed) return false;
+    return !EMPTY_VALUE_MARKERS.has(trimmed.toLowerCase());
+}
+
 /** @deprecated Prefer computeAgeRangeFromAge from @/lib/leadAge */
 export function ageRangeFromAge(age: unknown): string {
-    return computeAgeRangeFromAge(
-        age === null || age === undefined || age === ""
-            ? null
-            : Number(age),
-    ) ?? "";
+    return (
+        computeAgeRangeFromAge(
+            age === null || age === undefined || age === ""
+                ? null
+                : Number(age),
+        ) ?? ""
+    );
 }
 
 export function formatAgeDisplay(age: unknown, ageRange?: string): string {
@@ -46,16 +76,44 @@ function yesNo(value: unknown): string {
 
 function asString(value: unknown): string {
     if (value == null) return "";
-    if (Array.isArray(value)) return value.map(String).filter(Boolean).join(", ");
-    if (typeof value === "object" && value !== null && "name" in value) {
-        return String((value as { name?: unknown }).name ?? "");
+    if (Array.isArray(value)) {
+        return value
+            .map(String)
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .join(", ");
     }
-    return String(value);
+    if (typeof value === "object") {
+        if ("name" in value) {
+            return String((value as { name?: unknown }).name ?? "").trim();
+        }
+        // Avoid "[object Object]" cluttering empty dossier rows (e.g. bare phone blobs).
+        return "";
+    }
+    const raw = String(value).trim();
+    if (
+        raw === "" ||
+        raw === "null" ||
+        raw === "undefined" ||
+        raw.toLowerCase() === "[object object]"
+    ) {
+        return "";
+    }
+    return raw;
+}
+
+function asPhone(value: unknown, fallback?: unknown): string {
+    return (
+        formatMobileForDisplay(value) ||
+        formatMobileForDisplay(fallback) ||
+        ""
+    ).trim();
 }
 
 function marketingOf(lead: Lead): Record<string, unknown> {
-    const marketing = (lead as unknown as { marketing?: Record<string, unknown> })
-        .marketing;
+    const marketing = (
+        lead as unknown as { marketing?: Record<string, unknown> }
+    ).marketing;
     return marketing ?? {};
 }
 
@@ -82,13 +140,15 @@ export function getDossierFieldValue(
         case "salutation":
             return asString(l.salutation_value ?? l.salutation);
         case "mobile":
-            return asString(l.mobile_with_phonecode || l.mobile);
+            return asPhone(l.mobile_with_phonecode, l.mobile) || asPhone(l.mobile);
         case "office":
-            return asString(l.office_phone_formatted || l.office);
+            return (
+                asPhone(l.office_phone_formatted, l.office) || asPhone(l.office)
+            );
         case "email":
             return asString(l.client_email ?? l.email);
         case "whatsapp":
-            return asString(l.client_whatsapp || l.whatsapp);
+            return asPhone(l.client_whatsapp, l.whatsapp) || asPhone(l.whatsapp);
         case "telegram":
             return asString(l.client_telegram ?? l.telegram);
         case "instagram":
@@ -97,7 +157,8 @@ export function getDossierFieldValue(
             return asString(m.contact_score ?? l.contact_score ?? l.score);
         case "hasRegisteredWebinar":
             return yesNo(
-                m.has_registered_for_the_webinar ?? l.has_registered_for_the_webinar,
+                m.has_registered_for_the_webinar ??
+                    l.has_registered_for_the_webinar,
             );
         case "hasAttendedWebinar":
             return yesNo(
@@ -123,7 +184,8 @@ export function getDossierFieldValue(
             );
         case "hasJoinedWhatsappGroup":
             return yesNo(
-                m.has_joined_the_whatsapp_group ?? l.has_joined_the_whatsapp_group,
+                m.has_joined_the_whatsapp_group ??
+                    l.has_joined_the_whatsapp_group,
             );
         case "dateOfBirthAndAge": {
             const resolved = resolveLeadAgeFields({
@@ -189,13 +251,26 @@ export function getDossierFieldValue(
                     (l.source as { name?: string })?.name ||
                     l.source_name,
             );
-        case "category":
+        case "category": {
+            const multi = l.categories as
+                | Array<{ category_name?: string; name?: string }>
+                | undefined;
+            if (Array.isArray(multi) && multi.length > 0) {
+                return multi
+                    .map(
+                        (c) =>
+                            c.category_name || c.name || "",
+                    )
+                    .filter(Boolean)
+                    .join(", ");
+            }
             return asString(
                 (l.category as { category_name?: string; name?: string })
                     ?.category_name ||
                     (l.category as { name?: string })?.name ||
                     l.category_name,
             );
+        }
         case "addedBy":
             return asString(
                 (l.added_by as { name?: string })?.name ||
@@ -213,7 +288,9 @@ export function countFilledFields(
 ): { filled: number; total: number } {
     let filled = 0;
     for (const key of keys) {
-        if (getDossierFieldValue(lead, key).trim()) filled += 1;
+        if (isMeaningfulDossierValue(getDossierFieldValue(lead, key))) {
+            filled += 1;
+        }
     }
     return { filled, total: keys.length };
 }
@@ -238,10 +315,29 @@ export function getLeadNativeEditValue(
             : String(languages ?? "");
     }
     if (key === "source") return String(record.source_id ?? "");
-    if (key === "category") return String(record.category_id ?? "");
+    if (key === "category") {
+        const categories = record.categories;
+        if (Array.isArray(categories) && categories.length > 0) {
+            return categories
+                .map((c) =>
+                    typeof c === "object" && c && "id" in c
+                        ? String((c as { id: number }).id)
+                        : String(c),
+                )
+                .filter(Boolean)
+                .join(",");
+        }
+        const ids = record.category_ids;
+        if (Array.isArray(ids) && ids.length > 0) {
+            return ids.map(String).join(",");
+        }
+        return String(record.category_id ?? "");
+    }
     if (key === "currency") return String(record.currency_id ?? "");
     if (key === "leadValue") return String(record.value ?? "");
-    if (key === "gender") return String(record.gender_value ?? record.gender ?? "");
+    if (key === "gender") {
+        return String(record.gender_value ?? record.gender ?? "");
+    }
     if (key === "salutation") {
         return String(record.salutation ?? "");
     }

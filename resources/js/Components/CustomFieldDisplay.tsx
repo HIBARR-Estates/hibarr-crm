@@ -1672,6 +1672,8 @@ export default function CustomFieldDisplay({
                         label={field.label}
                         span={span === column ? 2 : 1}
                         useContainerQuery={useContainerQuery}
+                        dataDealField={`custom_field_${field.id}`}
+                        dataFieldKey={fieldKey}
                     >
                         {renderEditable(field, value)}
                     </DetailField>

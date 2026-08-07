@@ -20,11 +20,15 @@ class LeadFlightItinerary extends Model
         'status',
         'is_transfer_required',
         'ticket_image_url',
+        'remind_at',
+        'reminders',
     ];
 
     protected $casts = [
         'flight_date' => 'datetime',
         'is_transfer_required' => 'boolean',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
     ];
 
     public function lead(): BelongsTo

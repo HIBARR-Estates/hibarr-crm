@@ -50,6 +50,7 @@ return [
                 'api.leads.index' => 'List leads',
                 'api.deals.create' => 'Create deal',
                 'api.contacts.createOrUpdate' => 'Create or update contact',
+                'api.qualification-actions.index' => 'List qualification action catalog',
             ],
         ],
         'communication' => [
@@ -76,6 +77,7 @@ return [
             'scopes' => [
                 'api.properties.index' => 'List properties',
                 'api.properties.show' => 'Read property',
+                'api.properties.expose' => 'Read property expose presentation data',
                 'api.properties.filters.property_types' => 'Property type filters',
                 'api.properties.filters.features' => 'Property feature filters',
                 'api.properties.filters.location' => 'Property location filters',
@@ -86,6 +88,16 @@ return [
             'scopes' => [
                 'api.developer-projects.index' => 'List developer projects',
                 'api.developer-projects.show' => 'Read developer project',
+                'api.developer-projects.expose' => 'Read developer project expose presentation data',
+                'api.developer-projects.unit-types.expose' => 'Read unit type expose presentation data',
+            ],
+        ],
+        'expose_snapshots' => [
+            'label' => 'Expose Snapshots',
+            'scopes' => [
+                'api.expose-snapshots.create' => 'Mint expose snapshot reference',
+                'api.expose-snapshots.show' => 'Read expose snapshot by reference token',
+                'api.expose-snapshots.index' => 'List expose snapshots',
             ],
         ],
         'external_events' => [

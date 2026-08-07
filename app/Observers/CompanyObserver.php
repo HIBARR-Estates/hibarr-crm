@@ -36,6 +36,8 @@ use App\Models\PipelineStage;
 use App\Models\MessageSetting;
 use App\Models\TicketChannel;
 use App\Models\TicketCustomForm;
+use App\Models\EntityReminderDefault;
+use App\Models\ReminderEmailTemplate;
 use App\Models\LeadLifecycleStatus;
 use App\Models\LeadStatus;
 use App\Models\LeaveType;
@@ -172,6 +174,8 @@ class CompanyObserver
         $this->unitType($company);
         $this->leadStages($company);
         $this->leadLifecycleStatuses($company);
+        EntityReminderDefault::seedDefaultsForCompany((int) $company->id);
+        ReminderEmailTemplate::seedDefaultsForCompany((int) $company->id);
 
         // Will be used in various module
         event(new NewCompanyCreatedEvent($company));

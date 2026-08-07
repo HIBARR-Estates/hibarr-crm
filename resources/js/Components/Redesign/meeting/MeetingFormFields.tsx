@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { usePage } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import Icon from "@/Components/Redesign/primitives/Icon";
+import MenuSelect from "@/Components/Redesign/primitives/MenuSelect";
 import { ModalField } from "@/Components/Redesign/primitives/Modal";
 import { REDESIGN_TOKENS as T } from "@/Components/Redesign/tokens";
 import AssigneeField from "@/Components/Redesign/fields/AssigneeField";
@@ -10,12 +12,24 @@ import type { Reminder } from "@/Types/api/deal-followup";
 import {
     DEFAULT_MEETING_REMINDERS,
     MEETING_DURATION_OPTIONS,
-    MEETING_PLATFORM_OPTIONS,
+    MEETING_MODE_OPTIONS,
+    PHYSICAL_VENUE_OPTIONS,
+    VIDEO_PROVIDER_OPTIONS,
     MeetingFormState,
-    MeetingPlatform,
+    MeetingMode,
+    PhysicalVenue,
+    VideoProvider,
     addMinutesToTime,
+    canUseZohoMeeting,
+    defaultPlatformForMode,
+    defaultVideoProvider,
     diffMinutesBetweenTimes,
+    isPhysicalPlatform,
+    isVideoPlatform,
+    modeFromPlatform,
     reminderLabel,
+    requiresManualMeetingLink,
+    usesAutoMeetingLink,
 } from "./meetingFormUtils";
 
 interface MeetingFormFieldsProps {
@@ -32,9 +46,9 @@ const REMINDER_UNIT_OPTIONS: Array<{ value: Reminder["type"]; labelKey: string }
     { value: "day", labelKey: "reminder_unit_days" },
 ];
 
-const PLATFORM_LABEL_KEYS: Record<MeetingPlatform, string> = {
-    zoho: "platform_video_call",
-    physical: "platform_in_person",
+const MODE_LABEL_KEYS: Record<MeetingMode, string> = {
+    video: "platform_video_call",
+    physical: "platform_physical",
     phone: "platform_phone",
 };
 
@@ -47,16 +61,36 @@ export default function MeetingFormFields({
 }: MeetingFormFieldsProps) {
     const { td } = useTd();
     const { t } = useTranslation();
+    const { props } = usePage();
+    const userEmail = props.auth?.user?.email;
+    const zohoAllowed = canUseZohoMeeting(userEmail);
     const [showDuration, setShowDuration] = useState(Boolean(form.duration));
     const [showMore, setShowMore] = useState(form.reminders.length > 0);
     const [reminderTime, setReminderTime] = useState(1);
     const [reminderUnit, setReminderUnit] = useState<Reminder["type"]>("day");
 
-    const isVideoMeeting = form.platform === "zoho";
+    const mode = modeFromPlatform(form.platform);
+    const isVideoMeeting = isVideoPlatform(form.platform);
+    const isPhysicalMeeting = isPhysicalPlatform(form.platform);
+    const autoLink = usesAutoMeetingLink(form.platform);
+    const needsManualLink = requiresManualMeetingLink(form.platform);
+    const physicalVenue: PhysicalVenue =
+        form.platform === "physical" ? "physical" : "office";
 
     const updateForm = (patch: Partial<MeetingFormState>) => {
         onChange(patch);
     };
+
+    // Non-@hibarr.de users can't use Zoho — fall back to the next provider.
+    useEffect(() => {
+        if (!zohoAllowed && usesAutoMeetingLink(form.platform)) {
+            updateForm({
+                platform: defaultVideoProvider(false),
+                meetingLink: "",
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- only react to Zoho eligibility / platform
+    }, [zohoAllowed, form.platform]);
 
     const handleDurationSelect = (duration: number) => {
         const nextDuration = form.duration === duration ? null : duration;
@@ -91,10 +125,35 @@ export default function MeetingFormFields({
         });
     };
 
-    const handlePlatformChange = (platform: MeetingPlatform) => {
+    const handleModeChange = (nextMode: MeetingMode) => {
+        if (nextMode === mode) return;
+        const nextPlatform = defaultPlatformForMode(nextMode, zohoAllowed);
         updateForm({
-            platform,
-            meetingLink: platform === "zoho" ? form.meetingLink : "",
+            platform: nextPlatform,
+            meetingLink: "",
+            locationDetail: "",
+        });
+    };
+
+    const handleProviderChange = (provider: VideoProvider) => {
+        if (provider === "zoho" && !zohoAllowed) return;
+        updateForm({
+            platform: provider,
+            locationDetail: "",
+            // Keep a pasted link when switching between manual providers;
+            // clear when moving to/from Zoho auto-link.
+            meetingLink:
+                usesAutoMeetingLink(provider) || usesAutoMeetingLink(form.platform)
+                    ? ""
+                    : form.meetingLink,
+        });
+    };
+
+    const handlePhysicalVenueChange = (venue: PhysicalVenue) => {
+        updateForm({
+            platform: venue,
+            meetingLink: "",
+            locationDetail: venue === "physical" ? form.locationDetail : "",
         });
     };
 
@@ -127,26 +186,26 @@ export default function MeetingFormFields({
     return (
         <>
             <ModalField label={t("pages.deals.workspace.meetings.meeting_type")}>
-                <select
+                <MenuSelect
+                    fullWidth
                     value={form.meetingTypeId ?? ""}
-                    disabled={disabled}
-                    onChange={(event) =>
+                    placeholder={t(
+                        "pages.deals.workspace.meetings.select_meeting_type",
+                    )}
+                    disabled={disabled || meetingTypes.length === 0}
+                    options={meetingTypes.map((meetingType) => ({
+                        value: meetingType.id,
+                        label: meetingType.name,
+                    }))}
+                    onChange={(value) =>
                         updateForm({
-                            meetingTypeId: event.target.value
-                                ? Number(event.target.value)
-                                : null,
+                            meetingTypeId:
+                                value === "" || value == null
+                                    ? null
+                                    : Number(value),
                         })
                     }
-                >
-                    <option value="">
-                        {t("pages.deals.workspace.meetings.select_meeting_type")}
-                    </option>
-                    {meetingTypes.map((meetingType) => (
-                        <option key={meetingType.id} value={meetingType.id}>
-                            {meetingType.name}
-                        </option>
-                    ))}
-                </select>
+                />
             </ModalField>
 
             <ModalField label={t("pages.deals.workspace.meetings.agenda")}>
@@ -162,40 +221,18 @@ export default function MeetingFormFields({
                 />
             </ModalField>
 
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                <ModalField label={t("pages.deals.workspace.meetings.date_label")}>
-                    <input
-                        type="date"
-                        value={form.date}
-                        min={new Date().toISOString().split("T")[0]}
-                        disabled={disabled}
-                        onChange={(event) =>
-                            updateForm({ date: event.target.value })
-                        }
-                    />
-                </ModalField>
-
-                <ModalField label={t("pages.deals.workspace.meetings.platform")}>
-                    <select
-                        value={form.platform}
-                        disabled={disabled}
-                        onChange={(event) =>
-                            handlePlatformChange(
-                                event.target.value as MeetingPlatform,
-                            )
-                        }
-                    >
-                        {MEETING_PLATFORM_OPTIONS.map((option) => (
-                            <option key={option.value} value={option.value}>
-                                {t(
-                                    `pages.deals.workspace.meetings.${PLATFORM_LABEL_KEYS[option.value]}`,
-                                )}
-                            </option>
-                        ))}
-                    </select>
-                </ModalField>
-            </div>
-
+            <ModalField label={t("pages.deals.workspace.meetings.date_label")}>
+                <input
+                    type="date"
+                    value={form.date}
+                    min={new Date().toISOString().split("T")[0]}
+                    disabled={disabled}
+                    onChange={(event) =>
+                        updateForm({ date: event.target.value })
+                    }
+                />
+            </ModalField>
+            
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <ModalField label={t("pages.deals.workspace.meetings.start_time")}>
                     <input
@@ -266,7 +303,167 @@ export default function MeetingFormFields({
                 </div>
             )}
 
+            <ModalField label={t("pages.deals.workspace.meetings.platform")}>
+                <div className="flex flex-wrap gap-2">
+                    {MEETING_MODE_OPTIONS.map((option) => {
+                        const selected = mode === option.value;
+                        return (
+                            <button
+                                key={option.value}
+                                type="button"
+                                disabled={disabled}
+                                aria-pressed={selected}
+                                onClick={() => handleModeChange(option.value)}
+                                className="rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors"
+                                style={{
+                                    borderColor: selected
+                                        ? T.BLUE_MID
+                                        : T.BORDER,
+                                    background: selected
+                                        ? T.BLUE_LIGHT
+                                        : T.WHITE,
+                                    color: selected ? T.BLUE_DARK : T.TEXT,
+                                    cursor: disabled ? "default" : "pointer",
+                                }}
+                            >
+                                {t(
+                                    `pages.deals.workspace.meetings.${MODE_LABEL_KEYS[option.value]}`,
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+            </ModalField>
+
             {isVideoMeeting && (
+                <ModalField label={td("Meeting provider")}>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        {VIDEO_PROVIDER_OPTIONS.map((provider) => {
+                            const selected = form.platform === provider.value;
+                            const zohoLocked =
+                                provider.value === "zoho" && !zohoAllowed;
+                            const optionDisabled = disabled || zohoLocked;
+                            const zohoTooltip = td(
+                                "Zoho Meeting is only available for @hibarr.de email accounts.",
+                            );
+
+                            const optionButton = (
+                                <button
+                                    type="button"
+                                    disabled={optionDisabled}
+                                    aria-pressed={selected}
+                                    aria-disabled={optionDisabled}
+                                    onClick={() =>
+                                        handleProviderChange(provider.value)
+                                    }
+                                    className="flex w-full items-center gap-2.5 rounded-lg border px-3 py-2.5 text-left transition-colors"
+                                    style={{
+                                        borderColor: selected
+                                            ? T.BLUE_MID
+                                            : T.BORDER,
+                                        background: selected
+                                            ? T.BLUE_LIGHT
+                                            : T.WHITE,
+                                        cursor: optionDisabled
+                                            ? "not-allowed"
+                                            : "pointer",
+                                        opacity: zohoLocked ? 0.55 : 1,
+                                    }}
+                                >
+                                    <img
+                                        src={provider.logoUrl}
+                                        alt=""
+                                        width={22}
+                                        height={22}
+                                        className="h-[22px] w-[22px] flex-shrink-0 object-contain"
+                                        style={{
+                                            filter: zohoLocked
+                                                ? "grayscale(1)"
+                                                : undefined,
+                                        }}
+                                    />
+                                    <span
+                                        className="text-[13px] font-semibold"
+                                        style={{
+                                            color: selected
+                                                ? T.BLUE_DARK
+                                                : T.TEXT,
+                                        }}
+                                    >
+                                        {td(provider.label)}
+                                    </span>
+                                </button>
+                            );
+
+                            return zohoLocked ? (
+                                <span
+                                    key={provider.value}
+                                    title={zohoTooltip}
+                                    className="block"
+                                >
+                                    {optionButton}
+                                </span>
+                            ) : (
+                                <div key={provider.value}>{optionButton}</div>
+                            );
+                        })}
+                    </div>
+                </ModalField>
+            )}
+
+            {isPhysicalMeeting && (
+                <ModalField label={td("Location")}>
+                    <div className="flex flex-wrap gap-2">
+                        {PHYSICAL_VENUE_OPTIONS.map((option) => {
+                            const selected = physicalVenue === option.value;
+                            return (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    disabled={disabled}
+                                    aria-pressed={selected}
+                                    onClick={() =>
+                                        handlePhysicalVenueChange(option.value)
+                                    }
+                                    className="rounded-lg border px-3.5 py-2 text-[13px] font-semibold transition-colors"
+                                    style={{
+                                        borderColor: selected
+                                            ? T.BLUE_MID
+                                            : T.BORDER,
+                                        background: selected
+                                            ? T.BLUE_LIGHT
+                                            : T.WHITE,
+                                        color: selected ? T.BLUE_DARK : T.TEXT,
+                                        cursor: disabled
+                                            ? "default"
+                                            : "pointer",
+                                    }}
+                                >
+                                    {td(option.label)}
+                                </button>
+                            );
+                        })}
+                    </div>
+                    {physicalVenue === "physical" && (
+                        <div className="mt-2">
+                            <input
+                                type="text"
+                                value={form.locationDetail}
+                                disabled={disabled}
+                                placeholder={td("Enter meeting location")}
+                                onChange={(event) =>
+                                    updateForm({
+                                        locationDetail: event.target.value,
+                                    })
+                                }
+                            />
+                        </div>
+                    )}
+                </ModalField>
+            )}
+
+
+            {isVideoMeeting && autoLink && (
                 <ModalField label={t("pages.deals.workspace.meetings.meeting_link")}>
                     {form.meetingLink ? (
                         <div
@@ -291,7 +488,7 @@ export default function MeetingFormFields({
                                     className="text-[12px] font-semibold uppercase tracking-wide"
                                     style={{ color: T.BLUE }}
                                 >
-                                    {t("pages.deals.workspace.meetings.video_call")}
+                                    {td("Zoho Meeting")}
                                 </div>
                                 <a
                                     href={form.meetingLink}
@@ -322,7 +519,7 @@ export default function MeetingFormFields({
                         </div>
                     ) : (
                         <div
-                            className="flex items-center gap-2 rounded-lg px-3 py-2.5"
+                            className="flex items-start gap-2 rounded-lg px-3 py-2.5"
                             style={{
                                 background: T.SURFACE_2,
                                 border: `1px dashed ${T.BORDER}`,
@@ -334,18 +531,46 @@ export default function MeetingFormFields({
                                 color={T.TEXT_HINT}
                             />
                             <p
-                                className="text-[12px] italic"
+                                className="text-[12px] leading-relaxed"
                                 style={{ color: T.TEXT_MUTED }}
                             >
-                                {t("pages.deals.workspace.meetings.auto_generated_link_hint")}
+                                {td(
+                                    "A Zoho Meeting link will be generated automatically after scheduling, and the event will be created and added to your Zoho Calendar.",
+                                )}
                             </p>
                         </div>
                     )}
-                    {form.meetingLink && showExistingMeetingLinkHint && (
+                    {form.meetingLink && (
                         <p className="mt-1.5 text-[12px]" style={{ color: T.TEXT_HINT }}>
-                            {t("pages.deals.workspace.meetings.existing_link_hint")}
+                            {showExistingMeetingLinkHint
+                                ? t(
+                                      "pages.deals.workspace.meetings.existing_link_hint",
+                                  )
+                                : td(
+                                      "This event will also be created and added to your Zoho Calendar.",
+                                  )}
                         </p>
                     )}
+                </ModalField>
+            )}
+
+            {isVideoMeeting && needsManualLink && (
+                <ModalField label={t("pages.deals.workspace.meetings.meeting_link")}>
+                    <input
+                        type="url"
+                        inputMode="url"
+                        placeholder={td("Paste your meeting link")}
+                        value={form.meetingLink}
+                        disabled={disabled}
+                        onChange={(event) =>
+                            updateForm({ meetingLink: event.target.value })
+                        }
+                    />
+                    <p className="mt-1.5 text-[12px]" style={{ color: T.TEXT_HINT }}>
+                        {td(
+                            "Copy the join link from your video provider and paste it here.",
+                        )}
+                    </p>
                 </ModalField>
             )}
 
@@ -460,36 +685,39 @@ export default function MeetingFormFields({
                                                 1,
                                                 Math.floor(
                                                     Number(event.target.value) ||
-                                                        1,
+                                                    1,
                                                 ),
                                             ),
                                         )
                                     }
                                     style={{ width: 68, textAlign: "center" }}
                                 />
-                                <select
-                                    value={reminderUnit}
-                                    disabled={disabled}
-                                    aria-label={t("pages.deals.workspace.meetings.reminder_unit")}
-                                    onChange={(event) =>
-                                        setReminderUnit(
-                                            event.target
-                                                .value as Reminder["type"],
-                                        )
-                                    }
-                                    style={{ flex: 1, width: "auto", minWidth: 0 }}
-                                >
-                                    {REMINDER_UNIT_OPTIONS.map((option) => (
-                                        <option
-                                            key={option.value}
-                                            value={option.value}
-                                        >
-                                            {t(
-                                                `pages.deals.workspace.meetings.${option.labelKey}`,
-                                            )}
-                                        </option>
-                                    ))}
-                                </select>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                    <MenuSelect
+                                        fullWidth
+                                        size="sm"
+                                        value={reminderUnit}
+                                        disabled={disabled}
+                                        placeholder={t(
+                                            "pages.deals.workspace.meetings.reminder_unit",
+                                        )}
+                                        options={REMINDER_UNIT_OPTIONS.map(
+                                            (option) => ({
+                                                value: option.value,
+                                                label: t(
+                                                    `pages.deals.workspace.meetings.${option.labelKey}`,
+                                                ),
+                                            }),
+                                        )}
+                                        onChange={(value) =>
+                                            setReminderUnit(
+                                                String(
+                                                    value,
+                                                ) as Reminder["type"],
+                                            )
+                                        }
+                                    />
+                                </div>
                                 <span
                                     className="text-[12px]"
                                     style={{
@@ -503,11 +731,29 @@ export default function MeetingFormFields({
                                     variant="primary"
                                     size="sm"
                                     disabled={disabled || !canAddReminder}
+                                    title={
+                                        !canAddReminder
+                                            ? t(
+                                                "pages.deals.workspace.meetings.reminder_already_added",
+                                            ) ||
+                                            "That reminder is already included (defaults cover 1h, 30m, 15m, and 5m)"
+                                            : undefined
+                                    }
                                     onClick={handleAddReminder}
                                 >
                                     {t("pages.deals.common.add")}
                                 </Button>
                             </div>
+                            {!canAddReminder && reminderTime >= 1 ? (
+                                <p
+                                    className="mt-1.5 text-[11px]"
+                                    style={{ color: T.TEXT_HINT }}
+                                >
+                                    {td(
+                                        "A 5-minute reminder is already included by default (along with 15m, 30m, and 1h).",
+                                    )}
+                                </p>
+                            ) : null}
                         </div>
 
                         <p className="mt-2 text-[12px]" style={{ color: T.TEXT_HINT }}>

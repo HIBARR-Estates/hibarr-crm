@@ -411,7 +411,10 @@ export default function EditableField({
     };
 
     const isMultiSelectField =
-        fieldType === "multiselect" || fieldType === "multiSelectCountry";
+        fieldType === "multiselect" ||
+        fieldType === "multiSelectCountry" ||
+        mode === "multiple" ||
+        mode === "tags";
 
     const [inputValue, setInputValue] = useState<any>(() => {
         if (isMultiSelectField || Array.isArray(value)) {
@@ -618,6 +621,16 @@ export default function EditableField({
             return;
         }
 
+        if (
+            fieldType === "email" &&
+            typeof inputValue === "string" &&
+            inputValue.trim() &&
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inputValue.trim())
+        ) {
+            message.error("Please enter a valid email address");
+            return;
+        }
+
         setSaving(true);
         try {
             await onSave(inputValue);
@@ -763,11 +776,23 @@ export default function EditableField({
         }
 
         if (value && typeof value === "string") {
-            const fileUrl = `/user-uploads/hibarr_fields/${value}`;
-            const downloadLabel = value
-                ? `Download file ${value}`
+            // External FileStorageService uploads store the full download URL;
+            // legacy uploads store a bare filename under hibarr_fields/.
+            const trimmed = value.trim();
+            const isExternalUrl =
+                trimmed.startsWith("http://") || trimmed.startsWith("https://");
+            const fileUrl = isExternalUrl
+                ? trimmed
+                : `/user-uploads/hibarr_fields/${trimmed}`;
+            const displayName = isExternalUrl
+                ? trimmed.split("/").pop()?.split("?")[0] || "file"
+                : trimmed;
+            const downloadLabel = displayName
+                ? `Download file ${displayName}`
                 : "Download file";
-            const deleteLabel = value ? `Delete file ${value}` : "Delete file";
+            const deleteLabel = displayName
+                ? `Delete file ${displayName}`
+                : "Delete file";
             return (
                 <div className="flex flex-col gap-1">
                     <a

@@ -1,9 +1,16 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
+import { message } from "antd";
+import {
+    AttachmentFileCard,
+    FileDropzone,
+} from "@/Components/Redesign";
 import useTranslation from "@/Hooks/useTranslation";
+import { useApiMutate } from "@/lib/api/client";
+import type { ApiResponse } from "@/lib/api/types";
+import { isLoading } from "@/lib/utils";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFile } from "@/Types/api/file";
-import DeleteFile from "@/Pages/Deals/Components/Tabs/files/DeleteFile";
 import {
     downloadDealFile,
     toWorkspaceFilePreview,
@@ -11,8 +18,7 @@ import {
 import useDealFileUpload from "../../hooks/useDealFileUpload";
 import useDealDocuments from "../../hooks/useDealDocuments";
 import useDealDocumentUpload from "../../hooks/useDealDocumentUpload";
-import DealButton from "../primitives/DealButton";
-import DealIcon from "../primitives/DealIcon";
+import DealConfirmDialog from "../primitives/DealConfirmDialog";
 import DealDocumentSlotRow from "./DealDocumentSlotRow";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
@@ -33,16 +39,11 @@ interface WorkspaceFilesTabProps {
     categoryIds?: number[];
 }
 
-function canViewFile(
-    file: DealFile,
-    permissions: Record<string, string>,
-    userId?: number,
-): boolean {
-    return (
-        permissions.view_lead_files === "all" ||
-        (permissions.view_lead_files === "added" &&
-            file.added_by === userId)
-    );
+function fileOwnerId(file: DealFile): number | undefined {
+    const raw = file.added_by ?? file.user_id;
+    if (raw == null) return undefined;
+    const id = Number(raw);
+    return Number.isFinite(id) ? id : undefined;
 }
 
 function canAddFiles(permissions: Record<string, string>): boolean {
@@ -57,11 +58,25 @@ function canDeleteFile(
     permissions: Record<string, string>,
     userId?: number,
 ): boolean {
-    return (
-        permissions.delete_lead_files === "all" ||
-        (permissions.delete_lead_files === "added" &&
-            file.added_by === userId)
-    );
+    if (permissions.delete_lead_files === "all") return true;
+    if (permissions.delete_lead_files !== "added") return false;
+    const ownerId = fileOwnerId(file);
+    return ownerId != null && userId != null && ownerId === Number(userId);
+}
+
+/** Page props omit some file perms — fall back to auth.permissions. */
+function resolveFilePermissions(
+    pagePermissions: Record<string, string>,
+    authPermissions: Record<string, string> | undefined,
+): Record<string, string> {
+    const auth = authPermissions ?? {};
+    return {
+        view_lead_files:
+            pagePermissions.view_lead_files ?? auth.view_lead_files,
+        add_lead_files: pagePermissions.add_lead_files ?? auth.add_lead_files,
+        delete_lead_files:
+            pagePermissions.delete_lead_files ?? auth.delete_lead_files,
+    };
 }
 
 export default function WorkspaceFilesTab({
@@ -74,23 +89,35 @@ export default function WorkspaceFilesTab({
     const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
-    const inputRef = useRef<HTMLInputElement>(null);
+    const filePermissions = resolveFilePermissions(
+        permissions,
+        props.auth?.permissions as Record<string, string> | undefined,
+    );
     const [deleteFile, setDeleteFile] = useState<DealFile | null>(null);
-    const [isDragging, setIsDragging] = useState(false);
     const { uploadFiles, isUploading, uploadProgress } = useDealFileUpload(
         deal.id,
     );
     const { setFiles } = useDealWorkspace();
 
+    const deletePath = deleteFile?.id
+        ? route("deal-files.destroy", deleteFile.id)
+        : "/deal-files/0";
+
+    const { mutate: destroyFile, status: destroyStatus } = useApiMutate<
+        null,
+        null,
+        ApiResponse<null>
+    >(deletePath, "DELETE");
+
+    // Server already scopes deals.files.index by view_lead_files — don't
+    // re-filter client-side (that was hiding every file when the page
+    // permissions payload was incomplete or type-mismatched).
     const visibleFiles = useMemo(
-        () =>
-            files
-                .filter((file) => canViewFile(file, permissions, userId))
-                .map((file) => toWorkspaceFilePreview(file)),
-        [files, permissions, userId],
+        () => files.map((file) => toWorkspaceFilePreview(file)),
+        [files],
     );
 
-    const showUpload = canAddFiles(permissions);
+    const showUpload = canAddFiles(filePermissions);
 
     // Document slots = HIBARR document fields + file-typed custom fields from
     // the pipeline's categories. These are updated in place on their own
@@ -113,13 +140,23 @@ export default function WorkspaceFilesTab({
         await uploadFiles(selected);
     };
 
-    const handleDrop = async (event: React.DragEvent<HTMLDivElement>) => {
-        event.preventDefault();
-        setIsDragging(false);
-
-        if (!showUpload) return;
-
-        await handleFilesSelected(event.dataTransfer.files);
+    const confirmDelete = () => {
+        if (!deleteFile?.id) return;
+        const deletedId = deleteFile.id;
+        destroyFile(null, {
+            onSuccess: () => {
+                setDeleteFile(null);
+                setFiles((prev) => prev.filter((item) => item.id !== deletedId));
+                message.success(
+                    t("pages.deals.workspace.files.messages.deleted"),
+                );
+            },
+            onError: () => {
+                message.error(
+                    t("pages.deals.workspace.files.messages.delete_failed"),
+                );
+            },
+        });
     };
 
     return (
@@ -156,53 +193,16 @@ export default function WorkspaceFilesTab({
             )}
 
             {showUpload && (
-                <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => !isUploading && inputRef.current?.click()}
-                    onKeyDown={(event) => {
-                        if (event.key === "Enter" || event.key === " ") {
-                            event.preventDefault();
-                            inputRef.current?.click();
-                        }
+                <FileDropzone
+                    isUploading={isUploading}
+                    uploadProgress={uploadProgress}
+                    dropHint={t("pages.deals.workspace.files.drop_hint")}
+                    uploadingLabel={t("pages.deals.workspace.files.uploading")}
+                    sizeHint={t("pages.deals.workspace.files.size_hint")}
+                    onFilesSelected={(fileList) => {
+                        void handleFilesSelected(fileList);
                     }}
-                    onDragOver={(event) => {
-                        event.preventDefault();
-                        setIsDragging(true);
-                    }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={handleDrop}
-                    className="mb-3.5 cursor-pointer rounded-lg border-2 border-dashed bg-white px-5 py-5 text-center transition-colors"
-                    style={{
-                        borderColor: isDragging ? T.BLUE : T.BORDER,
-                        background: isDragging ? T.BLUE_LIGHT : T.WHITE,
-                    }}
-                >
-                    <input
-                        ref={inputRef}
-                        type="file"
-                        multiple
-                        className="hidden"
-                        onChange={(event) => {
-                            void handleFilesSelected(event.target.files);
-                            event.target.value = "";
-                        }}
-                    />
-                    <DealIcon
-                        name="paperclip"
-                        size={22}
-                        color={T.TEXT_HINT}
-                        className="mx-auto mb-1.5 opacity-60"
-                    />
-                    <div className="mb-1 text-[13px] font-medium text-[#1a1f2e]">
-                        {isUploading
-                            ? `${t("pages.deals.workspace.files.uploading")}... ${uploadProgress}%`
-                            : t("pages.deals.workspace.files.drop_hint")}
-                    </div>
-                    <div className="text-[12px] text-[#9ca3af]">
-                        {t("pages.deals.workspace.files.size_hint")}
-                    </div>
-                </div>
+                />
             )}
 
             {visibleFiles.length === 0 ? (
@@ -211,69 +211,42 @@ export default function WorkspaceFilesTab({
                 </p>
             ) : (
                 visibleFiles.map((file) => (
-                    <article
+                    <AttachmentFileCard
                         key={file.id}
-                        className="mb-2 flex items-center gap-3 rounded-lg border border-[#e2e5ea] bg-white px-3.5 py-2.5 last:mb-0"
-                    >
-                        <div
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md"
-                            style={{ background: T.GRAY }}
-                        >
-                            <DealIcon
-                                name={file.iconName}
-                                size={17}
-                                color={T.GRAY_DARKER}
-                            />
-                        </div>
-
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-[13px] font-medium text-[#1a1f2e]">
-                                {file.name}
-                            </div>
-                            <div className="text-[12px] text-[#9ca3af]">
-                                {file.sizeLabel} · {t("pages.deals.workspace.files.uploaded_label")}{" "}
-                                {file.uploadedLabel}
-                            </div>
-                        </div>
-
-                        <div className="flex shrink-0 gap-1.5">
-                            <DealButton
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => downloadDealFile(file.file)}
-                                aria-label={t("pages.deals.workspace.files.download")}
-                            >
-                                <DealIcon name="external-link" size={13} />
-                            </DealButton>
-                            {canDeleteFile(file.file, permissions, userId) && (
-                                <DealButton
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => setDeleteFile(file.file)}
-                                    aria-label={t("pages.deals.common.delete")}
-                                >
-                                    <DealIcon name="x" size={13} />
-                                </DealButton>
-                            )}
-                        </div>
-                    </article>
+                        name={file.name}
+                        sizeLabel={file.sizeLabel}
+                        uploadedLabel={file.uploadedLabel}
+                        uploadedPrefix={t(
+                            "pages.deals.workspace.files.uploaded_label",
+                        )}
+                        iconName={file.iconName}
+                        downloadLabel={t(
+                            "pages.deals.workspace.files.download",
+                        )}
+                        deleteLabel={t("pages.deals.common.delete")}
+                        onDownload={() => downloadDealFile(file.file)}
+                        onDelete={
+                            canDeleteFile(file.file, filePermissions, userId)
+                                ? () => setDeleteFile(file.file)
+                                : undefined
+                        }
+                    />
                 ))
             )}
 
-            <DeleteFile
+            <DealConfirmDialog
                 open={Boolean(deleteFile)}
-                onClose={() => setDeleteFile(null)}
-                file={deleteFile ?? undefined}
-                skipReload
-                onSuccess={() => {
-                    const deletedId = deleteFile?.id;
-                    setDeleteFile(null);
-                    if (deletedId) {
-                        setFiles((prev) =>
-                            prev.filter((item) => item.id !== deletedId),
-                        );
-                    }
-                }}
+                title={t("pages.deals.common.delete")}
+                message={
+                    deleteFile
+                        ? `Are you sure you want to delete ${deleteFile.filename}? This action cannot be undone.`
+                        : "Are you sure you want to delete this file? This action cannot be undone."
+                }
+                confirmLabel={t("pages.deals.common.delete")}
+                danger
+                confirmLoading={isLoading({ status: destroyStatus })}
+                onConfirm={confirmDelete}
+                onCancel={() => setDeleteFile(null)}
             />
         </>
     );

@@ -21,6 +21,29 @@ class StoreRequest extends CoreRequest
         if ($this->has('close_date') && $this->close_date === '') {
             $this->merge(['close_date' => null]);
         }
+
+        $packageMode = DealPackageMode::tryFrom(company()->deal_package_mode ?? DealPackageMode::Multiple->value)
+            ?? DealPackageMode::Multiple;
+
+        // Redesign may post a single package/product id; multi mode expects arrays.
+        if (
+            $packageMode !== DealPackageMode::Single
+            && $this->has('package_id')
+            && !is_array($this->package_id)
+            && $this->package_id !== null
+            && $this->package_id !== ''
+        ) {
+            $this->merge(['package_id' => [(int) $this->package_id]]);
+        }
+
+        if (
+            $this->has('product_id')
+            && !is_array($this->product_id)
+            && $this->product_id !== null
+            && $this->product_id !== ''
+        ) {
+            $this->merge(['product_id' => [(int) $this->product_id]]);
+        }
     }
 
     /**

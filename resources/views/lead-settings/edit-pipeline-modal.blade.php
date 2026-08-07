@@ -101,6 +101,20 @@
 
                         <div id="pipelineCategoriesCollapse" class="collapse">
                         <div class="bg-light rounded p-3 mb-3">
+                            <div class="custom-control custom-checkbox mb-2">
+                                <input type="checkbox" class="custom-control-input" id="hide_all_categories"
+                                    name="hide_all_categories" value="1"
+                                    @checked($pipeline->hide_all_categories)>
+                                <label class="custom-control-label" for="hide_all_categories">
+                                    @lang('modules.deal.hideAllCategories')
+                                </label>
+                            </div>
+                            <p class="f-11 text-lightest mt-1 mb-0">@lang('modules.deal.hideAllCategoriesHint')</p>
+                        </div>
+
+                        <div id="pipelineCategoriesSelection" class="{{ $pipeline->hide_all_categories ? 'opacity-50' : '' }}"
+                            @if($pipeline->hide_all_categories) inert @endif>
+                        <div class="bg-light rounded p-3 mb-3">
                             <x-forms.label fieldId="pipeline_wide_categories" :fieldLabel="__('modules.deal.pipelineWideCategories')" />
                             <x-deal.pipeline-scope-pills
                                 inputName="category_scopes[__pipeline__][]"
@@ -125,6 +139,7 @@
                                 :searchPlaceholder="__('app.search')" />
                         </div>
                         @endforeach
+                        </div>
                         </div>
                     </div>
                     @endif
@@ -364,6 +379,16 @@
     initPipelineScopePills($('#editStatus'));
     $('#colorpicker').colorpicker({"color": "{{ $pipeline->label_color }}"});
     $(".select-picker").selectpicker();
+
+    $('#hide_all_categories').on('change', function() {
+        var checked = $(this).is(':checked');
+        var selectionEl = document.getElementById('pipelineCategoriesSelection');
+        $(selectionEl).toggleClass('opacity-50', checked);
+        // `inert` (not pointer-events) so disabled category pills also can't
+        // receive keyboard focus, and the search dropdown (portaled to <body>
+        // on open) never gets a chance to open in the first place.
+        selectionEl.inert = checked;
+    });
 
     $('#save-status').click(function() {
         if (typeof window.syncPipelineScopePillsInputs === 'function') {

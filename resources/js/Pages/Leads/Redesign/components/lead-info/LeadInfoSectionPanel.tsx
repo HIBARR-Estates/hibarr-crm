@@ -60,7 +60,15 @@ function resolvePhoneValue(
     if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
         try {
             const parsed = JSON.parse(raw.trim());
-            if (typeof parsed?.phone === "string") return parsed.phone.trim();
+            if (typeof parsed?.phone === "string" && parsed.phone.trim()) {
+                return parsed.phone.trim();
+            }
+            if (
+                typeof parsed?.phoneNumber === "string" &&
+                parsed.phoneNumber.trim()
+            ) {
+                return parsed.phoneNumber.trim();
+            }
         } catch {
             /* fall through */
         }
@@ -464,15 +472,15 @@ export default function LeadInfoSectionPanel({
                 </DetailField>
                 <DetailField label={td("WhatsApp")}>
                     <DealEditableField
-                        value={lead.client_whatsapp || ""}
+                        value={resolvePhoneValue(lead.client_whatsapp)}
                         fieldName="client_whatsapp"
-                        fieldType="text"
+                        fieldType="phone"
                         onSave={(value) =>
                             onFieldUpdate("client_whatsapp", value)
                         }
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
-                        placeholder={td("WhatsApp number or username")}
+                        placeholder={td("WhatsApp number")}
                         loading={isFieldLoading("client_whatsapp")}
                         disabled={!canEdit}
                     />
@@ -534,22 +542,37 @@ export default function LeadInfoSectionPanel({
                 </DetailField>
                 <DetailField label={t("pages.leads.info.fields.category")}>
                     <DealEditableField
-                        value={lead.category_id || null}
-                        fieldName="category_id"
-                        selectorType="categories"
-                        displayValue={
-                            lead.category?.category_name ? (
-                                <span className="text-gray-700">
-                                    {lead.category.category_name}
-                                </span>
-                            ) : (
-                                <span className="italic text-gray-400">--</span>
-                            )
+                        value={
+                            Array.isArray(lead.categories) && lead.categories.length
+                                ? lead.categories.map((c) => c.id)
+                                : Array.isArray(lead.category_ids) && lead.category_ids.length
+                                  ? lead.category_ids
+                                  : lead.category_id
+                                    ? [lead.category_id]
+                                    : []
                         }
-                        onSave={(value) => onFieldUpdate("category_id", value)}
+                        fieldName="category_ids"
+                        selectorType="categories"
+                        mode="multiple"
+                        displayValue={
+                            (() => {
+                                const names =
+                                    Array.isArray(lead.categories) && lead.categories.length
+                                        ? lead.categories.map((c) => c.category_name).filter(Boolean)
+                                        : lead.category?.category_name
+                                          ? [lead.category.category_name]
+                                          : [];
+                                return names.length ? (
+                                    <span className="text-gray-700">{names.join(", ")}</span>
+                                ) : (
+                                    <span className="italic text-gray-400">--</span>
+                                );
+                            })()
+                        }
+                        onSave={(value) => onFieldUpdate("category_ids", value)}
                         alwaysEditing={editing}
                         onChange={handleFieldChange}
-                        loading={isFieldLoading("category_id")}
+                        loading={isFieldLoading("category_ids")}
                         disabled={!canEdit}
                     />
                 </DetailField>

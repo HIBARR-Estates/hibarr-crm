@@ -60,7 +60,174 @@ class PropertyRecommendationService
             ];
         }
 
-        return $this->getRecommendations($customerId, $limit);
+        $result = $this->getRecommendations($customerId, $limit);
+        $result['recommendations'] = $this->applyDealBudgetFactors(
+            $deal,
+            $result['recommendations'] ?? []
+        );
+
+        return $result;
+    }
+
+    /**
+     * Override PRE "budget" factor labels using the deal's hibarr budget_range
+     * so we never show "Well within budget" for listings outside the CRM range.
+     *
+     * @param  array<int, array<string, mixed>>  $recommendations
+     * @return array<int, array<string, mixed>>
+     */
+    protected function applyDealBudgetFactors(Deal $deal, array $recommendations): array
+    {
+        $range = $this->resolveDealBudgetRange($deal);
+        if ($range === null) {
+            return $recommendations;
+        }
+
+        [$min, $max] = $range;
+
+        return array_map(function (array $rec) use ($min, $max) {
+            $price = $rec['property']['price'] ?? $rec['raw']['price'] ?? null;
+            if ($price === null || !is_numeric($price)) {
+                return $rec;
+            }
+
+            $price = (float) $price;
+            $budgetLabel = $this->budgetMatchLabel($price, $min, $max);
+            $budgetScore = $budgetLabel['score'];
+
+            $factors = $rec['factors'] ?? [];
+            if (!is_array($factors)) {
+                $factors = [];
+            }
+
+            $replaced = false;
+            foreach ($factors as $idx => $factor) {
+                $name = strtolower((string) (is_array($factor)
+                    ? ($factor['name'] ?? $factor['key'] ?? $factor['factor'] ?? '')
+                    : ''));
+                if (str_contains($name, 'budget') || str_contains($name, 'price')) {
+                    $factors[$idx] = array_merge(
+                        is_array($factor) ? $factor : [],
+                        [
+                            'name' => is_array($factor) ? ($factor['name'] ?? 'budget') : 'budget',
+                            'score' => $budgetScore,
+                            'status' => $budgetLabel['status'],
+                            'detail' => $budgetLabel['detail'],
+                            'positive' => $budgetScore >= 60,
+                        ]
+                    );
+                    $replaced = true;
+                }
+            }
+
+            if (!$replaced) {
+                $factors[] = [
+                    'name' => 'budget',
+                    'score' => $budgetScore,
+                    'status' => $budgetLabel['status'],
+                    'detail' => $budgetLabel['detail'],
+                    'positive' => $budgetScore >= 60,
+                ];
+            }
+
+            $rec['factors'] = $factors;
+
+            return $rec;
+        }, $recommendations);
+    }
+
+    /**
+     * @return array{0: float, 1: float}|null
+     */
+    protected function resolveDealBudgetRange(Deal $deal): ?array
+    {
+        $deal->loadMissing('hibarrFields');
+        $raw = $deal->hibarrFields?->budget_range ?? null;
+
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                $raw = $decoded;
+            } else {
+                // Plain number or "min-max" string
+                if (preg_match('/^\s*([\d.]+)\s*[-–to]+\s*([\d.]+)\s*$/i', $raw, $m)) {
+                    return [(float) $m[1], (float) $m[2]];
+                }
+                if (is_numeric($raw)) {
+                    $n = (float) $raw;
+                    return [0.0, $n];
+                }
+            }
+        }
+
+        if (!is_array($raw)) {
+            return null;
+        }
+
+        $min = $raw['min'] ?? $raw['from'] ?? $raw['low'] ?? 0;
+        $max = $raw['max'] ?? $raw['to'] ?? $raw['high'] ?? null;
+
+        if ($max === null || !is_numeric($max)) {
+            return null;
+        }
+
+        return [(float) $min, (float) $max];
+    }
+
+    /**
+     * @return array{score: int, status: string, detail: string}
+     */
+    protected function budgetMatchLabel(float $price, float $min, float $max): array
+    {
+        if ($max <= 0) {
+            return [
+                'score' => 50,
+                'status' => 'Unknown',
+                'detail' => 'Deal budget not configured',
+            ];
+        }
+
+        if ($price >= $min && $price <= $max) {
+            $span = max($max - $min, 1.0);
+            $mid = ($min + $max) / 2;
+            $distance = abs($price - $mid) / $span;
+            if ($distance <= 0.25) {
+                return [
+                    'score' => 95,
+                    'status' => 'Excellent',
+                    'detail' => 'Well within budget',
+                ];
+            }
+
+            return [
+                'score' => 80,
+                'status' => 'Good',
+                'detail' => 'Within budget range',
+            ];
+        }
+
+        if ($price < $min) {
+            return [
+                'score' => 70,
+                'status' => 'Good',
+                'detail' => 'Below budget range',
+            ];
+        }
+
+        $overPct = (($price - $max) / max($max, 1)) * 100;
+        if ($overPct <= 15) {
+            return [
+                'score' => 45,
+                'status' => 'Fair',
+                'detail' => 'Slightly above budget',
+            ];
+        }
+
+        return [
+            'score' => 15,
+            'status' => 'Poor',
+            'detail' => 'Above budget',
+        ];
     }
 
     /**

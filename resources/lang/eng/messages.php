@@ -57,6 +57,7 @@ return array(
     'requestSentOffline' => 'In offline pay method request will be sent for approval',
     'recordSaved' => 'Record saved successfully',
     'reminderPreferencesReset' => 'Reminder preferences have been reset to defaults',
+    'reminderDefaultsInvalid' => 'Please add at least one valid reminder offset.',
     'entityTypeRequired' => 'Entity type is required',
     'invalidEntityType' => 'Invalid entity type',
     'atLeastOneReminder' => 'At least one reminder is required',

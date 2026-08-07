@@ -313,8 +313,7 @@ class PropertyAvailabilityRequestController extends AccountBaseController
      */
     private function isPrivilegedUser(User $user): bool
     {
-        $permission = $user->permission('edit_products');
-        if ($permission === 'all' || $permission === 4) {
+        if (\App\Support\PermissionGates::canManageProperties($user)) {
             return true;
         }
 

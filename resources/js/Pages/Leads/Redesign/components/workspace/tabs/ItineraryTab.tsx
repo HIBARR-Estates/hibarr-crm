@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "@inertiajs/react";
-import { Button, EmptyState, Icon } from "@/Components/Redesign";
+import { EmptyState } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import {
@@ -25,7 +25,6 @@ import useLeadItineraryMutations from "../../../hooks/useLeadItineraryMutations"
 import LeadItineraryModal from "../LeadItineraryModal";
 
 interface ItineraryTabProps {
-    onCreateDeal?: () => void;
     canEdit?: boolean;
 }
 
@@ -278,10 +277,7 @@ function ItineraryCard({
 /**
  * Lead itinerary — all flights across deals, each card linking to its deal.
  */
-export default function ItineraryTab({
-    onCreateDeal,
-    canEdit = true,
-}: ItineraryTabProps) {
+export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
     const { td } = useTd();
     const { t } = useTranslation();
     const ft = (key: string) => t(`pages.flight_itinerary.${key}`);
@@ -372,23 +368,31 @@ export default function ItineraryTab({
     const modalDealId =
         editingLeg?.deal_id ?? defaultDealId ?? deals[0]?.id ?? null;
 
-    if (deals.length === 0 && legs.length === 0) {
+    const addFlightButton =
+        canEdit ? (
+            <DealButton variant="primary" size="sm" onClick={openCreate}>
+                + {ft("add_flight")}
+            </DealButton>
+        ) : null;
+
+    if (legs.length === 0) {
         return (
             <div className="space-y-4">
+                <div className="flex justify-end">{addFlightButton}</div>
                 <EmptyState
                     title={td("No flights yet")}
                     description={td(
-                        "Create a deal to track inspection-trip flights and airport transfers.",
+                        "Add flights and airport transfers for this lead’s inspection trip.",
                     )}
                 />
-                {onCreateDeal && (
-                    <Button
-                        variant="primary"
-                        icon={<Icon name="plus" size={14} />}
-                        onClick={onCreateDeal}
-                    >
-                        {td("Create deal")}
-                    </Button>
+                {modalOpen && (
+                    <LeadItineraryModal
+                        open={modalOpen}
+                        onClose={closeModal}
+                        leadId={lead.id}
+                        dealId={modalDealId}
+                        leg={editingLeg}
+                    />
                 )}
             </div>
         );
@@ -416,16 +420,7 @@ export default function ItineraryTab({
                         </button>
                     ))}
                 </div>
-                {canEdit && deals.length > 0 && (
-                    <DealButton
-                        variant="primary"
-                        size="sm"
-                        onClick={openCreate}
-                        disabled={defaultDealId == null}
-                    >
-                        + {ft("add_flight")}
-                    </DealButton>
-                )}
+                {addFlightButton}
             </div>
 
             {filtered.length > 0 && (
@@ -500,10 +495,11 @@ export default function ItineraryTab({
                 })
             )}
 
-            {modalOpen && modalDealId != null && (
+            {modalOpen && (
                 <LeadItineraryModal
                     open={modalOpen}
                     onClose={closeModal}
+                    leadId={lead.id}
                     dealId={modalDealId}
                     leg={editingLeg}
                 />

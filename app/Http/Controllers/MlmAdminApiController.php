@@ -54,6 +54,12 @@ class MlmAdminApiController extends AccountBaseController
         $this->cycleService = $cycleService;
         $this->snapshotService = $snapshotService;
         $this->commissionProfileService = $commissionProfileService;
+
+        $this->middleware(function ($request, $next) {
+            abort_403(!\App\Support\PermissionGates::canManagePartnerNetwork(user()));
+
+            return $next($request);
+        });
     }
 
     // ══════════════════════════════════════════════════════════════

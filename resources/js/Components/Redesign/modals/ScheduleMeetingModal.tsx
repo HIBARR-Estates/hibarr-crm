@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import Button from "@/Components/Redesign/primitives/Button";
 import { Modal } from "@/Components/Redesign/primitives/Modal";
@@ -37,10 +37,18 @@ export default function ScheduleMeetingModal({
 }: ScheduleMeetingModalProps) {
     const { td } = useTd();
     const [form, setForm] = useState<MeetingFormState>(initialForm);
+    const seededForOpenRef = useRef(false);
 
+    // Seed once per open session — not when parent re-renders with a fresh
+    // initialForm object (e.g. after validation sets errors).
     useEffect(() => {
-        if (open) {
+        if (!open) {
+            seededForOpenRef.current = false;
+            return;
+        }
+        if (!seededForOpenRef.current) {
             setForm(initialForm);
+            seededForOpenRef.current = true;
         }
     }, [open, initialForm]);
 

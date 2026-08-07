@@ -1329,6 +1329,49 @@ class Module extends BaseModel
             ]
         ],
         [
+            'module_name' => 'partner_network',
+            'description' => 'Partner Network (MLM) admin module — levels, commissions, hierarchy, cycles.',
+            'permissions' => [
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 0,
+                    'name' => 'manage_partner_network',
+                ],
+            ],
+        ],
+        [
+            'module_name' => 'offers',
+            'description' => 'Developer / project offers management.',
+            'permissions' => [
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 0,
+                    'name' => 'manage_offers',
+                ],
+            ],
+        ],
+        [
+            'module_name' => 'properties',
+            'description' => 'Property inventory: manage listings, publish requests, and configuration — independently permissioned.',
+            'permissions' => [
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 0,
+                    'name' => 'manage_properties',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 0,
+                    'name' => 'manage_property_publish_requests',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 0,
+                    'name' => 'manage_property_configuration',
+                ],
+            ],
+        ],
+        [
             'module_name' => 'expenses',
             'description' => 'User can view and add(self expenses) the expenses as default even without any permission.',
             'permissions' => [
