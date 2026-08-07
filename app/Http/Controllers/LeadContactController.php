@@ -45,6 +45,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadFilterFacetsService;
+use App\Support\FeatureFlags;
 use App\Services\LeadQualificationService;
 use App\Services\PermissionService;
 use App\Services\DealAgentAssignmentService;
@@ -97,7 +98,7 @@ class LeadContactController extends AccountBaseController
         // S2: Index no longer ships leadContacts / stages / custom field definitions.
         // SaveLeadModal (M2) and ChangeToClient fetch defs via form-data API.
         // Keep leadLifecycleStatuses for the inline status cell.
-        return Inertia::render('Leads/Index', [
+        $props = [
             'pageTitle' => 'Lead Contacts',
             'filters' => $request->only(LeadService::FILTER_KEYS),
             'leads' => [
@@ -112,12 +113,18 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
-            // Filter modal chrome: option counts and the user's saved views.
-            'filterFacets' => Inertia::defer(
+        ];
+
+        // Filter modal chrome — only the v2 filter UI consumes these, and the
+        // facet counts are several GROUP BY queries, so skip them when it is off.
+        if (FeatureFlags::enabled('crm.leads-filter-v2')) {
+            $props['filterFacets'] = Inertia::defer(
                 fn () => app(LeadFilterFacetsService::class)->facets()
-            ),
-            'savedViews' => Inertia::defer(fn () => $this->savedViewsForUser()),
-        ]);
+            );
+            $props['savedViews'] = Inertia::defer(fn () => $this->savedViewsForUser());
+        }
+
+        return Inertia::render('Leads/Index', $props);
     }
 
     /**

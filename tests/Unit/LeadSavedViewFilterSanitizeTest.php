@@ -52,6 +52,18 @@ class LeadSavedViewFilterSanitizeTest extends TestCase
         $this->assertSame(['temperature' => 'hot'], $result);
     }
 
+    /**
+     * FeatureFlagService::forInertia() only exposes flags listed in
+     * config/features.php. If this one is dropped the frontend silently sees
+     * `false` forever and the v2 filter UI disappears with no error anywhere.
+     */
+    public function test_filter_v2_flag_is_registered_as_a_known_flag(): void
+    {
+        $config = file_get_contents(__DIR__ . '/../../config/features.php');
+
+        $this->assertStringContainsString("'crm.leads-filter-v2'", $config);
+    }
+
     public function test_every_allowed_key_is_a_key_apply_filters_understands(): void
     {
         // Guards against the whitelist drifting from the query builder.

@@ -39,6 +39,8 @@ import { createLeadFilterConfig } from "@/configs/leadFilterConfig";
 import LeadFilterModal from "@/Features/Leads/Filters/LeadFilterModal";
 import ActiveFilterSentence from "@/Features/Leads/Filters/ActiveFilterSentence";
 import { describeFilters } from "@/Features/Leads/Filters/filterSummary";
+import UniversalFilterDrawer from "@/Components/UniversalFilterDrawer";
+import ContextualActiveFilters from "@/Components/ContextualActiveFilters";
 import { mergeQueryParams } from "@/lib/inertiaQuery";
 import { FormDataType, useFormDataBatch } from "@/Hooks/useFormData";
 import usePageRefresh from "@/Hooks/usePageRefresh";
@@ -67,6 +69,9 @@ const Index = ({
     const { props: pageProps } = usePage<PageProps>();
     const useLeadCoreFields =
         pageProps.featureFlags?.["crm.lead-language-core-field"] === true;
+    // Redesigned two-pane filter workbench + saved views (mockups 1a/2a/2b/3c).
+    const useFilterV2 =
+        pageProps.featureFlags?.["crm.leads-filter-v2"] === true;
 
     const {
         handleAction,
@@ -123,9 +128,10 @@ const Index = ({
                         ? leadLifecycleStatuses
                         : formData["lead-lifecycle-statuses"] || [],
                 useLeadCoreFields,
+                filterV2: useFilterV2,
                 excludeFields: ["search"],
             }),
-        [formData, leadLifecycleStatuses, useLeadCoreFields],
+        [formData, leadLifecycleStatuses, useLeadCoreFields, useFilterV2],
     );
 
     // Setup search and filter contexts
@@ -270,6 +276,9 @@ const Index = ({
                         className="w-full"
                     />
                 }
+                filterSection={
+                    useFilterV2 ? undefined : <ContextualActiveFilters />
+                }
             >
                 <div className="max-w-7xl mx-auto space-y-6">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -305,7 +314,7 @@ const Index = ({
                                 onClick={openDrawer}
                             >
                                 {t("app.filter")}
-                                {activeFilterCount > 0 && (
+                                {useFilterV2 && activeFilterCount > 0 && (
                                     <span className="ml-2 inline-flex items-center justify-center min-w-[18px] h-[18px] px-[5px] rounded-full bg-[#1a6bb5] text-white text-[11px] font-semibold">
                                         {activeFilterCount}
                                     </span>
@@ -325,10 +334,12 @@ const Index = ({
                     </div>
 
                     {/* 3c — quiet active-filter sentence */}
-                    <ActiveFilterSentence
-                        count={leads.total}
-                        onOpenFilters={openDrawer}
-                    />
+                    {useFilterV2 && (
+                        <ActiveFilterSentence
+                            count={leads.total}
+                            onOpenFilters={openDrawer}
+                        />
+                    )}
 
                     {/* Properties Table */}
                     <DataTable<Lead>
@@ -402,11 +413,20 @@ const Index = ({
                 />
             )}
 
-            {/* Redesigned two-pane filter workbench (mockups 1a / 2a / 2b) */}
-            <LeadFilterModal
-                config={filterConfig}
-                optionsLoading={formDataLoading}
-            />
+            {/* Filter UI — v2 two-pane workbench behind crm.leads-filter-v2,
+                otherwise the shared universal filter modal. */}
+            {useFilterV2 ? (
+                <LeadFilterModal
+                    config={filterConfig}
+                    optionsLoading={formDataLoading}
+                />
+            ) : (
+                <UniversalFilterDrawer
+                    config={filterConfig}
+                    loading={formDataLoading}
+                    width={960}
+                />
+            )}
         </>
     );
 };

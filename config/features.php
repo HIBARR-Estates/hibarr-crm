@@ -28,5 +28,6 @@ return [
         'crm.leads-product-tour',
         'crm.deal-info-count-indicator',
         'crm.deal-analysis',
+        'crm.leads-filter-v2',
     ],
 ];

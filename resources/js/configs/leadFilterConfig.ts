@@ -62,15 +62,22 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
         },
         {
             key: "start_date",
-            label: "Created",
+            label: props.filterV2 ? "Created" : "Created from",
             type: "date",
             control: "datePresets",
             sentence: "created",
             section: "General",
         },
-        // Written by the date-range control; tracked so FilterContext syncs it
-        // to the URL under the key the backend actually reads.
-        { key: "end_date", label: "Created to", type: "date", hidden: true },
+        // Backend needs both start_date and end_date. In v2 the date-range
+        // control writes both, so this stays hidden; on the legacy form it has
+        // to render as its own picker or the range can never be completed.
+        {
+            key: "end_date",
+            label: "Created to",
+            type: "date",
+            section: "General",
+            hidden: Boolean(props.filterV2),
+        },
 
         // ── Assignment & source ──────────────────────────────────
         {

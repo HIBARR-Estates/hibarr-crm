@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LeadSavedView;
+use App\Support\FeatureFlags;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -15,6 +16,11 @@ class LeadSavedViewController extends AccountBaseController
 
         $this->middleware(function ($request, $next) {
             if (! in_array('leads', user_modules())) {
+                abort(403);
+            }
+
+            // Saved views exist only as part of the v2 filter UI.
+            if (! FeatureFlags::enabled('crm.leads-filter-v2')) {
                 abort(403);
             }
 
