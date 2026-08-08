@@ -80,6 +80,7 @@ class LeadImported extends BaseNotification
                 ->markdown('mail.email', [
                     'url' => $url,
                     'content' => $content,
+                    'preheader' => __('email.leads.subject'),
                     'themeColor' => company()->header_color,
                     'actionText' => __('email.leadAgent.viewMore'),
                     'notifiableName' => $notifiable->name
@@ -89,14 +90,17 @@ class LeadImported extends BaseNotification
                 ->subject(__('email.leads.subject') . ' - ' . config('app.name'))
                 ->markdown('mail.email', [
                     'content' => $content,
+                    'preheader' => __('email.leads.subject'),
                     'themeColor' => company()->header_color,
                     'notifiableName' => $notifiable->name
                 ]);
         }
         $importUrl = getDomainSpecificUrl(route('lead-contact.index'), null);
+        $importCount = (int) ($this->importStats['importCount'] ?? 0);
         $this->attachPlunkTemplate($build, 'c5b022f4-988b-49d1-8a28-bfcdf26cb0bd', [
+            'preheader'      => __('email.leads.subject').' ('.$importCount.')',
             'importedByName' => $this->importStats['importedByName'] ?? '',
-            'importCount'    => $this->importStats['importCount'] ?? 0,
+            'importCount'    => $importCount,
             'failedCount'    => $this->importStats['failedCount'] ?? 0,
             'sourceName'     => $this->importStats['sourceName'] ?? 'CSV Import',
             'importedAt'     => $this->importStats['importedAt'] ?? '',

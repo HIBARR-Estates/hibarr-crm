@@ -1,0 +1,9 @@
+<!--
+  Canonical inbox preheader — already embedded in every *.plunk.html under resources/views/mail/.
+
+  When creating a NEW Plunk template from scratch, paste this as the first child
+  inside the email wrapper (right after the opening <div class="hm"...>, before the main table).
+
+  CRM always sends the `preheader` variable for Plunk-backed emails.
+-->
+<div style="display:none;font-size:1px;color:#eef2f8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{preheader}}</div>

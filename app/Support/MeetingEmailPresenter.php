@@ -320,6 +320,7 @@ class MeetingEmailPresenter
     public static function plunkVariables(array $variables): array
     {
         return [
+            'preheader' => $variables['preheader'] ?? $variables['meetingMessage'],
             'mailSubject' => $variables['mailSubject'],
             'appName' => $variables['appName'],
             'badgeLabel' => $variables['badgeLabel'],

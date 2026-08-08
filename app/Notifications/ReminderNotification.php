@@ -333,6 +333,7 @@ class ReminderNotification extends BaseNotification
             ]);
 
         $this->attachPlunkTemplateIfConfigured($build, 'task', [
+                'preheader' => $preheader,
                 'taskMessage' => $taskMessage,
                 'taskHeading' => $heading,
                 'taskShortCode' => $shortCode,
@@ -387,6 +388,7 @@ class ReminderNotification extends BaseNotification
             ]);
 
         $this->attachPlunkTemplateIfConfigured($build, 'note', [
+                'preheader' => $preheader,
                 'noteMessage' => $noteMessage,
                 'noteTitle' => $title,
                 'noteExcerpt' => $excerpt,
@@ -446,6 +448,7 @@ class ReminderNotification extends BaseNotification
             ]);
 
         $this->attachPlunkTemplateIfConfigured($build, $kind, [
+                'preheader' => $preheader,
                 $messageKey => $message,
                 $titleKey => $title,
                 'eventDate' => $eventDate,

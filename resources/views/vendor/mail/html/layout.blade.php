@@ -23,6 +23,17 @@
         }
     </style>
 
+    @php
+        $layoutPreheader = trim((string) ($preheader ?? ''));
+        if ($layoutPreheader === '' && !empty($content)) {
+            $layoutPreheader = (string) $content;
+        }
+        if ($layoutPreheader === '' && isset($slot)) {
+            $layoutPreheader = (string) $slot;
+        }
+    @endphp
+    @include('mail.partials.preheader', ['preheader' => $layoutPreheader])
+
     <table class="wrapper" width="100%" cellpadding="0" cellspacing="0">
         <tr>
             <td align="center">

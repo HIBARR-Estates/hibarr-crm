@@ -73,12 +73,14 @@ class LeadAgentAssigned extends BaseNotification
             ->view('mail.deal-assigned', [
                 'url' => $url,
                 'content' => $content,
+                'preheader' => __('email.leadAgent.text'),
                 'themeColor' => $this->company->header_color,
                 'actionText' => __('email.leadAgent.action'),
                 'notifiableName' => $notifiable->name
             ]);
 
         $this->attachPlunkTemplate($build, '336e4f34-69bf-4a4f-92af-96e318a80548', [
+            'preheader'      => __('email.leadAgent.text'),
             'assignedByName' => $this->assignedByName,
             'leadName'       => $this->deal->contact->client_name,
             'leadEmail'      => $this->deal->contact->client_email ?? '',

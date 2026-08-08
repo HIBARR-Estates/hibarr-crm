@@ -19,7 +19,7 @@
 }
 </style>
 <div class="hm" style="margin:0;padding:0;width:100%">
-<div style="display:none;font-size:1px;color:#eef2f8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">{{ $meetingMessage }}</div>
+<div style="display:none;font-size:1px;color:#eef2f8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">{{ $preheader ?? $meetingMessage }}</div>
 <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#eef2f8">
 <tr>
 <td align="center" style="padding:32px 12px">
