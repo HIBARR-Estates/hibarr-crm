@@ -3,6 +3,7 @@ import { router } from "@inertiajs/react";
 import DashboardLayout from "../../Components/DashboardLayout";
 import PageLayout from "../../Components/PageLayout";
 import useTranslation from "@/Hooks/useTranslation";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 import {
     Button,
     App,
@@ -316,7 +317,7 @@ interface LocationFormDrawerProps {
     onClose: () => void;
     location?: ProjectLocation | null;
     onSuccess: () => void;
-    td?: (key: string) => string;
+    td?: TdFn;
 }
 
 const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
@@ -324,7 +325,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
     onClose,
     location,
     onSuccess,
-    td = (key) => key,
+    td = identityTd,
 }) => {
     const [form] = Form.useForm<LocationFormValues>();
     const { modal } = App.useApp();
@@ -989,20 +990,18 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                 <Badge dot={tabErrors.has("basic")} offset={[4, 2]}>
                     <span className="flex items-center gap-2">
                         <InfoCircleOutlined />
-                        {td("Basic Info")}
+                        {td("Basic Info", { source: "en" })}
                     </span>
                 </Badge>
             ),
             children: (
                 <div className="flex flex-col gap-y-4">
                     {!isEditing && (
-                        <Form.Item label={td("Copy From Existing Location")}>
+                        <Form.Item label={td("Copy From Existing Location", { source: "en" })}>
                             <Select
                                 allowClear
                                 showSearch
-                                placeholder={td(
-                                    "Search a location to copy details from",
-                                )}
+                                placeholder={td("Search a location to copy details from", { source: "en" })}
                                 optionFilterProp="label"
                                 options={copyFromOptions}
                                 value={copySourceId}
@@ -1015,9 +1014,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                             />
                             {copySourceId && (
                                 <div className="text-xs text-gray-500 mt-1">
-                                    {td(
-                                        "Details are copied except city, area, and name — edit anything before saving.",
-                                    )}
+                                    {td("Details are copied except city, area, and name — edit anything before saving.", { source: "en" })}
                                 </div>
                             )}
                         </Form.Item>
@@ -1026,11 +1023,11 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Form.Item
                             name="address_city"
-                            label={td("City")}
+                            label={td("City", { source: "en" })}
                             rules={[
                                 {
                                     required: true,
-                                    message: td("Please select a city"),
+                                    message: td("Please select a city", { source: "en" }),
                                 },
                             ]}
                         >
@@ -1044,7 +1041,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 
                         <Form.Item
                             name="address_state"
-                            label={td("Area / District")}
+                            label={td("Area / District", { source: "en" })}
                         >
                             <Select
                                 options={areaOptions}
@@ -1066,9 +1063,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
                         rules={[
                             {
                                 required: true,
-                                message: td(
-                                    "Please select a city so the location name can be generated",
-                                ),
+                                message: td("Please select a city so the location name can be generated", { source: "en" }),
                             },
                         ]}
                     >
@@ -1077,7 +1072,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
 
                     <div className="flex items-center justify-between gap-3">
                         <label className="ant-form-item-label">
-                            <span>{td("Description")}</span>
+                            <span>{td("Description", { source: "en" })}</span>
                         </label>
                         {aiEnabled && (
                             <Button
@@ -1752,7 +1747,7 @@ const LocationFormDrawer: React.FC<LocationFormDrawerProps> = ({
             >
                 {tabErrors.size > 0 && (
                     <Alert
-                        message={td("Please fix the highlighted fields")}
+                        message={td("Please fix the highlighted fields", { source: "en" })}
                         type="error"
                         showIcon
                         closable
@@ -1844,7 +1839,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
     const columns: TableColumnsType<ProjectLocation> = useMemo(
         () => [
             {
-                title: td("Location"),
+                title: td("Location", { source: "en" }),
                 dataIndex: "name",
                 key: "name",
                 render: (name: string, record) => {
@@ -1886,7 +1881,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 },
             },
             {
-                title: td("Country"),
+                title: td("Country", { source: "en" }),
                 key: "country",
                 width: 130,
                 render: (_, record) =>
@@ -1896,7 +1891,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                         </span>
                     ) : (
                         <span className="text-gray-400 italic text-sm">
-                            {td("Not set")}
+                            {td("Not set", { source: "en" })}
                         </span>
                     ),
             },
@@ -1904,7 +1899,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 title: (
                     <span className="flex items-center justify-center gap-1.5">
                         <CameraOutlined />
-                        {td("Attractions")}
+                        {td("Attractions", { source: "en" })}
                     </span>
                 ),
                 key: "attractions_count",
@@ -1920,7 +1915,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 title: (
                     <span className="flex items-center justify-center gap-1.5">
                         <CarOutlined />
-                        {td("Infrastructure")}
+                        {td("Infrastructure", { source: "en" })}
                     </span>
                 ),
                 key: "infrastructure_count",
@@ -1936,7 +1931,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 title: (
                     <span className="flex items-center justify-center gap-1.5">
                         <RocketOutlined />
-                        {td("Airports")}
+                        {td("Airports", { source: "en" })}
                     </span>
                 ),
                 key: "airports_count",
@@ -1949,7 +1944,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                 ),
             },
             {
-                title: td("Updated"),
+                title: td("Updated", { source: "en" }),
                 dataIndex: "updated_at",
                 key: "updated_at",
                 width: 120,
@@ -1971,7 +1966,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                         {
                             key: "edit",
                             icon: <EditOutlined />,
-                            label: td("Edit"),
+                            label: td("Edit", { source: "en" }),
                             onClick: () => handleEdit(record),
                         },
                         { type: "divider" },
@@ -1980,28 +1975,26 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                             icon: <DeleteOutlined />,
                             label: (
                                 <Popconfirm
-                                    title={td("Delete Location")}
+                                    title={td("Delete Location", { source: "en" })}
                                     description={
                                         <span>
-                                            {td(
-                                                "Are you sure you want to delete",
-                                            )}{" "}
+                                            {td("Are you sure you want to delete", { source: "en" })}{" "}
                                             <strong>
                                                 {formatLocationNameForDisplay(
                                                     record.name,
                                                 )}
                                             </strong>?{" "}
-                                            {td("This cannot be undone.")}
+                                            {td("This cannot be undone.", { source: "en" })}
                                         </span>
                                     }
                                     onConfirm={() => handleDelete(record)}
-                                    okText={td("Delete")}
-                                    cancelText={td("Cancel")}
+                                    okText={td("Delete", { source: "en" })}
+                                    cancelText={td("Cancel", { source: "en" })}
                                     okButtonProps={{ danger: true }}
                                     placement="left"
                                 >
                                     <span className="text-red-600 w-full inline-block">
-                                        {td("Delete")}
+                                        {td("Delete", { source: "en" })}
                                     </span>
                                 </Popconfirm>
                             ),
@@ -2047,17 +2040,15 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
                             <Title level={4} className="!mb-1">
-                                {td("Project Locations")}
+                                {td("Project Locations", { source: "en" })}
                             </Title>
                             <Text type="secondary">
-                                {td(
-                                    "Manage locations for your developer projects and expose configurations",
-                                )}
+                                {td("Manage locations for your developer projects and expose configurations", { source: "en" })}
                             </Text>
                         </div>
                         <div className="flex items-center gap-3">
                             <Input.Search
-                                placeholder={td("Search locations...")}
+                                placeholder={td("Search locations...", { source: "en" })}
                                 allowClear
                                 value={searchValue}
                                 onChange={(e) =>
@@ -2071,7 +2062,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                 icon={<PlusOutlined />}
                                 onClick={handleAdd}
                             >
-                                {td("New Location")}
+                                {td("New Location", { source: "en" })}
                             </Button>
                         </div>
                     </div>
@@ -2084,10 +2075,8 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                 description={
                                     <span className="text-gray-500">
                                         {filters.search
-                                            ? td(
-                                                  "No locations match your search",
-                                              )
-                                            : td("No locations created yet")}
+                                            ? td("No locations match your search", { source: "en" })
+                                            : td("No locations created yet", { source: "en" })}
                                     </span>
                                 }
                             >
@@ -2098,7 +2087,7 @@ const Index = ({ pageTitle, locations, filters }: IndexProps) => {
                                             handleSearch("");
                                         }}
                                     >
-                                        {td("Clear search")}
+                                        {td("Clear search", { source: "en" })}
                                     </Button>
                                 ) : (
                                     <Button

@@ -91,7 +91,11 @@ function processStandardField(
         return { age_range: value || null };
     }
 
-    if (fieldName === "gender" || fieldName === "salutation") {
+    if (
+        fieldName === "gender" ||
+        fieldName === "salutation" ||
+        fieldName === "temperature"
+    ) {
         return { [fieldName]: value || null };
     }
 

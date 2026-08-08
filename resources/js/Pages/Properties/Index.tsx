@@ -559,7 +559,7 @@ const Index = ({
                                         disabled={isRefreshing}
                                         type="text"
                                     >
-                                        {td("Refresh")}
+                                        {td("Refresh", { source: "en" })}
                                     </Button>
                                     {/* Advanced Filters Button */}
                                     <Button

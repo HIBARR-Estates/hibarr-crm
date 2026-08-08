@@ -12,6 +12,16 @@ interface DealNoteDetailModalProps {
     onClose: () => void;
 }
 
+// Permission scopes are "all" | "added" | "owned" | "both" | "none" (Module::edit_deal_note
+// allows all of them) — "added"/"owned" both mean "only your own notes", "both" behaves as "all".
+function hasNoteScopeAccess(scope: string | undefined, isOwner: boolean): boolean {
+    return (
+        scope === "all" ||
+        scope === "both" ||
+        ((scope === "added" || scope === "owned") && isOwner)
+    );
+}
+
 export default function DealNoteDetailModal({
     note,
     permissions,
@@ -25,16 +35,11 @@ export default function DealNoteDetailModal({
     const { updateNote, isUpdating, deleteNote, isDeleting } =
         useDealNoteMutations(note?.id ?? 0);
 
+    const isOwner = note?.added_by?.id === userId;
     const canEdit =
-        !isWatcherOnly &&
-        (permissions.edit_deal_note === "all" ||
-            (permissions.edit_deal_note === "added" &&
-                note?.added_by?.id === userId));
+        !isWatcherOnly && hasNoteScopeAccess(permissions.edit_deal_note, isOwner);
     const canDelete =
-        !isWatcherOnly &&
-        (permissions.delete_deal_note === "all" ||
-            (permissions.delete_deal_note === "added" &&
-                note?.added_by?.id === userId));
+        !isWatcherOnly && hasNoteScopeAccess(permissions.delete_deal_note, isOwner);
 
     return (
         <NoteDetailModal

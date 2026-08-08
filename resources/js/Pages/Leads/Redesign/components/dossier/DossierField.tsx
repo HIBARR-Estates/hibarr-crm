@@ -40,7 +40,7 @@ export default function DossierField({
     const [copyFailed, setCopyFailed] = useState(false);
     const timerRef = useRef<number | null>(null);
     const empty = !isMeaningfulDossierValue(value);
-    const resolvedPlaceholder = td(placeholder);
+    const resolvedPlaceholder = td(placeholder, { source: "en" });
     // Never show the copy icon for empty / placeholder / invalid display values.
     const canCopy = copyable && !empty;
 
@@ -102,10 +102,10 @@ export default function DossierField({
             onClick={handleCopy}
             title={
                 copyFailed
-                    ? td("Could not copy")
+                    ? td("Could not copy", { source: "en" })
                     : copied
-                      ? td("Copied")
-                      : td("Copy")
+                      ? td("Copied", { source: "en" })
+                      : td("Copy", { source: "en" })
             }
         >
             <span>{value}</span>

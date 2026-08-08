@@ -172,7 +172,7 @@ export const LegacyDealShow = ({
                 title={pageTitle}
                 breadcrumbs={[
                     { name: t("app.menu.dashboard"), url: route("dashboard") },
-                    { name: td("Deals"), url: route("deals.index") },
+                    { name: td("Deals", { source: "en" }), url: route("deals.index") },
                     { name: td(pageTitle) },
                 ]}
             >
@@ -203,7 +203,7 @@ export const LegacyDealShow = ({
                                     </Title>
                                     <div className="flex flex-col gap-3">
                                         <div className="text-xs text-gray-500 font-semibold uppercase tracking-wider">
-                                            {td(deal.pipeline?.name)}
+                                            {td(deal.pipeline?.name, { source: "en" })}
                                         </div>
 
                                         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
@@ -288,7 +288,7 @@ export const LegacyDealShow = ({
                                                                 }}
                                                             >
                                                                 <div className="mr-1.5 h-2 w-2 rounded-full bg-[#0000008F]" />
-                                                                {td(stage.name)}
+                                                                {td(stage.name, { source: "en" })}
                                                             </div>
                                                             {index <
                                                                 (deal.pipeline
@@ -334,7 +334,7 @@ export const LegacyDealShow = ({
                                             ? t(
                                                   "pages.deals.refresh_tooltip_disabled",
                                               )
-                                            : td("Refresh")
+                                            : td("Refresh", { source: "en" })
                                     }
                                 >
                                     <Button
@@ -349,7 +349,7 @@ export const LegacyDealShow = ({
                                         }
                                         type="text"
                                     >
-                                        {td("Refresh")}
+                                        {td("Refresh", { source: "en" })}
                                     </Button>
                                 </Tooltip>
                             </div>

@@ -12,6 +12,7 @@ export type LeadNativeFieldKey =
     | "dateOfBirthAndAge"
     | "nationality"
     | "gender"
+    | "temperature"
     | "languages"
     | "occupation"
     | "companyName"
@@ -73,6 +74,7 @@ export const LEAD_INFO_CORE_SECTIONS: LeadInfoSectionDef[] = [
             { key: "companyName", label: "Company", leadField: "company_name" },
             { key: "source", label: "Source", leadField: "source_id" },
             { key: "category", label: "Category", leadField: "category_ids" },
+            { key: "temperature", label: "Temperature", leadField: "temperature" },
             { key: "addedBy", label: "Added by", readOnly: true },
         ],
     },

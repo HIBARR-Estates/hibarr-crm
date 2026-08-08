@@ -47,9 +47,9 @@ export default function DealTimelineEventRow({
     // v2.2 folds the category into the changes summary ("Qualification · 3 fields")
     // rather than showing a separate category pill.
     const changeSummary = event.grouped
-        ? td(event.grouped)
+        ? td(event.grouped, { source: "en" })
         : event.changeCount
-          ? `${event.categoryName ? `${td(event.categoryName)} · ` : ""}${event.changeCount} ${
+          ? `${event.categoryName ? `${td(event.categoryName, { source: "en" })} · ` : ""}${event.changeCount} ${
                 event.changeCount === 1
                     ? t("pages.deals.timeline.field_changed_one")
                     : t("pages.deals.timeline.field_changed_many")
@@ -111,19 +111,19 @@ export default function DealTimelineEventRow({
                         className="dr-pill dr-pill-gray"
                         style={{ textTransform: "capitalize" }}
                     >
-                        {td(event.type)}
+                        {td(event.type, { source: "en" })}
                     </span>
                     {event.direction && (
                         <span
                             className={`dr-pill ${getTimelineDirectionTone(event.direction)}`}
                         >
-                            {td(getTimelineDirectionLabel(event.direction))}
+                            {td(getTimelineDirectionLabel(event.direction), { source: "en" })}
                         </span>
                     )}
                     <span
                         className={`dr-pill ${getTimelineStatusTone(event.status)}`}
                     >
-                        {td(getTimelineStatusLabel(event.status))}
+                        {td(getTimelineStatusLabel(event.status), { source: "en" })}
                     </span>
 
                     {showManage && (
@@ -248,7 +248,7 @@ export default function DealTimelineEventRow({
                                             }}
                                         >
                                             <span style={{ color: T.TEXT_MUTED }}>
-                                                {td(label)}
+                                                {td(label, { source: "en" })}
                                             </span>
                                             <span
                                                 style={{

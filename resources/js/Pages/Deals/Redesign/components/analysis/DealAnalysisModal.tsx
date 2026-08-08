@@ -367,13 +367,13 @@ export default function DealAnalysisModal({
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12A9 9 0 113 12a9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm text-slate-700 flex-1">
-                            {failedKeys.length} {failedKeys.length === 1 ? td("field") : td("fields")} {td("couldn't save")} —{" "}
+                            {failedKeys.length} {failedKeys.length === 1 ? td("field", { source: "en" }) : td("fields", { source: "en" })} {td("couldn't save", { source: "en" })} —{" "}
                             <button
                                 type="button"
                                 className="underline font-medium text-slate-800"
                                 onClick={() => failedKeys.forEach((f) => retry(f.key))}
                             >
-                                {td("Retry")}
+                                {td("Retry", { source: "en" })}
                             </button>
                         </span>
                         <button
@@ -415,7 +415,7 @@ export default function DealAnalysisModal({
                                     lineHeight: 1.3,
                                 }}
                             >
-                                {td("Finish with missing information?")}
+                                {td("Finish with missing information?", { source: "en" })}
                             </h3>
                             <p
                                 style={{
@@ -428,17 +428,13 @@ export default function DealAnalysisModal({
                                 <strong style={{ color: T.TEXT }}>
                                     {unfilledCount}{" "}
                                     {unfilledCount === 1
-                                        ? td("field is still empty")
-                                        : td("fields are still empty")}
+                                        ? td("field is still empty", { source: "en" })
+                                        : td("fields are still empty", { source: "en" })}
                                 </strong>
                                 .{" "}
                                 {confirmIntent === "complete"
-                                    ? td(
-                                        "Completing now will mark this analysis as done, but the missing data won't be captured.",
-                                    )
-                                    : td(
-                                        "You can reopen the analysis later to fill in the rest.",
-                                    )}
+                                    ? td("Completing now will mark this analysis as done, but the missing data won't be captured.", { source: "en" })
+                                    : td("You can reopen the analysis later to fill in the rest.", { source: "en" })}
                             </p>
                             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                                 <button
@@ -446,7 +442,7 @@ export default function DealAnalysisModal({
                                     className="dr-btn dr-btn-ghost"
                                     onClick={() => setConfirmIntent(null)}
                                 >
-                                    {td("Go back and fill in")}
+                                    {td("Go back and fill in", { source: "en" })}
                                 </button>
                                 <button
                                     type="button"
@@ -460,7 +456,7 @@ export default function DealAnalysisModal({
                                         else doClose();
                                     }}
                                 >
-                                    {confirmIntent === "complete" ? td("Finish anyway") : td("Close anyway")}
+                                    {confirmIntent === "complete" ? td("Finish anyway", { source: "en" }) : td("Close anyway", { source: "en" })}
                                 </button>
                             </div>
                         </div>

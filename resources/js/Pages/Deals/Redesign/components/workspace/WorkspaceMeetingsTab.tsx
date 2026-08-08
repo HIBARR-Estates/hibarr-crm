@@ -344,18 +344,14 @@ export default function WorkspaceMeetingsTab({
                                                             ] ?? "dr-pill-gray"
                                                         }`}
                                                     >
-                                                        {td(
-                                                            meeting.platformLabel,
-                                                        )}
+                                                        {td(meeting.platformLabel, { source: "en" })}
                                                     </span>
                                                     <span
                                                         className={`dr-pill ${getMeetingStatusTone(
                                                             meeting.statusLabel,
                                                         )}`}
                                                     >
-                                                        {td(
-                                                            meeting.statusLabel,
-                                                        )}
+                                                        {td(meeting.statusLabel, { source: "en" })}
                                                     </span>
                                                     {meeting.isConcluded &&
                                                         meeting.summaryStatus !==

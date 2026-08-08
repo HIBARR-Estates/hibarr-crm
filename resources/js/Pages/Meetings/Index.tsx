@@ -42,7 +42,7 @@ import ScheduleMeetingDrawer from "@/Features/Meetings/ScheduleMeetingDrawer";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import usePageRefresh from "@/Hooks/usePageRefresh";
 import useTranslation from "@/Hooks/useTranslation";
-import { useTd } from "@/Hooks/useDynamicTranslation";
+import { TdFn, useTd } from "@/Hooks/useDynamicTranslation";
 
 dayjs.extend(utc);
 
@@ -161,7 +161,7 @@ interface MeetingCardProps {
     meeting: DealFollowup;
     permissions: Record<string, string>;
     userId?: number;
-    td: (text: string | null | undefined) => string;
+    td: TdFn;
     onView: () => void;
     onEdit: () => void;
     onDelete: () => void;
@@ -406,10 +406,8 @@ const MeetingCard: React.FC<MeetingCardProps> = ({
                             );
                         }}
                     >
-                        {td(
-                            meeting.lead.client_name_salutation ||
-                                meeting.lead.client_name,
-                        )}
+                        {meeting.lead.client_name_salutation ||
+                                meeting.lead.client_name}
                     </p>
                 ) : (
                     <p className="text-gray-400 text-sm mb-0">
@@ -640,7 +638,7 @@ function MeetingsIndex() {
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {td("Refresh")}
+                            {td("Refresh", { source: "en" })}
                         </Button>
                         {canAdd && (
                             <Button

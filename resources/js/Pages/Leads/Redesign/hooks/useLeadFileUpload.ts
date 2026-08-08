@@ -84,7 +84,7 @@ export default function useLeadFileUpload(leadId: number) {
                         setFiles((prev) => [...uploaded, ...prev]);
                     }
                     setUploadProgress(100);
-                    message.success(td("Files uploaded"));
+                    message.success(td("Files uploaded", { source: "en" }));
                     return;
                 }
 
@@ -99,7 +99,7 @@ export default function useLeadFileUpload(leadId: number) {
                         : (error as { message?: string; response?: { data?: { message?: string } } })
                               ?.response?.data?.message ??
                           (error as { message?: string } | undefined)?.message;
-                message.error(backendMessage ?? td("Upload failed"));
+                message.error(backendMessage ?? td("Upload failed", { source: "en" }));
             } finally {
                 setIsUploading(false);
                 // Keep 100 briefly visible, then clear.

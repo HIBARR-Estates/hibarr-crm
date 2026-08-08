@@ -37,12 +37,10 @@ export default function useLeadDelete(lead: Lead) {
         confirmDelete,
         dialogProps: {
             open: confirmOpen,
-            title: td("Delete lead"),
-            message: td(
-                `Are you sure you want to delete "${lead.client_name ?? "this lead"}"? This action cannot be undone.`,
-            ),
-            confirmLabel: td("Yes, delete"),
-            cancelLabel: td("Cancel"),
+            title: td("Delete lead", { source: "en" }),
+            message: td(`Are you sure you want to delete "${lead.client_name ?? "this lead"}"? This action cannot be undone.`, { source: "en" }),
+            confirmLabel: td("Yes, delete", { source: "en" }),
+            cancelLabel: td("Cancel", { source: "en" }),
             danger: true as const,
             confirmLoading: deleting,
             onConfirm: confirmDelete,

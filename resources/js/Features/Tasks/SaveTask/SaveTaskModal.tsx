@@ -11,6 +11,7 @@ import { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { errorFormatter } from "@/lib/api/utils/common";
 import TaskEntityLink from "@/Features/Tasks/Components/TaskEntityLink";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface Task {
     id: number;
@@ -134,7 +135,7 @@ interface SaveTaskModalProps extends Omit<IModalProps, "onClose"> {
         type: "deal" | "lead" | "property";
         id?: number;
     };
-    td?: (key: string) => string;
+    td?: TdFn;
     /** Called after a successful create/update with the API task payload when available. */
     onSuccess?: (task?: Task) => void;
     /**
@@ -159,7 +160,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
     leads = [],
     properties = [],
     relatedEntity,
-    td = (key) => key,
+    td = identityTd,
     onSuccess,
     reloadKeys,
 }) => {
@@ -497,8 +498,8 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                             visible={open}
                             onCancel={handleCancel}
                             onSubmit={handleSubmit}
-                            submitText={td(submitText)}
-                            cancelText={td("Cancel")}
+                            submitText={td(submitText, { source: "en" })}
+                            cancelText={td("Cancel", { source: "en" })}
                             errors={errors}
                             setErrors={(newErrors) => {
                                 if (Array.isArray(newErrors)) {
@@ -531,7 +532,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                     disabled={isLoading}
                     className="px-4 py-2.5 text-sm font-semibold text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors disabled:opacity-50"
                 >
-                    {td("Cancel")}
+                    {td("Cancel", { source: "en" })}
                 </button>
                 <div className="flex items-center gap-3">
                     {errors.length > 0 && (
@@ -550,7 +551,7 @@ const SaveTaskModal: React.FC<SaveTaskModalProps> = ({
                         }`}
                     >
                         <SaveOutlined />
-                        {isLoading ? "Saving…" : td(submitText)}
+                        {isLoading ? "Saving…" : td(submitText, { source: "en" })}
                     </button>
                 </div>
             </div>

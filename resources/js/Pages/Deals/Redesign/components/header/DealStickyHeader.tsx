@@ -135,8 +135,8 @@ export default function DealStickyHeader({
                                     onClick={onOpenAnalysis}
                                 >
                                     {deal.analysis_status === "completed"
-                                        ? td("View Analysis")
-                                        : td("Open Analysis")}
+                                        ? td("View Analysis", { source: "en" })
+                                        : td("Open Analysis", { source: "en" })}
                                 </DealButton>
                             )}
                             <DealButton

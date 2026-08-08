@@ -57,7 +57,7 @@ export default function DossierSection({
                         flex: 1,
                     }}
                 >
-                    {td(title)}
+                    {td(title, { source: "en" })}
                 </span>
                 {!open && (
                     <span

@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { usePage } from "@inertiajs/react";
-import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
 import { useApiMutate } from "@/lib/api/client";
@@ -9,7 +8,6 @@ import { isLoading } from "@/lib/utils";
 import type { Note } from "@/Types/api/note";
 import { toWorkspaceNotePreview } from "../../adapters/noteAdapter";
 import { useDealWorkspace } from "../../context/DealWorkspaceContext";
-import useDealNoteCreate from "../../hooks/useDealNoteCreate";
 import useDealNoteMutations from "../../hooks/useDealNoteMutations";
 import DealAvatar from "../primitives/DealAvatar";
 import DealBulkActionBar from "../primitives/DealBulkActionBar";
@@ -23,6 +21,7 @@ import DealNoteDetailModal from "./DealNoteDetailModal";
 interface WorkspaceNotesTabProps {
     notes: Note[];
     permissions: Record<string, string>;
+    onAddNote: () => void;
 }
 
 function canAddNote(
@@ -44,33 +43,32 @@ function canDeleteNote(
     isWatcherOnly: boolean,
 ): boolean {
     if (isWatcherOnly) return false;
+    const scope = permissions.delete_deal_note;
+    const isOwner = note.added_by?.id === userId;
     return (
-        permissions.delete_deal_note === "all" ||
-        (permissions.delete_deal_note === "added" &&
-            note.added_by?.id === userId)
+        scope === "all" ||
+        scope === "both" ||
+        ((scope === "added" || scope === "owned") && isOwner)
     );
 }
 
-/** v2.2 NotesTab (deal-v2-2.jsx:1581-1692): inline composer + select mode +
- * bulk delete + title-first note cards. */
+/** v2.2 NotesTab (deal-v2-2.jsx:1581-1692): add-note modal trigger + select
+ * mode + bulk delete + title-first note cards. */
 export default function WorkspaceNotesTab({
     notes,
     permissions,
+    onAddNote,
 }: WorkspaceNotesTabProps) {
-    const { td } = useTd();
     const { t } = useTranslation();
     const { props } = usePage();
     const userId = props.auth?.user?.id;
     const { deal, setNotes } = useDealWorkspace();
     const { isWatcherOnly } = useDealPermissions(deal);
     const [selectedNoteId, setSelectedNoteId] = useState<number | null>(null);
-    const [title, setTitle] = useState("");
-    const [text, setText] = useState("");
     const [selectMode, setSelectMode] = useState(false);
     const [selected, setSelected] = useState<Set<number>>(() => new Set());
     const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
     const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-    const { createNote, isSaving, errors } = useDealNoteCreate(deal.id);
     const { deleteNote, isDeleting } = useDealNoteMutations(confirmDeleteId ?? 0);
     const selectedNote = notes.find((note) => note.id === selectedNoteId) ?? null;
 
@@ -86,17 +84,10 @@ export default function WorkspaceNotesTab({
         [notes],
     );
 
-    const showComposer = canAddNote(permissions, isWatcherOnly);
+    const canAdd = canAddNote(permissions, isWatcherOnly);
     // Bulk delete acts across authors, so only expose it with the full scope.
     const canBulkDelete =
         !isWatcherOnly && permissions.delete_deal_note === "all";
-
-    const saveNote = () => {
-        createNote({ title, text }, () => {
-            setTitle("");
-            setText("");
-        });
-    };
 
     const toggleSelect = (id: number) =>
         setSelected((prev) => {
@@ -136,73 +127,24 @@ export default function WorkspaceNotesTab({
 
     return (
         <div>
-            {showComposer && (
-                <div
-                    className="mb-3 rounded-[10px] border p-3"
-                    style={{ background: T.SURFACE_2, borderColor: T.BORDER }}
-                >
-                    {errors.length > 0 && (
-                        <div className="mb-2 space-y-1">
-                            {errors.map((error, index) => (
-                                <p key={index} className="text-xs text-red-600">
-                                    {td(error)}
-                                </p>
-                            ))}
-                        </div>
-                    )}
-                    <input
-                        className="dr-input mb-2"
-                        style={{ fontSize: 13 }}
-                        value={title}
-                        disabled={isSaving}
-                        onChange={(e) => setTitle(e.target.value)}
-                        placeholder={t("pages.deals.workspace.notes.title_placeholder")}
-                        aria-label={t("pages.deals.workspace.notes.title_aria_label")}
-                    />
-                    <textarea
-                        value={text}
-                        disabled={isSaving}
-                        onChange={(e) => setText(e.target.value)}
-                        placeholder={t("pages.deals.workspace.notes.body_placeholder")}
-                        aria-label={t("pages.deals.workspace.notes.body_aria_label")}
-                        className="w-full border-none bg-transparent outline-none"
-                        style={{
-                            fontSize: 13,
-                            color: T.TEXT,
-                            resize: "none",
-                            height: 64,
-                            fontFamily: "inherit",
-                            lineHeight: 1.55,
-                        }}
-                    />
-                    <div
-                        className="flex justify-end gap-1.5 pt-2"
-                        style={{ borderTop: `1px solid ${T.BORDER}` }}
-                    >
-                        <DealButton
-                            variant="primary"
-                            size="sm"
-                            disabled={!text.trim() || isSaving}
-                            loading={isSaving}
-                            onClick={saveNote}
-                        >
-                            {t("pages.deals.workspace.notes.save")}
+            {(canAdd || (noteItems.length > 0 && canBulkDelete)) && (
+                <div className="mb-2 flex justify-end gap-1.5">
+                    {canAdd && (
+                        <DealButton variant="primary" size="sm" onClick={onAddNote}>
+                            {t("pages.deals.workspace.notes.add_note")}
                         </DealButton>
-                    </div>
-                </div>
-            )}
-
-            {noteItems.length > 0 && canBulkDelete && (
-                <div className="mb-2 flex justify-end">
-                    <DealButton
-                        variant="ghost"
-                        size="sm"
-                        onClick={() =>
-                            selectMode ? exitSelect() : setSelectMode(true)
-                        }
-                    >
-                        {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
-                    </DealButton>
+                    )}
+                    {noteItems.length > 0 && canBulkDelete && (
+                        <DealButton
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                                selectMode ? exitSelect() : setSelectMode(true)
+                            }
+                        >
+                            {selectMode ? t("pages.deals.common.cancel") : t("pages.deals.common.select")}
+                        </DealButton>
+                    )}
                 </div>
             )}
 

@@ -26,7 +26,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
     onChange,
     disabled = false,
 }) => {
-    const translated = translateScript(useDynamicTranslation(segment.label));
+    const translated = translateScript(useDynamicTranslation(segment.label, { source: "en" }));
     const answerType = segment.answerType ?? "singleSelect";
 
     return (
@@ -106,7 +106,7 @@ const QuestionSegment: React.FC<QuestionSegmentProps> = ({
 };
 
 const OptionLabel: React.FC<{ label: string }> = ({ label }) => {
-    const translated = useDynamicTranslation(label);
+    const translated = useDynamicTranslation(label, { source: "en" });
     return <span>{translated}</span>;
 };
 

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "@inertiajs/react";
 import { EmptyState } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import {
     FlightDirection,
@@ -91,7 +92,7 @@ function ItineraryCard({
     onDelete: (leg: ILeadFlightItinerary) => void;
     ft: (key: string) => string;
     t: (key: string) => string;
-    td: (text: string) => string;
+    td: TdFn;
 }) {
     const isArrival = leg.direction === FlightDirection.ARRIVAL;
 
@@ -194,7 +195,7 @@ function ItineraryCard({
                         </Link>
                     ) : (
                         <span className="dr-pill dr-pill-gray">
-                            {td("No deal")}
+                            {td("No deal", { source: "en" })}
                         </span>
                     )}
                 </div>
@@ -380,10 +381,8 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
             <div className="space-y-4">
                 <div className="flex justify-end">{addFlightButton}</div>
                 <EmptyState
-                    title={td("No flights yet")}
-                    description={td(
-                        "Add flights and airport transfers for this lead’s inspection trip.",
-                    )}
+                    title={td("No flights yet", { source: "en" })}
+                    description={td("Add flights and airport transfers for this lead’s inspection trip.", { source: "en" })}
                 />
                 {modalOpen && (
                     <LeadItineraryModal
@@ -448,9 +447,7 @@ export default function ItineraryTab({ canEdit = true }: ItineraryTabProps) {
                         {ft("empty")}
                     </div>
                     <div style={{ fontSize: TY.CAPTION, color: T.TEXT_MUTED }}>
-                        {td(
-                            "Track the client's inspection-trip flights and airport transfers here.",
-                        )}
+                        {td("Track the client's inspection-trip flights and airport transfers here.", { source: "en" })}
                     </div>
                 </div>
             ) : (

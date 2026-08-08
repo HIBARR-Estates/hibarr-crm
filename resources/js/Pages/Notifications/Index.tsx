@@ -544,7 +544,7 @@ const FiltersBar: React.FC<FiltersBarProps> = ({
 
                 {/* Actions */}
                 <div className="flex items-center gap-2">
-                    <Tooltip title={td("Refresh")}>
+                    <Tooltip title={td("Refresh", { source: "en" })}>
                         <Button
                             icon={<ReloadOutlined />}
                             onClick={onRefresh}

@@ -3,6 +3,7 @@ import BulkChangeTaskStatus from "./BulkChangeTaskStatus";
 import BulkDeleteTasks from "./BulkDeleteTasks";
 import React from "react";
 import { reloadTaskLists } from "@/Features/Tasks/reloadTaskLists";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface TaskboardColumn {
     id: number;
@@ -22,7 +23,7 @@ interface Props {
     }[];
     clearSelected: () => void;
     columns: TaskboardColumn[];
-    td?: (key: string) => string;
+    td?: TdFn;
 }
 
 const DEFAULT_TASK_BULK_ACTIONS: Props["actions"] = [
@@ -35,7 +36,7 @@ const BulkTaskActionSelector: React.FC<Props> = ({
     actions = DEFAULT_TASK_BULK_ACTIONS,
     clearSelected,
     columns,
-    td = (key) => key,
+    td = identityTd,
 }) => {
     const [action, setAction] = React.useState<TTaskBulkAction>();
     const [open, setOpen] = React.useState(false);
@@ -71,20 +72,20 @@ const BulkTaskActionSelector: React.FC<Props> = ({
 
             <div className="flex items-center gap-2 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
                 <span className="text-sm text-blue-700">
-                    {td("{selectedEntityIds.length} selected").replace(
+                    {td("{selectedEntityIds.length} selected", { source: "en" }).replace(
                         "{selectedEntityIds.length}",
                         selectedEntityIds.length.toString(),
                     )}
                 </span>
                 <Select
-                    placeholder={td("Choose action")}
+                    placeholder={td("Choose action", { source: "en" })}
                     value={action}
                     onChange={setAction}
                     style={{ width: 180 }}
                     size="small"
                     options={actions.map((act) => ({
                         ...act,
-                        label: td(act.label),
+                        label: td(act.label, { source: "en" }),
                     }))}
                 />
                 <Button
@@ -93,7 +94,7 @@ const BulkTaskActionSelector: React.FC<Props> = ({
                     disabled={!action}
                     onClick={onApply}
                 >
-                    {td("Apply")}
+                    {td("Apply", { source: "en" })}
                 </Button>
             </div>
         </>

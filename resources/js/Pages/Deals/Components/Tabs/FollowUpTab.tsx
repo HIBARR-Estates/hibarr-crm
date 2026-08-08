@@ -179,7 +179,7 @@ export default function FollowUpTab({ deal, followUps, permissions }: Props) {
             width: 140,
             render: (_, record) =>
                 record.meeting_type?.name ? (
-                    <span className="">{td(record.meeting_type.name)}</span>
+                    <span className="">{td(record.meeting_type.name, { source: "en" })}</span>
                 ) : (
                     <span className="text-gray-500">--</span>
                 ),

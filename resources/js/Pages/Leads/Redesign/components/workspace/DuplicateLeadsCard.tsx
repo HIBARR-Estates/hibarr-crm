@@ -62,7 +62,7 @@ export default function DuplicateLeadsCard({
                                 <Icon name="users" size={14} />
                             </span>
                             <h2 className="v2-duplicate-card__title">
-                                {td("Possible duplicate contacts")}
+                                {td("Possible duplicate contacts", { source: "en" })}
                             </h2>
                             <span className="v2-pill v2-pill-amber">
                                 {duplicates.length}
@@ -89,8 +89,8 @@ export default function DuplicateLeadsCard({
                             </span>
                             <h2 className="v2-duplicate-card__title">
                                 {isLoading
-                                    ? td("Checking for duplicates…")
-                                    : td("No duplicates found")}
+                                    ? td("Checking for duplicates…", { source: "en" })
+                                    : td("No duplicates found", { source: "en" })}
                             </h2>
                         </div>
                     )}
@@ -98,8 +98,8 @@ export default function DuplicateLeadsCard({
                         type="button"
                         className="v2-duplicate-card__dismiss"
                         onClick={onDismiss}
-                        aria-label={td("Dismiss")}
-                        title={td("Dismiss")}
+                        aria-label={td("Dismiss", { source: "en" })}
+                        title={td("Dismiss", { source: "en" })}
                     >
                         <Icon name="x" size={14} />
                     </button>
@@ -109,13 +109,11 @@ export default function DuplicateLeadsCard({
                     isLoading ? (
                         <div className="v2-duplicate-card__loading">
                             <span className="v2-duplicate-card__spinner" />
-                            <span>{td("Looking for matching leads…")}</span>
+                            <span>{td("Looking for matching leads…", { source: "en" })}</span>
                         </div>
                     ) : duplicates.length === 0 ? (
                         <p className="v2-duplicate-card__empty">
-                            {td(
-                                "No other contacts share this lead’s email or phone number.",
-                            )}
+                            {td("No other contacts share this lead’s email or phone number.", { source: "en" })}
                         </p>
                     ) : (
                         <ul className="v2-duplicate-card__list">
@@ -133,7 +131,7 @@ export default function DuplicateLeadsCard({
                                             className="v2-duplicate-card__name"
                                         >
                                             {candidate.client_name ||
-                                                td("Unnamed lead")}
+                                                td("Unnamed lead", { source: "en" })}
                                         </Link>
                                         {candidateMeta(candidate) ? (
                                             <div className="v2-duplicate-card__meta">
@@ -153,7 +151,7 @@ export default function DuplicateLeadsCard({
                                             setReviewCandidateId(candidate.id)
                                         }
                                     >
-                                        {td("Review merge")}
+                                        {td("Review merge", { source: "en" })}
                                     </button>
                                 </li>
                             ))}

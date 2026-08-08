@@ -195,7 +195,7 @@ export default function DealInfoSectionPanel({
             return (
                 <div key={id} className="mb-4">
                     {showGroupTitles && mappedCategories.length > 1 ? (
-                        <DealInfoGroupTitle>{td(category.name)}</DealInfoGroupTitle>
+                        <DealInfoGroupTitle>{td(category.name, { source: "en" })}</DealInfoGroupTitle>
                     ) : null}
                     <CustomFieldDisplay
                         fields={fields}
@@ -494,7 +494,7 @@ export default function DealInfoSectionPanel({
                                 return (
                                     <tr key={consent.id}>
                                         <td className="font-semibold text-[#1a1f2e]">
-                                            {td(consent.name)}
+                                            {td(consent.name, { source: "en" })}
                                         </td>
                                         <td className="text-[#5b6472]">
                                             {td(consent.description)}
@@ -592,10 +592,10 @@ export default function DealInfoSectionPanel({
             <div className="mb-3.5 flex items-start justify-between gap-3">
                 <div>
                     <h3 className="mb-0.5 text-base font-medium text-[#0f172a]">
-                        {td(sectionTitle)}
+                        {td(sectionTitle, { source: "en" })}
                     </h3>
                     <p className="text-xs text-[#5b6472]">
-                        {td(sectionSubtitle)}
+                        {td(sectionSubtitle, { source: "en" })}
                     </p>
                 </div>
                 {canEdit && editableSection && (

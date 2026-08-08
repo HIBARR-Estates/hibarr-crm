@@ -5,10 +5,11 @@ import React from "react";
 import { DeleteOutlined } from "@ant-design/icons";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
 import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface Props extends IModalProps {
     task?: { id: number; heading: string };
-    td?: (key: string) => string;
+    td?: TdFn;
     onDeleted?: (taskId: number) => void;
     /** When true, skip Inertia reload after delete (parent updates local state). */
     skipReload?: boolean;
@@ -18,7 +19,7 @@ const DeleteTask: React.FC<Props> = ({
     task,
     onClose,
     open,
-    td = (key) => key,
+    td = identityTd,
     onDeleted,
     skipReload = false,
 }) => {
@@ -52,15 +53,13 @@ const DeleteTask: React.FC<Props> = ({
                 fn: handleDeleteDeal,
                 loading: deleteMutation.isPending,
             }}
-            title={td("Delete Task")}
-            description={td(
-                task?.heading
+            title={td("Delete Task", { source: "en" })}
+            description={td(task?.heading
                     ? `Are you sure you want to delete "${task?.heading}"? This action cannot be undone.`
-                    : "Are you sure you want to delete this task? This action cannot be undone.",
-            )}
+                    : "Are you sure you want to delete this task? This action cannot be undone.", { source: "en" })}
             icon={<DeleteOutlined className="text-red-500 text-3xl" />}
-            confirmText={td("Yes, Delete")}
-            cancelText={td("Cancel")}
+            confirmText={td("Yes, Delete", { source: "en" })}
+            cancelText={td("Cancel", { source: "en" })}
             confirmType="primary"
             confirmDanger={true}
         />

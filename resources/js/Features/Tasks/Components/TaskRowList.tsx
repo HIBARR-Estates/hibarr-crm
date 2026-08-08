@@ -19,6 +19,7 @@ import { motion } from "framer-motion";
 import MultiUserIndicator from "@/Components/MultiUserIndicator";
 import TaskEntityLink from "./TaskEntityLink";
 import { clsx } from "clsx";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 dayjs.extend(relativeTime);
 
@@ -62,7 +63,7 @@ interface TaskRowListProps {
      * description, instead).
      */
     suppressEntityType?: "deal" | "lead" | "property";
-    td?: (key: string) => string;
+    td?: TdFn;
 }
 
 import { getPriorityConfig } from "@/lib/priority";
@@ -85,7 +86,7 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
     showHeader = true,
     renderSubtitle,
     suppressEntityType,
-    td = (k) => k,
+    td = identityTd,
 }) => {
     const selectable = selectedIds !== undefined && onSelectionChange !== undefined;
 
@@ -120,16 +121,16 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
                 )}
                 <div className="w-[3px] shrink-0" />
                 <div className="flex-1 px-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {td("Task")}
+                    {td("Task", { source: "en" })}
                 </div>
                 <div className="w-[110px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {td("Due")}
+                    {td("Due", { source: "en" })}
                 </div>
                 <div className="w-[80px] shrink-0 text-center text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {td("Assignees")}
+                    {td("Assignees", { source: "en" })}
                 </div>
                 <div className="w-[140px] shrink-0 text-right pr-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                    {td("Status")}
+                    {td("Status", { source: "en" })}
                 </div>
                 <div className="w-8 shrink-0" />
             </div>}
@@ -155,27 +156,27 @@ const TaskRowList: React.FC<TaskRowListProps> = ({
                 const actions: MenuProps["items"] = [
                     {
                         key: "view",
-                        label: td("View Details"),
+                        label: td("View Details", { source: "en" }),
                         icon: <EyeOutlined />,
                         onClick: () => onView(task),
                     },
                     {
                         key: "edit",
-                        label: td("Edit"),
+                        label: td("Edit", { source: "en" }),
                         icon: <EditOutlined />,
                         onClick: () => onEdit(task),
                         disabled: !editable,
                     },
                     {
                         key: "duplicate",
-                        label: td("Duplicate"),
+                        label: td("Duplicate", { source: "en" }),
                         icon: <CopyOutlined />,
                         onClick: () => onDuplicate(task),
                     },
                     { type: "divider" },
                     {
                         key: "delete",
-                        label: td("Delete"),
+                        label: td("Delete", { source: "en" }),
                         icon: <DeleteOutlined />,
                         danger: true,
                         onClick: () => onDelete(task),

@@ -100,21 +100,19 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
     const outcomeLabel = selectedOutcomes.length
         ? selectedOutcomes
               .map((key) =>
-                  td(COMPLETED_OUTCOME_LABELS[key] ?? key),
+                  td(COMPLETED_OUTCOME_LABELS[key] ?? key, { source: "en" }),
               )
               .join(" · ")
         : qualification.status === "inProgress"
-          ? td("In progress")
+          ? td("In progress", { source: "en" })
           : qualification.status === "completed"
-            ? td("Completed")
+            ? td("Completed", { source: "en" })
             : qualification.status === "abandoned"
-              ? td("Abandoned")
-              : td("In progress");
+              ? td("Abandoned", { source: "en" })
+              : td("In progress", { source: "en" });
     const winnerLabel = qualification.outcome
-        ? td(
-              COMPLETED_OUTCOME_LABELS[qualification.outcome] ??
-                  qualification.outcome,
-          )
+        ? td(COMPLETED_OUTCOME_LABELS[qualification.outcome] ??
+                  qualification.outcome, { source: "en" })
         : null;
 
     return (
@@ -136,7 +134,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                 marginTop: 2,
                             }}
                         >
-                            {td("Lifecycle")}: {winnerLabel}
+                            {td("Lifecycle", { source: "en" })}: {winnerLabel}
                         </div>
                     ) : null}
                     {qualification.outcome_comment?.trim() ? (
@@ -160,7 +158,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                     >
                         {formatCompanyDateTime(when)}
                         {" · "}
-                        {answerCount} {td("answers")}
+                        {answerCount} {td("answers", { source: "en" })}
                         {qualification.agent?.name
                             ? ` · ${qualification.agent.name}`
                             : ""}
@@ -182,7 +180,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                 color: "var(--lr-text-dim)",
                             }}
                         >
-                            {td("Loading answers…")}
+                            {td("Loading answers…", { source: "en" })}
                         </p>
                     ) : visibleSegments.length === 0 ? (
                         <p
@@ -192,7 +190,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                 color: "var(--lr-text-dim)",
                             }}
                         >
-                            {td("No captured answers.")}
+                            {td("No captured answers.", { source: "en" })}
                         </p>
                     ) : (
                         visibleSegments.map((segment, index) => {
@@ -242,7 +240,7 @@ function RunCard({ qualification, expanded, onToggle }: RunCardProps) {
                                         }}
                                     >
                                         {skipped
-                                            ? td("Skipped / unanswered")
+                                            ? td("Skipped / unanswered", { source: "en" })
                                             : display || context || "—"}
                                     </div>
                                     {!skipped &&
@@ -325,15 +323,15 @@ export default function AnswersReviewModal({
             open={open}
             onClose={onClose}
             labelledBy={titleId}
-            ariaLabel={td("Qualification history")}
+            ariaLabel={td("Qualification history", { source: "en" })}
             maxWidth={560}
         >
             <LeadV2ModalHeader
-                title={td("Qualification history")}
+                title={td("Qualification history", { source: "en" })}
                 titleId={titleId}
                 subtitle={
                     <>
-                        {leadName} · {td("grouped by template")}
+                        {leadName} · {td("grouped by template", { source: "en" })}
                     </>
                 }
                 onClose={onClose}
@@ -351,7 +349,7 @@ export default function AnswersReviewModal({
                             color: "var(--lr-text-dim)",
                         }}
                     >
-                        {td("No qualification runs recorded yet.")}
+                        {td("No qualification runs recorded yet.", { source: "en" })}
                     </p>
                 ) : (
                     <div className="v2-answers-group">
@@ -378,8 +376,8 @@ export default function AnswersReviewModal({
                                     <span className="v2-pill v2-pill-gray">
                                         {group.runs.length}{" "}
                                         {group.runs.length === 1
-                                            ? td("run")
-                                            : td("runs")}
+                                            ? td("run", { source: "en" })
+                                            : td("runs", { source: "en" })}
                                     </span>
                                 </div>
                                 <div
@@ -419,7 +417,7 @@ export default function AnswersReviewModal({
                     className="v2-btn v2-btn-primary"
                     onClick={onClose}
                 >
-                    {td("Close")}
+                    {td("Close", { source: "en" })}
                 </button>
             </LeadV2ModalFooter>
         </LeadV2Modal>

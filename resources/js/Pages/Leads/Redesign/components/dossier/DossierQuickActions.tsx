@@ -48,9 +48,9 @@ export default function DossierQuickActions({
         <section
             className="v2-quick-actions"
             data-tour="lead-quick-actions"
-            aria-label={td("Quick actions")}
+            aria-label={td("Quick actions", { source: "en" })}
         >
-            <h2 className="v2-quick-actions__title">{td("Quick actions")}</h2>
+            <h2 className="v2-quick-actions__title">{td("Quick actions", { source: "en" })}</h2>
             <div className="v2-quick-actions__list">
                 {ACTIONS.map((action) => (
                     <button
@@ -58,12 +58,12 @@ export default function DossierQuickActions({
                         type="button"
                         className="v2-quick-actions__btn"
                         onClick={handlers[action.handler]}
-                        title={td(action.title)}
-                        aria-label={td(action.title)}
+                        title={td(action.title, { source: "en" })}
+                        aria-label={td(action.title, { source: "en" })}
                     >
                         <Icon name={action.icon} size={18} />
                         <span className="v2-quick-actions__label">
-                            {td(action.label)}
+                            {td(action.label, { source: "en" })}
                         </span>
                     </button>
                 ))}

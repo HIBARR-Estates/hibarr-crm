@@ -503,6 +503,7 @@ function DealViewRedesignInner(props: DealShowProps) {
                                                 <WorkspaceNotesTab
                                                     notes={notes}
                                                     permissions={permissions}
+                                                    onAddNote={() => setAddNoteOpen(true)}
                                                 />
                                             ))}
                                         {activeTab === "tasks" &&

@@ -188,7 +188,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 pipelines.length > 0
                     ? pipelines.map((pipeline) => ({
                           key: `deals-${pipeline.id}`,
-                          label: td(pipeline.name),
+                          label: td(pipeline.name, { source: "en" }),
                           icon: null,
                           href: `/account/deals?lead_pipeline_id=${pipeline.id}`,
                       }))
