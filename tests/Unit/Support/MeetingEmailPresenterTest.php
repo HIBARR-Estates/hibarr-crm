@@ -99,4 +99,21 @@ class MeetingEmailPresenterTest extends TestCase
         $this->assertStringContainsString('Client Person', $agentSubject);
         $this->assertStringContainsString('in ', $agentSubject);
     }
+
+    public function test_it_builds_agent_reminder_message_with_lead_minutes_and_schedule(): void
+    {
+        $lead = Lead::factory()->create(['client_name' => 'Client Person']);
+
+        $followUp = new DealFollowUp();
+        $followUp->lead_id = $lead->id;
+        $followUp->next_follow_up_date = now()->addMinutes(30);
+        $followUp->save();
+
+        $presenter = new MeetingEmailPresenter($followUp->fresh(['lead']));
+        $message = $presenter->message(false, false);
+
+        $this->assertStringContainsString('Client Person', $message);
+        $this->assertStringContainsString('30 minutes', $message);
+        $this->assertStringContainsString('scheduled', $message);
+    }
 }

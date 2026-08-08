@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery, useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
@@ -12,6 +12,10 @@ import {
     NotificationDeleteResponse,
     NotificationTypeOption,
 } from "@/Types/api/notification";
+import {
+    playNotificationSound,
+    showDesktopNotification,
+} from "@/lib/notificationAlerts";
 
 /**
  * Hook for fetching and polling unread notification summary.
@@ -50,6 +54,31 @@ export const useNotificationSummary = (
 
     const unreadCount = response?.data?.unread_count ?? 0;
     const notifications = response?.data?.notifications ?? [];
+
+    // Sound + desktop popup for notifications that weren't present on the
+    // previous poll. Skipped on the very first load so opening the app
+    // doesn't alert for every pre-existing unread item.
+    const seenIdsRef = useRef<Set<string> | null>(null);
+    useEffect(() => {
+        if (!enabled) return;
+
+        const currentIds = new Set(notifications.map((n) => n.id));
+
+        if (seenIdsRef.current === null) {
+            seenIdsRef.current = currentIds;
+            return;
+        }
+
+        const newOnes = notifications.filter((n) => !seenIdsRef.current!.has(n.id));
+        seenIdsRef.current = currentIds;
+
+        if (newOnes.length === 0) return;
+
+        playNotificationSound();
+        newOnes.slice(0, 3).forEach((n) => {
+            showDesktopNotification(n.title, n.text, n.link);
+        });
+    }, [notifications, enabled]);
 
     // Invalidate cache to force refresh
     const invalidate = useCallback(() => {

@@ -94,6 +94,7 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
         discussion: <CommentOutlined style={{ color: "#13c2c2" }} />,
         shift: <ScheduleOutlined style={{ color: "#fa8c16" }} />,
         promotion: <RiseOutlined style={{ color: "#52c41a" }} />,
+        reminder: <ClockCircleOutlined style={{ color: "#1890ff" }} />,
         bell: <BellOutlined style={{ color: "#8c8c8c" }} />,
     };
 
@@ -128,6 +129,7 @@ const getIconBackground = (icon: NotificationIcon, isRead: boolean): string => {
         discussion: "bg-cyan-100",
         shift: "bg-orange-100",
         promotion: "bg-green-100",
+        reminder: "bg-blue-100",
         bell: "bg-gray-100",
     };
 

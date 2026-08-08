@@ -12,7 +12,7 @@
 @if ($notificationUser)
     <x-cards.notification :notification="$notification" :link="route('deals.show', $notification->data['id'])"
                           :image="$notificationUser->image_url"
-                          :title="__('email.leadAgent.subject')"
-                          :text="$notification->data['name']"
+                          :title="$notification->data['title'] ?? __('email.dealAgentAssigned.subject')"
+                          :text="$notification->data['text'] ?? $notification->data['name']"
                           :time="$notification->created_at"/>
 @endif

@@ -114,6 +114,13 @@ class AutoFollowUpReminder extends BaseNotification
             return;
         }
 
+        // Plunk/UNS cannot send attachments. Attaching .ics would force SMTP
+        // fallback (often misconfigured locally). Calendar sync already creates
+        // the invite on connected calendars (Zoho, etc.).
+        if ($this->unsRoutingEnabled) {
+            return;
+        }
+
         $ics = MeetingIcsBuilder::build($this->leadFollowup);
         if ($ics === null) {
             return;

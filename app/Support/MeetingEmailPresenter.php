@@ -67,6 +67,26 @@ class MeetingEmailPresenter
         ));
     }
 
+    public function dealName(): string
+    {
+        return trim((string) ($this->followUp->deal?->name ?? ''));
+    }
+
+    public function minutesUntilMeeting(): ?int
+    {
+        $meetingAt = $this->meetingAt();
+        if ($meetingAt === null) {
+            return null;
+        }
+
+        $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
+        if ($secondsUntil <= 0) {
+            return 0;
+        }
+
+        return max(1, (int) ceil($secondsUntil / 60));
+    }
+
     public function agentName(): string
     {
         return trim((string) (
@@ -487,36 +507,103 @@ class MeetingEmailPresenter
         $secondsUntil = $meetingAt->getTimestamp() - now()->getTimestamp();
 
         if ($isLeadRecipient) {
-            if ($secondsUntil <= 0) {
-                return $this->agentName() !== ''
-                    ? __('email.meetingReminder.leadStartingNow', ['agent' => $this->agentName()])
-                    : __('email.meetingReminder.leadStartingNowNoAgent');
-            }
-
-            $countdownText = $countdown !== '' ? $countdown : 'less than a minute';
-
-            return $this->agentName() !== ''
-                ? __('email.meetingReminder.leadCountdown', [
-                    'agent' => $this->agentName(),
-                    'countdown' => $countdownText,
-                ])
-                : __('email.meetingReminder.leadCountdownNoAgent', ['countdown' => $countdownText]);
+            return $this->leadReminderMessage($secondsUntil, $countdown);
         }
+
+        return $this->agentReminderMessage($secondsUntil, $countdown);
+    }
+
+    private function leadReminderMessage(int $secondsUntil, string $countdown): string
+    {
+        $agent = $this->agentName();
+        $schedule = $this->scheduleLine();
+        $minutesLabel = $this->minutesLabel();
 
         if ($secondsUntil <= 0) {
-            return $this->leadName() !== ''
-                ? __('email.followUpReminder.meetingStartingNow', ['lead' => $this->leadName()])
-                : __('email.followUpReminder.meetingStartingNowNoLead');
+            return $agent !== ''
+                ? __('email.meetingReminder.leadStartingNow', ['agent' => $agent])
+                : __('email.meetingReminder.leadStartingNowNoAgent');
         }
 
-        $countdownText = $countdown !== '' ? $countdown : 'less than a minute';
+        $countdownText = $countdown !== '' ? $countdown : $minutesLabel;
 
-        return $this->leadName() !== ''
-            ? __('email.followUpReminder.meetingCountdownWithLead', [
-                'lead' => $this->leadName(),
+        if ($agent !== '' && $schedule !== '') {
+            return __('email.meetingReminder.leadCountdownWithSchedule', [
+                'agent' => $agent,
                 'countdown' => $countdownText,
+                'minutesLabel' => $minutesLabel,
+                'schedule' => $schedule,
+            ]);
+        }
+
+        return $agent !== ''
+            ? __('email.meetingReminder.leadCountdown', [
+                'agent' => $agent,
+                'countdown' => $countdownText,
+                'minutesLabel' => $minutesLabel,
             ])
-            : __('email.followUpReminder.meetingCountdown', ['countdown' => $countdownText]);
+            : __('email.meetingReminder.leadCountdownNoAgent', [
+                'countdown' => $countdownText,
+                'minutesLabel' => $minutesLabel,
+            ]);
+    }
+
+    private function agentReminderMessage(int $secondsUntil, string $countdown): string
+    {
+        $lead = $this->leadName();
+        $type = $this->meetingTypeName();
+        $schedule = $this->scheduleLine();
+        $deal = $this->dealName();
+        $minutesLabel = $this->minutesLabel();
+
+        if ($secondsUntil <= 0) {
+            if ($type !== '' && $lead !== '') {
+                return __('email.meetingReminder.agentStartingNowWithType', [
+                    'type' => $type,
+                    'lead' => $lead,
+                ]);
+            }
+
+            return $lead !== ''
+                ? __('email.meetingReminder.agentStartingNow', ['lead' => $lead])
+                : __('email.meetingReminder.agentStartingNowNoLead');
+        }
+
+        $params = [
+            'lead' => $lead,
+            'type' => $type,
+            'deal' => $deal,
+            'schedule' => $schedule,
+            'countdown' => $countdown !== '' ? $countdown : $minutesLabel,
+            'minutesLabel' => $minutesLabel,
+        ];
+
+        if ($lead === '') {
+            return $schedule !== ''
+                ? __('email.meetingReminder.agentCountdownNoLeadWithSchedule', $params)
+                : __('email.meetingReminder.agentCountdownNoLead', $params);
+        }
+
+        if ($deal !== '' && $schedule !== '') {
+            return __('email.meetingReminder.agentCountdownWithDeal', $params);
+        }
+
+        if ($type !== '' && $schedule !== '') {
+            return __('email.meetingReminder.agentCountdownWithType', $params);
+        }
+
+        if ($schedule !== '') {
+            return __('email.meetingReminder.agentCountdown', $params);
+        }
+
+        return __('email.meetingReminder.agentCountdownNoSchedule', $params);
+    }
+
+    private function minutesLabel(): string
+    {
+        $minutes = $this->minutesUntilMeeting() ?? 1;
+
+        return trans_choice('email.meetingReminder.minutes', $minutes, ['count' => $minutes]);
     }
 
     private function formatScheduleFragment(string $date, string $time): string

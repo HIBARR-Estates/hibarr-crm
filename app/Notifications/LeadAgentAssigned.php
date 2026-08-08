@@ -21,6 +21,7 @@ class LeadAgentAssigned extends BaseNotification
     public function __construct(Deal $deal)
     {
         $this->deal = $deal;
+        $this->deal->loadMissing(['leadAgent', 'dealWatchers', 'contact', 'company']);
         $this->company = $this->deal->company;
         $this->assignedByName = user()?->name ?? '';
         $this->assignedAt = now()->format($this->company->date_format);
@@ -100,12 +101,50 @@ class LeadAgentAssigned extends BaseNotification
     //phpcs:ignore
     public function toArray($notifiable)
     {
+        $assignmentRole = $this->resolveAssignmentRole($notifiable);
+
         return [
             'id' => $this->deal->id,
             'name' => $this->deal->name,
             'agent_id' => $notifiable->id,
-            'added_by' => $this->deal->added_by
+            'added_by' => $this->deal->added_by,
+            'assignment_role' => $assignmentRole,
+            'title' => $this->assignmentTitle($assignmentRole),
+            'text' => $this->assignmentText($assignmentRole),
         ];
+    }
+
+    private function resolveAssignmentRole($notifiable): string
+    {
+        if ($this->deal->leadAgent && (int) $this->deal->leadAgent->user_id === (int) $notifiable->id) {
+            return 'deal_agent';
+        }
+
+        if ($this->deal->dealWatchers->contains('id', $notifiable->id)) {
+            return 'deal_watcher';
+        }
+
+        return 'new_deal';
+    }
+
+    private function assignmentTitle(string $assignmentRole): string
+    {
+        return match ($assignmentRole) {
+            'deal_watcher' => __('email.dealWatcherAssigned.subject'),
+            'new_deal' => __('email.newDealAwaitingAgent.subject'),
+            default => __('email.dealAgentAssigned.subject'),
+        };
+    }
+
+    private function assignmentText(string $assignmentRole): string
+    {
+        $dealName = $this->deal->name;
+
+        return match ($assignmentRole) {
+            'deal_watcher' => __('email.dealWatcherAssigned.text', ['dealName' => $dealName]),
+            'new_deal' => __('email.newDealAwaitingAgent.text', ['dealName' => $dealName]),
+            default => __('email.dealAgentAssigned.text', ['dealName' => $dealName]),
+        };
     }
 
 }
