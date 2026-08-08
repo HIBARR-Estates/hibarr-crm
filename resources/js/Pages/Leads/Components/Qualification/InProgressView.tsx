@@ -19,7 +19,6 @@ import LeadQualificationHeader from "./LeadQualificationHeader";
 import BranchProgressBar from "./BranchProgressBar";
 import SegmentCard from "./SegmentCard";
 import CaptureSummaryRail from "./CaptureSummaryRail";
-import BranchChangeWarningModal from "./BranchChangeWarningModal";
 import QualificationActionsPanel from "./QualificationActionsPanel";
 import { findEntrySegment } from "./qualificationUtils";
 
@@ -227,12 +226,6 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                 </div>
             </div>
 
-            <BranchChangeWarningModal
-                open={Boolean(flow.branchChangePending)}
-                onConfirm={flow.confirmBranchChange}
-                onCancel={flow.cancelBranchChange}
-                loading={flow.saving}
-            />
         </DynamicTranslationProvider>
     );
 };

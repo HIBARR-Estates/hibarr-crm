@@ -42,6 +42,10 @@ const splitLeadName = (name?: string | null): { firstName: string; lastName: str
     };
 };
 
+const leadSalutation = (lead: Lead): string =>
+    String(lead.salutation_value ?? lead.salutation ?? "").trim();
+
+/** OL mustache tokens → replacement values (empty string means omit from script). */
 const OL_TOKEN_REPLACEMENTS = (
     lead: Lead,
     auth?: AuthType,
@@ -49,15 +53,77 @@ const OL_TOKEN_REPLACEMENTS = (
     const { firstName, lastName } = splitLeadName(lead.client_name);
 
     return [
+        ["{{lead.salutation}}", leadSalutation(lead)],
         ["{{lead.firstName}}", firstName],
         ["{{lead.lastName}}", lastName],
-        ["{{lead.name}}", lead.client_name ?? ""],
-        ["{{lead.email}}", lead.client_email ?? ""],
-        ["{{lead.phone}}", lead.mobile ?? lead.cell ?? ""],
-        ["{{lead.company}}", lead.company_name ?? ""],
-        ["{{agent.name}}", auth?.user?.name ?? ""],
+        ["{{lead.name}}", (lead.client_name ?? "").trim()],
+        ["{{lead.email}}", (lead.client_email ?? "").trim()],
+        ["{{lead.phone}}", (lead.mobile ?? lead.cell ?? "").trim()],
+        ["{{lead.company}}", (lead.company_name ?? "").trim()],
+        ["{{agent.name}}", (auth?.user?.name ?? "").trim()],
     ];
 };
+
+/**
+ * Replace CRM + OL tokens. Missing / empty values are omitted (not left as
+ * placeholders). Remaining unknown `{{...}}` tokens are stripped.
+ */
+export const resolveTokens = (
+    text: string,
+    tokenMap: Record<QualificationToken, string>,
+    lead?: Lead,
+    auth?: AuthType,
+): string => {
+    let resolved = text ?? "";
+
+    QUALIFICATION_TOKENS.forEach((token) => {
+        const value = (tokenMap[token] ?? "").trim();
+        resolved = resolved.split(token).join(value);
+    });
+
+    if (lead) {
+        OL_TOKEN_REPLACEMENTS(lead, auth).forEach(([token, value]) => {
+            resolved = resolved.split(token).join(value);
+        });
+    }
+
+    // Unresolved mustache placeholders — do not render
+    resolved = resolved.replace(/\{\{[^{}]+\}\}/g, "");
+
+    // Empty inline wrappers left after a missing token (e.g. <b></b>)
+    resolved = resolved.replace(
+        /<(b|strong|em|i|u|span)(\s[^>]*)?>\s*<\/\1>/gi,
+        "",
+    );
+
+    // Tidy whitespace without collapsing intentional line breaks
+    resolved = resolved.replace(/[^\S\n]{2,}/g, " ");
+    resolved = resolved.replace(/ +([.,;:!?])/g, "$1");
+    resolved = resolved.replace(/([(\[]) +/g, "$1");
+    resolved = resolved.replace(/\n{3,}/g, "\n\n");
+    resolved = resolved.replace(/^[^\S\n]+|[^\S\n]+$/gm, "");
+
+    return resolved;
+};
+
+/** Plain-text preview for nav / answers rails (strips OL rich text). */
+export const stripHtmlTags = (html: string): string =>
+    (html ?? "")
+        .replace(/<br\s*\/?>/gi, " ")
+        .replace(/<\/p>/gi, " ")
+        .replace(/<[^>]+>/g, "")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/\s+/g, " ")
+        .trim();
+
+/** Prepare resolved script text for HTML rendering (preserve line breaks). */
+export const toQualificationHtml = (text: string): string =>
+    (text ?? "").replace(/\r\n/g, "\n").replace(/\n/g, "<br />");
 
 export const matchOptionByStoredValue = (
     segment: Segment | undefined,
@@ -160,6 +226,77 @@ export const computeVisibleSegments = (
     );
 };
 
+/** Visible say/instruction/question segments — outcomes are handled in a separate phase. */
+export const computeWalkSegments = (
+    tree: TemplateTree,
+    answers: Record<string, SegmentAnswerState>,
+): Segment[] =>
+    computeVisibleSegments(tree, answers).filter(
+        (segment) => segment.type !== "outcome",
+    );
+
+export const hasAnswerContent = (answer?: SegmentAnswerState): boolean => {
+    if (!answer) return false;
+    if (answer.answer_text?.trim()) return true;
+    return answer.answer_values.length > 0;
+};
+
+export const findOutcomeSegment = (
+    tree: TemplateTree,
+    outcome: QualificationOutcome,
+): Segment | undefined =>
+    sortSegments(tree.segments).find(
+        (segment) =>
+            segment.type === "outcome" &&
+            segment.outcomeMetadata?.type === outcome,
+    );
+
+export const FALLBACK_OUTCOME_BODIES: Record<QualificationOutcome, string> = {
+    bookMeeting:
+        "Thank you. Based on what you have shared, a conversation with the specialist sounds like a good next step. I would be happy to arrange an appointment for you.",
+    inviteWebinar:
+        "Thank you for your openness. A personal conversation may still be a little early. I would be happy to invite you to our next live webinar so you can get a clearer overview at your own pace.",
+    callback:
+        "Understood. I will arrange a callback so we can continue when the timing works better for you.",
+    noFit:
+        "Thank you for your time. Based on what you have shared, this does not look like the right fit right now. We will leave it here.",
+};
+
+export const FALLBACK_OUTCOME_CTA: Record<QualificationOutcome, string> = {
+    bookMeeting: "Book appointment",
+    inviteWebinar: "Invite to webinar",
+    callback: "Schedule callback",
+    noFit: "Mark as not a fit",
+};
+
+/** Always the four CRM outcomes, preferring tree labels when present. */
+export const getAllOutcomeChoices = (
+    tree: TemplateTree,
+): ScriptOutcomeOption[] => {
+    const fromTree = getScriptOutcomes(tree);
+    const byKey = new Map(fromTree.map((item) => [item.key, item]));
+
+    return OUTCOME_PRIORITY.map((key) => {
+        const existing = byKey.get(key);
+        return {
+            key,
+            label: existing?.label || DEFAULT_OUTCOME_LABELS[key],
+            webinarId: existing?.webinarId,
+            calendlyUrl: existing?.calendlyUrl,
+        };
+    });
+};
+
+const LEGACY_ACTIONS_FOR_OUTCOME: Record<
+    QualificationOutcome,
+    QualificationActionRef[]
+> = {
+    bookMeeting: [{ type: "book_consultation" }],
+    inviteWebinar: [{ type: "invite_webinar" }],
+    callback: [{ type: "schedule_callback" }],
+    noFit: [{ type: "mark_no_fit" }],
+};
+
 export const buildTokenMap = (
     lead: Lead,
     auth?: AuthType,
@@ -170,26 +307,6 @@ export const buildTokenMap = (
     "{companyName}": lead.company_name ?? "",
     "{agentName}": auth?.user?.name ?? "",
 });
-
-export const resolveTokens = (
-    text: string,
-    tokenMap: Record<QualificationToken, string>,
-    lead?: Lead,
-    auth?: AuthType,
-): string => {
-    let resolved = text;
-    QUALIFICATION_TOKENS.forEach((token) => {
-        resolved = resolved.split(token).join(tokenMap[token] || "");
-    });
-
-    if (lead) {
-        OL_TOKEN_REPLACEMENTS(lead, auth).forEach(([token, value]) => {
-            resolved = resolved.split(token).join(value);
-        });
-    }
-
-    return resolved;
-};
 
 export const splitTokenParts = (
     text: string,
@@ -309,7 +426,10 @@ export const formatAnswerDisplay = (
     }
 
     if (segment?.answerType === "boolean") {
-        return answer.answer_values[0] === "true" ? "Yes" : "No";
+        const raw = answer.answer_values[0];
+        if (raw === "true" || raw === "yes") return "Yes";
+        if (raw === "false" || raw === "no") return "No";
+        return raw ?? "";
     }
 
     return (segment?.options ?? [])
@@ -384,10 +504,9 @@ export const getScriptOutcomes = (tree: TemplateTree): ScriptOutcomeOption[] => 
 
         byKey.set(key, {
             key,
-            label:
-                segment.outcomeMetadata?.label ||
-                segment.label ||
-                DEFAULT_OUTCOME_LABELS[key],
+            // Prefer the chooser-friendly DEFAULT over CTA labels stored on
+            // outcomeMetadata.label (OL maps ctaLabel there).
+            label: DEFAULT_OUTCOME_LABELS[key],
             webinarId: segment.outcomeMetadata?.webinarId,
             calendlyUrl: segment.outcomeMetadata?.calendlyUrl,
         });
@@ -407,7 +526,8 @@ export const getScriptOutcomes = (tree: TemplateTree): ScriptOutcomeOption[] => 
 
 /**
  * Deduped action refs for the selected outcome keys (from outcome segments
- * in the published tree). Merges config preferring first non-empty values.
+ * in the published tree). Falls back to legacy action types when the tree
+ * has no matching outcome segment (e.g. callback / noFit).
  */
 export const getActionsForSelectedOutcomes = (
     tree: TemplateTree,
@@ -438,6 +558,16 @@ export const getActionsForSelectedOutcomes = (
                 }
             });
             existing.config = Object.keys(merged).length ? merged : undefined;
+        });
+    });
+
+    selectedOutcomeKeys.forEach((outcomeKey) => {
+        const segment = findOutcomeSegment(tree, outcomeKey);
+        if (segment?.actions?.length) return;
+        LEGACY_ACTIONS_FOR_OUTCOME[outcomeKey].forEach((action) => {
+            if (!byType.has(action.type)) {
+                byType.set(action.type, { ...action });
+            }
         });
     });
 

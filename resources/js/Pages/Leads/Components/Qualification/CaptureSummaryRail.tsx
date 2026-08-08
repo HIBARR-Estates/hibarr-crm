@@ -5,7 +5,7 @@ import {
     SegmentAnswerState,
 } from "@/Types/qualification";
 import { useDynamicTranslation } from "@/Hooks/useDynamicTranslation";
-import { formatAnswerDisplay } from "./qualificationUtils";
+import { formatAnswerDisplay, stripHtmlTags } from "./qualificationUtils";
 
 interface CaptureSummaryRailProps {
     visibleSegments: Segment[];
@@ -51,6 +51,7 @@ const AnswerChip: React.FC<{
     isActive: boolean;
 }> = ({ segment, answer, isActive }) => {
     const labelTranslated = useDynamicTranslation(segment.label, { source: "en" });
+    const label = stripHtmlTags(labelTranslated) || labelTranslated;
     const display = formatAnswerDisplay(segment, answer) || null;
 
     return (
@@ -62,7 +63,7 @@ const AnswerChip: React.FC<{
             }`}
         >
             <p className="text-gray-500 text-xs mb-1 line-clamp-2">
-                {labelTranslated}
+                {label}
             </p>
             {display ? (
                 <Tag color="blue" className="m-0 max-w-full truncate">

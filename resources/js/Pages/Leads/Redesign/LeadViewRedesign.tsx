@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { router, usePage } from "@inertiajs/react";
 import PageLayout from "@/Components/PageLayout";
 import ProductTour, { ProductTourHandle } from "@/Components/ProductTour/ProductTour";
@@ -72,13 +72,18 @@ import ItineraryTab from "./components/workspace/tabs/ItineraryTab";
 import TimelineTab from "./components/workspace/tabs/TimelineTab";
 import FilesTab from "./components/workspace/tabs/FilesTab";
 import MarketingTab from "./components/workspace/tabs/MarketingTab";
+import QualificationTab from "./components/workspace/tabs/QualificationTab";
 import type { Deal } from "@/Types/api/deals";
 import type { DealFollowup } from "@/Types/api/deal-followup";
 import type { Task } from "@/Types/api/tasks";
 import TemplatePickerModal from "./components/qualification/TemplatePickerModal";
 import QualifyModal from "./components/qualification/QualifyModal";
-import AnswersReviewModal from "./components/qualification/AnswersReviewModal";
 import CreateDealModal from "./components/dealCreate/CreateDealModal";
+import {
+    answersFromQualification,
+    computeWalkSegments,
+    hasAnswerContent,
+} from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import "@/Components/Redesign/redesign.css";
 import "@/Pages/Deals/Redesign/deal-redesign.css";
 import "./lead-redesign.css";
@@ -128,6 +133,13 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const nav = useLeadViewNavigation(props.customFieldCategories);
     const tourRef = useRef<ProductTourHandle>(null);
+
+    useEffect(() => {
+        if (!showQualification && nav.tab === "qualification") {
+            nav.setTab("overview");
+        }
+    }, [nav.setTab, nav.tab, showQualification]);
+
     const leadTourSteps = useMemo(
         () => buildLeadTourSteps(nav.setTab),
         [nav.setTab],
@@ -216,9 +228,16 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         if (!tree || !current) {
             return { answered: 0, total: 0 };
         }
-        const total = tree.segments.filter((s) => s.type === "question").length;
-        const answered = current.answers?.length ?? 0;
-        return { answered, total };
+        // Match QualifyModal: only currently walkable questions (soft-hidden
+        // branches / outcomes are excluded), counted via hasAnswerContent.
+        const answers = answersFromQualification(current.answers ?? [], tree);
+        const questions = computeWalkSegments(tree, answers).filter(
+            (segment) => segment.type === "question",
+        );
+        const answered = questions.filter((segment) =>
+            hasAnswerContent(answers[segment.key]),
+        ).length;
+        return { answered, total: questions.length };
     }, [qualification.current, qualification.templateTree]);
 
     const { uploadedCount: documentsUploaded } = useLeadDocuments(
@@ -243,6 +262,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             files: filesLoading
                 ? undefined
                 : files.length + documentsUploaded,
+            qualification: showQualification
+                ? qualification.history.length +
+                  (qualification.current ? 1 : 0) || undefined
+                : undefined,
         };
     }, [
         deals,
@@ -253,6 +276,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         leadFollowUpsLoading,
         notes.length,
         notesLoading,
+        qualification.current,
+        qualification.history.length,
+        showQualification,
         tasks,
         tasksLoading,
     ]);
@@ -313,7 +339,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     void changeStatus("new");
                     break;
                 case "view_answers":
-                    nav.setAnswersOpen(true);
+                    nav.setTab("qualification");
                     break;
                 default:
                     break;
@@ -341,7 +367,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         (id: MoreMenuActionId) => {
             switch (id) {
                 case "answers":
-                    nav.setAnswersOpen(true);
+                    nav.setTab("qualification");
                     break;
                 case "task":
                     setAddTaskOpen(true);
@@ -407,7 +433,10 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 return notesLoading && notes.length === 0 ? (
                     <TabDeferredSkeleton />
                 ) : (
-                    <NotesTab permissions={props.notePermissions} />
+                    <NotesTab
+                        permissions={props.notePermissions}
+                        onAddNote={() => setAddNoteOpen(true)}
+                    />
                 );
             case "tasks":
                 return tasksLoading && tasks.length === 0 ? (
@@ -474,6 +503,27 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                 );
             case "marketing":
                 return <MarketingTab />;
+            case "qualification":
+                return showQualification ? (
+                    <QualificationTab
+                        current={qualification.current}
+                        history={qualification.history}
+                        canResume={
+                            qualification.current?.status === "inProgress"
+                        }
+                        canStart={
+                            qualification.current?.status !== "inProgress"
+                        }
+                        onResumeQualify={() =>
+                            nav.setQualificationOpen(true)
+                        }
+                        onStartQualify={() => setTemplatePickerOpen(true)}
+                    />
+                ) : (
+                    <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
+                        {td("This tab is coming soon.", { source: "en" })}
+                    </p>
+                );
             default:
                 return (
                     <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
@@ -530,7 +580,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         showQualification={showQualification}
                         onStatusChange={(key) => void changeStatus(key)}
                         statusSaving={statusSaving}
-                        onOpenAnswers={() => nav.setAnswersOpen(true)}
+                        onOpenAnswers={() => nav.setTab("qualification")}
                         onMoreAction={handleMoreAction}
                         onReplayGuide={
                             showProductTour
@@ -614,6 +664,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 activeTab={nav.tab}
                                 onTabChange={nav.setTab}
                                 tabCounts={tabCounts}
+                                showQualification={showQualification}
                             >
                                 {renderTabBody()}
                             </WorkspaceCard>
@@ -627,6 +678,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             />
                             <LeadDossier
                                 lead={lead}
+                                editLeadPermission={props.editLeadPermission}
                                 onOpenLeadInfo={() => {
                                     nav.setInfoSection("personal");
                                     nav.setTab("leadinfo");
@@ -656,6 +708,11 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 lead={lead}
                                 qualification={qualification.current}
                                 templateTree={qualification.templateTree}
+                                fields={props.fields}
+                                customFieldCategories={
+                                    props.customFieldCategories
+                                }
+                                editLeadPermission={props.editLeadPermission}
                                 onClose={() => nav.setQualificationOpen(false)}
                                 onCompleted={(updated) => {
                                     qualification.handleQualificationUpdated(
@@ -669,14 +726,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                 }}
                             />
                         )}
-
-                    <AnswersReviewModal
-                        open={nav.answersOpen}
-                        leadName={lead.client_name ?? td("Lead", { source: "en" })}
-                        history={qualification.history}
-                        current={qualification.current}
-                        onClose={() => nav.setAnswersOpen(false)}
-                    />
                 </>
             )}
 

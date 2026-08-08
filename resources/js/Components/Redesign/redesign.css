@@ -332,3 +332,57 @@
     border-radius: 6px;
     animation: dr-shimmer 1.2s ease-in-out infinite;
 }
+
+.workspace-note-html.html-content {
+    font-size: 15px;
+    line-height: 1.55;
+    color: inherit;
+}
+.workspace-note-html.html-content p {
+    margin: 0 0 0.45em;
+}
+.workspace-note-html.html-content p:last-child {
+    margin-bottom: 0;
+}
+.workspace-note-html.html-content ul,
+.workspace-note-html.html-content ol {
+    margin: 0.35em 0 0.45em;
+    padding-left: 1.25em;
+}
+
+/* Card preview keeps real rich HTML. Nested blocks break -webkit-line-clamp
+   (ellipsis + leaked lines), so clamp with a hard max-height instead. */
+.workspace-note-card-clamp {
+    overflow: hidden;
+    max-height: calc(1.55em * 3);
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content {
+    font-size: inherit;
+    line-height: inherit;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content p,
+.workspace-note-card-clamp .workspace-note-html.html-content ul,
+.workspace-note-card-clamp .workspace-note-html.html-content ol,
+.workspace-note-card-clamp .workspace-note-html.html-content blockquote,
+.workspace-note-card-clamp .workspace-note-html.html-content pre,
+.workspace-note-card-clamp .workspace-note-html.html-content h1,
+.workspace-note-card-clamp .workspace-note-html.html-content h2,
+.workspace-note-card-clamp .workspace-note-html.html-content h3,
+.workspace-note-card-clamp .workspace-note-html.html-content h4,
+.workspace-note-card-clamp .workspace-note-html.html-content h5,
+.workspace-note-card-clamp .workspace-note-html.html-content h6 {
+    margin-top: 0;
+    margin-bottom: 0.2em;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content :is(p, ul, ol, blockquote, pre, h1, h2, h3, h4, h5, h6):last-child {
+    margin-bottom: 0;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content ul,
+.workspace-note-card-clamp .workspace-note-html.html-content ol {
+    padding-left: 1.2em;
+}
+.workspace-note-card-clamp .workspace-note-html.html-content li {
+    margin-bottom: 0;
+}

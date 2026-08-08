@@ -88,7 +88,7 @@ class LeadNoteController extends AccountBaseController
         $this->employees = User::allEmployees();
 
         $note = new LeadNote();
-        $note->title = $request->title;
+        $note->title = $request->filled('title') ? $request->title : null;
         $note->lead_id = $request->lead_id;
         $note->details = $request->details;
         $note->type = request('type', 1);
@@ -172,10 +172,15 @@ class LeadNoteController extends AccountBaseController
     public function update(StoreLeadNote $request, $id)
     {
         $note = LeadNote::findOrFail($id);
-        $note->title = $request->title;
+        $note->title = $request->filled('title') ? $request->title : null;
         $note->details = $request->details;
+    // Preserve type/privacy when the redesign editor only sends title + details.
+    if ($request->exists('type')) {
         $note->type = $request->type;
+    }
+    if ($request->exists('ask_password')) {
         $note->ask_password = $request->ask_password ?: '';
+    }
         if ($request->exists('remind_at')) {
             $note->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
         }

@@ -26,7 +26,7 @@ class StoreLeadNote extends CoreRequest
     {
         // Title is optional (matches deal notes). Details remain required.
         $rules = [
-            'title' => 'nullable|string',
+            'title' => 'nullable|string|max:191',
             'details' => 'required',
         ];
 
