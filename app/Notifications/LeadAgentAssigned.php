@@ -64,29 +64,36 @@ class LeadAgentAssigned extends BaseNotification
         $url = route('deals.show', $this->deal->id);
         $url = getDomainSpecificUrl($url, $this->company);
 
+        $role = $this->resolveAssignmentRole($notifiable);
+        $subject = $this->assignmentTitle($role);
+        $preheader = $this->assignmentText($role);
+        $actionText = $this->assignmentAction($role);
+
         $leadEmail = __('modules.lead.clientEmail') . ': ';
         $clientEmail = !is_null($this->deal->contact->client_email) ? $leadEmail : '';
-        $content = __('email.leadAgent.subject') . '<br>' .__('modules.deal.dealName') . ': '  . $this->deal->name . '<br>' .  __('modules.lead.clientName') . ': '  . $this->deal->contact->client_name_salutation . '<br>' . $clientEmail . $this->deal->contact->client_email;
+        $content = $subject . '<br>' .__('modules.deal.dealName') . ': '  . $this->deal->name . '<br>' .  __('modules.lead.clientName') . ': '  . $this->deal->contact->client_name_salutation . '<br>' . $clientEmail . $this->deal->contact->client_email;
 
         $build
-            ->subject(__('email.leadAgent.subject') . ' - ' . config('app.name'))
+            ->subject($subject . ' - ' . config('app.name'))
             ->view('mail.deal-assigned', [
                 'url' => $url,
                 'content' => $content,
-                'preheader' => __('email.leadAgent.text'),
+                'preheader' => $preheader,
+                'intro' => $preheader,
                 'themeColor' => $this->company->header_color,
-                'actionText' => __('email.leadAgent.action'),
+                'actionText' => $actionText,
                 'notifiableName' => $notifiable->name
             ]);
 
         $this->attachPlunkTemplate($build, '336e4f34-69bf-4a4f-92af-96e318a80548', [
-            'preheader'      => __('email.leadAgent.text'),
+            'preheader'      => $preheader,
             'assignedByName' => $this->assignedByName,
             'leadName'       => $this->deal->contact->client_name,
             'leadEmail'      => $this->deal->contact->client_email ?? '',
             'dealName'       => $this->deal->name,
             'assignedAt'     => $this->assignedAt,
             'leadUrl'        => $url,
+            'assignmentRole' => $role,
         ]);
 
         parent::resetLocale();
@@ -148,6 +155,15 @@ class LeadAgentAssigned extends BaseNotification
             'deal_watcher' => __('email.dealWatcherAssigned.text', ['dealName' => $dealName]),
             'new_deal' => __('email.newDealAwaitingAgent.text', ['dealName' => $dealName]),
             default => __('email.dealAgentAssigned.text', ['dealName' => $dealName]),
+        };
+    }
+
+    private function assignmentAction(string $assignmentRole): string
+    {
+        return match ($assignmentRole) {
+            'deal_watcher' => __('email.dealWatcherAssigned.action'),
+            'new_deal' => __('email.newDealAwaitingAgent.action'),
+            default => __('email.dealAgentAssigned.action'),
         };
     }
 

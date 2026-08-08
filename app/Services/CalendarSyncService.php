@@ -18,11 +18,12 @@ class CalendarSyncService
     {
         $payload = $this->buildPayload($followUp);
 
+        $attendeeEmails = $payload['attendeeEmails'] ?? [];
         Log::info('CalendarSyncService: enqueueing OL calendar event', [
             'follow_up_id' => $followUp->id,
             'platform' => $platform,
             'crm_meeting_url' => $payload['crmMeetingUrl'] ?? null,
-            'attendee_emails' => $payload['attendeeEmails'] ?? [],
+            'attendee_count' => is_countable($attendeeEmails) ? count($attendeeEmails) : 0,
         ]);
 
         $response = $this->olRequest('POST', "/crm/events/{$platform}", $payload);

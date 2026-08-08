@@ -14,7 +14,7 @@ use App\Models\Property;
 use App\Models\Reminder;
 use App\Models\Task;
 use App\Models\User;
-use App\Services\Reminders\ReminderSender;
+use App\Jobs\Reminders\SendReminderJob;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -187,11 +187,28 @@ class ReminderLedgerController extends AccountBaseController
             || ($dateRange !== 'all' && $dateRange !== '');
         $this->isEmpty = count($groups) === 0;
 
-        if ($request->header('X-Inertia')) {
-            return Inertia::location(route('reminder-ledger.index', $request->query()));
-        }
+        $pagination = [
+            'current_page' => $reminders->currentPage(),
+            'last_page' => $reminders->lastPage(),
+            'per_page' => $reminders->perPage(),
+            'total' => $reminders->total(),
+            'from' => $reminders->firstItem(),
+            'to' => $reminders->lastItem(),
+        ];
 
-        return view('reminder-ledger.index', $this->data);
+        return Inertia::render('Reminders/Index', [
+            'filters' => $this->filters,
+            'entityTypes' => $this->entityTypes,
+            'showDelayBanner' => $this->showDelayBanner,
+            'delayBannerText' => $this->delayBannerText,
+            'worstDelay' => $this->worstDelay,
+            'hasFilters' => $this->hasFilters,
+            'isEmpty' => $this->isEmpty,
+            'pagination' => $pagination,
+            'groups' => Inertia::defer(fn () => $groups),
+            'stats' => Inertia::defer(fn () => $stats),
+            'tabCounts' => Inertia::defer(fn () => $this->tabCounts),
+        ]);
     }
 
     /**
@@ -211,7 +228,7 @@ class ReminderLedgerController extends AccountBaseController
     /**
      * Send a not-yet-sent reminder immediately, ahead of its schedule.
      */
-    public function sendNow(Reminder $reminder, ReminderSender $sender)
+    public function sendNow(Reminder $reminder)
     {
         abort_403((int) $reminder->company_id !== (int) company()->id);
 
@@ -219,17 +236,9 @@ class ReminderLedgerController extends AccountBaseController
             return back()->with('error', __('messages.reminderCannotBeSent') ?: 'This reminder can no longer be sent manually.');
         }
 
-        $sender->send($reminder);
-        $reminder->refresh();
+        SendReminderJob::dispatch($reminder->id);
 
-        if ($reminder->status === Reminder::STATUS_FAILED) {
-            return back()->with(
-                'error',
-                $reminder->last_error ?: (__('messages.reminderSendFailed') ?: 'Reminder failed to send.')
-            );
-        }
-
-        return back()->with('success', __('messages.reminderSent') ?: 'Reminder sent.');
+        return back()->with('success', __('messages.reminderSent') ?: 'Reminder queued to send.');
     }
 
     /**
@@ -577,7 +586,10 @@ class ReminderLedgerController extends AccountBaseController
         }
 
         if ($dateRange === '7d') {
-            $query->where('remind_at', '>=', $now->copy()->subDays(6)->startOfDay()->utc());
+            $query->whereBetween('remind_at', [
+                $now->copy()->subDays(6)->startOfDay()->utc(),
+                $now->copy()->utc(),
+            ]);
 
             return;
         }

@@ -48,6 +48,7 @@ import {
     isAlertsMuted,
     setAlertsMuted,
     isDesktopNotificationSupported,
+    getDesktopPermission,
     requestDesktopPermission,
 } from "@/lib/notificationAlerts";
 import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
@@ -224,7 +225,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         setAlertsMuted(nextMuted);
         setAlertsMutedState(nextMuted);
 
-        if (!nextMuted && isDesktopNotificationSupported() && Notification.permission === "default") {
+        if (
+            !nextMuted &&
+            isDesktopNotificationSupported() &&
+            getDesktopPermission() === "default"
+        ) {
             requestDesktopPermission();
         }
     }, [alertsMuted]);

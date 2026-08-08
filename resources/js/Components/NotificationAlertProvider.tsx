@@ -152,6 +152,7 @@ export default function NotificationAlertProvider({
     const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const hoverRef = useRef(false);
+    const currentRef = useRef<NotificationAlertPayload | null>(null);
 
     const clearTimer = (ref: MutableRefObject<ReturnType<typeof setTimeout> | null>) => {
         if (ref.current) {
@@ -177,7 +178,10 @@ export default function NotificationAlertProvider({
             setOpen(false);
             setHover(false);
             clearTimer(exitTimer);
-            exitTimer.current = setTimeout(() => setCurrent(null), 440);
+            exitTimer.current = setTimeout(() => {
+                currentRef.current = null;
+                setCurrent(null);
+            }, 440);
         }, getNotchDurationMs());
     }, []);
 
@@ -187,16 +191,17 @@ export default function NotificationAlertProvider({
             clearTimer(enterTimer);
             clearTimer(dismissTimer);
 
-            setCurrent((prev) => {
-                if (prev) {
-                    setPulse(true);
-                    clearTimer(pulseTimer);
-                    pulseTimer.current = setTimeout(() => setPulse(false), 280);
-                } else {
-                    enterTimer.current = setTimeout(() => setOpen(true), 20);
-                }
-                return notification;
-            });
+            const hadPrevious = currentRef.current !== null;
+            currentRef.current = notification;
+            setCurrent(notification);
+
+            if (hadPrevious) {
+                setPulse(true);
+                clearTimer(pulseTimer);
+                pulseTimer.current = setTimeout(() => setPulse(false), 280);
+            } else {
+                enterTimer.current = setTimeout(() => setOpen(true), 20);
+            }
 
             armDismiss();
         },
@@ -209,7 +214,10 @@ export default function NotificationAlertProvider({
         setOpen(false);
         setHover(false);
         clearTimer(exitTimer);
-        exitTimer.current = setTimeout(() => setCurrent(null), 440);
+        exitTimer.current = setTimeout(() => {
+            currentRef.current = null;
+            setCurrent(null);
+        }, 440);
     }, []);
 
     const onEnter = useCallback(() => {
@@ -297,16 +305,21 @@ export default function NotificationAlertProvider({
         ? { duration: 0.12, ease: "easeInOut" as const }
         : { type: "spring" as const, stiffness: 380, damping: 30 };
 
+    const contextValue = useMemo(
+        () => ({ push, dismiss }),
+        [push, dismiss],
+    );
+
     if (!current) {
         return (
-            <NotificationAlertContext.Provider value={{ push, dismiss }}>
+            <NotificationAlertContext.Provider value={contextValue}>
                 {children}
             </NotificationAlertContext.Provider>
         );
     }
 
     return (
-        <NotificationAlertContext.Provider value={{ push, dismiss }}>
+        <NotificationAlertContext.Provider value={contextValue}>
             {children}
             <div style={wrapperStyle(position)}>
                 <div style={{ position: "relative", pointerEvents: "auto" }}>

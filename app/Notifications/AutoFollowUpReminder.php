@@ -39,13 +39,18 @@ class AutoFollowUpReminder extends BaseNotification
     public function via($notifiable)
     {
         $via = ['database'];
-        $email = is_string($notifiable->email ?? null) ? $notifiable->email : ($notifiable->client_email ?? '');
+        // Leads route mail via client_email (Lead::routeNotificationForMail); users via email.
+        if ($notifiable instanceof Lead) {
+            $email = is_string($notifiable->client_email ?? null) ? trim($notifiable->client_email) : '';
+        } else {
+            $email = is_string($notifiable->email ?? null) ? trim($notifiable->email) : '';
+        }
 
         if (
             $this->emailSetting
             && $this->emailSetting->send_email == 'yes'
             && ($notifiable->email_notifications ?? true)
-            && $email != ''
+            && $email !== ''
         ) {
             $via[] = 'mail';
         }
@@ -99,10 +104,11 @@ class AutoFollowUpReminder extends BaseNotification
     private function attachMeetingPlunkTemplate($build, array $variables): void
     {
         $companyId = $this->company?->id ? (int) $this->company->id : 0;
-        $templateId = ReminderEmailTemplate::plunkTemplateId($companyId, 'meeting');
+        $templateId = ReminderEmailTemplate::plunkTemplateId($companyId, 'meeting')
+            ?? config('reminders.plunk_fallback_template_ids.meeting');
 
-        if ($templateId === null) {
-            $templateId = '24330e3e-a357-41d2-8762-7014732d5b7e';
+        if (! is_string($templateId) || $templateId === '') {
+            return;
         }
 
         $this->attachPlunkTemplate($build, $templateId, MeetingEmailPresenter::plunkVariables($variables));

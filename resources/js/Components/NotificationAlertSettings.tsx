@@ -5,6 +5,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import {
     getNotchDurationMs,
     getNotchPosition,
+    NOTCH_DURATIONS_MS,
     setNotchDurationMs,
     setNotchPosition,
     type NotchPosition,
@@ -18,8 +19,6 @@ const POSITIONS: { value: NotchPosition; label: string }[] = [
     { value: "bottom-center", label: "Bottom centre" },
     { value: "bottom-right", label: "Bottom right" },
 ];
-
-const DURATIONS = [3000, 4200, 6000];
 
 /** Position + dismiss timing for in-app alert toasts (top of notification dropdown). */
 export default function NotificationAlertSettings() {
@@ -126,7 +125,7 @@ export default function NotificationAlertSettings() {
                 {td("Stay on screen for")}
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-                {DURATIONS.map((ms) => {
+                {NOTCH_DURATIONS_MS.map((ms) => {
                     const selected = durationMs === ms;
                     return (
                         <button

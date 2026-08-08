@@ -96,7 +96,8 @@
 <body
     style="margin:0; padding:0; background:#f5f5f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;">
     @include('mail.partials.preheader', [
-        'preheader' => $preheader ?? ($content ?? __('email.newEvent.text')),
+        'preheader' => $preheader ?? '',
+        'fallback' => $content ?? __('email.newEvent.text'),
     ])
 
     <!-- Main Container -->

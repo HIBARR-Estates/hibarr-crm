@@ -32,7 +32,7 @@ class CalendarSyncDispatcherTest extends TestCase
 
 
 
-    public function test_it_runs_sync_inline_when_flag_enabled(): void
+    public function test_it_runs_sync_after_response_when_flag_enabled(): void
     {
         $this->setFeatureFlag('integrations.zoho-calendar-sync', true);
 
@@ -71,6 +71,12 @@ class CalendarSyncDispatcherTest extends TestCase
         $followUp->save();
 
         app(CalendarSyncDispatcher::class)->scheduleSync($followUp);
+
+        $followUp->refresh();
+        $this->assertSame(DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING, $followUp->zoho_calendar_sync_status);
+
+        // afterResponse callbacks run on application terminate.
+        $this->app->terminate();
 
         $followUp->refresh();
         $this->assertSame('job-inline-123', $followUp->zoho_calendar_job_id);
@@ -230,7 +236,7 @@ class CalendarSyncDispatcherTest extends TestCase
 
         app(CalendarSyncDispatcher::class)->scheduleSync($followUp);
 
-
+        $this->app->terminate();
 
         $followUp->refresh();
 

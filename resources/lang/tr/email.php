@@ -1,6 +1,27 @@
 <?php
 
 return [
+
+    'newLead' => [
+        'subject' => 'Yeni lead alındı.',
+        'action' => 'Lead\'i görüntüle',
+        'text' => 'Pipeline\'ınıza yeni bir lead eklendi. Ayrıntılar aşağıda.',
+    ],
+    'dealAgentAssigned' => [
+        'subject' => 'Deal ajanı olarak atandınız',
+        'text' => ':dealName için deal ajanı olarak atandınız.',
+        'action' => 'Deal\'i görüntüle',
+    ],
+    'dealWatcherAssigned' => [
+        'subject' => 'Deal izleyicisi olarak eklendiniz',
+        'text' => ':dealName için deal izleyicisi olarak eklendiniz.',
+        'action' => 'Deal\'i görüntüle',
+    ],
+    'newDealAwaitingAgent' => [
+        'subject' => 'Yeni deal ajan bekliyor',
+        'text' => ':dealName deal\'i oluşturuldu ve bir deal ajanı bekliyor.',
+        'action' => 'Deal\'i görüntüle',
+    ],
     'followUpReminder' => [
         'meetingCountdownWithLead' => ':lead ile toplantınıza :countdown kaldı.',
         'meetingCountdown' => 'Toplantınıza :countdown kaldı.',
@@ -66,4 +87,42 @@ return [
         'agentStartingNowWithType' => ':lead ile :type şimdi başlıyor.',
         'agentStartingNowNoLead' => 'Toplantınız şimdi başlıyor.',
     ],
+
+    'dealReminder' => [
+        'subject' => 'Deal hatırlatması: :title',
+        'dueCountdown' => '\":title\" :countdown içinde.',
+        'dueNow' => '\":title\" şimdi.',
+        'footerNote' => 'Bu deal\'i kontrol edin ve takip sonrası güncellemeleri kaydedin.',
+    ],
+    'leadReminder' => [
+        'subject' => 'Lead hatırlatması: :title',
+        'dueCountdown' => '\":title\" :countdown içinde.',
+        'dueNow' => '\":title\" şimdi.',
+        'footerNote' => 'Bu lead ile iletişime geçin ve sonucu kaydedin.',
+    ],
+    'propertyReminder' => [
+        'subject' => 'Mülk hatırlatması: :title',
+        'dueCountdown' => '\":title\" :countdown içinde.',
+        'dueNow' => '\":title\" şimdi.',
+        'footerNote' => 'Bu mülkün durumunu gözden geçirin ve gerekirse güncelleyin.',
+    ],
+    'developerProjectReminder' => [
+        'subject' => 'Proje hatırlatması: :title',
+        'dueCountdown' => '\":title\" :countdown içinde.',
+        'dueNow' => '\":title\" şimdi.',
+        'footerNote' => 'Bu projeyi gözden geçirin ve gerekirse durumunu güncelleyin.',
+    ],
+    'unitReminder' => [
+        'subject' => 'Ünite hatırlatması: :title',
+        'dueCountdown' => '\":title\" :countdown içinde.',
+        'dueNow' => '\":title\" şimdi.',
+        'footerNote' => 'Takipten önce bu ünitenin müsaitliğini ve fiyatını kontrol edin.',
+    ],
+    'flightReminder' => [
+        'subject' => 'Uçuş hatırlatması: :title',
+        'dueCountdown' => '\":title\" :countdown içinde.',
+        'dueNow' => '\":title\" şimdi.',
+        'footerNote' => 'Bu uçuş segmentinden önce rota detaylarını kontrol edin.',
+    ],
+
 ];

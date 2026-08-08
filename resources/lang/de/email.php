@@ -1,6 +1,27 @@
 <?php
 
 return [
+
+    'newLead' => [
+        'subject' => 'Neuer Lead eingegangen.',
+        'action' => 'Lead ansehen',
+        'text' => 'Ein neuer Lead wurde Ihrer Pipeline hinzugefügt. Die Details finden Sie unten.',
+    ],
+    'dealAgentAssigned' => [
+        'subject' => 'Sie wurden als Deal-Agent zugewiesen',
+        'text' => 'Sie wurden als Deal-Agent für :dealName zugewiesen.',
+        'action' => 'Deal ansehen',
+    ],
+    'dealWatcherAssigned' => [
+        'subject' => 'Sie wurden als Deal-Beobachter hinzugefügt',
+        'text' => 'Sie wurden als Deal-Beobachter für :dealName hinzugefügt.',
+        'action' => 'Deal ansehen',
+    ],
+    'newDealAwaitingAgent' => [
+        'subject' => 'Neuer Deal wartet auf einen Agenten',
+        'text' => 'Deal :dealName wurde erstellt und wartet auf einen Deal-Agenten.',
+        'action' => 'Deal ansehen',
+    ],
     'followUpReminder' => [
         'meetingCountdownWithLead' => 'Ihr Meeting mit :lead beginnt in :countdown.',
         'meetingCountdown' => 'Ihr Meeting beginnt in :countdown.',
@@ -66,4 +87,42 @@ return [
         'agentStartingNowWithType' => ':type mit :lead beginnt jetzt.',
         'agentStartingNowNoLead' => 'Ihr Meeting beginnt jetzt.',
     ],
+
+    'dealReminder' => [
+        'subject' => 'Deal-Erinnerung: :title',
+        'dueCountdown' => '\":title\" steht in :countdown an.',
+        'dueNow' => '\":title\" ist jetzt fällig.',
+        'footerNote' => 'Prüfen Sie diesen Deal und protokollieren Sie Updates nach dem Follow-up.',
+    ],
+    'leadReminder' => [
+        'subject' => 'Lead-Erinnerung: :title',
+        'dueCountdown' => '\":title\" steht in :countdown an.',
+        'dueNow' => '\":title\" ist jetzt fällig.',
+        'footerNote' => 'Folgen Sie diesem Lead und protokollieren Sie das Ergebnis.',
+    ],
+    'propertyReminder' => [
+        'subject' => 'Objekt-Erinnerung: :title',
+        'dueCountdown' => '\":title\" steht in :countdown an.',
+        'dueNow' => '\":title\" ist jetzt fällig.',
+        'footerNote' => 'Prüfen Sie den Status dieses Objekts und aktualisieren Sie ihn bei Bedarf.',
+    ],
+    'developerProjectReminder' => [
+        'subject' => 'Projekt-Erinnerung: :title',
+        'dueCountdown' => '\":title\" steht in :countdown an.',
+        'dueNow' => '\":title\" ist jetzt fällig.',
+        'footerNote' => 'Prüfen Sie dieses Projekt und aktualisieren Sie den Status bei Bedarf.',
+    ],
+    'unitReminder' => [
+        'subject' => 'Einheiten-Erinnerung: :title',
+        'dueCountdown' => '\":title\" steht in :countdown an.',
+        'dueNow' => '\":title\" ist jetzt fällig.',
+        'footerNote' => 'Prüfen Sie Verfügbarkeit und Preis dieser Einheit vor dem Follow-up.',
+    ],
+    'flightReminder' => [
+        'subject' => 'Flug-Erinnerung: :title',
+        'dueCountdown' => '\":title\" steht in :countdown an.',
+        'dueNow' => '\":title\" ist jetzt fällig.',
+        'footerNote' => 'Prüfen Sie die Reisedetails vor diesem Flugabschnitt.',
+    ],
+
 ];

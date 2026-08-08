@@ -32,7 +32,9 @@ class CalendarSyncDispatcher
             return;
         }
 
-        $model->update([
+        // Quiet update — calendar bookkeeping must not fire DealFollowUpObserver
+        // meeting-update notifications.
+        $model->updateQuietly([
             'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
         ]);
 
@@ -41,9 +43,8 @@ class CalendarSyncDispatcher
             'has_meeting_link' => !empty($model->meeting_link),
         ]);
 
-        // Run inline in the current process (the web request that saved the
-        // meeting). Calendar sync must not depend on a separate queue:work
-        // worker — only OL's own zoho-calendar worker handles the Zoho API call.
-        SyncCalendarEventJob::dispatchSync($followUpId);
+        // Run after the HTTP response so OL enqueue never blocks the request.
+        // Still same PHP process (no queue:work dependency) via afterResponse.
+        SyncCalendarEventJob::dispatch($followUpId)->afterResponse();
     }
 }

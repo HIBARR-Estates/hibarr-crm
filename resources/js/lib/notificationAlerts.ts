@@ -8,7 +8,7 @@ const NOTCH_POSITION_STORAGE_KEY = "notification_notch_position";
 const NOTCH_DURATION_STORAGE_KEY = "notification_notch_duration";
 
 /** Peak gain for the notification chime (Web Audio 0–1 scale). */
-const NOTIFICATION_SOUND_PEAK_GAIN = 1;
+const NOTIFICATION_SOUND_PEAK_GAIN = 0.12;
 
 let sharedAudioContext: AudioContext | null = null;
 
@@ -77,7 +77,7 @@ const NOTCH_POSITIONS: NotchPosition[] = [
 
 const DEFAULT_NOTCH_POSITION: NotchPosition = "top-center";
 const DEFAULT_NOTCH_DURATION_MS = 4200;
-const NOTCH_DURATIONS_MS = [3000, 4200, 6000] as const;
+export const NOTCH_DURATIONS_MS = [3000, 4200, 6000] as const;
 
 export function getNotchPosition(): NotchPosition {
     if (typeof window === "undefined") return DEFAULT_NOTCH_POSITION;
@@ -154,17 +154,21 @@ export function showDesktopNotification(
     // outside the browser when the user isn't already looking at the CRM.
     if (typeof document !== "undefined" && !document.hidden) return;
 
-    const popup = new Notification(title, {
-        body,
-        icon: "/favicon.ico",
-        tag: link ?? undefined,
-    });
+    try {
+        const popup = new Notification(title, {
+            body,
+            icon: "/favicon.ico",
+            tag: link ?? undefined,
+        });
 
-    popup.onclick = () => {
-        window.focus();
-        if (link) {
-            window.location.href = link;
-        }
-        popup.close();
-    };
+        popup.onclick = () => {
+            window.focus();
+            if (link) {
+                window.location.href = link;
+            }
+            popup.close();
+        };
+    } catch {
+        // Some browsers (e.g. Chrome Android) throw Illegal constructor.
+    }
 }

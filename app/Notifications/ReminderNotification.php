@@ -604,12 +604,17 @@ class ReminderNotification extends BaseNotification
      */
     private function titledSubject(string $langKey, string $fallbackLabel, ?string $title): string
     {
+        $template = __($langKey);
         $title = trim((string) $title);
+
         if ($title === '') {
-            return $fallbackLabel;
+            if ($template === $langKey) {
+                return $fallbackLabel;
+            }
+
+            return trim((string) preg_replace('/\s*:\s*:title|:title/', '', $template));
         }
 
-        $template = __($langKey);
         if (! str_contains($template, ':title')) {
             return $fallbackLabel.': '.$title;
         }

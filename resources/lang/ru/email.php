@@ -1,6 +1,27 @@
 <?php
 
 return [
+
+    'newLead' => [
+        'subject' => 'Получен новый лид.',
+        'action' => 'Открыть лид',
+        'text' => 'В ваш пайплайн добавлен новый лид. Подробности ниже.',
+    ],
+    'dealAgentAssigned' => [
+        'subject' => 'Вам назначена роль агента по сделке',
+        'text' => 'Вам назначена роль агента по сделке :dealName.',
+        'action' => 'Открыть сделку',
+    ],
+    'dealWatcherAssigned' => [
+        'subject' => 'Вас добавили наблюдателем по сделке',
+        'text' => 'Вас добавили наблюдателем по сделке :dealName.',
+        'action' => 'Открыть сделку',
+    ],
+    'newDealAwaitingAgent' => [
+        'subject' => 'Новая сделка ожидает агента',
+        'text' => 'Сделка :dealName создана и ожидает назначения агента.',
+        'action' => 'Открыть сделку',
+    ],
     'followUpReminder' => [
         'meetingCountdownWithLead' => 'Ваша встреча с :lead через :countdown.',
         'meetingCountdown' => 'Ваша встреча через :countdown.',
@@ -66,4 +87,42 @@ return [
         'agentStartingNowWithType' => ':type с :lead начинается сейчас.',
         'agentStartingNowNoLead' => 'Ваша встреча начинается сейчас.',
     ],
+
+    'dealReminder' => [
+        'subject' => 'Напоминание о сделке: :title',
+        'dueCountdown' => '«:title» через :countdown.',
+        'dueNow' => '«:title» наступает сейчас.',
+        'footerNote' => 'Проверьте сделку и зафиксируйте обновления после follow-up.',
+    ],
+    'leadReminder' => [
+        'subject' => 'Напоминание о лиде: :title',
+        'dueCountdown' => '«:title» через :countdown.',
+        'dueNow' => '«:title» наступает сейчас.',
+        'footerNote' => 'Свяжитесь с лидом и зафиксируйте результат.',
+    ],
+    'propertyReminder' => [
+        'subject' => 'Напоминание об объекте: :title',
+        'dueCountdown' => '«:title» через :countdown.',
+        'dueNow' => '«:title» наступает сейчас.',
+        'footerNote' => 'Проверьте статус объекта и обновите его при необходимости.',
+    ],
+    'developerProjectReminder' => [
+        'subject' => 'Напоминание о проекте: :title',
+        'dueCountdown' => '«:title» через :countdown.',
+        'dueNow' => '«:title» наступает сейчас.',
+        'footerNote' => 'Проверьте проект и обновите статус при необходимости.',
+    ],
+    'unitReminder' => [
+        'subject' => 'Напоминание о юните: :title',
+        'dueCountdown' => '«:title» через :countdown.',
+        'dueNow' => '«:title» наступает сейчас.',
+        'footerNote' => 'Проверьте доступность и цену юнита перед follow-up.',
+    ],
+    'flightReminder' => [
+        'subject' => 'Напоминание о рейсе: :title',
+        'dueCountdown' => '«:title» через :countdown.',
+        'dueNow' => '«:title» наступает сейчас.',
+        'footerNote' => 'Проверьте детали маршрута перед этим сегментом.',
+    ],
+
 ];

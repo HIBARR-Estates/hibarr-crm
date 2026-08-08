@@ -1,5 +1,6 @@
 import { useCallback, type ReactNode } from "react";
 import { usePage } from "@inertiajs/react";
+import type { PageProps } from "@/Components/DashboardLayout";
 import { useNotificationSummary } from "@/Hooks/useNotifications";
 import type { Notification } from "@/Types/api/notification";
 import { useNotificationAlert } from "@/Components/NotificationAlertProvider";
@@ -30,7 +31,7 @@ export function useNotificationAlertBridge(): void {
 
 /** Skips guest pages — no notification feed before login. */
 export function NotificationAlertBridgeMount(): ReactNode {
-    const { props } = usePage();
+    const { props } = usePage<PageProps>();
     if (!props.auth?.user) return null;
     return <AuthenticatedNotificationAlertBridge />;
 }

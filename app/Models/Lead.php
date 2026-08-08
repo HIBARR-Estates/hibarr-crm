@@ -189,6 +189,10 @@ class Lead extends BaseModel
      */
     public function getLocaleAttribute(): string
     {
+        if (! $this->relationLoaded('company')) {
+            $this->loadMissing('company');
+        }
+
         return LeadLocaleResolver::resolve($this, $this->company);
     }
 

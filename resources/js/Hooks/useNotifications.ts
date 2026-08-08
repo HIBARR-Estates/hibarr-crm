@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery, useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
@@ -16,6 +16,11 @@ import {
     playNotificationSound,
     showDesktopNotification,
 } from "@/lib/notificationAlerts";
+
+const EMPTY_NOTIFICATIONS: Notification[] = [];
+
+/** Shared across all useNotificationSummary instances so sound/desktop alerts fire once. */
+let sharedSeenNotificationIds: Set<string> | null = null;
 
 /**
  * Hook for fetching and polling unread notification summary.
@@ -47,25 +52,27 @@ export const useNotificationSummary = (
     });
 
     const unreadCount = response?.data?.unread_count ?? 0;
-    const notifications = response?.data?.notifications ?? [];
+    const notifications = response?.data?.notifications ?? EMPTY_NOTIFICATIONS;
 
     // Sound + desktop popup (and any extra subscriber, e.g. the notch) for
     // notifications that weren't present on the previous poll. Skipped on
     // the very first load so opening the app doesn't alert for every
-    // pre-existing unread item.
-    const seenIdsRef = useRef<Set<string> | null>(null);
+    // pre-existing unread item. Module-level seen-IDs prevent duplicate
+    // alerts when dropdown + bridge both mount this hook.
     useEffect(() => {
         if (!enabled) return;
 
         const currentIds = new Set(notifications.map((n) => n.id));
 
-        if (seenIdsRef.current === null) {
-            seenIdsRef.current = currentIds;
+        if (sharedSeenNotificationIds === null) {
+            sharedSeenNotificationIds = currentIds;
             return;
         }
 
-        const newOnes = notifications.filter((n) => !seenIdsRef.current!.has(n.id));
-        seenIdsRef.current = currentIds;
+        const newOnes = notifications.filter(
+            (n) => !sharedSeenNotificationIds!.has(n.id),
+        );
+        sharedSeenNotificationIds = currentIds;
 
         if (newOnes.length === 0) return;
 
@@ -131,7 +138,7 @@ export const useNotificationsList = (
         options: { enabled },
     });
 
-    const notifications = response?.data?.notifications ?? [];
+    const notifications = response?.data?.notifications ?? EMPTY_NOTIFICATIONS;
     const pagination = response?.data?.pagination ?? {
         current_page: 1,
         last_page: 1,

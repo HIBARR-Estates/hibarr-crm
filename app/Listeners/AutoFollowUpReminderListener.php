@@ -133,8 +133,8 @@ class AutoFollowUpReminderListener
             return;
         }
 
-        $leadEmail = $lead->client_email ?? $lead->email ?? null;
-        if (! is_string($leadEmail) || $leadEmail === '') {
+        $leadEmail = $lead->client_email ?? null;
+        if (! is_string($leadEmail) || trim($leadEmail) === '') {
             return;
         }
 

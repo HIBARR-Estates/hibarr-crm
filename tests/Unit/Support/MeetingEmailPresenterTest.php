@@ -7,11 +7,18 @@ use App\Models\Lead;
 use App\Models\User;
 use App\Support\MeetingEmailPresenter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\App;
 use Tests\TestCase;
 
 class MeetingEmailPresenterTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+        App::setLocale('eng');
+    }
 
     public function test_it_builds_lead_facing_created_copy_with_agent_and_schedule(): void
     {

@@ -54,6 +54,9 @@
         if ($layoutPreheader === '') {
             $layoutPreheader = trim((string) $__env->yieldContent('title'));
         }
+        if ($layoutPreheader === '') {
+            $layoutPreheader = 'Just a quick heads up';
+        }
     @endphp
     @include('mail.partials.preheader', ['preheader' => $layoutPreheader])
 

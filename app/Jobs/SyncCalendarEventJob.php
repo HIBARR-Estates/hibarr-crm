@@ -51,12 +51,12 @@ class SyncCalendarEventJob implements ShouldQueue
             $jobId = $syncService->enqueueEvent($followUp, CalendarSyncService::PLATFORM_ZOHO);
 
             if ($jobId) {
-                $followUp->update([
+                $followUp->updateQuietly([
                     'zoho_calendar_job_id' => $jobId,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
                 ]);
             } else {
-                $followUp->update([
+                $followUp->updateQuietly([
                     'zoho_calendar_job_id' => null,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
                 ]);
@@ -68,7 +68,7 @@ class SyncCalendarEventJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $followUp->update([
+            $followUp->updateQuietly([
                 'zoho_calendar_job_id' => null,
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
             ]);

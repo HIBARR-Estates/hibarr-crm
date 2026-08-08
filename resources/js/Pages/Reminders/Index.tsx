@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { router, usePage } from "@inertiajs/react";
+import { Deferred, router, usePage } from "@inertiajs/react";
 import DashboardLayout from "@/Components/DashboardLayout";
 
 const GRID_COLS =
@@ -803,10 +803,24 @@ function DetailDrawer({
     );
 }
 
+function RemindersSkeleton({ height = 120 }: { height?: number }) {
+    return (
+        <div
+            aria-hidden
+            style={{
+                height,
+                borderRadius: 10,
+                background:
+                    "linear-gradient(90deg, #f2f4f7 0%, #eef2f8 50%, #f2f4f7 100%)",
+                backgroundSize: "200% 100%",
+            }}
+        />
+    );
+}
+
 export default function RemindersIndex() {
     const { props: pageProps } = usePage<any>();
     const typedProps = pageProps as RemindersPageProps;
-    const groups = typedProps.groups ?? [];
     const pagination = typedProps.pagination ?? {
         current_page: 1,
         last_page: 1,
@@ -815,6 +829,15 @@ export default function RemindersIndex() {
         from: null,
         to: null,
     };
+    const filters = typedProps.filters ?? {
+        tab: "all",
+        entity_type: "all",
+        search: "",
+        date_range: "all",
+        custom_date: "",
+        per_page: 25,
+    };
+    const groups = typedProps.groups ?? [];
     const stats = typedProps.stats ?? {
         sent: 0,
         delayed: 0,
@@ -827,14 +850,6 @@ export default function RemindersIndex() {
         sent: 0,
         cancelled: 0,
         failed: 0,
-    };
-    const filters = typedProps.filters ?? {
-        tab: "all",
-        entity_type: "all",
-        search: "",
-        date_range: "all",
-        custom_date: "",
-        per_page: 25,
     };
     const entityTypes = typedProps.entityTypes ?? [];
     const showDelayBanner = typedProps.showDelayBanner ?? false;
@@ -851,7 +866,6 @@ export default function RemindersIndex() {
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [confirmCancel, setConfirmCancel] = useState(false);
     const [confirmSend, setConfirmSend] = useState(false);
-    const [hoverRowId, setHoverRowId] = useState<number | null>(null);
 
     useEffect(() => {
         const id = "reminders-ledger-fonts";
@@ -918,22 +932,6 @@ export default function RemindersIndex() {
         setConfirmSend(false);
     };
 
-    const reloadList = () => {
-        router.reload({
-            only: [
-                "groups",
-                "stats",
-                "tabCounts",
-                "pagination",
-                "showDelayBanner",
-                "delayBannerText",
-                "worstDelay",
-                "isEmpty",
-                "hasFilters",
-            ],
-        });
-    };
-
     const handleCancel = (id: number) => {
         router.post(
             route("reminder-ledger.cancel", { reminder: id }),
@@ -942,7 +940,6 @@ export default function RemindersIndex() {
                 preserveScroll: true,
                 onSuccess: () => {
                     closeDrawer();
-                    reloadList();
                 },
             },
         );
@@ -956,7 +953,6 @@ export default function RemindersIndex() {
                 preserveScroll: true,
                 onSuccess: () => {
                     closeDrawer();
-                    reloadList();
                 },
             },
         );
@@ -1028,41 +1024,48 @@ export default function RemindersIndex() {
                             paddingBottom: 2,
                         }}
                     >
-                        {statCards.map((s) => (
-                            <div
-                                key={s.label}
-                                style={{
-                                    background: "#fff",
-                                    border: "1px solid #e4e7ec",
-                                    borderRadius: 10,
-                                    padding: "10px 16px",
-                                    minWidth: 96,
-                                    flex: "1 0 auto",
-                                }}
-                            >
-                                <div
-                                    style={{
-                                        fontSize: 11,
-                                        fontWeight: 600,
-                                        textTransform: "uppercase",
-                                        letterSpacing: "0.06em",
-                                        color: "#667085",
-                                        whiteSpace: "nowrap",
-                                    }}
-                                >
-                                    {s.label}
-                                </div>
-                                <div
-                                    style={{
-                                        fontSize: 20,
-                                        fontWeight: 700,
-                                        color: s.color,
-                                    }}
-                                >
-                                    {s.value}
-                                </div>
-                            </div>
-                        ))}
+                        <Deferred
+                            data="stats"
+                            fallback={<RemindersSkeleton height={72} />}
+                        >
+                            <>
+                                {statCards.map((s) => (
+                                    <div
+                                        key={s.label}
+                                        style={{
+                                            background: "#fff",
+                                            border: "1px solid #e4e7ec",
+                                            borderRadius: 10,
+                                            padding: "10px 16px",
+                                            minWidth: 96,
+                                            flex: "1 0 auto",
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 600,
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.06em",
+                                                color: "#667085",
+                                                whiteSpace: "nowrap",
+                                            }}
+                                        >
+                                            {s.label}
+                                        </div>
+                                        <div
+                                            style={{
+                                                fontSize: 20,
+                                                fontWeight: 700,
+                                                color: s.color,
+                                            }}
+                                        >
+                                            {s.value}
+                                        </div>
+                                    </div>
+                                ))}
+                            </>
+                        </Deferred>
                     </div>
 
                     {showDelayBanner && (
@@ -1100,6 +1103,10 @@ export default function RemindersIndex() {
                         </div>
                     )}
 
+                    <Deferred
+                        data={["groups", "tabCounts"]}
+                        fallback={<RemindersSkeleton height={280} />}
+                    >
                     <div
                         style={{
                             background: "#fff",
@@ -1191,7 +1198,10 @@ export default function RemindersIndex() {
                                     setSearchValue(e.target.value)
                                 }
                                 onKeyDown={(e) => {
-                                    if (e.key === "Enter") {
+                                    if (
+                                        e.key === "Enter" &&
+                                        !e.nativeEvent.isComposing
+                                    ) {
                                         reload({ search: searchValue });
                                     }
                                 }}
@@ -1417,12 +1427,6 @@ export default function RemindersIndex() {
                                                     setConfirmCancel(false);
                                                     setConfirmSend(false);
                                                 }}
-                                                onMouseEnter={() =>
-                                                    setHoverRowId(r.id)
-                                                }
-                                                onMouseLeave={() =>
-                                                    setHoverRowId(null)
-                                                }
                                                 style={{
                                                     display: "grid",
                                                     gridTemplateColumns:
@@ -1434,10 +1438,7 @@ export default function RemindersIndex() {
                                                     borderBottom:
                                                         "1px solid #eef0f3",
                                                     cursor: "pointer",
-                                                    background:
-                                                        hoverRowId === r.id
-                                                            ? "#f5f8ff"
-                                                            : r.rowBg,
+                                                    background: r.rowBg,
                                                 }}
                                             >
                                                 <div
@@ -1842,6 +1843,7 @@ export default function RemindersIndex() {
                             </div>
                         )}
                     </div>
+                    </Deferred>
                 </div>
             </div>
 

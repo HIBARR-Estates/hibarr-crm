@@ -14,6 +14,7 @@ use App\Models\TaskboardColumn;
 use App\Models\User;
 use App\Scopes\ActiveScope;
 use App\Scopes\CompanyScope;
+use App\Services\CalendarSyncDispatcher;
 use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
 use App\Services\Reminders\MeetingReminderSync;
@@ -288,13 +289,19 @@ class CrmWriteService
 
         $followUp->save();
 
+        $freshFollowUp = $followUp->fresh();
+
         try {
-            event(new AutoFollowUpReminderEvent($followUp->fresh(), true));
+            event(new AutoFollowUpReminderEvent($freshFollowUp, true));
         } catch (\Throwable $exception) {
             report($exception);
         }
 
         app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
+        if ($freshFollowUp) {
+            app(CalendarSyncDispatcher::class)->scheduleSync($freshFollowUp);
+        }
 
         return $followUp->fresh(self::MEETING_SUMMARY_RELATIONS);
     }

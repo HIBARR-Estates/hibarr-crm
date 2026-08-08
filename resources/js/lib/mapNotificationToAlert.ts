@@ -213,9 +213,6 @@ export function actionsForNotification(
             pushLink(
                 slug.includes("completed") ? "View task" : "Open task",
             );
-            if (link && !slug.includes("completed")) {
-                actions.push({ label: "Mark done", href: link });
-            }
             break;
         case "task-completed":
             pushLink("View task");

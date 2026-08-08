@@ -112,8 +112,13 @@ class MeetingEmailPresenter
     public function meetingLink(): string
     {
         $link = trim((string) ($this->followUp->meeting_link ?? ''));
+        if ($link === '' || ! filter_var($link, FILTER_VALIDATE_URL)) {
+            return '';
+        }
 
-        return $link !== '' && filter_var($link, FILTER_VALIDATE_URL) ? $link : '';
+        $scheme = strtolower((string) (parse_url($link, PHP_URL_SCHEME) ?? ''));
+
+        return in_array($scheme, ['http', 'https'], true) ? $link : '';
     }
 
     public function joinMeetingHtml(): string
@@ -228,6 +233,13 @@ class MeetingEmailPresenter
             .'</td></tr></table>';
     }
 
+    /**
+     * Build the date/agenda block for meeting emails.
+     *
+     * $scheduleLine is inserted into HTML without escaping so callers may include
+     * trusted entities such as &ensp; and &middot;. Do not pass raw user input.
+     * $detailRemark is escaped via e() + nl2br.
+     */
     public static function buildMeetingDetailHtml(string $scheduleLine, string $detailRemark, string $agendaLabel = ''): string
     {
         $parts = [];

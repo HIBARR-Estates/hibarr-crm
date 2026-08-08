@@ -255,10 +255,16 @@ class MeetingAttendeeResolver
             return null;
         }
 
-        return Deal::query()
+        $deal = Deal::query()
             ->withoutGlobalScope(CompanyScope::class)
             ->with(self::dealStakeholderRelations())
             ->find($followUp->deal_id);
+
+        if ($deal) {
+            $followUp->setRelation('deal', $deal);
+        }
+
+        return $deal;
     }
 
     /**
