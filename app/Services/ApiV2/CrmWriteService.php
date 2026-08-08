@@ -3,12 +3,15 @@
 namespace App\Services\ApiV2;
 
 use App\Events\AutoFollowUpReminderEvent;
+use App\Helper\Files;
+use App\Models\Currency;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
 use App\Models\DealNote;
 use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadNote;
+use App\Models\Payment;
 use App\Models\Task;
 use App\Models\TaskboardColumn;
 use App\Models\User;
@@ -23,9 +26,11 @@ use App\Traits\RecordsCrmEvents;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
 
 class CrmWriteService
@@ -298,6 +303,201 @@ class CrmWriteService
         app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
 
         return $followUp->fresh(self::MEETING_SUMMARY_RELATIONS);
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{payment: Payment, created: bool}
+     */
+    public function upsertPayment(int $companyId, array $data, ?UploadedFile $billFile = null): array
+    {
+        $deal = $this->resolveDeal($companyId, $data, null);
+        if ($deal === null) {
+            throw (new ModelNotFoundException())->setModel(Deal::class);
+        }
+
+        $currencyId = (int) ($data['currency_id'] ?? 0);
+        if ($currencyId <= 0) {
+            $currency = $this->resolveCurrency($companyId, (string) ($data['currency'] ?? ''));
+            $currencyId = $currency->id;
+        }
+
+        $externalReference = (string) $data['external_reference'];
+        $status = (string) $data['status'];
+
+        $existing = Payment::withoutGlobalScope(CompanyScope::class)
+            ->without(['order'])
+            ->where('company_id', $companyId)
+            ->where('external_reference', $externalReference)
+            ->first();
+
+        $created = $existing === null;
+        $payment = $existing ?? new Payment();
+
+        $payment->company_id = $companyId;
+        $payment->deal_id = $deal->id;
+        $payment->external_reference = $externalReference;
+        $payment->amount = round((float) $data['amount'], 2);
+        $payment->currency_id = $currencyId;
+        $payment->gateway = (string) $data['gateway'];
+        $payment->status = $status;
+
+        if (array_key_exists('transaction_id', $data)) {
+            $payment->transaction_id = $data['transaction_id'] !== null && $data['transaction_id'] !== ''
+                ? (string) $data['transaction_id']
+                : null;
+        }
+
+        if (!empty($data['paid_on'])) {
+            $payment->paid_on = Carbon::parse($data['paid_on']);
+        } elseif ($status === 'complete' && ($created || $payment->paid_on === null)) {
+            $payment->paid_on = Carbon::now();
+        }
+
+        $shouldStoreProof = $billFile !== null || !empty($data['proof_url']);
+        $previousBill = $payment->bill;
+
+        if ($shouldStoreProof) {
+            $payment->bill = $this->storePaymentProof($billFile, $data['proof_url'] ?? null);
+        }
+
+        $payment->save();
+
+        if ($shouldStoreProof && $previousBill && $previousBill !== $payment->bill) {
+            try {
+                Files::deleteFile($previousBill, Payment::FILE_PATH);
+            } catch (\Throwable $exception) {
+                report($exception);
+            }
+        }
+
+        $payment->loadMissing(['currency', 'deal.leadStage', 'deal.pipeline']);
+
+        return ['payment' => $payment, 'created' => $created];
+    }
+
+    /**
+     * @param  array<string, mixed>  $filters
+     * @return array{items: Collection<int, array<string, mixed>>, paginator: LengthAwarePaginator}
+     */
+    public function listPayments(int $companyId, array $filters): array
+    {
+        $query = Payment::withoutGlobalScope(CompanyScope::class)
+            ->without(['order'])
+            ->with(['currency', 'deal.leadStage', 'deal.pipeline'])
+            ->where('company_id', $companyId);
+
+        if (!empty($filters['deal_id'])) {
+            $query->where('deal_id', (int) $filters['deal_id']);
+        }
+
+        return $this->paginateQuery(
+            $query->orderByDesc('id'),
+            $filters,
+            fn (Payment $payment) => $this->serializePayment($payment)
+        );
+    }
+
+    public function getPayment(int $companyId, int $paymentId): Payment
+    {
+        return Payment::withoutGlobalScope(CompanyScope::class)
+            ->without(['order'])
+            ->with(['currency', 'deal.leadStage', 'deal.pipeline'])
+            ->where('company_id', $companyId)
+            ->findOrFail($paymentId);
+    }
+
+    public function serializePayment(Payment $payment): array
+    {
+        return [
+            'id' => $payment->id,
+            'deal_id' => $payment->deal_id,
+            'deal' => $this->serializeDealSummary($payment->deal),
+            'amount' => $payment->amount,
+            'currency' => $payment->currency?->currency_code,
+            'currency_id' => $payment->currency_id,
+            'status' => $payment->status,
+            'gateway' => $payment->gateway,
+            'external_reference' => $payment->external_reference,
+            'transaction_id' => $payment->transaction_id,
+            'paid_on' => $payment->paid_on?->toIso8601String(),
+            'bill' => $payment->bill,
+            'file_url' => $payment->bill ? $payment->file_url : null,
+            'created_at' => $payment->created_at?->toIso8601String(),
+            'updated_at' => $payment->updated_at?->toIso8601String(),
+        ];
+    }
+
+    private function resolveCurrency(int $companyId, string $currencyCode): Currency
+    {
+        $currency = Currency::withoutGlobalScope(CompanyScope::class)
+            ->where('company_id', $companyId)
+            ->where('currency_code', strtoupper(trim($currencyCode)))
+            ->first();
+
+        if ($currency === null) {
+            throw ValidationException::withMessages([
+                'currency' => ['The selected currency is invalid for this company.'],
+            ]);
+        }
+
+        return $currency;
+    }
+
+    private function storePaymentProof(?UploadedFile $billFile, ?string $proofUrl): string
+    {
+        if ($billFile !== null) {
+            return Files::uploadLocalOrS3($billFile, Payment::FILE_PATH);
+        }
+
+        if ($proofUrl === null || $proofUrl === '') {
+            throw ValidationException::withMessages([
+                'proof_url' => ['A proof file or proof_url is required when storing payment proof.'],
+            ]);
+        }
+
+        try {
+            $response = Http::timeout(30)->get($proofUrl);
+        } catch (\Throwable $exception) {
+            throw ValidationException::withMessages([
+                'proof_url' => ['Unable to download proof file from the provided URL.'],
+            ]);
+        }
+
+        if (!$response->successful()) {
+            throw ValidationException::withMessages([
+                'proof_url' => ['Unable to download proof file from the provided URL.'],
+            ]);
+        }
+
+        $path = parse_url($proofUrl, PHP_URL_PATH);
+        $basename = is_string($path) && $path !== '' ? basename($path) : 'proof.bin';
+        if ($basename === '' || $basename === '/' || !str_contains($basename, '.')) {
+            $basename = 'proof.pdf';
+        }
+
+        $tempPath = tempnam(sys_get_temp_dir(), 'crm-pay-');
+        if ($tempPath === false) {
+            throw ValidationException::withMessages([
+                'proof_url' => ['Unable to store proof file temporarily.'],
+            ]);
+        }
+
+        file_put_contents($tempPath, $response->body());
+
+        $uploaded = new UploadedFile(
+            $tempPath,
+            $basename,
+            $response->header('Content-Type') ?: null,
+            null,
+            true
+        );
+
+        try {
+            return Files::uploadLocalOrS3($uploaded, Payment::FILE_PATH);
+        } finally {
+            @unlink($tempPath);
+        }
     }
 
     /**
