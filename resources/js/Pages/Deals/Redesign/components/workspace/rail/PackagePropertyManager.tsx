@@ -168,7 +168,7 @@ export default function PackagePropertyManager({
                                 </div>
                                 <div className="min-w-0 flex-1">
                                     <div className="truncate text-xs font-semibold">
-                                        {td(pkg.name)}
+                                        {td(pkg.name, { source: "en" })}
                                     </div>
                                     {pkg.value != null && (
                                         <div className="text-[12px]" style={{ color: T.TEXT_MUTED }}>

@@ -53,6 +53,12 @@ import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
 
+const LEAD_TEMPERATURE_COLORS: Record<string, string> = {
+    cold: "blue",
+    warm: "gold",
+    hot: "red",
+};
+
 interface Props {
     lead: Lead;
     customFieldCategories?: any[];
@@ -323,7 +329,9 @@ const ageRangeOptions = useMemo(
                     Object.keys(leadData).forEach((key) => {
                         if (leadData[key] !== undefined) {
                             updated[key] =
-                                key === "languages"
+                                key === "languages" ||
+                                key === "categories" ||
+                                key === "category_ids"
                                     ? Array.isArray(leadData[key])
                                         ? leadData[key]
                                         : []
@@ -442,8 +450,23 @@ const ageRangeOptions = useMemo(
                         processedValue = value || null;
                     } else if (fieldName === "gender") {
                         processedValue = value || null;
+                    } else if (fieldName === "temperature") {
+                        processedValue = value || null;
                     } else if (fieldName === "languages") {
                         processedValue = Array.isArray(value) ? value : [];
+                    } else if (fieldName === "category_ids") {
+                        processedValue = (
+                            Array.isArray(value)
+                                ? value
+                                : value != null && value !== ""
+                                  ? [value]
+                                  : []
+                        )
+                            .map((id: unknown) => Number(id))
+                            .filter(
+                                (id: number) =>
+                                    Number.isFinite(id) && id > 0,
+                            );
                     } else if (fieldName === "age") {
                         processedValue =
                             value === null || value === "" || value === undefined
@@ -656,6 +679,9 @@ const ageRangeOptions = useMemo(
                 } else if (fieldName === "gender") {
                     // Ensure gender is sent as the actual value (male/female) or null
                     processedValue = value || null;
+                } else if (fieldName === "temperature") {
+                    // Ensure temperature is sent as the actual value (cold/warm/hot) or null
+                    processedValue = value || null;
                 } else if (fieldName === "languages") {
                     processedValue = Array.isArray(value) ? value : [];
                 } else if (fieldName === "age") {
@@ -681,6 +707,18 @@ const ageRangeOptions = useMemo(
                             age_range: null,
                         };
                     }
+                } else if (fieldName === "category_ids") {
+                    const ids = (
+                        Array.isArray(value)
+                            ? value
+                            : value != null && value !== ""
+                              ? [value]
+                              : []
+                    )
+                        .map((id: unknown) => Number(id))
+                        .filter((id: number) => Number.isFinite(id) && id > 0);
+                    payloadData = { category_ids: ids };
+                    processedValue = ids;
                 } else if (
                     fieldName === "category_id" ||
                     fieldName === "source_id" ||
@@ -693,7 +731,7 @@ const ageRangeOptions = useMemo(
                     processedValue = value ? value : null;
                 }
 
-                if (fieldName !== "date_of_birth") {
+                if (fieldName !== "date_of_birth" && fieldName !== "category_ids") {
                     payloadData = { [fieldName]: processedValue };
                 }
             }
@@ -806,10 +844,10 @@ const ageRangeOptions = useMemo(
             ? [
                   {
                       key: "find_duplicates",
-                      tooltip: td("Find Duplicates"),
+                      tooltip: td("Find Duplicates", { source: "en" }),
                       type: "text" as const,
                       icon: <MergeCellsOutlined />,
-                      label: <span>{td("Find Duplicates")}</span>,
+                      label: <span>{td("Find Duplicates", { source: "en" })}</span>,
                       onClick: () => setIsFindDuplicatesOpen(true),
                   },
               ]
@@ -973,6 +1011,34 @@ const ageRangeOptions = useMemo(
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("gender")}
+                            />
+                        </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.temperature", { defaultValue: "Temperature" })}>
+                            <EditableField
+                                value={currentLeadState.temperature || ""}
+                                fieldName="temperature"
+                                fieldType="select"
+                                options={[
+                                    { label: t("pages.leads.info.fields.temperature_cold", { defaultValue: "Cold" }), value: "cold" },
+                                    { label: t("pages.leads.info.fields.temperature_warm", { defaultValue: "Warm" }), value: "warm" },
+                                    { label: t("pages.leads.info.fields.temperature_hot", { defaultValue: "Hot" }), value: "hot" },
+                                ]}
+                                onSave={(value) =>
+                                    handleFieldUpdate("temperature", value)
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    currentLeadState.temperature ? (
+                                        <Tag color={LEAD_TEMPERATURE_COLORS[currentLeadState.temperature]}>
+                                            {currentLeadState.temperature.charAt(0).toUpperCase() + currentLeadState.temperature.slice(1)}
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("temperature")}
                             />
                         </DetailField>
 
@@ -1224,31 +1290,58 @@ const ageRangeOptions = useMemo(
 
                         <DetailField label={t("pages.leads.info.fields.category")}>
                             <EditableField
-                                value={currentLeadState.category_id || null}
-                                fieldName="category_id"
+                                value={
+                                    Array.isArray(currentLeadState.categories) &&
+                                    currentLeadState.categories.length
+                                        ? currentLeadState.categories.map((c) => c.id)
+                                        : Array.isArray(currentLeadState.category_ids) &&
+                                            currentLeadState.category_ids.length
+                                          ? currentLeadState.category_ids
+                                          : currentLeadState.category_id
+                                            ? [currentLeadState.category_id]
+                                            : []
+                                }
+                                fieldName="category_ids"
                                 selectorType="categories"
+                                mode="multiple"
                                 onSave={(value) =>
-                                    handleFieldUpdate("category_id", value)
+                                    handleFieldUpdate("category_ids", value)
                                 }
                                 onChange={handleFieldChange}
                                 displayValue={
-                                    currentLeadState.category
-                                        ?.category_name ? (
-                                        <Tag
-                                            color="blue"
-                                            className="font-medium"
-                                        >
-                                            {
-                                                currentLeadState.category
-                                                    .category_name
-                                            }
-                                        </Tag>
-                                    ) : (
-                                        <span className="text-gray-400">--</span>
-                                    )
+                                    (() => {
+                                        const names =
+                                            Array.isArray(currentLeadState.categories) &&
+                                            currentLeadState.categories.length
+                                                ? currentLeadState.categories
+                                                      .map((c) => c.category_name)
+                                                      .filter(Boolean)
+                                                : currentLeadState.category
+                                                        ?.category_name
+                                                  ? [
+                                                        currentLeadState.category
+                                                            .category_name,
+                                                    ]
+                                                  : [];
+                                        return names.length ? (
+                                            <span className="flex flex-wrap gap-1">
+                                                {names.map((name) => (
+                                                    <Tag
+                                                        key={name}
+                                                        color="blue"
+                                                        className="font-medium"
+                                                    >
+                                                        {name}
+                                                    </Tag>
+                                                ))}
+                                            </span>
+                                        ) : (
+                                            <span className="text-gray-400">--</span>
+                                        );
+                                    })()
                                 }
                                 alwaysEditing={isFieldEditable}
-                                loading={isFieldLoading("category_id")}
+                                loading={isFieldLoading("category_ids")}
                             />
                         </DetailField>
 

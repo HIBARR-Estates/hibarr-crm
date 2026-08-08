@@ -1,0 +1,187 @@
+import { CSSProperties, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import Icon from "./Icon";
+import useFloatingMenuPosition from "../hooks/useFloatingMenuPosition";
+import { REDESIGN_TOKENS as T } from "../tokens";
+
+export interface MenuOption {
+    value: string | number;
+    label: string;
+}
+
+interface MenuSelectProps {
+    value: string | number | null | undefined;
+    options: MenuOption[];
+    onChange: (value: string | number) => void;
+    placeholder?: string;
+    size?: "sm" | "md";
+    disabled?: boolean;
+    align?: "left" | "right";
+    width?: number;
+    /** Stretch trigger to fill the parent (e.g. ModalField). */
+    fullWidth?: boolean;
+    triggerStyle?: CSSProperties;
+    triggerClassName?: string;
+}
+
+/**
+ * Custom dropdown trigger + portal-rendered menu, replacing a native
+ * <select> wherever the trigger needs to stay a fixed compact width.
+ */
+export default function MenuSelect({
+    value,
+    options,
+    onChange,
+    placeholder = "Select…",
+    size = "md",
+    disabled,
+    align = "left",
+    width,
+    fullWidth = false,
+    triggerStyle,
+    triggerClassName,
+}: MenuSelectProps) {
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const isDisabled = disabled || options.length === 0;
+    const floatStyle = useFloatingMenuPosition(open, btnRef, {
+        align,
+        maxHeight: 260,
+    });
+
+    useEffect(() => {
+        if (!open) return undefined;
+        const onDoc = (e: MouseEvent) => {
+            const target = e.target as Node;
+            if (btnRef.current?.contains(target)) return;
+            if (menuRef.current?.contains(target)) return;
+            setOpen(false);
+        };
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === "Escape") setOpen(false);
+        };
+        document.addEventListener("mousedown", onDoc);
+        document.addEventListener("keydown", onKey);
+        return () => {
+            document.removeEventListener("mousedown", onDoc);
+            document.removeEventListener("keydown", onKey);
+        };
+    }, [open]);
+
+    const current = options.find((o) => String(o.value) === String(value));
+    const sm = size === "sm";
+
+    return (
+        <div
+            style={{
+                display: fullWidth ? "flex" : "inline-flex",
+                width: fullWidth ? "100%" : undefined,
+                maxWidth: "100%",
+            }}
+            onClick={(e) => e.stopPropagation()}
+        >
+            <button
+                ref={btnRef}
+                type="button"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                disabled={isDisabled}
+                onClick={() => setOpen((v) => !v)}
+                className={
+                    triggerClassName ??
+                    (fullWidth
+                        ? undefined
+                        : `dr-btn dr-btn-ghost${sm ? " dr-btn-sm" : ""}`)
+                }
+                style={{
+                    width: fullWidth ? "100%" : undefined,
+                    maxWidth: fullWidth
+                        ? "100%"
+                        : width || (sm ? 150 : 190),
+                    justifyContent: "space-between",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: fullWidth ? 8 : 5,
+                    background: T.WHITE,
+                    // Match `.redesign-modal-overlay .modal-field input` when
+                    // fullWidth (modal forms); keep compact btn sizing elsewhere.
+                    color: current ? T.TEXT : T.TEXT_MUTED,
+                    border: `1px solid ${T.BORDER}`,
+                    borderRadius: 8,
+                    fontFamily: "inherit",
+                    fontSize: fullWidth ? 14 : undefined,
+                    fontWeight: fullWidth ? 400 : undefined,
+                    padding: fullWidth ? "11px 12px" : undefined,
+                    minHeight: fullWidth ? 44 : undefined,
+                    lineHeight: fullWidth ? 1.25 : undefined,
+                    cursor: isDisabled ? "not-allowed" : "pointer",
+                    opacity: isDisabled ? 0.45 : 1,
+                    boxSizing: "border-box",
+                    ...triggerStyle,
+                }}
+            >
+                <span
+                    style={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        textAlign: "left",
+                        flex: 1,
+                        minWidth: 0,
+                    }}
+                >
+                    {current ? current.label : placeholder}
+                </span>
+                {!isDisabled && (
+                    <Icon
+                        name={open ? "chevron-up" : "chevron-down"}
+                        size={fullWidth ? 12 : 10}
+                        color={T.TEXT_MUTED}
+                    />
+                )}
+            </button>
+            {open &&
+                floatStyle &&
+                typeof document !== "undefined" &&
+                createPortal(
+                    <div
+                        ref={menuRef}
+                        className="dr-menu"
+                        role="menu"
+                        style={{
+                            ...floatStyle,
+                            minWidth: fullWidth
+                                ? btnRef.current?.offsetWidth || 170
+                                : 170,
+                            maxWidth: fullWidth ? 480 : 320,
+                            overflowY: "auto",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {options.map((o) => (
+                            <button
+                                key={o.value}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={String(o.value) === String(value)}
+                                className="dr-menu-item"
+                                onClick={() => {
+                                    setOpen(false);
+                                    onChange(o.value);
+                                }}
+                            >
+                                <span style={{ flex: 1, textAlign: "left" }}>
+                                    {o.label}
+                                </span>
+                                {String(o.value) === String(value) && (
+                                    <Icon name="check" size={12} color={T.BLUE} />
+                                )}
+                            </button>
+                        ))}
+                    </div>,
+                    document.body,
+                )}
+        </div>
+    );
+}

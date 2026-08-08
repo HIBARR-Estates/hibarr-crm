@@ -37,7 +37,7 @@ import utc from "dayjs/plugin/utc";
 import { usePage, router } from "@inertiajs/react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { ContentRenderer } from "@/Components/ContentRenderer";
-import ZohoCalendarSyncStatus from "@/Features/Meetings/ZohoCalendarSyncStatus";
+import CalendarSyncStatus from "@/Features/Meetings/CalendarSyncStatus";
 
 dayjs.extend(utc);
 
@@ -330,11 +330,9 @@ const ViewFollowup: React.FC<Props> = ({
 
     const featureEnabled =
         props?.featureFlags?.["integrations.zoho-calendar-sync"] === true;
-    const hasZohoProfile = Boolean(props?.auth?.user?.has_zoho_profile);
-    const shouldShowZohoSync =
+    const shouldShowCalendarSync =
         featureEnabled &&
         isCreator &&
-        hasZohoProfile &&
         (followup?.zoho_calendar_job_id ||
             followup?.zoho_calendar_sync_status);
 
@@ -348,9 +346,7 @@ const ViewFollowup: React.FC<Props> = ({
         followup?.location,
     );
 
-    const meetingTitle = td(
-        followup?.meeting_type?.name || "Follow-up Meeting",
-    );
+    const meetingTitle = td(followup?.meeting_type?.name || "Follow-up Meeting", { source: "en" });
 
     const handleEdit = () => {
         onClose();
@@ -376,7 +372,7 @@ const ViewFollowup: React.FC<Props> = ({
                     <div className="flex items-center gap-1.5 flex-wrap mb-1.5">
                         {followup?.meeting_type && (
                             <span className="text-[11px] font-medium rounded-full px-2.5 py-1 bg-blue-50 text-blue-700 border border-blue-100">
-                                {td(followup.meeting_type.name)}
+                                {td(followup.meeting_type.name, { source: "en" })}
                             </span>
                         )}
                         {live && (
@@ -386,15 +382,14 @@ const ViewFollowup: React.FC<Props> = ({
                             </span>
                         )}
                         <span
-                            className={`text-[11px] font-medium rounded-full px-2.5 py-1 capitalize border ${
-                                live
+                            className={`text-[11px] font-medium rounded-full px-2.5 py-1 capitalize border ${live
                                     ? "bg-red-100 text-red-700 border-red-200"
                                     : followup?.status === "scheduled"
-                                      ? "bg-amber-50 text-amber-700 border-amber-100"
-                                      : followup?.status === "completed"
-                                        ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                                        : "bg-gray-100 text-gray-600 border-gray-200"
-                            }`}
+                                        ? "bg-amber-50 text-amber-700 border-amber-100"
+                                        : followup?.status === "completed"
+                                            ? "bg-emerald-50 text-emerald-700 border-emerald-100"
+                                            : "bg-gray-100 text-gray-600 border-gray-200"
+                                }`}
                         >
                             {live ? "In Progress" : followup?.status}
                         </span>
@@ -465,17 +460,16 @@ const ViewFollowup: React.FC<Props> = ({
                             )}
                         </div>
 
-                        {/* Zoho Calendar Sync */}
-                        {shouldShowZohoSync && (
+                        {/* Calendar Sync */}
+                        {shouldShowCalendarSync && (
                             <div className="flex items-center gap-3 px-4 py-3">
                                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide w-24 shrink-0">
                                     Calendar Sync
                                 </span>
-                                <ZohoCalendarSyncStatus
+                                <CalendarSyncStatus
                                     followup={followup}
                                     featureEnabled={featureEnabled}
                                     isCreator={isCreator}
-                                    hasZohoProfile={hasZohoProfile}
                                 />
                             </div>
                         )}
@@ -505,7 +499,7 @@ const ViewFollowup: React.FC<Props> = ({
                                 <div className="grid grid-cols-2 flex-1 gap-x-4 gap-y-1">
                                     <div>
                                         <p className="text-[10px] text-slate-400 mb-0.5">Name</p>
-                                        <p className="text-[13px] font-medium text-slate-800 mb-0">{td(lead.client_name_salutation || lead.client_name || "--")}</p>
+                                        <p className="text-[13px] font-medium text-slate-800 mb-0">{lead.client_name_salutation || lead.client_name || "--"}</p>
                                     </div>
                                     <div>
                                         <p className="text-[10px] text-slate-400 mb-0.5">Email</p>
@@ -539,7 +533,7 @@ const ViewFollowup: React.FC<Props> = ({
                                         {deal?.lead_stage ? (
                                             <span className="inline-flex items-center gap-1.5 text-[13px]">
                                                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: deal.lead_stage.label_color || "#3b82f6" }} />
-                                                {td(deal.lead_stage.name)}
+                                                {td(deal.lead_stage.name, { source: "en" })}
                                             </span>
                                         ) : (
                                             <p className="text-[13px] text-slate-400 mb-0">--</p>
@@ -586,7 +580,7 @@ const ViewFollowup: React.FC<Props> = ({
                                         <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-0.5">
                                             {key.replace(/[_-]/g, " ")}
                                         </span>
-                                        <p className="text-[13px] text-slate-700 leading-relaxed mb-0">{td(String(value))}</p>
+                                        <p className="text-[13px] text-slate-700 leading-relaxed mb-0">{td(String(value), { source: "en" })}</p>
                                     </div>
                                 ))}
                                 <p className="text-[11px] text-slate-300 mt-2 mb-0">

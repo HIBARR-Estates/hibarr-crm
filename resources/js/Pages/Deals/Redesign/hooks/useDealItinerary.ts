@@ -17,6 +17,7 @@ export interface DealItineraryFormInput {
     airport_name: string;
     flight_date: string;
     is_transfer_required: boolean;
+    ticket_image_url?: string | null;
 }
 
 export default function useDealItinerary(dealId: number) {
@@ -61,9 +62,10 @@ export default function useDealItinerary(dealId: number) {
                 {
                     onSuccess: (response) => {
                         if (!isSuccessResponse(response) || !response.data) {
-                            // Fallback: pull the fresh deal (includes itineraries).
+                            // Fallback: refresh whichever page prop carries
+                            // itineraries (Deal show → deal, Lead show → deals).
                             router.reload({
-                                only: ["deal"],
+                                only: ["deal", "deals"],
                                 onSuccess: () => onSuccess?.(),
                             });
                             return;

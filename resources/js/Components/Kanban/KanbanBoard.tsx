@@ -22,6 +22,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import DealCard from "./DealCard";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -36,7 +37,7 @@ interface BoardColumn extends PipelineStage {
 
 interface KanbanBoardProps {
     columns: BoardColumn[];
-    td?: (text: string | null | undefined) => string;
+    td?: TdFn;
     addLeadPermission: string;
     onCreateDeal: (columnId?: number) => void;
     onEditDeal: (deal: Deal) => void;
@@ -52,7 +53,7 @@ interface KanbanBoardProps {
 
 const KanbanBoard: React.FC<KanbanBoardProps> = ({
     columns: initialColumns,
-    td = (text) => text ?? "",
+    td = identityTd,
     addLeadPermission,
     onCreateDeal,
     onEditDeal,

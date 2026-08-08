@@ -99,7 +99,7 @@ const GeneralCustomFieldTab = <
             label={field.label}
             rules={[
                 {
-                    required: field.required === "yes" && isFieldVisible(field.id),
+                    required: false,
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -123,7 +123,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes" && isFieldVisible(field.id),
+                    required: false,
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -151,7 +151,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes" && isFieldVisible(field.id),
+                    required: false,
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -181,7 +181,7 @@ const GeneralCustomFieldTab = <
                 name={[`custom_fields_data`, `field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes" && isFieldVisible(field.id),
+                        required: false,
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -218,7 +218,7 @@ const GeneralCustomFieldTab = <
                 name={[`custom_fields_data`, `field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes" && isFieldVisible(field.id),
+                        required: false,
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -257,7 +257,7 @@ const GeneralCustomFieldTab = <
                 help={errors[`custom_fields_data.field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes" && isFieldVisible(field.id),
+                        required: false,
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -285,7 +285,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes" && isFieldVisible(field.id),
+                    required: false,
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -307,7 +307,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes" && isFieldVisible(field.id),
+                    required: false,
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -337,7 +337,7 @@ const GeneralCustomFieldTab = <
                 name={[`custom_fields_data`, `field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes" && isFieldVisible(field.id),
+                        required: false,
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -407,7 +407,7 @@ const GeneralCustomFieldTab = <
                 name={[`custom_fields_data`, `field_${field.id}`]}
                 rules={[
                     {
-                        required: field.required === "yes" && isFieldVisible(field.id),
+                        required: false,
                         message: `Please enter ${field.label}`,
                     },
                 ]}
@@ -472,7 +472,7 @@ const GeneralCustomFieldTab = <
             name={[`custom_fields_data`, `field_${field.id}`]}
             rules={[
                 {
-                    required: field.required === "yes" && isFieldVisible(field.id),
+                    required: false,
                     message: `Please enter ${field.label}`,
                 },
             ]}
@@ -502,7 +502,7 @@ const GeneralCustomFieldTab = <
             }}
             rules={[
                 {
-                    required: field.required === "yes" && isFieldVisible(field.id),
+                    required: false,
                     message: `Please upload ${field.label}`,
                 },
             ]}
@@ -542,6 +542,7 @@ const GeneralCustomFieldTab = <
             case "radio":
                 return renderRadioField(field);
             case "checkbox":
+            case "multiselect":
                 return renderCheckboxField(field);
             case "date":
                 return renderDateField(field);
@@ -602,6 +603,7 @@ const determineSpan = (type: string): number => {
         case "radio":
             return 24;
         case "checkbox":
+        case "multiselect":
             return 24;
         case "multiSelectCountry":
             return 24;

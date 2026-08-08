@@ -515,7 +515,7 @@ const Index = ({
                                 disabled={isRefreshing}
                                 type="text"
                             >
-                                {td("Refresh")}
+                                {td("Refresh", { source: "en" })}
                             </Button>
                             {/* Advanced Filters Button */}
                             <div className="flex items-center gap-x-2">
@@ -587,7 +587,7 @@ const Index = ({
                         <div className="">
                             {showKanbanLoading ? (
                                 <div className="flex items-center justify-center py-24">
-                                    <Spin size="large" tip={td("Loading board…")} />
+                                    <Spin size="large" tip={td("Loading board…", { source: "en" })} />
                                 </div>
                             ) : (
                                 <KanbanBoard

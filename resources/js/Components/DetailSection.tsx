@@ -123,6 +123,10 @@ interface DetailFieldProps {
      * actual column count and forces a phantom extra column at viewport
      * widths where the container itself is still narrow. */
     useContainerQuery?: boolean;
+    /** Anchor for pipeline-requirement "Open" links into Deal info. */
+    dataDealField?: string;
+    /** Alternate field key (e.g. field_12 alongside custom_field_12). */
+    dataFieldKey?: string;
 }
 
 export function DetailField({
@@ -132,6 +136,8 @@ export function DetailField({
     className = "",
     copyValue,
     useContainerQuery = false,
+    dataDealField,
+    dataFieldKey,
 }: DetailFieldProps) {
     // editHandler is registered by a child EditableField via context
     const [editHandler, setEditHandlerState] = useState<(() => void) | null>(
@@ -193,6 +199,8 @@ export function DetailField({
     return (
         <DetailFieldEditContext.Provider value={ctx}>
             <div
+                data-deal-field={dataDealField}
+                data-field-key={dataFieldKey}
                 className={`group flex flex-col gap-2 min-w-0 ${
                     span === 2
                         ? useContainerQuery
@@ -203,8 +211,8 @@ export function DetailField({
             >
                 {/* Label row — edit pencil appears here on group hover */}
                 <div className="flex items-center gap-1">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-700 leading-[1.5]">
-                        {td(label)}
+                    <span className="text-[13px] font-semibold uppercase tracking-wider text-black leading-[1.5]">
+                        {td(label, { source: "en" })}
                     </span>
                     {editHandler && (
                         <EditOutlined

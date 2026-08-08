@@ -19,7 +19,7 @@ class LeadQualificationController extends AccountBaseController
         parent::__construct();
 
         $this->middleware(function ($request, $next) {
-            if (!in_array('leads', user_modules())) {
+            if (! in_array('leads', user_modules())) {
                 if ($request->ajax() || $request->header('X-Inertia')) {
                     return redirect()->back()->with('error', __('messages.permissionDenied'));
                 }
@@ -98,18 +98,65 @@ class LeadQualificationController extends AccountBaseController
     {
         $this->authorizeQualificationAccess($qualification);
 
+        $outcomeValues = ['bookMeeting', 'inviteWebinar', 'callback', 'noFit'];
+
         $validated = $request->validate([
-            'outcome' => ['required', Rule::in(['bookMeeting', 'inviteWebinar', 'callback', 'noFit'])],
+            'outcomes' => ['nullable', 'array', 'min:1'],
+            'outcomes.*' => ['string', Rule::in($outcomeValues)],
+            'outcome' => ['nullable', 'string', Rule::in($outcomeValues)],
+            'outcome_comment' => ['nullable', 'string'],
             'selected_branch_keys' => ['nullable', 'array'],
             'selected_branch_keys.*' => ['string', 'max:255'],
             'outcome_triggered_at' => ['nullable', 'date'],
             'webinar_session_label' => ['nullable', 'string', 'max:255'],
+            'actions' => ['nullable', 'array'],
+            'actions.*.type' => ['required_with:actions', 'string', 'max:64'],
+            'actions.*.config' => ['nullable', 'array'],
         ]);
+
+        if (empty($validated['outcomes'])) {
+            if (empty($validated['outcome'])) {
+                throw ValidationException::withMessages([
+                    'outcomes' => ['At least one outcome is required.'],
+                ]);
+            }
+            $validated['outcomes'] = [$validated['outcome']];
+        }
 
         $completed = $this->qualificationService->complete($qualification, $validated);
 
         return Reply::successWithData(__('messages.recordSaved'), [
             'qualification' => $completed,
+        ]);
+    }
+
+    public function executeAction(
+        Request $request,
+        LeadQualification $qualification,
+        \App\Models\LeadQualificationActionRun $actionRun
+    ) {
+        $this->authorizeQualificationAccess($qualification);
+
+        if ((int) $actionRun->lead_qualification_id !== (int) $qualification->id) {
+            throw ValidationException::withMessages([
+                'action' => ['Action does not belong to this qualification.'],
+            ]);
+        }
+
+        $validated = $request->validate([
+            'payload' => ['nullable', 'array'],
+            'error' => ['nullable', 'string'],
+        ]);
+
+        $updated = $this->qualificationService->markActionExecuted(
+            $actionRun,
+            $validated['payload'] ?? [],
+            $validated['error'] ?? null
+        );
+
+        return Reply::successWithData(__('messages.updateSuccess'), [
+            'action_run' => $updated,
+            'qualification' => $qualification->fresh()->load(['answers', 'agent:id,name,image', 'actionRuns']),
         ]);
     }
 
@@ -151,7 +198,7 @@ class LeadQualificationController extends AccountBaseController
             'owned' => 'lead_owner',
         ]);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             throw ValidationException::withMessages([
                 'permission' => [__('messages.permissionDenied')],
             ]);

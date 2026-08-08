@@ -373,6 +373,18 @@ return [
             ],
         ],
         [
+            'slug' => 'deal_analysis_completed',
+            'name' => 'Analysis Completed',
+            'category' => 'deal',
+            'model_type' => 'App\\Models\\Deal',
+            'description' => 'Deal analysis was marked as completed.',
+            'sync_processing' => true,
+            'metadata_schema' => [
+                'completion_type' => ['type' => 'string', 'label' => 'Completion Type'],
+                'unfilled_fields' => ['type' => 'number', 'label' => 'Unfilled Fields'],
+            ],
+        ],
+        [
             'slug' => 'deal_lead_marketing_field_updated',
             'name' => 'Deal Lead Marketing Field Updated',
             'category' => 'deal',
@@ -477,8 +489,11 @@ return [
                 'qualification_id' => ['type' => 'number', 'label' => 'Qualification ID'],
                 'template_id' => ['type' => 'string', 'label' => 'Template ID'],
                 'template_version' => ['type' => 'number', 'label' => 'Template Version'],
-                'outcome' => ['type' => 'string', 'label' => 'Outcome'],
+                'outcome' => ['type' => 'string', 'label' => 'Winning Outcome'],
+                'outcomes' => ['type' => 'array', 'label' => 'Selected Outcomes'],
+                'winning_outcome' => ['type' => 'string', 'label' => 'Winning Outcome'],
                 'lifecycle_status_key' => ['type' => 'string', 'label' => 'Lifecycle Status Key'],
+                'outcome_comment' => ['type' => 'string', 'label' => 'Agent Outcome Comment'],
                 'comment' => ['type' => 'string', 'label' => 'Description'],
             ],
         ],
@@ -771,7 +786,7 @@ return [
     'queue' => [
         'connection' => null, // null = default connection
         // 'name' => 'crm_events',
-        'name' => 'default', //made default queue name to crm_events to avoid changing supervisor config in production. Can be overridden in .env if needed.
+        'name' => 'default', // made default queue name to crm_events to avoid changing supervisor config in production. Can be overridden in .env if needed.
     ],
 
     /*

@@ -84,7 +84,14 @@ class LeadObserver
 
                     info('check');
                     $admins = User::allAdmins(company()->id);
-                    Notification::send($admins, new LeadImported());
+                    $importedLeads = session('leads', []);
+                    Notification::send($admins, new LeadImported([
+                        'importedByName' => user()?->name ?? '',
+                        'importCount'    => count($importedLeads),
+                        'failedCount'    => max(0, (int) session('total_leads', 0) - count($importedLeads)),
+                        'sourceName'     => 'CSV Import',
+                        'importedAt'     => now()->format(company()->date_format),
+                    ]));
                 }
 
             }
@@ -124,6 +131,20 @@ class LeadObserver
 
         if (isRunningInConsoleOrSeeding()) {
             return;
+        }
+
+        if ($leadContact->wasChanged('temperature')) {
+            $from = $leadContact->getOriginal('temperature');
+            $to = $leadContact->temperature;
+
+            // ── CRM Event: lead_updated (manual temperature change) ──
+            $this->recordCrmEvent('lead_updated', $leadContact, [
+                'metadata' => [
+                    'comment' => 'Lead temperature changed',
+                    'from_temperature' => $from instanceof \App\Enums\LeadTemperature ? $from->value : $from,
+                    'to_temperature' => $to instanceof \App\Enums\LeadTemperature ? $to->value : $to,
+                ],
+            ]);
         }
 
         if (!$leadContact->wasChanged('lead_owner')) {

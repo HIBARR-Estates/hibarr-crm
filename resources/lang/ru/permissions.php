@@ -69,4 +69,9 @@ return array(
     'view_proposal' => 'Просмотр предложения',
     'edit_proposal' => 'Редактировать предложение',
     'delete_proposal' => 'Удалить предложение',
+    'manage_partner_network' => 'Управление партнёрской сетью',
+    'manage_offers' => 'Управление предложениями',
+    'manage_properties' => 'Управление объектами',
+    'manage_property_publish_requests' => 'Запросы на публикацию объектов',
+    'manage_property_configuration' => 'Конфигурация объектов',
 );

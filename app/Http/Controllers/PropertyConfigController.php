@@ -72,6 +72,12 @@ class PropertyConfigController extends AccountBaseController
     public function __construct()
     {
         parent::__construct();
+
+        $this->middleware(function ($request, $next) {
+            abort_403(!\App\Support\PermissionGates::canManagePropertyConfiguration(user()));
+
+            return $next($request);
+        });
     }
 
     /**

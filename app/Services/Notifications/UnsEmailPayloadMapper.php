@@ -10,6 +10,8 @@ use Symfony\Component\Mime\RawMessage;
 
 class UnsEmailPayloadMapper
 {
+    public const IDEMPOTENCY_HEADER = 'X-Uns-Idempotency-Key';
+
     /**
      * @return array<string, mixed>
      */
@@ -18,6 +20,15 @@ class UnsEmailPayloadMapper
         if (!$message instanceof Email) {
             throw new \InvalidArgumentException('UNS routing only supports Symfony Email messages.');
         }
+
+        $templateId   = $this->extractHeader($message, 'X-Plunk-Template-Id');
+        $templateVars = null;
+        if ($templateId !== null) {
+            $encoded = $this->extractHeader($message, 'X-Plunk-Template-Variables');
+            $templateVars = $encoded !== null ? (json_decode(base64_decode($encoded), true) ?? []) : [];
+        }
+
+        $customIdempotencyKey = $this->extractHeader($message, self::IDEMPOTENCY_HEADER);
 
         $recipient = $this->resolveRecipientAddress($message, $envelope);
         $sender = $this->resolveSenderAddress($message, $envelope);
@@ -30,23 +41,43 @@ class UnsEmailPayloadMapper
         $senderUser = $sender !== '' ? $this->findUserByEmail($sender) : null;
         $resolvedUserId = $this->resolveUserId($recipientUser, $senderUser);
 
-        return [
-            'event' => 'CRM_EMAIL',
-            'userId' => $resolvedUserId,
-            'channels' => ['email'],
-            'priority' => 'DEFAULT',
-            'idempotencyKey' => $this->buildIdempotencyKey($recipient, $subject, $body),
-            'data' => [
-                'fromEmail' => $sender,
-                'emailAddress' => $recipient,
-                'subject' => $subject,
-                'body' => $body,
-                'metadata' => [
-                    'source' => 'crm',
-                    'actor' => $senderUser?->id ? 'sender' : 'crm_system',
-                ],
+        $data = [
+            'emailAddress' => $recipient,
+            'subject'      => $subject,
+            'metadata'     => [
+                'source' => 'crm',
+                'actor'  => $senderUser?->id ? 'sender' : 'crm_system',
             ],
         ];
+
+        if ($templateId !== null) {
+            $data['templateSlug']      = $templateId;
+            $data['templateVariables'] = $templateVars;
+        } else {
+            $data['body'] = $body;
+        }
+
+        return [
+            'event'          => 'CRM_EMAIL',
+            'userId'         => $resolvedUserId,
+            'channels'       => ['email'],
+            'priority'       => 'DEFAULT',
+            'idempotencyKey' => $customIdempotencyKey
+                ?? $this->buildIdempotencyKey($recipient, $subject, $templateId ?? $body),
+            'data'           => $data,
+        ];
+    }
+
+    private function extractHeader(Email $message, string $name): ?string
+    {
+        if (!$message->getHeaders()->has($name)) {
+            return null;
+        }
+
+        $value = $message->getHeaders()->get($name)->getBodyAsString();
+        $message->getHeaders()->remove($name);
+
+        return $value !== '' ? $value : null;
     }
 
     private function resolveRecipientAddress(Email $message, ?Envelope $envelope = null): string

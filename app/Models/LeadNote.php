@@ -46,6 +46,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  */
 class LeadNote extends BaseModel
 {
+    // ApiModel hides created_at/updated_at by default; the notes UI needs both
+    // to show when a note was written and whether it was edited.
+    protected $hidden = ['pivot'];
+
+    protected $casts = [
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
+    ];
 
     public function client(): BelongsTo
     {

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\Salutation;
 use App\Enums\AgeRange;
+use App\Enums\LeadTemperature;
 use App\Models\ClientCategory;
 use App\Models\CustomFieldCategory;
 use App\Models\CustomFieldGroup;
@@ -40,6 +41,8 @@ class FormDataService
                 return $this->getGenders();
             case 'age-ranges':
                 return $this->getAgeRanges();
+            case 'temperatures':
+                return $this->getTemperatures();
             case 'categories':
                 return $this->getCategories($request);
             case 'sources':
@@ -79,6 +82,18 @@ class FormDataService
             case 'developer_projects':
             case 'developer-projects':
                 return $this->getDeveloperProjects($request);
+            case 'lead-utm-sources':
+                return $this->getDistinctMarketingValues('utm_source');
+            case 'lead-utm-mediums':
+                return $this->getDistinctMarketingValues('utm_medium');
+            case 'lead-utm-campaigns':
+                return $this->getDistinctMarketingValues('utm_campaign');
+            case 'lead-utm-contents':
+                return $this->getDistinctMarketingValues('utm_content');
+            case 'lead-utm-terms':
+                return $this->getDistinctMarketingValues('utm_term');
+            case 'lead-utm-audiences':
+                return $this->getDistinctMarketingValues('utm_audience');
             default:
                 return collect();
         }
@@ -115,6 +130,50 @@ class FormDataService
                     'label' => $ageRange->label(),
                 ];
             });
+        });
+    }
+
+    private function getTemperatures(): Collection
+    {
+        return Cache::remember('lead_temperatures', self::CACHE_TTL, function () {
+            return collect(LeadTemperature::cases())->map(function (LeadTemperature $temperature) {
+                return [
+                    'value' => $temperature->value,
+                    'label' => $temperature->label(),
+                ];
+            });
+        });
+    }
+
+    /**
+     * Distinct, non-empty values already present in lead_marketing for a given
+     * UTM column, scoped to the current company — used to populate UTM filter
+     * dropdowns from real data instead of a fixed/free-text list.
+     */
+    private function getDistinctMarketingValues(string $column): Collection
+    {
+        $cacheKey = 'lead_marketing_distinct_' . $column . '_' . company()->id;
+
+        return Cache::remember($cacheKey, self::CACHE_TTL, function () use ($column) {
+            return \DB::table('lead_marketing')
+                ->join('leads', 'leads.id', '=', 'lead_marketing.lead_id')
+                ->where('leads.company_id', company()->id)
+                ->whereNull('leads.deleted_at')
+                ->whereNotNull('lead_marketing.' . $column)
+                ->where('lead_marketing.' . $column, '!=', '')
+                ->groupBy('lead_marketing.' . $column)
+                ->orderByRaw('count(*) desc')
+                ->select(
+                    'lead_marketing.' . $column . ' as value',
+                    \DB::raw('count(distinct leads.id) as count')
+                )
+                ->get()
+                ->map(fn ($row) => [
+                    'value' => $row->value,
+                    'label' => $row->value,
+                    'count' => (int) $row->count,
+                ])
+                ->values();
         });
     }
 

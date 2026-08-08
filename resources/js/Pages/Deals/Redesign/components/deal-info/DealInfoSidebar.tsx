@@ -29,6 +29,10 @@ interface DealInfoSidebarProps {
     onSectionChange: (section: DealInfoSectionId) => void;
     /** crm.deal-info-count-indicator — dot instead of the "filled/total" text badge. */
     showCompletionDot?: boolean;
+    /** Sidebar heading — defaults to Deal information; Lead info passes its own. */
+    title?: string;
+    /** Product-tour spotlight id; deals keep the default, leads pass `lead-info-sidebar`. */
+    tourTarget?: string;
 }
 
 export default function DealInfoSidebar({
@@ -36,10 +40,13 @@ export default function DealInfoSidebar({
     activeSection,
     onSectionChange,
     showCompletionDot = false,
+    title,
+    tourTarget = "deal-info-sidebar",
 }: DealInfoSidebarProps) {
     const { td } = useTd();
     const { t } = useTranslation();
     const [search, setSearch] = useState("");
+    const sidebarTitle = title ?? t("pages.deals.sidebar.title");
 
     const query = search.trim().toLowerCase();
     const filteredGroups = useMemo(() => {
@@ -61,12 +68,12 @@ export default function DealInfoSidebar({
 
     return (
         <aside
-            data-tour="deal-info-sidebar"
+            data-tour={tourTarget}
             className="min-h-[500px] pt-0.5"
             style={{ borderRight: `1px solid ${T.BORDER}` }}
         >
             <div className="dr-label pr-2.5 pb-1" style={{ fontSize: 12 }}>
-                {t("pages.deals.sidebar.title")}
+                {sidebarTitle}
             </div>
             <div className="pr-2.5 pb-2">
                 <input
@@ -87,14 +94,16 @@ export default function DealInfoSidebar({
                     {t("pages.deals.sidebar.no_match")} "{search}"
                 </div>
             )}
-            {filteredGroups.map((group) => (
-                <div key={group.label}>
-                    <div
-                        className="px-2.5 pb-1 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.05em]"
-                        style={{ color: T.TEXT_HINT }}
-                    >
-                        {td(group.label)}
-                    </div>
+            {filteredGroups.map((group, groupIndex) => (
+                <div key={group.label || `group-${groupIndex}`}>
+                    {group.label ? (
+                        <div
+                            className="px-2.5 pb-1 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.05em]"
+                            style={{ color: T.TEXT_HINT }}
+                        >
+                            {td(group.label, { source: "en" })}
+                        </div>
+                    ) : null}
                     {group.items.map((item) => {
                         const isActive = item.id === activeSection;
                         const showDot =
@@ -117,12 +126,12 @@ export default function DealInfoSidebar({
                             >
                                 <span className="flex items-center gap-1.5">
                                     <DealIcon name={item.icon} size={14} />
-                                    {td(item.label)}
+                                    {td(item.label, { source: "en" })}
                                 </span>
                                 {showDot ? (
                                     isActive ? (
                                         <DealBadge variant={item.badgeVariant}>
-                                            {td(item.badge!)}
+                                            {td(item.badge!, { source: "en" })}
                                         </DealBadge>
                                     ) : (
                                         <DealCompletionDot
@@ -133,7 +142,7 @@ export default function DealInfoSidebar({
                                 ) : (
                                     item.badge != null && (
                                         <DealBadge variant={item.badgeVariant}>
-                                            {td(item.badge)}
+                                            {td(item.badge, { source: "en" })}
                                         </DealBadge>
                                     )
                                 )}

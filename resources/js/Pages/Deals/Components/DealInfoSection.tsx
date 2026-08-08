@@ -108,6 +108,7 @@ export default function DealInfoSection({
 
     const pipelineCategoryScopeMap = props.pipelineCategoryScopeMap || {};
     const pipelineFieldScopeMap = props.pipelineFieldScopeMap || {};
+    const hideAllCategoriesPipelineIds = props.hideAllCategoriesPipelineIds || [];
     const stages = props.stages || [];
     const scopedCategoryIdsFromServer =
         props.scopedCustomFieldCategoryIds ?? null;
@@ -147,6 +148,7 @@ export default function DealInfoSection({
                       pipelineCategoryScopeMap,
                       currentDeal.lead_pipeline_id,
                       allPipelineCategoryIdsFromServer,
+                      hideAllCategoriesPipelineIds,
                   )
                 : filterCategoriesByScope(
                       allCustomFieldCategories,
@@ -155,6 +157,7 @@ export default function DealInfoSection({
                       currentDeal.pipeline_stage_id,
                       stages,
                       scopedCategoryIdsFromServer,
+                      hideAllCategoriesPipelineIds,
                   ),
         [
             showAllFields,
@@ -165,6 +168,7 @@ export default function DealInfoSection({
             stages,
             scopedCategoryIdsFromServer,
             allPipelineCategoryIdsFromServer,
+            hideAllCategoriesPipelineIds,
         ],
     );
 
@@ -1735,7 +1739,7 @@ export default function DealInfoSection({
                         fields={fields}
                         customFieldsData={currentDeal.custom_fields_data || {}}
                         categoryId={category.id}
-                        title={td(category.name)}
+                        title={td(category.name, { source: "en" })}
                         column={2}
                         visibleFieldKeys={resolvedDealFieldKeys}
                         onUpdate={(field, value) =>
@@ -1770,7 +1774,7 @@ export default function DealInfoSection({
             : []),
         ...(visibleCustomFieldCategories || []).map((cat) => ({
             key: `category-${cat.id}`,
-            label: td(cat.name),
+            label: td(cat.name, { source: "en" }),
         })),
     ];
 

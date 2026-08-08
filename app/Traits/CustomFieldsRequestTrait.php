@@ -11,13 +11,10 @@ trait CustomFieldsRequestTrait
     public function customFieldRules($rules = [])
     {
         Validator::extend('valid_multiselect_country', function ($attribute, $value, $parameters, $validator) {
-            // Required-ness is passed as a rule parameter so this rule can independently
-            // reject an empty selection (including a JSON-encoded "[]" string, which
-            // Laravel's own 'required' rule treats as a non-empty, valid string).
-            $isRequired = ($parameters[0] ?? 'no') === 'yes';
-
+            // Empty selection is always allowed — custom-field `required` is a
+            // completion-count signal on Deal/Lead info views, not a save gate.
             if ($value === null || $value === '') {
-                return !$isRequired;
+                return true;
             }
 
             if (!is_array($value)) {
@@ -26,7 +23,7 @@ trait CustomFieldsRequestTrait
             }
 
             if (empty($value)) {
-                return !$isRequired;
+                return true;
             }
 
             $validNames = collect(countries())->pluck('nicename')->all();
@@ -51,31 +48,27 @@ trait CustomFieldsRequestTrait
                 $customField = CustomField::findOrFail($id);
                 $fieldRules = [];
 
-                if ($customField->required == 'yes') {
-                    $fieldRules[] = 'required';
+                // `required` no longer blocks save — it only drives Deal/Lead
+                // info completion counts. Still validate shape when a value
+                // is present (country names, uploaded file types, etc.).
+                if ($customField->type == 'multiSelectCountry') {
+                    $fieldRules[] = 'valid_multiselect_country';
                 }
 
-                if ($customField->type == 'multiSelectCountry') {
-                    $fieldRules[] = 'valid_multiselect_country:' . $customField->required;
+                if ($customField->type == 'file') {
+                    // If the value is a URL string (already uploaded externally), accept it as-is
+                    if (is_string($value) && \App\Services\FileStorageService::isExternalUrl($value)) {
+                        $fieldRules = ['nullable', 'string', 'url'];
+                    }
+                    // If it's a traditional file upload, validate the file
+                    elseif (request()->hasFile('custom_fields_data.' . $key)) {
+                        $fieldRules = ['nullable', 'file', 'mimetypes:application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,video/mp4,video/x-msvideo,video/x-flv,video/x-ms-wmv,video/3gpp,video/webm,audio/mpeg,application/zip,application/x-rar-compressed,application/x-7z-compressed,model/stl,application/sla,model/x.stl-ascii,model/x.stl-binary'];
+                    }
+                    // JSON array / empty — no additional shape rules here
                 }
 
                 if (!empty($fieldRules)) {
                     $rules['custom_fields_data.' . $key] = implode('|', $fieldRules);
-                }
-
-                if ($customField->required == 'yes') {
-                    if ($customField->type == 'file') {
-                        // If the value is a URL string (already uploaded externally), accept it as-is
-                        if (is_string($value) && \App\Services\FileStorageService::isExternalUrl($value)) {
-                            $rules['custom_fields_data.' . $key] = 'required|string|url';
-                        }
-                        // If it's a traditional file upload, validate the file
-                        elseif (request()->hasFile('custom_fields_data.' . $key)) {
-                            $rules['custom_fields_data.' . $key] = 'required|file|mimetypes:application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,text/plain,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,video/mp4,video/x-msvideo,video/x-flv,video/x-ms-wmv,video/3gpp,video/webm,audio/mpeg,application/zip,application/x-rar-compressed,application/x-7z-compressed,model/stl,application/sla,model/x.stl-ascii,model/x.stl-binary';
-                        }
-                        // If it's a JSON array (multiple files/URLs), just require it
-                        // Validation of individual items is handled by the trait
-                    }
                 }
             }
         }
@@ -94,9 +87,7 @@ trait CustomFieldsRequestTrait
                 $id = end($idarray);
                 $customField = CustomField::findOrFail($id);
 
-                if ($customField->required == 'yes') {
-                    $attributes['custom_fields_data.' . $key] = str($customField->label);
-                }
+                $attributes['custom_fields_data.' . $key] = str($customField->label);
             }
         }
 

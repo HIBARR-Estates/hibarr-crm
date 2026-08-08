@@ -20,7 +20,7 @@ import BranchProgressBar from "./BranchProgressBar";
 import SegmentCard from "./SegmentCard";
 import CaptureSummaryRail from "./CaptureSummaryRail";
 import BranchChangeWarningModal from "./BranchChangeWarningModal";
-import WebinarSessionPickerModal from "./WebinarSessionPickerModal";
+import QualificationActionsPanel from "./QualificationActionsPanel";
 import { findEntrySegment } from "./qualificationUtils";
 
 interface InProgressViewProps {
@@ -30,6 +30,7 @@ interface InProgressViewProps {
     qualificationService: LeadQualificationService;
     registrationService: RegistrationService;
     onQualificationUpdated: (qualification: LeadQualification) => void;
+    onActionsDone?: (qualification: LeadQualification) => void;
     onAbandoned: () => void;
 }
 
@@ -47,15 +48,14 @@ const InProgressView: React.FC<InProgressViewProps> = ({
     qualificationService,
     registrationService,
     onQualificationUpdated,
+    onActionsDone,
     onAbandoned,
 }) => {
     const [agentLanguage, setAgentLanguage] = useState(
         qualification.agent_language || "en",
     );
-    const [webinarPickerOpen, setWebinarPickerOpen] = useState(false);
-    const [pendingWebinarId, setPendingWebinarId] = useState<string | null>(
-        null,
-    );
+    const [completedQualification, setCompletedQualification] =
+        useState<LeadQualification | null>(null);
 
     const flow = useQualificationFlow({
         lead,
@@ -64,7 +64,12 @@ const InProgressView: React.FC<InProgressViewProps> = ({
         service: qualificationService,
         registrationService,
         agentLanguage,
-        onQualificationUpdated,
+        onQualificationUpdated: (updated) => {
+            if (updated.status === "completed") {
+                setCompletedQualification(updated);
+            }
+            onQualificationUpdated(updated);
+        },
     });
 
     const entrySegment = findEntrySegment(templateTree);
@@ -75,19 +80,13 @@ const InProgressView: React.FC<InProgressViewProps> = ({
               )?.label
             : undefined;
 
-    const handleWebinarSelect = async (sessionId: string, sessionLabel: string) => {
-        setWebinarPickerOpen(false);
-        await flow.completeWithOutcome("inviteWebinar", {
-            webinarSessionId: sessionId,
-            webinarSessionLabel: sessionLabel,
-        });
-    };
-
-    const handleOutcome = async (
-        outcome: QualificationOutcome,
-        metadata?: { webinarSessionId?: string; calendlyUrl?: string },
+    const handleCompleteOutcomes = async (
+        outcomes: QualificationOutcome[],
+        metadata?: {
+            comment?: string | null;
+        },
     ) => {
-        await flow.completeWithOutcome(outcome, metadata);
+        return flow.completeWithOutcomes(outcomes, metadata);
     };
 
     const handleAbandon = async () => {
@@ -95,8 +94,12 @@ const InProgressView: React.FC<InProgressViewProps> = ({
         onAbandoned();
     };
 
+    const showingActions =
+        completedQualification != null &&
+        (completedQualification.action_runs?.length ?? 0) > 0;
+
     const showNav =
-        flow.currentSegment?.type !== "outcome";
+        !showingActions && flow.currentSegment?.type !== "outcome";
 
     return (
         <DynamicTranslationProvider locale={agentLanguage}>
@@ -111,82 +114,116 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                         onChange={setAgentLanguage}
                         options={LANGUAGE_OPTIONS}
                         className="w-32"
+                        disabled={showingActions}
                     />
-                    <Button
-                        type="text"
-                        danger
-                        size="small"
-                        icon={<StopOutlined />}
-                        onClick={handleAbandon}
-                        loading={flow.completing}
-                    >
-                        Abandon
-                    </Button>
+                    {!showingActions ? (
+                        <Button
+                            type="text"
+                            danger
+                            size="small"
+                            icon={<StopOutlined />}
+                            onClick={handleAbandon}
+                            loading={flow.completing}
+                        >
+                            Abandon
+                        </Button>
+                    ) : null}
                 </div>
 
-                <BranchProgressBar
-                    visibleSegments={flow.visibleSegments}
-                    currentIndex={flow.currentIndex}
-                    branchLabel={branchLabel}
-                />
+                {!showingActions ? (
+                    <BranchProgressBar
+                        visibleSegments={flow.visibleSegments}
+                        currentIndex={flow.currentIndex}
+                        branchLabel={branchLabel}
+                    />
+                ) : null}
 
                 <div className="flex flex-1 min-h-0">
                     <div className="flex-1 p-6 overflow-y-auto">
-                        {flow.currentSegment && (
-                            <SegmentCard
-                                segment={flow.currentSegment}
-                                answer={flow.answers[flow.currentSegment.key]}
-                                tokenMap={flow.tokenMap}
-                                translateScript={flow.translateScript}
-                                onAnswerChange={(values, text) =>
-                                    flow.applyAnswerChange(
-                                        flow.currentSegment!,
-                                        values,
-                                        text,
-                                    )
-                                }
-                                onOutcome={handleOutcome}
-                                onOpenWebinarPicker={(webinarId) => {
-                                    setPendingWebinarId(webinarId);
-                                    setWebinarPickerOpen(true);
+                        {showingActions && completedQualification ? (
+                            <QualificationActionsPanel
+                                lead={lead}
+                                qualification={completedQualification}
+                                qualificationService={qualificationService}
+                                registrationService={registrationService}
+                                agentLanguage={agentLanguage}
+                                variant="legacy"
+                                onUpdated={(updated) => {
+                                    setCompletedQualification(updated);
+                                    onQualificationUpdated(updated);
                                 }}
-                                saving={flow.saving}
-                                completing={flow.completing}
-                            />
-                        )}
-
-                        {showNav && (
-                            <div className="flex justify-between mt-6">
-                                <Button
-                                    icon={<ArrowLeftOutlined />}
-                                    onClick={flow.goBack}
-                                    disabled={!flow.canGoBack || flow.saving}
-                                >
-                                    Back
-                                </Button>
-                                <Button
-                                    type="primary"
-                                    icon={<ArrowRightOutlined />}
-                                    iconPosition="end"
-                                    onClick={flow.goNext}
-                                    disabled={
-                                        flow.isLastSegment ||
-                                        flow.saving ||
-                                        Boolean(flow.validationError)
+                                onDone={() => {
+                                    if (completedQualification) {
+                                        (onActionsDone ?? onQualificationUpdated)(
+                                            completedQualification,
+                                        );
                                     }
-                                    loading={flow.saving}
-                                >
-                                    Next
-                                </Button>
-                            </div>
+                                }}
+                            />
+                        ) : (
+                            <>
+                                {flow.currentSegment && (
+                                    <SegmentCard
+                                        segment={flow.currentSegment}
+                                        answer={
+                                            flow.answers[flow.currentSegment.key]
+                                        }
+                                        tokenMap={flow.tokenMap}
+                                        translateScript={flow.translateScript}
+                                        templateTree={templateTree}
+                                        onAnswerChange={(values, text) =>
+                                            flow.applyAnswerChange(
+                                                flow.currentSegment!,
+                                                values,
+                                                text,
+                                            )
+                                        }
+                                        onCompleteOutcomes={
+                                            handleCompleteOutcomes
+                                        }
+                                        saving={flow.saving}
+                                        completing={flow.completing}
+                                    />
+                                )}
+
+                                {showNav && (
+                                    <div className="flex justify-between mt-6">
+                                        <Button
+                                            icon={<ArrowLeftOutlined />}
+                                            onClick={flow.goBack}
+                                            disabled={
+                                                !flow.canGoBack || flow.saving
+                                            }
+                                        >
+                                            Back
+                                        </Button>
+                                        <Button
+                                            type="primary"
+                                            icon={<ArrowRightOutlined />}
+                                            iconPosition="end"
+                                            onClick={() => void flow.goNext()}
+                                            disabled={
+                                                flow.isLastSegment ||
+                                                flow.saving ||
+                                                Boolean(flow.validationError)
+                                            }
+                                            loading={flow.saving}
+                                        >
+                                            Next
+                                        </Button>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
 
-                    <CaptureSummaryRail
-                        visibleSegments={flow.visibleSegments}
-                        answers={flow.answers}
-                        currentSegmentKey={flow.currentSegment?.key}
-                    />
+                    {!showingActions ? (
+                        <CaptureSummaryRail
+                            visibleSegments={flow.visibleSegments}
+                            answers={flow.answers}
+                            currentSegmentKey={flow.currentSegment?.key}
+                        />
+                    ) : null}
                 </div>
             </div>
 
@@ -196,16 +233,6 @@ const InProgressView: React.FC<InProgressViewProps> = ({
                 onCancel={flow.cancelBranchChange}
                 loading={flow.saving}
             />
-
-            {pendingWebinarId && (
-                <WebinarSessionPickerModal
-                    open={webinarPickerOpen}
-                    webinarId={pendingWebinarId}
-                    registrationService={registrationService}
-                    onClose={() => setWebinarPickerOpen(false)}
-                    onSelect={handleWebinarSelect}
-                />
-            )}
         </DynamicTranslationProvider>
     );
 };

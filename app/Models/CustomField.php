@@ -182,7 +182,7 @@ class CustomField extends BaseModel
                     return '<a href="' . $fileUrl . '" target="__blank" class="text-dark-grey">' . __('app.storageSetting.viewFile') . '</a>';
                 }
 
-                if ($customField->type == 'checkbox') {
+                if ($customField->type == 'checkbox' || $customField->type == 'multiselect') {
                     $checkboxValue = $finalData?->value;
                     if (!empty($checkboxValue)) {
                         $selectedValues = json_decode($checkboxValue, true);

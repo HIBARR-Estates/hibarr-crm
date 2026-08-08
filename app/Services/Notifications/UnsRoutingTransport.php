@@ -2,11 +2,11 @@
 
 namespace App\Services\Notifications;
 
-use App\Support\FeatureFlags;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\Mailer\Envelope;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\TransportInterface;
+use Symfony\Component\Mime\Email;
 use Symfony\Component\Mime\RawMessage;
 
 class UnsRoutingTransport implements TransportInterface
@@ -20,7 +20,17 @@ class UnsRoutingTransport implements TransportInterface
 
     public function send(RawMessage $message, ?Envelope $envelope = null): ?SentMessage
     {
-        if (!FeatureFlags::enabled('crm.notification-service-routing')) {
+        // Routing decision is snapshotted at notification dispatch time (HTTP context)
+        // and carried via X-Uns-Route header so queue workers never call the flag service.
+        $useUns = $message instanceof Email
+            && $message->getHeaders()->has('X-Uns-Route')
+            && $message->getHeaders()->get('X-Uns-Route')->getBodyAsString() === 'true';
+
+        if ($message instanceof Email) {
+            $message->getHeaders()->remove('X-Uns-Route');
+        }
+
+        if (!$useUns) {
             return $this->fallbackTransport->send($message, $envelope);
         }
 
@@ -35,16 +45,22 @@ class UnsRoutingTransport implements TransportInterface
                     'user_id' => $payload['userId'] ?? null,
                 ]);
 
-                return null;
+                throw new \RuntimeException('UNS email routing failed: unable to dispatch notification.');
             }
 
             return new SentMessage($message, $envelope ?? Envelope::create($message));
+        } catch (\RuntimeException $exception) {
+            throw $exception;
         } catch (\Throwable $exception) {
             Log::error('UNS email routing failed with exception.', [
                 'error' => $exception->getMessage(),
             ]);
 
-            return null;
+            throw new \RuntimeException(
+                'UNS email routing failed: '.$exception->getMessage(),
+                0,
+                $exception
+            );
         }
     }
 

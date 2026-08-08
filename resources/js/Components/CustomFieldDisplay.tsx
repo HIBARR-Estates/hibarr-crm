@@ -27,7 +27,6 @@ import axios from "axios";
 import { usePage } from "@inertiajs/react";
 import { getFileUploadService } from "@/Services/FileUploadService";
 import { useCurrencies } from "@/Hooks/useFormData";
-import useTranslation from "@/Hooks/useTranslation";
 
 const DEFAULT_CURRENCY_CODE = "USD";
 
@@ -272,7 +271,6 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     multiple = true, // Default to supporting multiple files
     activateOnSingleClick = false,
 }) => {
-    const { t } = useTranslation();
     const [uploading, setUploading] = useState(false);
     const [uploadProgress, setUploadProgress] = useState(0);
 
@@ -468,11 +466,7 @@ const EditableFileField: React.FC<EditableFileFieldProps> = ({
     }
 
     if (!editable) {
-        return (
-            <span className="text-gray-500">
-                {activateOnSingleClick ? t("pages.deals.common.not_set") : "--"}
-            </span>
-        );
+        return <span className="text-gray-500">--</span>;
     }
 
     return (
@@ -580,7 +574,6 @@ export default function CustomFieldDisplay({
     const { props } = usePage<any>();
     const { currencies } = useCurrencies();
     const { default_currency_code } = props;
-    const { t } = useTranslation();
 
     // In bulk "edit whole section" mode, edited values only reach
     // customFieldsData once the batch is actually saved — visibility rules
@@ -598,12 +591,10 @@ export default function CustomFieldDisplay({
         setLiveValues((previous) => ({ ...previous, [fieldName]: value }));
         onChange?.(fieldName, value);
     };
-    // v2.2 mode shows "Not set" for empty values, styled as a muted italic
-    // placeholder so it doesn't read as a real value (deal-v2-2.jsx:860-861);
-    // other consumers keep the legacy "--" placeholder.
-    const notSetLabel = activateOnSingleClick
-        ? t("pages.deals.common.not_set")
-        : "--";
+    // v2.2 mode renders the empty placeholder as muted italic so it doesn't
+    // read as a real value (deal-v2-2.jsx:860-861); other consumers keep the
+    // plain gray style.
+    const notSetLabel = "--";
     const notSetClassName = activateOnSingleClick
         ? "italic text-gray-400"
         : "text-gray-500";
@@ -1681,6 +1672,8 @@ export default function CustomFieldDisplay({
                         label={field.label}
                         span={span === column ? 2 : 1}
                         useContainerQuery={useContainerQuery}
+                        dataDealField={`custom_field_${field.id}`}
+                        dataFieldKey={fieldKey}
                     >
                         {renderEditable(field, value)}
                     </DetailField>

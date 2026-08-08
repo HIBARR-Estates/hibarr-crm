@@ -17,6 +17,7 @@ import {
     buildTokenMap,
     computeVisibleSegments,
     findEntrySegment,
+    getActionsForSelectedOutcomes,
     getBranchOptionKeys,
     getBranchSegmentKeysToClear,
     mapOptionIdsToStoredValues,
@@ -29,6 +30,7 @@ export interface UseQualificationFlowOptions {
     qualification: LeadQualification;
     templateTree: TemplateTree;
     service: LeadQualificationService;
+    /** Kept for callers that also run post-complete action registrations. */
     registrationService: RegistrationService;
     agentLanguage: string;
     onQualificationUpdated: (qualification: LeadQualification) => void;
@@ -40,20 +42,12 @@ export interface BranchChangePending {
     newText?: string | null;
 }
 
-const splitLeadName = (name?: string | null) => {
-    const parts = (name ?? "").trim().split(/\s+/).filter(Boolean);
-    return {
-        firstName: parts[0] ?? "",
-        lastName: parts.slice(1).join(" "),
-    };
-};
-
 export const useQualificationFlow = ({
     lead,
     qualification,
     templateTree,
     service,
-    registrationService,
+    registrationService: _registrationService,
     agentLanguage,
     onQualificationUpdated,
 }: UseQualificationFlowOptions) => {
@@ -271,9 +265,11 @@ export const useQualificationFlow = ({
         await persistNavigation(prev.key);
     }, [canGoBack, currentIndex, persistNavigation, visibleSegments]);
 
-    const goNext = useCallback(async () => {
+    const goNext = useCallback(async (options?: { skipValidation?: boolean }) => {
         if (!currentSegment) return;
-        if (validationError) {
+        // `skipValidation` backs the Skip control — the agent may move past a
+        // question the lead would not answer without inventing a value for it.
+        if (validationError && !options?.skipValidation) {
             message.warning("Please answer this question before continuing");
             return;
         }
@@ -303,67 +299,36 @@ export const useQualificationFlow = ({
         );
     }, [answers, entrySegment, templateTree]);
 
-    const completeWithOutcome = useCallback(
+    const completeWithOutcomes = useCallback(
         async (
-            outcome: QualificationOutcome,
+            outcomes: QualificationOutcome[],
             metadata?: {
-                webinarSessionId?: string;
-                webinarSessionLabel?: string;
-                calendlyUrl?: string;
+                comment?: string | null;
             },
-        ) => {
+        ): Promise<LeadQualification | null> => {
+            if (!outcomes.length) {
+                message.warning("Select at least one outcome");
+                return null;
+            }
+
             setCompleting(true);
             try {
-                const { firstName, lastName } = splitLeadName(lead.client_name);
-                const marketing = lead.marketing;
-                const registrationPayload = {
-                    email: lead.client_email ?? "",
-                    firstName,
-                    lastName,
-                    phone: lead.mobile ?? lead.cell ?? undefined,
-                    leadId: lead.id,
-                    language: agentLanguage,
-                    country: lead.country ?? undefined,
-                    city: lead.city ?? undefined,
-                    state: lead.state ?? undefined,
-                    zipCode: lead.postal_code ?? undefined,
-                    gender: lead.gender ?? undefined,
-                    utmInfo: marketing?.utm_source
-                        ? {
-                              utmSource: marketing.utm_source,
-                              utmMedium: marketing.utm_medium ?? undefined,
-                              utmCampaign: marketing.utm_campaign ?? undefined,
-                              utmTerm: marketing.utm_term ?? undefined,
-                              utmContent: marketing.utm_content ?? undefined,
-                          }
-                        : undefined,
-                };
-
-                if (outcome === "bookMeeting") {
-                    await registrationService.bookConsultationCalendly({
-                        ...registrationPayload,
-                        calendlyUrl: metadata?.calendlyUrl,
-                    });
-                } else if (outcome === "inviteWebinar") {
-                    if (!metadata?.webinarSessionId) {
-                        throw new Error("Webinar session required");
-                    }
-                    await registrationService.registerWebinarSession(
-                        metadata.webinarSessionId,
-                        registrationPayload,
-                    );
-                }
-
+                const actions = getActionsForSelectedOutcomes(
+                    templateTree,
+                    outcomes,
+                );
                 const updated = await service.completeQualification(
                     qualification.id,
                     {
-                        outcome,
+                        outcomes,
+                        outcome_comment: metadata?.comment ?? null,
                         selected_branch_keys: selectedBranchKeys,
-                        webinar_session_label: metadata?.webinarSessionLabel,
+                        actions,
                     },
                 );
                 onQualificationUpdated(updated);
                 message.success("Qualification completed");
+                return updated;
             } catch (error) {
                 message.error(
                     error instanceof Error
@@ -376,14 +341,24 @@ export const useQualificationFlow = ({
             }
         },
         [
-            agentLanguage,
-            lead,
             onQualificationUpdated,
             qualification.id,
-            registrationService,
             selectedBranchKeys,
             service,
+            templateTree,
         ],
+    );
+
+    const completeWithOutcome = useCallback(
+        async (
+            outcome: QualificationOutcome,
+            metadata?: {
+                comment?: string | null;
+            },
+        ) => {
+            await completeWithOutcomes([outcome], metadata);
+        },
+        [completeWithOutcomes],
     );
 
     const abandon = useCallback(async () => {
@@ -416,8 +391,10 @@ export const useQualificationFlow = ({
         tokenMap,
         validationError,
         visibleSegments,
+        templateTree,
         applyAnswerChange,
         completeWithOutcome,
+        completeWithOutcomes,
         abandon,
     };
 };

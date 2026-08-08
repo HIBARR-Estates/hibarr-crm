@@ -61,6 +61,8 @@ use App\Http\Controllers\SignUpSettingController;
 use App\Http\Controllers\TaxSettingController;
 use App\Http\Controllers\UnitTypeController;
 use App\Http\Controllers\UserReminderPreferenceController;
+use App\Http\Controllers\EntityReminderDefaultController;
+use App\Http\Controllers\ReminderLedgerController;
 use App\Http\Controllers\ApiTokenSettingController;
 use App\Http\Controllers\UpdateAppController;
 use Illuminate\Support\Facades\Route;
@@ -83,6 +85,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
     Route::get('reminder-preferences', [UserReminderPreferenceController::class, 'index'])->name('reminder-preferences.index');
     Route::post('reminder-preferences', [UserReminderPreferenceController::class, 'update'])->name('reminder-preferences.update');
     Route::delete('reminder-preferences/{entityType}/reset', [UserReminderPreferenceController::class, 'reset'])->name('reminder-preferences.reset');
+
+    /* Company entity reminder defaults (feature-flagged) */
+    Route::get('entity-reminder-defaults', [EntityReminderDefaultController::class, 'index'])->name('entity-reminder-defaults.index');
+    Route::post('entity-reminder-defaults', [EntityReminderDefaultController::class, 'update'])->name('entity-reminder-defaults.update');
+    Route::post('entity-reminder-defaults/email-templates', [EntityReminderDefaultController::class, 'updateEmailTemplates'])->name('entity-reminder-defaults.email-templates');
+    Route::delete('entity-reminder-defaults/{entityType}', [EntityReminderDefaultController::class, 'destroy'])->name('entity-reminder-defaults.destroy');
+
+    /* Reminder ledger (company send queue) */
+    Route::get('reminder-ledger', [ReminderLedgerController::class, 'index'])->name('reminder-ledger.index');
 
     /* 2FA */
     Route::get('2fa-codes-download', [TwoFASettingController::class, 'download'])->name('2fa_codes_download');
@@ -236,6 +247,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     Route::get('lead-pipeline-update/{statusId}', [LeadPipelineSettingController::class, 'statusUpdate'])->name('lead-pipeline-update.stageUpdate');
     Route::put('lead-pipeline-setting/{id}/nav-visibility', [LeadPipelineSettingController::class, 'updateNavVisibility'])->name('lead-pipeline-setting.nav-visibility');
+    Route::put('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'upsert'])->name('pipeline.analysis-script.upsert');
+    Route::get('lead-pipeline-setting/{id}/analysis-script', [\App\Http\Controllers\PipelineAnalysisScriptController::class, 'show'])->name('pipeline.analysis-script.show');
     Route::resource('lead-pipeline-setting', LeadPipelineSettingController::class);
 
     Route::resource('lead-agent-settings', LeadAgentSettingController::class);

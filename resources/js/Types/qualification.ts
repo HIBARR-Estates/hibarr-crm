@@ -12,6 +12,12 @@ export type SegmentType = "say" | "question" | "instruction" | "outcome";
 
 export type AnswerType = "singleSelect" | "multiSelect" | "text" | "boolean";
 
+/**
+ * Optional role for question segments only (not the same as SegmentType).
+ * Extensible; OL currently only accepts "main".
+ */
+export type QualificationQuestionCategory = "main";
+
 export type QualificationOutcome =
     | "bookMeeting"
     | "inviteWebinar"
@@ -50,6 +56,54 @@ export interface OutcomeMetadata {
     label?: string;
 }
 
+export type QualificationActionType =
+    | "book_consultation"
+    | "invite_webinar"
+    | "schedule_callback"
+    | "mark_no_fit"
+    | "create_task"
+    | "schedule_meeting"
+    | "create_deal"
+    | "add_note"
+    | "log_activity"
+    | "send_email"
+    | "send_sms"
+    | "assign_owner"
+    | string;
+
+export type QualificationActionCatalogStatus = "available" | "coming_soon";
+
+export type QualificationActionRunStatus =
+    | "pending"
+    | "completed"
+    | "failed"
+    | "skipped"
+    | "unavailable";
+
+export interface QualificationActionRef {
+    type: QualificationActionType;
+    config?: Record<string, string>;
+}
+
+export interface QualificationActionCatalogEntry {
+    type: QualificationActionType;
+    label: string;
+    status: QualificationActionCatalogStatus;
+    requiresRuntimePayload: boolean;
+    optionalConfigKeys: string[];
+}
+
+export interface QualificationActionRun {
+    id: number;
+    lead_qualification_id: number;
+    action_type: QualificationActionType;
+    status: QualificationActionRunStatus;
+    config?: Record<string, string> | null;
+    payload?: Record<string, unknown> | null;
+    error?: string | null;
+    completed_at?: string | null;
+}
+
 export interface Segment {
     key: string;
     type: SegmentType;
@@ -60,6 +114,12 @@ export interface Segment {
     required?: boolean;
     options?: SegmentOption[];
     outcomeMetadata?: OutcomeMetadata;
+    actions?: QualificationActionRef[];
+    /**
+     * Question-only role from OL. null/omit = no category.
+     * Do not confuse with `type` (segment kind).
+     */
+    category?: QualificationQuestionCategory | null;
     isEntryQuestion?: boolean;
 }
 
@@ -203,6 +263,8 @@ export interface LeadQualification {
     agent_id: number;
     status: QualificationStatus;
     outcome?: QualificationOutcome | null;
+    outcomes?: QualificationOutcome[];
+    outcome_comment?: string | null;
     template_id: string;
     template_version: number;
     template_name?: string;
@@ -213,6 +275,7 @@ export interface LeadQualification {
     created_at: string;
     updated_at: string;
     answers?: LeadQualificationAnswer[];
+    action_runs?: QualificationActionRun[];
     agent?: {
         id: number;
         name: string;
@@ -243,10 +306,49 @@ export interface UpdateNavigationPayload {
 }
 
 export interface CompleteQualificationPayload {
-    outcome: QualificationOutcome;
+    outcomes: QualificationOutcome[];
+    outcome_comment?: string | null;
+    /** @deprecated Prefer outcomes[]; kept for transitional callers */
+    outcome?: QualificationOutcome;
     selected_branch_keys?: string[];
     webinar_session_label?: string;
+    actions?: QualificationActionRef[];
 }
+
+export interface ExecuteQualificationActionPayload {
+    payload?: Record<string, unknown>;
+    error?: string | null;
+}
+
+export interface ScriptOutcomeOption {
+    key: QualificationOutcome;
+    label: string;
+    webinarId?: string;
+    calendlyUrl?: string;
+}
+
+export const DEFAULT_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
+    bookMeeting: "Book consultation",
+    inviteWebinar: "Invite to webinar",
+    callback: "Schedule callback",
+    noFit: "Not a fit",
+};
+
+/** Past-tense labels for completed qualification review surfaces. */
+export const COMPLETED_OUTCOME_LABELS: Record<QualificationOutcome, string> = {
+    bookMeeting: "Consultation booked",
+    inviteWebinar: "Webinar invited",
+    callback: "Callback requested",
+    noFit: "Not a fit",
+};
+
+/** Display / priority order for multi-select (matches CRM lifecycle policy). */
+export const OUTCOME_PRIORITY: QualificationOutcome[] = [
+    "bookMeeting",
+    "inviteWebinar",
+    "callback",
+    "noFit",
+];
 
 export interface LeadLifecycleStatus {
     id: number;

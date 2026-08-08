@@ -29,7 +29,11 @@ type FilterMode = "all" | "agent" | "system" | "external";
 type TimelineVariant = "default" | "deal-redesign";
 
 interface Props {
-    /** Fully-qualified model class, e.g. "App\\Models\\Deal" */
+    /**
+     * Fully-qualified model class. Prefer escaped form matching the redesign
+     * timeline (`App\\\\Models\\\\Deal`) so store/index normalize identically;
+     * single-backslash also works after controller normalization.
+     */
     modelType: string;
     modelId: number;
     userId?: number;
@@ -102,7 +106,7 @@ export default function CrmEventTimeline({
     /* ---- Header actions --------------------------------------------------- */
     const headerActions = (
         <div className="flex items-center gap-1.5">
-            <Tooltip title={td("Log action")}>
+            <Tooltip title={td("Log action", { source: "en" })}>
                 <Button
                     size="small"
                     type="primary"
@@ -110,7 +114,7 @@ export default function CrmEventTimeline({
                     onClick={() => setModalOpen(true)}
                 />
             </Tooltip>
-            <Tooltip title={td("Refresh")}>
+            <Tooltip title={td("Refresh", { source: "en" })}>
                 <Button
                     size="small"
                     icon={<ReloadOutlined spin={isRefetching} />}
@@ -118,7 +122,7 @@ export default function CrmEventTimeline({
                 />
             </Tooltip>
             {compact && (
-                <Tooltip title={td("Expand")}>
+                <Tooltip title={td("Expand", { source: "en" })}>
                     <Button
                         size="small"
                         icon={<ExpandAltOutlined />}
@@ -179,7 +183,7 @@ export default function CrmEventTimeline({
                         {opt.icon && (
                             <span className="text-[11px]">{opt.icon}</span>
                         )}
-                        {td(opt.label)}
+                        {td(opt.label, { source: "en" })}
                     </button>
                 );
             })}
@@ -193,7 +197,7 @@ export default function CrmEventTimeline({
                 <div className="mb-4 flex items-center justify-between gap-3 flex-wrap border-b border-[#edf0f4] pb-3">
                     {filterBar}
                     <Button size="small" disabled>
-                        {td("Date range")}
+                        {td("Date range", { source: "en" })}
                     </Button>
                 </div>
             ) : (
@@ -203,7 +207,7 @@ export default function CrmEventTimeline({
                 <Skeleton active paragraph={{ rows: isCompact ? 4 : 10 }} />
             ) : events.length === 0 ? (
                 <Empty
-                    description={td("No events yet")}
+                    description={td("No events yet", { source: "en" })}
                     image={Empty.PRESENTED_IMAGE_SIMPLE}
                 />
             ) : (
@@ -229,7 +233,7 @@ export default function CrmEventTimeline({
                 }
             >
                 <Title level={5} className="!mb-0 !text-sm">
-                    {td("Activity Timeline")}
+                    {td("Activity Timeline", { source: "en" })}
                 </Title>
                 {headerActions}
             </div>
@@ -247,9 +251,7 @@ export default function CrmEventTimeline({
 
             {/* Expanded Drawer */}
             <Drawer
-                title={td(
-                    `Activity Timeline ${entityName ? ` — ${entityName}` : ""}`,
-                )}
+                title={td(`Activity Timeline ${entityName ? ` — ${entityName}` : ""}`, { source: "en" })}
                 open={drawerOpen}
                 onClose={() => setDrawerOpen(false)}
                 width={520}

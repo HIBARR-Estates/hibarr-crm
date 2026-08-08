@@ -1037,7 +1037,7 @@ class TaskController extends AccountBaseController
                 $redirectUrl = route('tasks.index');
             }
 
-            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load('users')->toFrontendArray()]);
+            return Reply::successWithData(__('messages.taskSaved'), ['redirectUrl' => $redirectUrl, 'taskID' => $task->id, 'data' => $task->load(['users', 'boardColumn'])->toFrontendArray()]);
 
         } catch (\Exception $e) {
             return Reply::error($e->getMessage());
@@ -1433,7 +1433,7 @@ class TaskController extends AccountBaseController
 
             return Reply::successWithData(__('messages.taskUpdateSuccess'), [
                 'project' => $task->project,
-                'data' => $task->load('users')->toFrontendArray(),
+                'data' => $task->load(['users', 'boardColumn'])->toFrontendArray(),
                 'redirectUrl' => route('tasks.show', $task->id)
             ]);
 

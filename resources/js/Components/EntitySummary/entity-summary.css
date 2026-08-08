@@ -515,8 +515,88 @@
    summary just because loading flipped on. */
 .entity-ai-summary-loading-banner {
     display: flex;
+    align-items: stretch;
+    padding: 12px 14px 10px;
+}
+
+.entity-ai-summary-loading-panel {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+    padding: 14px 14px 12px;
+}
+
+.entity-ai-summary-loading-panel__row {
+    display: flex;
     align-items: center;
-    padding: 10px 16px 4px;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.entity-ai-summary-loading-panel__spinner {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid #dbe4f0;
+    border-top-color: #1a6bb5;
+    animation: entity-ai-summary-spin 0.75s linear infinite;
+    flex-shrink: 0;
+}
+
+@keyframes entity-ai-summary-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.entity-ai-summary-loading-panel__label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #374151;
+}
+
+.entity-ai-summary-loading-panel__skeleton {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.entity-ai-summary-loading-panel__line {
+    display: block;
+    height: 10px;
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        #eef2f7 0%,
+        #e2e8f0 40%,
+        #eef2f7 80%
+    );
+    background-size: 200% 100%;
+    animation: entity-ai-summary-bar 1.4s ease-in-out infinite;
+    width: 88%;
+}
+
+.entity-ai-summary-loading-panel__line--lg {
+    width: 96%;
+    height: 12px;
+}
+
+.entity-ai-summary-loading-panel__line--md {
+    width: 72%;
+}
+
+.entity-ai-summary-loading-panel__line--sm {
+    width: 54%;
+}
+
+@keyframes entity-ai-summary-bar {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: -100% 0;
+    }
 }
 
 .entity-ai-summary-result--pending {
@@ -548,22 +628,11 @@
     }
 }
 
-@keyframes entity-ai-summary-dot {
-    0%,
-    80%,
-    100% {
-        opacity: 0.25;
-    }
-    40% {
-        opacity: 1;
-    }
-}
-
 .entity-ai-summary-loading {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 18px 16px;
+    padding: 14px 12px;
 }
 
 .entity-ai-summary-loading__icon {
@@ -576,59 +645,14 @@
 .entity-ai-summary-loading__text {
     font-size: 13px;
     font-weight: 500;
-    color: #5b6472;
-}
-
-@keyframes entity-ai-summary-shimmer {
-    0% {
-        background-position: 200% 0;
-    }
-    100% {
-        background-position: -200% 0;
-    }
-}
-
-.entity-ai-summary-loading__text--shimmer {
-    background-image: linear-gradient(
-        90deg,
-        #9ca3af 0%,
-        #1a6bb5 45%,
-        #7c3aed 55%,
-        #9ca3af 100%
-    );
-    background-size: 200% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: entity-ai-summary-shimmer 2.2s linear infinite;
-}
-
-.entity-ai-summary-loading__dot {
-    display: inline-block;
-    color: #5b6472;
-    animation: entity-ai-summary-dot 1.3s ease-in-out infinite;
-}
-
-.entity-ai-summary-loading__dot:nth-child(2) {
-    animation-delay: 0.15s;
-}
-
-.entity-ai-summary-loading__dot:nth-child(3) {
-    animation-delay: 0.3s;
+    color: #4b5563;
 }
 
 @media (prefers-reduced-motion: reduce) {
     .entity-ai-summary-loading__icon,
-    .entity-ai-summary-loading__dot,
-    .entity-ai-summary-loading__text--shimmer {
+    .entity-ai-summary-loading-panel__spinner,
+    .entity-ai-summary-loading-panel__line {
         animation: none;
-    }
-
-    .entity-ai-summary-loading__text--shimmer {
-        background: none;
-        -webkit-text-fill-color: currentColor;
-        color: #5b6472;
     }
 }
 

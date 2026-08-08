@@ -5,6 +5,7 @@ namespace App\Services\PdfExpose\Builders;
 use Endroid\QrCode\Builder\Builder;
 use Endroid\QrCode\Writer\PngWriter;
 use App\Services\PdfExpose\Configuration\ExposeConfiguration;
+use App\Services\PdfExpose\ExposePresentationBuilder;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\View;
@@ -67,8 +68,10 @@ class TemplateRenderer
     {
         $templatePath = $this->getTemplatePath($config);
 
-        // Embed only local/branding images as base64; leave asset URLs for Puppeteer
-        $data = $this->prepareImages($config->data);
+        // Resolve presentation once (facilities, infra, airports, asset fallbacks),
+        // then embed only local/branding images as base64; leave asset URLs for Puppeteer.
+        $presentationData = ExposePresentationBuilder::from($config)->toPdfProps();
+        $data = $this->prepareImages($presentationData);
 
         return View::make($templatePath, [
             'config' => $config,

@@ -4,6 +4,22 @@ import { bytesToHex, utf8ToBytes } from "@noble/hashes/utils.js";
 
 export type DynamicTranslationValue = string | null;
 
+/**
+ * Opt-in: text is stable English source (UI literals, lookup-table values).
+ * Without this, `td` is a no-op (identity) so UGC is never dictionary-translated.
+ */
+export type DynamicTranslationOptions = {
+    source?: "en";
+};
+
+export type TdFn = (
+    text: string | null | undefined,
+    options?: DynamicTranslationOptions,
+) => string;
+
+/** No-op `td` for components that accept an optional translator prop. */
+export const identityTd: TdFn = (text) => text ?? "";
+
 type Listener = (value: DynamicTranslationValue) => void;
 
 type PendingLocaleMap = Map<string, string>;
@@ -20,13 +36,26 @@ interface BatchResponse {
 export const DYNAMIC_TRANSLATION_BATCH_ENDPOINT =
     "/account/api/dynamic-translations/batch";
 
+/** Trim + collapse whitespace only — case-preserving so display casing is stable. */
 export const normalizeDynamicText = (text: string): string => {
-    return text.trim().toLowerCase().replace(/\s+/g, " ");
+    return text.trim().replace(/\s+/g, " ");
 };
 
 export const hashDynamicText = (text: string): string => {
     const normalized = normalizeDynamicText(text);
     return bytesToHex(sha256(utf8ToBytes(normalized)));
+};
+
+/** Only English product/lookup source is eligible for non-English locales. */
+export const shouldRequestDynamicTranslation = (
+    locale: string,
+    options?: DynamicTranslationOptions,
+): boolean => {
+    if (!locale || locale === "en") {
+        return false;
+    }
+
+    return options?.source === "en";
 };
 
 class DynamicTranslationBatcher {

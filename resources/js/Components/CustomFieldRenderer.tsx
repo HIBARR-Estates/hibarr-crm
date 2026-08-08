@@ -58,16 +58,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <Input placeholder={`Enter ${field.label}`} />
         </Form.Item>
@@ -78,16 +69,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <Input type="number" placeholder={`Enter ${field.label}`} />
         </Form.Item>
@@ -98,16 +80,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <Input.TextArea placeholder={`Enter ${field.label}`} rows={3} />
         </Form.Item>
@@ -124,16 +97,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 key={field.id}
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
-                rules={
-                    field.required === "yes" && isFieldVisible(field.id)
-                        ? [
-                              {
-                                  required: true,
-                                  message: `${field.label} is required`,
-                              },
-                          ]
-                        : []
-                }
+                rules={[]}
             >
                 <Select
                     placeholder={`Select ${field.label}`}
@@ -158,16 +122,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 key={field.id}
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
-                rules={
-                    field.required === "yes" && isFieldVisible(field.id)
-                        ? [
-                              {
-                                  required: true,
-                                  message: `${field.label} is required`,
-                              },
-                          ]
-                        : []
-                }
+                rules={[]}
             >
                 <Radio.Group>
                     {values.map((value: string, index: number) => (
@@ -191,16 +146,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 key={field.id}
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
-                rules={
-                    field.required === "yes" && isFieldVisible(field.id)
-                        ? [
-                              {
-                                  required: true,
-                                  message: `${field.label} is required`,
-                              },
-                          ]
-                        : []
-                }
+                rules={[]}
             >
                 <Checkbox.Group>
                     {values.map((value: string, index: number) => (
@@ -218,16 +164,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <DatePicker
                 placeholder={`Select ${field.label}`}
@@ -241,16 +178,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <Select
                 placeholder={`Select ${field.label}`}
@@ -309,16 +237,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <Select
                 mode="multiple"
@@ -377,16 +296,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <CurrencyInput
                 placeholder={`Enter ${field.label}`}
@@ -401,16 +311,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <RangeInput placeholder={field.label} />
         </Form.Item>
@@ -421,16 +322,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             key={field.id}
             name={[namePrefix, `field_${field.id}`]}
             label={field.label}
-            rules={
-                field.required === "yes" && isFieldVisible(field.id)
-                    ? [
-                          {
-                              required: true,
-                              message: `${field.label} is required`,
-                          },
-                      ]
-                    : []
-            }
+            rules={[]}
         >
             <CurrencyRangeInput placeholder={field.label} />
         </Form.Item>
@@ -477,16 +369,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
                 key={field.id}
                 name={[namePrefix, `field_${field.id}`]}
                 label={field.label}
-                rules={
-                    field.required === "yes" && isFieldVisible(field.id)
-                        ? [
-                              {
-                                  required: true,
-                                  message: `${field.label} is required`,
-                              },
-                          ]
-                        : []
-                }
+                rules={[]}
             >
                 <div>
                     {uploading && uploadProgress > 0 ? (
@@ -544,6 +427,7 @@ const CustomFieldRenderer: React.FC<Props> = ({
             case "radio":
                 return renderRadioField(field);
             case "checkbox":
+            case "multiselect":
                 return renderCheckboxField(field);
             case "date":
                 return renderDateField(field);

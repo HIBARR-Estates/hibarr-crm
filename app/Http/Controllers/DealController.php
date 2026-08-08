@@ -9,6 +9,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\ProposalDataTable;
 use App\Enums\Salutation;
 use App\Events\AutoFollowUpReminderEvent;
+use App\Services\Reminders\MeetingReminderSync;
 use App\Scopes\ActiveScope;
 use App\Notifications\MeetingLinkGenerationFailed;
 use ReflectionClass;
@@ -549,6 +550,11 @@ class DealController extends AccountBaseController
         $deal = Deal::with([
             'leadAgent.user',
             'contact.leadSource',
+            'contact.leadOwner',
+            'contact.lifecycleStatus',
+            'contact.category',
+            'contact.categories',
+            'contact.marketing',
             'category',
             'pipeline.stages',
             'leadStage',
@@ -588,6 +594,17 @@ class DealController extends AccountBaseController
 
         // Get custom fields data explicitly
         $customFieldsData = $deal->getCustomFieldsData();
+
+        // Lead custom fields — computed eagerly so the analysis modal has them on first open
+        if ($deal->contact) {
+            $deal->contact->withCustomFields();
+            $leadCustomFieldsData = $deal->contact->getCustomFieldsData()->toArray();
+            $leadContactGroup     = $deal->contact->getCustomFieldGroupsWithFields();
+            $leadCustomFields     = $leadContactGroup ? ($leadContactGroup->fields ?? []) : [];
+        } else {
+            $leadCustomFieldsData = [];
+            $leadCustomFields     = [];
+        }
 
         $getCustomFieldGroupsWithFields = $deal->getCustomFieldGroupsWithFields();
         $this->fields = $getCustomFieldGroupsWithFields ? $getCustomFieldGroupsWithFields->fields : [];
@@ -645,6 +662,8 @@ class DealController extends AccountBaseController
             'add_invoices' => user()->permission('add_invoices'),
             'view_lead_files' => user()->permission('view_lead_files'),
             'add_lead_files' => user()->permission('add_lead_files'),
+            'edit_lead_files' => user()->permission('edit_lead_files'),
+            'delete_lead_files' => user()->permission('delete_lead_files'),
             'delete_deals' => user()->permission('delete_deals'),
             'view_tasks' => user()->permission('view_tasks'),
             'add_tasks' => user()->permission('add_tasks'),
@@ -657,6 +676,9 @@ class DealController extends AccountBaseController
         $dealWithCustomFields['created_at'] = $deal->created_at?->toIso8601String();
         $dealWithCustomFields['updated_at'] = $deal->updated_at?->toIso8601String();
         $dealWithCustomFields['value_breakdown'] = app(DealValueResolver::class)->getBreakdown($deal);
+        $dealWithCustomFields['analysis_status'] = $deal->analysis_status ?? 'pending';
+        $dealWithCustomFields['analysis_completed_at'] = $deal->analysis_completed_at?->toIso8601String();
+        $dealWithCustomFields['analysis_completed_by'] = $deal->analysis_completed_by;
 
         // C1 shell form metadata only — deferred form keys load via Inertia::defer below.
         $formData = $this->getDealShowShellFormData();
@@ -733,7 +755,8 @@ class DealController extends AccountBaseController
             'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all(), 'taskMeta'),
             'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
             'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
-            'employees' => Inertia::defer(fn () => User::allEmployees(), 'formMeta'),
+            // Required by task/meeting assignee pickers — must not wait on formMeta.
+            'employees' => User::allEmployees(null, true),
             'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'formMeta'),
             'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
             'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
@@ -760,6 +783,28 @@ class DealController extends AccountBaseController
                 fn () => $this->buildStageAutomationRequirements(),
                 'formMeta'
             ),
+            'leadCustomFieldsData' => $leadCustomFieldsData,
+            'leadCustomFields' => $leadCustomFields,
+            ...(\App\Support\FeatureFlags::enabled('crm.deal-analysis') ? [
+                'analysisScript' => Inertia::defer(function () use ($deal) {
+                    $script = \App\Models\PipelineAnalysisScript::with('items')
+                        ->where('pipeline_id', $deal->lead_pipeline_id)
+                        ->first();
+                    if (!$script) {
+                        return ['items' => []];
+                    }
+                    return [
+                        'items' => $script->items->values()->map(fn ($i) => [
+                            'id'             => $i->id,
+                            'type'           => $i->type,
+                            'item_key'       => $i->item_key,
+                            'label_override' => $i->label_override,
+                            'guide_text'     => $i->guide_text,
+                            'position'       => $i->position,
+                        ]),
+                    ];
+                }, 'formMeta'),
+            ] : []),
         ]));
     }
 
@@ -767,7 +812,7 @@ class DealController extends AccountBaseController
      * Stage-transition automation conditions for the pipeline stepper tooltip,
      * with human-readable field labels and values (not raw custom_field_N / 1|0).
      *
-     * @return array<int|string, list<array{field: string, label: string, operator: string, value: mixed}>>
+     * @return array<int|string, list<array{field: string, label: string, operator: string, value: mixed, raw_value: mixed}>>
      */
     private function buildStageAutomationRequirements(): array
     {
@@ -846,6 +891,7 @@ class DealController extends AccountBaseController
                             'field' => $field,
                             'label' => $this->resolveAutomationConditionLabel($field, $fieldLabels, $customFields),
                             'operator' => $condition->operator,
+                            // Display-only (Yes/No, option labels, stage names).
                             'value' => $this->formatAutomationConditionValue(
                                 $field,
                                 $condition->value,
@@ -853,6 +899,8 @@ class DealController extends AccountBaseController
                                 $customFields,
                                 $stageNames
                             ),
+                            // Unformatted value for client-side "is this met?" checks.
+                            'raw_value' => $condition->value,
                         ];
                     })
                     ->values()
@@ -1152,7 +1200,15 @@ class DealController extends AccountBaseController
         // TODO: THis should be uncommented after testing, and Eisntein sync to resolve issues
         // $deal->strategy_accepted = $request->has('strategy_accepted') ? 1 : 0;
         // $deal->downpayment_confirmed = $request->has('downpayment_confirmed') ? 1 : 0;
+        if ($request->exists('reminders')) {
+            $deal->reminders = $request->input('reminders');
+        }
+        if ($request->exists('remind_at')) {
+            $deal->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
         $deal->save();
+
+        app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
 
         // Handle packages
         $packageRouter = app(PackagePipelineRouterService::class);
@@ -1199,9 +1255,11 @@ class DealController extends AccountBaseController
             );
         }
 
-        if (!is_null($request->product_id)) {
+        if (!is_null($request->product_id) && $request->product_id !== '') {
 
-            $products = $request->product_id;
+            $products = is_array($request->product_id)
+                ? $request->product_id
+                : [$request->product_id];
 
             foreach ($products as $product) {
                 $leadProduct = new LeadProduct();
@@ -1445,7 +1503,16 @@ class DealController extends AccountBaseController
             $customFieldsUpdated = true;
         }
 
+        if ($request->exists('reminders')) {
+            $deal->reminders = $request->input('reminders');
+        }
+        if ($request->exists('remind_at')) {
+            $deal->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+
         $deal->save();
+
+        app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
 
         // Handle packages — only touch when the field is actually present in the
         // request, so partial updates (e.g. pipeline stage changes) don't wipe
@@ -1662,6 +1729,8 @@ class DealController extends AccountBaseController
                 'pipeline_stage_id' => 'pipeline_stage_id',
                 'lead_pipeline_id' => 'lead_pipeline_id',
                 'close_date' => 'close_date',
+                'remind_at' => 'remind_at',
+                'reminders' => 'reminders',
                 'probability' => 'probability',
                 'note' => 'note',
                 'agent_id' => 'agent_id', //can be null
@@ -1699,6 +1768,9 @@ class DealController extends AccountBaseController
                 $deal->update($dealUpdates);
                 if (!$deal->wasChanged() && $customFieldsUpdated) {
                      app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
+                }
+                if (array_key_exists('remind_at', $dealUpdates) || array_key_exists('reminders', $dealUpdates)) {
+                    app(\App\Services\Reminders\DealReminderSync::class)->syncFromDeal($deal->fresh(['leadAgent']));
                 }
             } elseif ($customFieldsUpdated) {
                  app(\App\Services\DealAutomationService::class)->process($deal, 'deal_updated');
@@ -2299,6 +2371,8 @@ class DealController extends AccountBaseController
 
         event(new AutoFollowUpReminderEvent($followUp, true));
 
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
         return Reply::successWithData(__('messages.recordSaved'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
@@ -2429,6 +2503,8 @@ class DealController extends AccountBaseController
             // Continue without throwing exception - follow-up is already updated
         }
 
+        app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
         return Reply::successWithData(__('messages.updateSuccess'), ['data' => $this->loadFollowUpWithParticipants($followUp->id)]);
     }
 
@@ -2437,6 +2513,8 @@ class DealController extends AccountBaseController
         $followUp = DealFollowUp::findOrFail($id);
         $this->deletePermission = user()->permission('delete_lead_follow_up');
         abort_403(!($this->deletePermission == 'all' || ($this->deletePermission == 'added' && $followUp->added_by == user()->id)));
+
+        app(MeetingReminderSync::class)->cancelForFollowUp($followUp);
 
         DealFollowUp::destroy($id);
 
@@ -2500,6 +2578,11 @@ class DealController extends AccountBaseController
         } elseif ($this->deletePermission != 'all') {
             abort_403(__('messages.permissionDenied'));
         }
+
+        $sync = app(MeetingReminderSync::class);
+        DealFollowUp::whereIn('id', $followUpIds)->get()->each(function (DealFollowUp $followUp) use ($sync) {
+            $sync->cancelForFollowUp($followUp);
+        });
 
         DealFollowUp::whereIn('id', $followUpIds)->delete();
     }

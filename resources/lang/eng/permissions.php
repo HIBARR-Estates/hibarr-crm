@@ -437,4 +437,11 @@ return array (
     'view_performance_module' => 'View Performance Module',
     'manage_biometric_settings' => 'Manage Biometric Settings',
 
+    // Independent modules (no longer gated via edit_product)
+    'manage_partner_network' => 'Manage Partner Network',
+    'manage_offers' => 'Manage Offers',
+    'manage_properties' => 'Manage Properties',
+    'manage_property_publish_requests' => 'Manage Property Publish Requests',
+    'manage_property_configuration' => 'Manage Property Configuration',
+
 );

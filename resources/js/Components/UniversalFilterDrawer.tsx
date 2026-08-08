@@ -1,5 +1,5 @@
 import React from "react";
-import { Drawer, Button, Space, Skeleton, Modal } from "antd";
+import { Button, Space, Modal } from "antd";
 import { FilterOutlined } from "@ant-design/icons";
 import { useFilter, FilterConfig } from "@/contexts/FilterContext";
 import UniversalFilterForm from "@/Components/UniversalFilterForm";
@@ -7,6 +7,7 @@ import UniversalFilterForm from "@/Components/UniversalFilterForm";
 interface UniversalFilterDrawerProps {
     config: FilterConfig;
     width?: number;
+    /** Remote option data still loading — surfaced per-field, not as a whole-modal skeleton. */
     loading?: boolean;
 }
 
@@ -56,9 +57,7 @@ const UniversalFilterDrawer: React.FC<UniversalFilterDrawerProps> = ({
                 </div>
             }
         >
-            <Skeleton active loading={loading} paragraph={{ rows: 6 }}>
-                <UniversalFilterForm config={config} />
-            </Skeleton>
+            <UniversalFilterForm config={config} optionsLoading={loading} />
         </Modal>
     );
 };

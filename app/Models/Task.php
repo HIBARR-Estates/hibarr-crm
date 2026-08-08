@@ -161,6 +161,8 @@ class Task extends BaseModel
         'due_date' => 'datetime',
         'completed_on' => 'datetime',
         'start_date' => 'datetime',
+        'remind_at' => 'datetime',
+        'reminders' => 'array',
     ];
     protected $appends = ['due_on', 'create_on'];
     protected $guarded = ['id'];

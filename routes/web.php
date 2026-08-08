@@ -29,6 +29,7 @@ use App\Http\Controllers\TimelogController;
 use App\Http\Controllers\ContractController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\EstimateController;
+use App\Http\Controllers\LeadContactFileController;
 use App\Http\Controllers\LeadFileController;
 use App\Http\Controllers\LeadNoteController;
 use App\Http\Controllers\LeadFlightItineraryController;
@@ -131,6 +132,7 @@ use App\Http\Controllers\LeadContactController;
 use App\Http\Controllers\LeadQualificationController;
 use App\Http\Controllers\LeadSummaryController;
 use App\Http\Controllers\LeadMergeController;
+use App\Http\Controllers\LeadSavedViewController;
 use App\Http\Controllers\AgentController;
 use App\Http\Controllers\FormDataController;
 use App\Http\Controllers\NoticeFileController;
@@ -511,11 +513,17 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('holidays/apply-quick-action', [HolidayController::class, 'applyQuickAction'])->name('holidays.apply_quick_action');
     Route::resource('holidays', HolidayController::class);
 
-    // Lead Files
+    // Deal Files (legacy permission names still use *_lead_files)
     Route::get('deal-files/download/{id}', [LeadFileController::class, 'download'])->name('deal-files.download');
     Route::get('deal-files/layout', [LeadFileController::class, 'layout'])->name('deal-files.layout');
     Route::post('deal-files/store-external', [LeadFileController::class, 'storeFromExternal'])->name('deal-files.store-external');
     Route::resource('deal-files', LeadFileController::class);
+
+    // Lead contact files (standalone multi-upload on the lead Files tab)
+    Route::get('lead-contact-files/download/{id}', [LeadContactFileController::class, 'download'])->name('lead-contact-files.download');
+    Route::post('lead-contact-files', [LeadContactFileController::class, 'store'])->name('lead-contact-files.store');
+    Route::delete('lead-contact-files/{lead_contact_file}', [LeadContactFileController::class, 'destroy'])->name('lead-contact-files.destroy');
+    Route::get('lead-contact/{leadId}/files', [LeadContactFileController::class, 'index'])->name('lead-contact.files.index');
 
     // Follow up
     Route::get('deals/follow-up/{leadID}', [DealController::class, 'followUpCreate'])->name('deals.follow_up');
@@ -537,11 +545,15 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('deals/change-follow-up-status', [DealController::class, 'changeFollowUpStatus'])->name('deals.change_follow_up_status');
     Route::post('deals/generate-meeting-link', [DealController::class, 'generateMeetingLink'])->name('deals.generate-meeting-link');
 
-    // Zoho Calendar Sync (jobId retry + fresh enqueue when jobId is null)
+    // Calendar Sync (OL /crm/events; platform=zoho today)
     Route::post(
-        'follow-ups/{followUp}/zoho-calendar-sync/retry',
-        [\App\Http\Controllers\ZohoCalendarSyncController::class, 'retry']
-    )->name('zoho_calendar_sync.retry');
+        'follow-ups/{followUp}/calendar-sync/retry',
+        [\App\Http\Controllers\CalendarSyncController::class, 'retry']
+    )->name('calendar_sync.retry');
+    Route::get(
+        'follow-ups/{followUp}/calendar-sync/status',
+        [\App\Http\Controllers\CalendarSyncController::class, 'status']
+    )->name('calendar_sync.status');
 
     // Lead Category
     Route::post('/update-lead-category', [LeadCategoryController::class, 'updateLeadCategory'])->name('category.updateDefault');
@@ -611,8 +623,16 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('lead-contact/{lead_contact}', [LeadContactController::class, 'show'])->name('lead-contact.show');
     Route::get('lead-contact/{lead_contact}/edit', [LeadContactController::class, 'edit'])->name('lead-contact.edit');
     Route::put('lead-contact/{lead_contact}', [LeadContactController::class, 'update'])->name('lead-contact.update');
-    Route::patch('lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    // POST allowed so multipart file uploads can method-spoof PATCH (PHP does not
+    // populate $_FILES on raw PATCH bodies — same pattern as deals.gathering.inline_update).
+    Route::match(['post', 'patch'], 'lead-contact/{lead_contact}', [LeadContactController::class, 'patch'])->name('lead-contact.patch');
+    Route::post('lead-contact/{lead_contact}/image', [LeadContactController::class, 'uploadImage'])->name('lead-contact.upload-image');
     Route::delete('lead-contact/{lead_contact}', [LeadContactController::class, 'destroy'])->name('lead-contact.destroy');
+
+    // Saved filter views for the leads list
+    Route::post('lead-saved-views', [LeadSavedViewController::class, 'store'])->name('lead-saved-views.store');
+    Route::patch('lead-saved-views/{id}', [LeadSavedViewController::class, 'update'])->name('lead-saved-views.update');
+    Route::delete('lead-saved-views/{id}', [LeadSavedViewController::class, 'destroy'])->name('lead-saved-views.destroy');
 
     // Lead qualification routes
     Route::get('lead-contact/{lead}/qualifications', [LeadQualificationController::class, 'index'])->name('lead-qualifications.index');
@@ -622,6 +642,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-qualifications/{qualification}/complete', [LeadQualificationController::class, 'complete'])->name('lead-qualifications.complete');
     Route::post('lead-qualifications/{qualification}/abandon', [LeadQualificationController::class, 'abandon'])->name('lead-qualifications.abandon');
     Route::delete('lead-qualifications/{qualification}/branch-answers', [LeadQualificationController::class, 'clearBranchAnswers'])->name('lead-qualifications.clear-branch-answers');
+    Route::post('lead-qualifications/{qualification}/actions/{actionRun}/execute', [LeadQualificationController::class, 'executeAction'])->name('lead-qualifications.actions.execute');
+    Route::get('qualification-actions', [\App\Http\Controllers\Api\QualificationActionCatalogController::class, 'index'])->name('qualification-actions.index');
 
     Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
     Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
@@ -662,6 +684,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::get('gathering/custom-fields/{id}', [DealGatheringController::class, 'getDealCustomFields'])->name('gathering.get_custom_fields');
         // Accept both POST (for file uploads with method spoofing) and PATCH
         Route::match(['post', 'patch'], 'gathering/inline-update/{id}', [DealGatheringController::class, 'updateInline'])->name('gathering.inline_update');
+        Route::patch('gathering/analysis-complete/{id}', [DealGatheringController::class, 'completeAnalysis'])->name('gathering.analysis_complete');
     });
 
     // Explicit deal routes (no resource)
@@ -1640,6 +1663,16 @@ if (!app()->environment('production')) {
                 ['type' => 'airport', 'title' => 'Regional Airport', 'distance' => '25 km', 'image' => 'https://via.placeholder.com/400x300?text=Airport'],
             ],
         ];
+
+        $config = new \App\Services\PdfExpose\Configuration\ExposeConfiguration(
+            entityType: 'property',
+            entityId: 0,
+            layout: 'expose-template',
+            sections: [],
+            data: $data,
+        );
+
+        $data = \App\Services\PdfExpose\ExposePresentationBuilder::from($config)->toPdfProps();
 
         return view('pdf.expose.property.expose-template', compact('data'));
     })->name('debug.expose_template');

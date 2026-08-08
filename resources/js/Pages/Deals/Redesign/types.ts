@@ -54,6 +54,7 @@ export interface DealShowProps extends PageProps {
     pageTitle: string;
     dealAiSummary?: DealSummaryPayload | null;
     restrictPackageOrProperty?: boolean;
+    visibleLeadFieldKeys?: string[] | null;
     // notes / dealFollowUps / files / tasks fetch independently via
     // deals.notes.index / deals.meetings.index / deals.files.index /
     // deals.tasks.index (see DealWorkspaceContext) — no longer page props.
@@ -67,4 +68,16 @@ export interface DealShowProps extends PageProps {
     taskBoardColumns?: any[];
     employees?: any[];
     projects?: any[];
+    leadCustomFieldsData?: Record<string, any>;
+    leadCustomFields?: any[];
+    analysisScript?: {
+        items: Array<{
+            id: number;
+            type: 'custom_field_category' | 'native_field' | 'hibarr_field' | 'lead_field';
+            item_key: string;
+            label_override?: string | null;
+            guide_text?: string | null;
+            position: number;
+        }>;
+    } | null;
 }

@@ -13,11 +13,15 @@ interface Props extends IModalProps {
 }
 
 const BulkChangeCategory: React.FC<Props> = ({ open, onClose, ids }) => {
-    const [categoryId, setCategoryId] = useState<number | null>(null);
+    const [categoryIds, setCategoryIds] = useState<number[]>([]);
     const [form] = Form.useForm();
 
     const { mutate: bulkUpdate, status } = useApiMutate<
-        { row_ids: string; action_type: string; category_id: number | null },
+        {
+            row_ids: string;
+            action_type: string;
+            category_ids: number[];
+        },
         any,
         ApiResponse<any>
     >(route("lead-contact.apply_quick_action"), "POST");
@@ -27,26 +31,26 @@ const BulkChangeCategory: React.FC<Props> = ({ open, onClose, ids }) => {
             {
                 row_ids: ids.join(","),
                 action_type: "change_category",
-                category_id: categoryId,
+                category_ids: categoryIds,
             },
             {
                 onSuccess: () => {
-                    message.success("Category updated successfully");
-                    setCategoryId(null);
+                    message.success("Categories updated successfully");
+                    setCategoryIds([]);
                     form.resetFields();
                     onClose(true);
                     // X2: Index-only component — refresh just the leads list
                     router.reload({ only: ["leads"] });
                 },
                 onError: () => {
-                    message.error("Failed to update category");
+                    message.error("Failed to update categories");
                 },
             },
         );
     };
 
     const handleClose = () => {
-        setCategoryId(null);
+        setCategoryIds([]);
         form.resetFields();
         onClose();
     };
@@ -61,25 +65,33 @@ const BulkChangeCategory: React.FC<Props> = ({ open, onClose, ids }) => {
             title={
                 <div className="flex items-center gap-3">
                     <EditOutlined className="text-blue-500 text-xl" />
-                    <span>Change Category</span>
+                    <span>Change Categories</span>
                 </div>
             }
-            okText="Update Category"
+            okText="Update Categories"
             cancelText="Cancel"
             confirmLoading={loading}
         >
             <div className="py-4">
                 <p className="text-gray-600 mb-4">
-                    Update category for{" "}
+                    Set categories for{" "}
                     {pluralOrSingular(ids.length, "this contact", "contacts")}.
+                    This replaces existing categories on the selected contacts.
                 </p>
                 <Form form={form} layout="vertical">
-                    <Form.Item label="Category" name="category_id">
+                    <Form.Item label="Categories" name="category_ids">
                         <FormDataSelector
                             type="categories"
-                            value={categoryId}
-                            onChange={(value) => setCategoryId(value)}
-                            placeholder="Select a category"
+                            mode="multiple"
+                            value={categoryIds}
+                            onChange={(value) =>
+                                setCategoryIds(
+                                    Array.isArray(value)
+                                        ? value.map(Number).filter(Boolean)
+                                        : [],
+                                )
+                            }
+                            placeholder="Select categories"
                             allowClear
                         />
                     </Form.Item>

@@ -1,7 +1,12 @@
 import { Lead } from "@/Types/api/leads";
 import {
+    DEFAULT_OUTCOME_LABELS,
+    OUTCOME_PRIORITY,
     QUALIFICATION_TOKENS,
+    QualificationActionRef,
+    QualificationOutcome,
     QualificationToken,
+    ScriptOutcomeOption,
     Segment,
     SegmentAnswerState,
     SegmentOption,
@@ -20,6 +25,9 @@ export const findEntrySegment = (
     }
     return (
         tree.segments.find((s) => s.isEntryQuestion) ??
+        tree.segments.find(
+            (s) => s.type === "question" && s.category === "main",
+        ) ??
         tree.segments.find(
             (s) => s.type === "question" && !s.parentOptionId,
         )
@@ -336,3 +344,103 @@ export const validateSegmentAnswer = (
 
     return answer.answer_values.length ? null : "required";
 };
+
+/**
+ * Distinct outcome keys from the published script tree (ignores parentOptionId
+ * and options-under-outcome). Falls back to all known outcomes if the tree
+ * has none configured.
+ */
+export const getScriptOutcomes = (tree: TemplateTree): ScriptOutcomeOption[] => {
+    const byKey = new Map<QualificationOutcome, ScriptOutcomeOption>();
+
+    sortSegments(tree.segments).forEach((segment) => {
+        if (segment.type !== "outcome") {
+            return;
+        }
+        const key = segment.outcomeMetadata?.type;
+        if (!key) {
+            return;
+        }
+
+        const existing = byKey.get(key);
+        if (existing) {
+            if (!existing.webinarId && segment.outcomeMetadata?.webinarId) {
+                existing.webinarId = segment.outcomeMetadata.webinarId;
+            }
+            if (!existing.calendlyUrl && segment.outcomeMetadata?.calendlyUrl) {
+                existing.calendlyUrl = segment.outcomeMetadata.calendlyUrl;
+            }
+            if (
+                (!existing.label || existing.label === DEFAULT_OUTCOME_LABELS[key]) &&
+                (segment.outcomeMetadata?.label || segment.label)
+            ) {
+                existing.label =
+                    segment.outcomeMetadata?.label ||
+                    segment.label ||
+                    existing.label;
+            }
+            return;
+        }
+
+        byKey.set(key, {
+            key,
+            label:
+                segment.outcomeMetadata?.label ||
+                segment.label ||
+                DEFAULT_OUTCOME_LABELS[key],
+            webinarId: segment.outcomeMetadata?.webinarId,
+            calendlyUrl: segment.outcomeMetadata?.calendlyUrl,
+        });
+    });
+
+    if (byKey.size === 0) {
+        return OUTCOME_PRIORITY.map((key) => ({
+            key,
+            label: DEFAULT_OUTCOME_LABELS[key],
+        }));
+    }
+
+    return OUTCOME_PRIORITY.filter((key) => byKey.has(key)).map(
+        (key) => byKey.get(key)!,
+    );
+};
+
+/**
+ * Deduped action refs for the selected outcome keys (from outcome segments
+ * in the published tree). Merges config preferring first non-empty values.
+ */
+export const getActionsForSelectedOutcomes = (
+    tree: TemplateTree,
+    selectedOutcomeKeys: QualificationOutcome[],
+): QualificationActionRef[] => {
+    const selected = new Set(selectedOutcomeKeys);
+    const byType = new Map<string, QualificationActionRef>();
+
+    sortSegments(tree.segments).forEach((segment) => {
+        if (segment.type !== "outcome") return;
+        const outcomeKey = segment.outcomeMetadata?.type;
+        if (!outcomeKey || !selected.has(outcomeKey)) return;
+
+        (segment.actions ?? []).forEach((action) => {
+            const existing = byType.get(action.type);
+            if (!existing) {
+                byType.set(action.type, {
+                    type: action.type,
+                    config: action.config ? { ...action.config } : undefined,
+                });
+                return;
+            }
+            if (!action.config) return;
+            const merged = { ...(existing.config ?? {}) };
+            Object.entries(action.config).forEach(([key, value]) => {
+                if (value && !merged[key]) {
+                    merged[key] = value;
+                }
+            });
+            existing.config = Object.keys(merged).length ? merged : undefined;
+        });
+    });
+
+    return Array.from(byType.values());
+};
+

@@ -32,11 +32,14 @@ class DealGatheringController extends AccountBaseController
     public function init(Request $request)
     {
         $request->validate([
-            'deal_id' => 'nullable|exists:deals,id',
-            'lead_id' => 'nullable|exists:leads,id',
-            'lead_data' => 'nullable|array',
-            'lead_type' => 'nullable|in:agent,client',
-            'pipeline_id' => 'nullable|exists:lead_pipelines,id',
+            'deal_id'     => 'nullable|exists:deals,id',
+            'lead_id'     => 'nullable|exists:leads,id',
+            'lead_data'   => 'nullable|array',
+            'lead_type'   => 'nullable|in:agent,client',
+            'pipeline_id' => [
+                Rule::requiredIf(!$request->filled('deal_id')),
+                'exists:lead_pipelines,id',
+            ],
         ]);
 
         // Get the pipeline ID from the request (for new deal creation)
@@ -319,6 +322,12 @@ class DealGatheringController extends AccountBaseController
             $data
         );
 
+        // Lean path: analysis modal fire-and-forget saves skip the expensive 13-relation
+        // refresh and return a minimal acknowledgement so the UI stays snappy.
+        if ($request->header('X-Analysis-Lean')) {
+            return response()->json(['status' => 'success']);
+        }
+
         // Refresh deal with all relationships and custom fields data.
         // Include leadFlightItineraries so redesign setDeal() patches do not
         // wipe the itinerary tab (same relation set as DealController::loadFullDeal).
@@ -367,6 +376,55 @@ class DealGatheringController extends AccountBaseController
 
             return response()->json($payload, 500);
         }
+    }
+
+    /**
+     * Mark deal analysis as complete.
+     *
+     * Accepts { completion_type: 'auto'|'manual', unfilled_count: int }.
+     * 'manual' marks complete even when fields remain unfilled (caller already confirmed).
+     */
+    public function completeAnalysis(Request $request, int $id)
+    {
+        $request->validate([
+            'completion_type' => 'required|in:auto,manual',
+            'unfilled_count' => 'nullable|integer|min:0',
+        ]);
+
+        $deal = Deal::findOrFail($id);
+
+        if ($deal->isLocked()) {
+            return response()->json(['status' => 'error', 'message' => __('messages.dealLocked')], 403);
+        }
+
+        $editPermission = user()->permission('edit_deals');
+        $canEdit = $editPermission === 'all'
+            || ($editPermission === 'added' && $deal->added_by === user()->id)
+            || ($editPermission === 'owned' && $deal->hasTeamMemberAccess(user()->id))
+            || ($editPermission === 'both' && ($deal->added_by === user()->id || $deal->hasTeamMemberAccess(user()->id)));
+
+        if (!$canEdit) {
+            return response()->json(['status' => 'error', 'message' => __('messages.permissionDenied')], 403);
+        }
+
+        $deal->update([
+            'analysis_status' => 'completed',
+            'analysis_completed_at' => now(),
+            'analysis_completed_by' => user()->id,
+        ]);
+
+        app(\App\Services\DealActivityEventService::class)->recordAnalysisCompleted(
+            $deal,
+            $request->completion_type,
+            (int) ($request->unfilled_count ?? 0),
+        );
+
+        return response()->json([
+            'status' => 'success',
+            'analysis_status' => 'completed',
+            'analysis_completed_at' => $deal->analysis_completed_at?->toIso8601String(),
+            'analysis_completed_by' => $deal->analysis_completed_by,
+        ]);
     }
 
     /**

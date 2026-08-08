@@ -277,7 +277,7 @@ export default function LegacyLeadShow({
             title={leadName}
             breadcrumbs={[
                 {
-                    name: t("pages.leads.contacts"),
+                    name: t("app.menu.lead"),
                     url: route("lead-contact.index"),
                 },
                 { name: leadName },
@@ -313,7 +313,7 @@ export default function LegacyLeadShow({
                             title={
                                 isEditMode
                                     ? t("pages.leads.refresh_tooltip_disabled")
-                                    : td("Refresh")
+                                    : td("Refresh", { source: "en" })
                             }
                         >
                             <Button
@@ -322,7 +322,7 @@ export default function LegacyLeadShow({
                                 disabled={isRefreshing || isEditMode}
                                 type="text"
                             >
-                                {td("Refresh")}
+                                {td("Refresh", { source: "en" })}
                             </Button>
                         </Tooltip>
                     }

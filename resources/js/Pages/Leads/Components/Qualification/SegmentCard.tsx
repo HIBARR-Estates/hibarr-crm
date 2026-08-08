@@ -1,23 +1,30 @@
 import React from "react";
-import { Segment, QualificationToken } from "@/Types/qualification";
-import { SegmentAnswerState } from "@/Types/qualification";
+import {
+    Segment,
+    QualificationToken,
+    SegmentAnswerState,
+    TemplateTree,
+    QualificationOutcome,
+    LeadQualification,
+} from "@/Types/qualification";
 import SaySegment from "./segments/SaySegment";
 import QuestionSegment from "./segments/QuestionSegment";
 import InstructionSegment from "./segments/InstructionSegment";
 import OutcomeSegment from "./segments/OutcomeSegment";
-import { QualificationOutcome } from "@/Types/qualification";
 
 interface SegmentCardProps {
     segment: Segment;
     answer?: SegmentAnswerState;
     tokenMap: Record<QualificationToken, string>;
     translateScript: (text: string) => string;
+    templateTree: TemplateTree;
     onAnswerChange: (values: string[], text?: string | null) => void;
-    onOutcome: (
-        outcome: QualificationOutcome,
-        metadata?: { webinarSessionId?: string; calendlyUrl?: string },
-    ) => Promise<void>;
-    onOpenWebinarPicker?: (webinarId: string) => void;
+    onCompleteOutcomes: (
+        outcomes: QualificationOutcome[],
+        metadata?: {
+            comment?: string | null;
+        },
+    ) => Promise<LeadQualification | void | null>;
     saving?: boolean;
     completing?: boolean;
 }
@@ -27,9 +34,9 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
     answer,
     tokenMap,
     translateScript,
+    templateTree,
     onAnswerChange,
-    onOutcome,
-    onOpenWebinarPicker,
+    onCompleteOutcomes,
     saving = false,
     completing = false,
 }) => (
@@ -61,11 +68,10 @@ const SegmentCard: React.FC<SegmentCardProps> = ({
         {segment.type === "outcome" && (
             <OutcomeSegment
                 label={segment.label}
-                outcomeMetadata={segment.outcomeMetadata}
                 tokenMap={tokenMap}
                 translateScript={translateScript}
-                onOutcome={onOutcome}
-                onOpenWebinarPicker={onOpenWebinarPicker}
+                templateTree={templateTree}
+                onComplete={onCompleteOutcomes}
                 loading={completing}
             />
         )}

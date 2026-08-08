@@ -68,11 +68,15 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
         // Lead API Routes (paginated: first_name, last_name, email)
         ApiRoute::get('leads', ['as' => 'api.leads.index', 'uses' => 'Api\LeadApiController@index']);
 
+        // Qualification action catalog (OL authoring)
+        ApiRoute::get('qualification-actions', ['as' => 'api.qualification-actions.index', 'uses' => 'Api\QualificationActionCatalogController@index']);
+
         // Task API Routes (paginated: tasks for the current day app-wide)
         ApiRoute::get('tasks/today', ['as' => 'api.tasks.today', 'uses' => 'Api\TaskApiController@tasksForToday']);
 
         // Property API Routes
         ApiRoute::get('properties', ['as' => 'api.properties.index', 'uses' => 'Api\PropertyApiController@index']);
+        ApiRoute::get('properties/{identifier}/expose', ['as' => 'api.properties.expose', 'uses' => 'Api\ExposeDataApiController@propertyExpose']);
         ApiRoute::get('properties/{identifier}', ['as' => 'api.properties.show', 'uses' => 'Api\PropertyApiController@showByIdOrSlug']);
         ApiRoute::get('properties/filters/propertyTypes', ['as' => 'api.properties.filters.property_types', 'uses' => 'Api\PropertyApiController@getPropertyTypes']);
         ApiRoute::get('properties/filters/features', ['as' => 'api.properties.filters.features', 'uses' => 'Api\PropertyApiController@getFeatures']);
@@ -80,7 +84,14 @@ ApiRoute::group(['namespace' => 'App\Http\Controllers'], function () {
 
         // Developer Project API Routes
         ApiRoute::get('developer-projects', ['as' => 'api.developer-projects.index', 'uses' => 'Api\DeveloperProjectApiController@index']);
+        ApiRoute::get('developer-projects/{identifier}/unit-types/{unitTypeId}/expose', ['as' => 'api.developer-projects.unit-types.expose', 'uses' => 'Api\ExposeDataApiController@unitTypeExpose']);
+        ApiRoute::get('developer-projects/{identifier}/expose', ['as' => 'api.developer-projects.expose', 'uses' => 'Api\ExposeDataApiController@projectExpose']);
         ApiRoute::get('developer-projects/{identifier}', ['as' => 'api.developer-projects.show', 'uses' => 'Api\DeveloperProjectApiController@showByIdOrSlug']);
+
+        // Expose snapshot reference API (lookup key only — auth remains api.token)
+        ApiRoute::post('expose-snapshots', ['as' => 'api.expose-snapshots.create', 'uses' => 'Api\ExposeSnapshotApiController@store']);
+        ApiRoute::get('expose-snapshots', ['as' => 'api.expose-snapshots.index', 'uses' => 'Api\ExposeSnapshotApiController@index']);
+        ApiRoute::get('expose-snapshots/{token}', ['as' => 'api.expose-snapshots.show', 'uses' => 'Api\ExposeSnapshotApiController@show']);
 
         // Agent commission profile (internal)
         ApiRoute::get('internal/agents/{agentId}/commission-profile', ['as' => 'api.internal.agents.commission-profile.show', 'uses' => 'Api\AgentCommissionProfileInternalController@show']);
@@ -123,6 +134,11 @@ Route::middleware(['api.token'])->prefix('v2')->group(function () {
             ->whereNumber('meetingId');
         Route::delete('meetings/{meetingId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@deleteMeeting', 'as' => 'api.v2.meetings.destroy'])
             ->whereNumber('meetingId');
+
+        Route::get('payments', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@listPayments', 'as' => 'api.v2.payments.index']);
+        Route::post('payments', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@upsertPayment', 'as' => 'api.v2.payments.upsert']);
+        Route::get('payments/{paymentId}', ['uses' => 'App\Http\Controllers\ApiV2\CrmWriteApiController@getPayment', 'as' => 'api.v2.payments.show'])
+            ->whereNumber('paymentId');
     });
 
     Route::post('employees', ['uses' => 'App\Http\Controllers\ApiV2\EmployeeV2ApiController@createEmployee', 'as' => 'api.v2.employees.create.compat']);

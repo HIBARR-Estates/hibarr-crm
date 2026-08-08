@@ -9,6 +9,7 @@ use App\Models\LeadNote;
 use App\Models\LeadUserNote;
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\Reminders\NoteReminderSync;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -92,6 +93,12 @@ class LeadNoteController extends AccountBaseController
         $note->details = $request->details;
         $note->type = request('type', 1);
         $note->ask_password = $request->ask_password ? $request->ask_password : '';
+        if ($request->filled('remind_at')) {
+            $note->remind_at = $request->remind_at;
+        }
+        if ($request->exists('reminders')) {
+            $note->reminders = $request->input('reminders');
+        }
 
         $note->save();
         /* if note type is private */
@@ -121,10 +128,13 @@ class LeadNoteController extends AccountBaseController
             ]);
         }
 
+        app(NoteReminderSync::class)->syncFromLeadNote($note->load(['lead', 'addedBy', 'members']));
+
         $note->load('addedBy');
 
         return Reply::successWithData(__('messages.recordSaved'), [
             'data' => array_merge($note->toArray(), [
+                'added_by' => $note->addedBy,
                 'added_by_user' => $note->addedBy,
             ]),
         ]);
@@ -166,6 +176,12 @@ class LeadNoteController extends AccountBaseController
         $note->details = $request->details;
         $note->type = $request->type;
         $note->ask_password = $request->ask_password ?: '';
+        if ($request->exists('remind_at')) {
+            $note->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->exists('reminders')) {
+            $note->reminders = $request->input('reminders');
+        }
         $note->save();
 
         /* if note type is private */
@@ -184,6 +200,8 @@ class LeadNoteController extends AccountBaseController
                 }
             }
         }
+
+        app(NoteReminderSync::class)->syncFromLeadNote($note->load(['lead', 'addedBy', 'members']));
 
         $note->load('addedBy');
 
@@ -205,6 +223,7 @@ class LeadNoteController extends AccountBaseController
             || ($this->deletePermission == 'owned' && in_array(user()->id, $memberIds) && in_array('employee', user_roles()))
             || ($this->deletePermission == 'both' && ($this->note->added_by == user()->id || in_array(user()->id, $memberIds)))
         );
+        app(NoteReminderSync::class)->cancelForLeadNote($this->note);
         $this->note->delete();
 
         return Reply::success(__('messages.deleteSuccess'));

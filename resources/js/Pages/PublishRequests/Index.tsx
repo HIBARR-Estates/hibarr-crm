@@ -83,8 +83,8 @@ const Index = () => {
     const { t } = useTranslation();
     const { props } = usePage<any>();
     const isSalesManager =
-        props.auth?.permissions?.edit_product === "all" ||
-        props.auth?.permissions?.edit_product === 4;
+        props.auth?.permissions?.manage_property_publish_requests === "all" ||
+        props.auth?.permissions?.manage_property_publish_requests === 4;
 
     const [direction, setDirection] = useState<string>("all");
     const [statusFilter, setStatusFilter] = useState<string>("");

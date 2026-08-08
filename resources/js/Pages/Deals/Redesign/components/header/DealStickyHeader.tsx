@@ -31,6 +31,7 @@ interface DealStickyHeaderProps {
     onAddTask: () => void;
     onScheduleMeeting: () => void;
     onReplayGuide?: () => void;
+    onOpenAnalysis?: () => void;
 }
 
 export default function DealStickyHeader({
@@ -43,6 +44,7 @@ export default function DealStickyHeader({
     onAddTask,
     onScheduleMeeting,
     onReplayGuide,
+    onOpenAnalysis,
 }: DealStickyHeaderProps) {
     const { td } = useTd();
     const { t } = useTranslation();
@@ -126,6 +128,17 @@ export default function DealStickyHeader({
                                             "added")
                                 }
                             />
+                            {onOpenAnalysis && (
+                                <DealButton
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={onOpenAnalysis}
+                                >
+                                    {deal.analysis_status === "completed"
+                                        ? td("View Analysis", { source: "en" })
+                                        : td("Open Analysis", { source: "en" })}
+                                </DealButton>
+                            )}
                             <DealButton
                                 variant="ghost"
                                 size="sm"

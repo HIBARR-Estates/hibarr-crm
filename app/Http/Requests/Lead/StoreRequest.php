@@ -2,9 +2,11 @@
 
 namespace App\Http\Requests\Lead;
 
+use App\Enums\Salutation;
 use App\Http\Requests\CoreRequest;
 use App\Services\LeadCoreFieldsService;
 use App\Traits\CustomFieldsRequestTrait;
+use Illuminate\Validation\Rule;
 
 class StoreRequest extends CoreRequest
 {
@@ -25,6 +27,10 @@ class StoreRequest extends CoreRequest
         if ($this->has('close_date') && $this->close_date === '') {
             $this->merge(['close_date' => null]);
         }
+
+        if ($this->has('salutation') && $this->salutation === '') {
+            $this->merge(['salutation' => null]);
+        }
     }
 
     /**
@@ -39,7 +45,9 @@ class StoreRequest extends CoreRequest
 
         $rules['client_name'] = 'required';
         $rules['client_email'] = 'nullable|email:rfc,strict|unique:leads,client_email,null,id,company_id,' . company()->id;
+        $rules['salutation'] = ['nullable', 'string', Rule::in(array_column(Salutation::cases(), 'value'))];
         $rules['gender'] = 'nullable|in:male,female';
+        $rules['temperature'] = 'nullable|in:cold,warm,hot';
         $rules['lead_lifecycle_status_id'] = 'sometimes|nullable|integer|exists:lead_lifecycle_statuses,id';
 
         if (request()->boolean('create_deal')) {

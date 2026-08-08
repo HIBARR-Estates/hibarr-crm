@@ -6,6 +6,7 @@ use App\DataTables\DealsDataTable;
 use App\DataTables\LeadContactDataTable;
 use App\DataTables\LeadNotesDataTable;
 use App\Enums\Salutation;
+use App\Helper\Files;
 use App\Helper\Reply;
 use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
@@ -22,6 +23,7 @@ use App\Models\LeadCategory;
 use Illuminate\Support\Facades\DB;
 use App\Models\Lead;
 use App\Models\LeadLifecycleStatus;
+use App\Models\LeadSavedView;
 use App\Models\LeadCustomForm;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
@@ -42,6 +44,9 @@ use Illuminate\Support\Facades\Session;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Log;
 use App\Services\LeadCoreFieldsService;
+use App\Services\LeadFilterFacetsService;
+use App\Support\FeatureFlags;
+use App\Services\LeadQualificationService;
 use App\Services\PermissionService;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadService;
@@ -93,21 +98,9 @@ class LeadContactController extends AccountBaseController
         // S2: Index no longer ships leadContacts / stages / custom field definitions.
         // SaveLeadModal (M2) and ChangeToClient fetch defs via form-data API.
         // Keep leadLifecycleStatuses for the inline status cell.
-        return Inertia::render('Leads/Index', [
+        $props = [
             'pageTitle' => 'Lead Contacts',
-            'filters' => $request->only([
-                'search',
-                'lead_type',
-                'start_date',
-                'end_date',
-                'lead_source',
-                'lead_owner_id',
-                'added_by_id',
-                'lifecycle_status_id',
-                'qualification_segment_key',
-                'qualification_answer_values',
-                'language',
-            ]),
+            'filters' => $request->only(LeadService::FILTER_KEYS),
             'leads' => [
                 'data' => $leads->items(),
                 'current_page' => $leads->currentPage(),
@@ -120,9 +113,46 @@ class LeadContactController extends AccountBaseController
             'leadLifecycleStatuses' => LeadLifecycleStatus::query()
                 ->orderBy('sort_order')
                 ->get(['id', 'key', 'label', 'label_color']),
-        ]);
+        ];
+
+        // Filter modal chrome — only the v2 filter UI consumes these, and the
+        // facet counts are several GROUP BY queries, so skip them when it is off.
+        if (FeatureFlags::enabled('crm.leads-filter-v2')) {
+            $props['filterFacets'] = Inertia::defer(
+                fn () => app(LeadFilterFacetsService::class)->facets()
+            );
+            $props['savedViews'] = Inertia::defer(fn () => $this->savedViewsForUser());
+        }
+
+        return Inertia::render('Leads/Index', $props);
     }
 
+    /**
+     * Saved filter views the current user may open: their own plus team-shared.
+     *
+     * @return array<int, array<string, mixed>>
+     */
+    private function savedViewsForUser(): array
+    {
+        $userId = (int) user()->id;
+
+        return LeadSavedView::query()
+            ->visibleTo($userId)
+            ->with('owner:id,name')
+            ->orderByDesc('updated_at')
+            ->get()
+            ->map(fn (LeadSavedView $view) => [
+                'id' => $view->id,
+                'name' => $view->name,
+                'filters' => $view->filters,
+                'visibility' => $view->visibility,
+                'pinned' => $view->pinned,
+                'is_owner' => (int) $view->user_id === $userId,
+                'owner_name' => $view->owner?->name,
+                'updated_at' => $view->updated_at?->toIso8601String(),
+            ])
+            ->all();
+    }
 
     public function show($id, Request $request)
     {
@@ -134,7 +164,9 @@ class LeadContactController extends AccountBaseController
             'addedBy',
             'leadSource:id,type',
             'category:id,category_name',
+            'categories:id,category_name',
             'client:id,name,email',
+            'currency:id,currency_name,currency_symbol,currency_code',
             'marketing',
             'lifecycleStatus:id,key,label,label_color,sort_order',
             'activeQualification.answers',
@@ -207,12 +239,15 @@ class LeadContactController extends AccountBaseController
 
         $this->activeTab = $tab ?: 'profile';
 
-        // Shell: deals for header/summary + schedule-meeting picker
+        // Shell: deals for header/summary + schedule-meeting picker + itinerary tab
         $deals = Deal::where('lead_id', $id)
             ->with([
                 'leadAgent.user',
-                'leadStage:id,name',
-                'pipeline:id,name'
+                'leadStage:id,name,label_color',
+                'pipeline:id,name',
+                'category:id,category_name',
+                'currency',
+                'leadFlightItineraries',
             ])
             ->get()
             ->map(function ($deal) {
@@ -278,19 +313,32 @@ class LeadContactController extends AccountBaseController
             'meetingTypes' => $meetingTypes,
             'followUpPermissions' => $followUpPermissions,
             'qualificationPermissions' => $qualificationPermissions,
+            // Small lookup table; needed for the lifecycle banner's reactivate action.
+            'leadLifecycleStatuses' => LeadLifecycleStatus::query()
+                ->orderBy('sort_order')
+                ->get(['id', 'key', 'label', 'label_color']),
             'leadAiSummary' => \App\Support\FeatureFlags::enabled('crm.lead-ai-summary')
                 ? app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($leadContact)
                 : null,
 
+            // Synchronous so the qualification workspace paints without an extra
+            // round-trip — `activeQualification.answers` is already eager-loaded above.
+            'leadQualification' => \App\Support\FeatureFlags::enabled('crm.lead-qualification-tab')
+                ? app(LeadQualificationService::class)->resolveWorkspaceForLead($leadContact)
+                : null,
+
             // ---- C1 deferred (queries run only when Inertia resolves these) ----
+            // Each key carries a named group. Inertia resolves one group per request,
+            // so a slow or throwing closure can no longer stall every other tab —
+            // the same failure documented in DealController::show().
             'notes' => Inertia::defer(fn () => LeadNote::where('lead_id', $leadId)
                 ->with('addedBy')
                 ->orderBy('created_at', 'desc')
-                ->get()),
+                ->get(), 'workspace'),
             'tasks' => Inertia::defer(fn () => $leadContact->tasks()
                 ->with(['users', 'category', 'boardColumn', 'labels', 'deals', 'leads', 'properties'])
                 ->orderBy('id', 'desc')
-                ->get()),
+                ->get(), 'workspace'),
             'leadFollowUps' => Inertia::defer(function () use ($leadId) {
                 $leadFollowUpsQuery = DealFollowUp::with([
                     'addedBy:id,name,image',
@@ -326,29 +374,33 @@ class LeadContactController extends AccountBaseController
                 });
 
                 return $leadFollowUps;
-            }),
-            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all()),
-            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all()),
-            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get()),
-            'projects' => Inertia::defer(fn () => \App\Models\Project::all()),
-            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get()),
-            'leadStages' => Inertia::defer(fn () => PipelineStage::all()),
-            'stages' => Inertia::defer(fn () => PipelineStage::all()),
+            }, 'workspace'),
+            'taskCategories' => Inertia::defer(fn () => \App\Models\TaskCategory::all(), 'taskMeta'),
+            'taskLabels' => Inertia::defer(fn () => \App\Models\TaskLabelList::all(), 'taskMeta'),
+            'taskBoardColumns' => Inertia::defer(fn () => \App\Models\TaskboardColumn::orderBy('priority')->get(), 'taskMeta'),
+            'projects' => Inertia::defer(fn () => \App\Models\Project::all(), 'taskMeta'),
+            'leadPipelines' => Inertia::defer(fn () => LeadPipeline::orderBy('default', 'DESC')->get(), 'dealMeta'),
+            'leadStages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
+            'stages' => Inertia::defer(fn () => PipelineStage::all(), 'dealMeta'),
             'leadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', 'active');
-            })->get()),
+            })->get(), 'formMeta'),
             'nonActiveLeadAgents' => Inertia::defer(fn () => LeadAgent::with('user')->whereHas('user', function ($q) {
                 $q->where('status', '!=', 'active');
-            })->get()),
-            'leadContacts' => Inertia::defer(fn () => Lead::allLeads()),
-            'products' => Inertia::defer(fn () => Product::all()),
-            'packages' => Inertia::defer(fn () => \App\Models\Package::all()),
+            })->get(), 'formMeta'),
+            'leadContacts' => Inertia::defer(fn () => Lead::allLeads(), 'formMeta'),
+            'products' => Inertia::defer(fn () => Product::all(), 'dealMeta'),
+            // packagePipeline lets Create Deal filter packages by selected pipeline.
+            'packages' => Inertia::defer(
+                fn () => \App\Models\Package::with('packagePipeline')->get(),
+                'dealMeta',
+            ),
             'dealCustomFields' => Inertia::defer(function () {
                 $deal = new Deal();
                 $groups = $deal->getCustomFieldGroupsWithFields();
 
                 return $groups ? $groups->fields : [];
-            }),
+            }, 'dealMeta'),
             'dealCustomFieldCategories' => Inertia::defer(function () {
                 $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
                 if (!$dealCustomFieldGroup) {
@@ -360,7 +412,7 @@ class LeadContactController extends AccountBaseController
                     ->orderBy(DB::raw('`order`'), 'asc')
                     ->orderBy('id', 'asc')
                     ->get();
-            }),
+            }, 'dealMeta'),
             'pipelineCustomFieldCategoryIdsByPipeline' => Inertia::defer(function () {
                 return LeadPipeline::query()
                     ->with('customFieldCategories:id')
@@ -371,7 +423,7 @@ class LeadContactController extends AccountBaseController
                         ];
                     })
                     ->toArray();
-            }),
+            }, 'dealMeta'),
         ]));
     }
 
@@ -509,13 +561,13 @@ class LeadContactController extends AccountBaseController
 
         $leadContact = new Lead();
         $leadContact->company_id = company()->id;
-        $leadContact->salutation = $request->salutation;
+        $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
+        $leadContact->temperature = $request->temperature;
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
-        $leadContact->category_id = $request->category_id;
         $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
         $leadContact->client_id = $existingUser?->id;
         $leadContact->lead_owner = $request->lead_owner ?: user()?->id;
@@ -551,7 +603,25 @@ class LeadContactController extends AccountBaseController
         $this->coreFieldsService->write($leadContact, $request->only([
             'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
+        if ($request->has('remind_at')) {
+            $leadContact->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->has('reminders')) {
+            $leadContact->reminders = $request->input('reminders');
+        }
         $leadContact->save();
+
+        // When create_deal is on, scalar category_id is the *deal* category field
+        // (shared form name) and must not be written onto the lead.
+        $categoryIds = $this->normalizeCategoryIdsFromRequest(
+            $request,
+            ignoreScalarCategoryId: $request->boolean('create_deal')
+        );
+        if ($categoryIds !== null) {
+            $leadContact->syncCategories($categoryIds);
+        }
+
+        app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
         if ($request->boolean('create_deal')) {
             $this->storeDeal($request, $leadContact);
@@ -596,7 +666,7 @@ class LeadContactController extends AccountBaseController
      */
     public function edit($id, Request $request)
     {
-        $this->leadContact = Lead::with('leadSource', 'category')->findOrFail($id)->withCustomFields();
+        $this->leadContact = Lead::with('leadSource', 'category', 'categories')->findOrFail($id)->withCustomFields();
         $this->deal = Deal::where('lead_id', $id)->first();
 
         $leadRules = [
@@ -684,16 +754,18 @@ class LeadContactController extends AccountBaseController
             abort(403);
         }
 
-        $leadContact->salutation = $request->salutation;
+        $leadContact->salutation = $request->salutation ?: null;
         if ($request->has('gender')) {
             $leadContact->gender = $request->gender;
+        }
+        if ($request->has('temperature')) {
+            $leadContact->temperature = $request->temperature;
         }
         $leadContact->client_name = $request->client_name;
         $leadContact->client_email = $request->client_email;
         $leadContact->note = trim_editor($request->note);
         $leadContact->source_id = $request->source_id;
         $leadContact->lead_owner = $request->lead_owner;
-        $leadContact->category_id = $request->category_id;
         if ($request->has('lead_lifecycle_status_id')) {
             $leadContact->lead_lifecycle_status_id = $request->lead_lifecycle_status_id;
         }
@@ -722,7 +794,20 @@ class LeadContactController extends AccountBaseController
         $this->coreFieldsService->write($leadContact, $request->only([
             'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
         ]));
+        if ($request->has('remind_at')) {
+            $leadContact->remind_at = $request->filled('remind_at') ? $request->remind_at : null;
+        }
+        if ($request->has('reminders')) {
+            $leadContact->reminders = $request->input('reminders');
+        }
         $leadContact->save();
+
+        $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
+        if ($categoryIds !== null) {
+            $leadContact->syncCategories($categoryIds);
+        }
+
+        app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
         $clientCreated = $request->create_client == "on" ? '1' : '0';
         Deal::where('lead_id', $leadContact->id)->update(['create_client' => $clientCreated]);
@@ -777,10 +862,13 @@ class LeadContactController extends AccountBaseController
             
             // Handle basic contact information
             if ($request->has('salutation')) {
-                $leadContact->salutation = $request->salutation;
+                $leadContact->salutation = $request->salutation ?: null;
             }
             if ($request->has('gender')) {
                 $leadContact->gender = $request->gender;
+            }
+            if ($request->has('temperature')) {
+                $leadContact->temperature = $request->temperature;
             }
             if ($request->has('client_name')) {
                 $leadContact->client_name = $request->client_name;
@@ -818,6 +906,15 @@ class LeadContactController extends AccountBaseController
             }
             if ($request->has('office')) {
                 $leadContact->office = $request->office;
+            }
+            if ($request->has('client_whatsapp')) {
+                $leadContact->client_whatsapp = $request->client_whatsapp;
+            }
+            if ($request->has('client_telegram')) {
+                $leadContact->client_telegram = $request->client_telegram;
+            }
+            if ($request->has('client_instagram')) {
+                $leadContact->client_instagram = $request->client_instagram;
             }
             
             // Handle mobile with special formatting if needed
@@ -860,9 +957,12 @@ class LeadContactController extends AccountBaseController
                 $leadContact->added_by = $request->added_by;
             }
             
-            // Handle categorization
-            if ($request->has('category_id')) {
-                $leadContact->category_id = $request->category_id;
+            // Handle categorization (multi via category_ids; category_id still accepted)
+            $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
+            if ($categoryIds !== null) {
+                // Defer pivot sync until after save so the lead has an id and
+                // the scalar category_id is written in the same sync call.
+                $leadContact->category_id = $categoryIds[0] ?? null;
             }
             if ($request->has('source_id')) {
                 $leadContact->source_id = $request->source_id;
@@ -902,6 +1002,10 @@ class LeadContactController extends AccountBaseController
 
             // Save the lead contact
             $leadContact->save();
+
+            if ($categoryIds !== null) {
+                $leadContact->syncCategories($categoryIds);
+            }
 
             // Handle products relationship
             if ($request->has('products')) {
@@ -1006,14 +1110,19 @@ class LeadContactController extends AccountBaseController
                 // Add only the fields that were in the request
                 $allowedFields = [
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
+                    'client_whatsapp', 'client_telegram', 'client_instagram',
                     'company_name', 'website', 'address', 'city', 'state', 'country',
-                    'postal_code', 'gender', 'note', 'lead_owner', 'category_id',
+                    'postal_code', 'gender', 'temperature', 'note', 'lead_owner', 'category_id',
+                    'category_ids',
                     'source_id', 'agent_id', 'value', 'currency_id', 'salutation',
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
                     'lead_lifecycle_status_id',
                 ];
                 
                 foreach ($allowedFields as $field) {
+                    if ($field === 'category_ids') {
+                        continue;
+                    }
                     if ($request->has($field)) {
                         if (in_array($field, ['languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation'], true)) {
                             $responseData[$field] = $this->coreFieldsService->read($leadContact)[$field] ?? null;
@@ -1025,9 +1134,12 @@ class LeadContactController extends AccountBaseController
                 
                 // Load and include relationship data when relationship IDs are updated
                 // This ensures the frontend can immediately display the updated relationship info
-                if ($request->has('category_id')) {
-                    $leadContact->load('category');
+                if ($categoryIds !== null || $request->has('category_id') || $request->has('category_ids')) {
+                    $leadContact->load(['category:id,category_name', 'categories:id,category_name']);
+                    $responseData['category_id'] = $leadContact->category_id;
                     $responseData['category'] = $leadContact->category;
+                    $responseData['categories'] = $leadContact->categories;
+                    $responseData['category_ids'] = $leadContact->categories->pluck('id')->values()->all();
                 }
                 
                 if ($request->has('source_id')) {
@@ -1053,7 +1165,11 @@ class LeadContactController extends AccountBaseController
                 }
 
                 // If custom fields were updated (including file uploads), include the updated custom_fields_data
-                if ($request->has('custom_fields') || $request->hasFile('custom_fields')) {
+                if (
+                    $request->has('custom_fields')
+                    || $request->hasFile('custom_fields')
+                    || isset($request->allFiles()['custom_fields'])
+                ) {
                     $leadContact->withCustomFields();
                     $responseData['custom_fields_data'] = $leadContact->custom_fields_data;
                 }
@@ -1104,6 +1220,69 @@ class LeadContactController extends AccountBaseController
     }
 
     /**
+     * Upload / replace the lead contact avatar image.
+     */
+    public function uploadImage(Request $request, $id)
+    {
+        $leadContact = Lead::findOrFail($id);
+
+        $access = PermissionService::checkAccess(user(), 'edit_lead', $leadContact, [
+            'added' => 'added_by',
+            'owned' => 'lead_owner',
+        ]);
+
+        if (!$access['canAccess']) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'status' => 'fail',
+                    'message' => __('messages.permissionDenied'),
+                ], 403);
+            }
+
+            abort(403);
+        }
+
+        $request->validate([
+            'image' => 'required|image|mimes:jpg,jpeg,png,gif,webp|max:5120',
+        ]);
+
+        try {
+            if (!empty($leadContact->image)) {
+                Files::deleteFile($leadContact->image, 'lead-avatar');
+            }
+
+            $leadContact->image = Files::uploadLocalOrS3(
+                $request->file('image'),
+                'lead-avatar',
+                300,
+            );
+            $leadContact->save();
+
+            return response()->json([
+                'status' => 'success',
+                'message' => __('messages.updateSuccess') ?: 'Lead photo updated',
+                'data' => [
+                    'lead' => [
+                        'id' => $leadContact->id,
+                        'image' => $leadContact->image,
+                        'image_url' => $leadContact->image_url,
+                    ],
+                ],
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Lead image upload failed: ' . $e->getMessage(), [
+                'lead_id' => $id,
+                'user_id' => user()->id,
+            ]);
+
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Failed to update lead photo',
+            ], 500);
+        }
+    }
+
+    /**
      * Remove the specified resource from storage.
      *
      * @param int $id
@@ -1146,17 +1325,23 @@ class LeadContactController extends AccountBaseController
 
         switch ($actionType) {
             case 'change_category':
-                $categoryId = $request->category_id;
-                
-                // Validate category exists if provided
-                if ($categoryId) {
-                    $category = LeadCategory::find($categoryId);
-                    if (!$category) {
+                $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
+                // Legacy bulk payloads send category_id (possibly null to clear).
+                if ($categoryIds === null) {
+                    return Reply::error(__('messages.categoryNotFound'));
+                }
+
+                if ($categoryIds !== []) {
+                    $found = LeadCategory::whereIn('id', $categoryIds)->count();
+                    if ($found !== count($categoryIds)) {
                         return Reply::error(__('messages.categoryNotFound'));
                     }
                 }
-                
-                Lead::whereIn('id', $rowIds)->update(['category_id' => $categoryId]);
+
+                $leads = Lead::whereIn('id', $rowIds)->get();
+                foreach ($leads as $lead) {
+                    $lead->syncCategories($categoryIds);
+                }
                 return Reply::success(__('messages.updateSuccess'));
 
             case 'change_source':
@@ -1479,6 +1664,38 @@ class LeadContactController extends AccountBaseController
             'status' => 'success',
             'custom_fields_data' => $lead->getCustomFieldsData(),
         ]);
+    }
+
+    /**
+     * Resolve category id list from a request.
+     * Prefers `category_ids[]`; falls back to single `category_id` unless
+     * $ignoreScalarCategoryId is true (create-deal forms reuse category_id
+     * for the *deal* category and must not stamp it on the lead).
+     * Returns null when neither applicable field is present.
+     *
+     * @return array<int>|null
+     */
+    private function normalizeCategoryIdsFromRequest(Request $request, bool $ignoreScalarCategoryId = false): ?array
+    {
+        if ($request->has('category_ids')) {
+            $raw = $request->input('category_ids', []);
+            if (! is_array($raw)) {
+                $raw = $raw === null || $raw === '' ? [] : [$raw];
+            }
+
+            return array_values(array_unique(array_filter(
+                array_map(static fn ($id) => $id === null || $id === '' ? null : (int) $id, $raw),
+                static fn ($id) => $id !== null && $id > 0
+            )));
+        }
+
+        if (! $ignoreScalarCategoryId && $request->has('category_id')) {
+            $id = $request->input('category_id');
+
+            return $id === null || $id === '' ? [] : [(int) $id];
+        }
+
+        return null;
     }
 
     /**

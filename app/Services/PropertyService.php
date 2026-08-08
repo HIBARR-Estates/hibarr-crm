@@ -62,6 +62,14 @@ class PropertyService
             $property->floors_in_building = $data['floors_in_building'] ?? null;
             $property->building_age = $data['building_age'] ?? null;
             $property->completion_date = $data['completion_date'] ?? null;
+            if (array_key_exists('reminders', $data)) {
+                $property->reminders = $data['reminders'];
+            }
+            if (array_key_exists('remind_at', $data)) {
+                $property->remind_at = ! empty($data['remind_at'])
+                    ? \Illuminate\Support\Carbon::parse($data['remind_at'])
+                    : null;
+            }
             
             // Status details
             $property->furniture_status = $data['furniture_status'] ?? null;
@@ -106,6 +114,8 @@ class PropertyService
 
             DB::commit();
 
+            app(\App\Services\Reminders\PropertyReminderSync::class)->syncFromProperty($property->fresh());
+
             return $property;
 
         } catch (\Exception $e) {
@@ -138,7 +148,7 @@ class PropertyService
                 'completion_date', 'furniture_status', 'current_occupancy',
                 'is_published', 'allow_101evler', 'allow_hangiev',
                 'product_id', 'developer_project_id', 'project_location_id',
-                'responsible_agent_id',
+                'responsible_agent_id', 'remind_at', 'reminders',
             ];
             
             foreach ($fillableFields as $field) {
@@ -174,6 +184,8 @@ class PropertyService
 
             DB::commit();
 
+            app(\App\Services\Reminders\PropertyReminderSync::class)->syncFromProperty($property->fresh());
+
             return $property;
 
         } catch (\Exception $e) {
@@ -190,6 +202,8 @@ class PropertyService
      */
     public function deleteProperty(Property $property): bool
     {
+        app(\App\Services\Reminders\PropertyReminderSync::class)->cancelForProperty($property);
+
         return $property->delete();
     }
 

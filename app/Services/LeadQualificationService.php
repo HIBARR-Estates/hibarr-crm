@@ -2,12 +2,17 @@
 
 namespace App\Services;
 
+use App\Enums\QualificationActionRunStatus;
+use App\Enums\QualificationActionType;
 use App\Enums\QualificationOutcome;
 use App\Enums\QualificationStatus;
 use App\Models\Lead;
 use App\Models\LeadLifecycleStatus;
 use App\Models\LeadQualification;
+use App\Models\LeadQualificationActionRun;
 use App\Models\LeadQualificationAnswer;
+use App\Services\Qualification\QualificationActionCatalog;
+use App\Services\Qualification\QualificationOutcomePolicy;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Collection;
 use Illuminate\Validation\ValidationException;
@@ -19,7 +24,7 @@ class LeadQualificationService
     public function listForLead(Lead $lead): Collection
     {
         return LeadQualification::where('lead_id', $lead->id)
-            ->with(['answers', 'agent:id,name,image'])
+            ->with(['answers', 'agent:id,name,image', 'actionRuns'])
             ->orderByDesc('started_at')
             ->orderByDesc('id')
             ->get();
@@ -36,7 +41,7 @@ class LeadQualificationService
         );
 
         $history = $qualifications
-            ->filter(fn (LeadQualification $qualification) => !$current || $qualification->id !== $current->id)
+            ->filter(fn (LeadQualification $qualification) => ! $current || $qualification->id !== $current->id)
             ->values();
 
         return [
@@ -68,7 +73,7 @@ class LeadQualificationService
             $lead->save();
         }
 
-        return $qualification->load(['answers', 'agent:id,name,image']);
+        return $qualification->load(['answers', 'agent:id,name,image', 'actionRuns']);
     }
 
     public function upsertAnswer(LeadQualification $qualification, array $data): LeadQualificationAnswer
@@ -108,12 +113,17 @@ class LeadQualificationService
     {
         $this->assertInProgress($qualification);
 
-        $outcome = QualificationOutcome::from($data['outcome']);
-        $lifecycleKey = $outcome->lifecycleStatusKey();
+        $policy = app(QualificationOutcomePolicy::class);
+        $rawOutcomes = $data['outcomes'] ?? (isset($data['outcome']) ? [$data['outcome']] : []);
+        $outcomeValues = $policy->normalizeToValues($rawOutcomes);
+        $winner = $policy->resolveWinner($outcomeValues);
+        $lifecycleKey = $winner->lifecycleStatusKey();
         $lifecycleStatus = $this->resolveLifecycleStatus($qualification->company_id, $lifecycleKey);
 
         $qualification->status = QualificationStatus::Completed;
-        $qualification->outcome = $outcome;
+        $qualification->outcomes = $outcomeValues;
+        $qualification->outcome = $winner;
+        $qualification->outcome_comment = $data['outcome_comment'] ?? null;
         $qualification->outcome_triggered_at = isset($data['outcome_triggered_at'])
             ? $data['outcome_triggered_at']
             : now();
@@ -123,7 +133,9 @@ class LeadQualificationService
         $qualification->completed_at = now();
         $qualification->save();
 
-        $lead = $qualification->lead;
+        $this->seedActionRuns($qualification, $data['actions'] ?? []);
+
+        $lead = Lead::withoutGlobalScopes()->find($qualification->lead_id);
         if ($lead && $lifecycleStatus) {
             $lead->lead_lifecycle_status_id = $lifecycleStatus->id;
             $lead->save();
@@ -134,13 +146,92 @@ class LeadQualificationService
                 'qualification_id' => $qualification->id,
                 'template_id' => $qualification->template_id,
                 'template_version' => $qualification->template_version,
-                'outcome' => $outcome->value,
+                'outcome' => $winner->value,
+                'outcomes' => $outcomeValues,
+                'winning_outcome' => $winner->value,
                 'lifecycle_status_key' => $lifecycleKey,
-                'comment' => $this->outcomeComment($outcome, $data),
+                'outcome_comment' => $qualification->outcome_comment,
+                'comment' => $this->outcomeComment($winner, $data),
             ],
         ]);
 
-        return $qualification->load(['answers', 'agent:id,name,image']);
+        return $qualification->load(['answers', 'agent:id,name,image', 'actionRuns']);
+    }
+
+    /**
+     * @param  list<array{type?: string, config?: array<string, mixed>|null}>  $actions
+     */
+    public function seedActionRuns(LeadQualification $qualification, array $actions): void
+    {
+        $catalog = app(QualificationActionCatalog::class);
+        $seen = [];
+
+        foreach ($actions as $action) {
+            $type = is_array($action) ? (string) ($action['type'] ?? '') : '';
+            if ($type === '' || isset($seen[$type])) {
+                continue;
+            }
+            $seen[$type] = true;
+
+            $enum = QualificationActionType::tryFrom($type);
+            $status = $enum === null || $catalog->statusFor($type) === QualificationActionCatalog::STATUS_COMING_SOON
+                ? QualificationActionRunStatus::Unavailable
+                : QualificationActionRunStatus::Pending;
+
+            LeadQualificationActionRun::create([
+                'lead_qualification_id' => $qualification->id,
+                'action_type' => $type,
+                'status' => $status,
+                'config' => is_array($action['config'] ?? null) ? $action['config'] : [],
+            ]);
+        }
+    }
+
+    public function markActionExecuted(
+        LeadQualificationActionRun $actionRun,
+        array $payload = [],
+        ?string $error = null
+    ): LeadQualificationActionRun {
+        $qualification = $actionRun->qualification;
+        if (! $qualification || $qualification->status !== QualificationStatus::Completed) {
+            throw ValidationException::withMessages([
+                'status' => ['Actions can only be executed on a completed qualification.'],
+            ]);
+        }
+
+        if ($actionRun->status === QualificationActionRunStatus::Completed) {
+            return $actionRun;
+        }
+
+        $catalog = app(QualificationActionCatalog::class);
+        $type = $actionRun->action_type;
+
+        if ($actionRun->status === QualificationActionRunStatus::Unavailable
+            || ! $catalog->isExecutable($type)
+        ) {
+            throw ValidationException::withMessages([
+                'action' => ['This action is not available to execute.'],
+            ]);
+        }
+
+        if ($error) {
+            $actionRun->status = QualificationActionRunStatus::Failed;
+            $actionRun->error = $error;
+            $actionRun->payload = $payload ?: $actionRun->payload;
+            $actionRun->save();
+
+            return $actionRun->fresh();
+        }
+
+        // Client has already performed registration side effects for executable
+        // types; no-ops complete immediately with empty payload.
+        $actionRun->status = QualificationActionRunStatus::Completed;
+        $actionRun->payload = $payload;
+        $actionRun->error = null;
+        $actionRun->completed_at = now();
+        $actionRun->save();
+
+        return $actionRun->fresh();
     }
 
     public function abandon(LeadQualification $qualification): LeadQualification

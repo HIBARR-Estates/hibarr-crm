@@ -11,6 +11,7 @@ import {
     BugOutlined,
     BulbOutlined,
     BellOutlined,
+    ClockCircleOutlined,
     ApartmentOutlined,
     TeamOutlined,
     HistoryOutlined,
@@ -29,8 +30,7 @@ import {
 import { PageProps } from "../DashboardLayout";
 import useTranslation from "@/Hooks/useTranslation";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import useDealPermissions from "@/Hooks/useDealPermissions";
-import usePropertyPermissions from "@/Hooks/usePropertyPermissions";
+import { isPermissionAll } from "@/lib/permissionUtils";
 
 interface Pipeline {
     id: number;
@@ -61,9 +61,14 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
     const defaultPipeline = pipelines.find((p) => p.default === 1);
     const { t, isRtl } = useTranslation();
     const { td } = useTd();
-    const isSalesManger =
-        props.auth?.permissions?.edit_product === "all" ||
-        props.auth?.permissions?.edit_product === 4;
+    const canManageOffers = isPermissionAll(
+        props.auth?.permissions?.manage_offers,
+    );
+    const canManagePartnerNetwork = isPermissionAll(
+        props.auth?.permissions?.manage_partner_network,
+    );
+    const canManageEntityReminders =
+        props.auth?.permissions?.manage_company_setting === "all";
 
     const STORAGE_KEY = "sidebar_expanded_items";
 
@@ -183,7 +188,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                 pipelines.length > 0
                     ? pipelines.map((pipeline) => ({
                           key: `deals-${pipeline.id}`,
-                          label: td(pipeline.name),
+                          label: td(pipeline.name, { source: "en" }),
                           icon: null,
                           href: `/account/deals?lead_pipeline_id=${pipeline.id}`,
                       }))
@@ -205,7 +210,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             label: t("app.menu.offers"),
             icon: <GiftOutlined />,
             href: "/account/offers",
-            hidden: !isSalesManger,
+            hidden: !canManageOffers,
         },
         {
             key: "meetings",
@@ -297,7 +302,7 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                     href: "/account/mlm/level-history",
                 },
             ],
-            hidden: !isSalesManger,
+            hidden: !canManagePartnerNetwork,
         },
         {
             key: "my-mlm",
@@ -359,6 +364,26 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
             onClick: () =>
                 router.visit("/account/settings/reminder-preferences/manage"),
         },
+        ...(canManageEntityReminders
+            ? [
+                  {
+                      key: "entity-reminder-defaults",
+                      icon: <ClockCircleOutlined />,
+                      label: t("app.menu.settings_menu.entity_reminder_defaults"),
+                      onClick: () =>
+                          router.visit(
+                              "/account/settings/entity-reminder-defaults",
+                          ),
+                  },
+                  {
+                      key: "reminder-ledger",
+                      icon: <BellOutlined />,
+                      label: t("app.menu.settings_menu.reminder_ledger"),
+                      onClick: () =>
+                          router.visit("/account/settings/reminder-ledger"),
+                  },
+              ]
+            : []),
         {
             type: "divider",
         },

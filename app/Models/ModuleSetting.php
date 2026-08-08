@@ -61,7 +61,10 @@ class ModuleSetting extends BaseModel
             'products',
             'reports',
             'settings',
-            'bankaccount'
+            'bankaccount',
+            'partner_network',
+            'offers',
+            'properties',
         ];
 
     protected $guarded = ['id'];

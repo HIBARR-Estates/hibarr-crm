@@ -19,6 +19,7 @@ import {
 } from "@dnd-kit/sortable";
 import { useApiInfiniteQuery } from "@/lib/api/client/useApiQuery";
 import { useIntersectionObserver } from "@/lib/hooks/useIntersectionObserver";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 interface BoardColumn extends PipelineStage {
     deals: Deal[];
@@ -33,7 +34,7 @@ interface BoardColumn extends PipelineStage {
 
 interface KanbanColumnProps {
     column: BoardColumn;
-    td?: (text: string | null | undefined) => string;
+    td?: TdFn;
     onCollapse: (columnId: number, type: "minimize" | "maximize") => void;
     onEditColumn: (columnId: number) => void;
     onDeleteColumn: (columnId: number) => void;
@@ -52,7 +53,7 @@ interface KanbanColumnProps {
 
 const KanbanColumn: React.FC<KanbanColumnProps> = ({
     column,
-    td = (text) => text ?? "",
+    td = identityTd,
     onCollapse,
     onEditColumn,
     onDeleteColumn,
@@ -186,7 +187,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                             style={{ backgroundColor: column.label_color }}
                         />
                         <p className="text-sm font-medium text-gray-700 writing-mode-vertical-lr transform rotate-180">
-                            {td(column.name)}
+                            {td(column.name, { source: "en" })}
                         </p>
                     </div>
 
@@ -205,7 +206,7 @@ const KanbanColumn: React.FC<KanbanColumnProps> = ({
                 <div className="flex items-center justify-between">
                     <div className="flex items-center">
                         <p className="text-base font-medium text-gray-400 truncate uppercase">
-                            {td(column.name)}
+                            {td(column.name, { source: "en" })}
                         </p>
 
                         <div

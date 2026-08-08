@@ -12,6 +12,7 @@ use App\Models\CustomFieldGroup;
 use App\Models\Currency;
 use Illuminate\Support\Str;
 use App\Enums\DealUpdateType;
+use App\Support\LeadSearchQuery;
 use Illuminate\Support\Facades\DB;
 
 class DealGatheringService
@@ -44,9 +45,14 @@ class DealGatheringService
      */
     public function searchLeads($query)
     {
-        return Lead::where('client_name', 'like', "%{$query}%")
-            ->orWhere('client_email', 'like', "%{$query}%")
-            ->orWhere('company_name', 'like', "%{$query}%")
+        return Lead::query()
+            ->where(function ($leadQuery) use ($query) {
+                $term = '%' . $query . '%';
+                $leadQuery->where('client_name', 'like', $term)
+                    ->orWhere('client_email', 'like', $term)
+                    ->orWhere('company_name', 'like', $term);
+                LeadSearchQuery::applyMobileMatch($leadQuery, $query);
+            })
             ->limit(10)
             ->get();
     }
@@ -363,14 +369,38 @@ class DealGatheringService
                 break;
 
             case DealUpdateType::CONTACT:
-                // Handle contact updates
-                $contactData = [];
-                if (isset($data['client_email'])) $contactData['client_email'] = $data['client_email'];
-                if (isset($data['mobile'])) $contactData['mobile'] = $data['mobile'];
-                if (isset($data['company_name'])) $contactData['company_name'] = $data['company_name'];
-
+                $allowedContactFields = [
+                    'client_name', 'client_email', 'mobile', 'cell', 'office',
+                    'company_name', 'salutation', 'gender', 'address',
+                    'postal_code', 'city', 'state', 'country', 'source_id',
+                    'nationality', 'occupation', 'date_of_birth', 'age', 'languages',
+                ];
+                $contactData = array_intersect_key($data, array_flip($allowedContactFields));
                 if (!empty($contactData) && $deal->contact) {
-                    $deal->contact->update($contactData);
+                    $promotedFields = ['nationality', 'occupation', 'date_of_birth', 'age', 'languages'];
+                    $promotedData = array_intersect_key($contactData, array_flip($promotedFields));
+                    $regularData = array_diff_key($contactData, array_flip($promotedFields));
+
+                    if (!empty($regularData)) {
+                        $deal->contact->update($regularData);
+                    }
+
+                    if (!empty($promotedData)) {
+                        /** @var \App\Services\LeadCoreFieldsService $coreFields */
+                        $coreFields = app(\App\Services\LeadCoreFieldsService::class);
+                        if ($coreFields->useCoreFields()) {
+                            $coreFields->write($deal->contact, $promotedData);
+                            $deal->contact->save();
+                        } else {
+                            $deal->contact->update($promotedData);
+                        }
+                    }
+                }
+                break;
+
+            case DealUpdateType::LEAD_CUSTOM_FIELD:
+                if ($deal->contact) {
+                    $deal->contact->updateCustomFieldData($data);
                 }
                 break;
 
@@ -386,9 +416,13 @@ class DealGatheringService
 
             case DealUpdateType::HIBARR_FIELD:
                 // Handle Hibarr specific fields
-                // Process file uploads for reservation_agreement and sales_contract
+                // Process file uploads for document slots (external storage + legacy fallback).
                 $hibarrData = [];
-                $fileFields = ['reservation_agreement', 'sales_contract'];
+                $fileFields = [
+                    'deposit_confirmation',
+                    'reservation_agreement',
+                    'sales_contract',
+                ];
                 
                 foreach ($data as $key => $value) {
                     if (in_array($key, $fileFields) && $value instanceof \Illuminate\Http\UploadedFile) {

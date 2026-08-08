@@ -102,6 +102,11 @@ const hasAccess = (
     return false;
 };
 
+/** True when the permission is granted at "all" scope (ALL_NONE modules). */
+export const isPermissionAll = (
+    value: PermissionScope | undefined | null,
+): boolean => value === "all" || value === 4;
+
 /**
  * Core function to check permissions.
  */

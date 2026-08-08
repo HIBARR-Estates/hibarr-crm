@@ -11,7 +11,18 @@ import {
 } from "@/lib/companyDateTime";
 import UserIndicator from "@/Components/UserIndicator";
 import PageDataSorter from "@/Components/PageDataSorter";
-import { formatMobileForDisplay, formatCountryForDisplay } from "@/lib/utils";
+import { formatMobileForDisplay } from "@/lib/utils";
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
+
+// Hex values (not antd preset names) so the tag renders as a solid fill,
+// matching the lifecycle status column's `<Tag color={label_color}>` look.
+// Values are REDESIGN_TOKENS BLUE / AMBER / RED — same palette the filter
+// modal and the lead header pill use, so temperature reads identically.
+const LEAD_TEMPERATURE_COLORS: Record<string, string> = {
+    cold: "#1a6bb5",
+    warm: "#92400e",
+    hot: "#b91c1c",
+};
 
 interface LeadLifecycleStatusOption {
     id: number;
@@ -80,13 +91,13 @@ function LeadLifecycleStatusCell({ record }: { record: Lead }) {
 interface LeadColumnOptions {
     actionItems?: (item: Lead) => MenuProps["items"];
     t?: (key: string) => string;
-    td?: (text: string | null | undefined) => string;
+    td?: TdFn;
 }
 
 export const LEAD_TABLE_COLUMNS = (
     options: LeadColumnOptions | ((item: Lead) => MenuProps["items"]) = {},
     t: (key: string) => string = (key) => key,
-    td: (text: string | null | undefined) => string = (key) => key ?? "",
+    td: TdFn = identityTd,
 ): ColumnsType<Lead> => {
     const resolved =
         typeof options === "function"
@@ -190,22 +201,6 @@ export const LEAD_TABLE_COLUMNS = (
         },
 
         {
-            title: translate("pages.leads.contacts_table.columns.country"),
-            dataIndex: "country",
-            key: "country",
-            width: 120,
-            render: (_, record) => {
-                const str = formatCountryForDisplay(record.country);
-                return str ? (
-                    <span className="text-gray-900 truncate max-w-full block text-sm">
-                        {str}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">--</span>
-                );
-            },
-        },
-        {
             title: (
                 <span className="flex items-center">
                     {translate("pages.leads.contacts_table.columns.source")}
@@ -245,12 +240,23 @@ export const LEAD_TABLE_COLUMNS = (
             key: "category",
             width: 140,
             render: (_, record) => {
-                return record.category?.category_name ? (
-                    <span className="text-gray-900 truncate max-w-full block text-sm">
-                        {translateDynamic(record.category.category_name)}
-                    </span>
-                ) : (
-                    <span className="text-gray-400">—</span>
+                const names =
+                    Array.isArray(record.categories) && record.categories.length
+                        ? record.categories.map((c) => c.category_name).filter(Boolean)
+                        : record.category?.category_name
+                          ? [record.category.category_name]
+                          : [];
+
+                if (!names.length) {
+                    return <span className="text-gray-400">—</span>;
+                }
+
+                return (
+                    <Tooltip title={names.map((n) => translateDynamic(n)).join(", ")}>
+                        <span className="text-gray-900 truncate max-w-full block text-sm">
+                            {names.map((n) => translateDynamic(n)).join(", ")}
+                        </span>
+                    </Tooltip>
                 );
             },
         },
@@ -262,6 +268,22 @@ export const LEAD_TABLE_COLUMNS = (
             key: "lead_lifecycle_status",
             width: 150,
             render: (_, record) => <LeadLifecycleStatusCell record={record} />,
+        },
+        {
+            title: translate("pages.leads.contacts_table.columns.temperature"),
+            dataIndex: "temperature",
+            key: "temperature",
+            width: 100,
+            render: (_, record) => {
+                const temperature = record.temperature as string | undefined;
+                if (!temperature) return <span className="text-gray-400">—</span>;
+
+                return (
+                    <Tag color={LEAD_TEMPERATURE_COLORS[temperature]}>
+                        {temperature.charAt(0).toUpperCase() + temperature.slice(1)}
+                    </Tag>
+                );
+            },
         },
         {
             title: (

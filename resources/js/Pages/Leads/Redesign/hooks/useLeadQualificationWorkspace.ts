@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 import { message } from "antd";
 import type { Lead } from "@/Types/api/leads";
-import type { PublishedTemplate } from "@/Types/qualification";
+import type {
+    LeadQualification,
+    PublishedTemplate,
+} from "@/Types/qualification";
 import useLeadQualificationLoader from "@/Pages/Leads/Components/Qualification/useLeadQualificationLoader";
+
+interface QualificationWorkspaceSeed {
+    current: LeadQualification | null;
+    history: LeadQualification[];
+}
 
 interface UseLeadQualificationWorkspaceOptions {
     enabled?: boolean;
+    seed?: QualificationWorkspaceSeed | null;
 }
 
 export default function useLeadQualificationWorkspace(
     lead: Lead,
-    { enabled = true }: UseLeadQualificationWorkspaceOptions = {},
+    { enabled = true, seed = null }: UseLeadQualificationWorkspaceOptions = {},
 ) {
-    const loader = useLeadQualificationLoader(lead.id, { enabled });
+    const loader = useLeadQualificationLoader(lead.id, { enabled, seed });
     const [isStartingFlow, setIsStartingFlow] = useState(false);
     const [templates, setTemplates] = useState<PublishedTemplate[]>([]);
     const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -25,6 +34,14 @@ export default function useLeadQualificationWorkspace(
         loader.enabled && loader.current?.status === "completed"
             ? loader.current.outcome ?? null
             : null;
+    const outcomes =
+        loader.enabled && loader.current?.status === "completed"
+            ? loader.current.outcomes?.length
+                ? loader.current.outcomes
+                : loader.current.outcome
+                  ? [loader.current.outcome]
+                  : []
+            : [];
 
     useEffect(() => {
         if (!enabled) {
@@ -119,6 +136,7 @@ export default function useLeadQualificationWorkspace(
         ...loader,
         flowActive,
         outcome,
+        outcomes,
         isStartingFlow,
         templates,
         templatesLoading,

@@ -11,6 +11,7 @@ use App\Http\Requests\ApiV2\CrmWrite\ListCrmWriteV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpdateMeetingV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpdateNoteV2Request;
 use App\Http\Requests\ApiV2\CrmWrite\UpdateTaskV2Request;
+use App\Http\Requests\ApiV2\CrmWrite\UpsertPaymentV2Request;
 use App\Services\ApiV2\CrmWriteService;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\JsonResponse;
@@ -210,6 +211,78 @@ class CrmWriteApiController extends Controller
             },
             'Meeting deleted successfully'
         );
+    }
+
+    public function listPayments(ListCrmWriteV2Request $request): JsonResponse
+    {
+        return $this->handle(
+            $request,
+            function (int $companyId) use ($request) {
+                $result = $this->crmWriteService->listPayments($companyId, $request->validated());
+
+                return $this->crmWriteService->serializePaginatedList($result['items'], $result['paginator']);
+            },
+            'Payments fetched successfully'
+        );
+    }
+
+    public function getPayment(Request $request, int $paymentId): JsonResponse
+    {
+        return $this->handle(
+            $request,
+            fn (int $companyId) => $this->crmWriteService->serializePayment(
+                $this->crmWriteService->getPayment($companyId, $paymentId)
+            ),
+            'Payment fetched successfully'
+        );
+    }
+
+    public function upsertPayment(UpsertPaymentV2Request $request): JsonResponse
+    {
+        $companyId = (int) $request->header('X-COMPANY-ID');
+        if ($companyId <= 0) {
+            return response()->json(Reply::error(__('messages.missingCompanyId')), 401);
+        }
+
+        try {
+            $result = $this->crmWriteService->upsertPayment(
+                $companyId,
+                $request->validated(),
+                $request->file('bill')
+            );
+
+            $created = (bool) $result['created'];
+            $message = $created ? 'Payment created successfully' : 'Payment updated successfully';
+            $payload = $this->crmWriteService->serializePayment($result['payment']);
+
+            return response()->json(
+                Reply::successWithData($message, ['data' => $payload]),
+                $created ? 201 : 200
+            );
+        } catch (ValidationException $exception) {
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'Validation failed.',
+                'errors' => $exception->errors(),
+            ], 422);
+        } catch (ModelNotFoundException) {
+            return response()->json(Reply::error('Record not found.'), 404);
+        } catch (\Throwable $exception) {
+            $referenceId = uniqid('CRM-WRITE-', true);
+
+            Log::error('CRM write API request failed', [
+                'reference_id' => $referenceId,
+                'endpoint' => $request->path(),
+                'company_id' => $companyId,
+                'message' => $exception->getMessage(),
+            ]);
+
+            return response()->json([
+                'status' => 'fail',
+                'message' => 'CRM write request failed. Please contact support with reference ID: ' . $referenceId,
+                'reference_id' => $referenceId,
+            ], 500);
+        }
     }
 
     /**

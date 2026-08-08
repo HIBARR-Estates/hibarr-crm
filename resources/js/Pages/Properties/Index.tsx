@@ -169,11 +169,13 @@ const Index = ({
             localStorage.setItem("hibarr_properties_view", mode);
         } catch {}
     }, []);
-    // Check if user is a sales manager (edit_product === 'all')
     const { props } = usePage<any>();
-    const isSalesManager =
-        props.auth?.permissions?.edit_product === "all" ||
-        props.auth?.permissions?.edit_product === 4;
+    const canManagePublishRequests =
+        props.auth?.permissions?.manage_property_publish_requests === "all" ||
+        props.auth?.permissions?.manage_property_publish_requests === 4;
+    const canManagePropertyConfig =
+        props.auth?.permissions?.manage_property_configuration === "all" ||
+        props.auth?.permissions?.manage_property_configuration === 4;
 
     // Debug: Log properties payload to see what price data looks like
     useEffect(() => {
@@ -505,7 +507,7 @@ const Index = ({
                                             )}
                                         </Button>
                                     </Link>
-                                    {isSalesManager ? (
+                                    {canManagePublishRequests ? (
                                         <Link href="/account/publish-requests">
                                             <Button
                                                 type="text"
@@ -517,7 +519,7 @@ const Index = ({
                                             </Button>
                                         </Link>
                                     ) : null}
-                                    {isSalesManager ? (
+                                    {canManagePropertyConfig ? (
                                         <Link
                                             href={route("property-config.page")}
                                         >
@@ -557,7 +559,7 @@ const Index = ({
                                         disabled={isRefreshing}
                                         type="text"
                                     >
-                                        {td("Refresh")}
+                                        {td("Refresh", { source: "en" })}
                                     </Button>
                                     {/* Advanced Filters Button */}
                                     <Button

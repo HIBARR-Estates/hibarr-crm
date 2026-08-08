@@ -45,7 +45,7 @@ return [
     ],
 
     'leads' => [
-        'contacts'                 => 'Contacts',
+        'contacts'                 => 'Leads',
         'refresh_tooltip_disabled' => 'Save or cancel changes before refreshing',
         'save_before_tab_switch'   => 'Please save or cancel your changes before switching tabs.',
         'tabs' => [
@@ -65,6 +65,7 @@ return [
                 'category'          => 'Category',
                 'lifecycle_status'  => 'Lifecycle Status',
                 'lead_owner'        => 'Lead Owner',
+                'temperature'       => 'Temperature',
                 'created'         => 'Created',
                 'actions'         => 'Actions',
             ],
@@ -100,6 +101,10 @@ return [
                 'gender'        => 'Gender',
                 'gender_male'   => 'Male',
                 'gender_female' => 'Female',
+                'temperature'      => 'Temperature',
+                'temperature_cold' => 'Cold',
+                'temperature_warm' => 'Warm',
+                'temperature_hot'  => 'Hot',
                 'company'       => 'Company',
                 'website'       => 'Website',
                 'lead_owner'    => 'Lead Owner',
@@ -205,6 +210,75 @@ return [
             'view_details'             => 'View Details',
             'edit_note'                => 'Edit Note',
             'delete_note'              => 'Delete Note',
+        ],
+        'tour' => [
+            'next'              => 'Next',
+            'back'              => 'Back',
+            'done'              => 'Done',
+            'skip'              => 'Skip tour',
+            'replay_menu_item'  => 'Replay guide',
+            'steps' => [
+                'sticky_header' => [
+                    'title' => 'This is your lead at a glance',
+                    'body'  => 'Photo, name, lifecycle status, and owner stay here as you work. Click the photo to upload a custom avatar. Reassign ownership from the owner card on the right.',
+                ],
+                'status_dropdown' => [
+                    'title' => "Update the lead's lifecycle status",
+                    'body'  => 'Open this dropdown to move the lead through statuses like New, Qualifying, Qualified, or Lost — the color shows where they stand today.',
+                ],
+                'lifecycle_banner' => [
+                    'title' => 'Your next best action lives here',
+                    'body'  => "This banner changes with the lead's status — start or resume qualification, create or open a deal, or reactivate a closed lead. When answers exist, use view answers to review them without leaving the page.",
+                ],
+                'ai_summary' => [
+                    'title' => 'Let AI catch you up',
+                    'body'  => "This summary reads the lead's activity and suggests next steps — qualify, create a task, or schedule a call — in one click.",
+                ],
+                'quick_stats' => [
+                    'title' => "See what's coming next",
+                    'body'  => 'Next meeting, open tasks, and the primary deal sit here for a quick scan. Empty slots have create shortcuts; existing items open their detail. View all deals jumps to the Deals tab.',
+                ],
+                'tabs' => [
+                    'title' => 'Everything about this lead, one tab away',
+                    'body'  => 'Overview, notes, tasks, meetings, files, deals, flight itinerary, and marketing live here — badges show counts. Lead info and Timeline sit after the divider on the right of the tab bar.',
+                ],
+                'overview' => [
+                    'title' => 'Overview brings the essentials together',
+                    'body'  => 'Recent notes, open tasks, and upcoming meetings show up here first — add new ones from each column without switching tabs.',
+                ],
+                'lead_info' => [
+                    'title' => 'Lead info holds the full editable record',
+                    'body'  => 'Profile, address, and custom field categories are organized in the left list — search to jump to a section. Click any field to edit in place. File-type fields live on the Files tab instead.',
+                ],
+                'deals' => [
+                    'title' => 'Deals linked to this lead',
+                    'body'  => 'Open the Deals tab for every deal created from this lead, with pipeline, stage, and value. You can also create a deal from the ⋮ menu, the lifecycle banner, or Quick stats.',
+                ],
+                'files' => [
+                    'title' => 'Documents and uploads live on Files',
+                    'body'  => 'Document slots from custom fields and freeform file uploads are managed here — not under Lead info.',
+                ],
+                'timeline' => [
+                    'title' => 'See the full history',
+                    'body'  => 'Every change, note, and status update on this lead, in order.',
+                ],
+                'quick_actions' => [
+                    'title' => 'Act without leaving the page',
+                    'body'  => 'Log an action, add a note, or schedule a meeting from these shortcuts — they stay visible no matter which workspace tab you are on.',
+                ],
+                'dossier' => [
+                    'title' => 'The dossier keeps key facts visible',
+                    'body'  => 'Phone, email, source, category, and marketing engagement stay here while you work. Use Edit in Lead info to jump into the editable profile. Click a value to copy it.',
+                ],
+                'actions_menu' => [
+                    'title' => 'More actions, one click away',
+                    'body'  => 'From ⋮ next to the name: view qualification answers, add a task or note, create a deal, find duplicates, or delete the lead. Replay this guide anytime from the same menu.',
+                ],
+                'closing' => [
+                    'title' => "You're ready",
+                    'body'  => "Replay this guide anytime from the ⋮ menu next to the lead's name.",
+                ],
+            ],
         ],
     ],
 
@@ -692,7 +766,8 @@ return [
                 'date_label'           => 'Date',
                 'platform'             => 'Platform',
                 'platform_video_call'  => 'Video call',
-                'platform_in_person'   => 'In person',
+                'platform_in_person'   => 'Physical',
+                'platform_physical'    => 'Physical',
                 'platform_phone'       => 'Phone',
                 'reminder_unit_minutes' => 'minutes',
                 'reminder_unit_hours'  => 'hours',
@@ -777,6 +852,8 @@ return [
                 'messages' => [
                     'uploaded'      => 'Files uploaded',
                     'upload_failed' => 'Failed to upload files. Please try again.',
+                    'deleted'       => 'File deleted',
+                    'delete_failed' => 'Could not delete file',
                 ],
             ],
             'offers' => [

@@ -28,7 +28,7 @@ class EscalateOverdueAvailabilityRequests extends Command
 
         $this->info("Found {$overdueRequests->count()} overdue availability request(s).");
 
-        // Get all admin users (edit_products = 'all')
+        // Get company admin / property-admin users
         $adminUsers = $this->getAdminUsers();
 
         if ($adminUsers->isEmpty()) {
