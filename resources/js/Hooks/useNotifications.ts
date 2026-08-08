@@ -26,7 +26,8 @@ import {
  */
 export const useNotificationSummary = (
     pollingInterval: number = 30000,
-    enabled: boolean = true
+    enabled: boolean = true,
+    onNewNotifications?: (notifications: Notification[]) => void
 ) => {
     const queryClient = useQueryClient();
 
@@ -38,26 +39,20 @@ export const useNotificationSummary = (
         refetch,
     } = useApiQuery<NotificationUnreadSummaryResponse>({
         path: route("notifications.api.unread_summary"),
-        options: { enabled },
+        // Uses react-query's own interval scheduling (rather than a manual
+        // setInterval) so multiple mounted consumers of this hook (bell
+        // dropdown + notch bridge) share one polling cadence per query key
+        // instead of each running an independent timer against the API.
+        options: { enabled, refetchInterval: enabled ? pollingInterval : false },
     });
-
-    // Set up polling
-    useEffect(() => {
-        if (!enabled || pollingInterval <= 0) return;
-
-        const interval = setInterval(() => {
-            refetch();
-        }, pollingInterval);
-
-        return () => clearInterval(interval);
-    }, [enabled, pollingInterval, refetch]);
 
     const unreadCount = response?.data?.unread_count ?? 0;
     const notifications = response?.data?.notifications ?? [];
 
-    // Sound + desktop popup for notifications that weren't present on the
-    // previous poll. Skipped on the very first load so opening the app
-    // doesn't alert for every pre-existing unread item.
+    // Sound + desktop popup (and any extra subscriber, e.g. the notch) for
+    // notifications that weren't present on the previous poll. Skipped on
+    // the very first load so opening the app doesn't alert for every
+    // pre-existing unread item.
     const seenIdsRef = useRef<Set<string> | null>(null);
     useEffect(() => {
         if (!enabled) return;
@@ -78,7 +73,8 @@ export const useNotificationSummary = (
         newOnes.slice(0, 3).forEach((n) => {
             showDesktopNotification(n.title, n.text, n.link);
         });
-    }, [notifications, enabled]);
+        onNewNotifications?.(newOnes);
+    }, [notifications, enabled, onNewNotifications]);
 
     // Invalidate cache to force refresh
     const invalidate = useCallback(() => {

@@ -9,7 +9,7 @@ import {
     Empty,
     Space,
     Tooltip,
-    Divider,
+    Popover,
     App,
 } from "antd";
 import {
@@ -24,7 +24,6 @@ import {
     CalendarOutlined,
     UserOutlined,
     ProjectOutlined,
-    SettingOutlined,
     ExclamationCircleOutlined,
     GiftOutlined,
     FileProtectOutlined,
@@ -34,6 +33,7 @@ import {
     RightOutlined,
     SoundOutlined,
     SoundFilled,
+    SettingOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -50,6 +50,7 @@ import {
     isDesktopNotificationSupported,
     requestDesktopPermission,
 } from "@/lib/notificationAlerts";
+import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
 
 dayjs.extend(relativeTime);
 
@@ -268,6 +269,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         <div
             className="bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
             style={{ width: 380, maxHeight: "80vh" }}
+            onClick={(e) => e.stopPropagation()}
         >
             {/* Header */}
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -283,6 +285,26 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     )}
                 </div>
                 <div className="flex items-center gap-1">
+                    <Popover
+                        content={<NotificationAlertSettings />}
+                        trigger="click"
+                        placement="bottomRight"
+                        // Theme raises zIndexPopupBase to 1300 (see
+                        // providers/antd/utils.ts), which puts this
+                        // Dropdown's own popup at 1350. Popover's default
+                        // offset is always 20 below Dropdown's, so it needs
+                        // an explicit bump to actually render on top.
+                        zIndex={1400}
+                    >
+                        <Tooltip title="Alert settings">
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<SettingOutlined className="text-gray-400" />}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </Tooltip>
+                    </Popover>
                     <Tooltip
                         title={
                             alertsMuted

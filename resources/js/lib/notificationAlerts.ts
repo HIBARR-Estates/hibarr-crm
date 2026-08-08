@@ -4,6 +4,8 @@
  */
 
 const MUTE_STORAGE_KEY = "notification_alerts_muted";
+const NOTCH_POSITION_STORAGE_KEY = "notification_notch_position";
+const NOTCH_DURATION_STORAGE_KEY = "notification_notch_duration";
 
 /** Peak gain for the notification chime (Web Audio 0–1 scale). */
 const NOTIFICATION_SOUND_PEAK_GAIN = 1;
@@ -54,6 +56,53 @@ export function isAlertsMuted(): boolean {
 export function setAlertsMuted(muted: boolean): void {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(MUTE_STORAGE_KEY, muted ? "1" : "0");
+}
+
+export type NotchPosition =
+    | "top-left"
+    | "top-center"
+    | "top-right"
+    | "bottom-left"
+    | "bottom-center"
+    | "bottom-right";
+
+const NOTCH_POSITIONS: NotchPosition[] = [
+    "top-left",
+    "top-center",
+    "top-right",
+    "bottom-left",
+    "bottom-center",
+    "bottom-right",
+];
+
+const DEFAULT_NOTCH_POSITION: NotchPosition = "top-center";
+const DEFAULT_NOTCH_DURATION_MS = 4200;
+const NOTCH_DURATIONS_MS = [3000, 4200, 6000] as const;
+
+export function getNotchPosition(): NotchPosition {
+    if (typeof window === "undefined") return DEFAULT_NOTCH_POSITION;
+    const stored = window.localStorage.getItem(NOTCH_POSITION_STORAGE_KEY);
+    return (NOTCH_POSITIONS as string[]).includes(stored ?? "")
+        ? (stored as NotchPosition)
+        : DEFAULT_NOTCH_POSITION;
+}
+
+export function setNotchPosition(position: NotchPosition): void {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(NOTCH_POSITION_STORAGE_KEY, position);
+}
+
+export function getNotchDurationMs(): number {
+    if (typeof window === "undefined") return DEFAULT_NOTCH_DURATION_MS;
+    const stored = Number(window.localStorage.getItem(NOTCH_DURATION_STORAGE_KEY));
+    return (NOTCH_DURATIONS_MS as readonly number[]).includes(stored)
+        ? stored
+        : DEFAULT_NOTCH_DURATION_MS;
+}
+
+export function setNotchDurationMs(durationMs: number): void {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(NOTCH_DURATION_STORAGE_KEY, String(durationMs));
 }
 
 export function playNotificationSound(): void {

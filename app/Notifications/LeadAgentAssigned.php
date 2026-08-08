@@ -21,7 +21,7 @@ class LeadAgentAssigned extends BaseNotification
     public function __construct(Deal $deal)
     {
         $this->deal = $deal;
-        $this->deal->loadMissing(['leadAgent', 'dealWatchers', 'contact', 'company']);
+        $this->deal->loadMissing(['leadAgent', 'dealWatchers', 'contact', 'company', 'leadSource']);
         $this->company = $this->deal->company;
         $this->assignedByName = user()?->name ?? '';
         $this->assignedAt = now()->format($this->company->date_format);
@@ -105,7 +105,9 @@ class LeadAgentAssigned extends BaseNotification
 
         return [
             'id' => $this->deal->id,
+            'deal_id' => $this->deal->id,
             'name' => $this->deal->name,
+            'source' => $this->deal->leadSource?->name,
             'agent_id' => $notifiable->id,
             'added_by' => $this->deal->added_by,
             'assignment_role' => $assignmentRole,
