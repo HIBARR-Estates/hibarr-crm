@@ -159,6 +159,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('checklist', [DashboardController::class, 'checklist'])->name('checklist');
     Route::get('dashboard', [DashboardController::class, 'index'])->name('dashboard');
     Route::get('dashboard-advanced', [DashboardController::class, 'advancedDashboard'])->name('dashboard.advanced');
+    Route::get('dashboard-v2', [App\Http\Controllers\DashboardV2Controller::class, 'index'])->name('dashboard.v2');
     Route::post('dashboard/widget/{dashboardType}', [DashboardController::class, 'widget'])->name('dashboard.widget');
     Route::post('dashboard/week-timelog', [DashboardController::class, 'weekTimelog'])->name('dashboard.week_timelog');
     Route::get('dashboard/lead-data/{id}', [DashboardController::class, 'getLeadStage'])->name('dashboard.deal-stage-data');
@@ -698,6 +699,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::get('deals/{deal}/edit', [DealController::class, 'edit'])->name('deals.edit');
     Route::put('deals/{deal}', [DealController::class, 'update'])->name('deals.update');
     Route::patch('deals/{deal}', [DealController::class, 'patch'])->name('deals.patch');
+    Route::patch('deals/{deal}/outcome', [DealController::class, 'updateOutcome'])->name('deals.outcome.update');
     Route::delete('deals/{deal}', [DealController::class, 'destroy'])->name('deals.destroy');
     Route::post('deals/{id}/tasks/default', [TaskController::class, 'storeDefaultTask'])->name('deals.tasks.default');
 

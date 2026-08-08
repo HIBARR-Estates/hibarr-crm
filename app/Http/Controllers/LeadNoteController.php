@@ -115,10 +115,10 @@ class LeadNoteController extends AccountBaseController
             }
         }
 
-        // ── CRM Event: lead_note_added (using lead_updated since lead_note_added may not be seeded) ──
+        // ── CRM Event: lead_note_added ──
         $lead = Lead::find($note->lead_id);
         if ($lead) {
-            $this->recordCrmEvent('lead_updated', $lead, [
+            $this->recordCrmEvent('lead_note_added', $lead, [
                 'metadata' => [
                     'comment' => 'Note added: ' . ($note->title ?? 'Untitled'),
                     'note_id' => $note->id,

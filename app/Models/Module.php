@@ -1715,6 +1715,29 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'view_finance_dashboard',
                 ],
+                // v2 role-scoped dashboards. Independent grants on purpose — a user
+                // may hold several (leadership commonly holds agent + leadership)
+                // and the page renders a switcher over whichever they have.
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'view_agent_dashboard',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'view_manager_dashboard',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'view_leadership_dashboard',
+                ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'view_partner_dashboard',
+                ],
             ]
         ],
         [

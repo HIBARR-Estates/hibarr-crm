@@ -47,6 +47,8 @@ use App\Models\DealOfferApplication;
  * @property float|null $value
  * @property float|null $total_value
  * @property int|null $currency_id
+ * @property float|null $exchange_rate
+ * @property \Illuminate\Support\Carbon|null $stage_entered_at
  * @property int|null $category_id
  * @property int|null $added_by
  * @property int|null $last_updated_by
@@ -157,6 +159,8 @@ class Deal extends BaseModel
         'manual_value' => 'decimal:2',
         'calculated_value' => 'decimal:2',
         'won_at' => 'datetime',
+        'stage_entered_at' => 'datetime',
+        'exchange_rate' => 'double',
         'analysis_completed_at' => 'datetime',
         'analysis_completed_by' => 'integer',
         'remind_at' => 'datetime',

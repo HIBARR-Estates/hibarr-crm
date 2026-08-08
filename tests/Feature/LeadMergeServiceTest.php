@@ -492,6 +492,7 @@ class LeadMergeServiceTest extends TestCase
             $table->string('client_telegram')->nullable();
             $table->string('client_instagram')->nullable();
             $table->unsignedInteger('lead_owner')->nullable();
+            $table->timestamp('assigned_at')->nullable();
             $table->unsignedInteger('added_by')->nullable();
             $table->unsignedInteger('client_id')->nullable();
             $table->unsignedInteger('agent_id')->nullable();

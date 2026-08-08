@@ -67,6 +67,9 @@ use App\Services\DealAgentAssignmentService;
 use App\Services\PackagePipelineRouterService;
 use App\Services\PackageRoutingFieldCatalog;
 use App\Services\PipelineScopeResolverService;
+use App\Services\Deal\DealOutcomeService;
+use App\Enums\OutcomeStatus;
+use Illuminate\Validation\Rule;
 
 class DealController extends AccountBaseController
 {
@@ -1619,6 +1622,41 @@ class DealController extends AccountBaseController
         return response()->json([
             'status' => 'success',
             'data' => $this->loadFullDeal($id),
+        ]);
+    }
+
+    /**
+     * Manually set or clear a deal's outcome (won / lost).
+     *
+     * Admin-only, and deliberately does NOT refuse locked deals the way patch()
+     * does — correcting a wrongly-won deal is the entire point, and winning is
+     * what locks it in the first place.
+     *
+     * Marking won queues commission distribution; un-marking won reverses the
+     * pending commissions and the agent metrics. See DealOutcomeService.
+     */
+    public function updateOutcome(\Illuminate\Http\Request $request, $id, DealOutcomeService $outcomes)
+    {
+        abort_403(!in_array('admin', user_roles()));
+
+        $validated = $request->validate([
+            'outcome_status' => ['present', 'nullable', Rule::in(OutcomeStatus::toArray())],
+            'reason' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $deal = Deal::findOrFail($id);
+
+        $result = $outcomes->apply(
+            $deal,
+            $validated['outcome_status'] ? OutcomeStatus::from($validated['outcome_status']) : null,
+            $validated['reason'] ?: 'Outcome changed manually by ' . user()->name,
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => __('messages.dealUpdateSuccess'),
+            'outcome' => $result,
+            'data' => $this->loadFullDeal($deal->id),
         ]);
     }
 

@@ -5,9 +5,12 @@ import { Deal } from "@/Types/api/deals";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import useTranslation from "@/Hooks/useTranslation";
 import { useDealPermissions } from "@/Hooks/useDealPermissions";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import { resolveDealOutcome } from "@/lib/dealOutcome";
+import ConfirmDialog from "@/Components/Redesign/primitives/ConfirmDialog";
 import DeleteDeal from "@/Features/Deals/DeleteDeal";
 import { router } from "@inertiajs/react";
+import useDealOutcome, { DealOutcome } from "../../hooks/useDealOutcome";
 import useDealHeaderData from "../../hooks/useDealHeaderData";
 import useDealTeam from "../../hooks/useDealTeam";
 import { DEAL_REDESIGN_TOKENS as T } from "../../tokens";
@@ -52,6 +55,11 @@ export default function DealStickyHeader({
     const team = useDealTeam(deal);
     const dealPermissions = useDealPermissions(deal);
     const [deleteOpen, setDeleteOpen] = useState(false);
+    const isAdmin = useIsAdminRole();
+    const dealOutcome = useDealOutcome(deal);
+    const [pendingOutcome, setPendingOutcome] = useState<{
+        value: DealOutcome;
+    } | null>(null);
 
     const outcome = resolveDealOutcome(deal);
     const isLocked = !!deal.is_locked || outcome === "won";
@@ -127,6 +135,13 @@ export default function DealStickyHeader({
                                         permissions.add_lead_follow_up ===
                                             "added")
                                 }
+                                onSetOutcome={
+                                    isAdmin
+                                        ? (value) =>
+                                              setPendingOutcome({ value })
+                                        : undefined
+                                }
+                                currentOutcome={outcome}
                             />
                             {onOpenAnalysis && (
                                 <DealButton
@@ -258,6 +273,39 @@ export default function DealStickyHeader({
                 onClose={() => setDeleteOpen(false)}
                 deal={deal}
                 handleSuccessCallback={() => router.visit(route("deals.index"))}
+            />
+
+            {/*
+             * The warning changes with the transition, because the consequences do:
+             * marking won queues payouts, leaving won reverses them, and everything
+             * else is just a field change. A single generic "are you sure?" would
+             * hide the one case that moves money.
+             */}
+            <ConfirmDialog
+                open={pendingOutcome !== null}
+                danger={outcome === "won" || pendingOutcome?.value === "won"}
+                confirmLoading={dealOutcome.saving}
+                title={t(
+                    pendingOutcome?.value === "won"
+                        ? "pages.deals.header.outcome.confirm_won_title"
+                        : pendingOutcome?.value === "lost"
+                          ? "pages.deals.header.outcome.confirm_lost_title"
+                          : "pages.deals.header.outcome.confirm_clear_title",
+                )}
+                message={t(
+                    pendingOutcome?.value === "won"
+                        ? "pages.deals.header.outcome.confirm_won"
+                        : outcome === "won"
+                          ? "pages.deals.header.outcome.confirm_revert"
+                          : "pages.deals.header.outcome.confirm_simple",
+                )}
+                confirmLabel={t("pages.deals.header.outcome.confirm_button")}
+                onCancel={() => setPendingOutcome(null)}
+                onConfirm={async () => {
+                    if (!pendingOutcome) return;
+                    await dealOutcome.setOutcome(pendingOutcome.value);
+                    setPendingOutcome(null);
+                }}
             />
         </div>
     );
