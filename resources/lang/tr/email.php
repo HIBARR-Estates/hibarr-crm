@@ -80,6 +80,7 @@ return [
         'agentCountdown' => ':lead ile toplantıya :minutesLabel kaldı — planlanan :schedule.',
         'agentCountdownWithType' => ':lead ile :type randevusuna :minutesLabel kaldı — planlanan :schedule.',
         'agentCountdownWithDeal' => ':lead ile toplantıya (:deal) :minutesLabel kaldı — planlanan :schedule.',
+        'agentCountdownWithTypeAndDeal' => ':lead ile :type randevusuna (:deal) :minutesLabel kaldı — planlanan :schedule.',
         'agentCountdownNoSchedule' => ':lead ile toplantıya :minutesLabel kaldı.',
         'agentCountdownNoLead' => 'Toplantınıza :minutesLabel kaldı.',
         'agentCountdownNoLeadWithSchedule' => 'Toplantınıza :minutesLabel kaldı — planlanan :schedule.',

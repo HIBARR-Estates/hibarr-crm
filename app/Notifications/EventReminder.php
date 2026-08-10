@@ -85,7 +85,16 @@ class EventReminder extends BaseNotification
     //phpcs:ignore
     public function toArray($notifiable)
     {
-        return $this->event->toArray();
+        $url = route('events.show', $this->event->id);
+        $url = getDomainSpecificUrl($url, $this->company);
+
+        return array_merge($this->event->toArray(), [
+            'entity_type' => 'meeting',
+            'event_link' => $this->event->event_link,
+            'meeting_link' => $this->event->event_link,
+            'action_url' => $url,
+            'title' => $this->event->event_name,
+        ]);
     }
 
 }

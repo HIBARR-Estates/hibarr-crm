@@ -106,6 +106,9 @@ class TaskCommentMention extends BaseNotification
     {
         return [
             'id' => $this->task->id,
+            'task_id' => $this->task->id,
+            'title' => __('email.taskComment.mentionSubject'),
+            'text' => __('email.taskComment.mentionTask') . ' "' . $this->task->heading . '"',
             'created_at' => $this->taskComment->created_at->format('Y-m-d H:i:s'),
             'user_id' => $this->taskComment->user_id,
             'heading' => $this->task->heading,

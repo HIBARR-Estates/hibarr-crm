@@ -94,6 +94,9 @@ class EventInviteMention extends BaseNotification
     {
         return [
             'id' => $this->event->id,
+            'event_id' => $this->event->id,
+            'title' => __('email.newEvent.mentionSubject'),
+            'text' => __('email.newEvent.mentionSubject') . ': ' . $this->event->event_name,
             'start_date_time' => $this->event->start_date_time->format('Y-m-d H:i:s'),
             'event_name' => $this->event->event_name
         ];

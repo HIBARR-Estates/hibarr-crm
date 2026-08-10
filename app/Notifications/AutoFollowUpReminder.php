@@ -142,15 +142,46 @@ class AutoFollowUpReminder extends BaseNotification
     {
         $presenter = $this->presenter();
         $isLeadRecipient = $notifiable instanceof Lead;
+        $isCreatedNotice = (bool) $this->subject;
+        $followUp = $this->leadFollowup;
 
-        return [
-            'follow_up_id' => $this->leadFollowup->id,
-            'id' => $this->leadFollowup->deal_id
-                ?? $this->leadFollowup->lead_id
-                ?? $this->leadFollowup->id,
-            'created_at' => $this->leadFollowup->created_at?->format('Y-m-d H:i:s'),
-            'heading' => $presenter->subject($isLeadRecipient, (bool) $this->subject),
+        $payload = [
+            'entity_type' => 'meeting',
+            'follow_up_id' => $followUp->id,
+            'deal_id' => $followUp->deal_id,
+            'lead_id' => $followUp->lead_id,
+            'id' => $followUp->deal_id ?? $followUp->lead_id ?? $followUp->id,
+            'created_at' => $followUp->created_at?->format('Y-m-d H:i:s'),
+            'heading' => $presenter->subject($isLeadRecipient, $isCreatedNotice),
+            'title' => $presenter->subject($isLeadRecipient, $isCreatedNotice),
+            'text' => $presenter->message($isLeadRecipient, $isCreatedNotice),
+            'action_url' => $this->resolveFollowUpActionUrl(),
         ];
+
+        if (! empty($followUp->meeting_link)) {
+            $payload['meeting_link'] = $followUp->meeting_link;
+        }
+
+        return $payload;
+    }
+
+    private function resolveFollowUpActionUrl(): string
+    {
+        $followUp = $this->leadFollowup;
+
+        if ($followUp->deal_id) {
+            $url = route('deals.show', $followUp->deal_id).'?tab=meetings';
+
+            return $this->company ? getDomainSpecificUrl($url, $this->company) : $url;
+        }
+
+        if ($followUp->lead_id) {
+            $url = route('lead-contact.show', $followUp->lead_id).'?tab=meetings';
+
+            return $this->company ? getDomainSpecificUrl($url, $this->company) : $url;
+        }
+
+        return url('/');
     }
 
     public function toSlack($notifiable)

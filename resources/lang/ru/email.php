@@ -80,6 +80,7 @@ return [
         'agentCountdown' => 'Встреча с :lead через :minutesLabel — запланирована :schedule.',
         'agentCountdownWithType' => ':type с :lead через :minutesLabel — запланирована :schedule.',
         'agentCountdownWithDeal' => 'Встреча с :lead (:deal) через :minutesLabel — запланирована :schedule.',
+        'agentCountdownWithTypeAndDeal' => ':type с :lead (:deal) через :minutesLabel — запланирована :schedule.',
         'agentCountdownNoSchedule' => 'Встреча с :lead через :minutesLabel.',
         'agentCountdownNoLead' => 'Ваша встреча начнётся через :minutesLabel.',
         'agentCountdownNoLeadWithSchedule' => 'Ваша встреча начнётся через :minutesLabel — запланирована :schedule.',

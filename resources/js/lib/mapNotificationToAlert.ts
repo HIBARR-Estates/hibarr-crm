@@ -34,38 +34,6 @@ const SEVERITY_BY_ICON: Record<NotificationIcon, NotchSeverity> = {
     bell: "gray",
 };
 
-const NAME_KEYS = [
-    "name",
-    "agent_name",
-    "assignee_name",
-    "lead_name",
-    "contact_name",
-    "person_name",
-    "client_name",
-    "assigned_by_name",
-    "triggered_by_name",
-    "triggered_by",
-    "from_name",
-];
-
-/**
- * Two-letter initials (first + last) for the icon tile — never a lone
- * letter. A single-word name (e.g. a first-name-only sender) falls through
- * to the next candidate key, and if none has a real full name the tile
- * shows the plain accent dot from the design instead of a stray initial.
- */
-function initialsFromData(data: Record<string, unknown>): string | undefined {
-    for (const key of NAME_KEYS) {
-        const value = data?.[key];
-        if (typeof value !== "string" || !value.trim()) continue;
-        const parts = value.trim().split(/\s+/);
-        if (parts.length < 2) continue;
-        const initials = (parts[0][0] ?? "") + (parts[1][0] ?? "");
-        if (initials.length === 2) return initials.toUpperCase();
-    }
-    return undefined;
-}
-
 function compactMeta(text: string, max = 72): string {
     const oneLine = text.replace(/\s+/g, " ").trim();
     if (oneLine.length <= max) return oneLine;
@@ -194,7 +162,15 @@ function notificationsIndexHref(): string | null {
 export function actionsForNotification(
     notification: Notification,
 ): NotificationAlertAction[] {
-    const { link, icon, type_slug: slug, text } = notification;
+    if (isMeetingNotification(notification)) {
+        return meetingActionsForNotification(notification);
+    }
+
+    if (isTaskNotification(notification)) {
+        return taskActionsForNotification(notification);
+    }
+
+    const { link, icon, type_slug: slug } = notification;
     const actions: NotificationAlertAction[] = [];
 
     const pushLink = (label: string, primary = true) => {
@@ -209,14 +185,6 @@ export function actionsForNotification(
                 if (ledger) actions.push({ label: "Open ledger", href: ledger });
             }
             break;
-        case "task":
-            pushLink(
-                slug.includes("completed") ? "View task" : "Open task",
-            );
-            break;
-        case "task-completed":
-            pushLink("View task");
-            break;
         case "lead":
             pushLink(
                 slug === "lead_agent_assigned" ? "Open deal" : "Open lead",
@@ -225,13 +193,6 @@ export function actionsForNotification(
         case "deal":
             pushLink("Open deal");
             break;
-        case "event": {
-            const startsNow =
-                /starts now|starting now|due now/i.test(text) ||
-                /starts now|starting now/i.test(notification.title);
-            pushLink(startsNow ? "Join meeting" : "Open meeting");
-            break;
-        }
         case "comment":
         case "discussion":
             pushLink(slug.includes("mention") ? "Open note" : "Open");
@@ -282,6 +243,213 @@ export function actionsForNotification(
         .slice(0, 2);
 }
 
+function isMeetingNotification(notification: Notification): boolean {
+    const data = notification.data ?? {};
+    if (data.entity_type === "meeting") return true;
+    if (notification.type_slug === "auto_follow_up_reminder") return true;
+    if (notification.type_slug === "event_reminder") return true;
+    if (notification.icon === "event") return true;
+    return false;
+}
+
+function isMeetingStartingNow(notification: Notification): boolean {
+    const haystack = `${notification.title} ${notification.text}`.toLowerCase();
+    if (
+        /starts now|starting now|due now|less than a minute|in less than a minute/.test(
+            haystack,
+        )
+    ) {
+        return true;
+    }
+
+    const remindAt = notification.data?.remind_at;
+    if (typeof remindAt === "string" && remindAt !== "") {
+        const diffMs = new Date(remindAt).getTime() - Date.now();
+        // From 5 minutes before through 15 minutes after scheduled start.
+        return diffMs <= 5 * 60 * 1000 && diffMs >= -15 * 60 * 1000;
+    }
+
+    return false;
+}
+
+function meetingJoinHref(notification: Notification): string | null {
+    const data = notification.data ?? {};
+    for (const key of ["meeting_link", "event_link"] as const) {
+        const value = data[key];
+        if (typeof value === "string" && value.trim() !== "") {
+            return value.trim();
+        }
+    }
+    return null;
+}
+
+function meetingContextAction(
+    notification: Notification,
+): NotificationAlertAction | null {
+    const data = notification.data ?? {};
+    const dealId = data.deal_id;
+    const leadId = data.lead_id;
+
+    if (dealId != null && dealId !== "") {
+        try {
+            return {
+                label: "Open deal",
+                primary: false,
+                href: `${route("deals.show", dealId)}?tab=meetings`,
+            };
+        } catch {
+            // fall through
+        }
+    }
+
+    if (leadId != null && leadId !== "") {
+        try {
+            return {
+                label: "Open lead",
+                primary: false,
+                href: `${route("lead-contact.show", leadId)}?tab=meetings`,
+            };
+        } catch {
+            // fall through
+        }
+    }
+
+    if (notification.link) {
+        const href = notification.link;
+        const label =
+            href.includes("/deals/") || href.includes("deals.show")
+                ? "Open deal"
+                : href.includes("/lead") || href.includes("lead-contact")
+                  ? "Open lead"
+                  : "Open meeting";
+        return { label, primary: false, href };
+    }
+
+    return null;
+}
+
+function meetingActionsForNotification(
+    notification: Notification,
+): NotificationAlertAction[] {
+    const actions: NotificationAlertAction[] = [];
+    const joinHref = meetingJoinHref(notification);
+    const context = meetingContextAction(notification);
+    const startingNow = isMeetingStartingNow(notification);
+
+    if (startingNow && joinHref) {
+        actions.push({
+            label: "Join meeting",
+            primary: true,
+            href: joinHref,
+            openInNewTab: true,
+        });
+    }
+
+    if (context) {
+        actions.push({
+            ...context,
+            primary: actions.length === 0,
+        });
+    } else if (!startingNow && joinHref) {
+        actions.push({
+            label: "Open meeting",
+            primary: true,
+            href: joinHref,
+            openInNewTab: true,
+        });
+    }
+
+    return actions.slice(0, 2);
+}
+
+function isTaskNotification(notification: Notification): boolean {
+    const data = notification.data ?? {};
+    if (data.entity_type === "task") return true;
+    if (notification.icon === "task" || notification.icon === "task-completed") {
+        return true;
+    }
+    return /^(new_task|task_|auto_task_reminder|sub_task_)/.test(
+        notification.type_slug,
+    );
+}
+
+function taskHref(notification: Notification): string | null {
+    const data = notification.data ?? {};
+    const taskId = data.task_id ?? data.id;
+
+    if (taskId != null && taskId !== "") {
+        try {
+            return route("tasks.show", taskId);
+        } catch {
+            // fall through
+        }
+    }
+
+    return notification.link;
+}
+
+function taskContextAction(
+    notification: Notification,
+): NotificationAlertAction | null {
+    const data = notification.data ?? {};
+    const dealId = data.deal_id;
+    const leadId = data.lead_id;
+
+    if (dealId != null && dealId !== "") {
+        try {
+            return {
+                label: "Open deal",
+                primary: false,
+                href: `${route("deals.show", dealId)}?tab=tasks`,
+            };
+        } catch {
+            // fall through
+        }
+    }
+
+    if (leadId != null && leadId !== "") {
+        try {
+            return {
+                label: "Open lead",
+                primary: false,
+                href: `${route("lead-contact.show", leadId)}?tab=tasks`,
+            };
+        } catch {
+            // fall through
+        }
+    }
+
+    return null;
+}
+
+function taskActionsForNotification(
+    notification: Notification,
+): NotificationAlertAction[] {
+    const actions: NotificationAlertAction[] = [];
+    const taskLink = taskHref(notification);
+    const context = taskContextAction(notification);
+    const completed =
+        notification.icon === "task-completed" ||
+        notification.type_slug.includes("completed");
+
+    if (taskLink) {
+        actions.push({
+            label: completed ? "View task" : "Open task",
+            primary: true,
+            href: taskLink,
+        });
+    }
+
+    if (context) {
+        actions.push({
+            ...context,
+            primary: actions.length === 0,
+        });
+    }
+
+    return actions.slice(0, 2);
+}
+
 export function mapNotificationToAlert(
     notification: Notification,
 ): NotificationAlertPayload {
@@ -306,7 +474,6 @@ export function mapNotificationToAlert(
         dest: resolveDest(notification),
         link: notification.link,
         severity: SEVERITY_BY_ICON[notification.icon] ?? "gray",
-        initials: initialsFromData(notification.data ?? {}),
         timeAgo: notification.time_ago,
         actions: actionsForNotification(notification),
     };

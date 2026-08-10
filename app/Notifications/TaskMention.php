@@ -103,7 +103,10 @@ class TaskMention extends BaseNotification
         return [
             'id' => $this->task->id,
             'created_at' => $this->task->created_at->format('Y-m-d H:i:s'),
-            'heading' => $this->task->heading
+            'heading' => $this->task->heading,
+            'task_id' => $this->task->id,
+            'title' => __('email.newTask.mentionSubject'),
+            'text' => __('email.newTask.mentionTask') . ' "' . $this->task->heading . '"',
         ];
     }
 

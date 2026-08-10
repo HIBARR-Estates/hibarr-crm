@@ -80,6 +80,7 @@ return [
         'agentCountdown' => 'Meeting mit :lead in :minutesLabel — geplant :schedule.',
         'agentCountdownWithType' => ':type mit :lead in :minutesLabel — geplant :schedule.',
         'agentCountdownWithDeal' => 'Meeting mit :lead (:deal) in :minutesLabel — geplant :schedule.',
+        'agentCountdownWithTypeAndDeal' => ':type mit :lead (:deal) in :minutesLabel — geplant :schedule.',
         'agentCountdownNoSchedule' => 'Meeting mit :lead in :minutesLabel.',
         'agentCountdownNoLead' => 'Ihr Meeting beginnt in :minutesLabel.',
         'agentCountdownNoLeadWithSchedule' => 'Ihr Meeting beginnt in :minutesLabel — geplant :schedule.',

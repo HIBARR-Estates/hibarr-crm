@@ -25,34 +25,39 @@ import {
 // Default Values
 // ============================================================================
 
+// `process` only exists under the Mix/webpack pipeline (DefinePlugin inlines
+// process.env.MIX_* at build time) — the Vite pipeline has no such global, so
+// every access below is guarded with `typeof process !== "undefined"`. Keep
+// the `process.env.MIX_*` paths as static literal strings (not passed through
+// a keyed helper) so webpack DefinePlugin / Vite can still inline them.
+const hasProcessEnv = typeof process !== "undefined" && !!process.env;
+
 const DEFAULT_FILE_UPLOAD_BASE_URL =
-    process?.env?.MIX_FILE_UPLOAD_BASE_URL ||
+    (hasProcessEnv && process.env.MIX_FILE_UPLOAD_BASE_URL) ||
     "https://develop-api.hibarr.org/v1";
 const DEFAULT_AGENT_INVITATION_BASE_URL =
-    process?.env?.MIX_AGENT_INVITATION_BASE_URL ||
+    (hasProcessEnv && process.env.MIX_AGENT_INVITATION_BASE_URL) ||
     "https://develop-api.hibarr.org/v1";
-const DEFAULT_FILE_UPLOAD_API_KEY = process?.env?.MIX_FILE_UPLOAD_API_KEY || "";
+const DEFAULT_FILE_UPLOAD_API_KEY =
+    (hasProcessEnv && process.env.MIX_FILE_UPLOAD_API_KEY) || "";
 const DEFAULT_AGENT_INVITATION_API_KEY =
-    process?.env?.MIX_AGENT_INVITATION_API_KEY || "";
+    (hasProcessEnv && process.env.MIX_AGENT_INVITATION_API_KEY) || "";
 const DEFAULT_OL_BASE_URL =
-    process?.env?.MIX_OL_BASE_URL || "https://develop-api.hibarr.org/v1";
+    (hasProcessEnv && process.env.MIX_OL_BASE_URL) ||
+    "https://develop-api.hibarr.org/v1";
 const DEFAULT_OL_API_KEY =
-    process?.env?.MIX_OL_API_KEY || DEFAULT_FILE_UPLOAD_API_KEY;
+    (hasProcessEnv && process.env.MIX_OL_API_KEY) || DEFAULT_FILE_UPLOAD_API_KEY;
 
 // ============================================================================
 // Configuration Getters
 // ============================================================================
-
-// NOTE: Environment variables must be accessed as static literal strings
-// (e.g. process.env.MIX_*) so that webpack DefinePlugin / Vite can inline
-// them at build time. A dynamic helper like getEnvVar(key) breaks this.
 
 /**
  * Get the agent invitation base URL from environment or default
  */
 export const getAgentInvitationBaseUrl = (): string => {
     return (
-        process.env.MIX_AGENT_INVITATION_BASE_URL ||
+        (hasProcessEnv && process.env.MIX_AGENT_INVITATION_BASE_URL) ||
         DEFAULT_AGENT_INVITATION_BASE_URL
     );
 };
@@ -61,14 +66,20 @@ export const getAgentInvitationBaseUrl = (): string => {
  * Get the file upload base URL from environment or default
  */
 export const getFileUploadBaseUrl = (): string => {
-    return process.env.MIX_FILE_UPLOAD_BASE_URL || DEFAULT_FILE_UPLOAD_BASE_URL;
+    return (
+        (hasProcessEnv && process.env.MIX_FILE_UPLOAD_BASE_URL) ||
+        DEFAULT_FILE_UPLOAD_BASE_URL
+    );
 };
 
 /**
  * Get the file upload API key from environment or default
  */
 export const getFileUploadApiKey = (): string => {
-    return process.env.MIX_FILE_UPLOAD_API_KEY || DEFAULT_FILE_UPLOAD_API_KEY;
+    return (
+        (hasProcessEnv && process.env.MIX_FILE_UPLOAD_API_KEY) ||
+        DEFAULT_FILE_UPLOAD_API_KEY
+    );
 };
 
 /**
@@ -76,7 +87,7 @@ export const getFileUploadApiKey = (): string => {
  */
 export const getAgentInvitationApiKey = (): string => {
     return (
-        process.env.MIX_AGENT_INVITATION_API_KEY ||
+        (hasProcessEnv && process.env.MIX_AGENT_INVITATION_API_KEY) ||
         DEFAULT_AGENT_INVITATION_API_KEY
     );
 };
@@ -154,11 +165,11 @@ export const getInvitationConfig = (
 // ============================================================================
 
 export const getOlBaseUrl = (): string => {
-    return process.env.MIX_OL_BASE_URL || DEFAULT_OL_BASE_URL;
+    return (hasProcessEnv && process.env.MIX_OL_BASE_URL) || DEFAULT_OL_BASE_URL;
 };
 
 export const getOlApiKey = (): string => {
-    return process.env.MIX_OL_API_KEY || DEFAULT_OL_API_KEY;
+    return (hasProcessEnv && process.env.MIX_OL_API_KEY) || DEFAULT_OL_API_KEY;
 };
 
 export const clampOlRetryCount = (retryCount: number): number => {

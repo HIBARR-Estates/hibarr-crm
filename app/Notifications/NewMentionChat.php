@@ -99,6 +99,8 @@ class NewMentionChat extends BaseNotification
     {
         return [
             'id' => $this->userChat->id,
+            'title' => __('email.newChat.mentionSubject'),
+            'text' => __('email.newChat.mentionSubject') . ' ' . __('app.from') . ' ' . $this->userChat->fromUser->name,
             'user_one' => $this->userChat->user_one,
             'from_name' => $this->userChat->fromUser->name,
         ];
