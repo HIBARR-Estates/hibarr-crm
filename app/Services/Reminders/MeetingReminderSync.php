@@ -81,7 +81,7 @@ class MeetingReminderSync
             ->filter()
             ->values();
 
-        $followUp->loadMissing(['deal.leadAgent.user', 'lead']);
+        $followUp->loadMissing(['deal.leadAgent.user', 'deal.contact', 'lead']);
 
         $agentUserId = $followUp->deal?->leadAgent?->user_id
             ?? $followUp->lead?->lead_owner
@@ -111,6 +111,20 @@ class MeetingReminderSync
                 'id' => $userId,
                 'email' => $email,
             ];
+        }
+
+        // The lead the meeting was created for also gets a (differently worded,
+        // customer-facing) reminder, if they have an email on file.
+        $lead = $followUp->lead ?? $followUp->deal?->contact;
+        if ($lead) {
+            $leadEmail = $lead->client_email ?? $lead->email ?? null;
+            if (is_string($leadEmail) && $leadEmail !== '') {
+                $recipients[] = [
+                    'type' => Reminder::RECIPIENT_LEAD,
+                    'id' => (int) $lead->id,
+                    'email' => $leadEmail,
+                ];
+            }
         }
 
         return $recipients;

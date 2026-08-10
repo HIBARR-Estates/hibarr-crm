@@ -1,0 +1,18 @@
+<!--
+  Plunk subject line for meeting reminders and "meeting scheduled" notices.
+  Paste into the Plunk template Subject field.
+
+  Variables:
+    mailSubject — recipient-specific subject (without app name suffix)
+    appName     — application / company name (e.g. Hibarr)
+
+  Examples (mailSubject only):
+    Creation — lead:   "Your meeting with Jane Agent — Jan 15, 2026 at 10:15 AM"
+    Creation — agent:  "Meeting with Client Person — Jan 15, 2026 at 10:15 AM"
+    Reminder — lead:   "Reminder: your meeting with Jane Agent in 30 minutes"
+    Reminder — agent (≤15 min): "Starting soon: your meeting with Client Person in 10 minutes"
+    Reminder — agent (>15 min): "Reminder: your meeting with Client Person in 1 hour"
+
+  Keep in sync with app/Support/MeetingEmailPresenter.php and ReminderNotification.php
+-->
+{{mailSubject}} - {{appName}}

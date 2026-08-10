@@ -446,6 +446,8 @@ trait DealAutomationTrait
             if ($followUp) {
                 $followUp->meeting_link = $meetingLink;
                 $followUp->save();
+                // Calendar sync is scheduled from DealController after the full
+                // meeting write path — avoid a second sync from the webhook link update.
             }
         } catch (\Exception $e) {
             Log::error("Failed to update meeting link from webhook response", [

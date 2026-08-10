@@ -59,6 +59,7 @@ class InvitationEmail extends BaseNotification
             ->view('mail.invitation', [
                 'url' => $url,
                 'content' => $content,
+                'preheader' => $this->invite->user->name.' '.__('email.invitation.subject').config('app.name'),
                 'themeColor' => $this->company->header_color,
                 'actionText' => __('email.invitation.action'),
                 'notifiableName' => $notifiable->name ?? null

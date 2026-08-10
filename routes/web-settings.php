@@ -94,6 +94,8 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account/settings'], function 
 
     /* Reminder ledger (company send queue) */
     Route::get('reminder-ledger', [ReminderLedgerController::class, 'index'])->name('reminder-ledger.index');
+    Route::post('reminder-ledger/{reminder}/cancel', [ReminderLedgerController::class, 'cancel'])->name('reminder-ledger.cancel');
+    Route::post('reminder-ledger/{reminder}/send-now', [ReminderLedgerController::class, 'sendNow'])->name('reminder-ledger.send-now');
 
     /* 2FA */
     Route::get('2fa-codes-download', [TwoFASettingController::class, 'download'])->name('2fa_codes_download');
