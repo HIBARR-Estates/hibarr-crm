@@ -91,7 +91,9 @@ class EventReminder extends BaseNotification
 
         $timezone = $this->company->timezone ?? 'UTC';
         $startDateTime = $this->event->start_date_time->copy()->setTimezone($timezone);
-        $startsNow = $startDateTime->getTimestamp() - now()->getTimestamp() <= 0;
+        $secondsUntil = $startDateTime->getTimestamp() - now()->getTimestamp();
+        // Match in-app alert window: from 5 minutes before through 15 minutes after start.
+        $startsNow = $secondsUntil <= 5 * 60 && $secondsUntil >= -15 * 60;
 
         $payload = [
             'entity_type' => 'meeting',
@@ -106,7 +108,10 @@ class EventReminder extends BaseNotification
             $payload['meeting_link'] = $eventLink;
         }
 
-        return array_merge($this->event->toArray(), $payload);
+        $base = $this->event->toArray();
+        unset($base['event_link'], $base['meeting_link']);
+
+        return array_merge($base, $payload);
     }
 
 }

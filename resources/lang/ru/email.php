@@ -134,7 +134,7 @@ return [
         'prefix' => 'ИИ-сводка: ',
     ],
     'projectReminder' => [
-        'additionalProjects' => '{0} :count проектов|{1} :count проект|{2} :count проекта|{3} :count проекта|{4} :count проекта|[5,19] :count проектов|{21} :count проект|{22} :count проекта|{23} :count проекта|{24} :count проекта|[25,*] :count проектов',
+        'additionalProjects' => ':count проект|:count проекта|:count проектов',
     ],
 
 ];
