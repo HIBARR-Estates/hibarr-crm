@@ -275,11 +275,17 @@ export default function NotificationAlertProvider({
         (action: NotificationAlertAction) => (e: MouseEvent) => {
             e.stopPropagation();
             if (current?.id) markAsReadQuiet(current.id);
-            if (action.href && isSafeHttpUrl(action.href)) {
+            const href =
+                action.href && isSafeHttpUrl(action.href)
+                    ? action.href
+                    : current?.link && isSafeHttpUrl(current.link)
+                      ? current.link
+                      : null;
+            if (href) {
                 if (action.openInNewTab) {
-                    window.open(action.href, "_blank", "noopener,noreferrer");
+                    window.open(href, "_blank", "noopener,noreferrer");
                 } else {
-                    window.location.href = action.href;
+                    window.location.href = href;
                 }
             }
             dismiss();

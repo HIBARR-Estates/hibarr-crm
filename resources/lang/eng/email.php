@@ -36,7 +36,7 @@ return [
     ],
     'leadAgentAssigned' => [
         'subject' => 'You have been assigned as lead agent',
-        'text' => 'You have been assigned as lead agent for the lead',
+        'text' => 'You have been assigned as lead agent for :leadName.',
         'action' => 'View Lead',
     ],
     'dealAgentAssigned' => [

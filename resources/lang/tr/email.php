@@ -7,6 +7,11 @@ return [
         'action' => 'Lead\'i görüntüle',
         'text' => 'Pipeline\'ınıza yeni bir lead eklendi. Ayrıntılar aşağıda.',
     ],
+    'leadAgentAssigned' => [
+        'subject' => 'Lead ajanı olarak atandınız',
+        'text' => ':leadName için lead ajanı olarak atandınız.',
+        'action' => 'Lead\'i görüntüle',
+    ],
     'dealAgentAssigned' => [
         'subject' => 'Deal ajanı olarak atandınız',
         'text' => ':dealName için deal ajanı olarak atandınız.',

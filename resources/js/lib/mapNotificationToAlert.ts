@@ -160,8 +160,18 @@ function notificationsIndexHref(): string | null {
 
 export function isSafeHttpUrl(href: string | null | undefined): href is string {
     if (!href || typeof href !== "string") return false;
+    const trimmed = href.trim();
+    if (trimmed === "") return false;
+
     try {
-        const url = new URL(href.trim());
+        const base =
+            typeof window !== "undefined" && window.location?.origin
+                ? window.location.origin
+                : "http://localhost";
+        const url = trimmed.startsWith("/")
+            ? new URL(trimmed, base)
+            : new URL(trimmed);
+
         return url.protocol === "http:" || url.protocol === "https:";
     } catch {
         return false;
@@ -421,7 +431,7 @@ function isTaskNotification(notification: Notification): boolean {
 
 function taskHref(notification: Notification): string | null {
     const data = notification.data ?? {};
-    const taskId = data.task_id ?? data.id;
+    const taskId = data.task_id;
 
     if (taskId != null && taskId !== "") {
         try {

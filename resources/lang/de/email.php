@@ -7,6 +7,11 @@ return [
         'action' => 'Lead ansehen',
         'text' => 'Ein neuer Lead wurde Ihrer Pipeline hinzugefügt. Die Details finden Sie unten.',
     ],
+    'leadAgentAssigned' => [
+        'subject' => 'Sie wurden als Lead-Agent zugewiesen',
+        'text' => 'Sie wurden als Lead-Agent für :leadName zugewiesen.',
+        'action' => 'Lead ansehen',
+    ],
     'dealAgentAssigned' => [
         'subject' => 'Sie wurden als Deal-Agent zugewiesen',
         'text' => 'Sie wurden als Deal-Agent für :dealName zugewiesen.',

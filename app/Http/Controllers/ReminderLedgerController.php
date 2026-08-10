@@ -70,6 +70,11 @@ class ReminderLedgerController extends AccountBaseController
             'per_page' => ['nullable', 'integer', Rule::in($perPageOptions)],
         ]);
 
+        // Blade settings page — force a full document load if reached via Inertia SPA nav.
+        if ($request->header('X-Inertia')) {
+            return Inertia::location(route('reminder-ledger.index', $request->query()));
+        }
+
         $tab = $validated['tab'] ?? 'all';
         $entityType = $validated['entity_type'] ?? 'all';
         $search = isset($validated['search']) ? trim((string) $validated['search']) : '';
@@ -186,11 +191,6 @@ class ReminderLedgerController extends AccountBaseController
             || $tab !== 'all'
             || ($dateRange !== 'all' && $dateRange !== '');
         $this->isEmpty = count($groups) === 0;
-
-        // Blade settings page — force a full document load if reached via Inertia SPA nav.
-        if ($request->header('X-Inertia')) {
-            return Inertia::location(route('reminder-ledger.index', $request->query()));
-        }
 
         return view('reminder-ledger.index', $this->data);
     }

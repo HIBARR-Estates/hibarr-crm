@@ -364,6 +364,10 @@ class NotificationService
         $icon = $this->getNotificationIcon($typeSlug);
         if (in_array($icon, ['task', 'task-completed'], true) || ($data['entity_type'] ?? null) === 'task') {
             $id = $data['task_id'] ?? $data['id'] ?? null;
+        } elseif ($typeSlug === 'new_discussion_mention') {
+            $id = $data['id'] ?? null;
+        } elseif ($typeSlug === 'mention_ticket_agent') {
+            $id = $data['ticket_number'] ?? null;
         } else {
             $id = $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
         }

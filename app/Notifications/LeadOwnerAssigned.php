@@ -114,7 +114,7 @@ class LeadOwnerAssigned extends BaseNotification
     {
         $leadName = trim((string) ($this->lead->client_name ?? ''));
         $base = $leadName !== ''
-            ? __('email.leadAgentAssigned.subject').' for '.$leadName.'.'
+            ? __('email.leadAgentAssigned.text', ['leadName' => $leadName])
             : __('email.leadAgentAssigned.subject').'.';
 
         $snippet = $this->aiSummarySnippet($this->lead);

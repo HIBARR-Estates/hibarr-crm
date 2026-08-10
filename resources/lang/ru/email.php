@@ -7,6 +7,11 @@ return [
         'action' => 'Открыть лид',
         'text' => 'В ваш пайплайн добавлен новый лид. Подробности ниже.',
     ],
+    'leadAgentAssigned' => [
+        'subject' => 'Вам назначена роль агента по лиду',
+        'text' => 'Вам назначена роль агента по лиду :leadName.',
+        'action' => 'Открыть лид',
+    ],
     'dealAgentAssigned' => [
         'subject' => 'Вам назначена роль агента по сделке',
         'text' => 'Вам назначена роль агента по сделке :dealName.',
@@ -129,7 +134,7 @@ return [
         'prefix' => 'ИИ-сводка: ',
     ],
     'projectReminder' => [
-        'additionalProjects' => '{1} ещё :count проект|[2,4] ещё :count проекта|[5,*] ещё :count проектов',
+        'additionalProjects' => '{0} :count проектов|{1} :count проект|{2} :count проекта|{3} :count проекта|{4} :count проекта|[5,19] :count проектов|{21} :count проект|{22} :count проекта|{23} :count проекта|{24} :count проекта|[25,*] :count проектов',
     ],
 
 ];

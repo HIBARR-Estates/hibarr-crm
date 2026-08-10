@@ -101,6 +101,7 @@ class NewMentionChat extends BaseNotification
             'id' => $this->userChat->id,
             'title' => __('email.newChat.mentionSubject'),
             'text' => __('email.newChat.mentionSubject') . ' ' . __('app.from') . ' ' . $this->userChat->fromUser->name,
+            'action_url' => $this->modifyUrl(route('messages.index')),
             'user_one' => $this->userChat->user_one,
             'from_name' => $this->userChat->fromUser->name,
         ];
