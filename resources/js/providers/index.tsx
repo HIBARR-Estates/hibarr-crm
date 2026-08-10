@@ -8,6 +8,26 @@ import UserTimezoneCapture from "@/Components/UserTimezoneCapture";
 import { CompanyDateTimeProvider } from "@/Components/CompanyDateTimeProvider";
 import NotificationAlertProvider from "@/Components/NotificationAlertProvider";
 import { NotificationAlertBridgeMount } from "@/Hooks/useNotificationAlertBridge";
+import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
+
+function NotificationAlertsGate({
+    children,
+}: {
+    children: React.ReactNode;
+}) {
+    const islandAlertsEnabled = useNotificationIslandAlertsFlag();
+
+    if (!islandAlertsEnabled) {
+        return <>{children}</>;
+    }
+
+    return (
+        <NotificationAlertProvider>
+            <NotificationAlertBridgeMount />
+            {children}
+        </NotificationAlertProvider>
+    );
+}
 
 /**
  * Providers that DON'T require Inertia context (usePage)
@@ -34,10 +54,9 @@ export const InnerProviders: React.FC<{ children: React.ReactNode }> = ({
                     <UserTimezoneCapture />
                     <CompanyDateTimeProvider>
                         <FilterProvider>
-                            <NotificationAlertProvider>
-                                <NotificationAlertBridgeMount />
+                            <NotificationAlertsGate>
                                 {children}
-                            </NotificationAlertProvider>
+                            </NotificationAlertsGate>
                         </FilterProvider>
                     </CompanyDateTimeProvider>
                 </AntdConfigProvider>

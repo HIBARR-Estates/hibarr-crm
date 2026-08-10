@@ -52,6 +52,7 @@ import {
     requestDesktopPermission,
 } from "@/lib/notificationAlerts";
 import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
+import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 dayjs.extend(relativeTime);
 
@@ -213,6 +214,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     const [open, setOpen] = useState(false);
     const [alertsMuted, setAlertsMutedState] = useState(() => isAlertsMuted());
     const { message } = App.useApp();
+    const islandAlertsEnabled = useNotificationIslandAlertsFlag();
 
     const { notifications, unreadCount, isLoading, refetch } =
         useNotificationSummary(pollingInterval);
@@ -290,26 +292,30 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                     )}
                 </div>
                 <div className="flex items-center gap-1">
-                    <Popover
-                        content={<NotificationAlertSettings />}
-                        trigger="click"
-                        placement="bottomRight"
-                        // Theme raises zIndexPopupBase to 1300 (see
-                        // providers/antd/utils.ts), which puts this
-                        // Dropdown's own popup at 1350. Popover's default
-                        // offset is always 20 below Dropdown's, so it needs
-                        // an explicit bump to actually render on top.
-                        zIndex={1400}
-                    >
-                        <Tooltip title="Alert settings">
-                            <Button
-                                type="text"
-                                size="small"
-                                icon={<SettingOutlined className="text-gray-400" />}
-                                onClick={(e) => e.stopPropagation()}
-                            />
-                        </Tooltip>
-                    </Popover>
+                    {islandAlertsEnabled && (
+                        <Popover
+                            content={<NotificationAlertSettings />}
+                            trigger="click"
+                            placement="bottomRight"
+                            // Theme raises zIndexPopupBase to 1300 (see
+                            // providers/antd/utils.ts), which puts this
+                            // Dropdown's own popup at 1350. Popover's default
+                            // offset is always 20 below Dropdown's, so it needs
+                            // an explicit bump to actually render on top.
+                            zIndex={1400}
+                        >
+                            <Tooltip title="Alert settings">
+                                <Button
+                                    type="text"
+                                    size="small"
+                                    icon={
+                                        <SettingOutlined className="text-gray-400" />
+                                    }
+                                    onClick={(e) => e.stopPropagation()}
+                                />
+                            </Tooltip>
+                        </Popover>
+                    )}
                     <Tooltip
                         title={
                             alertsMuted

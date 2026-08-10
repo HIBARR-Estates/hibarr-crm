@@ -11,6 +11,7 @@ return [
         'crm.lead-ai-summary',
         'crm.lead-merge',
         'crm.notification-service-routing',
+        'crm.notification-island-alerts',
         'crm.entity-reminders',
         'crm.task-lifecycle-notifications',
         'crm.projects-filters-modal',
