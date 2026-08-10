@@ -1,187 +1,265 @@
-import { Alert, Col, Empty, Row, Select, Statistic } from "antd";
-import { Deferred, router } from "@inertiajs/react";
-import DashboardPanel, { PanelSkeleton } from "../components/DashboardPanel";
-import StageFunnel, { StageFunnelDatum } from "../components/StageFunnel";
-import LeaderboardTable, {
-    LeaderboardRow,
-} from "../components/LeaderboardTable";
-import ActionQueue from "../components/ActionQueue";
+import { Deferred } from "@inertiajs/react";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-
-interface SlaBreaches {
-    sla_hours: number;
-    count: number;
-    leads: Array<{
-        id: number;
-        client_name: string;
-        waiting_hours: number;
-    }>;
-}
-
-interface StageFunnelData {
-    pipelines: Array<{ id: number; name: string; deal_count: number }>;
-    pipeline_id: number | null;
-    stages: StageFunnelDatum[];
-}
+import DashboardPanel, {
+    CardSkeleton,
+    PanelSkeleton,
+} from "../components/DashboardPanel";
+import StatTile from "../components/StatTile";
+import LifecycleFunnel from "../components/LifecycleFunnel";
+import ResponseDistribution from "../components/ResponseDistribution";
+import SourceBreakdown from "../components/SourceBreakdown";
+import LeaderboardTable from "../components/LeaderboardTable";
+import PartnerFlagQueue from "../components/PartnerFlagQueue";
+import type {
+    LifecycleFunnel as FunnelData,
+    PartnerFlagRow,
+    ResponseDistribution as ResponseData,
+    SourceQualityRow,
+    TeamAgents,
+    TeamKpis,
+} from "../types";
 
 export interface ManagerViewProps {
-    stageFunnel?: StageFunnelData;
-    leaderboard?: LeaderboardRow[];
-    slaBreaches?: SlaBreaches;
-    stalledDeals?: Array<{
-        id: number;
-        name: string;
-        stage_name: string;
-        days_in_stage: number;
-        target_days: number;
-    }>;
+    teamKpis?: TeamKpis;
+    lifecycleFunnel?: FunnelData;
+    responseDistribution?: ResponseData;
+    sourceQuality?: SourceQualityRow[];
+    teamAgents?: TeamAgents;
+    openPartnerFlags?: PartnerFlagRow[];
+    period?: number;
+    currentUserId?: number;
 }
 
 /**
- * Exception-based visibility: the panels are ordered so the things that need a
- * decision (SLA breaches, stalled deals) sit above the things that are merely
- * informative (funnel, leaderboard).
+ * Statistics a manager can act on.
+ *
+ * The old exception panels (SLA breach list, stalled-deal list) are gone as
+ * separate cards — they now live as the per-agent "needs attention" column,
+ * which is where the decision actually gets made. A manager doesn't reassign a
+ * lead, they reassign an agent's load.
  */
 export default function ManagerView({
-    stageFunnel,
-    leaderboard,
-    slaBreaches,
-    stalledDeals,
+    teamKpis,
+    lifecycleFunnel,
+    responseDistribution,
+    sourceQuality,
+    teamAgents,
+    openPartnerFlags,
+    period = 30,
+    currentUserId,
 }: ManagerViewProps) {
     const { td } = useTd();
 
     return (
-        <Row gutter={[16, 16]}>
-            <Col xs={24} lg={12}>
-                <DashboardPanel title="Leads past first-contact SLA">
-                    <Deferred data="slaBreaches" fallback={<PanelSkeleton rows={5} />}>
-                        {slaBreaches ? (
-                            <>
-                                <Statistic
-                                    value={slaBreaches.count}
-                                    suffix={
-                                        <span className="text-sm text-slate-400">
-                                            {td("uncontacted past")}{" "}
-                                            {slaBreaches.sla_hours}h
-                                        </span>
-                                    }
-                                    valueStyle={{
-                                        color:
-                                            slaBreaches.count > 0
-                                                ? "#dc2626"
-                                                : "#16a34a",
-                                    }}
-                                />
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <Deferred
+                data="teamKpis"
+                fallback={
+                    <div style={tileGrid}>
+                        {Array.from({ length: 5 }).map((_, index) => (
+                            <CardSkeleton key={index} height={116} />
+                        ))}
+                    </div>
+                }
+            >
+                <div style={tileGrid}>
+                    <StatTile
+                        label="New leads"
+                        value={teamKpis?.newLeads.value ?? null}
+                        previous={teamKpis?.newLeads.previous}
+                        spark={teamKpis?.newLeads.spark}
+                        // English source string — StatTile translates it once.
+                        note={`${teamKpis?.newLeads.previous ?? 0} in the previous window`}
+                    />
+                    <StatTile
+                        label="Contacted within SLA"
+                        unit="%"
+                        value={teamKpis?.contactedInSla.value ?? null}
+                        previous={teamKpis?.contactedInSla.previous}
+                        spark={teamKpis?.contactedInSla.spark}
+                        note={teamKpis?.contactedInSla.note}
+                    />
+                    <StatTile
+                        label="Meetings"
+                        value={teamKpis?.meetings.value ?? null}
+                        previous={teamKpis?.meetings.previous}
+                        spark={teamKpis?.meetings.spark}
+                        note={teamKpis?.meetings.note}
+                    />
+                    <StatTile
+                        label="Deals created"
+                        value={teamKpis?.dealsCreated.value ?? null}
+                        previous={teamKpis?.dealsCreated.previous}
+                        spark={teamKpis?.dealsCreated.spark}
+                    />
+                    <StatTile
+                        label="Deals won"
+                        tone="green"
+                        value={teamKpis?.dealsWon.value ?? null}
+                        previous={teamKpis?.dealsWon.previous}
+                        spark={teamKpis?.dealsWon.spark}
+                    />
+                </div>
+            </Deferred>
 
-                                <div className="mt-3">
-                                    <ActionQueue
-                                        groups={[
-                                            {
-                                                title: "Longest waiting",
-                                                items: slaBreaches.leads.map(
-                                                    (lead) => ({
-                                                        key: `sla-${lead.id}`,
-                                                        label: lead.client_name,
-                                                        meta: `${lead.waiting_hours}h`,
-                                                        href: route(
-                                                            "lead-contact.show",
-                                                            lead.id,
-                                                        ),
-                                                        severity: "overdue" as const,
-                                                    }),
-                                                ),
-                                            },
-                                        ]}
-                                    />
-                                </div>
-                            </>
-                        ) : (
-                            <Empty description={td("No SLA data available")} />
-                        )}
-                    </Deferred>
-                </DashboardPanel>
-            </Col>
-
-            <Col xs={24} lg={12}>
+            <div
+                style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                        "repeat(auto-fit, minmax(min(100%, 420px), 1fr))",
+                    gap: 14,
+                    alignItems: "start",
+                }}
+            >
                 <DashboardPanel
-                    title="Deals past their stage target"
-                    note="Only stages with a configured target duration are checked"
-                >
-                    <Deferred
-                        data="stalledDeals"
-                        fallback={<PanelSkeleton rows={5} />}
-                    >
-                        <ActionQueue
-                            groups={[
-                                {
-                                    title: "Longest sitting",
-                                    items: (stalledDeals ?? []).map((deal) => ({
-                                        key: `stalled-${deal.id}`,
-                                        label: `${deal.name} · ${td(deal.stage_name)}`,
-                                        meta: `${deal.days_in_stage}d / ${deal.target_days}d`,
-                                        href: route("deals.show", deal.id),
-                                        severity: "stalled" as const,
-                                    })),
-                                },
-                            ]}
-                        />
-                    </Deferred>
-                </DashboardPanel>
-            </Col>
-
-            <Col xs={24} lg={10}>
-                <DashboardPanel
-                    title="Pipeline by stage"
-                    extra={
-                        stageFunnel && stageFunnel.pipelines.length > 1 ? (
-                            <Select
-                                size="small"
-                                value={stageFunnel.pipeline_id ?? undefined}
-                                style={{ minWidth: 160 }}
-                                onChange={(id) =>
-                                    router.visit(
-                                        route("dashboard.v2", {
-                                            view: "manager",
-                                            pipeline: id,
-                                        }),
-                                        { preserveScroll: true },
-                                    )
-                                }
-                                options={stageFunnel.pipelines.map((pipeline) => ({
-                                    value: pipeline.id,
-                                    label: `${td(pipeline.name)} (${pipeline.deal_count})`,
-                                }))}
-                            />
+                    title="Funnel and stage conversion"
+                    note={`Leads created in the last ${lifecycleFunnel?.days ?? 90} days, followed forward`}
+                    footer={
+                        lifecycleFunnel ? (
+                            <FunnelReading data={lifecycleFunnel} />
                         ) : undefined
                     }
                 >
-                    <Deferred data="stageFunnel" fallback={<PanelSkeleton rows={6} />}>
-                        <StageFunnel data={stageFunnel?.stages ?? []} />
-                    </Deferred>
-                </DashboardPanel>
-            </Col>
-
-            <Col xs={24} lg={14}>
-                <DashboardPanel
-                    title="Team"
-                    note="Direct reports only — deeper hierarchy needs the agent hierarchy backfilled"
-                >
-                    <Deferred data="leaderboard" fallback={<PanelSkeleton rows={5} />}>
-                        {leaderboard?.length ? (
-                            <LeaderboardTable rows={leaderboard} />
+                    <Deferred
+                        data="lifecycleFunnel"
+                        fallback={<PanelSkeleton rows={6} />}
+                    >
+                        {lifecycleFunnel ? (
+                            <LifecycleFunnel data={lifecycleFunnel} />
                         ) : (
-                            <Alert
-                                type="info"
-                                showIcon
-                                message={td("No agents report to you yet")}
-                                description={td(
-                                    "Team membership comes from the parent agent set on each agent record.",
-                                )}
-                            />
+                            <span />
                         )}
                     </Deferred>
                 </DashboardPanel>
-            </Col>
-        </Row>
+
+                <div
+                    style={{ display: "flex", flexDirection: "column", gap: 14 }}
+                >
+                    <DashboardPanel
+                        title="First response time"
+                        note={`Leads created in the last ${period} days`}
+                    >
+                        <Deferred
+                            data="responseDistribution"
+                            fallback={<PanelSkeleton rows={5} />}
+                        >
+                            {responseDistribution ? (
+                                <ResponseDistribution
+                                    data={responseDistribution}
+                                />
+                            ) : (
+                                <span />
+                            )}
+                        </Deferred>
+                    </DashboardPanel>
+
+                    <DashboardPanel
+                        title="Source quality"
+                        note="Volume against what it converts to — no cost data reaches the CRM"
+                    >
+                        <Deferred
+                            data="sourceQuality"
+                            fallback={<PanelSkeleton rows={4} />}
+                        >
+                            <SourceBreakdown
+                                showWon
+                                rows={sourceQuality ?? []}
+                            />
+                        </Deferred>
+                    </DashboardPanel>
+                </div>
+            </div>
+
+            {/* Only rendered once a flag exists — an always-present empty
+                panel trains people to stop looking at it. */}
+            {!!openPartnerFlags?.length && (
+                <DashboardPanel
+                    title="Partner flags"
+                    note="Partners asking for a look at a referral they introduced"
+                >
+                    <PartnerFlagQueue rows={openPartnerFlags} />
+                </DashboardPanel>
+            )}
+
+            <DashboardPanel
+                flush
+                title="Agents"
+                note={`Last ${period} days · the marker on each bar is the team median`}
+            >
+                <Deferred
+                    data="teamAgents"
+                    fallback={
+                        <div style={{ padding: 18 }}>
+                            <PanelSkeleton rows={5} />
+                        </div>
+                    }
+                >
+                    {teamAgents ? (
+                        <LeaderboardTable
+                            data={teamAgents}
+                            currentUserId={currentUserId}
+                        />
+                    ) : (
+                        <span />
+                    )}
+                </Deferred>
+            </DashboardPanel>
+        </div>
+    );
+}
+
+const tileGrid = {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+    gap: 12,
+} as const;
+
+/**
+ * Names the biggest leak in words. Derived, not written by hand — the reading
+ * has to stay true when the numbers move.
+ */
+function FunnelReading({ data }: { data: FunnelData }) {
+    const { td } = useTd();
+
+    const measured = data.steps.filter((step) => step.to_next !== null);
+
+    if (!measured.length || data.steps[0].count === 0) {
+        return (
+            <span style={{ color: T.TEXT_MUTED }}>
+                {td("Not enough leads in this window to read a funnel.")}
+            </span>
+        );
+    }
+
+    const worst = measured.reduce((a, b) =>
+        (a.to_next ?? 100) <= (b.to_next ?? 100) ? a : b,
+    );
+    const next = data.steps[data.steps.indexOf(worst) + 1];
+
+    // The steps are not strictly nested — a deal can be created without any
+    // meeting logged — so this is stated rather than smoothed over.
+    const unnested = data.steps.some(
+        (step, index) => index > 0 && step.count > data.steps[index - 1].count,
+    );
+
+    return (
+        <span style={{ color: T.TEXT }}>
+            <strong>
+                {td(worst.label)} → {td(next?.label ?? "")}
+            </strong>{" "}
+            {td("is the narrowest step at")} {worst.to_next}%
+            {worst.median_days !== null && (
+                <>
+                    , {td("taking a median of")} {worst.median_days}
+                    {td("d")}
+                </>
+            )}
+            .{" "}
+            {unnested &&
+                td(
+                    "Steps are not strictly nested — a deal can be created without a meeting ever being logged.",
+                )}
+        </span>
     );
 }

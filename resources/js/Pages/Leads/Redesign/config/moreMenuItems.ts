@@ -4,6 +4,7 @@ export type MoreMenuActionId =
     | "deal"
     | "note"
     | "find_duplicates"
+    | "replay_guide"
     | "delete";
 
 export type MoreMenuItem =
@@ -17,6 +18,8 @@ export const MORE_MENU_ITEMS: MoreMenuItem[] = [
     { id: "deal", label: "Create deal" },
     { id: "note", label: "Add note" },
     { id: "find_duplicates", label: "Find duplicates" },
+    { id: "sep" },
+    { id: "replay_guide", label: "Replay guide" },
     { id: "sep" },
     { id: "delete", label: "Delete lead", danger: true },
 ];

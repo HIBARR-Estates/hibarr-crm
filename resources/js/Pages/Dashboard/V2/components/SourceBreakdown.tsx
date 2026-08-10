@@ -1,75 +1,113 @@
-import { Empty, Progress, Tooltip } from "antd";
+import { REDESIGN_TOKENS as T } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { SourceQualityRow } from "../types";
 
-export interface SourceBreakdownRow {
-    id: number;
-    name: string;
-    count: number;
-    /** How many of those leads reached a tracked first contact. */
-    contacted: number;
-}
+export type SourceBreakdownRow = SourceQualityRow;
 
 interface SourceBreakdownProps {
-    rows: SourceBreakdownRow[];
+    rows: SourceQualityRow[];
     maxRows?: number;
+    /** Leadership doesn't query won, so the column is opt-in. */
+    showWon?: boolean;
 }
 
 /**
- * Lead volume and follow-through by source.
+ * Lead volume and what it turns into, by source.
  *
- * Volume and contact rate only — there is deliberately no cost, CPL, or ROI
- * column. No spend data is fed into the CRM for any channel (the Meta
+ * Volume, contact rate and won rate only — there is deliberately no cost, CPL
+ * or ROI column. No spend data is fed into the CRM for any channel (the Meta
  * integration is outbound Conversions API only), so a cost column here would
  * imply a parity across channels that does not exist.
  */
 export default function SourceBreakdown({
     rows,
-    maxRows = 10,
+    maxRows = 8,
+    showWon = false,
 }: SourceBreakdownProps) {
     const { td } = useTd();
 
     const visible = rows.filter((row) => row.count > 0).slice(0, maxRows);
 
     if (!visible.length) {
-        return <Empty description={td("No leads attributed to a source yet")} />;
+        return (
+            <p style={{ margin: 0, fontSize: 14, color: T.TEXT_MUTED }}>
+                {td("No leads attributed to a source in this window.")}
+            </p>
+        );
     }
 
-    const max = Math.max(...visible.map((row) => row.count), 1);
+    const grid = showWon ? "1fr 54px 78px 66px" : "1fr 54px 78px";
+    const best = Math.max(...visible.map((row) => share(row.won ?? 0, row.count)));
 
     return (
-        <div className="flex flex-col gap-3">
-            {visible.map((row) => {
-                const contactRate = Math.round((row.contacted / row.count) * 100);
+        <div>
+            <div
+                className="dv2-eyebrow"
+                style={{
+                    display: "grid",
+                    gridTemplateColumns: grid,
+                    padding: "9px 0",
+                    borderBottom: `1px solid ${T.BORDER_SOFT}`,
+                }}
+            >
+                <div>{td("Source")}</div>
+                <div style={{ textAlign: "right" }}>{td("Leads")}</div>
+                <div style={{ textAlign: "right" }}>{td("Contacted")}</div>
+                {showWon && <div style={{ textAlign: "right" }}>{td("Won")}</div>}
+            </div>
+
+            {visible.map((row, index) => {
+                const wonShare = share(row.won ?? 0, row.count);
 
                 return (
-                    <div key={row.id} className="flex items-center gap-3">
-                        <div className="w-32 shrink-0 truncate text-sm text-slate-600">
+                    <div
+                        key={row.id}
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: grid,
+                            padding: "10px 0",
+                            fontSize: 14,
+                            borderBottom:
+                                index === visible.length - 1
+                                    ? undefined
+                                    : `1px solid ${T.BORDER_SOFT}`,
+                        }}
+                    >
+                        <div
+                            style={{
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                whiteSpace: "nowrap",
+                            }}
+                        >
                             {td(row.name)}
                         </div>
-
-                        <div className="flex-1">
-                            <Progress
-                                percent={(row.count / max) * 100}
-                                showInfo={false}
-                                strokeColor="#0ea5e9"
-                                size="small"
-                            />
+                        <div style={{ textAlign: "right" }}>{row.count}</div>
+                        <div style={{ textAlign: "right", color: T.TEXT_MUTED }}>
+                            {share(row.contacted, row.count)}%
                         </div>
-
-                        <div className="w-12 shrink-0 text-right text-sm font-medium text-slate-700">
-                            {row.count}
-                        </div>
-
-                        <Tooltip
-                            title={td("Share of these leads that were contacted")}
-                        >
-                            <div className="w-14 shrink-0 text-right text-xs text-slate-400">
-                                {contactRate}%
+                        {showWon && (
+                            <div
+                                style={{
+                                    textAlign: "right",
+                                    fontWeight: 600,
+                                    color:
+                                        wonShare === 0
+                                            ? T.RED
+                                            : wonShare === best
+                                              ? T.GREEN
+                                              : T.TEXT,
+                                }}
+                            >
+                                {wonShare}%
                             </div>
-                        </Tooltip>
+                        )}
                     </div>
                 );
             })}
         </div>
     );
 }
+
+const share = (part: number, whole: number) =>
+    whole > 0 ? Math.round((part / whole) * 100) : 0;

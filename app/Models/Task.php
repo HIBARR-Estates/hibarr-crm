@@ -163,6 +163,7 @@ class Task extends BaseModel
         'start_date' => 'datetime',
         'remind_at' => 'datetime',
         'reminders' => 'array',
+        'is_next_step' => 'boolean',
     ];
     protected $appends = ['due_on', 'create_on'];
     protected $guarded = ['id'];

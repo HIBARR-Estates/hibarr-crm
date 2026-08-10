@@ -1738,6 +1738,14 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'view_partner_dashboard',
                 ],
+                // Receives and resolves flags a partner raises about a stalled
+                // referral. Not a role — everyone holding it is notified, and
+                // whoever answers stamps themselves on the flag.
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'is_custom' => 1,
+                    'name' => 'manage_partner_flags',
+                ],
             ]
         ],
         [

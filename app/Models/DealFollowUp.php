@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Scopes\ActiveScope;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
@@ -19,6 +20,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property-read mixed $icon
  * @property-read \App\Models\Deal $deal
  * @property-read \App\Models\MeetingType|null $meetingType
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp query()
@@ -31,26 +33,40 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereNextFollowUpDate($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereRemark($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereUpdatedAt($value)
+ *
  * @property string|null $event_id
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereEventId($value)
+ *
  * @property string|null $meeting_id
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereMeetingId($value)
+ *
  * @property string|null $send_reminder
  * @property string|null $remind_time
  * @property string|null $remind_type
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereRemindTime($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereRemindType($value)
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereSendReminder($value)
+ *
  * @property-read \App\Models\User|null $addedBy
  * @property string|null $status
+ *
  * @method static \Illuminate\Database\Eloquent\Builder|DealFollowUp whereStatus($value)
+ *
+ * Set by attachParticipantUsers(), not columns — the meeting modals read both.
+ *
+ * @property int $effective_duration
+ * @property array $participant_users
+ *
  * @mixin \Eloquent
  */
 class DealFollowUp extends BaseModel
 {
     protected $table = 'lead_follow_up';
-    protected $hidden = ["pivot"];
 
+    protected $hidden = ['pivot'];
 
     protected $fillable = [
         'deal_id',
@@ -91,7 +107,9 @@ class DealFollowUp extends BaseModel
     public const DEFAULT_DURATION_MINUTES = 30;
 
     public const ZOHO_CALENDAR_SYNC_PENDING = 'pending';
+
     public const ZOHO_CALENDAR_SYNC_SYNCED = 'synced';
+
     public const ZOHO_CALENDAR_SYNC_FAILED = 'failed';
 
     // Default reminders that cannot be edited or deleted
@@ -108,6 +126,7 @@ class DealFollowUp extends BaseModel
     public function getAllReminders()
     {
         $customReminders = $this->reminders ?? [];
+
         return array_merge(self::DEFAULT_REMINDERS, $customReminders);
     }
 
@@ -119,9 +138,10 @@ class DealFollowUp extends BaseModel
         // Filter out any attempts to set is_default = true
         $customReminders = array_map(function ($reminder) {
             unset($reminder['is_default']);
+
             return $reminder;
         }, $customReminders);
-        
+
         $this->reminders = $customReminders;
     }
 
@@ -147,6 +167,59 @@ class DealFollowUp extends BaseModel
     public function addedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'added_by');
+    }
+
+    /**
+     * Resolve the participants JSON into the {id, name, image, email} rows the
+     * meeting modals read, and stamp the effective duration.
+     *
+     * One query for the whole collection rather than one per follow-up.
+     *
+     * ponytail: four inline copies of this already exist (DealController:1057
+     * and :2431, LeadContactController:364, MeetingsController:153). Collapse
+     * them onto this the next time one of those files is touched for another
+     * reason — a four-controller diff does not belong in a dashboard change.
+     *
+     * @param  \Illuminate\Support\Collection<int, self>  $followUps
+     */
+    public static function attachParticipantUsers($followUps): void
+    {
+        $userIds = $followUps
+            ->flatMap(fn (self $followUp) => $followUp->participants ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->filter()
+            ->unique()
+            ->values();
+
+        // ActiveScope is dropped for the same reason Task::users() drops it: an
+        // attendee list is a record of who was in the meeting. Hiding someone
+        // because they have since been deactivated rewrites history and leaves
+        // the modal showing fewer attendees than actually attended.
+        // User eager-loads session and clientContact by default; an attendee
+        // chip needs neither. Dropping them saves two queries and a chunk of
+        // payload on every participant of every meeting.
+        $users = $userIds->isEmpty()
+            ? collect()
+            : User::withoutGlobalScope(ActiveScope::class)
+                ->without(['session', 'clientContact'])
+                ->whereIn('id', $userIds)
+                ->get(['id', 'name', 'image', 'email'])
+                ->keyBy('id');
+
+        $followUps->each(function (self $followUp) use ($users) {
+            $followUp->effective_duration = $followUp->getEffectiveDuration();
+            $followUp->participant_users = collect($followUp->participants ?? [])
+                ->map(fn ($id) => $users->get((int) $id))
+                ->filter()
+                ->map(fn (User $user) => [
+                    'id' => $user->id,
+                    'name' => $user->name,
+                    'email' => $user->email,
+                    'image_url' => $user->image_url,
+                ])
+                ->values()
+                ->toArray();
+        });
     }
 
     /**
@@ -191,20 +264,17 @@ class DealFollowUp extends BaseModel
 
     /**
      * Get effective reminders for a specific user
-     * 
+     *
      * Priority:
      * 1. Per-meeting custom reminders (if explicitly set via reminders field)
      * 2. User's personal reminder preferences
      * 3. System defaults (via UserReminderPreference::DEFAULT_REMINDERS)
-     * 
-     * @param int $userId
-     * @return array
      */
     public function getEffectiveReminders(int $userId): array
     {
         // If this follow-up has explicit custom reminders set, use them
         // This preserves backward compatibility with per-meeting overrides
-        if (!empty($this->reminders)) {
+        if (! empty($this->reminders)) {
             // Merge default reminders with custom reminders for this specific meeting
             return $this->getAllReminders();
         }
@@ -212,5 +282,4 @@ class DealFollowUp extends BaseModel
         // Otherwise, use the user's personal reminder preferences
         return UserReminderPreference::getRemindersForUser($userId, 'meeting');
     }
-
 }

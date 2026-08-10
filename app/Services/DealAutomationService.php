@@ -216,6 +216,14 @@ class DealAutomationService
             }
 
             if (!empty($changes)) {
+                // saveQuietly skips DealObserver (deliberately — it stops
+                // automations cascading), but the observer is also what stamps
+                // the stage dwell clock, so set it here. The crm_event is
+                // recorded explicitly below, so that half is already covered.
+                if ($originalStageId != $targetStageId) {
+                    $deal->stage_entered_at = now();
+                }
+
                 $deal->saveQuietly(); // Bypass observer to prevent cascading
                 $description = "Stage transition: " . implode(', ', $changes);
                 Log::info("Action executed for Deal ID: {$deal->id}. " . implode(', ', $changes));
