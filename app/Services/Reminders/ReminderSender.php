@@ -33,8 +33,8 @@ class ReminderSender
                 }
 
                 $via = $notification->via($user);
-                if (! in_array('mail', $via, true)) {
-                    $reminder->markFailed('Mail channel disabled for recipient/company email settings');
+                if ($via === []) {
+                    $reminder->markFailed('No notification channels enabled for recipient/company settings');
 
                     return;
                 }

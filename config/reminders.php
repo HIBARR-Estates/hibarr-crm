@@ -80,4 +80,8 @@ return [
     |
     */
 
+    'plunk_fallback_template_ids' => [
+        'meeting' => env('MEETING_PLUNK_TEMPLATE_ID', '24330e3e-a357-41d2-8762-7014732d5b7e'),
+    ],
+
 ];

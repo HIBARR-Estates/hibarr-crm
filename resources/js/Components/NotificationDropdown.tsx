@@ -9,7 +9,7 @@ import {
     Empty,
     Space,
     Tooltip,
-    Divider,
+    Popover,
     App,
 } from "antd";
 import {
@@ -24,7 +24,6 @@ import {
     CalendarOutlined,
     UserOutlined,
     ProjectOutlined,
-    SettingOutlined,
     ExclamationCircleOutlined,
     GiftOutlined,
     FileProtectOutlined,
@@ -32,6 +31,9 @@ import {
     ScheduleOutlined,
     RiseOutlined,
     RightOutlined,
+    SoundOutlined,
+    SoundFilled,
+    SettingOutlined,
 } from "@ant-design/icons";
 import { router } from "@inertiajs/react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,9 +41,17 @@ import {
     useNotificationSummary,
     useNotificationMutations,
 } from "@/Hooks/useNotifications";
-import { Notification, NotificationIcon } from "@/Types/api/notification";
+import type { Notification, NotificationIcon } from "@/Types/api/notification";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
+import {
+    isAlertsMuted,
+    setAlertsMuted,
+    isDesktopNotificationSupported,
+    getDesktopPermission,
+    requestDesktopPermission,
+} from "@/lib/notificationAlerts";
+import NotificationAlertSettings from "@/Components/NotificationAlertSettings";
 
 dayjs.extend(relativeTime);
 
@@ -75,6 +85,7 @@ const getNotificationIcon = (icon: NotificationIcon): React.ReactNode => {
         discussion: <CommentOutlined style={{ color: "#13c2c2" }} />,
         shift: <ScheduleOutlined style={{ color: "#fa8c16" }} />,
         promotion: <RiseOutlined style={{ color: "#52c41a" }} />,
+        reminder: <ClockCircleOutlined style={{ color: "#1890ff" }} />,
         bell: <BellOutlined style={{ color: "#8c8c8c" }} />,
     };
 
@@ -200,10 +211,28 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
     pollingInterval = 30000,
 }) => {
     const [open, setOpen] = useState(false);
+    const [alertsMuted, setAlertsMutedState] = useState(() => isAlertsMuted());
     const { message } = App.useApp();
 
     const { notifications, unreadCount, isLoading, refetch } =
         useNotificationSummary(pollingInterval);
+
+    // Toggling sound/popup alerts on requires a user gesture to request
+    // desktop notification permission — browsers silently auto-deny requests
+    // fired without one, so this must happen inside the click handler.
+    const handleToggleAlerts = useCallback(() => {
+        const nextMuted = !alertsMuted;
+        setAlertsMuted(nextMuted);
+        setAlertsMutedState(nextMuted);
+
+        if (
+            !nextMuted &&
+            isDesktopNotificationSupported() &&
+            getDesktopPermission() === "default"
+        ) {
+            requestDesktopPermission();
+        }
+    }, [alertsMuted]);
 
     const { markAsRead, markAllAsRead, isMarkingRead } =
         useNotificationMutations();
@@ -245,6 +274,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         <div
             className="bg-white rounded-lg shadow-xl border border-gray-200 overflow-hidden"
             style={{ width: 380, maxHeight: "80vh" }}
+            onClick={(e) => e.stopPropagation()}
         >
             {/* Header */}
             <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
@@ -259,17 +289,59 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         />
                     )}
                 </div>
-                {unreadCount > 0 && (
-                    <Button
-                        type="link"
-                        size="small"
-                        onClick={handleMarkAllRead}
-                        loading={isMarkingRead}
-                        className="text-xs"
+                <div className="flex items-center gap-1">
+                    <Popover
+                        content={<NotificationAlertSettings />}
+                        trigger="click"
+                        placement="bottomRight"
+                        // Theme raises zIndexPopupBase to 1300 (see
+                        // providers/antd/utils.ts), which puts this
+                        // Dropdown's own popup at 1350. Popover's default
+                        // offset is always 20 below Dropdown's, so it needs
+                        // an explicit bump to actually render on top.
+                        zIndex={1400}
                     >
-                        Mark all as read
-                    </Button>
-                )}
+                        <Tooltip title="Alert settings">
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={<SettingOutlined className="text-gray-400" />}
+                                onClick={(e) => e.stopPropagation()}
+                            />
+                        </Tooltip>
+                    </Popover>
+                    <Tooltip
+                        title={
+                            alertsMuted
+                                ? "Turn on sound + desktop alerts"
+                                : "Mute sound + desktop alerts"
+                        }
+                    >
+                        <Button
+                            type="text"
+                            size="small"
+                            icon={
+                                alertsMuted ? (
+                                    <SoundOutlined className="text-gray-400" />
+                                ) : (
+                                    <SoundFilled className="text-[#1890ff]" />
+                                )
+                            }
+                            onClick={handleToggleAlerts}
+                        />
+                    </Tooltip>
+                    {unreadCount > 0 && (
+                        <Button
+                            type="link"
+                            size="small"
+                            onClick={handleMarkAllRead}
+                            loading={isMarkingRead}
+                            className="text-xs"
+                        >
+                            Mark all as read
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Notification list */}

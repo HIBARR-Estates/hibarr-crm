@@ -93,7 +93,7 @@ class NotificationService
             'id' => $notification->id,
             'type' => $type,
             'type_slug' => $typeSlug,
-            'title' => $this->getNotificationTitle($typeSlug, $data),
+            'title' => $data['title'] ?? $this->getNotificationTitle($typeSlug, $data),
             'text' => $data['heading'] ?? $data['text'] ?? $data['message'] ?? '',
             'data' => $data,
             'link' => $this->getNotificationLink($typeSlug, $data),
@@ -240,7 +240,11 @@ class NotificationService
             'new_expense_member' => __('email.newExpense.subject'),
             'invoice_payment_received' => __('email.invoicePaymentReceived.subject'),
             'new_lead_created' => __('email.newLead.subject'),
-            'lead_agent_assigned' => __('email.leadAgentAssigned.subject'),
+            'lead_agent_assigned' => match ($data['assignment_role'] ?? 'deal_agent') {
+                'deal_watcher' => __('email.dealWatcherAssigned.subject'),
+                'new_deal' => __('email.newDealAwaitingAgent.subject'),
+                default => __('email.dealAgentAssigned.subject'),
+            },
             'deal_stage_updated' => __('email.dealStageUpdate.subject'),
             'event_invite' => __('email.eventInvite.subject'),
             'event_reminder' => __('email.eventReminder.subject'),
@@ -545,6 +549,9 @@ class NotificationService
             // Promotions
             'promotion_added' => 'promotion',
             'promotion_updated' => 'promotion',
+
+            // Entity reminders (tasks, deals, leads, meetings, notes, properties, projects, units, flights)
+            'reminder_notification' => 'reminder',
         ];
 
         return $icons[$typeSlug] ?? 'bell';

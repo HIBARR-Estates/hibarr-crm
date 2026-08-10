@@ -34,6 +34,14 @@ class UnsRoutingTransport implements TransportInterface
             return $this->fallbackTransport->send($message, $envelope);
         }
 
+        // UNS payload mapping only forwards template/body fields — attachments
+        // (e.g. meeting .ics invites) must go through the SMTP mailer instead.
+        if ($message instanceof Email && count($message->getAttachments()) > 0) {
+            Log::info('UNS email routing skipped: message has attachments, using SMTP fallback.');
+
+            return $this->fallbackTransport->send($message, $envelope);
+        }
+
         try {
             $payload = $this->payloadMapper->map($message, $envelope);
             $sent = $this->unsClient->send($payload);

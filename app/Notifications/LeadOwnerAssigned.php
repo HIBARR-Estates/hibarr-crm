@@ -69,12 +69,14 @@ class LeadOwnerAssigned extends BaseNotification
             ->view('mail.lead-assigned', [
                 'url' => $url,
                 'content' => implode('<br>', $contentParts),
+                'preheader' => __('email.leadAgentAssigned.text') . ': ' . ($this->lead->client_name ?? ''),
                 'themeColor' => $this->company?->header_color,
                 'actionText' => 'View Lead',
                 'notifiableName' => $notifiable->name,
             ]);
 
         $this->attachPlunkTemplate($build, 'cde4d601-d358-45e5-9782-1e79d5c4f9f7', [
+            'preheader'         => __('email.leadAgentAssigned.text') . ': ' . ($this->lead->client_name ?? ''),
             'leadName'          => $this->lead->client_name,
             'leadEmail'         => $this->lead->client_email ?? '',
             'previousOwnerName' => $this->previousOwnerName,

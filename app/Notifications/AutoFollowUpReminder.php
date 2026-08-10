@@ -5,6 +5,10 @@ namespace App\Notifications;
 use App\Models\DealFollowUp;
 use App\Models\EmailNotificationSetting;
 use App\Models\Lead;
+use App\Models\ReminderEmailTemplate;
+use App\Support\LeadLocaleResolver;
+use App\Support\MeetingEmailPresenter;
+use App\Support\MeetingIcsBuilder;
 
 class AutoFollowUpReminder extends BaseNotification
 {
@@ -35,29 +39,36 @@ class AutoFollowUpReminder extends BaseNotification
     public function via($notifiable)
     {
         $via = ['database'];
+        // Leads route mail via client_email (Lead::routeNotificationForMail); users via email.
+        if ($notifiable instanceof Lead) {
+            $email = is_string($notifiable->client_email ?? null) ? trim($notifiable->client_email) : '';
+        } else {
+            $email = is_string($notifiable->email ?? null) ? trim($notifiable->email) : '';
+        }
 
         if (
             $this->emailSetting
             && $this->emailSetting->send_email == 'yes'
-            && $notifiable->email_notifications
-            && $notifiable->email != ''
+            && ($notifiable->email_notifications ?? true)
+            && $email !== ''
         ) {
             $via[] = 'mail';
         }
 
-        $mailSubject = ($this->subject)
-            ? __('email.followUpReminder.newFollowUpSubject')
-            : __('email.followUpReminder.subject');
-        $followUpLead = $this->displayName();
-
         if (
-            $this->emailSetting
+            $notifiable instanceof \App\Models\User
+            && $this->emailSetting
             && $this->emailSetting->send_push == 'yes'
             && push_setting()->beams_push_status == 'active'
         ) {
+            $presenter = $this->presenter();
+            $isCreated = (bool) $this->subject;
+            $mailSubject = $presenter->subject(false, $isCreated);
+            $pushBody = $presenter->message(false, $isCreated);
+
             $pushNotification = new \App\Http\Controllers\DashboardController();
             $pushUsersIds = [[$notifiable->id]];
-            $pushNotification->sendPushNotifications($pushUsersIds, $mailSubject, $followUpLead);
+            $pushNotification->sendPushNotifications($pushUsersIds, $mailSubject, $pushBody);
         }
 
         return $via;
@@ -65,103 +76,99 @@ class AutoFollowUpReminder extends BaseNotification
 
     public function toMail($notifiable)
     {
+        $isLeadRecipient = $notifiable instanceof Lead;
+        if ($isLeadRecipient) {
+            LeadLocaleResolver::apply($notifiable, $this->company);
+        }
+
         $build = parent::build($notifiable);
-        $url = $this->entityUrl();
-        $url = getDomainSpecificUrl($url, $this->company);
-
-        $followUpLead = $this->displayName();
-        $followUpDate = $this->leadFollowup?->next_follow_up_date?->format($this->company->date_format);
-        $followUpTime = $this->leadFollowup?->next_follow_up_date?->format($this->company->time_format);
-
-        $content = __('email.followUpReminder.followUpLeadText') . '<br><br>'
-            . __('email.followUpReminder.followUpLead') . ' :- ' . $followUpLead . '<br>'
-            . __('email.followUpReminder.nextFollowUpDate') . ' :- ' . $followUpDate . '<br>'
-            . __('email.followUpReminder.nextFollowUpTime') . ' :- ' . $followUpTime . '<br>'
-            . $this->leadFollowup->remark;
-
-        $mailSubject = ($this->subject)
-            ? __('email.followUpReminder.newFollowUpSubject')
-            : __('email.followUpReminder.subject');
-
-        $entityId = $this->leadFollowup->deal_id
-            ?? $this->leadFollowup->lead_id
-            ?? $this->leadFollowup->id;
+        $isCreatedNotice = (bool) $this->subject;
+        $presenter = $this->presenter();
+        $variables = $presenter->templateVariables($notifiable, $isLeadRecipient, $isCreatedNotice);
 
         $build
-            ->subject($mailSubject . ' #' . $entityId . ' - ' . config('app.name') . '.')
-            ->markdown('mail.email', [
-                'url' => $url,
-                'content' => $content,
-                'themeColor' => $this->company?->header_color,
-                'actionText' => __('email.followUpReminder.action'),
-                'notifiableName' => $notifiable->name,
-            ]);
+            ->subject($variables['mailSubject'].' - '.$variables['appName'])
+            ->view('mail.deal-follow-up.deal-follow-up-reminder', $variables);
 
-        $contact = $this->leadFollowup->deal?->contact
-            ?? $this->leadFollowup->lead;
-
-        $this->attachPlunkTemplate($build, '24330e3e-a357-41d2-8762-7014732d5b7e', [
-            'leadName' => $followUpLead,
-            'leadEmail' => $contact instanceof Lead
-                ? ($contact->client_email ?? '')
-                : (optional($contact)->client_email ?? ''),
-            'meetingDate' => $followUpDate,
-            'meetingTime' => $followUpTime,
-            'meetingRemark' => $this->leadFollowup->remark ?? '',
-            'leadUrl' => $url,
-        ]);
+        $this->attachMeetingPlunkTemplate($build, $variables);
+        $this->attachMeetingIcs($build);
 
         parent::resetLocale();
 
         return $build;
     }
 
+    /**
+     * @param  array<string, mixed>  $variables
+     */
+    private function attachMeetingPlunkTemplate($build, array $variables): void
+    {
+        $companyId = $this->company?->id ? (int) $this->company->id : 0;
+        $templateId = ReminderEmailTemplate::plunkTemplateId($companyId, 'meeting')
+            ?? config('reminders.plunk_fallback_template_ids.meeting');
+
+        if (! is_string($templateId) || $templateId === '') {
+            return;
+        }
+
+        $this->attachPlunkTemplate($build, $templateId, MeetingEmailPresenter::plunkVariables($variables));
+    }
+
+    private function attachMeetingIcs($build): void
+    {
+        if (! $this->subject) {
+            return;
+        }
+
+        // Plunk/UNS cannot send attachments. Attaching .ics would force SMTP
+        // fallback (often misconfigured locally). Calendar sync already creates
+        // the invite on connected calendars (Zoho, etc.).
+        if ($this->unsRoutingEnabled) {
+            return;
+        }
+
+        $ics = MeetingIcsBuilder::build($this->leadFollowup);
+        if ($ics === null) {
+            return;
+        }
+
+        $build->attachData($ics['content'], $ics['filename'], [
+            'mime' => 'text/calendar; method=REQUEST; charset=UTF-8',
+        ]);
+    }
+
     // phpcs:ignore
     public function toArray($notifiable)
     {
+        $presenter = $this->presenter();
+        $isLeadRecipient = $notifiable instanceof Lead;
+
         return [
             'follow_up_id' => $this->leadFollowup->id,
             'id' => $this->leadFollowup->deal_id
                 ?? $this->leadFollowup->lead_id
                 ?? $this->leadFollowup->id,
             'created_at' => $this->leadFollowup->created_at?->format('Y-m-d H:i:s'),
-            'heading' => __('email.followUpReminder.subject'),
+            'heading' => $presenter->subject($isLeadRecipient, (bool) $this->subject),
         ];
     }
 
     public function toSlack($notifiable)
     {
-        $followUpLead = $this->displayName();
-        $followUpDate = $this->leadFollowup?->next_follow_up_date?->format($this->company->date_format);
-        $followUpTime = $this->leadFollowup?->next_follow_up_date?->format($this->company->time_format);
+        $isLeadRecipient = $notifiable instanceof Lead;
+        $presenter = $this->presenter();
+        $isCreatedNotice = (bool) $this->subject;
 
         return $this->slackBuild($notifiable)
             ->content(
-                __('email.followUpReminder.followUpLeadText') . '<br><br>'
-                . __('email.followUpReminder.followUpLead') . ' :- ' . $followUpLead . '<br>'
-                . __('email.followUpReminder.nextFollowUpDate') . ' :- ' . $followUpDate . '<br>'
-                . __('email.followUpReminder.nextFollowUpTime') . ' :- ' . $followUpTime . '<br>'
-                . $this->leadFollowup->remark
+                $presenter->message($isLeadRecipient, $isCreatedNotice).'<br><br>'
+                .$presenter->meetingDate().' '.$presenter->meetingTime().'<br>'
+                .$presenter->meetingRemark()
             );
     }
 
-    private function displayName(): string
+    private function presenter(): MeetingEmailPresenter
     {
-        return $this->leadFollowup->deal?->client_name
-            ?? $this->leadFollowup->lead?->client_name
-            ?? '';
-    }
-
-    private function entityUrl(): string
-    {
-        if ($this->leadFollowup->deal_id) {
-            return route('deals.show', $this->leadFollowup->deal_id) . '?tab=follow-up';
-        }
-
-        if ($this->leadFollowup->lead_id) {
-            return route('lead-contact.show', $this->leadFollowup->lead_id) . '?tab=meetings';
-        }
-
-        return url('/');
+        return new MeetingEmailPresenter($this->leadFollowup, $this->company);
     }
 }

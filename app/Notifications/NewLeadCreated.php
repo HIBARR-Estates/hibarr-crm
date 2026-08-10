@@ -73,12 +73,14 @@ class NewLeadCreated extends BaseNotification
             ->markdown('mail.email', [
                 'url' => $url,
                 'content' => $content,
+                'preheader' => __('email.newLead.text'),
                 'themeColor' => $this->company->header_color,
                 'actionText' => __('email.lead.action'),
                 'notifiableName' => $notifiable->name
             ]);
 
         $this->attachPlunkTemplate($build, 'd64189c5-07db-44be-8a6e-f16df5b2a9c0', [
+            'preheader'     => __('email.newLead.text'),
             'leadName'      => $this->leadContact->client_name,
             'leadEmail'     => $this->leadContact->client_email ?? '',
             'leadOwnerName' => optional($this->leadContact->leadOwner)->name ?? '',

@@ -379,8 +379,10 @@ const Sidebar: React.FC<SidebarProps> = ({ collapsed, onCollapse }) => {
                       key: "reminder-ledger",
                       icon: <BellOutlined />,
                       label: t("app.menu.settings_menu.reminder_ledger"),
-                      onClick: () =>
-                          router.visit("/account/settings/reminder-ledger"),
+                      onClick: () => {
+                          window.location.href =
+                              "/account/settings/reminder-ledger";
+                      },
                   },
               ]
             : []),
