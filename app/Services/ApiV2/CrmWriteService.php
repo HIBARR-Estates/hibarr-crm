@@ -1040,7 +1040,6 @@ class CrmWriteService
             $participantUserIds = User::withoutGlobalScope(ActiveScope::class)
                 ->where('company_id', $companyId)
                 ->where('name', 'like', $like)
-                ->limit(50)
                 ->pluck('id');
 
             if ($participantUserIds->isNotEmpty()) {
