@@ -132,6 +132,7 @@
                         <select name="status" class="form-control select-picker">
                             <option value="complete">@lang('app.complete')</option>
                             <option value="pending">@lang('app.pending')</option>
+                            <option value="failed">@lang('app.failed')</option>
                         </select>
                     </div>
                 </x-datatable.actions>
