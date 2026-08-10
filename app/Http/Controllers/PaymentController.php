@@ -16,6 +16,7 @@ use App\Models\Payment;
 use App\Models\PaymentGatewayCredentials;
 use App\Models\Project;
 use App\Models\User;
+use App\Services\OlPaymentReviewDecisionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -98,7 +99,25 @@ class PaymentController extends AccountBaseController
     {
         abort_403(user()->permission('edit_payments') != 'all');
 
-        Payment::whereIn('id', explode(',', $request->row_ids))->update(['status' => $request->status]);
+        $ids = collect(explode(',', (string) $request->row_ids))
+            ->map(fn ($id) => trim((string) $id))
+            ->filter(fn ($id) => $id !== '' && $id !== 'on')
+            ->values()
+            ->all();
+
+        if ($ids === []) {
+            return;
+        }
+
+        $status = (string) $request->status;
+
+        Payment::whereIn('id', $ids)->update(['status' => $status]);
+
+        app(OlPaymentReviewDecisionService::class)->notifyEligibleAfterStatusChange(
+            $ids,
+            $status,
+            user()
+        );
     }
 
     public function create()
