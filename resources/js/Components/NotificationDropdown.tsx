@@ -316,26 +316,28 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                             </Tooltip>
                         </Popover>
                     )}
-                    <Tooltip
-                        title={
-                            alertsMuted
-                                ? "Turn on sound + desktop alerts"
-                                : "Mute sound + desktop alerts"
-                        }
-                    >
-                        <Button
-                            type="text"
-                            size="small"
-                            icon={
-                                alertsMuted ? (
-                                    <SoundOutlined className="text-gray-400" />
-                                ) : (
-                                    <SoundFilled className="text-[#1890ff]" />
-                                )
+                    {islandAlertsEnabled && (
+                        <Tooltip
+                            title={
+                                alertsMuted
+                                    ? "Turn on sound + desktop alerts"
+                                    : "Mute sound + desktop alerts"
                             }
-                            onClick={handleToggleAlerts}
-                        />
-                    </Tooltip>
+                        >
+                            <Button
+                                type="text"
+                                size="small"
+                                icon={
+                                    alertsMuted ? (
+                                        <SoundOutlined className="text-gray-400" />
+                                    ) : (
+                                        <SoundFilled className="text-[#1890ff]" />
+                                    )
+                                }
+                                onClick={handleToggleAlerts}
+                            />
+                        </Tooltip>
+                    )}
                     {unreadCount > 0 && (
                         <Button
                             type="link"

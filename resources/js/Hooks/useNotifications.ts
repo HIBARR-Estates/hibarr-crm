@@ -16,6 +16,7 @@ import {
     playNotificationSound,
     showDesktopNotification,
 } from "@/lib/notificationAlerts";
+import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 const EMPTY_NOTIFICATIONS: Notification[] = [];
 
@@ -35,6 +36,7 @@ export const useNotificationSummary = (
     onNewNotifications?: (notifications: Notification[]) => void
 ) => {
     const queryClient = useQueryClient();
+    const islandAlertsEnabled = useNotificationIslandAlertsFlag();
 
     const {
         data: response,
@@ -76,12 +78,14 @@ export const useNotificationSummary = (
 
         if (newOnes.length === 0) return;
 
-        playNotificationSound();
-        newOnes.slice(0, 3).forEach((n) => {
-            showDesktopNotification(n.title, n.text, n.link);
-        });
+        if (islandAlertsEnabled) {
+            playNotificationSound();
+            newOnes.slice(0, 3).forEach((n) => {
+                showDesktopNotification(n.title, n.text, n.link);
+            });
+        }
         onNewNotifications?.(newOnes);
-    }, [notifications, enabled, onNewNotifications]);
+    }, [notifications, enabled, islandAlertsEnabled, onNewNotifications]);
 
     // Invalidate cache to force refresh
     const invalidate = useCallback(() => {
