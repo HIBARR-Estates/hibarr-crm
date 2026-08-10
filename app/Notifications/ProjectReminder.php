@@ -36,7 +36,7 @@ class ProjectReminder extends BaseNotification
      */
     public function via($notifiable)
     {
-        $via = array();
+        $via = ['database'];
 
         if ($notifiable->email_notifications && $notifiable->email != '') {
             array_push($via, 'mail');
@@ -86,9 +86,12 @@ class ProjectReminder extends BaseNotification
     public function toArray($notifiable)
     {
         $names = $this->projects->pluck('project_name')->filter()->values();
-        $summary = $names->count() > 1
-            ? $names->first() . ' +' . ($names->count() - 1) . ' more'
-            : $names->first();
+        $summary = $names->first();
+        if ($names->count() > 1) {
+            $summary = $summary.' +'.trans_choice('email.projectReminder.additionalProjects', $names->count() - 1, [
+                'count' => $names->count() - 1,
+            ]);
+        }
 
         $dueDate = isset($this->data['company'], $this->data['project_setting'])
             ? now($this->data['company']->timezone)->addDays($this->data['project_setting']->remind_time)->toFormattedDateString()

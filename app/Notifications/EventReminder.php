@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Event;
+use App\Support\SafeHttpUrl;
 
 class EventReminder extends BaseNotification
 {
@@ -88,13 +89,24 @@ class EventReminder extends BaseNotification
         $url = route('events.show', $this->event->id);
         $url = getDomainSpecificUrl($url, $this->company);
 
-        return array_merge($this->event->toArray(), [
+        $timezone = $this->company->timezone ?? 'UTC';
+        $startDateTime = $this->event->start_date_time->copy()->setTimezone($timezone);
+        $startsNow = $startDateTime->getTimestamp() - now()->getTimestamp() <= 0;
+
+        $payload = [
             'entity_type' => 'meeting',
-            'event_link' => $this->event->event_link,
-            'meeting_link' => $this->event->event_link,
             'action_url' => $url,
             'title' => $this->event->event_name,
-        ]);
+            'starts_now' => $startsNow,
+        ];
+
+        $eventLink = SafeHttpUrl::validate($this->event->event_link);
+        if ($eventLink !== null) {
+            $payload['event_link'] = $eventLink;
+            $payload['meeting_link'] = $eventLink;
+        }
+
+        return array_merge($this->event->toArray(), $payload);
     }
 
 }

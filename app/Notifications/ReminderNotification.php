@@ -13,6 +13,7 @@ use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Models\Lead;
 use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
+use App\Support\SafeHttpUrl;
 use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -178,23 +179,9 @@ class ReminderNotification extends BaseNotification
             return [];
         }
 
-        $task->loadMissing(['deals:id', 'leads:id']);
-
-        $payload = [
+        return [
             'task_id' => $task->id,
         ];
-
-        $deal = $task->deals->first();
-        if ($deal !== null) {
-            $payload['deal_id'] = $deal->id;
-        }
-
-        $lead = $task->leads->first();
-        if ($lead !== null) {
-            $payload['lead_id'] = $lead->id;
-        }
-
-        return $payload;
     }
 
     /**
@@ -209,19 +196,26 @@ class ReminderNotification extends BaseNotification
             return [];
         }
 
+        $presenter = new MeetingEmailPresenter($followUp, $this->company, $this->reminder->message);
+        $meetingAt = $presenter->meetingAt();
+        $startsNow = $meetingAt !== null
+            && $meetingAt->getTimestamp() - now()->getTimestamp() <= 0;
+
         $payload = [
             'follow_up_id' => $followUp->id,
             'deal_id' => $followUp->deal_id,
             'lead_id' => $followUp->lead_id,
+            'starts_now' => $startsNow,
         ];
 
-        if (! empty($followUp->meeting_link)) {
-            $payload['meeting_link'] = $followUp->meeting_link;
+        $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
+        if ($meetingLink !== null) {
+            $payload['meeting_link'] = $meetingLink;
         }
 
         return array_filter(
             $payload,
-            static fn ($value) => $value !== null && $value !== '',
+            static fn ($value) => $value !== null && $value !== '' && $value !== false,
         );
     }
 

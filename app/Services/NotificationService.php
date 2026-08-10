@@ -317,7 +317,7 @@ class NotificationService
             }
         }
 
-        if (! empty($data['deal_id']) || ! empty($data['lead_id'])) {
+        if (! empty($data['deal_id']) && ! empty($data['lead_id'])) {
             return $data;
         }
 
@@ -329,14 +329,18 @@ class NotificationService
             return $data;
         }
 
-        $deal = $task->deals->first();
-        if ($deal !== null) {
-            $data['deal_id'] = $deal->id;
+        if (empty($data['deal_id'])) {
+            $deal = $task->deals->first();
+            if ($deal !== null) {
+                $data['deal_id'] = $deal->id;
+            }
         }
 
-        $lead = $task->leads->first();
-        if ($lead !== null) {
-            $data['lead_id'] = $lead->id;
+        if (empty($data['lead_id'])) {
+            $lead = $task->leads->first();
+            if ($lead !== null) {
+                $data['lead_id'] = $lead->id;
+            }
         }
 
         return $data;

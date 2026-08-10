@@ -125,5 +125,11 @@ return [
         'dueNow' => '\":title\" şimdi.',
         'footerNote' => 'Bu uçuş segmentinden önce rota detaylarını kontrol edin.',
     ],
+    'aiSummary' => [
+        'prefix' => 'Yapay Zeka Özeti: ',
+    ],
+    'projectReminder' => [
+        'additionalProjects' => '{1} :count proje daha|[2,*] :count proje daha',
+    ],
 
 ];

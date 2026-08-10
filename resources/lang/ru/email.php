@@ -125,5 +125,11 @@ return [
         'dueNow' => '«:title» наступает сейчас.',
         'footerNote' => 'Проверьте детали маршрута перед этим сегментом.',
     ],
+    'aiSummary' => [
+        'prefix' => 'ИИ-сводка: ',
+    ],
+    'projectReminder' => [
+        'additionalProjects' => '{1} ещё :count проект|[2,4] ещё :count проекта|[5,*] ещё :count проектов',
+    ],
 
 ];

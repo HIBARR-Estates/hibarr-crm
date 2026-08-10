@@ -9,6 +9,7 @@ use App\Models\ReminderEmailTemplate;
 use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
 use App\Support\MeetingIcsBuilder;
+use App\Support\SafeHttpUrl;
 
 class AutoFollowUpReminder extends BaseNotification
 {
@@ -144,6 +145,9 @@ class AutoFollowUpReminder extends BaseNotification
         $isLeadRecipient = $notifiable instanceof Lead;
         $isCreatedNotice = (bool) $this->subject;
         $followUp = $this->leadFollowup;
+        $meetingAt = $presenter->meetingAt();
+        $startsNow = $meetingAt !== null
+            && $meetingAt->getTimestamp() - now()->getTimestamp() <= 0;
 
         $payload = [
             'entity_type' => 'meeting',
@@ -156,10 +160,12 @@ class AutoFollowUpReminder extends BaseNotification
             'title' => $presenter->subject($isLeadRecipient, $isCreatedNotice),
             'text' => $presenter->message($isLeadRecipient, $isCreatedNotice),
             'action_url' => $this->resolveFollowUpActionUrl(),
+            'starts_now' => $startsNow,
         ];
 
-        if (! empty($followUp->meeting_link)) {
-            $payload['meeting_link'] = $followUp->meeting_link;
+        $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
+        if ($meetingLink !== null) {
+            $payload['meeting_link'] = $meetingLink;
         }
 
         return $payload;

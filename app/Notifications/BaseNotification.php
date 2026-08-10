@@ -69,7 +69,7 @@ class BaseNotification extends Notification implements ShouldQueue
             return null;
         }
 
-        return 'AI Summary: '.\Illuminate\Support\Str::limit($statusLine, $maxLength);
+        return __('email.aiSummary.prefix').\Illuminate\Support\Str::limit($statusLine, $maxLength);
     }
 
     public function setSuppressBulkTransactionalEmails(bool $value = true): static

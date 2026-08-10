@@ -55,42 +55,24 @@ const DEFAULT_OL_API_KEY =
 /**
  * Get the agent invitation base URL from environment or default
  */
-export const getAgentInvitationBaseUrl = (): string => {
-    return (
-        (hasProcessEnv && process.env.MIX_AGENT_INVITATION_BASE_URL) ||
-        DEFAULT_AGENT_INVITATION_BASE_URL
-    );
-};
+export const getAgentInvitationBaseUrl = (): string =>
+    DEFAULT_AGENT_INVITATION_BASE_URL;
 
 /**
  * Get the file upload base URL from environment or default
  */
-export const getFileUploadBaseUrl = (): string => {
-    return (
-        (hasProcessEnv && process.env.MIX_FILE_UPLOAD_BASE_URL) ||
-        DEFAULT_FILE_UPLOAD_BASE_URL
-    );
-};
+export const getFileUploadBaseUrl = (): string => DEFAULT_FILE_UPLOAD_BASE_URL;
 
 /**
  * Get the file upload API key from environment or default
  */
-export const getFileUploadApiKey = (): string => {
-    return (
-        (hasProcessEnv && process.env.MIX_FILE_UPLOAD_API_KEY) ||
-        DEFAULT_FILE_UPLOAD_API_KEY
-    );
-};
+export const getFileUploadApiKey = (): string => DEFAULT_FILE_UPLOAD_API_KEY;
 
 /**
  * Get the agent invitation API key from environment or default
  */
-export const getAgentInvitationApiKey = (): string => {
-    return (
-        (hasProcessEnv && process.env.MIX_AGENT_INVITATION_API_KEY) ||
-        DEFAULT_AGENT_INVITATION_API_KEY
-    );
-};
+export const getAgentInvitationApiKey = (): string =>
+    DEFAULT_AGENT_INVITATION_API_KEY;
 
 /**
  * Clamp retry count to valid range (0 to MAX_RETRY_COUNT)

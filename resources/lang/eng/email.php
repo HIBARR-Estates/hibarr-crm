@@ -287,11 +287,15 @@ return [
         'text' => 'This is to remind you about the due date of the following projects which is',
         'subject' => 'Project Reminder',
         'action' => 'View Projects',
+        'additionalProjects' => '{1} :count more project|[2,*] :count more projects',
     ],
     'messages' => [
         'loginForMoreDetails' => 'Log in for more details.',
         'referenceMessage' => 'I have attached a copy of the invoice for your reference.',
         'confirmMessage' => 'I would be grateful if you could confirm that everything is on track for payment.',
+    ],
+    'aiSummary' => [
+        'prefix' => 'AI Summary: ',
     ],
     'taskComment' => [
         'subject' => 'New comment on task',

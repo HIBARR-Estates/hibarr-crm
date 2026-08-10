@@ -7,6 +7,7 @@ import {
     useRef,
     useState,
     type CSSProperties,
+    type FocusEvent,
     type MouseEvent,
     type MutableRefObject,
     type ReactNode,
@@ -18,6 +19,7 @@ import {
     type NotchPosition,
 } from "@/lib/notificationAlerts";
 import { useNotificationMutations } from "@/Hooks/useNotifications";
+import { isSafeHttpUrl } from "@/lib/mapNotificationToAlert";
 import {
     REDESIGN_TOKENS as T,
     REDESIGN_FONT_STACK,
@@ -82,6 +84,23 @@ const ACCENT_BY_SEVERITY: Record<NotchSeverity, string> = {
     navy: T.NAVY_MID,
     gray: T.GRAY_MID,
 };
+
+function accentTintBackground(accent: string): string {
+    if (accent.startsWith("rgba(") || accent.startsWith("rgb(")) {
+        const match = accent.match(/rgba?\(([^)]+)\)/);
+        if (match) {
+            const parts = match[1].split(",").map((part) => part.trim());
+            if (parts.length >= 3) {
+                return `rgba(${parts[0]}, ${parts[1]}, ${parts[2]}, 0.15)`;
+            }
+        }
+        return "rgba(255,255,255,0.1)";
+    }
+    if (accent.startsWith("#") && accent.length === 7) {
+        return `${accent}26`;
+    }
+    return "rgba(255,255,255,0.1)";
+}
 
 const REST_W = 132;
 const REST_H = 26;
@@ -233,6 +252,15 @@ export default function NotificationAlertProvider({
         if (current) armDismiss();
     }, [current, armDismiss]);
 
+    const onBlur = useCallback(
+        (e: FocusEvent<HTMLDivElement>) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+                onLeave();
+            }
+        },
+        [onLeave],
+    );
+
     const handleOpenClick = useCallback(
         (e: MouseEvent) => {
             e.stopPropagation();
@@ -246,8 +274,8 @@ export default function NotificationAlertProvider({
     const handleActionClick = useCallback(
         (action: NotificationAlertAction) => (e: MouseEvent) => {
             e.stopPropagation();
-            if (current?.id) markAsRead({ id: current.id });
-            if (action.href) {
+            if (current?.id) markAsReadQuiet(current.id);
+            if (action.href && isSafeHttpUrl(action.href)) {
                 if (action.openInNewTab) {
                     window.open(action.href, "_blank", "noopener,noreferrer");
                 } else {
@@ -256,7 +284,7 @@ export default function NotificationAlertProvider({
             }
             dismiss();
         },
-        [current, dismiss, markAsRead],
+        [current, dismiss, markAsReadQuiet],
     );
 
     const handleDismissClick = useCallback(
@@ -338,6 +366,9 @@ export default function NotificationAlertProvider({
                         }
                         onMouseEnter={onEnter}
                         onMouseLeave={onLeave}
+                        onFocus={onEnter}
+                        onBlur={onBlur}
+                        tabIndex={0}
                         animate={{
                             width,
                             height,
@@ -388,7 +419,7 @@ export default function NotificationAlertProvider({
                                                 width: 30,
                                                 height: 30,
                                                 borderRadius: 8,
-                                                background: `${accent}26`,
+                                                background: accentTintBackground(accent),
                                                 display: "inline-flex",
                                                 alignItems: "center",
                                                 justifyContent: "center",
@@ -396,6 +427,7 @@ export default function NotificationAlertProvider({
                                             }}
                                         >
                                             <svg
+                                                aria-hidden="true"
                                                 width={14}
                                                 height={14}
                                                 viewBox="0 0 24 24"
@@ -500,6 +532,7 @@ export default function NotificationAlertProvider({
                                         )}
                                         {(actions.length > 0 || expanded) && (
                                             <div
+                                                aria-hidden={!expanded}
                                                 style={{
                                                     opacity: expanded ? 1 : 0,
                                                     transition: `opacity 200ms ease ${expanded ? "120ms" : "0ms"}`,
@@ -514,6 +547,9 @@ export default function NotificationAlertProvider({
                                                     <button
                                                         key={action.label}
                                                         type="button"
+                                                        tabIndex={
+                                                            expanded ? 0 : -1
+                                                        }
                                                         onClick={handleActionClick(
                                                             action,
                                                         )}
@@ -544,6 +580,9 @@ export default function NotificationAlertProvider({
                                                     current.link && (
                                                         <button
                                                             type="button"
+                                                            tabIndex={
+                                                                expanded ? 0 : -1
+                                                            }
                                                             onClick={
                                                                 handleOpenClick
                                                             }
@@ -572,6 +611,9 @@ export default function NotificationAlertProvider({
                                                     )}
                                                 <button
                                                     type="button"
+                                                    tabIndex={
+                                                        expanded ? 0 : -1
+                                                    }
                                                     onClick={handleDismissClick}
                                                     style={{
                                                         appearance: "none",

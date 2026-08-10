@@ -125,5 +125,11 @@ return [
         'dueNow' => '\":title\" ist jetzt fällig.',
         'footerNote' => 'Prüfen Sie die Reisedetails vor diesem Flugabschnitt.',
     ],
+    'aiSummary' => [
+        'prefix' => 'KI-Zusammenfassung: ',
+    ],
+    'projectReminder' => [
+        'additionalProjects' => '{1} :count weiteres Projekt|[2,*] :count weitere Projekte',
+    ],
 
 ];

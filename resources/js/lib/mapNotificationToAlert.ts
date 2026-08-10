@@ -158,16 +158,37 @@ function notificationsIndexHref(): string | null {
     }
 }
 
+export function isSafeHttpUrl(href: string | null | undefined): href is string {
+    if (!href || typeof href !== "string") return false;
+    try {
+        const url = new URL(href.trim());
+        return url.protocol === "http:" || url.protocol === "https:";
+    } catch {
+        return false;
+    }
+}
+
+function withInboxFallback(
+    actions: NotificationAlertAction[],
+): NotificationAlertAction[] {
+    if (actions.length > 0) return actions.slice(0, 2);
+    const inbox = notificationsIndexHref();
+    if (inbox) {
+        return [{ label: "View inbox", primary: true, href: inbox }];
+    }
+    return [];
+}
+
 /** Contextual quick actions (up to two) per notification type. */
 export function actionsForNotification(
     notification: Notification,
 ): NotificationAlertAction[] {
     if (isMeetingNotification(notification)) {
-        return meetingActionsForNotification(notification);
+        return withInboxFallback(meetingActionsForNotification(notification));
     }
 
     if (isTaskNotification(notification)) {
-        return taskActionsForNotification(notification);
+        return withInboxFallback(taskActionsForNotification(notification));
     }
 
     const { link, icon, type_slug: slug } = notification;
@@ -253,16 +274,10 @@ function isMeetingNotification(notification: Notification): boolean {
 }
 
 function isMeetingStartingNow(notification: Notification): boolean {
-    const haystack = `${notification.title} ${notification.text}`.toLowerCase();
-    if (
-        /starts now|starting now|due now|less than a minute|in less than a minute/.test(
-            haystack,
-        )
-    ) {
-        return true;
-    }
+    const data = notification.data ?? {};
+    if (data.starts_now === true) return true;
 
-    const remindAt = notification.data?.remind_at;
+    const remindAt = data.remind_at;
     if (typeof remindAt === "string" && remindAt !== "") {
         const diffMs = new Date(remindAt).getTime() - Date.now();
         // From 5 minutes before through 15 minutes after scheduled start.
@@ -276,15 +291,16 @@ function meetingJoinHref(notification: Notification): string | null {
     const data = notification.data ?? {};
     for (const key of ["meeting_link", "event_link"] as const) {
         const value = data[key];
-        if (typeof value === "string" && value.trim() !== "") {
+        if (typeof value === "string" && isSafeHttpUrl(value)) {
             return value.trim();
         }
     }
     return null;
 }
 
-function meetingContextAction(
+function entityContextAction(
     notification: Notification,
+    tab: "meetings" | "tasks",
 ): NotificationAlertAction | null {
     const data = notification.data ?? {};
     const dealId = data.deal_id;
@@ -295,7 +311,7 @@ function meetingContextAction(
             return {
                 label: "Open deal",
                 primary: false,
-                href: `${route("deals.show", dealId)}?tab=meetings`,
+                href: `${route("deals.show", dealId)}?tab=${tab}`,
             };
         } catch {
             // fall through
@@ -307,22 +323,50 @@ function meetingContextAction(
             return {
                 label: "Open lead",
                 primary: false,
-                href: `${route("lead-contact.show", leadId)}?tab=meetings`,
+                href: `${route("lead-contact.show", leadId)}?tab=${tab}`,
             };
         } catch {
             // fall through
         }
     }
 
-    if (notification.link) {
+    return null;
+}
+
+function meetingLinkLabel(
+    notification: Notification,
+    href: string,
+): string {
+    const entityType = notification.data?.entity_type;
+    if (entityType === "deal") return "Open deal";
+    if (entityType === "lead") return "Open lead";
+
+    if (/\/deals\/\d+/.test(href) || href.includes("deals.show")) {
+        return "Open deal";
+    }
+    if (
+        /\/lead-contact(?:\/|\?|$)/.test(href) ||
+        href.includes("lead-contact.show")
+    ) {
+        return "Open lead";
+    }
+
+    return "Open meeting";
+}
+
+function meetingContextAction(
+    notification: Notification,
+): NotificationAlertAction | null {
+    const context = entityContextAction(notification, "meetings");
+    if (context) return context;
+
+    if (notification.link && isSafeHttpUrl(notification.link)) {
         const href = notification.link;
-        const label =
-            href.includes("/deals/") || href.includes("deals.show")
-                ? "Open deal"
-                : href.includes("/lead") || href.includes("lead-contact")
-                  ? "Open lead"
-                  : "Open meeting";
-        return { label, primary: false, href };
+        return {
+            label: meetingLinkLabel(notification, href),
+            primary: false,
+            href,
+        };
     }
 
     return null;
@@ -350,16 +394,18 @@ function meetingActionsForNotification(
             ...context,
             primary: actions.length === 0,
         });
-    } else if (!startingNow && joinHref) {
+    }
+
+    if (!startingNow && joinHref) {
         actions.push({
             label: "Open meeting",
-            primary: true,
+            primary: actions.length === 0,
             href: joinHref,
             openInNewTab: true,
         });
     }
 
-    return actions.slice(0, 2);
+    return actions;
 }
 
 function isTaskNotification(notification: Notification): boolean {
@@ -385,41 +431,15 @@ function taskHref(notification: Notification): string | null {
         }
     }
 
-    return notification.link;
+    return notification.link && isSafeHttpUrl(notification.link)
+        ? notification.link
+        : null;
 }
 
 function taskContextAction(
     notification: Notification,
 ): NotificationAlertAction | null {
-    const data = notification.data ?? {};
-    const dealId = data.deal_id;
-    const leadId = data.lead_id;
-
-    if (dealId != null && dealId !== "") {
-        try {
-            return {
-                label: "Open deal",
-                primary: false,
-                href: `${route("deals.show", dealId)}?tab=tasks`,
-            };
-        } catch {
-            // fall through
-        }
-    }
-
-    if (leadId != null && leadId !== "") {
-        try {
-            return {
-                label: "Open lead",
-                primary: false,
-                href: `${route("lead-contact.show", leadId)}?tab=tasks`,
-            };
-        } catch {
-            // fall through
-        }
-    }
-
-    return null;
+    return entityContextAction(notification, "tasks");
 }
 
 function taskActionsForNotification(
@@ -447,7 +467,7 @@ function taskActionsForNotification(
         });
     }
 
-    return actions.slice(0, 2);
+    return actions;
 }
 
 export function mapNotificationToAlert(
