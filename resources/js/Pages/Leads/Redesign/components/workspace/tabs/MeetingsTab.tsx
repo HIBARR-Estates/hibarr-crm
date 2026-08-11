@@ -334,18 +334,14 @@ export default function MeetingsTab({
                                                             ] ?? "dr-pill-gray"
                                                         }`}
                                                     >
-                                                        {td(
-                                                            meeting.platformLabel,
-                                                        )}
+                                                        {td(meeting.platformLabel, { source: "en" })}
                                                     </span>
                                                     <span
                                                         className={`dr-pill ${getMeetingStatusTone(
                                                             meeting.statusLabel,
                                                         )}`}
                                                     >
-                                                        {td(
-                                                            meeting.statusLabel,
-                                                        )}
+                                                        {td(meeting.statusLabel, { source: "en" })}
                                                     </span>
                                                     {meeting.isConcluded &&
                                                         meeting.summaryStatus !==
@@ -454,9 +450,9 @@ export default function MeetingsTab({
                     )
                 }
                 labels={{
-                    title: td("Schedule meeting"),
-                    cancel: td("Cancel"),
-                    submit: td("Schedule"),
+                    title: td("Schedule meeting", { source: "en" }),
+                    cancel: td("Cancel", { source: "en" }),
+                    submit: td("Schedule", { source: "en" }),
                 }}
             />
 

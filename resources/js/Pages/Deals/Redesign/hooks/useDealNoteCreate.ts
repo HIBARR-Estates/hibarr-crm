@@ -32,8 +32,10 @@ export default function useDealNoteCreate(dealId: number) {
 
     const createNote = useCallback(
         (input: DealNoteCreateInput, onSuccess?: () => void) => {
-            const trimmed = input.text.trim();
-            if (!trimmed) {
+            const hasText =
+                input.text.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim()
+                    .length > 0;
+            if (!hasText) {
                 setErrors(["Please enter note details"]);
                 return;
             }
@@ -47,7 +49,7 @@ export default function useDealNoteCreate(dealId: number) {
                     // "Untitled note" for display, so there's no need to
                     // synthesize one from the body here.
                     title: input.title?.trim() || undefined,
-                    details: `<p>${trimmed}</p>`,
+                    details: input.text,
                     lead_id: dealId,
                 },
                 {

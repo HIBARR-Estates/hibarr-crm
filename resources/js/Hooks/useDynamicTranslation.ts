@@ -4,6 +4,9 @@ import { useDynamicTranslationContext } from "@/contexts/DynamicTranslationConte
 import {
     hashDynamicText,
     normalizeDynamicText,
+    shouldRequestDynamicTranslation,
+    type DynamicTranslationOptions,
+    type TdFn,
 } from "@/lib/dynamicTranslation";
 
 const makeKey = (locale: string, hash: string) => ["dynTrans", locale, hash];
@@ -12,19 +15,25 @@ type DynamicTranslationResult = string | null;
 
 export const useDynamicTranslation = (
     text: string | null | undefined,
+    options?: DynamicTranslationOptions,
 ): string => {
     const sourceText = text ?? "";
+    const { locale, batcher } = useDynamicTranslationContext();
+    const queryClient = useQueryClient();
+
+    const shouldTranslate = shouldRequestDynamicTranslation(locale, options);
+
     const normalized = useMemo(
-        () => (sourceText ? normalizeDynamicText(sourceText) : ""),
-        [sourceText],
+        () =>
+            sourceText && shouldTranslate
+                ? normalizeDynamicText(sourceText)
+                : "",
+        [sourceText, shouldTranslate],
     );
     const hash = useMemo(
         () => (normalized ? hashDynamicText(sourceText) : ""),
         [normalized, sourceText],
     );
-
-    const { locale, batcher } = useDynamicTranslationContext();
-    const queryClient = useQueryClient();
 
     const queryKey = useMemo(
         () => (hash ? makeKey(locale, hash) : ["dynTrans", locale, "empty"]),
@@ -40,7 +49,7 @@ export const useDynamicTranslation = (
     });
 
     useEffect(() => {
-        if (!sourceText || !normalized || !hash) {
+        if (!shouldTranslate || !sourceText || !normalized || !hash) {
             return;
         }
 
@@ -63,7 +72,20 @@ export const useDynamicTranslation = (
         });
 
         return unsubscribe;
-    }, [batcher, locale, hash, normalized, queryClient, queryKey, sourceText]);
+    }, [
+        batcher,
+        locale,
+        hash,
+        normalized,
+        queryClient,
+        queryKey,
+        sourceText,
+        shouldTranslate,
+    ]);
+
+    if (!shouldTranslate) {
+        return sourceText;
+    }
 
     return typeof query.data === "string" && query.data !== ""
         ? query.data
@@ -72,17 +94,20 @@ export const useDynamicTranslation = (
 
 export const useDynamicTranslations = (
     texts: Array<string | null | undefined>,
+    options?: DynamicTranslationOptions,
 ): string[] => {
     const { locale, batcher } = useDynamicTranslationContext();
     const queryClient = useQueryClient();
+    const shouldTranslate = shouldRequestDynamicTranslation(locale, options);
 
     const entries = useMemo(
         () =>
             texts.map((value) => {
                 const sourceText = value ?? "";
-                const normalized = sourceText
-                    ? normalizeDynamicText(sourceText)
-                    : "";
+                const normalized =
+                    sourceText && shouldTranslate
+                        ? normalizeDynamicText(sourceText)
+                        : "";
                 const hash = normalized ? hashDynamicText(sourceText) : "";
 
                 return {
@@ -94,7 +119,7 @@ export const useDynamicTranslations = (
                         : (["dynTrans", locale, "empty"] as const),
                 };
             }),
-        [texts, locale],
+        [texts, locale, shouldTranslate],
     );
 
     const queries = useQueries({
@@ -108,6 +133,10 @@ export const useDynamicTranslations = (
     });
 
     useEffect(() => {
+        if (!shouldTranslate) {
+            return;
+        }
+
         const unsubscribers: Array<() => void> = [];
 
         entries.forEach((entry) => {
@@ -140,7 +169,11 @@ export const useDynamicTranslations = (
         return () => {
             unsubscribers.forEach((unsubscribe) => unsubscribe());
         };
-    }, [batcher, entries, locale, queryClient]);
+    }, [batcher, entries, locale, queryClient, shouldTranslate]);
+
+    if (!shouldTranslate) {
+        return entries.map((entry) => entry.sourceText);
+    }
 
     return entries.map((entry, index) => {
         const value = queries[index]?.data;
@@ -151,23 +184,22 @@ export const useDynamicTranslations = (
 };
 
 /**
- * Returns a `td(text)` function that can be called inline anywhere during
- * render — inside `.map()`, object literals, JSX attributes — just like `t()`
- * for static keys.
+ * Returns a `td(text, options?)` function that can be called inline anywhere
+ * during render — inside `.map()`, object literals, JSX attributes — just like
+ * `t()` for static keys.
  *
- * On first call with a given text the original text is returned immediately
- * while a background translation is queued. When the translation arrives the
- * component re-renders automatically and subsequent `td(text)` calls return
- * the translated value.
+ * Only translates when `options.source === "en"` **and** the user locale is not
+ * English. English locales always get the original string (no batch, no rewrite).
+ * Omit `source` for free-form / non-English-source content so it is never
+ * dictionary-translated.
  *
  * @example
  * const { td } = useTd();
- * // inside navItems build, JSX, anywhere during render:
- * label: td(pipeline.name)
- * <span>{td(deal.name)}</span>
+ * label: td(pipeline.name, { source: "en" })
+ * <span>{td(deal.name)}</span> // UGC — identity
  */
 export const useTd = (): {
-    td: (text: string | null | undefined) => string;
+    td: TdFn;
 } => {
     const { locale, batcher } = useDynamicTranslationContext();
     const queryClient = useQueryClient();
@@ -197,10 +229,14 @@ export const useTd = (): {
         };
     }, []);
 
-    const td = useCallback(
-        (text: string | null | undefined): string => {
+    const td = useCallback<TdFn>(
+        (text, options) => {
             const sourceText = text ?? "";
             if (!sourceText) return sourceText;
+
+            if (!shouldRequestDynamicTranslation(locale, options)) {
+                return sourceText;
+            }
 
             const hash = hashDynamicText(sourceText);
             const queryKey = makeKey(locale, hash);
@@ -244,3 +280,5 @@ export const useTd = (): {
 
     return { td };
 };
+
+export type { DynamicTranslationOptions, TdFn };

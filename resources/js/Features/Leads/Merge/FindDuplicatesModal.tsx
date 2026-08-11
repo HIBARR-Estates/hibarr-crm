@@ -49,12 +49,12 @@ export default function FindDuplicatesModal({
             <Modal
                 open={open && reviewCandidateId === null}
                 onCancel={handleClose}
-                title={`${td("Find duplicates for")} ${leadName ?? td("this lead")}`}
+                title={`${td("Find duplicates for", { source: "en" })} ${leadName ?? td("this lead", { source: "en" })}`}
                 footer={null}
             >
                 {isLoading && <Skeleton active />}
                 {!isLoading && candidates.length === 0 && (
-                    <Empty description={td("No potential duplicates found.")} />
+                    <Empty description={td("No potential duplicates found.", { source: "en" })} />
                 )}
                 {!isLoading && candidates.length > 0 && (
                     <List
@@ -70,7 +70,7 @@ export default function FindDuplicatesModal({
                                             setReviewCandidateId(candidate.id)
                                         }
                                     >
-                                        {td("Review merge")}
+                                        {td("Review merge", { source: "en" })}
                                     </Button>,
                                 ]}
                             >

@@ -73,7 +73,7 @@ const LeadSummaryColumn: React.FC<{
 
                         return (
                             <div key={field} className="flex justify-between gap-2">
-                                <dt className="text-gray-500">{td(fieldLabel)}</dt>
+                                <dt className="text-gray-500">{td(fieldLabel, { source: "en" })}</dt>
                                 <dd
                                     className={
                                         isConflict
@@ -84,7 +84,7 @@ const LeadSummaryColumn: React.FC<{
                                     {value || "—"}
                                     {isConflict && (
                                         <Tag color="warning" className="ml-1">
-                                            {td("differs")}
+                                            {td("differs", { source: "en" })}
                                         </Tag>
                                     )}
                                 </dd>
@@ -159,11 +159,11 @@ export default function LeadMergeReviewModal({
             open={open}
             onCancel={() => onClose()}
             width={860}
-            title={td("Review lead merge")}
+            title={td("Review lead merge", { source: "en" })}
             destroyOnClose
             footer={[
                 <Button key="cancel" onClick={() => onClose()}>
-                    {td("Cancel")}
+                    {td("Cancel", { source: "en" })}
                 </Button>,
                 <Button
                     key="confirm"
@@ -173,7 +173,7 @@ export default function LeadMergeReviewModal({
                     disabled={!canConfirm}
                     onClick={handleConfirm}
                 >
-                    {td("Confirm merge")}
+                    {td("Confirm merge", { source: "en" })}
                 </Button>,
             ]}
         >
@@ -184,7 +184,7 @@ export default function LeadMergeReviewModal({
                     showIcon
                     message={
                         (data as unknown as { message?: string })?.message ??
-                        td("Could not load merge review.")
+                        td("Could not load merge review.", { source: "en" })
                     }
                 />
             )}
@@ -193,17 +193,17 @@ export default function LeadMergeReviewModal({
                     <Alert
                         type="warning"
                         showIcon
-                        message={`${td("Lead")} #${duplicateId} (${data.duplicate.client_name}) ${td("will be discarded — its records move to")} ${td("lead")} #${primaryId} (${data.primary.client_name}).`}
+                        message={`${td("Lead", { source: "en" })} #${duplicateId} (${data.duplicate.client_name}) ${td("will be discarded — its records move to", { source: "en" })} ${td("lead", { source: "en" })} #${primaryId} (${data.primary.client_name}).`}
                     />
 
                     <div className="grid grid-cols-2 gap-4">
                         <LeadSummaryColumn
-                            label={`A · ${td("Primary (keep)")}`}
+                            label={`A · ${td("Primary (keep)", { source: "en" })}`}
                             summary={data.primary}
                             conflicts={data.contact_conflicts}
                         />
                         <LeadSummaryColumn
-                            label={`B · ${td("Duplicate (discard)")}`}
+                            label={`B · ${td("Duplicate (discard)", { source: "en" })}`}
                             summary={data.duplicate}
                             conflicts={data.contact_conflicts}
                         />
@@ -211,19 +211,19 @@ export default function LeadMergeReviewModal({
 
                     <div>
                         <h4 className="mb-2 text-sm font-semibold">
-                            {td("Connected records")}
+                            {td("Connected records", { source: "en" })}
                         </h4>
                         <table className="w-full text-sm">
                             <thead>
                                 <tr className="text-left text-gray-500">
                                     <th className="pb-1 font-normal">
-                                        {td("Record type")}
+                                        {td("Record type", { source: "en" })}
                                     </th>
                                     <th className="pb-1 font-normal">
-                                        A · {td("Primary")}
+                                        A · {td("Primary", { source: "en" })}
                                     </th>
                                     <th className="pb-1 font-normal">
-                                        B · {td("Duplicate")}
+                                        B · {td("Duplicate", { source: "en" })}
                                     </th>
                                 </tr>
                             </thead>
@@ -235,7 +235,7 @@ export default function LeadMergeReviewModal({
                                             className="border-t border-[#f0f0f0]"
                                         >
                                             <td className="py-1">
-                                                {td(countLabel)}
+                                                {td(countLabel, { source: "en" })}
                                             </td>
                                             <td className="py-1">
                                                 {
@@ -260,7 +260,7 @@ export default function LeadMergeReviewModal({
 
                     <div>
                         <h4 className="mb-2 text-sm font-semibold">
-                            {td("Ownership")}
+                            {td("Ownership", { source: "en" })}
                         </h4>
                         <div className="flex flex-col gap-2">
                             {ownershipFields.map((field) => (
@@ -269,7 +269,7 @@ export default function LeadMergeReviewModal({
                                     className="flex items-center justify-between gap-4 border-b border-[#f0f0f0] py-2 last:border-0"
                                 >
                                     <span className="text-sm text-gray-600">
-                                        {td(OWNERSHIP_LABELS[field.field])}
+                                        {td(OWNERSHIP_LABELS[field.field], { source: "en" })}
                                     </span>
                                     {field.differs ? (
                                         <Radio.Group

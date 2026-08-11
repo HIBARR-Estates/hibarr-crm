@@ -31,7 +31,7 @@ const BulkLeadActionSelector: React.FC<Props> = ({
         (canMergeLeads && selectedEntityIds.length === 2
             ? [
                   ...DEFAULT_LEAD_BULK_ACTIONS,
-                  { label: td("Merge"), value: "merge" as const },
+                  { label: td("Merge", { source: "en" }), value: "merge" as const },
               ]
             : DEFAULT_LEAD_BULK_ACTIONS);
     const [action, setAction] = React.useState<TLeadBulkAction>();

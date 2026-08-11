@@ -110,7 +110,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                         >
                             <span className="flex-shrink-0">{item.icon}</span>
                             <span className="text-sm font-medium">
-                                {td(item.label)}
+                                {td(item.label, { source: "en" })}
                             </span>
                         </a>
                     );
@@ -128,18 +128,18 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
                         className={baseClasses}
                         title={
                             item.key === "pricelist" && isDisabled
-                                ? td("Availability link absent")
+                                ? td("Availability link absent", { source: "en" })
                                 : undefined
                         }
                     >
                         <span className="flex-shrink-0">{item.icon}</span>
                         <div className="flex min-w-0 flex-col">
                             <span className="text-sm font-medium">
-                                {td(item.label)}
+                                {td(item.label, { source: "en" })}
                             </span>
                             {item.key === "pricelist" && isDisabled && (
                                 <span className="text-xs">
-                                    {td("Availability link absent")}
+                                    {td("Availability link absent", { source: "en" })}
                                 </span>
                             )}
                         </div>
@@ -151,7 +151,7 @@ const ShowSidebar: React.FC<ShowSidebarProps> = ({
             <div className="flex flex-col gap-2 pt-2">
                 {canEdit && (
                     <Button icon={<Pencil size={14} />} block onClick={onEdit}>
-                        {td("Edit Project")}
+                        {td("Edit Project", { source: "en" })}
                     </Button>
                 )}
             </div>

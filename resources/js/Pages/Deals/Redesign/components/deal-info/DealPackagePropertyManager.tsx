@@ -118,8 +118,8 @@ export default function DealPackagePropertyManager({
 
     const packageLabel = (p: PackagePoolItem) =>
         p.value != null
-            ? `${td(p.name)} · ${formatMoney(p.value, symbol)}`
-            : td(p.name);
+            ? `${td(p.name, { source: "en" })} · ${formatMoney(p.value, symbol)}`
+            : td(p.name, { source: "en" });
 
     const iconTile = (name: string) => (
         <div
@@ -239,7 +239,7 @@ export default function DealPackagePropertyManager({
                                     <div
                                         style={{ fontSize: 13, fontWeight: 600 }}
                                     >
-                                        {td(pkg.name)}
+                                        {td(pkg.name, { source: "en" })}
                                     </div>
                                     {pkg.value != null && (
                                         <div

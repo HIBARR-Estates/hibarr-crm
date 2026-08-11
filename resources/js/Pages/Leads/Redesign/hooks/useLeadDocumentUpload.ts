@@ -60,15 +60,15 @@ export default function useLeadDocumentUpload(
                             ? { custom_fields_data: payload.custom_fields_data }
                             : {}),
                     }));
-                    message.success(td("File uploaded"));
+                    message.success(td("File uploaded", { source: "en" }));
                 } else {
                     message.error(
-                        response.data?.message ?? td("Upload failed"),
+                        response.data?.message ?? td("Upload failed", { source: "en" }),
                     );
                 }
             } catch (error) {
                 message.error(
-                    extractBackendMessage(error) ?? td("Upload failed"),
+                    extractBackendMessage(error) ?? td("Upload failed", { source: "en" }),
                 );
             } finally {
                 setUploadingField(null);
@@ -102,16 +102,16 @@ export default function useLeadDocumentUpload(
                             ? { custom_fields_data: payload.custom_fields_data }
                             : {}),
                     }));
-                    message.success(td("File removed"));
+                    message.success(td("File removed", { source: "en" }));
                 } else {
                     message.error(
-                        response.data?.message ?? td("Could not remove file"),
+                        response.data?.message ?? td("Could not remove file", { source: "en" }),
                     );
                 }
             } catch (error) {
                 message.error(
                     extractBackendMessage(error) ??
-                        td("Could not remove file"),
+                        td("Could not remove file", { source: "en" }),
                 );
             } finally {
                 setDeletingField(null);

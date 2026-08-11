@@ -21,21 +21,10 @@ import {
     companyTimeDayjsFormat,
     companyDateDayjsFormat,
 } from "@/lib/taskDateTime";
-
+import { identityTd, type TdFn } from "@/lib/dynamicTranslation";
 
 const { TextArea } = Input;
 const { Text } = Typography;
-
-interface TaskCategory {
-    id: number;
-    category_name: string;
-}
-
-interface TaskLabel {
-    id: number;
-    label_name: string;
-    label_color: string;
-}
 
 interface TaskboardColumn {
     id: number;
@@ -50,12 +39,6 @@ interface User {
     name: string;
     image?: string;
     designation_name?: string;
-}
-
-interface Project {
-    id: number;
-    project_name: string;
-    project_short_code: string;
 }
 
 interface Deal {
@@ -82,15 +65,17 @@ interface TaskFormProps {
     onSubmit: (values: any) => void;
     submitText: string;
     cancelText: string;
-    errors: string[];
-    setErrors: (errors: any) => void;
-    onErrorsClear: () => void;
+    /** Kept for SaveTaskModal API compatibility; errors are rendered by the parent. */
+    errors?: string[];
+    setErrors?: (errors: any) => void;
+    onErrorsClear?: () => void;
     loading: boolean;
-    categories: TaskCategory[];
-    labels: TaskLabel[];
+    /** Kept for SaveTaskModal API compatibility; not rendered in this form. */
+    categories?: unknown[];
+    labels?: unknown[];
     columns: TaskboardColumn[];
     users: User[];
-    projects: Project[];
+    projects?: unknown[];
     deals?: Deal[];
     leads?: Lead[];
     properties?: Property[];
@@ -98,7 +83,7 @@ interface TaskFormProps {
         type: "deal" | "lead" | "property";
         id?: number;
     };
-    td?: (key: string) => string;
+    td?: TdFn;
     formId?: string;
     hideFooter?: boolean;
 }
@@ -129,10 +114,12 @@ function PriorityChips({
     value,
     onChange,
     disabled,
+    td = identityTd,
 }: {
     value?: "low" | "medium" | "high";
     onChange?: (v: "low" | "medium" | "high") => void;
     disabled?: boolean;
+    td?: TdFn;
 }) {
     return (
         <div className="flex flex-col gap-1.5">
@@ -154,7 +141,7 @@ function PriorityChips({
                             className="w-2.5 h-2.5 rounded-sm shrink-0"
                             style={{ backgroundColor: active ? cfg.color : "#cbd5e1" }}
                         />
-                        <span className="flex-1">{cfg.label}</span>
+                        <span className="flex-1">{td(cfg.label, { source: "en" })}</span>
                         {active && (
                             <svg className="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
@@ -174,11 +161,13 @@ function StatusChips({
     onChange,
     disabled,
     columns,
+    td = identityTd,
 }: {
     value?: number;
     onChange?: (v: number) => void;
     disabled?: boolean;
     columns: TaskboardColumn[];
+    td?: TdFn;
 }) {
     return (
         <div className="flex flex-col gap-1.5">
@@ -200,49 +189,12 @@ function StatusChips({
                             className="w-2 h-2 rounded-full shrink-0"
                             style={{ backgroundColor: col.label_color || (active ? "#3b82f6" : "#cbd5e1") }}
                         />
-                        <span className="flex-1">{col.column_name}</span>
+                        <span className="flex-1">{td(col.column_name, { source: "en" })}</span>
                         {active && (
                             <svg className="w-3.5 h-3.5 shrink-0 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
                             </svg>
                         )}
-                    </button>
-                );
-            })}
-        </div>
-    );
-}
-
-// ─── Category chip selector ────────────────────────────────────────────────────
-
-function CategoryChips({
-    value,
-    onChange,
-    disabled,
-    categories,
-}: {
-    value?: number;
-    onChange?: (v: number | undefined) => void;
-    disabled?: boolean;
-    categories: TaskCategory[];
-}) {
-    return (
-        <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => {
-                const active = value === cat.id;
-                return (
-                    <button
-                        key={cat.id}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => onChange?.(active ? undefined : cat.id)}
-                        className={`px-3 py-1.5 rounded-md border text-[13px] font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
-                            active
-                                ? "bg-blue-500 border-blue-500 text-white"
-                                : "border-gray-300 text-gray-600 bg-white hover:border-blue-400 hover:text-blue-500"
-                        }`}
-                    >
-                        {cat.category_name}
                     </button>
                 );
             })}
@@ -259,20 +211,15 @@ const TaskForm: React.FC<TaskFormProps> = ({
     onSubmit,
     submitText,
     cancelText,
-    errors,
-    setErrors,
-    onErrorsClear,
+    // errors / setErrors / onErrorsClear: owned by SaveTaskModal (rendered above the form)
     loading,
-    categories,
-    labels,
     columns,
     users,
-    projects,
     deals = [],
     leads = [],
     properties = [],
     relatedEntity,
-    td = (key) => key,
+    td = identityTd,
     formId,
     hideFooter = false,
 }) => {
@@ -295,7 +242,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
         return `${lead.client_name ?? ""} ${company}`.trim();
     };
 
-    const getDealLabel = (deal: Deal) => td(deal.name);
+    const getDealLabel = (deal: Deal) => deal.name;
 
     const filterLeadOption = (input: string, option?: { value?: number }) => {
         const lead = leads.find((l) => l.id === option?.value);
@@ -392,87 +339,87 @@ const TaskForm: React.FC<TaskFormProps> = ({
             {/* ── Title ── */}
             <Form.Item
                 name="heading"
-                label={td("Task Title")}
+                label={td("Task Title", { source: "en" })}
                 rules={[
-                    { required: true, message: td("Please enter task title") },
-                    { min: 3, message: td("Title must be at least 3 characters") },
+                    { required: true, message: td("Please enter task title", { source: "en" }) },
+                    { min: 3, message: td("Title must be at least 3 characters", { source: "en" }) },
                 ]}
             >
-                <Input placeholder={td("Enter task title...")} size="large" />
+                <Input placeholder={td("Enter task title...", { source: "en" })} size="large" />
             </Form.Item>
 
             {/* ── Description ── */}
             <Form.Item
                 name="description"
-                label={td("Description")}
-                extra={td("Provide a detailed description of the task")}
+                label={td("Description", { source: "en" })}
+                extra={td("Provide a detailed description of the task", { source: "en" })}
             >
                 <TextArea
                     rows={3}
-                    placeholder={td("Enter task description...")}
+                    placeholder={td("Enter task description...", { source: "en" })}
                     showCount
                     maxLength={1000}
                 />
             </Form.Item>
 
             {/* ── Scheduling ── */}
-            <SectionDivider label="Scheduling" />
+            <SectionDivider label={td("Scheduling", { source: "en" })} />
 
             <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                    <Form.Item name="start_date" label={td("Start Date")}>
+                    <Form.Item name="start_date" label={td("Start Date", { source: "en" })}>
                         <DatePicker
                             style={{ width: "100%" }}
                             format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
                             showTime={{ format: companyTimeDayjsFormat() }}
-                            placeholder="Select start date"
+                            placeholder={td("Select start date", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
                     <Form.Item
                         name="due_date"
-                        label={td("Due Date")}
-                        extra={td("Leave empty if no due date")}
+                        label={td("Due Date", { source: "en" })}
+                        extra={td("Leave empty if no due date", { source: "en" })}
                     >
                         <DatePicker
                             style={{ width: "100%" }}
                             format={`${companyDateDayjsFormat()} ${companyTimeDayjsFormat()}`}
                             showTime={{ format: companyTimeDayjsFormat() }}
-                            placeholder={td("Select due date")}
+                            placeholder={td("Select due date", { source: "en" })}
                         />
                     </Form.Item>
                 </Col>
             </Row>
 
             {/* ── Classification ── */}
-            <SectionDivider label="Classification" />
+            <SectionDivider label={td("Classification", { source: "en" })} />
 
             <Row gutter={16}>
                 <Col xs={24} sm={12}>
-                    <Form.Item name="priority" label={td("Priority")}>
-                        <PriorityChips disabled={loading} />
+                    <Form.Item name="priority" label={td("Priority", { source: "en" })}>
+                        <PriorityChips disabled={loading} td={td} />
                     </Form.Item>
                 </Col>
                 <Col xs={24} sm={12}>
-                    <Form.Item name="board_column_id" label={td("Initial Status")} extra={td("Starting status for this task")}>
-                        <StatusChips columns={columns} disabled={loading} />
+                    <Form.Item name="board_column_id" label={td("Initial Status", { source: "en" })} extra={td("Starting status for this task", { source: "en" })}>
+                        <StatusChips columns={columns} disabled={loading} td={td} />
                     </Form.Item>
                 </Col>
             </Row>
 
             {/* ── People ── */}
-            <SectionDivider label="People" />
+            <SectionDivider label={td("People", { source: "en" })} />
 
             {isAdmin && (
                 <Form.Item
                     name="user_ids"
-                    label={td("Assignees")}
-                    extra={td("Select team members to assign this task")}
+                    label={td("Assignees", { source: "en" })}
+                    extra={td("Select team members to assign this task", { source: "en" })}
                 >
                     <Select
                         mode="multiple"
-                        placeholder={td("Select assignees")}
+                        placeholder={td("Select assignees", { source: "en" })}
                         showSearch
                         filterOption={(input, option) => {
                             const user = users.find((u) => u.id === option?.value);
@@ -490,7 +437,7 @@ const TaskForm: React.FC<TaskFormProps> = ({
                                     {user.name}
                                     {user.designation_name && (
                                         <Text type="secondary" style={{ fontSize: 12 }}>
-                                            ({td(user.designation_name)})
+                                            ({user.designation_name})
                                         </Text>
                                     )}
                                 </Space>
@@ -501,19 +448,19 @@ const TaskForm: React.FC<TaskFormProps> = ({
             )}
 
             {/* ── Related to ── */}
-            {hasRelatedFields && <SectionDivider label="Related to" />}
+            {hasRelatedFields && <SectionDivider label={td("Related to", { source: "en" })} />}
 
             {relatedEntity?.type !== "deal" && deals.length > 0 && (
-                <Form.Item name="deal_id" label={td("Related Deal")}>
+                <Form.Item name="deal_id" label={td("Related Deal", { source: "en" })}>
                     <Select
-                        placeholder={td("Select a deal")}
+                        placeholder={td("Select a deal", { source: "en" })}
                         showSearch
                         allowClear
                         filterOption={filterDealOption}
                     >
                         {deals.map((deal) => (
                             <Select.Option key={deal.id} value={deal.id}>
-                                {td(deal.name)}
+                                {deal.name}
                             </Select.Option>
                         ))}
                     </Select>
@@ -523,17 +470,16 @@ const TaskForm: React.FC<TaskFormProps> = ({
             <Row gutter={16}>
                 {relatedEntity?.type !== "lead" && leads.length > 0 && (
                     <Col xs={24} sm={12}>
-                        <Form.Item name="lead_id" label={td("Related Lead")}>
+                        <Form.Item name="lead_id" label={td("Related Lead", { source: "en" })}>
                             <Select
-                                placeholder={td("Select a lead")}
+                                placeholder={td("Select a lead", { source: "en" })}
                                 showSearch
                                 allowClear
                                 filterOption={filterLeadOption}
                             >
                                 {leads.map((lead) => (
                                     <Select.Option key={lead.id} value={lead.id}>
-                                        {lead.client_name}{" "}
-                                        {lead.company_name ? `(${lead.company_name})` : ""}
+                                        {getLeadLabel(lead)}
                                     </Select.Option>
                                 ))}
                             </Select>
@@ -542,9 +488,9 @@ const TaskForm: React.FC<TaskFormProps> = ({
                 )}
                 {relatedEntity?.type !== "property" && properties.length > 0 && (
                     <Col xs={24} sm={12}>
-                        <Form.Item name="property_id" label={td("Related Property")}>
+                        <Form.Item name="property_id" label={td("Related Property", { source: "en" })}>
                             <Select
-                                placeholder="Select a property"
+                                placeholder={td("Select a property", { source: "en" })}
                                 showSearch
                                 allowClear
                                 filterOption={filterPropertyOption}

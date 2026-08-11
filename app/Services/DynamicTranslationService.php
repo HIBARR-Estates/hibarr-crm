@@ -32,11 +32,14 @@ class DynamicTranslationService
         $this->apiKey = is_string($apiKey) && trim($apiKey) !== '' ? $apiKey : null;
     }
 
+    /**
+     * Trim + collapse whitespace only. Case-preserving so product strings
+     * with different casing remain distinct dictionary keys.
+     */
     public function normalize(string $text): string
     {
         return Str::of($text)
             ->trim()
-            ->lower()
             ->replaceMatches('/\\s+/', ' ')
             ->toString();
     }

@@ -101,7 +101,7 @@ export default function DealInfoSidebar({
                             className="px-2.5 pb-1 pt-2.5 text-[12px] font-semibold uppercase tracking-[0.05em]"
                             style={{ color: T.TEXT_HINT }}
                         >
-                            {td(group.label)}
+                            {td(group.label, { source: "en" })}
                         </div>
                     ) : null}
                     {group.items.map((item) => {
@@ -126,12 +126,12 @@ export default function DealInfoSidebar({
                             >
                                 <span className="flex items-center gap-1.5">
                                     <DealIcon name={item.icon} size={14} />
-                                    {td(item.label)}
+                                    {td(item.label, { source: "en" })}
                                 </span>
                                 {showDot ? (
                                     isActive ? (
                                         <DealBadge variant={item.badgeVariant}>
-                                            {td(item.badge!)}
+                                            {td(item.badge!, { source: "en" })}
                                         </DealBadge>
                                     ) : (
                                         <DealCompletionDot
@@ -142,7 +142,7 @@ export default function DealInfoSidebar({
                                 ) : (
                                     item.badge != null && (
                                         <DealBadge variant={item.badgeVariant}>
-                                            {td(item.badge)}
+                                            {td(item.badge, { source: "en" })}
                                         </DealBadge>
                                     )
                                 )}

@@ -161,12 +161,12 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                     <StatCard
                         icon={<Building2 size={22} />}
                         value={`${statistics.total_units}`}
-                        label={td("Total Units")}
+                        label={td("Total Units", { source: "en" })}
                     />
                     <StatCard
                         icon={<CheckCircle2 size={22} />}
                         value={statistics.total_sold}
-                        label={td("Total Sold")}
+                        label={td("Total Sold", { source: "en" })}
                     />
                     <StatCard
                         icon={<TrendingUp size={22} />}
@@ -175,7 +175,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                                 ? `${Math.round((statistics.total_sold / statistics.total_units) * 100)}%`
                                 : "0%"
                         }
-                        label={td("Sold %")}
+                        label={td("Sold %", { source: "en" })}
                     />
                     <StatCard
                         icon={
@@ -184,7 +184,7 @@ const OverviewSection: React.FC<OverviewSectionProps> = ({
                             )
                         }
                         value={statistics.starting_price_formatted ?? "-"}
-                        label={td("Starting Price")}
+                        label={td("Starting Price", { source: "en" })}
                     />
                 </div>
 

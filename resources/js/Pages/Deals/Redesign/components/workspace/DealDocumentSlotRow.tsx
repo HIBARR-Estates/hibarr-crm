@@ -115,7 +115,7 @@ export default function DealDocumentSlotRow({
                         className="block truncate"
                         style={{ fontSize: 12, color: T.TEXT }}
                     >
-                        {td(doc.label)}
+                        {td(doc.label, { source: "en" })}
                     </span>
                     <span
                         className="block truncate"
@@ -198,7 +198,7 @@ export default function DealDocumentSlotRow({
                             className="flex items-center gap-1.5 truncate"
                             style={{ fontSize: 14, color: T.BLUE }}
                         >
-                            <span className="truncate">{td(doc.label)}</span>
+                            <span className="truncate">{td(doc.label, { source: "en" })}</span>
                             <DealIcon name="external-link" size={13} />
                         </span>
                         <span
@@ -224,7 +224,7 @@ export default function DealDocumentSlotRow({
                             className="block truncate"
                             style={{ fontSize: 14, color: T.TEXT }}
                         >
-                            {td(doc.label)}
+                            {td(doc.label, { source: "en" })}
                         </span>
                         <span
                             className="block truncate"

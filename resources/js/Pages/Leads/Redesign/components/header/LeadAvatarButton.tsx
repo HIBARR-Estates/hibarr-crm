@@ -31,8 +31,8 @@ export default function LeadAvatarButton({
     const hasCustomImage = Boolean(image && imageUrl);
     const displayUrl = hasCustomImage ? imageUrl : null;
     const label = displayUrl
-        ? td("Change photo")
-        : td("Upload photo");
+        ? td("Change photo", { source: "en" })
+        : td("Upload photo", { source: "en" });
 
     const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -103,7 +103,7 @@ export default function LeadAvatarButton({
                         onClick={openPicker}
                         disabled={uploading}
                     >
-                        {uploading ? td("Uploading…") : label}
+                        {uploading ? td("Uploading…", { source: "en" }) : label}
                     </button>
                     <input
                         ref={inputRef}

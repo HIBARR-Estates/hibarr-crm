@@ -137,12 +137,12 @@ export default function MeetingDetailModal({
                     <span
                         className={`dr-pill ${PLATFORM_PILL[item.locationType] ?? "dr-pill-gray"}`}
                     >
-                        {td(item.platformLabel)}
+                        {td(item.platformLabel, { source: "en" })}
                     </span>
                     <span
                         className={`dr-pill ${getMeetingStatusTone(item.statusLabel)}`}
                     >
-                        {td(item.statusLabel)}
+                        {td(item.statusLabel, { source: "en" })}
                     </span>
                     {showSummaryBadge &&
                         (summaryReady ? (
@@ -387,7 +387,7 @@ export default function MeetingDetailModal({
                                     key={index}
                                     className="dr-pill dr-pill-gray"
                                 >
-                                    {td(reminderLabel(reminder))}
+                                    {td(reminderLabel(reminder), { source: "en" })}
                                 </span>
                             ))}
                         </div>

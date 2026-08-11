@@ -505,7 +505,7 @@ const Config = ({ pageTitle }: ConfigProps) => {
                                         onClick={() => itemsQuery.refetch()}
                                         loading={isLoadingItems}
                                     >
-                                        {td("Refresh")}
+                                        {td("Refresh", { source: "en" })}
                                     </Button>
                                     <Button
                                         type="primary"

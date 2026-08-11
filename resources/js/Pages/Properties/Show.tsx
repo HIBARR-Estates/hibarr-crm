@@ -125,7 +125,7 @@ const Show = ({
                             disabled={isRefreshing}
                             type="text"
                         >
-                            {td("Refresh")}
+                            {td("Refresh", { source: "en" })}
                         </Button>
                     </div>
                     <PropertyView

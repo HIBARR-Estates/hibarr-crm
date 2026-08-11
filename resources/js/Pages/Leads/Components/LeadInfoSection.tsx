@@ -53,6 +53,12 @@ import axios from "axios";
 import { DetailSection, DetailField } from "@/Components/DetailSection";
 import LeadAgeFieldsGroup from "@/Components/LeadAgeFieldsGroup";
 
+const LEAD_TEMPERATURE_COLORS: Record<string, string> = {
+    cold: "blue",
+    warm: "gold",
+    hot: "red",
+};
+
 interface Props {
     lead: Lead;
     customFieldCategories?: any[];
@@ -444,6 +450,8 @@ const ageRangeOptions = useMemo(
                         processedValue = value || null;
                     } else if (fieldName === "gender") {
                         processedValue = value || null;
+                    } else if (fieldName === "temperature") {
+                        processedValue = value || null;
                     } else if (fieldName === "languages") {
                         processedValue = Array.isArray(value) ? value : [];
                     } else if (fieldName === "category_ids") {
@@ -671,6 +679,9 @@ const ageRangeOptions = useMemo(
                 } else if (fieldName === "gender") {
                     // Ensure gender is sent as the actual value (male/female) or null
                     processedValue = value || null;
+                } else if (fieldName === "temperature") {
+                    // Ensure temperature is sent as the actual value (cold/warm/hot) or null
+                    processedValue = value || null;
                 } else if (fieldName === "languages") {
                     processedValue = Array.isArray(value) ? value : [];
                 } else if (fieldName === "age") {
@@ -833,10 +844,10 @@ const ageRangeOptions = useMemo(
             ? [
                   {
                       key: "find_duplicates",
-                      tooltip: td("Find Duplicates"),
+                      tooltip: td("Find Duplicates", { source: "en" }),
                       type: "text" as const,
                       icon: <MergeCellsOutlined />,
-                      label: <span>{td("Find Duplicates")}</span>,
+                      label: <span>{td("Find Duplicates", { source: "en" })}</span>,
                       onClick: () => setIsFindDuplicatesOpen(true),
                   },
               ]
@@ -1000,6 +1011,34 @@ const ageRangeOptions = useMemo(
                                 }
                                 alwaysEditing={isFieldEditable}
                                 loading={isFieldLoading("gender")}
+                            />
+                        </DetailField>
+
+                        <DetailField label={t("pages.leads.info.fields.temperature", { defaultValue: "Temperature" })}>
+                            <EditableField
+                                value={currentLeadState.temperature || ""}
+                                fieldName="temperature"
+                                fieldType="select"
+                                options={[
+                                    { label: t("pages.leads.info.fields.temperature_cold", { defaultValue: "Cold" }), value: "cold" },
+                                    { label: t("pages.leads.info.fields.temperature_warm", { defaultValue: "Warm" }), value: "warm" },
+                                    { label: t("pages.leads.info.fields.temperature_hot", { defaultValue: "Hot" }), value: "hot" },
+                                ]}
+                                onSave={(value) =>
+                                    handleFieldUpdate("temperature", value)
+                                }
+                                onChange={handleFieldChange}
+                                displayValue={
+                                    currentLeadState.temperature ? (
+                                        <Tag color={LEAD_TEMPERATURE_COLORS[currentLeadState.temperature]}>
+                                            {currentLeadState.temperature.charAt(0).toUpperCase() + currentLeadState.temperature.slice(1)}
+                                        </Tag>
+                                    ) : (
+                                        <span className="text-gray-400">--</span>
+                                    )
+                                }
+                                alwaysEditing={isFieldEditable}
+                                loading={isFieldLoading("temperature")}
                             />
                         </DetailField>
 

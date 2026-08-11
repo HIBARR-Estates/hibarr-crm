@@ -25,6 +25,8 @@ interface ModalProps {
      */
     dirty?: boolean;
     closeAriaLabel?: string;
+    /** Overrides the default 520px max-width, e.g. for modals with a rich text editor. */
+    maxWidth?: number;
 }
 
 export function Modal({
@@ -35,6 +37,7 @@ export function Modal({
     footer,
     dirty = false,
     closeAriaLabel,
+    maxWidth,
 }: ModalProps) {
     const panelRef = useRef<HTMLDivElement>(null);
     const titleId = useId();
@@ -91,6 +94,7 @@ export function Modal({
             <div
                 ref={panelRef}
                 className="modal-panel"
+                style={maxWidth ? { maxWidth: `min(${maxWidth}px, 100%)` } : undefined}
                 onClick={(e) => e.stopPropagation()}
                 onKeyDown={trapTab}
                 role="dialog"

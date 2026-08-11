@@ -30,7 +30,7 @@ export default function QualifyFooter({ flow, hidden }: QualifyFooterProps) {
                 onClick={() => void flow.goBack()}
             >
                 <Icon name="chevron-left" size={14} />
-                {td("Back")}
+                {td("Back", { source: "en" })}
             </button>
 
             <span
@@ -41,7 +41,7 @@ export default function QualifyFooter({ flow, hidden }: QualifyFooterProps) {
                     color: "var(--lr-text-dim)",
                 }}
             >
-                {td("Answers save as you go")}
+                {td("Answers save as you go", { source: "en" })}
             </span>
 
             {!isLast ? (
@@ -51,7 +51,7 @@ export default function QualifyFooter({ flow, hidden }: QualifyFooterProps) {
                     disabled={flow.saving}
                     onClick={() => void flow.goNext({ skipValidation: true })}
                 >
-                    {td("Skip")}
+                    {td("Skip", { source: "en" })}
                 </button>
             ) : null}
 
@@ -61,7 +61,7 @@ export default function QualifyFooter({ flow, hidden }: QualifyFooterProps) {
                 disabled={nextDisabled}
                 onClick={() => void flow.goNext()}
             >
-                {isLast ? td("Finish") : td("Next")}
+                {isLast ? td("Finish", { source: "en" }) : td("Next", { source: "en" })}
                 {!isLast ? <Icon name="chevron-right" size={14} /> : null}
             </button>
         </div>

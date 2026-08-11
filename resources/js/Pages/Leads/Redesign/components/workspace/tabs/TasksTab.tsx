@@ -462,7 +462,7 @@ export default function TasksTab({
                             .sort((a, b) => a.priority - b.priority)
                             .map((column) => ({
                                 value: column.id,
-                                label: td(column.column_name),
+                                label: td(column.column_name, { source: "en" }),
                             }))}
                         onChange={(value) => handleBulkStatusChange(Number(value))}
                     />

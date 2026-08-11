@@ -461,7 +461,7 @@ const TasksIndex = ({
                                     disabled={isRefreshing}
                                     type="text"
                                 >
-                                    {td("Refresh")}
+                                    {td("Refresh", { source: "en" })}
                                 </Button>
 
                                 {/* 

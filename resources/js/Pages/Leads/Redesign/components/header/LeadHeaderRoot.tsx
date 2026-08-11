@@ -4,6 +4,10 @@ import type { Lead } from "@/Types/api/leads";
 import { initialsFromName } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { ResolvedLifecycle } from "../../adapters/lifecycleAdapter";
+import {
+    formatLeadTemperature,
+    LEAD_TEMPERATURE_TONE,
+} from "../../config/leadTemperature";
 import type { MoreMenuActionId } from "../../config/moreMenuItems";
 import LeadAvatarButton from "./LeadAvatarButton";
 import LeadOwnerCard from "./LeadOwnerCard";
@@ -78,8 +82,8 @@ export default function LeadHeaderRoot({
 
     const submetaParts = [
         `#${lead.id}`,
-        createdAgo ? `${td("created")} ${createdAgo}` : null,
-        sourceLabel ? `${td("via")} ${sourceLabel}` : null,
+        createdAgo ? `${td("created", { source: "en" })} ${createdAgo}` : null,
+        sourceLabel ? `${td("via", { source: "en" })} ${sourceLabel}` : null,
     ].filter(Boolean);
 
     return (
@@ -121,6 +125,13 @@ export default function LeadHeaderRoot({
                             onSelect={onStatusChange}
                             saving={statusSaving}
                         />
+                        {lead.temperature && (
+                            <span
+                                className={`v2-pill v2-pill-${LEAD_TEMPERATURE_TONE[lead.temperature]}`}
+                            >
+                                {formatLeadTemperature(lead.temperature)}
+                            </span>
+                        )}
                         {showQualification &&
                             answerCount > 0 &&
                             onOpenAnswers && (
@@ -130,7 +141,7 @@ export default function LeadHeaderRoot({
                                 style={{ padding: "5px 10px", fontSize: 12 }}
                                 onClick={onOpenAnswers}
                             >
-                                {td("Qualification answers")}
+                                {td("Qualification answers", { source: "en" })}
                                 <span
                                     className="v2-pill v2-pill-gray"
                                     style={{ marginLeft: 2 }}

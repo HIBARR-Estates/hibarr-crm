@@ -325,7 +325,7 @@ export default function NotesTab({ permissions }: NotesTabProps) {
                                                     event.stopPropagation();
                                                     setSelectedNoteId(note.id);
                                                 }}
-                                                aria-label={`${td("Edit")}: ${note.title || note.authorName}`}
+                                                aria-label={`${td("Edit", { source: "en" })}: ${note.title || note.authorName}`}
                                             >
                                                 <DealIcon name="edit" size={13} />
                                             </DealButton>

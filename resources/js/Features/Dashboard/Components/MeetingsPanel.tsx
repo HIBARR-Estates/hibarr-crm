@@ -153,10 +153,8 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                     href={route("lead-contact.show", meeting.lead.id)}
                     className="truncate text-xs font-medium text-blue-600 hover:underline"
                 >
-                    {td(
-                        meeting.lead.client_name_salutation ||
-                            meeting.lead.client_name,
-                    )}
+                    {td(meeting.lead.client_name_salutation ||
+                            meeting.lead.client_name)}
                 </Link>
             );
         }
@@ -277,7 +275,7 @@ const MeetingsPanel: React.FC<MeetingsPanelProps> = ({
                                             <div className="flex items-center gap-1.5">
                                                 <span className="min-w-0 flex-1 truncate text-sm font-semibold leading-snug text-slate-800">
                                                     {meeting.meeting_type?.name
-                                                        ? td(meeting.meeting_type.name)
+                                                        ? td(meeting.meeting_type.name, { source: "en" })
                                                         : td(meeting.remark || "Meeting")}
                                                 </span>
                                                 <span

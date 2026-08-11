@@ -6,6 +6,7 @@ use App\Enums\ContactType;
 use App\Enums\Salutation;
 use App\Enums\Gender;
 use App\Enums\AgeRange;
+use App\Enums\LeadTemperature;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasDynamicTranslations;
@@ -156,6 +157,7 @@ class Lead extends BaseModel
         'date_of_birth' => 'date',
         'age' => 'integer',
         'age_range' => AgeRange::class,
+        'temperature' => LeadTemperature::class,
         'languages' => 'array',
         'remind_at' => 'datetime',
         'reminders' => 'array',
