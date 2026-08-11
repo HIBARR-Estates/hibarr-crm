@@ -6,7 +6,7 @@ import {
     formatLeadAgeDisplay,
     resolveLeadAgeFields,
 } from "@/lib/leadAge";
-import { formatMobileForDisplay } from "@/lib/utils";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import {
     resolveCurrencyDisplay,
     type CurrencyDisplay,
@@ -102,12 +102,8 @@ function asString(value: unknown): string {
     return raw;
 }
 
-function asPhone(value: unknown, fallback?: unknown): string {
-    return (
-        formatMobileForDisplay(value) ||
-        formatMobileForDisplay(fallback) ||
-        ""
-    ).trim();
+function asPhone(raw: unknown, formatted?: unknown): string {
+    return resolveLeadPhoneDisplay(raw, formatted);
 }
 
 function marketingOf(lead: Lead): Record<string, unknown> {
@@ -140,15 +136,13 @@ export function getDossierFieldValue(
         case "salutation":
             return asString(l.salutation_value ?? l.salutation);
         case "mobile":
-            return asPhone(l.mobile_with_phonecode, l.mobile) || asPhone(l.mobile);
+            return asPhone(l.mobile, l.mobile_with_phonecode);
         case "office":
-            return (
-                asPhone(l.office_phone_formatted, l.office) || asPhone(l.office)
-            );
+            return asPhone(l.office, l.office_phone_formatted);
         case "email":
             return asString(l.client_email ?? l.email);
         case "whatsapp":
-            return asPhone(l.client_whatsapp, l.whatsapp) || asPhone(l.whatsapp);
+            return asPhone(l.client_whatsapp ?? l.whatsapp);
         case "telegram":
             return asString(l.client_telegram ?? l.telegram);
         case "instagram":

@@ -570,7 +570,8 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                         leadId={lead.id}
                                         summary={props.leadAiSummary}
                                         leadPhone={
-                                            lead.mobile ?? lead.cell ?? undefined
+                                            getDossierFieldValue(lead, "mobile") ||
+                                            undefined
                                         }
                                         onCta={{
                                             onQualifyLead: () =>

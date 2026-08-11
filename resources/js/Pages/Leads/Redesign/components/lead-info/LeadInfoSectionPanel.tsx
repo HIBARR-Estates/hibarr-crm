@@ -10,7 +10,7 @@ import useTranslation from "@/Hooks/useTranslation";
 import {
     resolveLeadAgeFields,
 } from "@/lib/leadAge";
-import { formatMobileForDisplay } from "@/lib/utils";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 import { parseCategorySectionId } from "@/Pages/Deals/Redesign/config/dealInfoSections";
 import DealButton from "@/Pages/Deals/Redesign/components/primitives/DealButton";
 import DealEditableField from "@/Pages/Deals/Redesign/components/primitives/DealEditableField";
@@ -55,33 +55,6 @@ function FieldGrid({ children }: { children: ReactNode }) {
             {children}
         </div>
     );
-}
-
-function resolvePhoneValue(
-    raw: string | null | undefined,
-    formattedFallback?: string | null,
-): string {
-    if (raw && typeof raw === "string" && raw.trim().startsWith("{")) {
-        try {
-            const parsed = JSON.parse(raw.trim());
-            if (typeof parsed?.phone === "string" && parsed.phone.trim()) {
-                return parsed.phone.trim();
-            }
-            if (
-                typeof parsed?.phoneNumber === "string" &&
-                parsed.phoneNumber.trim()
-            ) {
-                return parsed.phoneNumber.trim();
-            }
-        } catch {
-            /* fall through */
-        }
-        const formatted = formatMobileForDisplay(raw);
-        if (formatted && formatted !== "--") return formatted;
-    }
-    if (raw) return String(raw);
-    if (formattedFallback && formattedFallback !== "--") return formattedFallback;
-    return "";
 }
 
 export default function LeadInfoSectionPanel({
@@ -427,14 +400,14 @@ export default function LeadInfoSectionPanel({
                 <DetailField
                     label={t("pages.leads.info.fields.mobile")}
                     copyValue={
-                        resolvePhoneValue(
+                        resolveLeadPhoneDisplay(
                             lead.mobile,
                             lead.mobile_with_phonecode,
                         ) || undefined
                     }
                 >
                     <DealEditableField
-                        value={resolvePhoneValue(
+                        value={resolveLeadPhoneDisplay(
                             lead.mobile,
                             lead.mobile_with_phonecode,
                         )}
@@ -451,14 +424,14 @@ export default function LeadInfoSectionPanel({
                 <DetailField
                     label={t("pages.leads.info.fields.office_phone")}
                     copyValue={
-                        resolvePhoneValue(
+                        resolveLeadPhoneDisplay(
                             lead.office,
                             lead.office_phone_formatted,
                         ) || undefined
                     }
                 >
                     <DealEditableField
-                        value={resolvePhoneValue(
+                        value={resolveLeadPhoneDisplay(
                             lead.office,
                             lead.office_phone_formatted,
                         )}
@@ -476,7 +449,7 @@ export default function LeadInfoSectionPanel({
                 </DetailField>
                 <DetailField label={td("WhatsApp", { source: "en" })}>
                     <DealEditableField
-                        value={resolvePhoneValue(lead.client_whatsapp)}
+                        value={resolveLeadPhoneDisplay(lead.client_whatsapp)}
                         fieldName="client_whatsapp"
                         fieldType="phone"
                         onSave={(value) =>

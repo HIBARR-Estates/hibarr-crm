@@ -66,6 +66,18 @@ class CreateOrUpdateContactRequest extends CoreRequest
             'country' => 'nullable|string|max:255',
             'postal_code' => 'nullable|string|max:255',
             'date_of_birth' => 'nullable|date',
+
+            // Optional classification / engagement (CRM lead fields)
+            'temperature' => 'nullable|string|in:cold,warm,hot',
+            'lead_lifecycle_status_id' => 'nullable|integer|exists:lead_lifecycle_statuses,id',
+            'has_joined_the_whatsapp_group' => 'nullable|boolean',
+
+            // Optional lead custom fields: {"131": "value", "132": ["a","b"]}
+            // Also accepts `custom_fields` as an alias on this contact-only endpoint.
+            'lead_custom_fields' => 'nullable|array',
+            'lead_custom_fields.*' => 'nullable',
+            'custom_fields' => 'nullable|array',
+            'custom_fields.*' => 'nullable',
         ];
     }
 

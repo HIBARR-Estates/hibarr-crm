@@ -43,7 +43,7 @@ import { useTd } from "@/Hooks/useDynamicTranslation";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import EditableField from "@/Components/EditableField";
 import { useApiMutate } from "@/lib/api/client/useApiMutate";
-import { formatMobileForDisplay } from "@/lib/utils";
+import { formatMobileForDisplay, resolveLeadPhoneDisplay } from "@/lib/utils";
 import {
     computeAgeFieldsFromDateOfBirth,
     resolveLeadAgeFields,
@@ -542,36 +542,11 @@ const ageRangeOptions = useMemo(
         }
     };
 
-    // Resolve mobile for display/edit — handles JSON (legacy + antd-phone-input shapes)
-    const getMobileNumber = (mobile: string | null | undefined): string => {
-        if (!mobile) return "";
-
-        if (typeof mobile === "string" && mobile.trim().startsWith("{")) {
-            try {
-                const mobileData = JSON.parse(mobile.trim());
-                if (typeof mobileData?.phone === "string") {
-                    return mobileData.phone.trim();
-                }
-                return formatMobileForDisplay(mobile) || "";
-            } catch {
-                return mobile;
-            }
-        }
-
-        return mobile;
-    };
-
+    // Prefer accessor-formatted phone, then format the raw column (JSON / E.164).
     const resolvePhoneFieldValue = (
         mobile: string | null | undefined,
         formattedFallback?: string | null,
-    ): string => {
-        const fromMobile = getMobileNumber(mobile);
-        if (fromMobile) return fromMobile;
-        if (formattedFallback && formattedFallback !== "--") {
-            return formattedFallback;
-        }
-        return "";
-    };
+    ): string => resolveLeadPhoneDisplay(mobile, formattedFallback);
 
     // Handle field update
     const handleFieldUpdate = async (
