@@ -3,9 +3,9 @@
 namespace App\Enums;
 
 /**
- * External origin of a note or task — null means created by a CRM user.
+ * Integration origin of a note or task — null means created by a CRM user.
  */
-enum ExternalSource: string
+enum IntegrationOrigin: string
 {
     case MEETING_BOT = 'meeting_bot';
     case SALLY = 'sally';

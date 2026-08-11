@@ -1,4 +1,4 @@
-import type { ExternalSource } from "./note";
+import type { IntegrationOrigin } from "./note";
 
 export interface Task {
     id: number;
@@ -8,7 +8,7 @@ export interface Task {
     start_date?: string;
     priority: "low" | "medium" | "high";
     status: string;
-    external_source?: ExternalSource | null;
+    integration_origin?: IntegrationOrigin | null;
     board_column_id?: number;
     project?: {
         id: number;

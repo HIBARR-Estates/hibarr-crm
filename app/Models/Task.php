@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\ExternalSource;
+use App\Enums\IntegrationOrigin;
 use App\Scopes\ActiveScope;
 use App\Traits\CustomFieldsTrait;
 use App\Traits\HasCompany;
@@ -164,7 +164,7 @@ class Task extends BaseModel
         'start_date' => 'datetime',
         'remind_at' => 'datetime',
         'reminders' => 'array',
-        'external_source' => ExternalSource::class,
+        'integration_origin' => IntegrationOrigin::class,
     ];
     protected $appends = ['due_on', 'create_on'];
     protected $guarded = ['id'];

@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Enums\ExternalSource;
+use App\Enums\IntegrationOrigin;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
@@ -53,7 +53,7 @@ class DealNote extends BaseModel
     protected $casts = [
         'remind_at' => 'datetime',
         'reminders' => 'array',
-        'external_source' => ExternalSource::class,
+        'integration_origin' => IntegrationOrigin::class,
     ];
 
     public function deal(): BelongsTo
