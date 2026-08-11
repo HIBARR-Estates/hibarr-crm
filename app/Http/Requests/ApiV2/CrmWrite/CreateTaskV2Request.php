@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\ApiV2\CrmWrite;
 
+use App\Enums\ExternalSource;
 use App\Http\Requests\ApiV2\CrmWrite\Concerns\ValidatesCrmWriteTargets;
 use App\Http\Requests\CoreRequest;
 use Illuminate\Validation\Rule;
@@ -34,6 +35,7 @@ class CreateTaskV2Request extends CoreRequest
                 'integer',
                 Rule::exists('users', 'id')->where(fn ($q) => $q->where('company_id', (int) $this->input('companyId'))),
             ],
+            'external_source' => ['nullable', Rule::enum(ExternalSource::class)],
         ]);
     }
 

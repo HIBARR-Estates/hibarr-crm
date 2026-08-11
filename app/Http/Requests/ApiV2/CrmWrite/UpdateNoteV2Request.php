@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\ApiV2\CrmWrite;
 
+use App\Enums\ExternalSource;
 use App\Http\Requests\ApiV2\CrmWrite\Concerns\ValidatesCrmWriteTargets;
 use App\Http\Requests\CoreRequest;
 use Illuminate\Validation\Rule;
@@ -28,6 +29,7 @@ class UpdateNoteV2Request extends CoreRequest
             'title' => 'sometimes|required|string|max:255',
             'details' => 'sometimes|required|string',
             'remind_at' => 'nullable|date',
+            'external_source' => ['nullable', Rule::enum(ExternalSource::class)],
             'updated_by_user_id' => [
                 'nullable',
                 'integer',
