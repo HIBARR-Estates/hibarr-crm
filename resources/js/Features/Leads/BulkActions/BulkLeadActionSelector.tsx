@@ -1,16 +1,18 @@
 import { Button } from "antd";
 import React, { useMemo } from "react";
 import BulkDeleteLeads from "./BulkDeleteLeads";
+import BulkExportLeads from "./BulkExportLeads";
 import BulkMergeLeads from "../Merge/BulkMergeLeads";
 import BulkUpdateModal from "./BulkUpdateModal";
 import useLeadMergeAccess from "../Merge/useLeadMergeAccess";
+import useIsAdminRole from "@/Hooks/useIsAdminRole";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import { usePermission } from "@/lib/permissionUtils";
 import { fmt } from "@/Features/Leads/Filters/controls";
 import type { BulkUpdateOptionsInput } from "./bulkUpdateConfig";
 import type { LeadBulkTarget } from "./bulkTarget";
 
-type TLeadBulkAction = "bulk_update" | "delete" | "merge";
+type TLeadBulkAction = "bulk_update" | "delete" | "merge" | "export";
 
 interface Props {
     selectedEntityIds?: number[];
@@ -43,6 +45,7 @@ const BulkLeadActionSelector: React.FC<Props> = ({
 
     const canEdit = hasPermission("edit_lead");
     const canDelete = hasPermission("delete_lead");
+    const canExport = useIsAdminRole();
     const canMergeLeads = useLeadMergeAccess();
     const canMerge =
         canMergeLeads &&
@@ -89,8 +92,14 @@ const BulkLeadActionSelector: React.FC<Props> = ({
                 label: td("Merge", { source: "en" }),
             });
         }
+        if (canExport) {
+            items.push({
+                key: "export",
+                label: td("Export", { source: "en" }),
+            });
+        }
         return items;
-    }, [canEdit, canDelete, canMerge, td]);
+    }, [canEdit, canDelete, canMerge, canExport, td]);
 
     const onClose = (operationSucceeded?: boolean) => {
         setAction(null);
@@ -126,6 +135,14 @@ const BulkLeadActionSelector: React.FC<Props> = ({
                     ids={selectedEntityIds}
                     onClose={onClose}
                     open={action === "merge"}
+                />
+            ) : null}
+
+            {canExport ? (
+                <BulkExportLeads
+                    target={target}
+                    onClose={onClose}
+                    open={action === "export"}
                 />
             ) : null}
 

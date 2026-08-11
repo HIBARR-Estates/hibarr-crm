@@ -51,6 +51,11 @@ use App\Services\LeadQualificationService;
 use App\Services\PermissionService;
 use App\Services\DealAgentAssignmentService;
 use App\Services\LeadService;
+use App\Exports\LeadExport;
+use App\Support\LeadExportFields;
+use Maatwebsite\Excel\Facades\Excel;
+use Maatwebsite\Excel\Excel as ExcelWriter;
+
 class LeadContactController extends AccountBaseController
 {
 
@@ -1317,6 +1322,57 @@ class LeadContactController extends AccountBaseController
         }
 
         return Reply::success(__('messages.deleteSuccess'));
+    }
+
+    /**
+     * Admin-only bulk export of selected / filter-matching leads (CSV or XLSX).
+     */
+    public function export(Request $request)
+    {
+        abort_403(! in_array('admin', user_roles() ?? [], true));
+
+        if (user()->permission('view_lead') === 'none') {
+            abort(403, __('messages.permissionDenied'));
+        }
+
+        $format = (string) $request->input('format', 'xlsx');
+        if (! in_array($format, ['csv', 'xlsx'], true)) {
+            return response('Invalid export format. Use csv or xlsx.', 422);
+        }
+
+        $fields = LeadExportFields::filterRequested((array) $request->input('fields', []));
+        if ($fields === []) {
+            return response('Select at least one valid field to export.', 422);
+        }
+
+        $hasIds = filled($request->input('row_ids'));
+        $allMatching = $request->boolean('select_all_matching');
+        if ($hasIds === $allMatching) {
+            return response(
+                $hasIds
+                    ? 'Provide either row_ids or select_all_matching, not both.'
+                    : 'Select at least one lead.',
+                422
+            );
+        }
+
+        [$rowIds] = $this->resolveBulkLeadIds($request, 'view_lead');
+
+        if ($rowIds === []) {
+            return response(__('messages.selectAtleastOne') ?: 'Select at least one lead.', 422);
+        }
+
+        if (count($rowIds) > LeadExportFields::MAX_ROWS) {
+            return response(
+                'Export is limited to ' . number_format(LeadExportFields::MAX_ROWS) . ' leads. Narrow your filters or selection and try again.',
+                422
+            );
+        }
+
+        $filename = 'leads-export-' . now()->format('Y-m-d-H-i-s') . '.' . $format;
+        $writerType = $format === 'csv' ? ExcelWriter::CSV : ExcelWriter::XLSX;
+
+        return Excel::download(new LeadExport($rowIds, $fields), $filename, $writerType);
     }
 
     public function applyQuickAction(Request $request)
