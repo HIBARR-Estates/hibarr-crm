@@ -5,6 +5,7 @@ import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import { getCurrentQueryParams } from "@/lib/inertiaQuery";
 import {
     CheckList,
@@ -47,7 +48,7 @@ function takeSingle(next: Array<string | number>): string | number | null {
 function describePending(
     field: BulkUpdateFieldDef,
     value: DraftValue,
-    td: (text: string, opts?: { source: string }) => string,
+    td: TdFn,
 ): string {
     if (field.control === "pills") {
         const ids = asArray(value);
