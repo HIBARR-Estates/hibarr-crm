@@ -1,3 +1,5 @@
+import type { ExternalSource } from "./note";
+
 export interface Task {
     id: number;
     heading: string;
@@ -6,6 +8,7 @@ export interface Task {
     start_date?: string;
     priority: "low" | "medium" | "high";
     status: string;
+    external_source?: ExternalSource | null;
     board_column_id?: number;
     project?: {
         id: number;
