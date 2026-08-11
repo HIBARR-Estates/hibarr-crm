@@ -7,6 +7,11 @@ return [
         'action' => 'Lead ansehen',
         'text' => 'Ein neuer Lead wurde Ihrer Pipeline hinzugefügt. Die Details finden Sie unten.',
     ],
+    'leadAgentAssigned' => [
+        'subject' => 'Sie wurden als Lead-Agent zugewiesen',
+        'text' => 'Sie wurden als Lead-Agent für :leadName zugewiesen.',
+        'action' => 'Lead ansehen',
+    ],
     'dealAgentAssigned' => [
         'subject' => 'Sie wurden als Deal-Agent zugewiesen',
         'text' => 'Sie wurden als Deal-Agent für :dealName zugewiesen.',
@@ -80,6 +85,7 @@ return [
         'agentCountdown' => 'Meeting mit :lead in :minutesLabel — geplant :schedule.',
         'agentCountdownWithType' => ':type mit :lead in :minutesLabel — geplant :schedule.',
         'agentCountdownWithDeal' => 'Meeting mit :lead (:deal) in :minutesLabel — geplant :schedule.',
+        'agentCountdownWithTypeAndDeal' => ':type mit :lead (:deal) in :minutesLabel — geplant :schedule.',
         'agentCountdownNoSchedule' => 'Meeting mit :lead in :minutesLabel.',
         'agentCountdownNoLead' => 'Ihr Meeting beginnt in :minutesLabel.',
         'agentCountdownNoLeadWithSchedule' => 'Ihr Meeting beginnt in :minutesLabel — geplant :schedule.',
@@ -123,6 +129,12 @@ return [
         'dueCountdown' => '\":title\" steht in :countdown an.',
         'dueNow' => '\":title\" ist jetzt fällig.',
         'footerNote' => 'Prüfen Sie die Reisedetails vor diesem Flugabschnitt.',
+    ],
+    'aiSummary' => [
+        'prefix' => 'KI-Zusammenfassung: ',
+    ],
+    'projectReminder' => [
+        'additionalProjects' => '{1} :count weiteres Projekt|[2,*] :count weitere Projekte',
     ],
 
 ];

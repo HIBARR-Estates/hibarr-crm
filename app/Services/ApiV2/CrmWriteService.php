@@ -2,6 +2,7 @@
 
 namespace App\Services\ApiV2;
 
+use App\Enums\IntegrationOrigin;
 use App\Events\AutoFollowUpReminderEvent;
 use App\Helper\Files;
 use App\Models\Currency;
@@ -84,6 +85,9 @@ class CrmWriteService
             }
             if (array_key_exists('remind_at', $data)) {
                 $task->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
+            }
+            if (array_key_exists('integration_origin', $data)) {
+                $task->integration_origin = $data['integration_origin'];
             }
 
             if ($createdByUserId !== null) {
@@ -176,6 +180,9 @@ class CrmWriteService
             if (array_key_exists('reminders', $data)) {
                 $note->reminders = $data['reminders'];
             }
+            if (array_key_exists('integration_origin', $data)) {
+                $note->integration_origin = $data['integration_origin'];
+            }
 
             $note->save();
             $note->setRelation('deal', $deal);
@@ -208,6 +215,9 @@ class CrmWriteService
         }
         if (array_key_exists('reminders', $data)) {
             $note->reminders = $data['reminders'];
+        }
+        if (array_key_exists('integration_origin', $data)) {
+            $note->integration_origin = $data['integration_origin'];
         }
 
         $note->save();
@@ -566,6 +576,10 @@ class CrmWriteService
             $task->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
         }
 
+        if (array_key_exists('integration_origin', $data)) {
+            $task->integration_origin = $data['integration_origin'];
+        }
+
         if (!empty($data['updated_by_user_id'])) {
             $task->last_updated_by = (int) $data['updated_by_user_id'];
         }
@@ -717,6 +731,9 @@ class CrmWriteService
         }
         if (array_key_exists('reminders', $data)) {
             $note->reminders = $data['reminders'];
+        }
+        if (array_key_exists('integration_origin', $data)) {
+            $note->integration_origin = $data['integration_origin'];
         }
 
         $note->save();
@@ -1335,6 +1352,7 @@ class CrmWriteService
             'status' => $task->status,
             'due_date' => $task->due_date?->toIso8601String(),
             'start_date' => $task->start_date?->toIso8601String(),
+            'integration_origin' => $this->serializeIntegrationOrigin($task->integration_origin),
             'assignee_user_ids' => $task->users?->pluck('id')->values()->all() ?? [],
             'lead_ids' => $task->relationLoaded('leads') ? $task->leads->pluck('id')->values()->all() : [],
             'deal_ids' => $task->relationLoaded('deals') ? $task->deals->pluck('id')->values()->all() : [],
@@ -1356,6 +1374,7 @@ class CrmWriteService
             'type' => $type,
             'title' => $note->title,
             'details' => $note->details,
+            'integration_origin' => $this->serializeIntegrationOrigin($note->integration_origin),
             'lead_id' => $type === 'lead' ? $note->lead_id : null,
             'deal_id' => $type === 'deal' ? $note->deal_id : null,
             'lead' => $type === 'lead' ? $this->serializeLeadSummary($note->lead) : null,
@@ -1363,6 +1382,15 @@ class CrmWriteService
             'created_at' => $note->created_at?->toIso8601String(),
             'updated_at' => $note->updated_at?->toIso8601String(),
         ];
+    }
+
+    private function serializeIntegrationOrigin(IntegrationOrigin|string|null $integrationOrigin): ?string
+    {
+        if ($integrationOrigin instanceof IntegrationOrigin) {
+            return $integrationOrigin->value;
+        }
+
+        return $integrationOrigin;
     }
 
     /**

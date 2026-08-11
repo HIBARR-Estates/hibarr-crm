@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useApiQuery, useApiMutate } from "@/lib/api/client";
-import { ApiResponse } from "@/lib/api/types";
+import { ApiResponse, isSuccessResponse } from "@/lib/api/types";
 import {
     Notification,
     NotificationFilters,
@@ -16,6 +16,7 @@ import {
     playNotificationSound,
     showDesktopNotification,
 } from "@/lib/notificationAlerts";
+import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 const EMPTY_NOTIFICATIONS: Notification[] = [];
 
@@ -35,6 +36,7 @@ export const useNotificationSummary = (
     onNewNotifications?: (notifications: Notification[]) => void
 ) => {
     const queryClient = useQueryClient();
+    const islandAlertsEnabled = useNotificationIslandAlertsFlag();
 
     const {
         data: response,
@@ -76,12 +78,14 @@ export const useNotificationSummary = (
 
         if (newOnes.length === 0) return;
 
-        playNotificationSound();
-        newOnes.slice(0, 3).forEach((n) => {
-            showDesktopNotification(n.title, n.text, n.link);
-        });
+        if (islandAlertsEnabled) {
+            playNotificationSound();
+            newOnes.slice(0, 3).forEach((n) => {
+                showDesktopNotification(n.title, n.text, n.link);
+            });
+        }
         onNewNotifications?.(newOnes);
-    }, [notifications, enabled, onNewNotifications]);
+    }, [notifications, enabled, islandAlertsEnabled, onNewNotifications]);
 
     // Invalidate cache to force refresh
     const invalidate = useCallback(() => {
@@ -209,6 +213,58 @@ export const useNotificationMutations = () => {
         invalidateNotifications();
     });
 
+    /** Same endpoint, but patches the unread summary cache instead of invalidating (no refetch storm). */
+    const markReadQuietMutation = useApiMutate<
+        { id: string },
+        NotificationMarkReadResponse["data"],
+        ApiResponse<NotificationMarkReadResponse["data"]>
+    >(route("notifications.api.mark_read"), "POST");
+
+    const patchUnreadSummaryAfterMark = useCallback(
+        (notificationId: string, unreadCount?: number) => {
+            const summaryKey = [route("notifications.api.unread_summary")];
+            queryClient.setQueryData<NotificationUnreadSummaryResponse>(
+                summaryKey,
+                (old) => {
+                    if (!old?.data) return old;
+                    const notifications = old.data.notifications.filter(
+                        (n) => n.id !== notificationId,
+                    );
+                    return {
+                        ...old,
+                        data: {
+                            ...old.data,
+                            unread_count:
+                                unreadCount ??
+                                Math.max(0, old.data.unread_count - 1),
+                            notifications,
+                        },
+                    };
+                },
+            );
+        },
+        [queryClient],
+    );
+
+    const markAsReadQuiet = useCallback(
+        (id: string) => {
+            markReadQuietMutation.mutate(
+                { id },
+                {
+                    suppressSuccessToast: true,
+                    onSuccess: (response) => {
+                        if (!isSuccessResponse(response)) return;
+                        patchUnreadSummaryAfterMark(
+                            id,
+                            response.data?.unread_count,
+                        );
+                    },
+                },
+            );
+        },
+        [markReadQuietMutation, patchUnreadSummaryAfterMark],
+    );
+
     // Mark multiple notifications as read
     const markMultipleReadMutation = useApiMutate<
         { ids: string[] },
@@ -257,6 +313,7 @@ export const useNotificationMutations = () => {
     return {
         // Mark read
         markAsRead: markReadMutation.mutate,
+        markAsReadQuiet,
         markMultipleAsRead: markMultipleReadMutation.mutate,
         markAllAsRead: markAllReadMutation.mutate,
         isMarkingRead:
