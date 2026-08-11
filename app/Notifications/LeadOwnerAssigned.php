@@ -64,19 +64,21 @@ class LeadOwnerAssigned extends BaseNotification
             $contentParts[] = __('modules.lead.clientEmail') . ': ' . $this->lead->client_email;
         }
 
+        $preheader = $this->assignmentText();
+
         $build
             ->subject('Lead owner assigned - ' . config('app.name'))
             ->view('mail.lead-assigned', [
                 'url' => $url,
                 'content' => implode('<br>', $contentParts),
-                'preheader' => __('email.leadAgentAssigned.text') . ': ' . ($this->lead->client_name ?? ''),
+                'preheader' => $preheader,
                 'themeColor' => $this->company?->header_color,
                 'actionText' => 'View Lead',
                 'notifiableName' => $notifiable->name,
             ]);
 
         $this->attachPlunkTemplate($build, 'cde4d601-d358-45e5-9782-1e79d5c4f9f7', [
-            'preheader'         => __('email.leadAgentAssigned.text') . ': ' . ($this->lead->client_name ?? ''),
+            'preheader'         => $preheader,
             'leadName'          => $this->lead->client_name,
             'leadEmail'         => $this->lead->client_email ?? '',
             'previousOwnerName' => $this->previousOwnerName,
@@ -97,7 +99,27 @@ class LeadOwnerAssigned extends BaseNotification
             'previous_owner_id' => $this->previousOwnerId,
             'new_owner_id' => $notifiable->id,
             'added_by' => $this->lead->added_by,
+            'title' => __('email.leadAgentAssigned.subject'),
+            'text' => $this->assignmentText(),
         ];
+    }
+
+    /**
+     * Title + the notification's compact subject line already say "assigned as
+     * lead agent" + the lead's name, so once an AI summary exists, this detail
+     * text is the summary alone — repeating the base sentence there too would
+     * just be the same redundant boilerplate again.
+     */
+    private function assignmentText(): string
+    {
+        $leadName = trim((string) ($this->lead->client_name ?? ''));
+        $base = $leadName !== ''
+            ? __('email.leadAgentAssigned.text', ['leadName' => $leadName])
+            : __('email.leadAgentAssigned.subject').'.';
+
+        $snippet = $this->aiSummarySnippet($this->lead);
+
+        return $snippet ?: $base;
     }
 }
 

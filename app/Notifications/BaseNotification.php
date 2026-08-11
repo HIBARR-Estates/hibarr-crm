@@ -46,6 +46,32 @@ class BaseNotification extends Notification implements ShouldQueue
         });
     }
 
+    /**
+     * A short, labeled snippet from the entity's already-generated AI summary
+     * (status_line), for folding into an assignment notification instead of
+     * pure boilerplate. Read-only lookup — never triggers generation, since
+     * that's an explicit user action (rate-limited, on-demand) elsewhere.
+     * Returns null whenever no summary has been generated yet for this
+     * entity, which is the common case for a newly created lead/deal.
+     */
+    protected function aiSummarySnippet(\App\Models\Deal|\App\Models\Lead $entity, int $maxLength = 110): ?string
+    {
+        try {
+            $summary = $entity instanceof \App\Models\Deal
+                ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($entity)
+                : app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($entity);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $statusLine = trim((string) ($summary['status_line'] ?? ''));
+        if ($statusLine === '') {
+            return null;
+        }
+
+        return __('email.aiSummary.prefix').\Illuminate\Support\Str::limit($statusLine, $maxLength);
+    }
+
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
         $this->suppressBulkTransactionalEmails = $value;

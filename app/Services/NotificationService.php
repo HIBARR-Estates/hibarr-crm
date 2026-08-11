@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Helper\Reply;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
@@ -85,16 +86,18 @@ class NotificationService
      */
     public function formatNotification(DatabaseNotification $notification): array
     {
-        $data = $notification->data;
+        $data = is_array($notification->data) ? $notification->data : [];
         $type = class_basename($notification->type);
         $typeSlug = Str::snake($type);
+        $data = $this->enrichTaskNotificationData($data, $typeSlug);
+        $title = $data['title'] ?? $this->getNotificationTitle($typeSlug, $data);
 
         return [
             'id' => $notification->id,
             'type' => $type,
             'type_slug' => $typeSlug,
-            'title' => $data['title'] ?? $this->getNotificationTitle($typeSlug, $data),
-            'text' => $data['heading'] ?? $data['text'] ?? $data['message'] ?? '',
+            'title' => $title,
+            'text' => $data['text'] ?? $data['message'] ?? $data['heading'] ?? $this->getNotificationFallbackText($data, $title),
             'data' => $data,
             'link' => $this->getNotificationLink($typeSlug, $data),
             'icon' => $this->getNotificationIcon($typeSlug),
@@ -262,6 +265,88 @@ class NotificationService
     }
 
     /**
+     * Build a readable fallback sentence for notification classes that don't
+     * ship an explicit `title`/`text`/`message`/`heading` — avoids surfacing
+     * a bare id, a raw model dump, or an empty body in the notification island.
+     *
+     * @param array $data
+     * @param string $title
+     * @return string
+     */
+    protected function getNotificationFallbackText(array $data, string $title): string
+    {
+        $subjectKeys = ['name', 'subject', 'project_name', 'event_name', 'item_name', 'ticket_subject'];
+
+        foreach ($subjectKeys as $key) {
+            if (!empty($data[$key]) && is_string($data[$key])) {
+                return trim($title) . ': ' . $data[$key];
+            }
+        }
+
+        return $title;
+    }
+
+    /**
+     * Attach task + linked deal/lead ids for in-app quick actions.
+     *
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function enrichTaskNotificationData(array $data, string $typeSlug): array
+    {
+        $icon = $this->getNotificationIcon($typeSlug);
+        $isTask = in_array($icon, ['task', 'task-completed'], true)
+            || ($data['entity_type'] ?? null) === 'task';
+
+        if (! $isTask) {
+            return $data;
+        }
+
+        $taskId = $data['task_id'] ?? $data['id'] ?? null;
+        if (! $taskId) {
+            return $data;
+        }
+
+        $data['task_id'] = (int) $taskId;
+
+        if (empty($data['action_url'])) {
+            try {
+                $data['action_url'] = route('tasks.show', $taskId);
+            } catch (\Exception $e) {
+                // Route unavailable in this context.
+            }
+        }
+
+        if (! empty($data['deal_id']) && ! empty($data['lead_id'])) {
+            return $data;
+        }
+
+        $task = Task::query()
+            ->with(['deals:id', 'leads:id'])
+            ->find($taskId);
+
+        if ($task === null) {
+            return $data;
+        }
+
+        if (empty($data['deal_id'])) {
+            $deal = $task->deals->first();
+            if ($deal !== null) {
+                $data['deal_id'] = $deal->id;
+            }
+        }
+
+        if (empty($data['lead_id'])) {
+            $lead = $task->leads->first();
+            if ($lead !== null) {
+                $data['lead_id'] = $lead->id;
+            }
+        }
+
+        return $data;
+    }
+
+    /**
      * Get notification link based on type.
      *
      * @param string $typeSlug
@@ -275,8 +360,17 @@ class NotificationService
             return $data['action_url'];
         }
 
-        // Resolve the entity ID — check type-specific keys, then fallback to generic 'id'
-        $id = $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
+        // Resolve the entity ID — task alerts must link to the task, not a related deal.
+        $icon = $this->getNotificationIcon($typeSlug);
+        if (in_array($icon, ['task', 'task-completed'], true) || ($data['entity_type'] ?? null) === 'task') {
+            $id = $data['task_id'] ?? $data['id'] ?? null;
+        } elseif ($typeSlug === 'new_discussion_mention') {
+            $id = $data['id'] ?? null;
+        } elseif ($typeSlug === 'mention_ticket_agent') {
+            $id = $data['ticket_number'] ?? null;
+        } else {
+            $id = $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
+        }
 
         if (!$id) {
             return null;

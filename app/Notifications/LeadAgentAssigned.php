@@ -151,11 +151,19 @@ class LeadAgentAssigned extends BaseNotification
     {
         $dealName = $this->deal->name;
 
-        return match ($assignmentRole) {
+        $base = match ($assignmentRole) {
             'deal_watcher' => __('email.dealWatcherAssigned.text', ['dealName' => $dealName]),
             'new_deal' => __('email.newDealAwaitingAgent.text', ['dealName' => $dealName]),
             default => __('email.dealAgentAssigned.text', ['dealName' => $dealName]),
         };
+
+        // Title + the notification's compact subject line already say "assigned
+        // as deal agent" + the deal name, so once an AI summary exists, the
+        // detail text is the summary alone — repeating the base sentence there
+        // too would just be the same redundant boilerplate again.
+        $snippet = $this->aiSummarySnippet($this->deal);
+
+        return $snippet ?: $base;
     }
 
     private function assignmentAction(string $assignmentRole): string
