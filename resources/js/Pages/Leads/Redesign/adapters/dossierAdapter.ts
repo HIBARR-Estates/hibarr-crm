@@ -309,6 +309,12 @@ export function getLeadNativeEditValue(
 
     if (key === "clientName") return String(record.client_name ?? "");
     if (key === "email") return String(record.client_email ?? "");
+    if (key === "hasJoinedWhatsappGroup") {
+        const joined =
+            lead.marketing?.has_joined_the_whatsapp_group ??
+            record.has_joined_the_whatsapp_group;
+        return joined ? "1" : "0";
+    }
     if (key === "dateOfBirthAndAge") {
         return String(record.date_of_birth ?? record.age ?? "");
     }

@@ -628,6 +628,38 @@ export default function LeadInfoSectionPanel({
                         disabled={!canEdit}
                     />
                 </DetailField>
+                <DetailField
+                    label={t("pages.leads.info.fields.joined_whatsapp_group")}
+                >
+                    <DealEditableField
+                        value={
+                            lead.marketing?.has_joined_the_whatsapp_group
+                                ? 1
+                                : 0
+                        }
+                        fieldName="has_joined_the_whatsapp_group"
+                        fieldType="boolean"
+                        onSave={(value) =>
+                            onFieldUpdate(
+                                "has_joined_the_whatsapp_group",
+                                value,
+                            )
+                        }
+                        alwaysEditing={editing}
+                        onChange={handleFieldChange}
+                        displayValue={
+                            <span className="text-gray-700">
+                                {lead.marketing?.has_joined_the_whatsapp_group
+                                    ? t("pages.leads.marketing.yes")
+                                    : t("pages.leads.marketing.no")}
+                            </span>
+                        }
+                        loading={isFieldLoading(
+                            "has_joined_the_whatsapp_group",
+                        )}
+                        disabled={!canEdit}
+                    />
+                </DetailField>
                 <DetailField label={t("pages.leads.info.fields.added_by")}>
                     <span className="text-[13px] text-[#0f172a]">
                         {getDossierFieldValue(lead, "addedBy") || (
