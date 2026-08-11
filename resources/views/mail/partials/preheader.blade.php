@@ -19,5 +19,5 @@
     }
 @endphp
 @if($resolvedPreheader !== '')
-<div style="display:none;font-size:1px;color:#eef2f8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{ $resolvedPreheader }}@for($i = 0; $i < 40; $i)&nbsp;&zwnj;@endfor</div>
+<div style="display:none;font-size:1px;color:#eef2f8;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{ $resolvedPreheader }}@for($i = 0; $i < 40; $i++)&nbsp;&zwnj;@endfor</div>
 @endif

@@ -10,49 +10,45 @@ use App\Helper\Files;
 use App\Helper\Reply;
 use App\Http\Requests\Admin\Employee\ImportProcessRequest;
 use App\Http\Requests\Admin\Employee\ImportRequest;
+use App\Http\Requests\Lead\PatchRequest;
 use App\Http\Requests\Lead\StoreRequest;
 use App\Http\Requests\Lead\UpdateRequest;
-use App\Http\Requests\Lead\PatchRequest;
 use App\Imports\LeadImport;
 use App\Jobs\ImportLeadJob;
+use App\Models\CustomFieldCategory;
+use App\Models\CustomFieldGroup;
 use App\Models\Deal;
 use App\Models\DealFollowUp;
-use App\Models\LeadNote;
+use App\Models\Lead;
 use App\Models\LeadAgent;
 use App\Models\LeadCategory;
-use Illuminate\Support\Facades\DB;
-use App\Models\Lead;
-use App\Models\LeadLifecycleStatus;
 use App\Models\LeadCustomForm;
+use App\Models\LeadLifecycleStatus;
+use App\Models\LeadNote;
 use App\Models\LeadPipeline;
 use App\Models\LeadProduct;
 use App\Models\LeadSource;
-use App\Models\PipelineStage;
 use App\Models\LeadStatus;
+use App\Models\PipelineStage;
 use App\Models\Product;
 use App\Models\User;
-use App\Models\CustomFieldGroup;
-use App\Models\CustomFieldCategory;
-use App\Models\ClientCategory;
-use App\Models\LanguageSetting;
-use App\Traits\ImportExcel;
-use App\Traits\LeadFormDataTrait;
-use App\Traits\DealFormDataTrait;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Session;
-use Inertia\Inertia;
-use Illuminate\Support\Facades\Log;
+use App\Services\DealAgentAssignmentService;
 use App\Services\LeadCoreFieldsService;
 use App\Services\LeadQualificationService;
-use App\Services\PermissionService;
-use App\Services\DealAgentAssignmentService;
 use App\Services\LeadService;
+use App\Services\PermissionService;
+use App\Traits\ImportExcel;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Session;
+use Inertia\Inertia;
+
 class LeadContactController extends AccountBaseController
 {
-
-    use ImportExcel;
     use \App\Traits\DealFormDataTrait;
     use \App\Traits\LeadFormDataTrait;
+    use ImportExcel;
 
     protected $leadService;
 
@@ -65,7 +61,7 @@ class LeadContactController extends AccountBaseController
         $this->coreFieldsService = $coreFieldsService;
         $this->pageTitle = 'modules.leadContact.leadContacts';
         $this->middleware(function ($request, $next) {
-            if (!in_array('leads', user_modules())) {
+            if (! in_array('leads', user_modules())) {
                 if ($request->ajax() || $request->header('X-Inertia')) {
                     return redirect()->back()->with('error', __('messages.permissionDenied'));
                 }
@@ -76,17 +72,15 @@ class LeadContactController extends AccountBaseController
         });
     }
 
-
-
     public function index(LeadContactDataTable $dataTable, Request $request)
     {
         $this->destroySession();
         $this->viewLeadPermission = $viewPermission = user()->permission('view_lead');
 
-        if (!in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
-          
+        if (! in_array($viewPermission, ['all', 'added', 'owned', 'both'])) {
+
             return redirect()->back()->with('error', __('messages.permissionDenied'));
-            
+
         }
 
         // Use LeadService for optimized data fetching
@@ -125,7 +119,6 @@ class LeadContactController extends AccountBaseController
         ]);
     }
 
-
     public function show($id, Request $request)
     {
         // Shell vs deferred prop matrix: docs/inertia-react-performance-checklist.md (Task C1).
@@ -154,22 +147,23 @@ class LeadContactController extends AccountBaseController
 
         $leadRules = [
             'added' => 'added_by',
-            'owned' => 'lead_owner'
+            'owned' => 'lead_owner',
         ];
-        
+
         $access = PermissionService::checkAccess(user(), 'view_lead', $this->leadContact, $leadRules);
-        
-        \Log::info("Checking Lead Contact Access for user ID: " . user()->id . " on Lead ID: " . $id);
-        if (!$access['canAccess']) {
-            \Log::info("Lead Contact Access Denied for user ID: " . user()->id);
-             if ($request->ajax() || $request->header('X-Inertia')) {
-                \Log::info("Lead Contact Access Denied for user ID: " . user()->id);
+
+        \Log::info('Checking Lead Contact Access for user ID: '.user()->id.' on Lead ID: '.$id);
+        if (! $access['canAccess']) {
+            \Log::info('Lead Contact Access Denied for user ID: '.user()->id);
+            if ($request->ajax() || $request->header('X-Inertia')) {
+                \Log::info('Lead Contact Access Denied for user ID: '.user()->id);
+
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
-            \Log::info("Lead Contact Access Denied for user ID: " . user()->id);
+            \Log::info('Lead Contact Access Denied for user ID: '.user()->id);
             abort(403);
         }
-        \Log::info("Lead Contact Access Granted for user ID: " . user()->id);
+        \Log::info('Lead Contact Access Granted for user ID: '.user()->id);
         $this->pageTitle = $this->leadContact->client_name_salutation;
 
         $this->leadFormFields = LeadCustomForm::with('customField')->where('status', 'active')->where('custom_fields_id', '!=', 'null')->get();
@@ -368,14 +362,14 @@ class LeadContactController extends AccountBaseController
                 'dealMeta',
             ),
             'dealCustomFields' => Inertia::defer(function () {
-                $deal = new Deal();
+                $deal = new Deal;
                 $groups = $deal->getCustomFieldGroupsWithFields();
 
                 return $groups ? $groups->fields : [];
             }, 'dealMeta'),
             'dealCustomFieldCategories' => Inertia::defer(function () {
                 $dealCustomFieldGroup = CustomFieldGroup::where('model', Deal::CUSTOM_FIELD_MODEL)->first();
-                if (!$dealCustomFieldGroup) {
+                if (! $dealCustomFieldGroup) {
                     return collect();
                 }
 
@@ -401,11 +395,11 @@ class LeadContactController extends AccountBaseController
 
     public function notes()
     {
-        $dataTable = new LeadNotesDataTable();
+        $dataTable = new LeadNotesDataTable;
         $viewPermission = user()->permission('view_deals');
 
-        if (!($viewPermission == 'all' || $viewPermission == 'added' || $viewPermission == 'both')) {
-             if (request()->ajax() || request()->header('X-Inertia')) {
+        if (! ($viewPermission == 'all' || $viewPermission == 'added' || $viewPermission == 'both')) {
+            if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -423,8 +417,8 @@ class LeadContactController extends AccountBaseController
     {
         $viewPermission = user()->permission('view_deals');
 
-        if (!in_array($viewPermission, ['all', 'added', 'both', 'owned'])) {
-             if (request()->ajax() || request()->header('X-Inertia')) {
+        if (! in_array($viewPermission, ['all', 'added', 'both', 'owned'])) {
+            if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -441,7 +435,7 @@ class LeadContactController extends AccountBaseController
 
         $this->activeTab = $tab ?: 'profile';
         $this->view = 'lead-contact.ajax.deal';
-        $dataTable = new DealsDataTable();
+        $dataTable = new DealsDataTable;
 
         return $dataTable->render('lead-contact.show', $this->data);
     }
@@ -456,9 +450,9 @@ class LeadContactController extends AccountBaseController
         $this->pageTitle = __('modules.leadContact.createTitle');
 
         $this->addPermission = user()->permission('add_lead');
-        
-        if (!in_array($this->addPermission, ['all', 'added'])) {
-             if ($request->ajax() || request()->header('X-Inertia')) {
+
+        if (! in_array($this->addPermission, ['all', 'added'])) {
+            if ($request->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -506,18 +500,17 @@ class LeadContactController extends AccountBaseController
     }
 
     /**
-     * @param StoreRequest $request
      * @return array|void
+     *
      * @throws \Froiden\RestAPI\Exceptions\RelatedResourceNotFoundException
      */
     public function store(StoreRequest $request)
     {
-        Log::info("Create Lead Contact, begins ....");
+        Log::info('Create Lead Contact, begins ....');
         $this->addPermission = user()->permission('add_lead');
 
-
-        if (!in_array($this->addPermission, ['all', 'added'])) {
-             if ($request->ajax() || request()->header('X-Inertia')) {
+        if (! in_array($this->addPermission, ['all', 'added'])) {
+            if ($request->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -531,7 +524,7 @@ class LeadContactController extends AccountBaseController
             ->whereNotNull('email')
             ->first();
 
-        $leadContact = new Lead();
+        $leadContact = new Lead;
         $leadContact->company_id = company()->id;
         $leadContact->salutation = $request->salutation ?: null;
         $leadContact->gender = $request->gender;
@@ -552,13 +545,13 @@ class LeadContactController extends AccountBaseController
         $leadContact->country = $request->country;
         $leadContact->postal_code = $request->postal_code;
         // Handle mobile field with country code
-        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+        if ($request->has('country_phonecode_mobile') && ! empty($request->country_phonecode_mobile) && ! empty($request->mobile)) {
             // Store phone with country code and country identifier for accurate reloading
             $countryIdentifier = $request->input('country_identifier_mobile');
             $phoneData = [
-                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'phone' => '+'.$request->country_phonecode_mobile.' '.$request->mobile,
                 'country_code' => $request->country_phonecode_mobile,
-                'country_identifier' => $countryIdentifier
+                'country_identifier' => $countryIdentifier,
             ];
             $leadContact->mobile = json_encode($phoneData);
         } else {
@@ -569,7 +562,7 @@ class LeadContactController extends AccountBaseController
             Session::put('create_deal_with_lead', true);
             Session::put('deal_name', $request->name);
         }
-        Log::info("Create Lead Contact, b4 save");
+        Log::info('Create Lead Contact, b4 save');
 
         $this->coreFieldsService->write($leadContact, $request->only([
             'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
@@ -632,7 +625,7 @@ class LeadContactController extends AccountBaseController
     /**
      * Show the form for editing the specified resource.
      *
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function edit($id, Request $request)
@@ -642,13 +635,13 @@ class LeadContactController extends AccountBaseController
 
         $leadRules = [
             'added' => 'added_by',
-            'owned' => 'lead_owner'
+            'owned' => 'lead_owner',
         ];
-        
+
         $access = PermissionService::checkAccess(user(), 'edit_lead', $this->leadContact, $leadRules);
-        
-        if (!$access['canAccess']) {
-             if ($request->ajax() || $request->header('X-Inertia')) {
+
+        if (! $access['canAccess']) {
+            if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -675,7 +668,7 @@ class LeadContactController extends AccountBaseController
         } else {
             $this->employees = $activeEmployees;
         }
-        
+
         // Update formData with the correct employees list
         $formData['employees'] = $this->employees;
 
@@ -703,23 +696,23 @@ class LeadContactController extends AccountBaseController
     }
 
     /**
-     * @param UpdateRequest $request
      * @return array|void
+     *
      * @throws \Froiden\RestAPI\Exceptions\RelatedResourceNotFoundException
      */
     public function update(UpdateRequest $request, $id)
     {
         $leadContact = Lead::findOrFail($id);
-        
+
         $leadRules = [
             'added' => 'added_by',
-            'owned' => 'lead_owner'
+            'owned' => 'lead_owner',
         ];
-        
+
         $access = PermissionService::checkAccess(user(), 'edit_lead', $leadContact, $leadRules);
-        
-        if (!$access['canAccess']) {
-             if ($request->ajax() || request()->header('X-Inertia')) {
+
+        if (! $access['canAccess']) {
+            if ($request->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -747,13 +740,13 @@ class LeadContactController extends AccountBaseController
         $leadContact->country = $request->country;
         $leadContact->postal_code = $request->postal_code;
         // Handle mobile field with country code
-        if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+        if ($request->has('country_phonecode_mobile') && ! empty($request->country_phonecode_mobile) && ! empty($request->mobile)) {
             // Store phone with country code and country identifier for accurate reloading
             $countryIdentifier = $request->input('country_identifier_mobile');
             $phoneData = [
-                'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                'phone' => '+'.$request->country_phonecode_mobile.' '.$request->mobile,
                 'country_code' => $request->country_phonecode_mobile,
-                'country_identifier' => $countryIdentifier
+                'country_identifier' => $countryIdentifier,
             ];
             $leadContact->mobile = json_encode($phoneData);
         } else {
@@ -777,7 +770,7 @@ class LeadContactController extends AccountBaseController
 
         app(\App\Services\Reminders\LeadReminderSync::class)->syncFromLead($leadContact->fresh());
 
-        $clientCreated = $request->create_client == "on" ? '1' : '0';
+        $clientCreated = $request->create_client == 'on' ? '1' : '0';
         Deal::where('lead_id', $leadContact->id)->update(['create_client' => $clientCreated]);
 
         // To add custom fields data
@@ -796,30 +789,28 @@ class LeadContactController extends AccountBaseController
      * Partially update the specified lead contact.
      * Allows for quick updates with optional fields.
      *
-     * @param PatchRequest $request
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function patch(PatchRequest $request, $id)
     {
         $leadContact = Lead::findOrFail($id);
-        
+
         $leadRules = [
             'added' => 'added_by',
-            'owned' => 'lead_owner'
+            'owned' => 'lead_owner',
         ];
-        
+
         $access = PermissionService::checkAccess(user(), 'edit_lead', $leadContact, $leadRules);
-        
-        if (!$access['canAccess']) {
-           
-             if ($request->ajax() || $request->header('X-Inertia')) {
+
+        if (! $access['canAccess']) {
+
+            if ($request->ajax() || $request->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
-           
+
             abort(403);
         }
-    
 
         try {
             // Start database transaction
@@ -827,7 +818,7 @@ class LeadContactController extends AccountBaseController
 
             // Update only the fields that are present in the request
             $fieldsToUpdate = $request->validated();
-            
+
             // Handle basic contact information
             if ($request->has('salutation')) {
                 $leadContact->salutation = $request->salutation ?: null;
@@ -847,7 +838,7 @@ class LeadContactController extends AccountBaseController
             if ($request->has('website')) {
                 $leadContact->website = $request->website;
             }
-            
+
             // Handle address information
             if ($request->has('address')) {
                 $leadContact->address = $request->address;
@@ -864,7 +855,7 @@ class LeadContactController extends AccountBaseController
             if ($request->has('postal_code')) {
                 $leadContact->postal_code = $request->postal_code;
             }
-            
+
             // Handle phone numbers
             if ($request->has('cell')) {
                 $leadContact->cell = $request->cell;
@@ -881,22 +872,22 @@ class LeadContactController extends AccountBaseController
             if ($request->has('client_instagram')) {
                 $leadContact->client_instagram = $request->client_instagram;
             }
-            
+
             // Handle mobile with special formatting if needed
             if ($request->has('mobile')) {
-                if ($request->has('country_phonecode_mobile') && !empty($request->country_phonecode_mobile) && !empty($request->mobile)) {
+                if ($request->has('country_phonecode_mobile') && ! empty($request->country_phonecode_mobile) && ! empty($request->mobile)) {
                     $countryIdentifier = $request->input('country_identifier_mobile');
                     $phoneData = [
-                        'phone' => '+' . $request->country_phonecode_mobile . ' ' . $request->mobile,
+                        'phone' => '+'.$request->country_phonecode_mobile.' '.$request->mobile,
                         'country_code' => $request->country_phonecode_mobile,
-                        'country_identifier' => $countryIdentifier
+                        'country_identifier' => $countryIdentifier,
                     ];
                     $leadContact->mobile = json_encode($phoneData);
                 } else {
                     $leadContact->mobile = is_array($request->mobile) ? json_encode($request->mobile) : $request->mobile;
                 }
             }
-            
+
             // Handle lead-specific information
             if ($request->has('note')) {
                 $leadContact->note = trim_editor($request->note);
@@ -910,7 +901,7 @@ class LeadContactController extends AccountBaseController
             if ($request->has('next_follow_up')) {
                 $leadContact->next_follow_up = $request->next_follow_up;
             }
-            
+
             // Handle assignment fields
             if ($request->has('agent_id')) {
                 $leadContact->agent_id = $request->agent_id;
@@ -921,7 +912,7 @@ class LeadContactController extends AccountBaseController
             if ($request->has('added_by')) {
                 $leadContact->added_by = $request->added_by;
             }
-            
+
             // Handle categorization (multi via category_ids; category_id still accepted)
             $categoryIds = $this->normalizeCategoryIdsFromRequest($request);
             if ($categoryIds !== null) {
@@ -976,12 +967,12 @@ class LeadContactController extends AccountBaseController
             if ($request->has('products')) {
                 // Remove existing products
                 LeadProduct::where('lead_id', $leadContact->id)->delete();
-                
+
                 // Add new products
                 foreach ($request->products as $productId) {
                     LeadProduct::create([
                         'lead_id' => $leadContact->id,
-                        'product_id' => $productId
+                        'product_id' => $productId,
                     ]);
                 }
             }
@@ -991,10 +982,10 @@ class LeadContactController extends AccountBaseController
                 // Get custom field data - files may be in input or allFiles
                 $allInput = $request->all();
                 $allFiles = $request->allFiles();
-                
+
                 // Start with input data (for non-file fields)
                 $customFieldsData = [];
-                
+
                 // Check if custom_fields contains files (UploadedFile objects)
                 if (isset($allInput['custom_fields']) && is_array($allInput['custom_fields'])) {
                     foreach ($allInput['custom_fields'] as $fieldKey => $fieldValue) {
@@ -1006,7 +997,7 @@ class LeadContactController extends AccountBaseController
                                     $uploadedFiles[] = $item;
                                 }
                             }
-                            if (!empty($uploadedFiles)) {
+                            if (! empty($uploadedFiles)) {
                                 $customFieldsData[$fieldKey] = $uploadedFiles;
                             } else {
                                 // Regular array value
@@ -1021,11 +1012,11 @@ class LeadContactController extends AccountBaseController
                         }
                     }
                 }
-                
+
                 // Also check allFiles for any files that might be there
                 if (isset($allFiles['custom_fields']) && is_array($allFiles['custom_fields'])) {
                     foreach ($allFiles['custom_fields'] as $fieldKey => $fileOrFiles) {
-                        if (!isset($customFieldsData[$fieldKey])) {
+                        if (! isset($customFieldsData[$fieldKey])) {
                             if (is_array($fileOrFiles)) {
                                 $uploadedFiles = [];
                                 foreach ($fileOrFiles as $file) {
@@ -1033,7 +1024,7 @@ class LeadContactController extends AccountBaseController
                                         $uploadedFiles[] = $file;
                                     }
                                 }
-                                if (!empty($uploadedFiles)) {
+                                if (! empty($uploadedFiles)) {
                                     $customFieldsData[$fieldKey] = $uploadedFiles;
                                 }
                             } elseif ($fileOrFiles instanceof \Illuminate\Http\UploadedFile) {
@@ -1042,8 +1033,8 @@ class LeadContactController extends AccountBaseController
                         }
                     }
                 }
-                
-                if (!empty($customFieldsData)) {
+
+                if (! empty($customFieldsData)) {
                     $filtered = $this->coreFieldsService->filterCustomFieldsFromPayload(
                         ['custom_fields' => $customFieldsData],
                         (int) company()->id
@@ -1071,7 +1062,7 @@ class LeadContactController extends AccountBaseController
                 $responseData = [
                     'id' => $leadContact->id,
                 ];
-                
+
                 // Add only the fields that were in the request
                 $allowedFields = [
                     'client_name', 'client_email', 'mobile', 'office', 'cell',
@@ -1083,7 +1074,7 @@ class LeadContactController extends AccountBaseController
                     'languages', 'date_of_birth', 'age', 'age_range', 'nationality', 'occupation',
                     'lead_lifecycle_status_id',
                 ];
-                
+
                 foreach ($allowedFields as $field) {
                     if ($field === 'category_ids') {
                         continue;
@@ -1096,7 +1087,7 @@ class LeadContactController extends AccountBaseController
                         }
                     }
                 }
-                
+
                 // Load and include relationship data when relationship IDs are updated
                 // This ensures the frontend can immediately display the updated relationship info
                 if ($categoryIds !== null || $request->has('category_id') || $request->has('category_ids')) {
@@ -1106,13 +1097,13 @@ class LeadContactController extends AccountBaseController
                     $responseData['categories'] = $leadContact->categories;
                     $responseData['category_ids'] = $leadContact->categories->pluck('id')->values()->all();
                 }
-                
+
                 if ($request->has('source_id')) {
                     $leadContact->load('leadSource');
                     $responseData['leadSource'] = $leadContact->leadSource;
                     $responseData['lead_source'] = $leadContact->leadSource; // Include both naming conventions
                 }
-                
+
                 if ($request->has('lead_owner')) {
                     $leadContact->load('leadOwner');
                     $responseData['lead_owner'] = $leadContact->leadOwner;
@@ -1156,31 +1147,25 @@ class LeadContactController extends AccountBaseController
                     ],
                 ]);
             }
-            
+
             return Reply::successWithData(__('messages.leadUpdateSuccess'), [
                 'lead' => $leadContact->fresh(),
-                'redirectUrl' => route('lead-contact.show', $leadContact->id)
+                'redirectUrl' => route('lead-contact.show', $leadContact->id),
             ]);
-           
-
-            
 
         } catch (\Exception $e) {
             // Rollback transaction on error
             \DB::rollback();
-            
+
             // Log the error
-            Log::error('Lead patch update failed: ' . $e->getMessage(), [
+            Log::error('Lead patch update failed: '.$e->getMessage(), [
                 'lead_id' => $id,
                 'user_id' => user()->id,
-                'request_data' => $request->all()
+                'request_data' => $request->all(),
             ]);
 
-           
-            return Reply::error('An error occurred while updating the lead contact: ' . $e->getMessage());
-            
+            return Reply::error('An error occurred while updating the lead contact: '.$e->getMessage());
 
-            
         }
     }
 
@@ -1196,7 +1181,7 @@ class LeadContactController extends AccountBaseController
             'owned' => 'lead_owner',
         ]);
 
-        if (!$access['canAccess']) {
+        if (! $access['canAccess']) {
             if ($request->ajax() || $request->wantsJson()) {
                 return response()->json([
                     'status' => 'fail',
@@ -1212,7 +1197,7 @@ class LeadContactController extends AccountBaseController
         ]);
 
         try {
-            if (!empty($leadContact->image)) {
+            if (! empty($leadContact->image)) {
                 Files::deleteFile($leadContact->image, 'lead-avatar');
             }
 
@@ -1235,7 +1220,7 @@ class LeadContactController extends AccountBaseController
                 ],
             ]);
         } catch (\Exception $e) {
-            Log::error('Lead image upload failed: ' . $e->getMessage(), [
+            Log::error('Lead image upload failed: '.$e->getMessage(), [
                 'lead_id' => $id,
                 'user_id' => user()->id,
             ]);
@@ -1250,22 +1235,22 @@ class LeadContactController extends AccountBaseController
     /**
      * Remove the specified resource from storage.
      *
-     * @param int $id
+     * @param  int  $id
      * @return \Illuminate\Http\Response
      */
     public function destroy($id)
     {
         $leadContact = Lead::findOrFail($id);
-        
+
         $leadRules = [
             'added' => 'added_by',
-            'owned' => 'lead_owner'
+            'owned' => 'lead_owner',
         ];
-        
+
         $access = PermissionService::checkAccess(user(), 'delete_lead', $leadContact, $leadRules);
-        
-        if (!$access['canAccess']) {
-             if (request()->ajax() || request()->header('X-Inertia')) {
+
+        if (! $access['canAccess']) {
+            if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
             abort(403);
@@ -1276,7 +1261,8 @@ class LeadContactController extends AccountBaseController
                 $leadContact->forceDelete();
             });
         } catch (\Illuminate\Database\QueryException $e) {
-            Log::error('Failed to delete lead contact: ' . $e->getMessage());
+            Log::error('Failed to delete lead contact: '.$e->getMessage());
+
             return Reply::error(__('messages.deleteFailed') ?: 'Failed to delete contact. Please try again.');
         }
 
@@ -1307,48 +1293,52 @@ class LeadContactController extends AccountBaseController
                 foreach ($leads as $lead) {
                     $lead->syncCategories($categoryIds);
                 }
+
                 return Reply::success(__('messages.updateSuccess'));
 
             case 'change_source':
                 $sourceId = $request->source_id;
-                
+
                 if ($sourceId) {
                     $source = LeadSource::find($sourceId);
-                    if (!$source) {
+                    if (! $source) {
                         return Reply::error(__('messages.sourceNotFound'));
                     }
                 }
-                
+
                 Lead::whereIn('id', $rowIds)->update(['source_id' => $sourceId]);
+
                 return Reply::success(__('messages.updateSuccess'));
 
             case 'change_owner':
                 $leadOwner = $request->lead_owner;
-                
+
                 if ($leadOwner) {
                     $owner = User::find($leadOwner);
-                    if (!$owner) {
+                    if (! $owner) {
                         return Reply::error(__('messages.userNotFound'));
                     }
                 }
-                
+
                 Lead::whereIn('id', $rowIds)->update(['lead_owner' => $leadOwner]);
+
                 return Reply::success(__('messages.updateSuccess'));
 
             case 'delete':
             default:
-                Lead::whereIn('id', $rowIds)->forceDelete();
+                Lead::whereIn('id', $rowIds)->get()->each->forceDelete();
+
                 return Reply::success(__('messages.deleteSuccess'));
         }
     }
 
     public function importLead()
     {
-        $this->pageTitle = __('app.importExcel') . ' ' . __('app.menu.lead');
+        $this->pageTitle = __('app.importExcel').' '.__('app.menu.lead');
 
         $this->addPermission = user()->permission('add_lead');
-        
-        if (!in_array($this->addPermission, ['all', 'added'])) {
+
+        if (! in_array($this->addPermission, ['all', 'added'])) {
             if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -1377,6 +1367,7 @@ class LeadContactController extends AccountBaseController
             if ($request->wantsJson()) {
                 return response()->json(['error' => __('messages.abortAction')], 422);
             }
+
             return Reply::error(__('messages.abortAction'));
         }
 
@@ -1393,6 +1384,7 @@ class LeadContactController extends AccountBaseController
 
         // For traditional Ajax requests
         $view = view('leads.ajax.import_progress', $this->data)->render();
+
         return Reply::successWithData(__('messages.importUploadSuccess'), ['view' => $view]);
     }
 
@@ -1545,8 +1537,8 @@ class LeadContactController extends AccountBaseController
     public function storeDeal($request, $leadContact)
     {
         $this->addPermission = user()->permission('add_deals');
-        
-        if (!in_array($this->addPermission, ['all', 'added'])) {
+
+        if (! in_array($this->addPermission, ['all', 'added'])) {
             if (request()->ajax() || request()->header('X-Inertia')) {
                 return redirect()->back()->with('error', __('messages.permissionDenied'));
             }
@@ -1556,7 +1548,7 @@ class LeadContactController extends AccountBaseController
         if ($request->filled('agent_id')) {
             // Prefer lead_agents.id; fall back to legacy user_id (+ category) lookup.
             $leadAgent = LeadAgent::find($request->agent_id);
-            if (!$leadAgent) {
+            if (! $leadAgent) {
                 $leadAgent = LeadAgent::where('user_id', $request->agent_id)
                     ->when($request->category_id, fn ($q) => $q->where('lead_category_id', $request->category_id))
                     ->first();
@@ -1571,7 +1563,7 @@ class LeadContactController extends AccountBaseController
             $request->filled('category_id') ? (int) $request->category_id : null
         );
 
-        $deal = new Deal();
+        $deal = new Deal;
         $deal->name = $request->name;
         $deal->lead_id = $leadContact->id;
         $deal->next_follow_up = 'yes';
@@ -1602,12 +1594,12 @@ class LeadContactController extends AccountBaseController
             $deal->dealWatchers()->sync($request->deal_watcher);
         }
 
-        if (!is_null($request->product_id)) {
+        if (! is_null($request->product_id)) {
 
             $products = $request->product_id;
 
             foreach ($products as $product) {
-                $leadProduct = new LeadProduct();
+                $leadProduct = new LeadProduct;
                 $leadProduct->deal_id = $deal->id;
                 $leadProduct->product_id = $product;
                 $leadProduct->save();
@@ -1678,6 +1670,7 @@ class LeadContactController extends AccountBaseController
                 ->orderBy('id', 'asc')
                 ->get();
         }
+
         return collect();
     }
 
@@ -1687,12 +1680,11 @@ class LeadContactController extends AccountBaseController
     public function downloadSampleImport()
     {
         $sampleFilePath = public_path('sample-import/lead-contact-sample.xlsx');
-        
-        if (!file_exists($sampleFilePath)) {
+
+        if (! file_exists($sampleFilePath)) {
             return response()->json(['error' => 'Sample file not found'], 404);
         }
 
         return response()->download($sampleFilePath, 'lead-contact-sample.xlsx');
     }
 }
-

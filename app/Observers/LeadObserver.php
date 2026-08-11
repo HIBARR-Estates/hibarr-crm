@@ -4,17 +4,16 @@ namespace App\Observers;
 
 use App\Events\LeadEvent;
 use App\Models\Lead;
-use App\Models\LeadLifecycleStatus;
 use App\Models\UniversalSearch;
 use App\Models\User;
-use Illuminate\Support\Facades\Notification;
-use Illuminate\Support\Facades\DB;
 use App\Notifications\LeadImported;
 use App\Notifications\LeadOwnerAssigned;
+use App\Services\LeadLifecycleStatusService;
+use App\Services\LeadNotificationService;
 use App\Traits\HasDynamicTranslations;
 use App\Traits\RecordsCrmEvents;
-use App\Services\LeadLifecycleStatusService;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 
 class LeadObserver
 {
@@ -22,8 +21,8 @@ class LeadObserver
 
     public function saving(Lead $lead)
     {
-        if (!isRunningInConsoleOrSeeding()) {
-            $userID = (!is_null(user())) ? user()->id : null;
+        if (! isRunningInConsoleOrSeeding()) {
+            $userID = (! is_null(user())) ? user()->id : null;
             $lead->last_updated_by = $userID;
         }
 
@@ -33,13 +32,12 @@ class LeadObserver
     {
         $leadContact->hash = md5(microtime());
 
-        if (!isRunningInConsoleOrSeeding()) {
+        if (! isRunningInConsoleOrSeeding()) {
             if (request()->has('added_by')) {
                 $leadContact->added_by = request('added_by');
 
-            }
-            else {
-                $userID = (!is_null(user())) ? user()->id : null;
+            } else {
+                $userID = (! is_null(user())) ? user()->id : null;
                 $leadContact->added_by = $userID;
             }
         }
@@ -48,7 +46,7 @@ class LeadObserver
             $leadContact->company_id = company()->id;
         }
 
-        if (!$leadContact->lead_lifecycle_status_id && $leadContact->company_id) {
+        if (! $leadContact->lead_lifecycle_status_id && $leadContact->company_id) {
             $defaultStatus = app(LeadLifecycleStatusService::class)
                 ->resolveDefaultForCompany((int) $leadContact->company_id);
 
@@ -62,9 +60,9 @@ class LeadObserver
     {
         HasDynamicTranslations::dispatchDynamicTranslation($leadContact, false);
 
-        if (!isRunningInConsoleOrSeeding()) {
+        if (! isRunningInConsoleOrSeeding()) {
 
-            if (!session()->has('is_imported')) {
+            if (! session()->has('is_imported')) {
 
                 DB::afterCommit(function () use ($leadContact) {
                     try {
@@ -76,9 +74,7 @@ class LeadObserver
                         ]);
                     }
                 });
-            }else{
-
-
+            } else {
 
                 if (session('leads_count') == (session('total_leads'))) {
 
@@ -87,10 +83,10 @@ class LeadObserver
                     $importedLeads = session('leads', []);
                     Notification::send($admins, new LeadImported([
                         'importedByName' => user()?->name ?? '',
-                        'importCount'    => count($importedLeads),
-                        'failedCount'    => max(0, (int) session('total_leads', 0) - count($importedLeads)),
-                        'sourceName'     => 'CSV Import',
-                        'importedAt'     => now()->format(company()->date_format),
+                        'importCount' => count($importedLeads),
+                        'failedCount' => max(0, (int) session('total_leads', 0) - count($importedLeads)),
+                        'sourceName' => 'CSV Import',
+                        'importedAt' => now()->format(company()->date_format),
                     ]));
                 }
 
@@ -100,7 +96,7 @@ class LeadObserver
         // ── CRM Event: lead_created ──
         $this->recordCrmEvent('lead_created', $leadContact, [
             'metadata' => [
-                'comment' => 'New lead created' . (session()->has('is_imported') ? ' (imported)' : ''),
+                'comment' => 'New lead created'.(session()->has('is_imported') ? ' (imported)' : ''),
                 'client_name' => $leadContact->client_name,
                 'company_name' => $leadContact->company_name,
             ],
@@ -109,8 +105,23 @@ class LeadObserver
 
     public function deleting(Lead $leadContact)
     {
-        $notifyData = ['App\Notifications\LeadAgentAssigned', 'App\Notifications\NewDealCreated', 'App\Notifications\NewLeadCreated', 'App\Notifications\LeadImported'];
+        $notifyData = [
+            'App\Notifications\LeadAgentAssigned',
+            'App\Notifications\NewDealCreated',
+            'App\Notifications\NewLeadCreated',
+            'App\Notifications\LeadImported',
+            'App\Notifications\LeadOwnerAssigned',
+            'App\Notifications\LeadDeleted',
+            'App\Notifications\LeadFollowUpOverdue',
+        ];
         \App\Models\Notification::deleteNotification($notifyData, $leadContact->id);
+
+        if (! isRunningInConsoleOrSeeding()) {
+            app(LeadNotificationService::class)->notifyLeadDeleted(
+                $leadContact,
+                user(),
+            );
+        }
     }
 
     public function deleted(Lead $leadContact)
@@ -121,7 +132,7 @@ class LeadObserver
                 ->delete();
         } catch (\Illuminate\Database\QueryException $e) {
             // Log the error but don't let it block the deletion
-            \Log::warning('Failed to clean up universal_search for lead ID ' . $leadContact->id . ': ' . $e->getMessage());
+            \Log::warning('Failed to clean up universal_search for lead ID '.$leadContact->id.': '.$e->getMessage());
         }
     }
 
@@ -133,12 +144,12 @@ class LeadObserver
             return;
         }
 
-        if (!$leadContact->wasChanged('lead_owner')) {
+        if (! $leadContact->wasChanged('lead_owner')) {
             return;
         }
 
         $newOwnerId = $leadContact->lead_owner;
-        if (!$newOwnerId) {
+        if (! $newOwnerId) {
             return;
         }
 
@@ -148,7 +159,7 @@ class LeadObserver
         }
 
         $newOwner = User::find($newOwnerId);
-        if (!$newOwner) {
+        if (! $newOwner) {
             return;
         }
 
@@ -174,5 +185,4 @@ class LeadObserver
             ],
         ]);
     }
-
 }

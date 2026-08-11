@@ -236,6 +236,17 @@ return [
         'dueNow' => '":title" is due now.',
         'footerNote' => 'Follow up with this lead and log the outcome.',
     ],
+    'leadDeleted' => [
+        'subject' => 'Lead removed from pipeline',
+        'text' => ':leadName was removed from the active pipeline by :deletedBy.',
+        'action' => 'View leads',
+        'unknownActor' => 'A team member',
+    ],
+    'leadFollowUpOverdue' => [
+        'subject' => 'Follow-up overdue',
+        'text' => 'The follow-up for :entityName was scheduled for :schedule and still needs action.',
+        'footerNote' => 'Follow up as soon as possible and log the outcome in the CRM.',
+    ],
     'propertyReminder' => [
         'subject' => 'Property reminder: :title',
         'dueCountdown' => '":title" is coming up in :countdown.',
@@ -395,6 +406,19 @@ return [
         'subject' => 'Deal stage updated.',
         'action' => 'View Deal',
         'text' => 'There has been an update regarding a deal in your pipeline. We\'ve outlined the latest changes below to help you stay coordinated with your team.',
+    ],
+
+    'dealDeleted' => [
+        'subject' => 'Deal removed from pipeline',
+        'text' => ':dealName was removed from the active pipeline by :deletedBy.',
+        'action' => 'View deals',
+        'unknownActor' => 'A team member',
+    ],
+
+    'dealCloseDateApproaching' => [
+        'subject' => 'Deal close date approaching',
+        'text' => 'The close date for :dealName is :closeDate. Review the deal and update the timeline if needed.',
+        'action' => 'View deal',
     ],
 
     'subTaskCreated' => 'Sub task created.',

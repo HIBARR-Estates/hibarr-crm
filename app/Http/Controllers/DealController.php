@@ -1240,6 +1240,7 @@ class DealController extends AccountBaseController
                 [],
                 $deal->dealWatchers->pluck('name', 'id')->toArray()
             );
+            app(\App\Services\DealNotificationService::class)->notifyWatchersChanged($deal, [], $watcherIds);
         }
 
         // Handle deal participants
@@ -1544,7 +1545,9 @@ class DealController extends AccountBaseController
 
         // Handle deal watchers
         if ($request->deal_watcher && is_array($request->deal_watcher)) {
+            $oldWatcherIds = $deal->dealWatchers()->pluck('users.id')->toArray();
             $deal->dealWatchers()->sync($request->deal_watcher);
+            app(\App\Services\DealNotificationService::class)->notifyWatchersChanged($deal, $oldWatcherIds, $request->deal_watcher);
         }
 
         // Handle deal participants
@@ -2159,6 +2162,11 @@ class DealController extends AccountBaseController
             return;
         }
 
+        // Mass delete bypasses DealObserver, so capture the affected deals up front
+        // and notify their agents/watchers explicitly (in-app only — mail stays
+        // suppressed by the bulk-action container flag set in bulkAction()).
+        $deals = Deal::whereIn('id', $deletableIds)->get();
+
         $model = new ReflectionClass('App\Models\Deal');
 
         DB::table('custom_fields_data')
@@ -2167,6 +2175,11 @@ class DealController extends AccountBaseController
             ->delete();
 
         Deal::whereIn('id', $deletableIds)->delete();
+
+        $notificationService = app(\App\Services\DealNotificationService::class);
+        foreach ($deals as $deal) {
+            $notificationService->notifyDealDeleted($deal, user());
+        }
     }
 
     protected function changeBulkStatus($request, ?array $editableIds = null)
@@ -2194,11 +2207,25 @@ class DealController extends AccountBaseController
             return;
         }
 
+        // Mass update bypasses DealObserver, so capture pre-change deals up front
+        // and notify their agents/watchers explicitly after the update (in-app
+        // only — mail stays suppressed by the bulk-action container flag).
+        $deals = Deal::whereIn('id', $editableIds)->get();
+
         if ($stage->slug === 'win' || $stage->slug === 'lost') {
             Deal::whereIn('id', $editableIds)->whereNull('close_date')->update(['close_date' => now()->format('Y-m-d')]);
         }
 
         Deal::whereIn('id', $editableIds)->update(['pipeline_stage_id' => $newStatus]);
+
+        $notificationService = app(\App\Services\DealNotificationService::class);
+        foreach ($deals as $deal) {
+            if ((int) $deal->pipeline_stage_id === (int) $newStatus) {
+                continue;
+            }
+            $fromStageName = PipelineStage::find($deal->pipeline_stage_id)?->name ?? 'Unknown';
+            $notificationService->notifyStageChanged($deal, $fromStageName, $stage->name ?? 'Unknown');
+        }
     }
 
     protected function changeAgentStatus($request, ?Collection $eligibleDeals = null)

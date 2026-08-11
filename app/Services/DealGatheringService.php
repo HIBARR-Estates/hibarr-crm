@@ -13,11 +13,8 @@ use App\Models\Currency;
 use App\Models\User;
 use Illuminate\Support\Str;
 use App\Enums\DealUpdateType;
-use App\Notifications\BaseNotification;
-use App\Notifications\LeadAgentAssigned;
 use App\Support\LeadSearchQuery;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Notification;
 
 class DealGatheringService
 {
@@ -348,23 +345,7 @@ class DealGatheringService
                         $newWatcherNames
                     );
 
-                    $addedWatcherIds = array_values(array_diff($newWatcherIds, $oldWatcherIds));
-                    if (user()) {
-                        $addedWatcherIds = array_values(array_filter(
-                            $addedWatcherIds,
-                            static fn (int $userId) => $userId !== user()->id
-                        ));
-                    }
-
-                    if (!empty($addedWatcherIds)) {
-                        $addedWatchers = User::whereIn('id', $addedWatcherIds)->get();
-                        if ($addedWatchers->isNotEmpty()) {
-                            Notification::send(
-                                $addedWatchers,
-                                BaseNotification::applySuppressionFromContainer(new LeadAgentAssigned($deal))
-                            );
-                        }
-                    }
+                    $this->notificationService->notifyWatchersChanged($deal, $oldWatcherIds, $newWatcherIds);
                 }
 
                 if (array_key_exists('deal_participant', $data)) {

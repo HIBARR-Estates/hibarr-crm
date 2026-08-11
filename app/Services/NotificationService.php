@@ -2,17 +2,16 @@
 
 namespace App\Services;
 
-use App\Helper\Reply;
 use App\Models\Task;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Notifications\DatabaseNotification;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
-use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 /**
  * Service class for managing user notifications.
- * 
+ *
  * Handles notification retrieval, marking as read, deletion,
  * and bulk operations for the notification system.
  */
@@ -21,10 +20,9 @@ class NotificationService
     /**
      * Get paginated notifications for a user.
      *
-     * @param User $user The user to get notifications for
-     * @param array $filters Optional filters ['status' => 'all|unread|read', 'type' => string]
-     * @param int $perPage Number of notifications per page
-     * @return LengthAwarePaginator
+     * @param  User  $user  The user to get notifications for
+     * @param  array  $filters  Optional filters ['status' => 'all|unread|read', 'type' => string]
+     * @param  int  $perPage  Number of notifications per page
      */
     public function getNotifications(User $user, array $filters = [], int $perPage = 15): LengthAwarePaginator
     {
@@ -40,13 +38,13 @@ class NotificationService
         }
 
         // Filter by notification type
-        if (isset($filters['type']) && !empty($filters['type'])) {
-            $query->where('type', 'like', '%' . $filters['type'] . '%');
+        if (isset($filters['type']) && ! empty($filters['type'])) {
+            $query->where('type', 'like', '%'.$filters['type'].'%');
         }
 
         // Search in notification data
-        if (isset($filters['search']) && !empty($filters['search'])) {
-            $query->where('data', 'like', '%' . $filters['search'] . '%');
+        if (isset($filters['search']) && ! empty($filters['search'])) {
+            $query->where('data', 'like', '%'.$filters['search'].'%');
         }
 
         return $query->orderBy('created_at', 'desc')->paginate($perPage);
@@ -54,9 +52,6 @@ class NotificationService
 
     /**
      * Get unread notifications count for a user.
-     *
-     * @param User $user
-     * @return int
      */
     public function getUnreadCount(User $user): int
     {
@@ -65,10 +60,6 @@ class NotificationService
 
     /**
      * Get recent unread notifications for dropdown preview.
-     *
-     * @param User $user
-     * @param int $limit
-     * @return Collection
      */
     public function getRecentUnread(User $user, int $limit = 6): Collection
     {
@@ -80,9 +71,6 @@ class NotificationService
 
     /**
      * Format notification for API response.
-     *
-     * @param DatabaseNotification $notification
-     * @return array
      */
     public function formatNotification(DatabaseNotification $notification): array
     {
@@ -101,7 +89,7 @@ class NotificationService
             'data' => $data,
             'link' => $this->getNotificationLink($typeSlug, $data),
             'icon' => $this->getNotificationIcon($typeSlug),
-            'is_read' => !is_null($notification->read_at),
+            'is_read' => ! is_null($notification->read_at),
             'read_at' => $notification->read_at?->toIso8601String(),
             'created_at' => $notification->created_at->toIso8601String(),
             'time_ago' => $notification->created_at->diffForHumans(),
@@ -111,51 +99,45 @@ class NotificationService
     /**
      * Format a collection of notifications.
      *
-     * @param Collection $notifications
-     * @return array
+     * @param  Collection  $notifications
      */
     public function formatNotifications($notifications): array
     {
-        return $notifications->map(fn($n) => $this->formatNotification($n))->toArray();
+        return $notifications->map(fn ($n) => $this->formatNotification($n))->toArray();
     }
 
     /**
      * Mark a single notification as read.
-     *
-     * @param User $user
-     * @param string $notificationId
-     * @return bool
      */
     public function markAsRead(User $user, string $notificationId): bool
     {
         $notification = $user->notifications()->where('id', $notificationId)->first();
 
-        if (!$notification) {
+        if (! $notification) {
             return false;
         }
 
         $notification->markAsRead();
+
         return true;
     }
 
     /**
      * Mark all unread notifications as read for a user.
      *
-     * @param User $user
      * @return int Number of notifications marked as read
      */
     public function markAllAsRead(User $user): int
     {
         $count = $user->unreadNotifications()->count();
         $user->unreadNotifications->markAsRead();
+
         return $count;
     }
 
     /**
      * Mark multiple notifications as read.
      *
-     * @param User $user
-     * @param array $notificationIds
      * @return int Number of notifications marked as read
      */
     public function markMultipleAsRead(User $user, array $notificationIds): int
@@ -166,16 +148,12 @@ class NotificationService
             ->get();
 
         $notifications->markAsRead();
-        
+
         return $notifications->count();
     }
 
     /**
      * Delete a single notification.
-     *
-     * @param User $user
-     * @param string $notificationId
-     * @return bool
      */
     public function delete(User $user, string $notificationId): bool
     {
@@ -189,8 +167,6 @@ class NotificationService
     /**
      * Delete multiple notifications.
      *
-     * @param User $user
-     * @param array $notificationIds
      * @return int Number of notifications deleted
      */
     public function deleteMultiple(User $user, array $notificationIds): int
@@ -203,7 +179,6 @@ class NotificationService
     /**
      * Delete all read notifications for a user.
      *
-     * @param User $user
      * @return int Number of notifications deleted
      */
     public function deleteAllRead(User $user): int
@@ -215,10 +190,6 @@ class NotificationService
 
     /**
      * Get notification title based on type.
-     *
-     * @param string $typeSlug
-     * @param array $data
-     * @return string
      */
     protected function getNotificationTitle(string $typeSlug, array $data): string
     {
@@ -259,6 +230,10 @@ class NotificationService
             'shift_scheduled' => __('email.shiftScheduled.subject'),
             'shift_change_status' => __('email.shiftChangeStatus.subject'),
             'promotion_added' => __('email.promotionAdded.subject'),
+            'lead_deleted' => __('email.leadDeleted.subject'),
+            'lead_follow_up_overdue' => __('email.leadFollowUpOverdue.subject'),
+            'deal_deleted' => __('email.dealDeleted.subject'),
+            'deal_close_date_approaching' => __('email.dealCloseDateApproaching.subject'),
         ];
 
         return $titles[$typeSlug] ?? ($data['title'] ?? $data['activity_label'] ?? ucfirst(str_replace('_', ' ', $typeSlug)));
@@ -268,18 +243,14 @@ class NotificationService
      * Build a readable fallback sentence for notification classes that don't
      * ship an explicit `title`/`text`/`message`/`heading` — avoids surfacing
      * a bare id, a raw model dump, or an empty body in the notification island.
-     *
-     * @param array $data
-     * @param string $title
-     * @return string
      */
     protected function getNotificationFallbackText(array $data, string $title): string
     {
         $subjectKeys = ['name', 'subject', 'project_name', 'event_name', 'item_name', 'ticket_subject'];
 
         foreach ($subjectKeys as $key) {
-            if (!empty($data[$key]) && is_string($data[$key])) {
-                return trim($title) . ': ' . $data[$key];
+            if (! empty($data[$key]) && is_string($data[$key])) {
+                return trim($title).': '.$data[$key];
             }
         }
 
@@ -348,15 +319,11 @@ class NotificationService
 
     /**
      * Get notification link based on type.
-     *
-     * @param string $typeSlug
-     * @param array $data
-     * @return string|null
      */
     protected function getNotificationLink(string $typeSlug, array $data): ?string
     {
         // Check for explicit action_url in notification data first
-        if (!empty($data['action_url'])) {
+        if (! empty($data['action_url'])) {
             return $data['action_url'];
         }
 
@@ -372,7 +339,7 @@ class NotificationService
             $id = $data['deal_id'] ?? $data['task_id'] ?? $data['project_id'] ?? $data['id'] ?? null;
         }
 
-        if (!$id) {
+        if (! $id) {
             return null;
         }
 
@@ -425,6 +392,10 @@ class NotificationService
             'auto_follow_up_reminder' => 'deals.show',
             'new_communication_activity' => 'deals.show',
             'lead_imported' => 'deals.show',
+            'lead_deleted' => 'lead-contact.index',
+            'lead_follow_up_overdue' => 'deals.show',
+            'deal_deleted' => 'deals.index',
+            'deal_close_date_approaching' => 'deals.show',
 
             // Projects
             'new_project' => 'projects.show',
@@ -520,9 +491,6 @@ class NotificationService
 
     /**
      * Get notification icon based on type.
-     *
-     * @param string $typeSlug
-     * @return string
      */
     protected function getNotificationIcon(string $typeSlug): string
     {
@@ -579,6 +547,10 @@ class NotificationService
             'auto_follow_up_reminder' => 'deal',
             'new_communication_activity' => 'deal',
             'lead_imported' => 'lead',
+            'lead_deleted' => 'lead',
+            'lead_follow_up_overdue' => 'event',
+            'deal_deleted' => 'deal',
+            'deal_close_date_approaching' => 'deal',
 
             // Projects
             'new_project' => 'project',
@@ -653,9 +625,6 @@ class NotificationService
 
     /**
      * Get all distinct notification types for a user.
-     *
-     * @param User $user
-     * @return array
      */
     public function getNotificationTypes(User $user): array
     {
@@ -665,6 +634,7 @@ class NotificationService
             ->pluck('type')
             ->map(function ($type) {
                 $basename = class_basename($type);
+
                 return [
                     'value' => $basename,
                     'label' => ucfirst(str_replace('_', ' ', Str::snake($basename))),
