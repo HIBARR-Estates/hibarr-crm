@@ -208,6 +208,23 @@ class MeetingEmailPresenter
         return $date !== '' ? $date : $time;
     }
 
+    /**
+     * Plain-text equivalent of scheduleLine() — for embedding in sentence-style
+     * copy (in-app notifications, push, SMS-like previews) where HTML entities
+     * like &ensp;/&middot; would render as literal text instead of a middot.
+     */
+    public function scheduleLinePlain(): string
+    {
+        $date = $this->meetingDate();
+        $time = $this->meetingTime();
+
+        if ($date !== '' && $time !== '') {
+            return $date.' · '.$time;
+        }
+
+        return $date !== '' ? $date : $time;
+    }
+
     public function crmButtonHtml(bool $isLeadRecipient): string
     {
         if ($isLeadRecipient) {
@@ -529,7 +546,7 @@ class MeetingEmailPresenter
     private function leadReminderMessage(int $secondsUntil, string $countdown): string
     {
         $agent = $this->agentName();
-        $schedule = $this->scheduleLine();
+        $schedule = $this->scheduleLinePlain();
         $minutesLabel = $this->minutesLabel();
 
         if ($secondsUntil <= 0) {
@@ -565,7 +582,7 @@ class MeetingEmailPresenter
     {
         $lead = $this->leadName();
         $type = $this->meetingTypeName();
-        $schedule = $this->scheduleLine();
+        $schedule = $this->scheduleLinePlain();
         $deal = $this->dealName();
         $minutesLabel = $this->minutesLabel();
 
@@ -595,6 +612,10 @@ class MeetingEmailPresenter
             return $schedule !== ''
                 ? __('email.meetingReminder.agentCountdownNoLeadWithSchedule', $params)
                 : __('email.meetingReminder.agentCountdownNoLead', $params);
+        }
+
+        if ($type !== '' && $deal !== '' && $schedule !== '') {
+            return __('email.meetingReminder.agentCountdownWithTypeAndDeal', $params);
         }
 
         if ($deal !== '' && $schedule !== '') {

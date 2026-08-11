@@ -13,6 +13,7 @@ use App\Services\Notifications\UnsEmailPayloadMapper;
 use App\Models\Lead;
 use App\Support\LeadLocaleResolver;
 use App\Support\MeetingEmailPresenter;
+use App\Support\SafeHttpUrl;
 use Carbon\CarbonInterface;
 use Carbon\CarbonInterval;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -144,7 +145,7 @@ class ReminderNotification extends BaseNotification
 
     public function toArray($notifiable): array
     {
-        return [
+        $payload = [
             'reminder_id' => $this->reminder->id,
             'entity_type' => $this->reminder->entity_type,
             'entity_id' => $this->reminder->entity_id,
@@ -154,6 +155,68 @@ class ReminderNotification extends BaseNotification
             'text' => $this->resolveInAppMessage(),
             'action_url' => $this->resolveActionUrl(),
         ];
+
+        if ($this->reminder->entity_type === Reminder::ENTITY_MEETING) {
+            $payload = array_merge($payload, $this->meetingContextPayload());
+        }
+
+        if ($this->reminder->entity_type === Reminder::ENTITY_TASK) {
+            $payload = array_merge($payload, $this->taskContextPayload());
+        }
+
+        return $payload;
+    }
+
+    /**
+     * Task + linked deal/lead for in-app task reminder actions.
+     *
+     * @return array<string, mixed>
+     */
+    private function taskContextPayload(): array
+    {
+        $task = $this->resolveTask();
+        if ($task === null) {
+            return [];
+        }
+
+        return [
+            'task_id' => $task->id,
+        ];
+    }
+
+    /**
+     * Deal/lead + join link for in-app meeting reminder actions.
+     *
+     * @return array<string, mixed>
+     */
+    private function meetingContextPayload(): array
+    {
+        $followUp = $this->resolveFollowUp();
+        if ($followUp === null) {
+            return [];
+        }
+
+        $presenter = new MeetingEmailPresenter($followUp, $this->company, $this->reminder->message);
+        $meetingAt = $presenter->meetingAt();
+        $startsNow = $meetingAt !== null
+            && $meetingAt->getTimestamp() - now()->getTimestamp() <= 0;
+
+        $payload = [
+            'follow_up_id' => $followUp->id,
+            'deal_id' => $followUp->deal_id,
+            'lead_id' => $followUp->lead_id,
+            'starts_now' => $startsNow,
+        ];
+
+        $meetingLink = SafeHttpUrl::validate($followUp->meeting_link);
+        if ($meetingLink !== null) {
+            $payload['meeting_link'] = $meetingLink;
+        }
+
+        return array_filter(
+            $payload,
+            static fn ($value) => $value !== null && $value !== '' && $value !== false,
+        );
     }
 
     /**

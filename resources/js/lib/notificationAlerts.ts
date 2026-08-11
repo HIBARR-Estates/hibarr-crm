@@ -8,7 +8,7 @@ const NOTCH_POSITION_STORAGE_KEY = "notification_notch_position";
 const NOTCH_DURATION_STORAGE_KEY = "notification_notch_duration";
 
 /** Peak gain for the notification chime (Web Audio 0–1 scale). */
-const NOTIFICATION_SOUND_PEAK_GAIN = 0.12;
+const NOTIFICATION_SOUND_PEAK_GAIN = 0.35;
 
 let sharedAudioContext: AudioContext | null = null;
 
@@ -142,6 +142,9 @@ export async function requestDesktopPermission(): Promise<NotificationPermission
     return Notification.requestPermission();
 }
 
+/** Island-style icon for OS desktop notification popups only (not the app tab favicon). */
+const DESKTOP_NOTIFICATION_ICON = "/notification-icon.svg";
+
 export function showDesktopNotification(
     title: string,
     body: string,
@@ -157,7 +160,7 @@ export function showDesktopNotification(
     try {
         const popup = new Notification(title, {
             body,
-            icon: "/favicon.ico",
+            icon: DESKTOP_NOTIFICATION_ICON,
             tag: link ?? undefined,
         });
 

@@ -7,6 +7,11 @@ return [
         'action' => 'Открыть лид',
         'text' => 'В ваш пайплайн добавлен новый лид. Подробности ниже.',
     ],
+    'leadAgentAssigned' => [
+        'subject' => 'Вам назначена роль агента по лиду',
+        'text' => 'Вам назначена роль агента по лиду :leadName.',
+        'action' => 'Открыть лид',
+    ],
     'dealAgentAssigned' => [
         'subject' => 'Вам назначена роль агента по сделке',
         'text' => 'Вам назначена роль агента по сделке :dealName.',
@@ -80,6 +85,7 @@ return [
         'agentCountdown' => 'Встреча с :lead через :minutesLabel — запланирована :schedule.',
         'agentCountdownWithType' => ':type с :lead через :minutesLabel — запланирована :schedule.',
         'agentCountdownWithDeal' => 'Встреча с :lead (:deal) через :minutesLabel — запланирована :schedule.',
+        'agentCountdownWithTypeAndDeal' => ':type с :lead (:deal) через :minutesLabel — запланирована :schedule.',
         'agentCountdownNoSchedule' => 'Встреча с :lead через :minutesLabel.',
         'agentCountdownNoLead' => 'Ваша встреча начнётся через :minutesLabel.',
         'agentCountdownNoLeadWithSchedule' => 'Ваша встреча начнётся через :minutesLabel — запланирована :schedule.',
@@ -123,6 +129,12 @@ return [
         'dueCountdown' => '«:title» через :countdown.',
         'dueNow' => '«:title» наступает сейчас.',
         'footerNote' => 'Проверьте детали маршрута перед этим сегментом.',
+    ],
+    'aiSummary' => [
+        'prefix' => 'ИИ-сводка: ',
+    ],
+    'projectReminder' => [
+        'additionalProjects' => ':count проект|:count проекта|:count проектов',
     ],
 
 ];

@@ -3,6 +3,7 @@
 namespace App\Notifications;
 
 use App\Models\Event;
+use App\Support\SafeHttpUrl;
 
 class EventReminder extends BaseNotification
 {
@@ -85,7 +86,32 @@ class EventReminder extends BaseNotification
     //phpcs:ignore
     public function toArray($notifiable)
     {
-        return $this->event->toArray();
+        $url = route('events.show', $this->event->id);
+        $url = getDomainSpecificUrl($url, $this->company);
+
+        $timezone = $this->company->timezone ?? 'UTC';
+        $startDateTime = $this->event->start_date_time->copy()->setTimezone($timezone);
+        $secondsUntil = $startDateTime->getTimestamp() - now()->getTimestamp();
+        // Match in-app alert window: from 5 minutes before through 15 minutes after start.
+        $startsNow = $secondsUntil <= 5 * 60 && $secondsUntil >= -15 * 60;
+
+        $payload = [
+            'entity_type' => 'meeting',
+            'action_url' => $url,
+            'title' => $this->event->event_name,
+            'starts_now' => $startsNow,
+        ];
+
+        $eventLink = SafeHttpUrl::validate($this->event->event_link);
+        if ($eventLink !== null) {
+            $payload['event_link'] = $eventLink;
+            $payload['meeting_link'] = $eventLink;
+        }
+
+        $base = $this->event->toArray();
+        unset($base['event_link'], $base['meeting_link']);
+
+        return array_merge($base, $payload);
     }
 
 }
