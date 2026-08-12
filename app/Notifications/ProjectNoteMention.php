@@ -99,6 +99,9 @@ class ProjectNoteMention extends BaseNotification
     {
         return [
             'id' => $this->project->id,
+            'project_id' => $this->project->id,
+            'title' => __('email.projectNote.mentionSubject'),
+            'text' => __('email.projectNote.mentionText') . ' - ' . $this->project->project_name,
             'created_at' => $this->project->created_at->format('Y-m-d H:i:s'),
             'heading' => $this->project->project_name,
         ];

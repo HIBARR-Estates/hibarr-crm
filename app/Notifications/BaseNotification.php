@@ -46,6 +46,55 @@ class BaseNotification extends Notification implements ShouldQueue
         });
     }
 
+    /**
+     * A short, labeled snippet from the entity's already-generated AI summary
+     * (status_line), for folding into an assignment notification instead of
+     * pure boilerplate. Read-only lookup — never triggers generation, since
+     * that's an explicit user action (rate-limited, on-demand) elsewhere.
+     * Returns null whenever no summary has been generated yet for this
+     * entity, which is the common case for a newly created lead/deal.
+     */
+    protected function aiSummarySnippet(\App\Models\Deal|\App\Models\Lead $entity, int $maxLength = 110): ?string
+    {
+        try {
+            $summary = $entity instanceof \App\Models\Deal
+                ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($entity)
+                : app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($entity);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        $statusLine = $this->safeMailText($summary['status_line'] ?? '', 2000);
+        if ($statusLine === '') {
+            return null;
+        }
+
+        return __('email.aiSummary.prefix').\Illuminate\Support\Str::limit($statusLine, $maxLength);
+    }
+
+    /**
+     * Cap user/entity text before it enters mail/preheader rendering.
+     * Staging has seen multi‑hundred‑MB field values that OOM PHP during Blade sanitize.
+     */
+    protected function safeMailText(mixed $value, int $maxBytes = 200): string
+    {
+        $text = is_string($value) ? $value : (string) ($value ?? '');
+
+        if ($text !== '' && strlen($text) > $maxBytes) {
+            $text = substr($text, 0, $maxBytes);
+        }
+
+        return trim($text);
+    }
+
+    /**
+     * Inbox preheader — always short; never pass unbounded HTML/body into templates.
+     */
+    protected function safePreheader(mixed $value, int $maxChars = 140): string
+    {
+        return \Illuminate\Support\Str::limit($this->safeMailText($value, 2000), $maxChars);
+    }
+
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
     {
         $this->suppressBulkTransactionalEmails = $value;

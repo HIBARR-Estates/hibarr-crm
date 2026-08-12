@@ -260,6 +260,7 @@ export default function WorkspaceContextRail({
             // Drives the per-slot "Uploading…" state.
             isUploadingField,
             leadName,
+            leadPhotoUrl,
             leadUrl,
             packageSummary,
             phone,

@@ -3,6 +3,8 @@
 namespace App\Jobs;
 
 use App\Models\DealFollowUp;
+use App\Scopes\ActiveScope;
+use App\Scopes\CompanyScope;
 use App\Services\CalendarSyncService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -26,7 +28,16 @@ class SyncCalendarEventJob implements ShouldQueue
     public function handle(CalendarSyncService $syncService): void
     {
         $followUp = DealFollowUp::query()
-            ->with(['meetingType', 'deal'])
+            ->with([
+                'meetingType',
+                'lead' => fn ($query) => $query->withoutGlobalScope(CompanyScope::class),
+                'deal' => fn ($query) => $query
+                    ->withoutGlobalScope(CompanyScope::class)
+                    ->with([
+                        'contact' => fn ($contactQuery) => $contactQuery->withoutGlobalScope(CompanyScope::class),
+                        'leadAgent.user' => fn ($userQuery) => $userQuery->withoutGlobalScope(ActiveScope::class),
+                    ]),
+            ])
             ->find($this->followUpId);
 
         if (!$followUp) {
@@ -40,12 +51,12 @@ class SyncCalendarEventJob implements ShouldQueue
             $jobId = $syncService->enqueueEvent($followUp, CalendarSyncService::PLATFORM_ZOHO);
 
             if ($jobId) {
-                $followUp->update([
+                $followUp->updateQuietly([
                     'zoho_calendar_job_id' => $jobId,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_PENDING,
                 ]);
             } else {
-                $followUp->update([
+                $followUp->updateQuietly([
                     'zoho_calendar_job_id' => null,
                     'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
                 ]);
@@ -57,7 +68,7 @@ class SyncCalendarEventJob implements ShouldQueue
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            $followUp->update([
+            $followUp->updateQuietly([
                 'zoho_calendar_job_id' => null,
                 'zoho_calendar_sync_status' => DealFollowUp::ZOHO_CALENDAR_SYNC_FAILED,
             ]);

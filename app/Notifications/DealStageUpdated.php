@@ -59,13 +59,14 @@ class DealStageUpdated extends BaseNotification
 
         $leadStage = __('modules.leadContact.stage') . ': ';
         $leadPipeline = __('modules.deal.pipeline') . ': ';
-        $content = __('email.dealStatus.subject') . '<br>' . __('modules.lead.clientName') . ': ' .   $this->deal->contact->client_name_salutation . '<br>' . $leadPipeline . $this->deal->pipeline->name. '<br>' . $leadStage . $this->deal->leadStage->name;
+        $content = __('email.dealStatus.subject') . '<br>' . __('modules.lead.clientName') . ': ' .   $this->safeMailText($this->deal->contact->client_name_salutation ?? $this->deal->contact->client_name ?? '', 200) . '<br>' . $leadPipeline . $this->safeMailText($this->deal->pipeline->name ?? '', 200). '<br>' . $leadStage . $this->safeMailText($this->deal->leadStage->name ?? '', 200);
 
         $build
             ->subject(__('email.dealStatus.subject') . ' - ' . config('app.name'))
             ->view('mail.deal-updated', [
                 'url' => $url,
                 'content' => $content,
+                'preheader' => $this->safePreheader(__('email.dealStatus.subject')),
                 'themeColor' => $this->company->header_color,
                 'actionText' => __('email.dealStatus.action'),
                 'notifiableName' => $notifiable->name

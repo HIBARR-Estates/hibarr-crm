@@ -42,7 +42,11 @@ class NewLeadCreated extends BaseNotification
         if ($this->emailSetting->send_push == 'yes' && push_setting()->beams_push_status == 'active') {
             $pushNotification = new \App\Http\Controllers\DashboardController();
             $pushUsersIds = [[$notifiable->id]];
-            $pushNotification->sendPushNotifications($pushUsersIds, __('email.lead.subject'), $this->leadContact->client_name);
+            $pushNotification->sendPushNotifications(
+                $pushUsersIds,
+                __('email.lead.subject'),
+                $this->safeMailText($this->leadContact->client_name, 200)
+            );
         }
 
         return $via;
@@ -60,27 +64,33 @@ class NewLeadCreated extends BaseNotification
         $url = route('lead-contact.show', $this->leadContact->id);
         $url = getDomainSpecificUrl($url, $this->company);
 
-        $leadEmail = __('modules.lead.clientEmail') . ': ';
-        $clientEmail = !is_null($this->leadContact->client_email) ? $leadEmail . $this->leadContact->client_email . '<br>' : '';
-        $content = __('email.lead.subject') . '<br>' . __('modules.lead.clientName') . ': '  . $this->leadContact->client_name_salutation . '<br>' . $clientEmail;
+        $leadName = $this->safeMailText($this->leadContact->client_name_salutation ?? $this->leadContact->client_name, 200);
+        $leadEmail = $this->safeMailText($this->leadContact->client_email ?? '', 320);
+        $leadEmailLabel = __('modules.lead.clientEmail') . ': ';
+        $clientEmail = $leadEmail !== '' ? $leadEmailLabel . $leadEmail . '<br>' : '';
+        $content = __('email.lead.subject') . '<br>' . __('modules.lead.clientName') . ': '  . $leadName . '<br>' . $clientEmail;
 
         if (session()->has('deal_name')) {
-            $content .=  __('modules.deal.dealName') . ": " . session('deal_name') . '<br>';
+            $content .=  __('modules.deal.dealName') . ": " . $this->safeMailText(session('deal_name'), 200) . '<br>';
         }
+
+        $preheader = $this->safePreheader(__('email.newLead.text'));
 
         $build
             ->subject(__('email.lead.subject') . ' - ' . config('app.name'))
             ->markdown('mail.email', [
                 'url' => $url,
                 'content' => $content,
+                'preheader' => $preheader,
                 'themeColor' => $this->company->header_color,
                 'actionText' => __('email.lead.action'),
                 'notifiableName' => $notifiable->name
             ]);
 
         $this->attachPlunkTemplate($build, 'd64189c5-07db-44be-8a6e-f16df5b2a9c0', [
-            'leadName'      => $this->leadContact->client_name,
-            'leadEmail'     => $this->leadContact->client_email ?? '',
+            'preheader'     => $preheader,
+            'leadName'      => $this->safeMailText($this->leadContact->client_name, 200),
+            'leadEmail'     => $leadEmail,
             'leadOwnerName' => optional($this->leadContact->leadOwner)->name ?? '',
             'sourceName'    => optional($this->leadContact->leadSource)->type ?? '',
             'createdAt'     => $this->leadContact->created_at->format($this->company->date_format),
@@ -104,7 +114,7 @@ class NewLeadCreated extends BaseNotification
     {
         return [
             'id' => $this->leadContact->id,
-            'name' => $this->leadContact->client_name,
+            'name' => $this->safeMailText($this->leadContact->client_name, 200),
             'agent_id' => $notifiable->id,
             'added_by' => $this->leadContact->added_by
         ];

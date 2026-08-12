@@ -599,6 +599,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
         Route::post('import/process', [LeadContactController::class, 'importProcess'])->name('lead-contact.import.process');
         Route::get('sample-import', [LeadContactController::class, 'downloadSampleImport'])->name('lead-contact.sample_import');
         Route::post('apply-quick-action', [LeadContactController::class, 'applyQuickAction'])->name('lead-contact.apply_quick_action');
+        Route::post('export', [LeadContactController::class, 'export'])->name('lead-contact.export');
     });
 
     // Form Data API routes for performance optimization

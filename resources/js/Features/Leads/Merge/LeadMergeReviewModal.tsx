@@ -5,6 +5,7 @@ import { useApiQuery } from "@/lib/api/client/useApiQuery";
 import { useApiMutate } from "@/lib/api/client";
 import { ApiResponse } from "@/lib/api/types";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { formatMobileForDisplay } from "@/lib/utils";
 import type { IModalProps } from "@/Types/common";
 import type {
     LeadMergeReviewResponse,
@@ -27,6 +28,21 @@ const CONTACT_FIELD_LABELS: Record<string, string> = {
     client_telegram: "Telegram",
     client_instagram: "Instagram",
 };
+
+const PHONE_CONTACT_FIELDS = new Set([
+    "mobile",
+    "cell",
+    "office",
+    "client_whatsapp",
+]);
+
+function displayContactValue(field: string, value: unknown): string {
+    if (value == null || value === "") return "—";
+    if (PHONE_CONTACT_FIELDS.has(field)) {
+        return formatMobileForDisplay(value) || "—";
+    }
+    return String(value);
+}
 
 const OWNERSHIP_LABELS: Record<string, string> = {
     lead_owner: "Lead Owner",
@@ -81,7 +97,7 @@ const LeadSummaryColumn: React.FC<{
                                             : "text-gray-800"
                                     }
                                 >
-                                    {value || "—"}
+                                    {displayContactValue(field, value)}
                                     {isConflict && (
                                         <Tag color="warning" className="ml-1">
                                             {td("differs", { source: "en" })}

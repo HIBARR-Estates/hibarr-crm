@@ -152,6 +152,11 @@ export default function EditLeadDetailsModal({
                             payload.age = form.age ? Number(form.age) : null;
                             payload.age_range = form.age_range || null;
                         }
+                    } else if (
+                        field.leadField === "has_joined_the_whatsapp_group"
+                    ) {
+                        payload.has_joined_the_whatsapp_group =
+                            raw === "1" || raw === "true";
                     } else {
                         payload[field.leadField] = raw || null;
                     }
@@ -386,6 +391,26 @@ export default function EditLeadDetailsModal({
                                         { value: "cold", label: td("Cold", { source: "en" }) },
                                         { value: "warm", label: td("Warm", { source: "en" }) },
                                         { value: "hot", label: td("Hot", { source: "en" }) },
+                                    ],
+                                );
+                            }
+                            if (
+                                field.leadField ===
+                                "has_joined_the_whatsapp_group"
+                            ) {
+                                return renderFieldInput(
+                                    "has_joined_the_whatsapp_group",
+                                    field.label,
+                                    "select",
+                                    [
+                                        {
+                                            value: "1",
+                                            label: td("Yes", { source: "en" }),
+                                        },
+                                        {
+                                            value: "0",
+                                            label: td("No", { source: "en" }),
+                                        },
                                     ],
                                 );
                             }

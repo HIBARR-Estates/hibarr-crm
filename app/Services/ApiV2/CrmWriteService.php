@@ -2,6 +2,7 @@
 
 namespace App\Services\ApiV2;
 
+use App\Enums\IntegrationOrigin;
 use App\Events\AutoFollowUpReminderEvent;
 use App\Helper\Files;
 use App\Models\Currency;
@@ -17,6 +18,7 @@ use App\Models\TaskboardColumn;
 use App\Models\User;
 use App\Scopes\ActiveScope;
 use App\Scopes\CompanyScope;
+use App\Services\CalendarSyncDispatcher;
 use App\Services\DealActivityEventService;
 use App\Services\DealNotificationService;
 use App\Services\Reminders\MeetingReminderSync;
@@ -83,6 +85,9 @@ class CrmWriteService
             }
             if (array_key_exists('remind_at', $data)) {
                 $task->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
+            }
+            if (array_key_exists('integration_origin', $data)) {
+                $task->integration_origin = $data['integration_origin'];
             }
 
             if ($createdByUserId !== null) {
@@ -175,6 +180,9 @@ class CrmWriteService
             if (array_key_exists('reminders', $data)) {
                 $note->reminders = $data['reminders'];
             }
+            if (array_key_exists('integration_origin', $data)) {
+                $note->integration_origin = $data['integration_origin'];
+            }
 
             $note->save();
             $note->setRelation('deal', $deal);
@@ -207,6 +215,9 @@ class CrmWriteService
         }
         if (array_key_exists('reminders', $data)) {
             $note->reminders = $data['reminders'];
+        }
+        if (array_key_exists('integration_origin', $data)) {
+            $note->integration_origin = $data['integration_origin'];
         }
 
         $note->save();
@@ -294,13 +305,19 @@ class CrmWriteService
 
         $followUp->save();
 
+        $freshFollowUp = $followUp->fresh();
+
         try {
-            event(new AutoFollowUpReminderEvent($followUp, true));
+            event(new AutoFollowUpReminderEvent($freshFollowUp, true));
         } catch (\Throwable $exception) {
             report($exception);
         }
 
         app(MeetingReminderSync::class)->syncFromFollowUp($followUp);
+
+        if ($freshFollowUp) {
+            app(CalendarSyncDispatcher::class)->scheduleSync($freshFollowUp);
+        }
 
         return $followUp->fresh(self::MEETING_SUMMARY_RELATIONS);
     }
@@ -559,6 +576,10 @@ class CrmWriteService
             $task->remind_at = ! empty($data['remind_at']) ? Carbon::parse($data['remind_at']) : null;
         }
 
+        if (array_key_exists('integration_origin', $data)) {
+            $task->integration_origin = $data['integration_origin'];
+        }
+
         if (!empty($data['updated_by_user_id'])) {
             $task->last_updated_by = (int) $data['updated_by_user_id'];
         }
@@ -711,6 +732,9 @@ class CrmWriteService
         if (array_key_exists('reminders', $data)) {
             $note->reminders = $data['reminders'];
         }
+        if (array_key_exists('integration_origin', $data)) {
+            $note->integration_origin = $data['integration_origin'];
+        }
 
         $note->save();
 
@@ -761,7 +785,7 @@ class CrmWriteService
             $query->where('lead_id', (int) $filters['lead_id']);
         }
 
-        $this->applyMeetingListFilters($query, $filters);
+        $this->applyMeetingListFilters($query, $filters, $companyId);
 
         $page = max(1, (int) ($filters['page'] ?? 1));
         $perPage = min(100, max(1, (int) ($filters['per_page'] ?? 20)));
@@ -992,9 +1016,9 @@ class CrmWriteService
      * @param  Builder<DealFollowUp>  $query
      * @param  array<string, mixed>  $filters
      */
-    private function applyMeetingListFilters(Builder $query, array $filters): void
+    private function applyMeetingListFilters(Builder $query, array $filters, int $companyId): void
     {
-        $this->applySearchFilter($query, $filters, ['remark']);
+        $this->applyMeetingSearchFilter($query, $filters, $companyId);
         $this->applyCreatedByFilter($query, $filters, ['added_by']);
         $this->applyOwnedByFilter($query, $filters, function (Builder $q, int $userId) {
             $q->where(function (Builder $owned) use ($userId) {
@@ -1004,6 +1028,59 @@ class CrmWriteService
         });
         // Meeting "time" is the scheduled slot, not created_at.
         $this->applyTimeRangeFilter($query, $filters, 'next_follow_up_date');
+    }
+
+    /**
+     * Search meetings across remark, location, link, duration, type, deal/lead names, and participant names.
+     *
+     * @param  Builder<DealFollowUp>  $query
+     * @param  array<string, mixed>  $filters
+     */
+    private function applyMeetingSearchFilter(Builder $query, array $filters, int $companyId): void
+    {
+        $search = trim((string) ($filters['search'] ?? ''));
+        if ($search === '') {
+            return;
+        }
+
+        $like = $this->searchLikePattern($search);
+
+        $query->where(function (Builder $q) use ($like, $search, $companyId) {
+            $q->where('remark', 'like', $like)
+                ->orWhere('location', 'like', $like)
+                ->orWhere('meeting_link', 'like', $like)
+                ->orWhereRaw('CAST(COALESCE(duration, ?) AS CHAR) LIKE ?', [
+                    DealFollowUp::DEFAULT_DURATION_MINUTES,
+                    $like,
+                ])
+                ->orWhereHas('meetingType', fn (Builder $type) => $type->where('name', 'like', $like))
+                ->orWhereHas('deal', fn (Builder $deal) => $deal->where('name', 'like', $like))
+                ->orWhereHas('lead', fn (Builder $lead) => $lead->where('client_name', 'like', $like));
+
+            if (ctype_digit($search)) {
+                $q->orWhere('duration', (int) $search);
+            }
+
+            $participantUserIds = User::withoutGlobalScope(ActiveScope::class)
+                ->where('company_id', $companyId)
+                ->where('name', 'like', $like)
+                ->pluck('id');
+
+            if ($participantUserIds->isNotEmpty()) {
+                $q->orWhere(function (Builder $participantQuery) use ($participantUserIds) {
+                    foreach ($participantUserIds as $userId) {
+                        $participantQuery
+                            ->orWhereJsonContains('participants', $userId)
+                            ->orWhereJsonContains('participants', (string) $userId);
+                    }
+                });
+            }
+        });
+    }
+
+    private function searchLikePattern(string $search): string
+    {
+        return '%'.addcslashes($search, '%_\\').'%';
     }
 
     /**
@@ -1018,7 +1095,7 @@ class CrmWriteService
             return;
         }
 
-        $like = '%'.addcslashes($search, '%_\\').'%';
+        $like = $this->searchLikePattern($search);
 
         $query->where(function (Builder $q) use ($columns, $like) {
             foreach ($columns as $index => $column) {
@@ -1275,6 +1352,7 @@ class CrmWriteService
             'status' => $task->status,
             'due_date' => $task->due_date?->toIso8601String(),
             'start_date' => $task->start_date?->toIso8601String(),
+            'integration_origin' => $this->serializeIntegrationOrigin($task->integration_origin),
             'assignee_user_ids' => $task->users?->pluck('id')->values()->all() ?? [],
             'lead_ids' => $task->relationLoaded('leads') ? $task->leads->pluck('id')->values()->all() : [],
             'deal_ids' => $task->relationLoaded('deals') ? $task->deals->pluck('id')->values()->all() : [],
@@ -1296,6 +1374,7 @@ class CrmWriteService
             'type' => $type,
             'title' => $note->title,
             'details' => $note->details,
+            'integration_origin' => $this->serializeIntegrationOrigin($note->integration_origin),
             'lead_id' => $type === 'lead' ? $note->lead_id : null,
             'deal_id' => $type === 'deal' ? $note->deal_id : null,
             'lead' => $type === 'lead' ? $this->serializeLeadSummary($note->lead) : null,
@@ -1303,6 +1382,15 @@ class CrmWriteService
             'created_at' => $note->created_at?->toIso8601String(),
             'updated_at' => $note->updated_at?->toIso8601String(),
         ];
+    }
+
+    private function serializeIntegrationOrigin(IntegrationOrigin|string|null $integrationOrigin): ?string
+    {
+        if ($integrationOrigin instanceof IntegrationOrigin) {
+            return $integrationOrigin->value;
+        }
+
+        return $integrationOrigin;
     }
 
     /**
