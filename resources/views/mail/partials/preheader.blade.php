@@ -1,12 +1,20 @@
 {{--
   Inbox preview text (preheader). Pass $preheader explicitly, or fall back via $fallback.
   Keep styling in sync with Hibarr reminder templates.
+
+  Cap length BEFORE trim/strip_tags/preg_replace — those copy the full string and will
+  OOM if a caller passes a huge HTML body (or corrupted field) as the preheader.
 --}}
 @php
-    $resolvedPreheader = trim((string) ($preheader ?? ''));
+    $resolvedPreheader = is_string($preheader ?? null) ? $preheader : (string) ($preheader ?? '');
     if ($resolvedPreheader === '' && isset($fallback)) {
-        $resolvedPreheader = trim((string) $fallback);
+        $resolvedPreheader = is_string($fallback) ? $fallback : (string) $fallback;
     }
+    // Hard cap FIRST so later sanitization cannot allocate unbounded memory.
+    if ($resolvedPreheader !== '' && strlen($resolvedPreheader) > 2000) {
+        $resolvedPreheader = substr($resolvedPreheader, 0, 2000);
+    }
+    $resolvedPreheader = trim($resolvedPreheader);
     if ($resolvedPreheader !== '') {
         $resolvedPreheader = html_entity_decode(
             strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>', '</div>'], ' ', $resolvedPreheader)),

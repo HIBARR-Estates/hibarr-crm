@@ -64,12 +64,35 @@ class BaseNotification extends Notification implements ShouldQueue
             return null;
         }
 
-        $statusLine = trim((string) ($summary['status_line'] ?? ''));
+        $statusLine = $this->safeMailText($summary['status_line'] ?? '', 2000);
         if ($statusLine === '') {
             return null;
         }
 
         return __('email.aiSummary.prefix').\Illuminate\Support\Str::limit($statusLine, $maxLength);
+    }
+
+    /**
+     * Cap user/entity text before it enters mail/preheader rendering.
+     * Staging has seen multi‑hundred‑MB field values that OOM PHP during Blade sanitize.
+     */
+    protected function safeMailText(mixed $value, int $maxBytes = 200): string
+    {
+        $text = is_string($value) ? $value : (string) ($value ?? '');
+
+        if ($text !== '' && strlen($text) > $maxBytes) {
+            $text = substr($text, 0, $maxBytes);
+        }
+
+        return trim($text);
+    }
+
+    /**
+     * Inbox preheader — always short; never pass unbounded HTML/body into templates.
+     */
+    protected function safePreheader(mixed $value, int $maxChars = 140): string
+    {
+        return \Illuminate\Support\Str::limit($this->safeMailText($value, 2000), $maxChars);
     }
 
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
