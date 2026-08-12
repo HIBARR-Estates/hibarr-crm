@@ -37,6 +37,9 @@ import {
 } from "./adapters/currencyAdapter";
 import { toLeadTaskPreview } from "./adapters/taskAdapter";
 import { itineraryCount } from "./adapters/itineraryAdapter";
+import { formatMobileForDisplay } from "@/lib/utils";
+import type { Lead } from "@/Types/api/leads";
+import type { QualificationLeadPatch } from "@/Types/qualification";
 import {
     LeadWorkspaceProvider,
     useLeadWorkspace,
@@ -759,10 +762,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     );
                                 }}
                                 onLeadUpdated={(patch) => {
-                                    setLead((prev) => ({
-                                        ...prev,
-                                        ...patch,
-                                    }));
+                                    setLead((prev) =>
+                                        mergeQualificationLeadPatch(prev, patch),
+                                    );
                                 }}
                             />
                         )}
@@ -933,4 +935,54 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
             <ConfirmDialog {...deleteLead.dialogProps} />
         </PageLayout>
     );
+}
+
+/** Apply the qualification-complete lead patch into workspace state (no reload). */
+function mergeQualificationLeadPatch(
+    prev: Lead,
+    patch: QualificationLeadPatch,
+): Lead {
+    const next = { ...prev } as Record<string, unknown>;
+
+    Object.entries(patch).forEach(([key, val]) => {
+        if (val === undefined) return;
+        next[key] =
+            (key === "languages" ||
+                key === "categories" ||
+                key === "category_ids") &&
+            !Array.isArray(val)
+                ? []
+                : val;
+    });
+
+    const lifecycle =
+        patch.lead_lifecycle_status ?? patch.lifecycleStatus;
+    if (lifecycle != null) {
+        next.lead_lifecycle_status = lifecycle;
+        next.lifecycleStatus = lifecycle;
+    }
+
+    if (patch.custom_fields_data && typeof patch.custom_fields_data === "object") {
+        next.custom_fields_data = patch.custom_fields_data;
+    }
+
+    if (patch.mobile !== undefined) {
+        const formatted = formatMobileForDisplay(String(patch.mobile ?? ""));
+        next.mobile_with_phonecode =
+            formatted && formatted !== "--"
+                ? formatted
+                : (patch.mobile_with_phonecode as string | undefined) ?? "--";
+    }
+
+    if (patch.office !== undefined) {
+        const formatted = formatMobileForDisplay(String(patch.office ?? ""));
+        next.office_phone_formatted =
+            formatted && formatted !== "--"
+                ? formatted
+                : (patch.office_phone_formatted as string | undefined) ||
+                  String(patch.office ?? "") ||
+                  "--";
+    }
+
+    return next as unknown as Lead;
 }

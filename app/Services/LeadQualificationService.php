@@ -11,6 +11,7 @@ use App\Models\LeadLifecycleStatus;
 use App\Models\LeadQualification;
 use App\Models\LeadQualificationActionRun;
 use App\Models\LeadQualificationAnswer;
+use App\Services\Qualification\LeadFieldCatalog;
 use App\Services\Qualification\QualificationActionCatalog;
 use App\Services\Qualification\QualificationLeadFieldWriter;
 use App\Services\Qualification\QualificationOutcomePolicy;
@@ -166,12 +167,121 @@ class LeadQualificationService
 
         return [
             'qualification' => $qualification->load(['answers', 'agent:id,name,image', 'actionRuns']),
-            'lead' => $lead ? [
-                'id' => $lead->id,
-                'lead_lifecycle_status_id' => $lead->lead_lifecycle_status_id,
-                'lead_lifecycle_status' => $lead->load('lifecycleStatus')->lead_lifecycle_status,
-            ] : null,
+            'lead' => $this->leadCompletionPatch($lead, $lifecycleStatus, $writtenFields),
         ];
+    }
+
+    /**
+     * Minimal lead payload for the open lead page / qualify rail so written
+     * fields show up without a full reload.
+     *
+     * @param  list<string>  $writtenFields
+     * @return array<string, mixed>|null
+     */
+    private function leadCompletionPatch(
+        ?Lead $lead,
+        ?LeadLifecycleStatus $lifecycleStatus,
+        array $writtenFields
+    ): ?array {
+        if (! $lead) {
+            return null;
+        }
+
+        $status = $lifecycleStatus ?? $lead->lifecycleStatus;
+
+        $patch = [
+            'id' => $lead->id,
+            'lead_lifecycle_status_id' => $lead->lead_lifecycle_status_id,
+            'lead_lifecycle_status' => $status,
+            'lifecycleStatus' => $status,
+        ];
+
+        if ($writtenFields === []) {
+            return $patch;
+        }
+
+        $lead->refresh();
+
+        $wroteCustom = false;
+        $wroteCategory = false;
+        $wroteName = false;
+        $wroteMobile = false;
+        $wroteOffice = false;
+
+        foreach (array_unique($writtenFields) as $field) {
+            if (LeadFieldCatalog::isCategoryField($field)) {
+                $wroteCategory = true;
+                continue;
+            }
+
+            if (LeadFieldCatalog::isCustomField($field)) {
+                $wroteCustom = true;
+                continue;
+            }
+
+            $patch[$field] = $this->scalarLeadAttribute($lead, $field);
+
+            if ($field === 'client_name' || $field === 'salutation') {
+                $wroteName = true;
+            }
+            if ($field === 'mobile') {
+                $wroteMobile = true;
+            }
+            if ($field === 'office') {
+                $wroteOffice = true;
+            }
+        }
+
+        if ($wroteCategory) {
+            $lead->load(['category:id,category_name', 'categories:id,category_name']);
+            $patch['category_id'] = $lead->category_id;
+            $patch['category'] = $lead->category;
+            $patch['categories'] = $lead->categories;
+            $patch['category_ids'] = $lead->categories->pluck('id')->values()->all();
+        }
+
+        if ($wroteCustom) {
+            $lead->withCustomFields();
+            $patch['custom_fields_data'] = $lead->custom_fields_data;
+        }
+
+        if ($wroteName) {
+            $patch['client_name_salutation'] = $lead->client_name_salutation;
+            $salutation = $lead->salutation;
+            $patch['salutation'] = $salutation instanceof \BackedEnum
+                ? $salutation->value
+                : $salutation;
+            $patch['salutation_value'] = $patch['salutation'];
+        }
+
+        if ($wroteMobile) {
+            $patch['mobile_with_phonecode'] = $lead->mobile_with_phonecode;
+        }
+
+        if ($wroteOffice) {
+            $patch['office_phone_formatted'] = $lead->office_phone_formatted;
+        }
+
+        return $patch;
+    }
+
+    private function scalarLeadAttribute(Lead $lead, string $field): mixed
+    {
+        $value = $lead->getAttribute($field);
+
+        if ($value instanceof \BackedEnum) {
+            return $value->value;
+        }
+
+        if ($value instanceof \UnitEnum) {
+            return $value->name;
+        }
+
+        if ($value instanceof \Carbon\CarbonInterface) {
+            return $value->toDateString();
+        }
+
+        return $value;
     }
 
     /**

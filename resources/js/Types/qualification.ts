@@ -434,11 +434,14 @@ export interface LeadLifecycleStatus {
     sort_order?: number;
 }
 
-/** Minimal lead patch returned alongside a completed qualification. */
+/** Lead patch returned alongside a completed qualification (lifecycle + written fields). */
 export interface QualificationLeadPatch {
     id: number;
     lead_lifecycle_status_id: number | null;
-    lead_lifecycle_status: LeadLifecycleStatus | null;
+    lead_lifecycle_status?: LeadLifecycleStatus | null;
+    lifecycleStatus?: LeadLifecycleStatus | null;
+    /** Core / custom / category attributes written by the field mapping. */
+    [key: string]: unknown;
 }
 
 /** In-memory answer state keyed by segment_key */
