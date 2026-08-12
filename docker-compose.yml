@@ -1,0 +1,74 @@
+x-infisical: &infisical-env
+  INFISICAL_TOKEN: ${INFISICAL_TOKEN:?Set INFISICAL_TOKEN in .env}
+  INFISICAL_API_URL: ${INFISICAL_API_URL:?Set INFISICAL_API_URL in .env}
+  INFISICAL_PROJECT_ID: ${INFISICAL_PROJECT_ID:?Set INFISICAL_PROJECT_ID in .env}
+  INFISICAL_ENV: ${INFISICAL_ENV:-dev}
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: hibarr-crm:local
+    restart: unless-stopped
+    ports:
+      - "${APP_PORT:-8080}:80"
+    environment:
+      <<: *infisical-env
+      GRPC_ENABLED: "false"
+      CONTAINER_ROLE: app
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+      OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
+      APP_URL: http://localhost:${APP_PORT:-8080}
+      APP_BUNDLER: mix
+      REDIRECT_HTTPS: "false"
+    volumes:
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - hibarr_storage:/var/www/html/storage
+      - hibarr_uploads:/var/www/html/public/user-uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+  queue:
+    image: hibarr-crm:local
+    restart: unless-stopped
+    environment:
+      <<: *infisical-env
+      GRPC_ENABLED: "false"
+      CONTAINER_ROLE: queue
+      OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
+      RUN_MIGRATIONS: "false"
+      APP_URL: http://localhost:${APP_PORT:-8080}
+      APP_BUNDLER: mix
+      REDIRECT_HTTPS: "false"
+    volumes:
+      - hibarr_storage:/var/www/html/storage
+      - hibarr_uploads:/var/www/html/public/user-uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - app
+
+  scheduler:
+    image: hibarr-crm:local
+    restart: unless-stopped
+    environment:
+      <<: *infisical-env
+      GRPC_ENABLED: "false"
+      CONTAINER_ROLE: scheduler
+      OTEL_LOGS_ENABLED: ${OTEL_LOGS_ENABLED:-false}
+      RUN_MIGRATIONS: "false"
+      APP_URL: http://localhost:${APP_PORT:-8080}
+      APP_BUNDLER: mix
+      REDIRECT_HTTPS: "false"
+    volumes:
+      - hibarr_storage:/var/www/html/storage
+      - hibarr_uploads:/var/www/html/public/user-uploads
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      - app
+
+volumes:
+  hibarr_storage:
+  hibarr_uploads:
