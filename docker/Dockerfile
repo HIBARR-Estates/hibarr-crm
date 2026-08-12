@@ -35,13 +35,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
-RUN printf '%s\n' \
+# bootstrap/cache is gitignored and empty, so COPY . . does not create it.
+# Artisan package discovery needs that directory to be present and writable.
+RUN mkdir -p \
+      bootstrap/cache \
+      storage/framework/cache/data \
+      storage/framework/sessions \
+      storage/framework/views \
+      storage/logs \
+    && printf '%s\n' \
       'APP_NAME=Hibarr' \
       'APP_ENV=production' \
       'APP_KEY=base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=' \
-      'APP_DEBUG=false' \
+      'APP_DEBUG=true' \
       'APP_URL=http://localhost' \
       'GRPC_ENABLED=false' \
+      'LOG_CHANNEL=stderr' \
+      'OTEL_LOGS_ENABLED=false' \
       > .env \
     && php artisan ziggy:generate --ansi
 
