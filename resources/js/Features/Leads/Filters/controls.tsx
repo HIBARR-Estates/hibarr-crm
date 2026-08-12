@@ -41,10 +41,13 @@ const TEMPERATURE_STYLE: Record<
 export function FieldShell({
     label,
     hint,
+    action,
     children,
 }: {
     label: string;
     hint?: React.ReactNode;
+    /** Right-aligned control in the field header (e.g. Clear). */
+    action?: React.ReactNode;
     children: React.ReactNode;
 }) {
     return (
@@ -52,6 +55,9 @@ export function FieldShell({
             <div className="lfm-field__head">
                 <span className="lfm-field__label">{label}</span>
                 {hint ? <span className="lfm-field__hint">{hint}</span> : null}
+                {action ? (
+                    <span className="lfm-field__action">{action}</span>
+                ) : null}
             </div>
             {children}
         </div>

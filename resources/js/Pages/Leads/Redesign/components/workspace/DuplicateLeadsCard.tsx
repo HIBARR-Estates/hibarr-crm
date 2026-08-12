@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "@inertiajs/react";
 import { Icon } from "@/Components/Redesign";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import { formatMobileForDisplay } from "@/lib/utils";
 import LeadMergeReviewModal from "@/Features/Leads/Merge/LeadMergeReviewModal";
 import type { LeadDuplicateCandidate } from "@/Types/api/lead-merge";
 
@@ -14,7 +15,11 @@ interface DuplicateLeadsCardProps {
 }
 
 function candidateMeta(candidate: LeadDuplicateCandidate): string {
-    return [candidate.client_email, candidate.mobile, candidate.company_name]
+    return [
+        candidate.client_email,
+        formatMobileForDisplay(candidate.mobile),
+        candidate.company_name,
+    ]
         .filter(Boolean)
         .join(" · ");
 }

@@ -313,15 +313,22 @@ class MeetingEmailPresenter
     {
         $meetingAt = $this->meetingAt();
         $meetingMessage = $this->message($isLeadRecipient, $isCreatedNotice);
+        // Cap before mail/preheader — unbounded remark/message text can OOM Blade sanitize.
+        if (is_string($meetingMessage) && strlen($meetingMessage) > 2000) {
+            $meetingMessage = substr($meetingMessage, 0, 2000);
+        }
         $url = $isLeadRecipient ? '' : $this->entityUrl();
         $actionText = $this->actionText($isLeadRecipient);
         $detailRemark = $meetingAt !== null ? $this->meetingRemark() : '';
+        if (is_string($detailRemark) && strlen($detailRemark) > 2000) {
+            $detailRemark = substr($detailRemark, 0, 2000);
+        }
         $scheduleLine = $this->scheduleLine();
         $mailSubject = $this->subject($isLeadRecipient, $isCreatedNotice);
 
         return [
             'url' => $url,
-            'preheader' => $meetingMessage,
+            'preheader' => \Illuminate\Support\Str::limit((string) $meetingMessage, 140),
             'mailSubject' => $mailSubject,
             'appName' => (string) config('app.name'),
             'badgeLabel' => $this->badgeLabel($isCreatedNotice),
@@ -349,7 +356,10 @@ class MeetingEmailPresenter
     public static function plunkVariables(array $variables): array
     {
         return [
-            'preheader' => $variables['preheader'] ?? $variables['meetingMessage'],
+            'preheader' => \Illuminate\Support\Str::limit(
+                (string) ($variables['preheader'] ?? $variables['meetingMessage'] ?? ''),
+                140
+            ),
             'mailSubject' => $variables['mailSubject'],
             'appName' => $variables['appName'],
             'badgeLabel' => $variables['badgeLabel'],

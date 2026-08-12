@@ -1,9 +1,67 @@
-import { FilterConfig } from "@/contexts/FilterContext";
+import { FilterConfig, type FilterFieldConfig } from "@/contexts/FilterContext";
 
 const YES_NO_OPTIONS = [
     { value: "1", label: "Yes" },
     { value: "0", label: "No" },
 ];
+
+const OPTION_CUSTOM_FIELD_TYPES = new Set([
+    "select",
+    "radio",
+    "checkbox",
+    "multiselect",
+]);
+
+type LeadCustomFieldDef = {
+    id: number;
+    label?: string;
+    name?: string;
+    type?: string;
+    values?: unknown;
+};
+
+function optionValuesOf(field: LeadCustomFieldDef): string[] {
+    const raw = field.values;
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .map((value) => String(value ?? "").trim())
+        .filter((value) => value !== "");
+}
+
+/** Option-valued lead custom fields → filter controls under Custom Fields. */
+export function buildLeadCustomFieldFilterFields(
+    customFields: LeadCustomFieldDef[] = [],
+): FilterFieldConfig[] {
+    return customFields
+        .filter(
+            (field) =>
+                OPTION_CUSTOM_FIELD_TYPES.has(String(field.type ?? "")) &&
+                optionValuesOf(field).length > 0,
+        )
+        .map((field) => {
+            const options = optionValuesOf(field).map((value) => ({
+                value,
+                label: value,
+            }));
+
+            return {
+                key: `cf_${field.id}`,
+                label: field.label || field.name || `Field ${field.id}`,
+                type: "multiselect" as const,
+                control:
+                    options.length > 12
+                        ? ("checklist" as const)
+                        : ("pills" as const),
+                sentence: (
+                    field.label ||
+                    field.name ||
+                    "custom field"
+                ).toLowerCase(),
+                section: "Custom Fields",
+                options,
+            };
+        });
+}
 
 /**
  * Schema for the Leads filter modal. `type` drives URL/draft state in
@@ -322,6 +380,9 @@ export const createLeadFilterConfig = (props: any): FilterConfig => ({
             section: "Campaign (UTM)",
             options: props.utmAudiences || [],
         },
+
+        // ── Custom fields (option-valued only) ───────────────────
+        ...buildLeadCustomFieldFilterFields(props.customFields || []),
 
         // ── Qualification ─────────────────────────────────────────
         {
