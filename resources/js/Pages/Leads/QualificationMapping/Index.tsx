@@ -464,6 +464,10 @@ const QualificationMappingIndex = ({ leadFields, writeModes }: Props) => {
                                                 option_map: {},
                                             });
                                         }}
+                                        searchable
+                                        searchPlaceholder={td("Search lead fields…", {
+                                            source: "en",
+                                        })}
                                         fullWidth
                                         triggerStyle={SELECT_TRIGGER}
                                     />
@@ -692,6 +696,10 @@ function OptionMapModal({
                                     return next;
                                 })
                             }
+                            searchable={valueOptions.length > 8}
+                            searchPlaceholder={td("Search values…", {
+                                source: "en",
+                            })}
                             fullWidth
                             triggerStyle={SELECT_TRIGGER}
                         />

@@ -1,4 +1,4 @@
-import { CSSProperties, useEffect, useRef, useState } from "react";
+import { CSSProperties, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Icon from "./Icon";
 import useFloatingMenuPosition from "../hooks/useFloatingMenuPosition";
@@ -22,6 +22,9 @@ interface MenuSelectProps {
     fullWidth?: boolean;
     triggerStyle?: CSSProperties;
     triggerClassName?: string;
+    /** Show a filter input at the top of the menu. */
+    searchable?: boolean;
+    searchPlaceholder?: string;
 }
 
 /**
@@ -40,18 +43,25 @@ export default function MenuSelect({
     fullWidth = false,
     triggerStyle,
     triggerClassName,
+    searchable = false,
+    searchPlaceholder = "Search…",
 }: MenuSelectProps) {
     const [open, setOpen] = useState(false);
+    const [query, setQuery] = useState("");
     const btnRef = useRef<HTMLButtonElement>(null);
     const menuRef = useRef<HTMLDivElement>(null);
+    const searchRef = useRef<HTMLInputElement>(null);
     const isDisabled = disabled || options.length === 0;
     const floatStyle = useFloatingMenuPosition(open, btnRef, {
         align,
-        maxHeight: 260,
+        maxHeight: searchable ? 320 : 260,
     });
 
     useEffect(() => {
-        if (!open) return undefined;
+        if (!open) {
+            setQuery("");
+            return undefined;
+        }
         const onDoc = (e: MouseEvent) => {
             const target = e.target as Node;
             if (btnRef.current?.contains(target)) return;
@@ -68,6 +78,23 @@ export default function MenuSelect({
             document.removeEventListener("keydown", onKey);
         };
     }, [open]);
+
+    useEffect(() => {
+        if (!open || !searchable) return;
+        // Focus after the portal paints so the caret lands in the filter.
+        const id = window.requestAnimationFrame(() => {
+            searchRef.current?.focus();
+        });
+        return () => window.cancelAnimationFrame(id);
+    }, [open, searchable]);
+
+    const filtered = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (!searchable || !q) return options;
+        return options.filter((option) =>
+            option.label.toLowerCase().includes(q),
+        );
+    }, [options, query, searchable]);
 
     const current = options.find((o) => String(o.value) === String(value));
     const sm = size === "sm";
@@ -155,30 +182,82 @@ export default function MenuSelect({
                                 ? btnRef.current?.offsetWidth || 170
                                 : 170,
                             maxWidth: fullWidth ? 480 : 320,
-                            overflowY: "auto",
+                            display: "flex",
+                            flexDirection: "column",
+                            overflow: "hidden",
+                            padding: searchable ? 6 : undefined,
                         }}
                         onClick={(e) => e.stopPropagation()}
                     >
-                        {options.map((o) => (
-                            <button
-                                key={o.value}
-                                type="button"
-                                role="menuitemradio"
-                                aria-checked={String(o.value) === String(value)}
-                                className="dr-menu-item"
-                                onClick={() => {
-                                    setOpen(false);
-                                    onChange(o.value);
+                        {searchable ? (
+                            <input
+                                ref={searchRef}
+                                className="dr-input"
+                                type="search"
+                                aria-label={searchPlaceholder}
+                                placeholder={searchPlaceholder}
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={(e) => {
+                                    // Keep typing from bubbling to page shortcuts /
+                                    // closing the menu via Escape handled above.
+                                    e.stopPropagation();
+                                    if (e.key === "Escape") {
+                                        setOpen(false);
+                                    }
                                 }}
-                            >
-                                <span style={{ flex: 1, textAlign: "left" }}>
-                                    {o.label}
-                                </span>
-                                {String(o.value) === String(value) && (
-                                    <Icon name="check" size={12} color={T.BLUE} />
-                                )}
-                            </button>
-                        ))}
+                                style={{
+                                    marginBottom: 6,
+                                    fontSize: 12,
+                                    padding: "8px 10px",
+                                    flexShrink: 0,
+                                }}
+                            />
+                        ) : null}
+                        <div style={{ overflowY: "auto", flex: 1, minHeight: 0 }}>
+                            {filtered.length === 0 ? (
+                                <div
+                                    className="px-1.5 py-2 text-xs italic"
+                                    style={{ color: T.TEXT_MUTED }}
+                                >
+                                    {query.trim()
+                                        ? `No matches for "${query.trim()}"`
+                                        : "No options"}
+                                </div>
+                            ) : (
+                                filtered.map((o) => (
+                                    <button
+                                        key={o.value}
+                                        type="button"
+                                        role="menuitemradio"
+                                        aria-checked={
+                                            String(o.value) === String(value)
+                                        }
+                                        className="dr-menu-item"
+                                        onClick={() => {
+                                            setOpen(false);
+                                            onChange(o.value);
+                                        }}
+                                    >
+                                        <span
+                                            style={{
+                                                flex: 1,
+                                                textAlign: "left",
+                                            }}
+                                        >
+                                            {o.label}
+                                        </span>
+                                        {String(o.value) === String(value) && (
+                                            <Icon
+                                                name="check"
+                                                size={12}
+                                                color={T.BLUE}
+                                            />
+                                        )}
+                                    </button>
+                                ))
+                            )}
+                        </div>
                     </div>,
                     document.body,
                 )}
