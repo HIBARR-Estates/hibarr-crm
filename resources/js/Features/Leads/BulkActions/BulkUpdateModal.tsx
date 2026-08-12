@@ -5,6 +5,7 @@ import { useApiMutate } from "@/lib/api/client";
 import type { ApiResponse } from "@/lib/api/types";
 import { isLoading as getLoadingStatus } from "@/lib/utils";
 import { useTd } from "@/Hooks/useDynamicTranslation";
+import type { TdFn } from "@/lib/dynamicTranslation";
 import { getCurrentQueryParams } from "@/lib/inertiaQuery";
 import {
     CheckList,
@@ -47,32 +48,27 @@ function takeSingle(next: Array<string | number>): string | number | null {
 function describePending(
     field: BulkUpdateFieldDef,
     value: DraftValue,
-): { text: string; translate: boolean } {
+    td: TdFn,
+): string {
     if (field.control === "pills") {
         const ids = asArray(value);
         if (ids.length === 0) {
-            return { text: "Clear categories", translate: true };
+            return td("Clear categories", { source: "en" });
         }
         const labels = field.options
             .filter((option) => ids.map(String).includes(String(option.value)))
             .map((option) => option.label);
-        return {
-            text: `${field.label} → ${labels.join(", ") || ids.join(", ")}`,
-            translate: false,
-        };
+        return `${field.label} → ${labels.join(", ") || ids.join(", ")}`;
     }
 
     if (value == null || value === "") {
-        return {
-            text: `Clear ${field.label.toLowerCase()}`,
-            translate: true,
-        };
+        return td(`Clear ${field.label.toLowerCase()}`, { source: "en" });
     }
 
     const label =
         field.options.find((option) => String(option.value) === String(value))
             ?.label ?? String(value);
-    return { text: `${field.label} → ${label}`, translate: false };
+    return `${field.label} → ${label}`;
 }
 
 function fieldIsCleared(field: BulkUpdateFieldDef, value: DraftValue): boolean {
@@ -148,15 +144,9 @@ export default function BulkUpdateModal({
         () =>
             pendingFields
                 .filter((field) => fieldIsReady(field, draft[field.key] ?? null))
-                .map((field) => {
-                    const pending = describePending(
-                        field,
-                        draft[field.key] ?? null,
-                    );
-                    return pending.translate
-                        ? td(pending.text, { source: "en" })
-                        : pending.text;
-                }),
+                .map((field) =>
+                    describePending(field, draft[field.key] ?? null, td),
+                ),
         [pendingFields, draft, td],
     );
 
