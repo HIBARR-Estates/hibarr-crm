@@ -139,13 +139,9 @@ class UnsEmailPayloadMapper
         return $admin?->id ? (int) $admin->id : null;
     }
 
-    private function buildIdempotencyKey(string $recipient, string $subject, string $templateIdOrBody): string
+    private function buildIdempotencyKey(string $recipient, string $subject, string $body): string
     {
-        // recipient|subject|templateId(or body)|unix-time — time so legitimate
-        // resends (same assignee/template) are not suppressed by UNS.
-        return 'crm-email-' . sha1(
-            $recipient . '|' . $subject . '|' . $templateIdOrBody . '|' . now()->timestamp
-        );
+        return 'crm-email-' . sha1($recipient . '|' . $subject . '|' . $body);
     }
 
     protected function findUserByEmail(string $email): ?User

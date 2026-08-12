@@ -15,15 +15,13 @@ import {
 import {
     playNotificationSound,
     showDesktopNotification,
-    seedIslandSeenNotifications,
-    takeUnseenNotifications,
 } from "@/lib/notificationAlerts";
 import useNotificationIslandAlertsFlag from "@/Hooks/useNotificationIslandAlertsFlag";
 
 const EMPTY_NOTIFICATIONS: Notification[] = [];
 
-/** First summary observation in this JS realm — seed without alerting. */
-let hasSeededIslandSeenIds = false;
+/** Shared across all useNotificationSummary instances so sound/desktop alerts fire once. */
+let sharedSeenNotificationIds: Set<string> | null = null;
 
 /**
  * Hook for fetching and polling unread notification summary.
@@ -59,20 +57,25 @@ export const useNotificationSummary = (
     const notifications = response?.data?.notifications ?? EMPTY_NOTIFICATIONS;
 
     // Sound + desktop popup (and any extra subscriber, e.g. the notch) for
-    // notifications that weren't alerted yet this session. First successful
-    // load only seeds seen IDs. Accumulated session-scoped IDs prevent an
-    // island from showing again for the same notification; multiple hook
-    // consumers share one takeUnseenNotifications pass so alerts fire once.
+    // notifications that weren't present on the previous poll. Skipped on
+    // the very first load so opening the app doesn't alert for every
+    // pre-existing unread item. Module-level seen-IDs prevent duplicate
+    // alerts when dropdown + bridge both mount this hook.
     useEffect(() => {
-        if (!enabled || isLoading) return;
+        if (!enabled) return;
 
-        if (!hasSeededIslandSeenIds) {
-            seedIslandSeenNotifications(notifications);
-            hasSeededIslandSeenIds = true;
+        const currentIds = new Set(notifications.map((n) => n.id));
+
+        if (sharedSeenNotificationIds === null) {
+            sharedSeenNotificationIds = currentIds;
             return;
         }
 
-        const newOnes = takeUnseenNotifications(notifications);
+        const newOnes = notifications.filter(
+            (n) => !sharedSeenNotificationIds!.has(n.id),
+        );
+        sharedSeenNotificationIds = currentIds;
+
         if (newOnes.length === 0) return;
 
         if (islandAlertsEnabled) {
@@ -82,13 +85,7 @@ export const useNotificationSummary = (
             });
         }
         onNewNotifications?.(newOnes);
-    }, [
-        notifications,
-        enabled,
-        isLoading,
-        islandAlertsEnabled,
-        onNewNotifications,
-    ]);
+    }, [notifications, enabled, islandAlertsEnabled, onNewNotifications]);
 
     // Invalidate cache to force refresh
     const invalidate = useCallback(() => {

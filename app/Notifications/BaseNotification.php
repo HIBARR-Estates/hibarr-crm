@@ -53,65 +53,18 @@ class BaseNotification extends Notification implements ShouldQueue
      * that's an explicit user action (rate-limited, on-demand) elsewhere.
      * Returns null whenever no summary has been generated yet for this
      * entity, which is the common case for a newly created lead/deal.
-     *
-     * Important: do NOT call getCached()/enrichSummary() here. Those hydrate the
-     * full summary_json (and stale-hash work) into PHP — staging has seen that
-     * OOM the 128MB queue worker during mail render.
      */
     protected function aiSummarySnippet(\App\Models\Deal|\App\Models\Lead $entity, int $maxLength = 110): ?string
     {
-        $companyId = $entity->company_id ?? null;
-        $entityId = $entity->id ?? null;
-
-        if (! $companyId || ! $entityId) {
-            return null;
-        }
-
-        $entityType = $entity instanceof \App\Models\Deal
-            ? \App\Models\EntityAiSummary::TYPE_DEAL
-            : \App\Models\EntityAiSummary::TYPE_LEAD;
-
-        return $this->aiSummarySnippetFor((int) $companyId, $entityType, (int) $entityId, $maxLength);
-    }
-
-    /**
-     * Fetch only status_line (capped in SQL) — never the full summary_json blob.
-     */
-    protected function aiSummarySnippetFor(int $companyId, string $entityType, int $entityId, int $maxLength = 110): ?string
-    {
         try {
-            $driver = \App\Models\EntityAiSummary::query()->getConnection()->getDriverName();
-            $query = \App\Models\EntityAiSummary::query()
-                ->where('company_id', $companyId)
-                ->where('entity_type', $entityType)
-                ->where('entity_id', $entityId);
-
-            if (in_array($driver, ['mysql', 'mariadb'], true)) {
-                $statusLine = $query->value(\Illuminate\Support\Facades\DB::raw(
-                    "LEFT(JSON_UNQUOTE(JSON_EXTRACT(summary_json, '$.status_line')), 500)"
-                ));
-            } elseif ($driver === 'sqlite') {
-                $statusLine = $query->value(\Illuminate\Support\Facades\DB::raw(
-                    "substr(json_extract(summary_json, '$.status_line'), 1, 500)"
-                ));
-            } else {
-                // Last resort: still avoid casting the whole JSON column via the model.
-                $statusLine = $query->toBase()->value(\Illuminate\Support\Facades\DB::raw(
-                    "summary_json"
-                ));
-                if (is_string($statusLine) && $statusLine !== '') {
-                    $decoded = json_decode(
-                        strlen($statusLine) > 8192 ? substr($statusLine, 0, 8192) : $statusLine,
-                        true
-                    );
-                    $statusLine = is_array($decoded) ? ($decoded['status_line'] ?? '') : '';
-                }
-            }
+            $summary = $entity instanceof \App\Models\Deal
+                ? app(\App\Services\EntitySummary\DealSummaryService::class)->getCached($entity)
+                : app(\App\Services\EntitySummary\LeadSummaryService::class)->getCached($entity);
         } catch (\Throwable) {
             return null;
         }
 
-        $statusLine = $this->safeMailText($statusLine ?? '', 500);
+        $statusLine = $this->safeMailText($summary['status_line'] ?? '', 2000);
         if ($statusLine === '') {
             return null;
         }
@@ -125,15 +78,7 @@ class BaseNotification extends Notification implements ShouldQueue
      */
     protected function safeMailText(mixed $value, int $maxBytes = 200): string
     {
-        // Avoid (string) cast on non-strings first when value is already a huge string —
-        // substr before any further copies. For non-strings, cast then cap.
-        if (is_string($value)) {
-            $text = $value;
-        } elseif ($value === null) {
-            return '';
-        } else {
-            $text = (string) $value;
-        }
+        $text = is_string($value) ? $value : (string) ($value ?? '');
 
         if ($text !== '' && strlen($text) > $maxBytes) {
             $text = substr($text, 0, $maxBytes);
@@ -145,9 +90,9 @@ class BaseNotification extends Notification implements ShouldQueue
     /**
      * Inbox preheader — always short; never pass unbounded HTML/body into templates.
      */
-    protected function safePreheader(mixed $value, int $maxChars = 90): string
+    protected function safePreheader(mixed $value, int $maxChars = 140): string
     {
-        return \App\Support\MailPreheader::sanitize($value, $maxChars);
+        return \Illuminate\Support\Str::limit($this->safeMailText($value, 2000), $maxChars);
     }
 
     public function setSuppressBulkTransactionalEmails(bool $value = true): static
