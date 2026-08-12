@@ -4,6 +4,7 @@ import { usePage } from "@inertiajs/react";
 import { Lead } from "@/Types/api/leads";
 import {
     LeadQualification,
+    QualificationLeadPatch,
     QualificationOutcome,
     Segment,
     SegmentAnswerState,
@@ -34,6 +35,8 @@ export interface UseQualificationFlowOptions {
     registrationService: RegistrationService;
     agentLanguage: string;
     onQualificationUpdated: (qualification: LeadQualification) => void;
+    /** Fired when completing an outcome also changed the lead's lifecycle status server-side. */
+    onLeadUpdated?: (lead: QualificationLeadPatch) => void;
 }
 
 /** @deprecated Soft-hide no longer prompts; kept for legacy callers. */
@@ -51,6 +54,7 @@ export const useQualificationFlow = ({
     registrationService: _registrationService,
     agentLanguage,
     onQualificationUpdated,
+    onLeadUpdated,
 }: UseQualificationFlowOptions) => {
     const { props } = usePage<PageProps>();
     const tokenMap = useMemo(
@@ -349,16 +353,17 @@ export const useQualificationFlow = ({
                     templateTree,
                     outcomes,
                 );
-                const updated = await service.completeQualification(
-                    qualification.id,
-                    {
+                const { qualification: updated, lead: leadPatch } =
+                    await service.completeQualification(qualification.id, {
                         outcomes,
                         outcome_comment: metadata?.comment ?? null,
                         selected_branch_keys: selectedBranchKeys,
                         actions,
-                    },
-                );
+                    });
                 onQualificationUpdated(updated);
+                if (leadPatch) {
+                    onLeadUpdated?.(leadPatch);
+                }
                 message.success("Qualification completed");
                 return updated;
             } catch (error) {
@@ -374,6 +379,7 @@ export const useQualificationFlow = ({
         },
         [
             flushPendingSaves,
+            onLeadUpdated,
             onQualificationUpdated,
             qualification.id,
             selectedBranchKeys,

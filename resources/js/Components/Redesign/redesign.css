@@ -28,8 +28,18 @@
     flex-direction: column;
 }
 
-.redesign-modal-overlay .modal-field label {
+/* Unscoped: `ModalField` is also rendered outside a `.redesign-modal-overlay`
+   (e.g. the meeting form inlined into the Qualify outcome step), and an
+   ancestor-scoped selector would leave those inputs completely unstyled. */
+.modal-field {
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    color: #1a1f2e;
+}
+
+.modal-field label {
     display: block;
+    font-family: inherit;
     font-size: 12px;
     font-weight: 700;
     color: #5b6472;
@@ -38,23 +48,69 @@
     margin-bottom: 7px;
 }
 
-.redesign-modal-overlay .modal-field input,
-.redesign-modal-overlay .modal-field select,
-.redesign-modal-overlay .modal-field textarea {
+.modal-field input,
+.modal-field select,
+.modal-field textarea {
     width: 100%;
     border: 1px solid #e2e5ea;
     border-radius: 8px;
     padding: 11px 12px;
+    font-family: inherit;
     font-size: 14px;
+    font-weight: 400;
     color: #1a1f2e;
+    background: #ffffff;
     outline: none;
 }
 
-.redesign-modal-overlay .modal-field input:focus,
-.redesign-modal-overlay .modal-field select:focus,
-.redesign-modal-overlay .modal-field textarea:focus {
+.modal-field input::placeholder,
+.modal-field textarea::placeholder {
+    color: #9ca3af;
+}
+
+.modal-field input:disabled,
+.modal-field select:disabled,
+.modal-field textarea:disabled {
+    color: #5b6472;
+    background: #f8f9fb;
+}
+
+.modal-field input:focus,
+.modal-field select:focus,
+.modal-field textarea:focus {
     border-color: #b8d4f0;
     box-shadow: 0 0 0 2px #e8f1fb;
+}
+
+.meeting-form-fields {
+    font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
+        sans-serif;
+    color: #1a1f2e;
+    font-size: 14px;
+}
+
+.meeting-form-fields .meeting-form-link {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1a6bb5;
+    background: transparent;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+
+.meeting-form-fields .meeting-form-link:hover {
+    color: #145890;
+}
+
+.meeting-form-fields .meeting-form-hint {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 400;
+    color: #9ca3af;
+    margin: 6px 0 0;
+    line-height: 1.45;
 }
 
 /* ==================================================================== */

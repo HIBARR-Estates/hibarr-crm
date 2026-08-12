@@ -6,6 +6,7 @@ import type {
     QualificationActionRun,
     QualificationActionType,
 } from "@/Types/qualification";
+import { toWebinarLanguage } from "@/Types/qualification";
 import { LeadQualificationService } from "@/Services/LeadQualificationService";
 import { RegistrationService } from "@/Services/RegistrationService";
 import { useTd } from "@/Hooks/useDynamicTranslation";
@@ -146,10 +147,17 @@ export default function QualificationActionsPanel({
     ) => {
         setBusyId(run.id);
         try {
-            await registrationService.registerWebinarSession(
-                sessionId,
-                registrationPayload,
-            );
+            // Webinar registration takes a narrower payload than the
+            // consultation one — and only OL's language enum, which has no `ru`.
+            await registrationService.registerWebinarSession(sessionId, {
+                firstName: registrationPayload.firstName,
+                email: registrationPayload.email,
+                language: toWebinarLanguage(registrationPayload.language),
+                lastName: registrationPayload.lastName || undefined,
+                phone: registrationPayload.phone,
+                gender: registrationPayload.gender,
+                utmInfo: registrationPayload.utmInfo,
+            });
             await markExecuted(run, {
                 webinarSessionId: sessionId,
                 webinarSessionLabel: sessionLabel,

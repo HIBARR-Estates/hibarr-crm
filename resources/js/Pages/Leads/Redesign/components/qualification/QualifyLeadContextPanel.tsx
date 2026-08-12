@@ -9,6 +9,7 @@ import { evaluateAllFieldsVisibility } from "@/lib/customFieldVisibility";
 import AnalysisCustomFieldRow from "@/Pages/Deals/Redesign/components/analysis/AnalysisCustomFieldRow";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 import { initialsFromName } from "@/Pages/Deals/Redesign/adapters/initials";
+import { resolveLeadPhoneDisplay } from "@/lib/utils";
 
 interface QualifyLeadContextPanelProps {
     lead: Lead;
@@ -280,13 +281,25 @@ export default function QualifyLeadContextPanel({
 
     const leadName = lead.client_name || "";
     const email = lead.client_email || "";
+    // Phones are stored E.164 or as legacy antd-phone-input JSON — always
+    // resolve through the shared util so no surface here renders raw JSON.
+    const mobileDisplay = resolveLeadPhoneDisplay(
+        lead.mobile,
+        record.mobile_with_phonecode,
+    );
+    const officeDisplay = resolveLeadPhoneDisplay(
+        lead.office,
+        record.office_phone_formatted,
+    );
     const phones = useMemo(() => {
-        const values = [lead.mobile, lead.cell, lead.office].filter(
-            (value): value is string => Boolean(value?.trim()),
-        );
+        const values = [
+            mobileDisplay,
+            resolveLeadPhoneDisplay(lead.cell),
+            officeDisplay,
+        ].filter(Boolean);
         return Array.from(new Set(values));
-    }, [lead.cell, lead.mobile, lead.office]);
-    const whatsapp = lead.client_whatsapp || "";
+    }, [lead.cell, mobileDisplay, officeDisplay]);
+    const whatsapp = resolveLeadPhoneDisplay(lead.client_whatsapp);
     const initials = initialsFromName(leadName);
 
     return (
@@ -455,10 +468,10 @@ export default function QualifyLeadContextPanel({
                     </FieldGroup>
 
                     <FieldGroup label={td("Contact", { source: "en" })}>
-                        {coreRow(110, "Mobile", "text", "mobile", lead.mobile)}
-                        {coreRow(111, "Office phone", "text", "office", lead.office)}
+                        {coreRow(110, "Mobile", "phone", "mobile", mobileDisplay)}
+                        {coreRow(111, "Office phone", "phone", "office", officeDisplay)}
                         {coreRow(112, "Email", "text", "email", lead.client_email)}
-                        {coreRow(113, "WhatsApp", "text", "client_whatsapp", lead.client_whatsapp)}
+                        {coreRow(113, "WhatsApp", "phone", "client_whatsapp", whatsapp)}
                         {coreRow(114, "Telegram", "text", "client_telegram", record.client_telegram)}
                         {coreRow(115, "Instagram", "text", "client_instagram", record.client_instagram)}
                     </FieldGroup>

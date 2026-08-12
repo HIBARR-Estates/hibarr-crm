@@ -1,5 +1,4 @@
 export type MoreMenuActionId =
-    | "answers"
     | "task"
     | "deal"
     | "note"
@@ -12,7 +11,6 @@ export type MoreMenuItem =
 
 /** Lead ⋯ menu — reassignment lives on LeadOwnerCard, not here. */
 export const MORE_MENU_ITEMS: MoreMenuItem[] = [
-    { id: "answers", label: "Qualification answers" },
     { id: "task", label: "Add task" },
     { id: "deal", label: "Create deal" },
     { id: "note", label: "Add note" },

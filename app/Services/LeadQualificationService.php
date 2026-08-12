@@ -109,7 +109,10 @@ class LeadQualificationService
         return $qualification->load(['answers', 'agent:id,name,image']);
     }
 
-    public function complete(LeadQualification $qualification, array $data): LeadQualification
+    /**
+     * @return array{qualification: LeadQualification, lead: array{id: int, lead_lifecycle_status_id: ?int, lead_lifecycle_status: ?LeadLifecycleStatus}|null}
+     */
+    public function complete(LeadQualification $qualification, array $data): array
     {
         $this->assertInProgress($qualification);
 
@@ -155,7 +158,14 @@ class LeadQualificationService
             ],
         ]);
 
-        return $qualification->load(['answers', 'agent:id,name,image', 'actionRuns']);
+        return [
+            'qualification' => $qualification->load(['answers', 'agent:id,name,image', 'actionRuns']),
+            'lead' => $lead ? [
+                'id' => $lead->id,
+                'lead_lifecycle_status_id' => $lead->lead_lifecycle_status_id,
+                'lead_lifecycle_status' => $lead->load('lifecycleStatus')->lead_lifecycle_status,
+            ] : null,
+        ];
     }
 
     /**
@@ -242,6 +252,18 @@ class LeadQualificationService
         $qualification->save();
 
         return $qualification->load(['answers', 'agent:id,name,image']);
+    }
+
+    /**
+     * Hard-delete a qualification run and its related answers / action runs.
+     * Related rows are removed explicitly so delete works even when the local
+     * schema lacks FK cascade (e.g. sqlite test harness).
+     */
+    public function delete(LeadQualification $qualification): void
+    {
+        LeadQualificationAnswer::where('lead_qualification_id', $qualification->id)->delete();
+        LeadQualificationActionRun::where('lead_qualification_id', $qualification->id)->delete();
+        $qualification->delete();
     }
 
     public function clearBranchAnswers(LeadQualification $qualification, array $segmentKeys): int

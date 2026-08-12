@@ -114,6 +114,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
 
     const {
         lead,
+        setLead,
         deals,
         notesLoading,
         tasksLoading,
@@ -213,15 +214,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         return currency.code ? `${currency.code} ${value}` : value;
     }, [companyCurrency, lead]);
 
-    const answerCount = useMemo(() => {
-        const runs = [...qualification.history];
-        if (qualification.current) runs.push(qualification.current);
-        return runs.reduce(
-            (sum, run) => sum + (run.answers?.length ?? 0),
-            0,
-        );
-    }, [qualification.current, qualification.history]);
-
     const qualificationProgress = useMemo(() => {
         const tree = qualification.templateTree;
         const current = qualification.current;
@@ -314,15 +306,47 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
         return [...deals].sort((a, b) => b.id - a.id)[0] ?? null;
     }, [deals]);
 
+    const handleTemplateSelect = useCallback(
+        async (templateId: string) => {
+            const started =
+                await qualification.startQualificationScript(templateId);
+            if (started) {
+                setTemplatePickerOpen(false);
+                nav.setQualificationOpen(true);
+            }
+        },
+        [nav, qualification],
+    );
+
+    const openTemplatePicker = useCallback(() => {
+        if (qualification.templates.length === 1) {
+            void handleTemplateSelect(qualification.templates[0].id);
+            return;
+        }
+        setTemplatePickerOpen(true);
+    }, [handleTemplateSelect, qualification.templates]);
+
     const handleMissionAction = useCallback(
         (action: LeadMissionCtaAction) => {
             switch (action) {
                 case "qualify_start":
-                    setTemplatePickerOpen(true);
+                    openTemplatePicker();
                     break;
-                case "qualify_resume":
-                    nav.setQualificationOpen(true);
+                case "qualify_resume": {
+                    const active =
+                        qualification.current?.status === "inProgress"
+                            ? qualification.current
+                            : qualification.history.find(
+                                  (run) => run.status === "inProgress",
+                              ) ?? null;
+                    if (!active) break;
+                    void (async () => {
+                        const ok =
+                            await qualification.resumeQualification(active);
+                        if (ok) nav.setQualificationOpen(true);
+                    })();
                     break;
+                }
                 case "create_deal":
                     setCreateDealOpen(true);
                     break;
@@ -345,7 +369,14 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     break;
             }
         },
-        [changeStatus, deals.length, nav, primaryDeal],
+        [
+            changeStatus,
+            deals.length,
+            nav,
+            openTemplatePicker,
+            primaryDeal,
+            qualification,
+        ],
     );
 
     const handleBannerPrimary = useCallback(() => {
@@ -366,9 +397,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
     const handleMoreAction = useCallback(
         (id: MoreMenuActionId) => {
             switch (id) {
-                case "answers":
-                    nav.setTab("qualification");
-                    break;
                 case "task":
                     setAddTaskOpen(true);
                     break;
@@ -388,19 +416,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     break;
             }
         },
-        [deleteLead, duplicates, nav],
-    );
-
-    const handleTemplateSelect = useCallback(
-        async (templateId: string) => {
-            const started =
-                await qualification.startQualificationScript(templateId);
-            if (started) {
-                setTemplatePickerOpen(false);
-                nav.setQualificationOpen(true);
-            }
-        },
-        [nav, qualification],
+        [deleteLead, duplicates],
     );
 
     const renderTabBody = () => {
@@ -508,16 +524,33 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                     <QualificationTab
                         current={qualification.current}
                         history={qualification.history}
-                        canResume={
-                            qualification.current?.status === "inProgress"
-                        }
                         canStart={
-                            qualification.current?.status !== "inProgress"
+                            qualification.current?.status !== "inProgress" &&
+                            !qualification.history.some(
+                                (run) => run.status === "inProgress",
+                            )
                         }
-                        onResumeQualify={() =>
-                            nav.setQualificationOpen(true)
-                        }
-                        onStartQualify={() => setTemplatePickerOpen(true)}
+                        onResumeQualify={(run) => {
+                            void (async () => {
+                                const ok =
+                                    await qualification.resumeQualification(
+                                        run,
+                                    );
+                                if (ok) nav.setQualificationOpen(true);
+                            })();
+                        }}
+                        onDeleteQualify={async (run) => {
+                            const wasOpenCurrent =
+                                nav.qualificationOpen &&
+                                qualification.current?.id === run.id;
+                            const ok =
+                                await qualification.deleteQualification(run.id);
+                            if (ok && wasOpenCurrent) {
+                                nav.setQualificationOpen(false);
+                            }
+                            return ok;
+                        }}
+                        onStartQualify={openTemplatePicker}
                     />
                 ) : (
                     <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>
@@ -561,7 +594,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         lifecycle={lifecycle}
                         statuses={lifecycleStatuses}
                         valueLabel={valueLabel}
-                        answerCount={answerCount}
                         firstName={firstName}
                         templateName={
                             qualification.current?.template_name ??
@@ -580,7 +612,6 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         showQualification={showQualification}
                         onStatusChange={(key) => void changeStatus(key)}
                         statusSaving={statusSaving}
-                        onOpenAnswers={() => nav.setTab("qualification")}
                         onMoreAction={handleMoreAction}
                         onReplayGuide={
                             showProductTour
@@ -624,8 +655,7 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                             undefined
                                         }
                                         onCta={{
-                                            onQualifyLead: () =>
-                                                setTemplatePickerOpen(true),
+                                            onQualifyLead: openTemplatePicker,
                                             onCreateTask: () =>
                                                 setAddTaskOpen(true),
                                             onScheduleCall: () =>
@@ -701,19 +731,19 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                         onSelect={(id) => void handleTemplateSelect(id)}
                     />
 
-                    {qualification.current &&
-                        qualification.templateTree &&
-                        nav.qualificationOpen && (
+                    {qualification.current && nav.qualificationOpen && (
                             <QualifyModal
                                 open={nav.qualificationOpen}
                                 lead={lead}
                                 qualification={qualification.current}
                                 templateTree={qualification.templateTree}
+                                treeLoading={qualification.treeLoading}
                                 fields={props.fields}
                                 customFieldCategories={
                                     props.customFieldCategories
                                 }
                                 editLeadPermission={props.editLeadPermission}
+                                meetingTypes={props.meetingTypes ?? []}
                                 onClose={() => nav.setQualificationOpen(false)}
                                 onCompleted={(updated) => {
                                     qualification.handleQualificationUpdated(
@@ -724,6 +754,12 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                                     qualification.finishQualificationSession(
                                         updated,
                                     );
+                                }}
+                                onLeadUpdated={(patch) => {
+                                    setLead((prev) => ({
+                                        ...prev,
+                                        ...patch,
+                                    }));
                                 }}
                             />
                         )}

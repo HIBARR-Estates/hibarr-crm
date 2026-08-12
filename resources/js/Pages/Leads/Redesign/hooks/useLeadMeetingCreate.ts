@@ -100,6 +100,83 @@ function normalizeCreateOptions(
     return optionsOrSuccess ?? {};
 }
 
+/**
+ * Field-level validation shared between the standalone "Add meeting" flow
+ * and any inline caller (e.g. the qualification outcome step) that submits
+ * a `MeetingFormState`-shaped input outside of `useLeadMeetingCreate`.
+ */
+export function validateMeetingForm(
+    input: LeadMeetingCreateInput,
+    ctx: { hasOwnerOrDeal: boolean; userEmail?: string | null },
+): string[] {
+    const validationErrors: string[] = [];
+
+    if (!ctx.hasOwnerOrDeal) {
+        validationErrors.push(
+            "This lead has no owner assigned. Assign an owner or link a deal before booking a meeting.",
+        );
+    }
+
+    if (!input.meetingTypeId) {
+        validationErrors.push("Please select a meeting type.");
+    }
+
+    if (!input.date) {
+        validationErrors.push("Please select a meeting date.");
+    }
+
+    if (!input.startTime) {
+        validationErrors.push("Please select a start time.");
+    } else if (
+        input.date &&
+        !isMeetingStartInFuture(input.date, input.startTime)
+    ) {
+        validationErrors.push(
+            "Start time must be at least 5 minutes in the future.",
+        );
+    }
+
+    if (!input.platform) {
+        validationErrors.push("Please select a platform.");
+    }
+
+    if (
+        usesAutoMeetingLink(input.platform) &&
+        !canUseZohoMeeting(ctx.userEmail)
+    ) {
+        validationErrors.push(
+            "Zoho Meeting is only available for @hibarr.de email accounts.",
+        );
+    }
+
+    if (
+        requiresMeetingParticipants(input.platform) &&
+        input.participants.length === 0
+    ) {
+        validationErrors.push(
+            "At least one participant is required for Zoho Meeting.",
+        );
+    }
+
+    if (
+        requiresManualMeetingLink(input.platform) &&
+        !input.meetingLink.trim()
+    ) {
+        validationErrors.push(
+            "Please paste a meeting link from your video provider.",
+        );
+    }
+
+    if (
+        requiresPhysicalLocationDetail(input.platform) &&
+        !input.locationDetail.trim()
+    ) {
+        validationErrors.push("Please enter the meeting location.");
+    }
+
+    return validationErrors;
+}
+
 export default function useLeadMeetingCreate(lead: Lead) {
     const [errors, setErrors] = useState<string[]>([]);
     const { props } = usePage();
@@ -181,70 +258,10 @@ export default function useLeadMeetingCreate(lead: Lead) {
             optionsOrSuccess?: LeadMeetingCreateOptions | (() => void),
         ) => {
             const options = normalizeCreateOptions(optionsOrSuccess);
-            const validationErrors: string[] = [];
-
-            if (!lead.lead_owner?.id && !input.dealId) {
-                validationErrors.push(
-                    "This lead has no owner assigned. Assign an owner or link a deal before booking a meeting.",
-                );
-            }
-
-            if (!input.meetingTypeId) {
-                validationErrors.push("Please select a meeting type.");
-            }
-
-            if (!input.date) {
-                validationErrors.push("Please select a meeting date.");
-            }
-
-            if (!input.startTime) {
-                validationErrors.push("Please select a start time.");
-            } else if (
-                input.date &&
-                !isMeetingStartInFuture(input.date, input.startTime)
-            ) {
-                validationErrors.push(
-                    "Start time must be at least 5 minutes in the future.",
-                );
-            }
-
-            if (!input.platform) {
-                validationErrors.push("Please select a platform.");
-            }
-
-            if (
-                usesAutoMeetingLink(input.platform) &&
-                !canUseZohoMeeting(props.auth?.user?.email)
-            ) {
-                validationErrors.push(
-                    "Zoho Meeting is only available for @hibarr.de email accounts.",
-                );
-            }
-
-            if (
-                requiresMeetingParticipants(input.platform) &&
-                input.participants.length === 0
-            ) {
-                validationErrors.push(
-                    "At least one participant is required for Zoho Meeting.",
-                );
-            }
-
-            if (
-                requiresManualMeetingLink(input.platform) &&
-                !input.meetingLink.trim()
-            ) {
-                validationErrors.push(
-                    "Please paste a meeting link from your video provider.",
-                );
-            }
-
-            if (
-                requiresPhysicalLocationDetail(input.platform) &&
-                !input.locationDetail.trim()
-            ) {
-                validationErrors.push("Please enter the meeting location.");
-            }
+            const validationErrors = validateMeetingForm(input, {
+                hasOwnerOrDeal: Boolean(lead.lead_owner?.id) || Boolean(input.dealId),
+                userEmail: props.auth?.user?.email,
+            });
 
             if (validationErrors.length > 0) {
                 setErrors(validationErrors);

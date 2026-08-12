@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { Lead } from "@/Types/api/leads";
 import type {
     LeadQualification,
+    QualificationLeadPatch,
     QualificationOutcome,
     TemplateTree,
 } from "@/Types/qualification";
@@ -38,14 +39,20 @@ interface QualifyModalProps {
     open: boolean;
     lead: Lead;
     qualification: LeadQualification;
-    templateTree: TemplateTree;
+    templateTree: TemplateTree | null;
+    /** True while the OL template tree is still loading for this run. */
+    treeLoading?: boolean;
     onClose: () => void;
     onCompleted: (qualification: LeadQualification) => void;
     onActionsDone?: (qualification: LeadQualification) => void;
+    /** Fired when completing an outcome also changed the lead's lifecycle status server-side. */
+    onLeadUpdated?: (lead: QualificationLeadPatch) => void;
     /** Lead custom fields + categories for the in-modal Lead info panel. */
     fields?: any[];
     customFieldCategories?: Array<{ id: number; name: string }>;
     editLeadPermission?: string;
+    /** Meeting types for the inline book-meeting/callback forms in the outcome step. */
+    meetingTypes?: Array<{ id: number; name: string; color?: string }>;
 }
 
 // ponytail: hardcoded — running this label through `td` would translate it in
@@ -76,6 +83,56 @@ function TranslatingIndicator({ language }: { language: string }) {
     );
 }
 
+function QualifyModalShell({
+    open,
+    titleId,
+    leadName,
+    onMinimize,
+    children,
+}: {
+    open: boolean;
+    titleId: string;
+    leadName: string;
+    onMinimize: () => void;
+    children: ReactNode;
+}) {
+    const { td } = useTd();
+
+    if (!open || typeof document === "undefined") {
+        return null;
+    }
+
+    return createPortal(
+        <div className="analysis-modal-overlay">
+            <div
+                className="analysis-modal-panel"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby={titleId}
+                onScroll={(e) => {
+                    if (e.target !== e.currentTarget) return;
+                    e.currentTarget.scrollTop = 0;
+                    e.currentTarget.scrollLeft = 0;
+                }}
+            >
+                <AnalysisHeaderBar
+                    title={td("Qualify", { source: "en" })}
+                    leadName={leadName}
+                    isCompleted={false}
+                    totalFilled={0}
+                    totalFields={0}
+                    onMinimize={onMinimize}
+                />
+                <span id={titleId} className="sr-only">
+                    {td("Qualify", { source: "en" })} {leadName}
+                </span>
+                {children}
+            </div>
+        </div>,
+        document.body,
+    );
+}
+
 export default function QualifyModal(props: QualifyModalProps) {
     const { locale: appLocale } = useTranslationContext();
     // The agent's own locale wins when we can script in it; qualifications are
@@ -86,10 +143,45 @@ export default function QualifyModal(props: QualifyModalProps) {
             : props.qualification.agent_language || "en",
     );
 
+    if (!props.open) {
+        return null;
+    }
+
+    // Tree still loading / missing: keep the same portal shell mounted so the
+    // overlay does not blink when the script arrives.
+    if (!props.templateTree) {
+        const leadName = props.lead.client_name || "Lead";
+        return (
+            <DynamicTranslationProvider locale={agentLanguage}>
+                <QualifyModalShell
+                    open={props.open}
+                    titleId="qualify-modal-title"
+                    leadName={leadName}
+                    onMinimize={props.onClose}
+                >
+                    <div className="flex flex-1 min-h-0 items-center justify-center bg-slate-50">
+                        <div className="text-center px-6">
+                            <div
+                                className="mx-auto mb-3 h-8 w-8 animate-spin rounded-full border-2 border-slate-300 border-t-slate-700"
+                                aria-hidden
+                            />
+                            <p className="m-0 text-sm text-slate-600">
+                                {props.treeLoading
+                                    ? "Loading qualification script…"
+                                    : "Qualification script unavailable."}
+                            </p>
+                        </div>
+                    </div>
+                </QualifyModalShell>
+            </DynamicTranslationProvider>
+        );
+    }
+
     return (
         <DynamicTranslationProvider locale={agentLanguage}>
             <QualifyModalContent
                 {...props}
+                templateTree={props.templateTree}
                 agentLanguage={agentLanguage}
                 onAgentLanguageChange={setAgentLanguage}
             />
@@ -105,12 +197,15 @@ function QualifyModalContent({
     onClose,
     onCompleted,
     onActionsDone,
+    onLeadUpdated,
     fields,
     customFieldCategories,
     editLeadPermission,
+    meetingTypes,
     agentLanguage,
     onAgentLanguageChange,
-}: QualifyModalProps & {
+}: Omit<QualifyModalProps, "templateTree" | "treeLoading"> & {
+    templateTree: TemplateTree;
     agentLanguage: string;
     onAgentLanguageChange: (language: string) => void;
 }) {
@@ -140,6 +235,7 @@ function QualifyModalContent({
             }
             onCompleted(updated);
         },
+        onLeadUpdated,
     });
 
     const walkSegments = flow.walkSegments;
@@ -163,10 +259,12 @@ function QualifyModalContent({
     const doClose = async (updated?: LeadQualification | null) => {
         await flow.flushPendingSaves();
         const q = updated ?? completedQualification;
+        // Close first so the parent unmounts on `open=false` — finishing the
+        // session must not clear tree/state while the modal is still "open".
+        onClose();
         if (q && onActionsDone) {
             onActionsDone(q);
         }
-        onClose();
     };
 
     const requestClose = () => {
@@ -414,6 +512,7 @@ function QualifyModalContent({
                                         qualificationService
                                     }
                                     registrationService={registrationService}
+                                    meetingTypes={meetingTypes ?? []}
                                     selectedOutcome={selectedOutcome}
                                     onSelectOutcome={setSelectedOutcome}
                                     onBack={handleBackFromOutcome}

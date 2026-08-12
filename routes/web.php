@@ -642,6 +642,7 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::patch('lead-qualifications/{qualification}/navigation', [LeadQualificationController::class, 'updateNavigation'])->name('lead-qualifications.navigation');
     Route::post('lead-qualifications/{qualification}/complete', [LeadQualificationController::class, 'complete'])->name('lead-qualifications.complete');
     Route::post('lead-qualifications/{qualification}/abandon', [LeadQualificationController::class, 'abandon'])->name('lead-qualifications.abandon');
+    Route::delete('lead-qualifications/{qualification}', [LeadQualificationController::class, 'destroy'])->name('lead-qualifications.destroy');
     Route::delete('lead-qualifications/{qualification}/branch-answers', [LeadQualificationController::class, 'clearBranchAnswers'])->name('lead-qualifications.clear-branch-answers');
     Route::post('lead-qualifications/{qualification}/actions/{actionRun}/execute', [LeadQualificationController::class, 'executeAction'])->name('lead-qualifications.actions.execute');
     Route::get('qualification-actions', [\App\Http\Controllers\Api\QualificationActionCatalogController::class, 'index'])->name('qualification-actions.index');

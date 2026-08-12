@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTd } from "@/Hooks/useDynamicTranslation";
 import type { TdFn } from "@/lib/dynamicTranslation";
+import { formatMobileForDisplay } from "@/lib/utils";
 import { parseCurrencyValue } from "./AnalysisCustomFieldForm";
+import { pipePhoneToPlain, plainPhoneToPipe } from "./inputs/fieldValueCodecs";
 import DateInput from "./inputs/DateInput";
 import SelectInput from "./inputs/SelectInput";
 import RadioInput from "./inputs/RadioInput";
@@ -108,7 +110,8 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
                 const [dial, num] = s.split("|");
                 return `${dial} ${num}`.trim();
             }
-            return s;
+            // Plain E.164 or legacy antd-phone-input JSON — never show raw JSON.
+            return formatMobileForDisplay(rawValue);
         }
 
         default:
@@ -117,6 +120,9 @@ function formatDisplay(type: string, rawValue: any, options: FieldOption[]): str
 }
 
 function toEditValue(type: string, rawValue: any): string | string[] {
+    if (type === "phone") {
+        return plainPhoneToPipe(rawValue);
+    }
     if (type === "currency") {
         const p = parseCurrencyValue(rawValue, "GBP");
         return `${p.currency}|${p.amount ?? ""}`;
@@ -231,6 +237,7 @@ export default function AnalysisCustomFieldRow({
     );
     const isEmpty = displayValue === "";
 
+    const isPhone = field.type === "phone";
     const isText = (TEXT_TYPES as readonly string[]).includes(field.type);
     const isMultiType = (MULTI_TYPES as readonly string[]).includes(field.type);
 
@@ -313,7 +320,9 @@ export default function AnalysisCustomFieldRow({
             {editing && (
                 <div
                     ref={editContainerRef}
-                    className="flex items-start gap-3 py-2 px-4"
+                    // Phone stacks: flag picker + number needs the full row width,
+                    // it doesn't fit beside a 130px label in a narrow panel.
+                    className={`flex py-2 px-4 ${isPhone ? "flex-col gap-1" : "items-start gap-3"}`}
                     onBlur={(e) => {
                         const rel = e.relatedTarget as Node | null;
                         if (e.currentTarget.contains(rel)) return;
@@ -326,8 +335,16 @@ export default function AnalysisCustomFieldRow({
                         setEditVal(toEditValue(field.type, rawValue));
                     }}
                 >
-                    <span className={LABEL_CLS + " pt-1.5"}>{field.label}</span>
-                    <div className="flex-1 min-w-0">
+                    <span
+                        className={
+                            isPhone
+                                ? "text-[11px] font-semibold uppercase tracking-wide text-slate-900"
+                                : LABEL_CLS + " pt-1.5"
+                        }
+                    >
+                        {field.label}
+                    </span>
+                    <div className={isPhone ? "w-full min-w-0" : "flex-1 min-w-0"}>
 
                         {/* Text / Number — explicit Save ↵ · Cancel */}
                         {isText && (
@@ -367,10 +384,10 @@ export default function AnalysisCustomFieldRow({
                                 <div ref={portalFieldWrapperRef}>
                                     <PhoneInput
                                         value={editVal as string}
-                                        onChange={(val) => { setEditVal(val); onChange?.(val || null); }}
+                                        onChange={(val) => { setEditVal(val); onChange?.(pipePhoneToPlain(val) || null); }}
                                     />
                                 </div>
-                                <SaveCancel onSave={() => commit()} onCancel={cancel} td={td} />
+                                <SaveCancel onSave={() => commit(pipePhoneToPlain(editVal as string))} onCancel={cancel} td={td} />
                             </>
                         )}
 

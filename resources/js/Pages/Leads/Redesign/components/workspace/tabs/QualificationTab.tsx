@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
     LeadQualification,
     TemplateTree,
@@ -15,16 +15,16 @@ import {
 } from "@/Pages/Leads/Components/Qualification/qualificationUtils";
 import { formatCompanyDateTime } from "@/lib/companyDateTime";
 import { useTd } from "@/Hooks/useDynamicTranslation";
-import { Button, EmptyState, Icon } from "@/Components/Redesign";
+import { Button, ConfirmDialog, EmptyState, Icon } from "@/Components/Redesign";
 import { DEAL_REDESIGN_TOKENS as T } from "@/Pages/Deals/Redesign/tokens";
 
 interface QualificationTabProps {
     current: LeadQualification | null;
     history: LeadQualification[];
     onStartQualify?: () => void;
-    onResumeQualify?: () => void;
+    onResumeQualify?: (qualification: LeadQualification) => void;
+    onDeleteQualify?: (qualification: LeadQualification) => Promise<boolean> | boolean;
     canStart?: boolean;
-    canResume?: boolean;
 }
 
 function collectRuns(
@@ -47,8 +47,8 @@ export default function QualificationTab({
     history,
     onStartQualify,
     onResumeQualify,
+    onDeleteQualify,
     canStart,
-    canResume,
 }: QualificationTabProps) {
     const { td } = useTd();
     const runs = useMemo(
@@ -57,6 +57,20 @@ export default function QualificationTab({
     );
     const [expandedId, setExpandedId] = useState<string | null>(() =>
         runs[0] ? String(runs[0].id) : null,
+    );
+    const treeCacheRef = useRef<Map<string, TemplateTree>>(new Map());
+    const [treeCacheVersion, setTreeCacheVersion] = useState(0);
+
+    const getCachedTree = useCallback((templateId: string) => {
+        return treeCacheRef.current.get(templateId) ?? null;
+    }, []);
+
+    const setCachedTree = useCallback(
+        (templateId: string, tree: TemplateTree) => {
+            treeCacheRef.current.set(templateId, tree);
+            setTreeCacheVersion((version) => version + 1);
+        },
+        [],
     );
 
     useEffect(() => {
@@ -96,6 +110,7 @@ export default function QualificationTab({
         (sum, run) => sum + (run.answers?.length ?? 0),
         0,
     );
+    const hasResumable = runs.some((run) => run.status === "inProgress");
 
     return (
         <div>
@@ -112,14 +127,9 @@ export default function QualificationTab({
                     {td("grouped by template", { source: "en" })}
                 </span>
                 <div className="flex items-center gap-2">
-                    {canResume && onResumeQualify ? (
-                        <Button variant="primary" onClick={onResumeQualify}>
-                            {td("Resume qualification", { source: "en" })}
-                        </Button>
-                    ) : null}
                     {canStart && onStartQualify ? (
                         <Button
-                            variant={canResume ? "ghost" : "primary"}
+                            variant={hasResumable ? "ghost" : "primary"}
                             onClick={onStartQualify}
                         >
                             {td("Start qualification", { source: "en" })}
@@ -169,12 +179,25 @@ export default function QualificationTab({
                                         expanded={
                                             expandedId === String(run.id)
                                         }
+                                        treeCacheVersion={treeCacheVersion}
+                                        getCachedTree={getCachedTree}
+                                        setCachedTree={setCachedTree}
                                         onToggle={() =>
                                             setExpandedId((currentId) =>
                                                 currentId === String(run.id)
                                                     ? null
                                                     : String(run.id),
                                             )
+                                        }
+                                        onResume={
+                                            onResumeQualify
+                                                ? () => onResumeQualify(run)
+                                                : undefined
+                                        }
+                                        onDelete={
+                                            onDeleteQualify
+                                                ? () => onDeleteQualify(run)
+                                                : undefined
                                         }
                                     />
                                 ))}
@@ -191,35 +214,59 @@ function QualificationRunCard({
     qualification,
     expanded,
     onToggle,
+    onResume,
+    onDelete,
+    treeCacheVersion,
+    getCachedTree,
+    setCachedTree,
 }: {
     qualification: LeadQualification;
     expanded: boolean;
     onToggle: () => void;
+    onResume?: () => void;
+    onDelete?: () => Promise<boolean> | boolean;
+    treeCacheVersion: number;
+    getCachedTree: (templateId: string) => TemplateTree | null;
+    setCachedTree: (templateId: string, tree: TemplateTree) => void;
 }) {
     const { td } = useTd();
     const templateService = useMemo(
         () => getQualificationTemplateService(),
         [],
     );
-    const [tree, setTree] = useState<TemplateTree | null>(null);
-    const [loading, setLoading] = useState(false);
+    const cachedTree = getCachedTree(qualification.template_id);
+    const [tree, setTree] = useState<TemplateTree | null>(cachedTree);
+    const [enhancing, setEnhancing] = useState(false);
+    const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
-        if (tree) return;
+        const fromCache = getCachedTree(qualification.template_id);
+        if (fromCache) {
+            setTree(fromCache);
+        }
+    }, [getCachedTree, qualification.template_id, treeCacheVersion]);
+
+    // Fetch the template tree only when expanded — answers render immediately
+    // from stored values, and the tree upgrades labels in place when ready.
+    useEffect(() => {
+        if (!expanded || tree) return;
         let cancelled = false;
 
         const load = async () => {
-            setLoading(true);
+            setEnhancing(true);
             try {
                 const response = await templateService.getTemplateTree(
                     qualification.template_id,
                     qualification.template_name,
                 );
-                if (!cancelled) setTree(response.data);
+                if (cancelled) return;
+                setTree(response.data);
+                setCachedTree(qualification.template_id, response.data);
             } catch {
-                if (!cancelled) setTree(null);
+                // Keep showing the raw-answer fallback; no empty-state flip.
             } finally {
-                if (!cancelled) setLoading(false);
+                if (!cancelled) setEnhancing(false);
             }
         };
 
@@ -228,8 +275,10 @@ function QualificationRunCard({
             cancelled = true;
         };
     }, [
+        expanded,
         qualification.template_id,
         qualification.template_name,
+        setCachedTree,
         templateService,
         tree,
     ]);
@@ -292,6 +341,7 @@ function QualificationRunCard({
         ),
     );
     const outcomeSummary = outcomeLabels.join(" · ");
+    const canResume = qualification.status === "inProgress" && Boolean(onResume);
 
     const statusTone =
         qualification.status === "completed"
@@ -312,6 +362,17 @@ function QualificationRunCard({
         border: "#bfdbfe",
     };
 
+    const handleDeleteConfirm = async () => {
+        if (!onDelete || deleting) return;
+        setDeleting(true);
+        try {
+            const ok = await onDelete();
+            if (ok) setConfirmDeleteOpen(false);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     return (
         <div
             className="rounded-xl overflow-hidden"
@@ -320,111 +381,135 @@ function QualificationRunCard({
                 background: "#fff",
             }}
         >
-            <button
-                type="button"
-                onClick={onToggle}
-                className="w-full text-left flex items-center gap-3 px-4 py-3.5 transition-colors"
+            <div
+                className="flex items-stretch gap-2 px-4 py-3.5"
                 style={{ background: T.SURFACE_2 }}
             >
-                <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                        <span
-                            className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold"
-                            style={{
-                                background: statusTone.bg,
-                                color: statusTone.color,
-                                border: `1px solid ${statusTone.border}`,
-                            }}
-                        >
-                            {statusLabel}
-                        </span>
-                        {mainAnswerDisplay ? (
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    className="flex-1 min-w-0 text-left flex items-center gap-3 transition-colors"
+                >
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
                             <span
-                                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold max-w-full"
+                                className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold"
                                 style={{
-                                    background: mainTone.bg,
-                                    color: mainTone.color,
-                                    border: `1px solid ${mainTone.border}`,
+                                    background: statusTone.bg,
+                                    color: statusTone.color,
+                                    border: `1px solid ${statusTone.border}`,
                                 }}
-                                title={mainAnswerDisplay}
                             >
-                                <span className="uppercase tracking-wide opacity-80 shrink-0">
-                                    {td("Main", { source: "en" })}
-                                </span>
-                                <span className="truncate">
-                                    {mainAnswerDisplay}
-                                </span>
+                                {statusLabel}
                             </span>
-                        ) : null}
-                        {outcomeSummary ? (
+                            {mainAnswerDisplay ? (
+                                <span
+                                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold max-w-full"
+                                    style={{
+                                        background: mainTone.bg,
+                                        color: mainTone.color,
+                                        border: `1px solid ${mainTone.border}`,
+                                    }}
+                                    title={mainAnswerDisplay}
+                                >
+                                    <span className="uppercase tracking-wide opacity-80 shrink-0">
+                                        {td("Main", { source: "en" })}
+                                    </span>
+                                    <span className="truncate">
+                                        {mainAnswerDisplay}
+                                    </span>
+                                </span>
+                            ) : null}
+                            {outcomeSummary ? (
+                                <span
+                                    className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold max-w-full"
+                                    style={{
+                                        background: outcomeTone.bg,
+                                        color: outcomeTone.color,
+                                        border: `1px solid ${outcomeTone.border}`,
+                                    }}
+                                    title={outcomeSummary}
+                                >
+                                    <span className="uppercase tracking-wide opacity-80 shrink-0">
+                                        {td("Outcome", { source: "en" })}
+                                    </span>
+                                    <span className="truncate">
+                                        {outcomeSummary}
+                                    </span>
+                                </span>
+                            ) : null}
                             <span
-                                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-bold max-w-full"
-                                style={{
-                                    background: outcomeTone.bg,
-                                    color: outcomeTone.color,
-                                    border: `1px solid ${outcomeTone.border}`,
-                                }}
-                                title={outcomeSummary}
+                                className="text-[12px] font-semibold tabular-nums"
+                                style={{ color: T.TEXT }}
                             >
-                                <span className="uppercase tracking-wide opacity-80 shrink-0">
-                                    {td("Outcome", { source: "en" })}
-                                </span>
-                                <span className="truncate">{outcomeSummary}</span>
+                                {answerCount} {td("answers", { source: "en" })}
                             </span>
-                        ) : null}
-                        <span
-                            className="text-[12px] font-semibold tabular-nums"
-                            style={{ color: T.TEXT }}
-                        >
-                            {answerCount} {td("answers", { source: "en" })}
-                        </span>
-                    </div>
-                    <div
-                        className="text-[12px]"
-                        style={{ color: T.TEXT_MUTED }}
-                    >
-                        {formatCompanyDateTime(when)}
-                        {qualification.agent?.name
-                            ? ` · ${qualification.agent.name}`
-                            : ""}
-                    </div>
-                    {qualification.outcome_comment?.trim() ? (
-                        <p
-                            className="mt-1.5 mb-0 text-[12px] italic line-clamp-2"
+                        </div>
+                        <div
+                            className="text-[12px]"
                             style={{ color: T.TEXT_MUTED }}
                         >
-                            “{qualification.outcome_comment.trim()}”
-                        </p>
+                            {formatCompanyDateTime(when)}
+                            {qualification.agent?.name
+                                ? ` · ${qualification.agent.name}`
+                                : ""}
+                        </div>
+                        {qualification.outcome_comment?.trim() ? (
+                            <p
+                                className="mt-1.5 mb-0 text-[12px] italic line-clamp-2"
+                                style={{ color: T.TEXT_MUTED }}
+                            >
+                                “{qualification.outcome_comment.trim()}”
+                            </p>
+                        ) : null}
+                    </div>
+                    <Icon
+                        name={expanded ? "chevron-up" : "chevron-down"}
+                        size={16}
+                    />
+                </button>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                    {canResume ? (
+                        <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                onResume?.();
+                            }}
+                        >
+                            {td("Resume", { source: "en" })}
+                        </Button>
+                    ) : null}
+                    {onDelete ? (
+                        <button
+                            type="button"
+                            aria-label={td("Delete run", { source: "en" })}
+                            title={td("Delete run", { source: "en" })}
+                            onClick={(event) => {
+                                event.stopPropagation();
+                                setConfirmDeleteOpen(true);
+                            }}
+                            className="inline-flex items-center justify-center w-9 h-9 rounded-lg border transition-colors"
+                            style={{
+                                borderColor: T.BORDER,
+                                background: "#fff",
+                                color: "#b91c1c",
+                            }}
+                        >
+                            <Icon name="trash" size={16} />
+                        </button>
                     ) : null}
                 </div>
-                <Icon
-                    name={expanded ? "chevron-up" : "chevron-down"}
-                    size={16}
-                />
-            </button>
+            </div>
 
             {expanded ? (
                 <div
                     className="px-4 py-4 flex flex-col gap-3"
                     style={{ borderTop: `1px solid ${T.BORDER}` }}
                 >
-                    {loading ? (
-                        <p
-                            className="m-0 text-sm"
-                            style={{ color: T.TEXT_HINT }}
-                        >
-                            {td("Loading answers…", { source: "en" })}
-                        </p>
-                    ) : questionSegments.length === 0 && !tree ? (
-                        <p
-                            className="m-0 text-sm"
-                            style={{ color: T.TEXT_HINT }}
-                        >
-                            {td("No captured answers.", { source: "en" })}
-                        </p>
-                    ) : questionSegments.length === 0 ? (
-                        <AnswerRowsFallback qualification={qualification} />
-                    ) : (
+                    {questionSegments.length > 0 ? (
                         questionSegments.map((segment, index) => {
                             const answer = answerMap[segment.key];
                             const answered = hasAnswerContent(answer);
@@ -534,14 +619,41 @@ function QualificationRunCard({
                                 </div>
                             );
                         })
+                    ) : (
+                        <AnswerRowsFallback qualification={qualification} />
                     )}
+                    {enhancing && questionSegments.length === 0 ? (
+                        <p
+                            className="m-0 text-[11px]"
+                            style={{ color: T.TEXT_HINT }}
+                        >
+                            {td("Loading question labels…", { source: "en" })}
+                        </p>
+                    ) : null}
                 </div>
             ) : null}
+
+            <ConfirmDialog
+                open={confirmDeleteOpen}
+                title={td("Delete qualification run?", { source: "en" })}
+                message={td(
+                    "This permanently removes the run and its answers. This cannot be undone.",
+                    { source: "en" },
+                )}
+                confirmLabel={td("Delete", { source: "en" })}
+                cancelLabel={td("Cancel", { source: "en" })}
+                danger
+                confirmLoading={deleting}
+                onConfirm={() => void handleDeleteConfirm()}
+                onCancel={() => {
+                    if (!deleting) setConfirmDeleteOpen(false);
+                }}
+            />
         </div>
     );
 }
 
-/** When the template tree can't load, still show raw stored answers. */
+/** When the template tree isn't ready yet, still show raw stored answers. */
 function AnswerRowsFallback({
     qualification,
 }: {
