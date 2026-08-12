@@ -1054,6 +1054,12 @@ class Module extends BaseModel
                     'is_custom' => 1,
                     'name' => 'manage_lead_custom_forms',
                 ],
+                [
+                    'allowed_permissions' => Permission::ALL_NONE,
+                    'display_name' => 'Manage Qualification Field Mapping',
+                    'is_custom' => 1,
+                    'name' => 'manage_qualification_mapping',
+                ],
 
                 [
                     'allowed_permissions' => Permission::ALL_ADDED_NONE,

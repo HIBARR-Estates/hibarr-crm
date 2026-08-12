@@ -647,6 +647,11 @@ Route::group(['middleware' => 'auth', 'prefix' => 'account'], function () {
     Route::post('lead-qualifications/{qualification}/actions/{actionRun}/execute', [LeadQualificationController::class, 'executeAction'])->name('lead-qualifications.actions.execute');
     Route::get('qualification-actions', [\App\Http\Controllers\Api\QualificationActionCatalogController::class, 'index'])->name('qualification-actions.index');
 
+    // Qualification script field mapping (settings page + its JSON endpoints)
+    Route::get('qualification-field-mapping', [\App\Http\Controllers\QualificationFieldMappingController::class, 'index'])->name('qualification-field-mapping.index');
+    Route::get('qualification-field-mapping/{templateId}', [\App\Http\Controllers\QualificationFieldMappingController::class, 'show'])->name('qualification-field-mapping.show');
+    Route::put('qualification-field-mapping/{templateId}', [\App\Http\Controllers\QualificationFieldMappingController::class, 'update'])->name('qualification-field-mapping.update');
+
     Route::get('lead-contact/{lead}/ai-summary', [LeadSummaryController::class, 'show'])->name('lead-contact.ai-summary');
     Route::post('lead-contact/{lead}/ai-summary/regenerate', [LeadSummaryController::class, 'regenerate'])->name('lead-contact.ai-summary.regenerate');
     Route::get('lead-contact/{lead}/custom-fields', [LeadContactController::class, 'getCustomFields'])->name('lead-contact.custom-fields');

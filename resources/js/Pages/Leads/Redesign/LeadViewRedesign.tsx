@@ -551,6 +551,9 @@ function LeadViewRedesignInner(props: LeadRedesignProps) {
                             return ok;
                         }}
                         onStartQualify={openTemplatePicker}
+                        onStartWithScript={(templateId) => {
+                            void handleTemplateSelect(templateId);
+                        }}
                     />
                 ) : (
                     <p style={{ margin: 0, color: "#9ca3af", fontSize: 13 }}>

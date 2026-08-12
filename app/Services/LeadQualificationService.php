@@ -12,6 +12,7 @@ use App\Models\LeadQualification;
 use App\Models\LeadQualificationActionRun;
 use App\Models\LeadQualificationAnswer;
 use App\Services\Qualification\QualificationActionCatalog;
+use App\Services\Qualification\QualificationLeadFieldWriter;
 use App\Services\Qualification\QualificationOutcomePolicy;
 use App\Traits\RecordsCrmEvents;
 use Illuminate\Support\Collection;
@@ -144,6 +145,10 @@ class LeadQualificationService
             $lead->save();
         }
 
+        // Write captured answers into the lead per the script's field mapping.
+        $qualification->load('answers');
+        $writtenFields = app(QualificationLeadFieldWriter::class)->apply($qualification, $lead);
+
         $this->recordCrmEvent('qualification_completed', $lead ?? $qualification, [
             'metadata' => [
                 'qualification_id' => $qualification->id,
@@ -154,6 +159,7 @@ class LeadQualificationService
                 'winning_outcome' => $winner->value,
                 'lifecycle_status_key' => $lifecycleKey,
                 'outcome_comment' => $qualification->outcome_comment,
+                'written_lead_fields' => $writtenFields,
                 'comment' => $this->outcomeComment($winner, $data),
             ],
         ]);
