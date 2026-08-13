@@ -75,7 +75,7 @@ class UnsEmailPayloadMapperTest extends TestCase
         $this->assertSame(999, $withoutResolverFallback['userId']);
     }
 
-    public function test_it_generates_deterministic_idempotency_key(): void
+    public function test_it_generates_idempotency_key_from_recipient_subject_body_and_time(): void
     {
         $mapper = new StubUnsEmailPayloadMapper([], null);
 
@@ -85,11 +85,64 @@ class UnsEmailPayloadMapperTest extends TestCase
             ->subject('Subject')
             ->html('<p>Body</p>');
 
-        $first = $mapper->map($email);
-        $second = $mapper->map($email);
+        $at = 1_700_000_000;
+        $expected = 'crm-email-' . sha1('external@example.com|Subject|<p>Body</p>|' . $at);
 
-        $this->assertSame($first['idempotencyKey'], $second['idempotencyKey']);
-        $this->assertStringStartsWith('crm-email-', $first['idempotencyKey']);
+        $this->travelTo(now()->setTimestamp($at));
+        $payload = $mapper->map($email);
+
+        $this->assertSame($expected, $payload['idempotencyKey']);
+    }
+
+    public function test_template_idempotency_key_uses_template_id_and_time(): void
+    {
+        $mapper = new StubUnsEmailPayloadMapper([], null);
+
+        $email = (new Email())
+            ->from('sender@test.local')
+            ->to('owner@example.com')
+            ->subject('Lead owner assigned - CRM')
+            ->html('<p>unused</p>');
+        $email->getHeaders()->addTextHeader('X-Plunk-Template-Id', 'tpl-lead-owner');
+        $email->getHeaders()->addTextHeader(
+            'X-Plunk-Template-Variables',
+            base64_encode((string) json_encode(['leadName' => 'Alice']))
+        );
+
+        $at = 1_700_000_100;
+        $expected = 'crm-email-' . sha1('owner@example.com|Lead owner assigned - CRM|tpl-lead-owner|' . $at);
+
+        $this->travelTo(now()->setTimestamp($at));
+        $payload = $mapper->map($email);
+
+        $this->assertSame($expected, $payload['idempotencyKey']);
+    }
+
+    public function test_idempotency_key_changes_when_time_changes(): void
+    {
+        $mapper = new StubUnsEmailPayloadMapper([], null);
+
+        $firstEmail = (new Email())
+            ->from('sender@test.local')
+            ->to('owner@example.com')
+            ->subject('Lead owner assigned - CRM')
+            ->html('<p>unused</p>');
+        $firstEmail->getHeaders()->addTextHeader('X-Plunk-Template-Id', 'tpl-lead-owner');
+
+        $secondEmail = (new Email())
+            ->from('sender@test.local')
+            ->to('owner@example.com')
+            ->subject('Lead owner assigned - CRM')
+            ->html('<p>unused</p>');
+        $secondEmail->getHeaders()->addTextHeader('X-Plunk-Template-Id', 'tpl-lead-owner');
+
+        $this->travelTo(now()->setTimestamp(1_700_000_200));
+        $first = $mapper->map($firstEmail);
+
+        $this->travelTo(now()->setTimestamp(1_700_000_201));
+        $second = $mapper->map($secondEmail);
+
+        $this->assertNotSame($first['idempotencyKey'], $second['idempotencyKey']);
     }
 
     public function test_it_prefers_custom_idempotency_header(): void
