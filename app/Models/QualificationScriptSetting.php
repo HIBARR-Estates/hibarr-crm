@@ -18,6 +18,7 @@ class QualificationScriptSetting extends BaseModel
         'template_id',
         'template_name',
         'auto_write',
+        'webinar_id',
     ];
 
     protected $casts = [
